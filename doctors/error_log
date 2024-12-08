@@ -1,0 +1,259 @@
+[24-Feb-2023 02:41:05 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[24-Feb-2023 02:41:05 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[24-Feb-2023 02:44:38 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[24-Feb-2023 02:44:38 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[25-Feb-2023 02:03:13 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[25-Feb-2023 02:03:13 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[25-Feb-2023 02:06:14 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[25-Feb-2023 02:06:14 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[25-Feb-2023 02:14:46 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[25-Feb-2023 02:14:46 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[25-Feb-2023 02:16:21 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[25-Feb-2023 02:16:21 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 05:30:33 America/Chicago] PHP Warning:  Undefined variable $diseasesList in /home/healthte/public_html/grays/doctors/diseases.php on line 24
+[05-Mar-2023 05:30:33 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/diseases.php on line 24
+[05-Mar-2023 05:43:12 America/Chicago] PHP Fatal error:  Uncaught TypeError: Unsupported operand types: string - string in /home/healthte/public_html/grays/doctors/autosuggestdrug.php:39
+Stack trace:
+#0 {main}
+  thrown in /home/healthte/public_html/grays/doctors/autosuggestdrug.php on line 39
+[05-Mar-2023 05:43:13 America/Chicago] PHP Fatal error:  Uncaught TypeError: Unsupported operand types: string - string in /home/healthte/public_html/grays/doctors/autosuggestdrug.php:39
+Stack trace:
+#0 {main}
+  thrown in /home/healthte/public_html/grays/doctors/autosuggestdrug.php on line 39
+[05-Mar-2023 05:43:13 America/Chicago] PHP Fatal error:  Uncaught TypeError: Unsupported operand types: string - string in /home/healthte/public_html/grays/doctors/autosuggestdrug.php:39
+Stack trace:
+#0 {main}
+  thrown in /home/healthte/public_html/grays/doctors/autosuggestdrug.php on line 39
+[05-Mar-2023 05:43:14 America/Chicago] PHP Fatal error:  Uncaught TypeError: Unsupported operand types: string - string in /home/healthte/public_html/grays/doctors/autosuggestdrug.php:39
+Stack trace:
+#0 {main}
+  thrown in /home/healthte/public_html/grays/doctors/autosuggestdrug.php on line 39
+[05-Mar-2023 05:43:17 America/Chicago] PHP Fatal error:  Uncaught TypeError: Unsupported operand types: string - string in /home/healthte/public_html/grays/doctors/autosuggestdrug.php:39
+Stack trace:
+#0 {main}
+  thrown in /home/healthte/public_html/grays/doctors/autosuggestdrug.php on line 39
+[05-Mar-2023 06:21:31 America/Chicago] PHP Warning:  Undefined variable $diseasesList in /home/healthte/public_html/grays/doctors/diseases.php on line 24
+[05-Mar-2023 06:21:31 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/diseases.php on line 24
+[05-Mar-2023 13:49:31 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 13:49:31 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 14:15:02 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 14:15:02 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 14:16:10 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 14:16:10 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 14:55:25 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 14:55:25 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 14:55:34 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 14:55:34 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 14:57:39 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 14:57:39 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 15:00:38 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 15:00:38 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 15:08:41 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 15:08:41 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 15:20:25 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 15:20:25 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 15:22:59 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 15:22:59 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 15:26:29 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 15:26:29 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 15:33:57 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 15:33:57 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 15:52:09 America/Chicago] PHP Warning:  Undefined array key "done_by" in /home/healthte/public_html/grays/doctors/save_edited_charge.php on line 8
+[05-Mar-2023 15:52:09 America/Chicago] PHP Warning:  Undefined array key "done_by" in /home/healthte/public_html/grays/doctors/save_edited_charge.php on line 8
+[05-Mar-2023 16:11:38 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 16:11:38 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[05-Mar-2023 23:06:56 America/Chicago] PHP Warning:  Undefined array key "response" in /home/healthte/public_html/grays/doctors/admitted.php on line 141
+[05-Mar-2023 23:07:49 America/Chicago] PHP Warning:  Undefined array key "response" in /home/healthte/public_html/grays/doctors/admitted.php on line 141
+[05-Mar-2023 23:08:07 America/Chicago] PHP Warning:  Undefined array key "response" in /home/healthte/public_html/grays/doctors/admitted.php on line 141
+[05-Mar-2023 23:11:35 America/Chicago] PHP Warning:  Undefined array key "response" in /home/healthte/public_html/grays/doctors/admitted.php on line 141
+[05-Mar-2023 23:13:34 America/Chicago] PHP Warning:  Undefined array key "response" in /home/healthte/public_html/grays/doctors/admitted.php on line 141
+[05-Mar-2023 23:18:10 America/Chicago] PHP Warning:  Undefined array key "response" in /home/healthte/public_html/grays/doctors/admitted.php on line 141
+[05-Mar-2023 23:18:51 America/Chicago] PHP Warning:  Undefined array key "response" in /home/healthte/public_html/grays/doctors/admitted.php on line 141
+[05-Mar-2023 23:23:56 America/Chicago] PHP Warning:  Undefined array key "response" in /home/healthte/public_html/grays/doctors/admitted.php on line 141
+[05-Mar-2023 23:25:34 America/Chicago] PHP Warning:  Undefined array key "response" in /home/healthte/public_html/grays/doctors/admitted.php on line 141
+[05-Mar-2023 23:31:32 America/Chicago] PHP Warning:  Undefined array key "response" in /home/healthte/public_html/grays/doctors/admitted.php on line 141
+[05-Mar-2023 23:31:42 America/Chicago] PHP Warning:  Undefined array key "response" in /home/healthte/public_html/grays/doctors/admitted.php on line 141
+[05-Mar-2023 23:32:06 America/Chicago] PHP Warning:  Undefined array key "response" in /home/healthte/public_html/grays/doctors/admitted.php on line 141
+[06-Mar-2023 00:03:39 America/Chicago] PHP Warning:  Undefined array key "response" in /home/healthte/public_html/grays/doctors/admitted.php on line 141
+[06-Mar-2023 00:10:06 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 00:10:06 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 00:10:13 America/Chicago] PHP Fatal error:  Uncaught ArgumentCountError: time() expects exactly 0 arguments, 1 given in /home/healthte/public_html/grays/doctors/discharge.php:57
+Stack trace:
+#0 /home/healthte/public_html/grays/doctors/discharge.php(57): time('Y/m/d')
+#1 {main}
+  thrown in /home/healthte/public_html/grays/doctors/discharge.php on line 57
+[06-Mar-2023 00:11:02 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 00:11:02 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 00:43:22 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 00:43:22 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 00:47:45 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 00:47:45 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 00:52:10 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 00:52:10 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 01:21:34 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 01:21:34 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 01:21:45 America/Chicago] PHP Fatal error:  Uncaught ArgumentCountError: time() expects exactly 0 arguments, 1 given in /home/healthte/public_html/grays/doctors/discharge.php:57
+Stack trace:
+#0 /home/healthte/public_html/grays/doctors/discharge.php(57): time('Y/m/d')
+#1 {main}
+  thrown in /home/healthte/public_html/grays/doctors/discharge.php on line 57
+[06-Mar-2023 01:31:11 America/Chicago] PHP Fatal error:  Uncaught ArgumentCountError: time() expects exactly 0 arguments, 1 given in /home/healthte/public_html/grays/doctors/discharge_meds.php:148
+Stack trace:
+#0 /home/healthte/public_html/grays/doctors/discharge_meds.php(148): time('Y/m/d')
+#1 {main}
+  thrown in /home/healthte/public_html/grays/doctors/discharge_meds.php on line 148
+[06-Mar-2023 01:43:23 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 01:43:23 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 02:10:10 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[06-Mar-2023 02:10:10 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[07-Mar-2023 15:17:39 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[07-Mar-2023 15:17:39 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[07-Mar-2023 16:16:36 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[07-Mar-2023 16:16:36 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[07-Mar-2023 18:36:04 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[07-Mar-2023 18:36:04 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[07-Mar-2023 18:37:16 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[07-Mar-2023 18:37:16 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[07-Mar-2023 18:42:12 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[07-Mar-2023 18:42:12 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 07:57:09 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 07:57:09 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 08:40:37 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 08:40:37 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 08:49:40 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 08:49:40 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 12:33:14 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 12:33:14 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 12:33:19 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 12:33:19 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 12:33:34 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 12:33:34 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 12:59:03 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 12:59:03 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 13:23:06 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 13:23:06 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 14:18:41 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 14:18:41 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 14:52:07 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 14:52:07 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 15:32:07 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 15:32:07 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 15:33:49 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 15:33:49 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 15:34:12 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 15:34:12 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 15:51:20 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 15:51:20 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 15:51:20 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 15:51:20 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 15:55:21 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 15:55:21 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 15:57:53 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 15:57:53 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 16:01:21 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 16:01:21 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 16:03:45 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[08-Mar-2023 16:03:45 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[12-Mar-2023 04:49:46 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[12-Mar-2023 04:49:46 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[12-Mar-2023 04:50:31 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[12-Mar-2023 04:50:31 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[12-Mar-2023 04:50:57 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[12-Mar-2023 04:50:57 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[12-Mar-2023 05:28:56 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[12-Mar-2023 05:28:56 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[12-Mar-2023 05:37:08 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[12-Mar-2023 05:37:08 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[13-Mar-2023 01:06:23 America/Chicago] PHP Warning:  Undefined variable $diseasesList in /home/healthte/public_html/grays/doctors/diseases.php on line 24
+[13-Mar-2023 01:06:23 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/diseases.php on line 24
+[13-Mar-2023 01:38:37 America/Chicago] PHP Warning:  Undefined array key "id" in /home/healthte/public_html/grays/doctors/change.php on line 4
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:24:59 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:10 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[13-Mar-2023 02:25:19 America/Chicago] PHP Warning:  Undefined variable $ref_id in /home/healthte/public_html/grays/doctors/lab_result.php on line 28
+[28-Jul-2023 03:54:55 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[28-Jul-2023 03:54:55 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[28-Jul-2023 09:01:46 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[28-Jul-2023 09:01:46 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[28-Jul-2023 10:59:58 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[28-Jul-2023 10:59:58 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[28-Jul-2023 11:10:13 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[28-Jul-2023 11:10:13 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[20-May-2024 09:58:29 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[20-May-2024 09:58:29 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[20-May-2024 10:03:27 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[20-May-2024 10:03:27 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[17-Sep-2024 09:39:24 America/Chicago] PHP Warning:  Undefined variable $patientList in /home/healthte/public_html/grays/doctors/patient.php on line 25
+[17-Sep-2024 09:39:24 America/Chicago] PHP Warning:  foreach() argument must be of type array|object, null given in /home/healthte/public_html/grays/doctors/patient.php on line 25

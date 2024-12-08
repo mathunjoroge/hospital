@@ -1,0 +1,290 @@
+[12-Oct-2021 12:13:45 America/Chicago] PHP Warning:  pg_connect(): Unable to connect to PostgreSQL server: could not connect to server: Connection refused
+	Is the server running on host &quot;192.64.117.156&quot; and accepting
+	TCP/IP connections on port 5432? in /home/healthte/public_html/hospital/drugbank/db_connect.php on line 2
+[12-Oct-2021 12:13:45 America/Chicago] PHP Warning:  pg_query() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/hospital/drugbank/index.php on line 58
+[12-Oct-2021 12:13:45 America/Chicago] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, null given in /home/healthte/public_html/hospital/drugbank/index.php on line 59
+[06-Nov-2021 23:34:17 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: ...M drugbank.public.struct2drgclass WHERE struct_id =  LIMIT 1
+                                                                ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 49
+[06-Nov-2021 23:34:17 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 50
+[06-Nov-2021 23:34:17 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: ...OM drugbank.public.struct2drgclass WHERE struct_id = LIMIT 1
+                                                                ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 57
+[06-Nov-2021 23:34:17 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 58
+[06-Nov-2021 23:34:17 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: SELECT * FROM drugbank.public.drug_class WHERE id =  LIMIT 1
+                                                             ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 65
+[06-Nov-2021 23:34:17 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 66
+[06-Nov-2021 23:34:17 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: SELECT * FROM drugbank.public.drug_class WHERE id = LIMIT 1
+                                                            ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 74
+[06-Nov-2021 23:34:17 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 75
+[06-Nov-2021 23:34:17 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.ddi&quot;
+LINE 1: SELECT * FROM drugbank.public.ddi WHERE (drug_class1='' AND ...
+                      ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 80
+[06-Nov-2021 23:34:17 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 81
+[08-Nov-2021 10:00:41 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: ...M drugbank.public.struct2drgclass WHERE struct_id =  LIMIT 1
+                                                                ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 50
+[08-Nov-2021 10:00:41 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 51
+[08-Nov-2021 10:00:41 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: ...OM drugbank.public.struct2drgclass WHERE struct_id = LIMIT 1
+                                                                ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 58
+[08-Nov-2021 10:00:41 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 59
+[08-Nov-2021 10:00:41 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: SELECT * FROM drugbank.public.drug_class WHERE id =  LIMIT 1
+                                                             ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 66
+[08-Nov-2021 10:00:41 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 67
+[08-Nov-2021 10:00:41 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: SELECT * FROM drugbank.public.drug_class WHERE id = LIMIT 1
+                                                            ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 75
+[08-Nov-2021 10:00:41 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 76
+[08-Nov-2021 10:00:41 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.ddi&quot;
+LINE 1: SELECT * FROM drugbank.public.ddi WHERE (drug_class1='' AND ...
+                      ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 81
+[08-Nov-2021 10:00:41 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 82
+[08-Nov-2021 10:00:58 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: ...M drugbank.public.struct2drgclass WHERE struct_id =  LIMIT 1
+                                                                ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 50
+[08-Nov-2021 10:00:58 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 51
+[08-Nov-2021 10:00:58 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: ...OM drugbank.public.struct2drgclass WHERE struct_id = LIMIT 1
+                                                                ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 58
+[08-Nov-2021 10:00:58 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 59
+[08-Nov-2021 10:00:58 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: SELECT * FROM drugbank.public.drug_class WHERE id =  LIMIT 1
+                                                             ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 66
+[08-Nov-2021 10:00:58 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 67
+[08-Nov-2021 10:00:58 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: SELECT * FROM drugbank.public.drug_class WHERE id = LIMIT 1
+                                                            ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 75
+[08-Nov-2021 10:00:58 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 76
+[08-Nov-2021 10:00:58 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.ddi&quot;
+LINE 1: SELECT * FROM drugbank.public.ddi WHERE (drug_class1='' AND ...
+                      ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 81
+[08-Nov-2021 10:00:58 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 82
+[08-Nov-2021 10:01:41 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: ...M drugbank.public.struct2drgclass WHERE struct_id =  LIMIT 1
+                                                                ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 46
+[08-Nov-2021 10:01:41 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 47
+[08-Nov-2021 10:01:41 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: ...OM drugbank.public.struct2drgclass WHERE struct_id = LIMIT 1
+                                                                ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 54
+[08-Nov-2021 10:01:41 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 55
+[08-Nov-2021 10:01:41 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: SELECT * FROM drugbank.public.drug_class WHERE id =  LIMIT 1
+                                                             ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 62
+[08-Nov-2021 10:01:41 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 63
+[08-Nov-2021 10:01:41 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: SELECT * FROM drugbank.public.drug_class WHERE id = LIMIT 1
+                                                            ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 71
+[08-Nov-2021 10:01:41 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 72
+[08-Nov-2021 10:01:41 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.ddi&quot;
+LINE 1: SELECT * FROM drugbank.public.ddi WHERE (drug_class1='' AND ...
+                      ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 77
+[08-Nov-2021 10:01:41 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 78
+[08-Nov-2021 10:03:25 Africa/Cairo] PHP Warning:  include(side.php): failed to open stream: No such file or directory in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 7
+[08-Nov-2021 10:03:25 Africa/Cairo] PHP Warning:  include(side.php): failed to open stream: No such file or directory in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 7
+[08-Nov-2021 10:03:25 Africa/Cairo] PHP Warning:  include(): Failed opening 'side.php' for inclusion (include_path='.:/opt/alt/php72/usr/share/pear') in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 7
+[08-Nov-2021 10:03:25 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: ...M drugbank.public.struct2drgclass WHERE struct_id =  LIMIT 1
+                                                                ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 49
+[08-Nov-2021 10:03:25 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 50
+[08-Nov-2021 10:03:25 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: ...OM drugbank.public.struct2drgclass WHERE struct_id = LIMIT 1
+                                                                ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 57
+[08-Nov-2021 10:03:25 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 58
+[08-Nov-2021 10:03:25 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: SELECT * FROM drugbank.public.drug_class WHERE id =  LIMIT 1
+                                                             ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 65
+[08-Nov-2021 10:03:25 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 66
+[08-Nov-2021 10:03:25 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;LIMIT&quot;
+LINE 1: SELECT * FROM drugbank.public.drug_class WHERE id = LIMIT 1
+                                                            ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 74
+[08-Nov-2021 10:03:25 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 75
+[08-Nov-2021 10:03:25 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.ddi&quot;
+LINE 1: SELECT * FROM drugbank.public.ddi WHERE (drug_class1='' AND ...
+                      ^ in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 80
+[08-Nov-2021 10:03:25 Africa/Cairo] PHP Warning:  pg_fetch_object() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 81
+[08-Nov-2021 10:04:06 Africa/Cairo] PHP Warning:  include(side.php): failed to open stream: No such file or directory in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 17
+[08-Nov-2021 10:04:06 Africa/Cairo] PHP Warning:  include(side.php): failed to open stream: No such file or directory in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 17
+[08-Nov-2021 10:04:06 Africa/Cairo] PHP Warning:  include(): Failed opening 'side.php' for inclusion (include_path='.:/opt/alt/php72/usr/share/pear') in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 17
+[08-Nov-2021 10:05:57 Africa/Cairo] PHP Warning:  include(side.php): failed to open stream: No such file or directory in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 17
+[08-Nov-2021 10:05:57 Africa/Cairo] PHP Warning:  include(side.php): failed to open stream: No such file or directory in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 17
+[08-Nov-2021 10:05:57 Africa/Cairo] PHP Warning:  include(): Failed opening 'side.php' for inclusion (include_path='.:/opt/alt/php72/usr/share/pear') in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 17
+[08-Nov-2021 10:06:24 Africa/Cairo] PHP Warning:  include(side.php): failed to open stream: No such file or directory in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 17
+[08-Nov-2021 10:06:24 Africa/Cairo] PHP Warning:  include(side.php): failed to open stream: No such file or directory in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 17
+[08-Nov-2021 10:06:24 Africa/Cairo] PHP Warning:  include(): Failed opening 'side.php' for inclusion (include_path='.:/opt/alt/php72/usr/share/pear') in /home/healthte/public_html/jootrh/drugbank/interractions.php on line 17
+[08-Nov-2021 10:18:56 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/patient.php on line 25
+[08-Nov-2021 10:19:05 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/patient.php on line 25
+[08-Nov-2021 10:25:37 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:25:37 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:25:37 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:25:40 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:25:40 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:25:40 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:25:43 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:25:43 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:25:43 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:25:46 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:25:46 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:25:46 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:26:59 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:26:59 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:26:59 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:26:59 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:26:59 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:26:59 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:27:02 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:27:02 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:27:02 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:27:02 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:27:02 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:27:02 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:27:04 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:27:04 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:27:04 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:27:05 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:27:05 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:27:05 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:27:05 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:27:05 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:27:05 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:27:08 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:27:08 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:27:08 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:27:09 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:27:09 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:27:09 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:28:44 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/patient.php on line 25
+[08-Nov-2021 10:34:30 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:34:30 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:34:30 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:34:33 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:34:33 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:34:33 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:34:33 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:34:33 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:34:33 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:34:36 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:34:36 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:34:36 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:34:36 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:34:36 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:34:36 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:34:39 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  cross-database references are not implemented: &quot;drugbank.public.active_ingredient&quot;
+LINE 1: SELECT active_moiety_name,struct_id FROM drugbank.public.act...
+                                                 ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:34:39 Africa/Cairo] PHP Warning:  pg_fetch_all() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:34:39 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 13
+[08-Nov-2021 10:58:24 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;.&quot;
+LINE 1: ...ctive_ingredient WHERE active_moiety_name LIKE '%'.diclofena...
+                                                             ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:58:24 Africa/Cairo] PHP Warning:  pg_fetch_assoc() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 10:59:06 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;.&quot;
+LINE 1: ...ctive_ingredient WHERE active_moiety_name LIKE '%'.diclofena...
+                                                             ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 7
+[08-Nov-2021 10:59:06 Africa/Cairo] PHP Warning:  pg_fetch_assoc() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 10:59:39 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;.&quot;
+LINE 1: ...tive_ingredient WHERE active_moiety_name ILIKE '%'.diclofena...
+                                                             ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 7
+[08-Nov-2021 10:59:39 Africa/Cairo] PHP Warning:  pg_fetch_assoc() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 11:05:35 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/patient.php on line 25
+[08-Nov-2021 11:06:01 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/patient.php on line 25
+[08-Nov-2021 11:06:04 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/patient.php on line 25
+[08-Nov-2021 11:07:41 Africa/Cairo] PHP Warning:  Invalid argument supplied for foreach() in /home/healthte/public_html/jootrh/drugbank/patient.php on line 25
+[08-Nov-2021 11:16:19 Africa/Cairo] PHP Fatal error:  Uncaught Error: Call to undefined function json() in /home/healthte/public_html/jootrh/drugbank/get_drug.php:10
+Stack trace:
+#0 {main}
+  thrown in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 10
+[08-Nov-2021 11:17:31 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;.&quot;
+LINE 1: ...ctive_ingredient WHERE active_moiety_name LIKE '%'.diclofena...
+                                                             ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 7
+[08-Nov-2021 11:17:31 Africa/Cairo] PHP Warning:  pg_fetch_assoc() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 11:18:46 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;.&quot;
+LINE 1: ...ctive_ingredient WHERE active_moiety_name LIKE '%'.diclofena...
+                                                             ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 7
+[08-Nov-2021 11:18:46 Africa/Cairo] PHP Warning:  pg_fetch_assoc() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 11:19:43 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;.&quot;
+LINE 1: ...ctive_ingredient WHERE active_moiety_name LIKE '%'.diclofena...
+                                                             ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 11:19:43 Africa/Cairo] PHP Warning:  pg_fetch_assoc() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 9
+[08-Nov-2021 11:20:42 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;.&quot;
+LINE 1: ...ctive_ingredient WHERE active_moiety_name LIKE '%'.diclofena...
+                                                             ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 7
+[08-Nov-2021 11:20:42 Africa/Cairo] PHP Warning:  pg_fetch_assoc() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 11:26:28 Africa/Cairo] PHP Fatal error:  Maximum execution time of 30 seconds exceeded in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 11:35:16 Africa/Cairo] PHP Warning:  Illegal string offset 'id' in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 15
+[08-Nov-2021 11:35:16 Africa/Cairo] PHP Warning:  Illegal string offset 'text' in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 16
+[08-Nov-2021 11:35:16 Africa/Cairo] PHP Warning:  Illegal string offset 'id' in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 15
+[08-Nov-2021 11:35:16 Africa/Cairo] PHP Warning:  Illegal string offset 'text' in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 16
+[08-Nov-2021 12:22:52 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;diclofe&quot;
+LINE 1: ...e_ingredient WHERE active_moiety_name ILIKE ''%'.'diclofe'.'...
+                                                             ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 7
+[08-Nov-2021 12:22:52 Africa/Cairo] PHP Warning:  pg_fetch_assoc() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 12:25:06 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  syntax error at or near &quot;.&quot;
+LINE 1: ...tive_ingredient WHERE active_moiety_name ILIKE '%'.diclofe.'...
+                                                             ^ in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 7
+[08-Nov-2021 12:25:06 Africa/Cairo] PHP Warning:  pg_fetch_assoc() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[08-Nov-2021 12:26:25 Africa/Cairo] PHP Warning:  pg_query(): Query failed: ERROR:  operator is not unique: unknown % unknown
+LINE 1: ...ctive_ingredient WHERE active_moiety_name ILIKE ''%'.diclofe...
+                                                             ^
+HINT:  Could not choose a best candidate operator. You might need to add explicit type casts. in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 7
+[08-Nov-2021 12:26:25 Africa/Cairo] PHP Warning:  pg_fetch_assoc() expects parameter 1 to be resource, boolean given in /home/healthte/public_html/jootrh/drugbank/get_drug.php on line 8
+[12-Nov-2022 16:41:08 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 202
+[12-Nov-2022 18:28:10 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 202
+[12-Nov-2022 18:31:04 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 202
+[12-Nov-2022 18:32:03 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 202
+[12-Nov-2022 18:33:59 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 202
+[12-Nov-2022 18:37:01 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 202
+[12-Nov-2022 18:39:33 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 202
+[12-Nov-2022 18:40:31 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 202
+[12-Nov-2022 18:42:10 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 202
+[12-Nov-2022 18:43:07 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 202
+[12-Nov-2022 18:58:31 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 166
+[12-Nov-2022 18:59:50 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 168
+[12-Nov-2022 19:00:22 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 204
+[12-Nov-2022 19:01:37 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 202
+[12-Nov-2022 19:03:25 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 201
+[12-Nov-2022 19:06:11 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 198
+[12-Nov-2022 19:07:28 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 199
+[12-Nov-2022 19:11:49 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 194
+[12-Nov-2022 19:12:34 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 194
+[13-Nov-2022 08:03:56 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 194
+[13-Nov-2022 08:05:07 Africa/Nairobi] PHP Warning:  Undefined array key "structure" in /home/healthte/public_html/jootrh/drugbank/details.php on line 194

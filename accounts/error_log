@@ -1,0 +1,6 @@
+[28-Jul-2023 12:56:05 America/Chicago] PHP Fatal error:  Uncaught PDOException: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens in /home/healthte/public_html/grays/accounts/interim.php:336
+Stack trace:
+#0 /home/healthte/public_html/grays/accounts/interim.php(336): PDOStatement->execute()
+#1 {main}
+  thrown in /home/healthte/public_html/grays/accounts/interim.php on line 336
+[23-Feb-2024 06:49:26 America/Chicago] PHP Warning:  Undefined array key "token" in /home/healthte/public_html/grays/accounts/savepay.php on line 64

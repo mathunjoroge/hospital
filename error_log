@@ -1,0 +1,28 @@
+[20-May-2024 09:51:42 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/login.php on line 27
+[20-May-2024 09:51:42 America/Chicago] PHP Warning:  Trying to access array offset on value of type null in /home/healthte/public_html/grays/login.php on line 27
+[20-May-2024 09:56:51 America/Chicago] PHP Warning:  Undefined array key "username" in /home/healthte/public_html/grays/login.php on line 17
+[20-May-2024 09:56:51 America/Chicago] PHP Warning:  Undefined array key "password" in /home/healthte/public_html/grays/login.php on line 18
+[20-May-2024 09:56:52 America/Chicago] PHP Warning:  Undefined variable $errmsg_arr in /home/healthte/public_html/grays/login.php on line 31
+[20-May-2024 09:56:52 America/Chicago] PHP Warning:  Cannot modify header information - headers already sent by (output started at /home/healthte/public_html/grays/login.php:22) in /home/healthte/public_html/grays/login.php on line 33
+[20-May-2024 09:57:38 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[20-May-2024 09:58:12 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[04-Jul-2024 11:38:04 America/Chicago] PHP Warning:  Undefined array key "username" in /home/healthte/public_html/grays/login.php on line 17
+[04-Jul-2024 11:38:04 America/Chicago] PHP Warning:  Undefined array key "password" in /home/healthte/public_html/grays/login.php on line 18
+[04-Jul-2024 11:38:04 America/Chicago] PHP Warning:  Undefined variable $errmsg_arr in /home/healthte/public_html/grays/login.php on line 31
+[04-Jul-2024 11:38:04 America/Chicago] PHP Warning:  Cannot modify header information - headers already sent by (output started at /home/healthte/public_html/grays/login.php:22) in /home/healthte/public_html/grays/login.php on line 33
+[16-Jul-2024 12:15:54 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[16-Jul-2024 12:51:45 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[16-Jul-2024 12:52:12 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[16-Jul-2024 12:52:44 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[06-Sep-2024 13:49:09 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[06-Sep-2024 13:49:36 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[06-Sep-2024 13:50:12 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[06-Sep-2024 13:50:17 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[06-Sep-2024 13:50:53 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[06-Sep-2024 13:52:07 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[06-Sep-2024 13:52:36 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[17-Sep-2024 09:35:47 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[17-Sep-2024 09:36:07 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[17-Sep-2024 09:38:22 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[17-Sep-2024 09:39:15 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2
+[08-Dec-2024 08:30:55 America/Chicago] PHP Warning:  Undefined variable $_SESSION in /home/healthte/public_html/grays/redirect.php on line 2

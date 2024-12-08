@@ -1,0 +1,61 @@
+[08-Mar-2023 08:40:35 America/Chicago] PHP Warning:  Undefined array key "token" in /home/healthte/public_html/grays/pharmacy/index.php on line 4
+[08-Mar-2023 08:40:35 America/Chicago] PHP Warning:  Undefined array key "token" in /home/healthte/public_html/grays/pharmacy/index.php on line 68
+[08-Mar-2023 08:57:30 America/Chicago] PHP Fatal error:  Uncaught PDOException: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens in /home/healthte/public_html/grays/pharmacy/waiting.php:86
+Stack trace:
+#0 /home/healthte/public_html/grays/pharmacy/waiting.php(86): PDOStatement->execute()
+#1 {main}
+  thrown in /home/healthte/public_html/grays/pharmacy/waiting.php on line 86
+[16-Mar-2023 08:16:06 America/Chicago] PHP Warning:  Undefined variable $admitted in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[16-Mar-2023 08:16:06 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[16-Mar-2023 08:16:06 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[16-Mar-2023 08:16:06 America/Chicago] PHP Warning:  Undefined variable $admitted in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[17-Mar-2023 11:18:54 America/Chicago] PHP Warning:  Undefined array key "token" in /home/healthte/public_html/grays/pharmacy/index.php on line 4
+[17-Mar-2023 11:18:54 America/Chicago] PHP Warning:  Undefined array key "token" in /home/healthte/public_html/grays/pharmacy/index.php on line 68
+[28-Mar-2023 05:25:13 America/Chicago] PHP Warning:  Undefined array key "token" in /home/healthte/public_html/grays/pharmacy/index.php on line 4
+[28-Mar-2023 05:25:13 America/Chicago] PHP Warning:  Undefined array key "token" in /home/healthte/public_html/grays/pharmacy/index.php on line 68
+[03-Oct-2023 07:14:48 America/Chicago] PHP Warning:  Undefined variable $admitted in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[03-Oct-2023 07:14:48 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[03-Oct-2023 07:14:48 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[03-Oct-2023 07:14:48 America/Chicago] PHP Warning:  Undefined variable $admitted in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[03-Oct-2023 07:15:34 America/Chicago] PHP Warning:  Undefined variable $admitted in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[03-Oct-2023 07:15:34 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[03-Oct-2023 07:15:34 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[03-Oct-2023 07:15:34 America/Chicago] PHP Warning:  Undefined variable $admitted in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[03-Oct-2023 07:15:34 America/Chicago] PHP Warning:  Undefined variable $admitted in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[03-Oct-2023 07:15:34 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[03-Oct-2023 07:15:34 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[03-Oct-2023 07:15:34 America/Chicago] PHP Warning:  Undefined variable $admitted in /home/healthte/public_html/grays/pharmacy/walkin.php on line 114
+[03-Oct-2023 07:17:13 America/Chicago] PHP Warning:  Undefined array key "dispense_id" in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[03-Oct-2023 07:17:13 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:28:59 America/Chicago] PHP Warning:  Undefined array key "dispense_id" in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:28:59 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:34:25 America/Chicago] PHP Warning:  Undefined array key "dispense_id" in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:34:25 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:35:08 America/Chicago] PHP Fatal error:  Uncaught TypeError: Unsupported operand types: string / string in /home/healthte/public_html/grays/pharmacy/savepurchases.php:7
+Stack trace:
+#0 {main}
+  thrown in /home/healthte/public_html/grays/pharmacy/savepurchases.php on line 7
+[19-Nov-2023 08:35:55 America/Chicago] PHP Fatal error:  Uncaught TypeError: Unsupported operand types: string / string in /home/healthte/public_html/grays/pharmacy/savepurchases.php:7
+Stack trace:
+#0 {main}
+  thrown in /home/healthte/public_html/grays/pharmacy/savepurchases.php on line 7
+[19-Nov-2023 08:36:31 America/Chicago] PHP Warning:  Undefined array key "dispense_id" in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:36:31 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:37:47 America/Chicago] PHP Warning:  Undefined array key "dispense_id" in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:37:47 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:38:35 America/Chicago] PHP Warning:  Undefined array key "dispense_id" in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:38:35 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:38:35 America/Chicago] PHP Warning:  Undefined array key "dispense_id" in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:38:35 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:46:02 America/Chicago] PHP Warning:  Undefined array key "dispense_id" in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:46:02 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:46:02 America/Chicago] PHP Warning:  Undefined array key "dispense_id" in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:46:02 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:46:05 America/Chicago] PHP Warning:  Undefined array key "dispense_id" in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:46:05 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:46:05 America/Chicago] PHP Warning:  Undefined array key "dispense_id" in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:46:05 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:46:36 America/Chicago] PHP Warning:  Undefined array key "dispense_id" in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:46:36 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:46:36 America/Chicago] PHP Warning:  Undefined array key "dispense_id" in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
+[19-Nov-2023 08:46:36 America/Chicago] PHP Warning:  Undefined variable $pn in /home/healthte/public_html/grays/pharmacy/purchases.php on line 80
