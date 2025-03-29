@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Payslip for {{ payslip.employee.name }}</h2>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="bi bi-file-earmark-pdf me-2"></i>Payslip Details</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped align-middle">
+                <tbody>
+                    <tr>
+                        <th>Employee Name</th>
+                        <td>{{ payslip.employee.name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Role</th>
+                        <td>{{ payslip.employee.role }}</td>
+                    </tr>
+                    <tr>
+                        <th>Department</th>
+                        <td>{{ payslip.employee.department }}</td>
+                    </tr>
+                    <tr>
+                        <th>Pay Month</th>
+                        <td>{{ payslip.pay_month.strftime('%B %Y') }}</td>
+                    </tr>
+                    <tr>
+                        <th>Gross Salary</th>
+                        <td>${{ payslip.gross_salary }}</td>
+                    </tr>
+                    <tr>
+                        <th>Net Salary</th>
+                        <td>${{ payslip.net_salary }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('hr.payslips') }}" class="btn btn-secondary btn-lg px-4">
+            <i class="bi bi-arrow-left-circle me-2"></i> Back to Payslips
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Laboratory Waiting List</h2>
+
+    <!-- Display Pending Lab Test Requests -->
+    {% if pending_lab_requests %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Pending Lab Test Requests</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Patient Name</th>
+                        <th>Patient ID</th>
+                        <th>Test Name</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for request in pending_lab_requests %}
+                    <tr>
+                        <td>{{ request.patient.name }}</td>
+                        <td>{{ request.patient.patient_id }}</td>
+                        <td>{{ request.lab_test.test_name }} </td>
+
+                           <td>
+                            <a href="{{ url_for('laboratory.process_lab_request', request_id=request.lab_test.id ) }}" class="btn btn-success btn-sm">Process</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">No pending lab test requests available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

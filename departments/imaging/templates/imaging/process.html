@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Process Imaging Request</h2>
+
+    <!-- Imaging Details -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Imaging Details</h4>
+        </div>
+        <div class="card-body">
+            <p><strong>Patient Name:</strong> {{ imaging_request.patient.name }}</p>
+            <p><strong>Patient ID:</strong> {{ imaging_request.patient.patient_id }}</p>
+            <p><strong>Imaging Type:</strong> {{ imaging.imaging_type }}</p>
+            <p><strong>Cost:</strong> ${{ "%.2f" | format(imaging.cost) }}</p>
+            <p><strong>Description:</strong> {{ imaging.description | default("No description provided") }}</p>
+        </div>
+    </div>
+
+    <!-- Upload Image Form -->
+    <form method="POST" action="{{ url_for('imaging.process_imaging_request', request_id=imaging_request.id) }}" enctype="multipart/form-data">
+        <!-- Add Notes -->
+        <div class="mb-3">
+            <label for="result_notes" class="form-label fw-bold">Additional Notes:</label>
+            <textarea id="result_notes" name="result_notes" class="form-control" rows="3" placeholder="Add any additional notes..."></textarea>
+        </div>
+
+        <!-- Upload Image -->
+        <div class="mb-3">
+            <label for="image_file" class="form-label fw-bold">Upload DICOM File:</label>
+            <input type="file" id="image_file" name="image_file" class="form-control" accept=".dcm" required>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary btn-lg px-5">Submit Results</button>
+        </div>
+    </form>
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('imaging.index') }}" class="btn btn-secondary">Back to Waiting List</a>
+    </div>
+</div>
+{% endblock %}

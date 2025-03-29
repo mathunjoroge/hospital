@@ -1,0 +1,30 @@
+<!-- templates/pharmacy/pharmacy_dashboard.html -->
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Pharmacy Dashboard</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Include Patient History -->
+    {% if patient_history_form %}
+        {% include 'pharmacy/patient_history.html' %}
+    {% endif %}
+
+    <!-- Other Dashboard Content -->
+    <div class="mt-5">
+        <h3>Other Pharmacy Features</h3>
+        <p>Additional content like waiting list, drug stock, etc., can go here.</p>
+    </div>
+</div>
+{% endblock %}

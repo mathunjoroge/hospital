@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Nursing Notes</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if notes %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Patient Notes</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Patient ID</th>
+                        <th>Note</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for note in notes %}
+                    <tr>
+                        <td>{{ note.patient_id }}</td>
+                        <td>{{ note.note }}</td>
+                        <td>{{ note.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No nursing notes found.</p>
+    {% endif %}
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('nursing.add_note') }}" class="btn btn-primary">
+            <i class="bi bi-pencil-square me-2"></i> Add Note
+        </a>
+        <a href="{{ url_for('home') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left me-2"></i> Back to Home
+        </a>
+    </div>
+</div>
+{% endblock %}

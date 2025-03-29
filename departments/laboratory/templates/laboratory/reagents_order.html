@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Lab Reagents Orders</h2>
+
+    <!-- Display flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Order a Lab Reagent -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Order a Lab Reagent</h5>
+        </div>
+<div class="card-body">
+    <form method="POST" action="{{ url_for('laboratory.reagents_order') }}">
+        <table class="table table-bordered align-middle">
+            <thead class="table-light text-center">
+                <tr>
+                    <th>Lab Reagent</th>
+                    <th>Quantity</th>
+                    <th>comment (Optional)</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <select class="form-select select2" id="item_id" name="item_id" required>
+                            <option value="">-- Select a Reagent --</option>
+                            {% for reagent in lab_reagents %}
+                                <option value="{{ reagent.id }}">
+                                    {{ reagent.name }} ({{ reagent.unit }}, Stock: {{ reagent.stock_level }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td class="text-center">
+                        <input type="number" class="form-control text-center" id="quantity" name="quantity" min="1" required>
+                    </td>
+                    <td>
+                        <textarea class="form-control" id="notes" name="notes" rows="1" placeholder=""></textarea>
+                    </td>
+                    <td class="text-center">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-cart-plus"></i> Add
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </form>
+</div>
+    <!-- Pending Orders -->
+    {% if pending_orders %}
+    <div class="card shadow-sm">
+        <div class="card-header bg-warning text-dark">
+            <h4 class="mb-0">Pending Lab Reagent Orders</h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Request Date</th>                            
+                            <th>Item Requested</th>
+                            <th>unit</th>
+                            <th>qty</th>
+                            <th>status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in pending_orders %}
+                        <tr>
+                            <td>{{ order.request_date.strftime('%d-%m-%Y') if order.request_date else 'N/A' }}</td>
+                            
+                            <td>
+                                {% if order.item %}
+                                    {{ order.item.name }}
+                                {% else %}
+                                    Unknown Item 
+                                {% endif %}
+                            </td>
+                            <td>{{ order.item.unit }}</td>
+                            <td>{{ order.quantity_requested }} </td>
+                            <td>
+                                <a href=""
+                                   class="btn btn-sm btn-primary">Review & Issue</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No pending lab reagent orders.</p>
+    {% endif %}
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('stores.index') }}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

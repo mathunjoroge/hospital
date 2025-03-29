@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Drug Not Found</h2>
+    <p>The requested drug with CD ID {{ cd_id }} could not be found in the database.</p>
+    <a href="{{ url_for('medicine.drugs_ref') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Drug List
+    </a>
+</div>
+{% endblock %}

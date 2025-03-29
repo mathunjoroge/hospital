@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+    <h2 class="text-center mb-4"><i class="bi bi-exclamation-triangle-fill"></i> Abnormal Lab Results</h2>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover shadow">
+            <thead class="table-dark text-center">
+                <tr>
+                    <th>Patient ID</th>
+                    <th>Lab Test</th>
+                    <th>Abnormal Parameters</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in flagged_results %}
+                <tr class="table-danger">
+                    <td class="fw-bold">{{ result.patient_id }}</td>
+                    <td>{{ result.test_name }}</td>
+                    <td>
+                        <!-- Nested Table for Abnormal Parameters -->
+                        <table class="table table-sm table-bordered mb-0 table-hover bg-white">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-nowrap">Parameter</th>
+                                    <th class="text-nowrap">Value</th>
+                                    <th class="text-nowrap">Normal Range</th>
+                                    <th class="text-nowrap">Unit</th>
+                                    <th class="text-nowrap">Status</th> <!-- Status column -->
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for param in result.abnormal_parameters %}
+                                <tr>
+                                    <td>{{ param.parameter }}</td>
+                                    <td class="fw-bold text-danger">{{ param.value }}</td>
+                                    <td>{{ param.normal_range }}</td>
+                                    <td>{{ param.unit }}</td>
+                                    <td class="text-center">
+                                        {% set normal_range_low = param.normal_range.split('-')[0]|float %}
+                                        {% set normal_range_high = param.normal_range.split('-')[1]|float %}
+                                        {% set param_value = param.value|float %}
+                                        
+                                        {% if param_value > normal_range_high %}
+                                            <span class="text-danger fw-bold">
+                                                <i class="bi bi-arrow-up-circle"></i> HIGH
+                                            </span>
+                                        {% elif param_value < normal_range_low %}
+                                            <span class="text-danger fw-bold">
+                                                <i class="bi bi-arrow-down-circle"></i> LOW
+                                            </span>
+                                        {% else %}
+                                            <span class="text-success fw-bold">
+                                                <i class="bi bi-check-circle"></i> Normal
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

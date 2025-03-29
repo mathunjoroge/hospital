@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">System Overview</h2>
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0">System Stats</h4>
+        </div>
+        <div class="card-body">
+            <p><strong>Total Users:</strong> {{ user_count }}</p>
+        </div>
+    </div>
+    <div class="text-center mt-4">
+        <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h2 class="card-title mb-0"><i class="bi bi-arrow-right-circle me-2"></i>Shift Handover</h2>
+        </div>
+        <div class="card-body">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Handover Data Table -->
+            {% if handover_data %}
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Patient ID</th>
+                            <th>Latest Partogram</th>
+                            <th>Latest Note</th>
+                            <th>Pending Tasks</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for data in handover_data %}
+                            <tr>
+                                <td>{{ data.patient_id }}</td>
+                                <td>
+                                    {% if data.partogram %}
+                                        Recorded at: {{ data.partogram.timestamp }}<br>
+                                        Cervical Dilation: {{ data.partogram.cervical_dilation }} cm<br>
+                                        Fetal Heart Rate: {{ data.partogram.fetal_heart_rate }} bpm
+                                    {% else %}
+                                        No partogram available.
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if data.note %}
+                                        {{ data.note.note }}<br>
+                                        <small class="text-muted">Recorded at: {{ data.note.timestamp }}</small>
+                                    {% else %}
+                                        No recent note.
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if data.tasks %}
+                                        <ul>
+                                            {% for task in data.tasks %}
+                                                <li>{{ task.task_description }} (Priority: {{ task.priority }})</li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        No pending tasks.
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('nursing.patient_dashboard', patient_id=data.patient_id) }}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye me-1"></i>View Patient
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="alert alert-info" role="alert">
+                    No patients with recent activity (last 12 hours) found.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Add Deduction for {{ employee.name }}</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Add Deduction Form -->
+    <form method="POST" action="{{ url_for('hr.new_deduction', employee_id=employee.employee_id) }}" class="row g-3">
+        <!-- Deduction Name -->
+        <div class="col-md-6">
+            <label for="name" class="form-label fw-bold">Deduction Name:</label>
+            <input type="text" id="name" name="name" class="form-control" placeholder="Enter deduction name" value="{{ request.form.name }}" required>
+        </div>
+
+        <!-- Deduction Type -->
+        <div class="col-md-6">
+            <label for="type" class="form-label fw-bold">Deduction Type:</label>
+            <select id="type" name="type" class="form-select" required>
+                <option value="" disabled selected>Select type</option>
+                <option value="absolute">Absolute Amount</option>
+                <option value="basic_percentage">Percentage of Basic Salary</option>
+                <option value="gross_percentage">Percentage of Gross Salary</option>
+            </select>
+        </div>
+
+        <!-- Deduction Value -->
+        <div class="col-md-6">
+            <label for="value" class="form-label fw-bold">Deduction Value:</label>
+            <input type="number" step="0.01" id="value" name="value" class="form-control" placeholder="Enter value" value="{{ request.form.value }}" required>
+            <small class="form-text text-muted">
+                For percentages, enter the value as a number (e.g., 10 for 10%).
+            </small>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="text-center col-12">
+            <button type="submit" class="btn btn-success btn-lg px-4">
+                <i class="bi bi-plus-circle me-2"></i> Add Deduction
+            </button>
+        </div>
+    </form>
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('hr.deductions') }}" class="btn btn-secondary btn-lg px-4">
+            <i class="bi bi-arrow-left-circle me-2"></i> Back to Deductions List
+        </a>
+    </div>
+</div>
+{% endblock %}

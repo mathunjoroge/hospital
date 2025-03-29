@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Update Salary for {{ employee.name }}</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Update Salary Form -->
+    <form method="POST" action="{{ url_for('hr.new_salary', employee_id=employee.employee_id) }}" class="row g-3">
+        <!-- Basic Salary -->
+        <div class="col-md-6">
+            <label for="basic_salary" class="form-label fw-bold">Basic Salary:</label>
+            <input type="number" step="0.01" id="basic_salary" name="basic_salary" class="form-control" 
+                   placeholder="Enter basic salary" value="{{ employee.salary.basic_salary if employee.salary else '' }}" required>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="text-center col-12">
+            <button type="submit" class="btn btn-primary btn-lg px-4">
+                <i class="bi bi-save me-2"></i> Save Salary Details
+            </button>
+        </div>
+    </form>
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('hr.salaries') }}" class="btn btn-secondary btn-lg px-4">
+            <i class="bi bi-arrow-left-circle me-2"></i> Back to Salaries Management
+        </a>
+    </div>
+</div>
+{% endblock %}

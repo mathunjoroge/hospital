@@ -1,0 +1,422 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    /* Custom CSS for Select2 focus state */
+    .select2-container--bootstrap-5 .select2-selection--single:focus {
+        outline: 2px solid #86b7fe;
+        outline-offset: 2px;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    /* Dark mode styles */
+    .dark-mode {
+        background-color: #333;
+        color: #fff;
+    }
+    .dark-mode .card {
+        background-color: #444;
+        color: #fff;
+    }
+    .dark-mode .form-control, .dark-mode .form-select, .dark-mode .input-group-text {
+        background-color: #555;
+        color: #fff;
+        border-color: #666;
+    }
+    .dark-mode .btn-close {
+        filter: invert(1);
+    }
+
+    /* Dark mode styles for select elements */
+    .dark-mode .form-select {
+        background-color: #555;
+        color: #fff;
+        border-color: #666;
+    }
+    .dark-mode .form-select option {
+        background-color: #555;
+        color: #fff;
+    }
+
+    /* Dark mode styles for Select2 dropdowns */
+    .dark-mode .select2-container--bootstrap-5 .select2-selection {
+        background-color: #555;
+        color: #fff;
+        border-color: #666;
+    }
+    .dark-mode .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+        color: #fff;
+    }
+    .dark-mode .select2-container--bootstrap-5 .select2-dropdown {
+        background-color: #555;
+        border-color: #666;
+    }
+    .dark-mode .select2-container--bootstrap-5 .select2-results__option {
+        background-color: #555;
+        color: #fff;
+    }
+    .dark-mode .select2-container--bootstrap-5 .select2-results__option--highlighted {
+        background-color: #666;
+        color: #fff;
+    }
+    .dark-mode .select2-container--bootstrap-5 .select2-search--dropdown .select2-search__field {
+        background-color: #555;
+        color: #fff;
+        border-color: #666;
+    }
+</style>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- Dark Mode Toggle -->
+<div class="text-end mt-3">
+    <button id="darkModeToggle" class="btn btn-secondary btn-sm">
+        <i class="bi bi-moon"></i> Toggle Dark Mode
+    </button>
+</div>
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h2 class="card-title mb-0"><i class="bi bi-clipboard-pulse me-2"></i>Record Partograph</h2>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('nursing.submit_partogram') }}" method="POST" class="needs-validation" novalidate id="partogramForm">
+                <!-- Patient Information -->
+                <h4 class="mt-4 mb-3"><i class="bi bi-person-badge me-2"></i>Patient Information</h4>
+                <hr>
+                <div class="mb-4">
+                    <label for="patient_id" class="form-label"><i class="bi bi-person me-2"></i>Patient ID</label>
+                    <input type="text" id="patient_id" name="patient_id" class="form-control" placeholder="Enter Patient ID" required>
+                    <div class="invalid-feedback">Please enter a valid Patient ID.</div>
+                </div>
+
+                <!-- Fetal Conditions Section -->
+                <h4 class="mt-4 mb-3"><i class="bi bi-heart me-2"></i>Fetal Conditions</h4>
+                <hr>
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <label for="fetal_heart_rate" class="form-label"><i class="bi bi-heart-pulse me-2"></i>Fetal Heart Rate (bpm)</label>
+                        <input type="number" id="fetal_heart_rate" name="fetal_heart_rate" class="form-control" placeholder="e.g., 140" min="60" max="200" required>
+                        <div class="invalid-feedback">Please enter a valid fetal heart rate (60-200 bpm).</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="amniotic_fluid" class="form-label"><i class="bi bi-droplet me-2"></i>Amniotic Fluid Status</label>
+                        <select id="amniotic_fluid" name="amniotic_fluid" class="form-select select2" required>
+                            <option value="" disabled selected>Select amniotic fluid status</option>
+                            <option value="clear">Clear</option>
+                            <option value="meconium">Meconium-stained</option>
+                            <option value="blood">Blood-stained</option>
+                            <option value="absent">Absent</option>
+                        </select>
+                        <div class="invalid-feedback">Please select the amniotic fluid status.</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="moulding" class="form-label"><i class="bi bi-headset me-2"></i>Moulding</label>
+                        <select id="moulding" name="moulding" class="form-select select2" required>
+                            <option value="" disabled selected>Select moulding status</option>
+                            <option value="none">None</option>
+                            <option value="1+">1+ (Bones touching)</option>
+                            <option value="2+">2+ (Bones overlapping, reducible)</option>
+                            <option value="3+">3+ (Bones overlapping, irreducible)</option>
+                        </select>
+                        <div class="invalid-feedback">Please select the moulding status.</div>
+                    </div>
+                </div>
+
+                <!-- Progress of Labour Section -->
+                <h4 class="mt-4 mb-3"><i class="bi bi-graph-up me-2"></i>Progress of Labour</h4>
+                <hr>
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label for="cervical_dilation" class="form-label"><i class="bi bi-ruler me-2"></i>Cervical Dilation (cm)</label>
+                        <input type="number" id="cervical_dilation" name="cervical_dilation" class="form-control" placeholder="e.g., 4.0" min="0" max="10" step="0.1" required>
+                        <div class="invalid-feedback">Please enter a valid cervical dilation (0-10 cm).</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="time_hours" class="form-label"><i class="bi bi-clock me-2"></i>Time (hours since active labour start)</label>
+                        <input type="number" id="time_hours" name="time_hours" class="form-control" placeholder="e.g., 2.5" min="0" step="0.5" required>
+                        <div class="invalid-feedback">Please enter a valid time in hours (non-negative).</div>
+                    </div>
+                </div>
+
+                <!-- Maternal Conditions Section -->
+                <h4 class="mt-4 mb-3"><i class="bi bi-heart-pulse me-2"></i>Maternal Conditions</h4>
+                <hr>
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <label for="contractions" class="form-label"><i class="bi bi-clock-history me-2"></i>Contractions per 10 min</label>
+                        <input type="number" id="contractions" name="contractions" class="form-control" placeholder="e.g., 3" min="0" max="5" required>
+                        <div class="invalid-feedback">Please enter a valid number of contractions (0-5).</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="oxytocin" class="form-label"><i class="bi bi-droplet-fill me-2"></i>Oxytocin (units)</label>
+                        <input type="number" id="oxytocin" name="oxytocin" class="form-control" placeholder="e.g., 2.5" min="0" step="0.1">
+                        <div class="invalid-feedback">Please enter a valid oxytocin amount (non-negative).</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="drugs" class="form-label"><i class="bi bi-capsule me-2"></i>Drugs Given</label>
+                        <input type="text" id="drugs" name="drugs" class="form-control" placeholder="e.g., Paracetamol" maxlength="100">
+                        <div class="invalid-feedback">Drugs field cannot exceed 100 characters.</div>
+                    </div>
+                </div>
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <label for="pulse" class="form-label"><i class="bi bi-speedometer2 me-2"></i>Pulse (bpm)</label>
+                        <input type="number" id="pulse" name="pulse" class="form-control" placeholder="e.g., 72" min="40" max="200" required>
+                        <div class="invalid-feedback">Please enter a valid pulse rate (40-200 bpm).</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="bp" class="form-label"><i class="bi bi-heart-pulse me-2"></i>Blood Pressure (mmHg)</label>
+                        <div class="input-group">
+                            <input type="text" id="bp" name="bp" class="form-control" placeholder="e.g., 120/80" required>
+                            <span class="input-group-text">mmHg</span>
+                        </div>
+                        <div class="invalid-feedback">Please enter a valid blood pressure (e.g., 120/80, systolic: 50-200, diastolic: 30-150).</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="temperature" class="form-label"><i class="bi bi-thermometer-half me-2"></i>Temperature (°C)</label>
+                        <div class="input-group">
+                            <input type="number" step="0.1" id="temperature" name="temperature" class="form-control" placeholder="e.g., 36.5" min="35" max="42" required>
+                            <span class="input-group-text">°C</span>
+                        </div>
+                        <div class="invalid-feedback">Please enter a valid temperature (35-42 °C).</div>
+                    </div>
+                </div>
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <label for="urine_protein" class="form-label"><i class="bi bi-droplet me-2"></i>Urine Protein</label>
+                        <select id="urine_protein" name="urine_protein" class="form-select select2" required>
+                            <option value="" disabled selected>Select urine protein level</option>
+                            <option value="negative">Negative</option>
+                            <option value="1+">1+</option>
+                            <option value="2+">2+</option>
+                            <option value="3+">3+</option>
+                        </select>
+                        <div class="invalid-feedback">Please select the urine protein level.</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="urine_volume" class="form-label"><i class="bi bi-cup me-2"></i>Urine Volume (mL)</label>
+                        <input type="number" id="urine_volume" name="urine_volume" class="form-control" placeholder="e.g., 50" min="0" required>
+                        <div class="invalid-feedback">Please enter a valid urine volume (non-negative).</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="urine_acetone" class="form-label"><i class="bi bi-droplet-fill me-2"></i>Urine Acetone</label>
+                        <select id="urine_acetone" name="urine_acetone" class="form-select select2" required>
+                            <option value="" disabled selected>Select urine acetone level</option>
+                            <option value="negative">Negative</option>
+                            <option value="1+">1+</option>
+                            <option value="2+">2+</option>
+                            <option value="3+">3+</option>
+                        </select>
+                        <div class="invalid-feedback">Please select the urine acetone level.</div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="text-center mt-5">
+                    <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save me-2"></i>Submit Partogram</button>
+                    <button type="reset" class="btn btn-outline-secondary btn-lg ms-2"><i class="bi bi-eraser me-2"></i>Clear Form</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Submission</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to submit the partograph?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmSubmit">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Initialize Select2
+        $('.select2').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Select an option',
+            allowClear: true
+        });
+
+        // Toggle dark mode
+        $('#darkModeToggle').on('click', function() {
+            $('body').toggleClass('dark-mode');
+            $('.select2').select2({
+                theme: 'bootstrap-5'
+            });
+        });
+
+        // Client-side form validation
+        $('#partogramForm').on('submit', function(e) {
+            let isValid = true;
+            const form = this;
+
+            // Reset previous validation states
+            form.classList.remove('was-validated');
+            $('.invalid-feedback').hide();
+            $('.form-control, .form-select').removeClass('is-invalid');
+
+            // Helper function to show error
+            function showError(field, message) {
+                isValid = false;
+                field.classList.add('is-invalid');
+                field.next('.invalid-feedback').text(message).show();
+            }
+
+            // Validate Patient ID
+            const patientId = $('#patient_id');
+            if (!patientId.val()) {
+                showError(patientId, 'Please enter a valid Patient ID.');
+            }
+
+            // Validate Fetal Heart Rate
+            const fetalHeartRate = $('#fetal_heart_rate');
+            const fhrVal = parseInt(fetalHeartRate.val());
+            if (isNaN(fhrVal) || fhrVal < 60 || fhrVal > 200) {
+                showError(fetalHeartRate, 'Please enter a valid fetal heart rate (60-200 bpm).');
+            }
+
+            // Validate Amniotic Fluid
+            const amnioticFluid = $('#amniotic_fluid');
+            const validAmnioticFluid = ['clear', 'meconium', 'blood', 'absent'];
+            if (!validAmnioticFluid.includes(amnioticFluid.val())) {
+                showError(amnioticFluid, 'Please select a valid amniotic fluid status.');
+            }
+
+            // Validate Moulding
+            const moulding = $('#moulding');
+            const validMoulding = ['none', '1+', '2+', '3+'];
+            if (!validMoulding.includes(moulding.val())) {
+                showError(moulding, 'Please select a valid moulding status.');
+            }
+
+            // Validate Cervical Dilation
+            const cervicalDilation = $('#cervical_dilation');
+            const cdVal = parseFloat(cervicalDilation.val());
+            if (isNaN(cdVal) || cdVal < 0 || cdVal > 10) {
+                showError(cervicalDilation, 'Please enter a valid cervical dilation (0-10 cm).');
+            }
+
+            // Validate Time Hours
+            const timeHours = $('#time_hours');
+            const thVal = parseFloat(timeHours.val());
+            if (isNaN(thVal) || thVal < 0) {
+                showError(timeHours, 'Please enter a valid time in hours (non-negative).');
+            }
+
+            // Validate Contractions
+            const contractions = $('#contractions');
+            const conVal = parseInt(contractions.val());
+            if (isNaN(conVal) || conVal < 0 || conVal > 5) {
+                showError(contractions, 'Please enter a valid number of contractions (0-5).');
+            }
+
+            // Validate Oxytocin
+            const oxytocin = $('#oxytocin');
+            const oxyVal = oxytocin.val() ? parseFloat(oxytocin.val()) : null;
+            if (oxyVal !== null && (isNaN(oxyVal) || oxyVal < 0)) {
+                showError(oxytocin, 'Please enter a valid oxytocin amount (non-negative).');
+            }
+
+            // Validate Drugs
+            const drugs = $('#drugs');
+            if (drugs.val() && drugs.val().length > 100) {
+                showError(drugs, 'Drugs field cannot exceed 100 characters.');
+            }
+
+            // Validate Pulse
+            const pulse = $('#pulse');
+            const pulseVal = parseInt(pulse.val());
+            if (isNaN(pulseVal) || pulseVal < 40 || pulseVal > 200) {
+                showError(pulse, 'Please enter a valid pulse rate (40-200 bpm).');
+            }
+
+            // Validate Blood Pressure
+            const bp = $('#bp');
+            const bpVal = bp.val();
+            if (!bpVal || !/^\d+\/\d+$/.test(bpVal)) {
+                showError(bp, 'Please enter a valid blood pressure (e.g., 120/80).');
+            } else {
+                const [systolic, diastolic] = bpVal.split('/').map(Number);
+                if (systolic < 50 || systolic > 200) {
+                    showError(bp, 'Systolic Blood Pressure must be between 50 and 200 mmHg.');
+                }
+                if (diastolic < 30 || diastolic > 150) {
+                    showError(bp, 'Diastolic Blood Pressure must be between 30 and 150 mmHg.');
+                }
+                if (systolic <= diastolic) {
+                    showError(bp, 'Systolic Blood Pressure must be greater than Diastolic Blood Pressure.');
+                }
+            }
+
+            // Validate Temperature
+            const temperature = $('#temperature');
+            const tempVal = parseFloat(temperature.val());
+            if (isNaN(tempVal) || tempVal < 35 || tempVal > 42) {
+                showError(temperature, 'Please enter a valid temperature (35-42 °C).');
+            }
+
+            // Validate Urine Protein
+            const urineProtein = $('#urine_protein');
+            const validUrineLevels = ['negative', '1+', '2+', '3+'];
+            if (!validUrineLevels.includes(urineProtein.val())) {
+                showError(urineProtein, 'Please select a valid urine protein level.');
+            }
+
+            // Validate Urine Volume
+            const urineVolume = $('#urine_volume');
+            const uvVal = parseInt(urineVolume.val());
+            if (isNaN(uvVal) || uvVal < 0) {
+                showError(urineVolume, 'Please enter a valid urine volume (non-negative).');
+            }
+
+            // Validate Urine Acetone
+            const urineAcetone = $('#urine_acetone');
+            if (!validUrineLevels.includes(urineAcetone.val())) {
+                showError(urineAcetone, 'Please select a valid urine acetone level.');
+            }
+
+            // If validation fails, prevent form submission
+            if (!isValid) {
+                e.preventDefault();
+                form.classList.add('was-validated');
+                return false;
+            }
+
+            // Show confirmation modal if validation passes
+            e.preventDefault();
+            $('#confirmationModal').modal('show');
+        });
+
+        // Confirmation modal submit
+        $('#confirmSubmit').on('click', function() {
+            $('#partogramForm').off('submit').submit();
+        });
+    });
+</script>
+{% endblock %}

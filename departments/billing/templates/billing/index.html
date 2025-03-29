@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Unpaid Bills</h2>
+
+    <!-- Table for Unpaid Bills -->
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Patient Name</th>
+                <th>Patient Number</th>
+                <th>Total Unpaid Cost</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for patient in patients %}
+            <tr>
+                <td>{{ patient.patient.name if patient.patient else 'N/A' }}</td>
+                <td>{{ patient.patient.patient_id if patient.patient else 'N/A' }}</td>
+                <td>Kshs {{ patient.total_cost }}</td>
+                <td>
+                    <a href="{{ url_for('billing.view_unpaid_bills', patient_id=patient.patient.patient_id) }}" class="btn btn-primary btn-sm">View Details</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">No unpaid bills available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Create New Bill Buttons -->
+    <div class="mt-5">
+        <a href="{{ url_for('billing.new_invoice') }}" class="btn btn-primary me-2">Create New Invoice</a>
+        <a href="{{ url_for('billing.new_drugs_billing') }}" class="btn btn-primary">Create New Drug Billing</a>
+    </div>
+</div>
+{% endblock %}

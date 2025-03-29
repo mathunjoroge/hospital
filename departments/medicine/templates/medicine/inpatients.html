@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Inpatients - Ward Rounds</h2>
+
+    <table class="table table-bordered table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>Patient</th>
+                <th>Ward</th>
+                <th>Admitted On</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in admitted_patients %}
+            <tr>
+                <td>{{ entry.patient_name }}</td>
+                <td>Ward {{ entry.ward_id }}</td>
+                <td>{{ entry.admitted_on.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>
+                    <a href="{{ url_for('medicine.view_ward_rounds', admission_id=entry.id) }}" class="btn btn-info btn-sm">
+                        <i class="bi bi-clipboard-heart"></i> View Rounds
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center text-muted">No inpatients found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

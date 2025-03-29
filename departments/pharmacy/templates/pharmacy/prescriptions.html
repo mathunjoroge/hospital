@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Active Prescriptions</h2>
+
+    {% if prescriptions %}
+    <table class="table table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Patient Name</th>
+                <th>Drug Name</th>
+                <th>Dosage</th>
+                <th>Strength</th>
+                <th>Frequency</th>
+                <th>Days Remaining</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for prescription in prescriptions %}
+            <tr>
+                <td>{{ prescription.patient.name }} ({{ prescription.patient.patient_id }})</td>
+                <td>{{ prescription.medicine.generic_name }} ({{ prescription.medicine.brand_name }})</td>
+                <td>{{ prescription.dosage }}</td>
+                <td>{{ prescription.strength }}</td>
+                <td>{{ prescription.frequency }}</td>
+                <td>{{ prescription.num_days }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted text-center">No active prescriptions available.</p>
+    {% endif %}
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('pharmacy.index') }}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

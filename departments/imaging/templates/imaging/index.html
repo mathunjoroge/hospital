@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Imaging Waiting List</h2>
+
+    <!-- Display Pending Imaging Requests -->
+    {% if pending_requests %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Pending Imaging Requests</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Patient Name</th>
+                        <th>Patient ID</th>
+                        <th>Imaging Type</th>
+                        <th>Cost</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in pending_requests %}
+                    <tr>
+                        <td>{{ req.patient.name }}</td>
+                        <td>{{ req.patient.patient_id }}</td>
+                        <td>{{ req.imaging.imaging_type }}</td>  <!-- Access imaging details via req.imaging -->
+                        <td>${{ "%.2f" | format(req.imaging.cost) }}</td>  <!-- Access imaging cost via req.imaging -->
+                        <td>
+                            <a href="{{ url_for('imaging.process_imaging_request', request_id=req.id) }}" class="btn btn-success btn-sm">Process</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">No pending imaging requests available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('home') }}" class="btn btn-secondary">Back to Home</a>
+    </div>
+</div>
+{% endblock %}

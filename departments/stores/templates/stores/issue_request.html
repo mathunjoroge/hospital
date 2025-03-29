@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Issue Drug Request</h2>
+    <p class="text-center"><strong>Request Date:</strong> {{ drug_request.request_date.strftime('%d-%m-%Y') if drug_request.request_date else 'N/A' }}</p>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if drug_request.items %}
+        <form action="{{ url_for('stores.issue_request', request_id=drug_request.id) }}" method="post">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Generic Name</th>
+                            <th>Brand Name</th>
+                            <th>Dosage Form</th>
+                            <th>Strength</th>
+                            <th>Quantity Requested</th>
+                            <th>Quantity Issued</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in drug_request.items %}
+                        <tr>
+                            <td>{{ item.drug.generic_name }}</td>
+                            <td>{{ item.drug.brand_name }}</td>
+                            <td>{{ item.drug.dosage_form }}</td>
+                            <td>{{ item.drug.strength }}</td>
+                            <td>{{ item.quantity_requested }}</td>
+                            <td>
+                                <input type="number" 
+                                       name="quantity_issued_{{ item.id }}" 
+                                       class="form-control" 
+                                       value="{{ item.quantity_issued if item.quantity_issued is not none else 0 }}" 
+                                       min="0" 
+                                       max="{{ item.quantity_requested }}" 
+                                       required>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="text-center mt-4">
+                <button type="submit" class="btn btn-success">Confirm Issue</button>
+                <a href="{{ url_for('stores.list_issue_requests') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    {% else %}
+        <p class="text-center text-muted">No items found for this request.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Record Purchase</h2>
+
+    <form method="POST" action="{{ url_for('pharmacy.record_purchase') }}">
+        <!-- Drug Selection -->
+        <table class="table table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th>Drug Name</th>
+                    <th>Batch Number</th>
+                    <th>Quantity Purchased</th>
+                    <th>Unit Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for drug in drugs %}
+                <tr>
+                    <td>{{ drug.generic_name }} ({{ drug.brand_name | default("N/A") }})</td>
+                    <td>
+                        <input type="text" id="batch_number_{{ drug.id }}" name="batch_numbers[]" class="form-control" placeholder="Enter batch number">
+                    </td>
+                    <td>
+                        <input type="number" id="quantity_{{ drug.id }}" name="quantities[]" class="form-control" placeholder="Enter quantity">
+                    </td>
+                    <td>
+                        <input type="number" step="0.01" id="unit_cost_{{ drug.id }}" name="unit_costs[]" class="form-control" placeholder="Enter unit cost">
+                    </td>
+                    <td>
+                        <input type="hidden" id="drug_id_{{ drug.id }}" name="drug_ids[]" value="{{ drug.id }}">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Submit Button -->
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary btn-lg px-5">Record Purchase</button>
+        </div>
+    </form>
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('pharmacy.inventory') }}" class="btn btn-secondary">Back to Inventory</a>
+    </div>
+</div>
+{% endblock %}

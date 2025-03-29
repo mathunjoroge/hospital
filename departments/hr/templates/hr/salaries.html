@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Salaries Management</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Salaries Table -->
+    {% if employees %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Salary Details</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Employee Name</th>
+                        <th>Role</th>
+                        <th>Department</th>
+                        <th>Job Group</th>
+                        <th>Basic Salary</th>
+                        <th>Gross Salary</th>
+                        <th>Total Deductions</th>
+                        <th>Net Salary</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for emp in employees %}
+                    <tr>
+                        <td>{{ emp.name }}</td>
+                        <td>{{ emp.role }}</td>
+                        <td>{{ emp.department }}</td>
+                        <td>{{ emp.job_group }}</td>
+                        <td>${{ emp.salary_details.basic_salary if emp.salary_details else 'N/A' }}</td>
+                        <td>${{ emp.salary_details.calculate_gross_salary() if emp.salary_details else 'N/A' }}</td>
+                        <td>${{ emp.salary_details.calculate_total_deductions() if emp.salary_details else 'N/A' }}</td>
+                        <td>${{ emp.salary_details.calculate_net_salary() if emp.salary_details else 'N/A' }}</td>
+                        <td>
+                            <a href="{{ url_for('hr.new_salary', employee_id=emp.employee_id) }}" class="btn btn-primary btn-sm">
+                                <i class="bi bi-pencil-square"></i> Update Salary
+                            </a>
+                            <a href="{{ url_for('hr.generate_payslip', employee_id=emp.employee_id) }}" class="btn btn-success btn-sm">
+                                <i class="bi bi-file-earmark-pdf"></i> Generate Payslip
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted">No salary details available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No salary details available.</p>
+    {% endif %}
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('hr.index') }}" class="btn btn-secondary btn-lg px-4">
+            <i class="bi bi-arrow-left-circle me-2"></i> Back to HR Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

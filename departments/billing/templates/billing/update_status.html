@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Update Billing Status</h2>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="status" class="form-label">Status</label>
+            <select class="form-select" id="status" name="status" required>
+                <option value="" disabled selected>Select a status</option>
+                <option value="Pending" {% if billing.status == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="Paid" {% if billing.status == 'Paid' %}selected{% endif %}>Paid</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-success">Update Status</button>
+        <a href="{{ url_for('billing.index') }}" class="btn btn-secondary ms-2">Cancel</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Pending Lab Results</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Lab Results Table -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark text-center">
+                <tr>
+                    <th>Patient</th>
+                    <th>Test Requested</th>
+                    <th>Date Requested</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for request in pending_lab_results %}
+                <tr>
+                    <td class="fw-bold text-primary">
+                        <i class="bi bi-person-circle me-1"></i> {{ request.patient.name }} ({{ request.patient.patient_id }})
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-info text-dark">{{ request.lab_test.test_name }}</span>
+                    </td>
+                    <td class="text-center">
+                        <i class="bi bi-calendar-check me-1"></i> {{ request.date_requested.strftime('%Y-%m-%d %H:%M') }}
+                    </td>
+                    <td class="text-center">
+                        {% if request.status == 0 %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                        {% else %}
+                            <span class="badge bg-success">Completed</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if request.status == 0 %}
+                            <a href="{{ url_for('laboratory.process_lab_request', request_id=request.id) }}" 
+                               class="btn btn-sm btn-outline-primary" 
+                               title="Process Test">
+                                <i class="bi bi-flask"></i> Process
+                            </a>
+                        {% else %}
+                            <a href="{{ url_for('laboratory.view_lab_results', result_id=request.result_id) }}" 
+                               class="btn btn-sm btn-outline-success" 
+                               title="View Results">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted">
+                        <i class="bi bi-exclamation-triangle"></i> No pending lab results.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

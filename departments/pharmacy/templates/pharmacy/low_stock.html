@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Low Running Stocks</h2>
+
+    {% if low_stock_drugs %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0">Drugs Below Reorder Level</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Generic Name</th>
+                        <th>Brand Name</th>
+                        <th>Dosage Form</th>
+                        <th>Strength</th>
+                        <th>Reorder Level</th>
+                        <th>Current Stock</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for drug in low_stock_drugs %}
+                    <tr>
+                        <td>{{ drug.generic_name }}</td>
+                        <td>{{ drug.brand_name | default("N/A") }}</td>
+                        <td>{{ drug.dosage_form | default("N/A") }}</td>
+                        <td>{{ drug.strength | default("N/A") }}</td>
+                        <td>{{ drug.reorder_level }}</td>
+                        <td>{{ drug.current_stock | default(0) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No drugs are currently below their reorder level.</p>
+    {% endif %}
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('pharmacy.index') }}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

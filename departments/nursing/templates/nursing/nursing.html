@@ -1,0 +1,23 @@
+{% extends "../../base.html" %}
+{% block content %}
+<h2>Nursing Department</h2>
+<p>Welcome to the Nursing Department.</p>
+
+<h3>Add New Notes</h3>
+<form method="POST">
+    <label>Patient ID:</label>
+    <input type="text" name="patient_id" required>
+    <br>
+    <label>Notes:</label>
+    <textarea name="notes" required></textarea>
+    <br>
+    <button type="submit">Add Notes</button>
+</form>
+
+<h3>Existing Notes</h3>
+<ul>
+    {% for entry in data %}
+    <li>Patient ID: {{ entry.patient_id }} - Notes: {{ entry.notes }}</li>
+    {% endfor %}
+</ul>
+{% endblock %}

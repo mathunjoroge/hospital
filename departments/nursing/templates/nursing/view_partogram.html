@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    /* Dark mode styles for tables */
+    .dark-mode .table {
+        background-color: #444;
+        color: #fff;
+    }
+    .dark-mode .table th, .dark-mode .table td {
+        background-color: #444;
+        color: #fff;
+        border-color: #666;
+    }
+    .dark-mode .table-hover tbody tr:hover {
+        background-color: #555;
+        color: #fff;
+    }
+    .dark-mode canvas {
+        background-color: #444;
+        color: #fff;
+    }
+    /* Hide elements during export */
+    .no-export {
+        display: block;
+    }
+    .exporting .no-export {
+        display: none;
+    }
+</style>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- Dark Mode Toggle -->
+<div class="text-end mt-3">
+    <button id="darkModeToggle" class="btn btn-secondary btn-sm">
+        <i class="bi bi-moon"></i> Toggle Dark Mode
+    </button>
+</div>
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h2 class="card-title mb-0"><i class="bi bi-clipboard-pulse me-2"></i>Partogram for Patient {{ patient_id }}</h2>
+        </div>
+        <div class="card-body">
+            {% if partogram_data %}
+                <!-- Summary Section -->
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h4 class="card-title mb-0">Summary (Latest Record)</h4>
+                    </div>
+                    <div class="card-body">
+                        {% set latest = partogram_data[-1] %}
+                        <p><strong>Latest Cervical Dilation:</strong> {{ latest.cervical_dilation }} cm</p>
+                        <p><strong>Latest Fetal Heart Rate:</strong> {{ latest.fetal_heart_rate }} bpm</p>
+                        <p><strong>Labour Status:</strong> {{ latest.labour_status }}</p>
+                        <p><strong>Last Recorded:</strong> <span class="timestamp" data-timestamp="{{ latest.timestamp }}">{{ latest.timestamp }}</span></p>
+                    </div>
+                </div>
+
+                <!-- Export Buttons -->
+                <div class="text-end mb-3 no-export">
+                    <button id="exportCsv" class="btn btn-success me-2">
+                        <i class="bi bi-download me-2"></i>Export as CSV
+                    </button>
+                    <button id="exportPdf" class="btn btn-success">
+                        <i class="bi bi-file-earmark-pdf me-2"></i>Export as PDF
+                    </button>
+                </div>
+
+                <!-- Table of Partogram Data -->
+                <div class="table-responsive">
+                    <table id="partogramTable" class="table table-striped table-hover" aria-label="Partogram records for patient {{ patient_id }}">
+                        <thead class="table-dark">
+                            <tr>
+                                <th scope="col">Timestamp</th>
+                                <th scope="col">Recorded By</th>
+                                <th scope="col">Time (hours)</th>
+                                <th scope="col">Cervical Dilation (cm)</th>
+                                <th scope="col" data-bs-toggle="tooltip" data-bs-placement="top" title="Normal range: 110-160 bpm">Fetal Heart Rate (bpm)</th>
+                                <th scope="col">Contractions (per 10 min)</th>
+                                <th scope="col">Pulse (bpm)</th>
+                                <th scope="col">Blood Pressure (mmHg)</th>
+                                <th scope="col" data-bs-toggle="tooltip" data-bs-placement="top" title="Normal: < 38°C">Temperature (°C)</th>
+                                <th scope="col">Amniotic Fluid</th>
+                                <th scope="col">Moulding</th>
+                                <th scope="col">Labour Status</th>
+                                <th scope="col">Urine Protein</th>
+                                <th scope="col">Urine Volume (mL)</th>
+                                <th scope="col">Urine Acetone</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in partogram_data %}
+                            <tr>
+                                <td class="timestamp" data-timestamp="{{ entry.timestamp }}">{{ entry.timestamp }}</td>
+                                <td>{{ user_name_map.get(entry.recorded_by, 'Unknown') }}</td>
+                                <td>{{ entry.time_hours }}</td>
+                                <td>{{ entry.cervical_dilation }}</td>
+                                <td {% if entry.fetal_heart_rate and (entry.fetal_heart_rate < 110 or entry.fetal_heart_rate > 160) %}class="text-danger"{% endif %}>
+                                    {{ entry.fetal_heart_rate }}
+                                </td>
+                                <td>{{ entry.contractions }}</td>
+                                <td>{{ entry.pulse }}</td>
+                                <td {% if entry.bp_systolic and entry.bp_diastolic and (entry.bp_systolic > 140 or entry.bp_diastolic > 90) %}class="text-danger"{% endif %}>
+                                    {{ entry.bp_systolic }}/{{ entry.bp_diastolic }}
+                                </td>
+                                <td {% if entry.temperature and entry.temperature > 38 %}class="text-danger"{% endif %}>
+                                    {{ entry.temperature }}
+                                </td>
+                                <td>{{ entry.amniotic_fluid }}</td>
+                                <td>{{ entry.moulding }}</td>
+                                <td>{{ entry.labour_status }}</td>
+                                <td>{{ entry.urine_protein }}</td>
+                                <td>{{ entry.urine_volume }}</td>
+                                <td>{{ entry.urine_acetone }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Graphs -->
+                <h4 class="mt-4">Graphs</h4>
+                <div class="row">
+                    <div class="col-md-6">
+                        <canvas id="cervicalDilationChart" aria-label="Graph of Cervical Dilation over time"></canvas>
+                    </div>
+                    <div class="col-md-6">
+                        <canvas id="fetalHeartRateChart" aria-label="Graph of Fetal Heart Rate over time"></canvas>
+                    </div>
+                    <div class="col-md-6 mt-4">
+                        <canvas id="contractionsChart" aria-label="Graph of Contractions over time"></canvas>
+                    </div>
+                    <div class="col-md-6 mt-4">
+                        <canvas id="bloodPressureChart" aria-label="Graph of Blood Pressure over time"></canvas>
+                    </div>
+                </div>
+            {% else %}
+                <p class="text-muted text-center">No partogram records found for this patient.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('nursing.view_partograms') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Partogram List
+        </a>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- jsPDF and html2canvas for PDF export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Toggle dark mode
+        $('#darkModeToggle').on('click', function() {
+            $('body').toggleClass('dark-mode');
+        });
+
+        // Enable tooltips
+        $('[data-bs-toggle="tooltip"]').tooltip();
+
+        // Format timestamps using JavaScript
+        $('.timestamp').each(function() {
+            const timestampStr = $(this).data('timestamp');
+            try {
+                const date = new Date(timestampStr);
+                if (isNaN(date.getTime())) {
+                    throw new Error('Invalid date');
+                }
+                const formatted = date.getUTCFullYear() + '-' +
+                                 String(date.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                                 String(date.getUTCDate()).padStart(2, '0') + ' ' +
+                                 String(date.getUTCHours()).padStart(2, '0') + ':' +
+                                 String(date.getUTCMinutes()).padStart(2, '0') + ':' +
+                                 String(date.getUTCSeconds()).padStart(2, '0');
+                $(this).text(formatted);
+            } catch (e) {
+                console.log(`Error formatting timestamp ${timestampStr}: ${e}`);
+            }
+        });
+
+        // Export as CSV
+        $('#exportCsv').on('click', function() {
+            const data = {{ partogram_data | tojson }};
+            const headers = [
+                'Timestamp', 'Recorded By', 'Time (hours)', 'Cervical Dilation (cm)', 'Fetal Heart Rate (bpm)',
+                'Contractions (per 10 min)', 'Pulse (bpm)', 'Blood Pressure (mmHg)', 'Temperature (°C)',
+                'Amniotic Fluid', 'Moulding', 'Labour Status', 'Urine Protein', 'Urine Volume (mL)', 'Urine Acetone'
+            ];
+            const rows = data.map(entry => [
+                new Date(entry.timestamp).toISOString(),
+                {{ user_name_map | tojson }}[entry.recorded_by] || 'Unknown',
+                entry.time_hours,
+                entry.cervical_dilation,
+                entry.fetal_heart_rate,
+                entry.contractions,
+                entry.pulse,
+                `${entry.bp_systolic}/${entry.bp_diastolic}`,
+                entry.temperature,
+                entry.amniotic_fluid,
+                entry.moulding,
+                entry.labour_status,
+                entry.urine_protein,
+                entry.urine_volume,
+                entry.urine_acetone
+            ]);
+
+            let csvContent = 'data:text/csv;charset=utf-8,' + headers.join(',') + '\n' +
+                             rows.map(row => row.join(',')).join('\n');
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `partogram_${ {{ patient_id | tojson }} }.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // Export as PDF
+        $('#exportPdf').on('click', function() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const element = document.querySelector('.card-body');
+
+            // Hide buttons during export
+            document.body.classList.add('exporting');
+            html2canvas(element, { scale: 2 }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const imgProps = doc.getImageProperties(imgData);
+                const pdfWidth = doc.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                doc.save(`partogram_${ {{ patient_id | tojson }} }.pdf`);
+                // Show buttons again
+                document.body.classList.remove('exporting');
+            });
+        });
+
+        // Ensure partogram_data is not empty before rendering charts
+        const partogramData = {{ partogram_data | tojson }};
+
+        if (partogramData && partogramData.length > 0) {
+            // Cervical Dilation Chart
+            const ctx1 = document.getElementById('cervicalDilationChart').getContext('2d');
+            new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: partogramData.map(entry => entry.time_hours),
+                    datasets: [{
+                        label: 'Cervical Dilation (cm)',
+                        data: partogramData.map(entry => entry.cervical_dilation),
+                        borderColor: 'blue',
+                        fill: false,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'Time (hours)' } },
+                        y: { title: { display: true, text: 'Cervical Dilation (cm)' }, min: 0, max: 10 }
+                    }
+                }
+            });
+
+            // Fetal Heart Rate Chart
+            const ctx2 = document.getElementById('fetalHeartRateChart').getContext('2d');
+            new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: partogramData.map(entry => entry.time_hours),
+                    datasets: [{
+                        label: 'Fetal Heart Rate (bpm)',
+                        data: partogramData.map(entry => entry.fetal_heart_rate),
+                        borderColor: 'red',
+                        fill: false,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'Time (hours)' } },
+                        y: { title: { display: true, text: 'Fetal Heart Rate (bpm)' }, min: 100, max: 180 }
+                    }
+                }
+            });
+
+            // Contractions Chart
+            const ctx3 = document.getElementById('contractionsChart').getContext('2d');
+            new Chart(ctx3, {
+                type: 'line',
+                data: {
+                    labels: partogramData.map(entry => entry.time_hours),
+                    datasets: [{
+                        label: 'Contractions (per 10 min)',
+                        data: partogramData.map(entry => entry.contractions),
+                        borderColor: 'green',
+                        fill: false,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'Time (hours)' } },
+                        y: { title: { display: true, text: 'Contractions (per 10 min)' }, min: 0, max: 5 }
+                    }
+                }
+            });
+
+            // Blood Pressure Chart
+            const ctx4 = document.getElementById('bloodPressureChart').getContext('2d');
+            new Chart(ctx4, {
+                type: 'line',
+                data: {
+                    labels: partogramData.map(entry => entry.time_hours),
+                    datasets: [
+                        {
+                            label: 'Systolic BP (mmHg)',
+                            data: partogramData.map(entry => entry.bp_systolic),
+                            borderColor: 'purple',
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Diastolic BP (mmHg)',
+                            data: partogramData.map(entry => entry.bp_diastolic),
+                            borderColor: 'orange',
+                            fill: false,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        x: { title: { display: true, text: 'Time (hours)' } },
+                        y: { title: { display: true, text: 'Blood Pressure (mmHg)' }, min: 0, max: 200 }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

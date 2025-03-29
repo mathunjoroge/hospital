@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h1>Leave Management</h1>
+    <div class="table-responsive">
+        <table class="table table-dark table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for leave, employee in leaves %}
+                <tr>
+                    <td>{{ employee.name }}</td>
+                    <td>{{ leave.start_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ leave.end_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ leave.type }}</td>
+                    <td>
+                        {% if leave.status == 'Pending' %}
+                            <span class="badge bg-warning">Pending</span>
+                        {% elif leave.status == 'Approved' %}
+                            <span class="badge bg-success">Approved</span>
+                        {% else %}
+                            <span class="badge bg-danger">Rejected</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if leave.status == 'Pending' %}
+<a href="{{ url_for('hr.approve_leave', leave_id=leave.id) }}" class="btn btn-success btn-sm">
+    <i class="bi bi-check-circle"></i> Approve
+</a>
+<a href="{{ url_for('hr.reject_leave', leave_id=leave.id) }}" class="btn btn-danger btn-sm">
+    <i class="bi bi-x-circle"></i> Reject
+</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

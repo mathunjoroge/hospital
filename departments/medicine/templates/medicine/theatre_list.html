@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Theatre List</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Add to Theatre Button -->
+    <div class="mb-3 text-end">
+        <a href="{{ url_for('medicine.add_to_theatre') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Add to Theatre
+        </a>
+    </div>
+
+    <!-- Status Filter -->
+    <form method="GET" action="{{ url_for('medicine.get_theatre_list') }}" class="mb-4">
+        <div class="input-group">
+            <select name="status" class="form-control">
+                <option value="">All</option>
+                <option value="0" {% if request.args.get('status') == "0" %}selected{% endif %}>Pending</option>
+                <option value="1" {% if request.args.get('status') == "1" %}selected{% endif %}>Completed</option>
+            </select>
+            <button type="submit" class="btn btn-primary">Filter</button>
+        </div>
+    </form>
+
+    <!-- Theatre List Table -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Patient</th>
+                    <th>Procedure</th>
+                    <th>Status</th>
+                    <th>Booking Notes</th>
+                    <th>Created At</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in theatre_entries %}
+                <tr>
+                    <td>{{ entry.patient_name }}</td>
+                    <td>{{ entry.procedure_name }}</td>
+                    <td>
+                        {% if entry.status == 0 %}
+                            <span class="badge bg-warning">Pending</span>
+                        {% elif entry.status == 1 %}
+                            <span class="badge bg-success">Completed</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Unknown</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ entry.notes_on_book|default('N/A') }}</td>
+                    <td>{{ entry.created_at }}</td>
+                    <td>
+                        {% if entry.status == 0 %}
+                            <a href="{{ url_for('medicine.update_post_op', entry_id=entry.id) }}" class="btn btn-success btn-sm">
+                                <i class="bi bi-pencil"></i> Update Post-Op Notes
+                            </a>
+                        {% else %}
+                            <span class="text-muted">Completed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">No procedures found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

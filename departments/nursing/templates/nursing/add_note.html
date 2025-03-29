@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center text-primary fw-bold">Add Nursing Note (Kardex)</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card shadow-sm mb-4 border-primary">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="bi bi-journal-text me-2"></i> New Nursing Note</h4>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <!-- Patient Selection with AJAX -->
+                <div class="mb-4">
+                    <label for="patient_id" class="form-label fw-bold">Select Patient</label>
+                    <select class="form-select select2 border-primary" id="patient_id" name="patient_id" required>
+                        <option value="" disabled selected>Select a patient...</option>
+                    </select>
+                </div>
+
+                <!-- Patient Background -->
+                <h5 class="text-primary mb-3"><i class="bi bi-person me-2"></i> Patient Background</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="allergies" class="form-label">Allergies</label>
+                        <input type="text" class="form-control border-primary" id="allergies" name="allergies" placeholder="e.g., Penicillin, Nuts">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="code_status" class="form-label">Code Status</label>
+                        <select class="form-select border-primary" id="code_status" name="code_status">
+                            <option value="">Select</option>
+                            <option value="Full Code">Full Code</option>
+                            <option value="DNR">DNR</option>
+                            <option value="DNI">DNI</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Daily Orders & Treatments -->
+                <h5 class="text-primary mt-4 mb-3"><i class="bi bi-prescription me-2"></i> Daily Orders & Treatments</h5>
+                <div class="mb-4">
+                    <label for="medications" class="form-label">Medications (e.g., Medication|Dose|Route|Time)</label>
+                    <textarea class="form-control border-primary" id="medications" name="medications" rows="3" placeholder="e.g., Aspirin|81mg|PO|08:00"></textarea>
+                </div>
+
+                <!-- Nursing Notes / Shift Updates -->
+                <h5 class="text-primary mt-4 mb-3"><i class="bi bi-journal-text me-2"></i> Nursing Notes / Shift Updates</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="note" class="form-label">Observation/Intervention</label>
+                        <textarea class="form-control border-primary" id="note" name="note" rows="3" required placeholder="e.g., Patient resting comfortably"></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="shift_update" class="form-label">Patient Response / Shift Update</label>
+                        <textarea class="form-control border-primary" id="shift_update" name="shift_update" rows="3" placeholder="e.g., BP stable, no complaints"></textarea>
+                    </div>
+                </div>
+
+                <!-- Form Buttons -->
+                <div class="text-center mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-save me-2"></i> Save Note
+                    </button>
+                    <a href="{{ url_for('nursing.view_notes') }}" class="btn btn-secondary btn-lg ms-2">
+                        <i class="bi bi-arrow-left me-2"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+
+
+{% endblock %}

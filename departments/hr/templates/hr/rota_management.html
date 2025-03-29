@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Manage Employee Rota</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Rota Form -->
+    <form method="POST" action="{{ url_for('hr.rota_management') }}">
+        <!-- Select Week Range -->
+        <div class="mb-3">
+            <label for="week_range" class="form-label fw-bold">Select Week Range:</label>
+            <input type="text" id="week_range" name="week_range" class="form-control" placeholder="e.g., 01/03/2023 - 07/03/2023" required>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary btn-lg px-4">
+                <i class="bi bi-calendar-check me-2"></i> Generate Rota
+            </button>
+        </div>
+    </form>
+
+    <!-- View Existing Rotas -->
+    <h4 class="mt-5 text-center">Existing Rotas</h4>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <table class="table table-striped align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Week Range</th>
+                        <th>Morning Shift</th>
+                        <th>Evening Shift</th>
+                        <th>Night Shift</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rota in rotas %}
+                    <tr>
+                        <td>{{ rota.week_range }}</td>
+                        <td>
+                            <ul>
+                                {% for name in rota_data.get(rota.week_range, {}).get('morning', []) %}
+                                <li>{{ name }}</li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                        <td>
+                            <ul>
+                                {% if rota_data.get(rota.week_range, {}).get('evening') %}
+                                <li>{{ rota_data.get(rota.week_range, {}).get('evening', '') }}</li>
+                                {% endif %}
+                            </ul>
+                        </td>
+                        <td>
+                            <ul>
+                                {% if rota_data.get(rota.week_range, {}).get('night') %}
+                                <li>{{ rota_data.get(rota.week_range, {}).get('night', '') }}</li>
+                                {% endif %}
+                            </ul>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">No rotas available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

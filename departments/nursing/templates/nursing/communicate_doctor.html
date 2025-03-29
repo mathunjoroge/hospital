@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h2 class="card-title mb-0"><i class="bi bi-chat-dots me-2"></i>Contact Doctor</h2>
+        </div>
+        <div class="card-body">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Message Form -->
+            <form method="POST" action="{{ url_for('nursing.communicate_doctor') }}">
+                <div class="mb-3">
+                    <label for="patient_id" class="form-label">Patient ID</label>
+                    <input type="text" class="form-control" id="patient_id" name="patient_id">
+                    <div class="form-text">Enter the patient's unique identifier (e.g., P001). Leave blank if not patient-specific.</div>
+                </div>
+                <div class="mb-3">
+                    <label for="doctor_id" class="form-label">Select Doctor</label>
+                    <select class="form-select" id="doctor_id" name="doctor_id" required>
+                        <option value="" disabled selected>Select a doctor</option>
+                        {% for doctor in doctors %}
+                            <option value="{{ doctor.id }}">{{ doctor.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="message" class="form-label">Message</label>
+                    <textarea class="form-control" id="message" name="message" rows="4" required></textarea>
+                    <div class="form-text">Enter your message for the doctor.</div>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-send me-2"></i>Send Message</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Paid Bills for {{ patient.name }} ({{ patient.patient_id }})</h2>
+
+    <!-- Paid Bills Table -->
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Receipt Number</th>
+                <th>Paid At</th>
+                <th>Payment Method</th>
+                <th>Details</th>
+                <th>Total Cost (Kshs)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bill in paid_bills %}
+            <tr>
+                <td>{{ bill.receipt_number }}</td>
+                <td>{{ bill.paid_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                <td>{{ bill.payment_method if bill.payment_method else 'N/A' }}</td>
+                <td>
+                    {% if bill.billing %}
+                        Service Bill: {{ bill.billing.charge.name }} - {{ bill.billing.charge.category.name }}
+                    {% elif bill.drugs_bill %}
+                        Drug Bill: {{ bill.drugs_bill.drug.generic_name }} ({{ bill.drugs_bill.drug.dosage_form }}, {{ bill.drugs_bill.drug.strength }})
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>
+                    {% if bill.billing %}
+                        {{ bill.billing.total_cost }}
+                    {% elif bill.drugs_bill %}
+                        {{ bill.drugs_bill.total_cost }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center">No paid bills available for this patient.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Back Button -->
+    <a href="{{ url_for('billing.index') }}" class="btn btn-primary mt-3">Back to Billing List</a>
+</div>
+{% endblock %}

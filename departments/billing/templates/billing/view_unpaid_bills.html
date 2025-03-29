@@ -1,0 +1,491 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5 billing-container">
+    <!-- Header -->
+    <div class="billing-header mb-4">
+        <h2 class="billing-title">{{ "Payment Confirmation" if payment_success else "Unpaid Bills" }}</h2>
+        <p class="patient-info">Patient: <strong>{{ patient.name }}</strong> | ID: <strong>{{ patient.patient_id }}</strong></p>
+        {% if not payment_success %}
+            <button type="button" id="select-all-global" class="btn btn-secondary mt-2">Select All</button>
+        {% endif %}
+    </div>
+
+    {% if payment_success %}
+        <!-- Payment Confirmation -->
+        <div class="card billing-card mb-4">
+            <div class="card-body">
+                <h3 class="card-title">Payment Successful</h3>
+                <p><strong>Receipt Number:</strong> {{ receipt_number }}</p>
+                <p><strong>Amount Paid:</strong> Kshs {{ "{:,.2f}".format(amount_paid) }}</p>
+                <p><strong>Payment Method:</strong> {{ payment_method }}</p>
+                {% if payment_reference %}
+                    <p><strong>Payment Reference:</strong> {{ payment_reference }}</p>
+                {% endif %}
+                <h4>Paid Items:</h4>
+                <table class="table table-striped table-bordered billing-table">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Category</th>
+                            <th>Details</th>
+                            <th>Total Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for category, total in paid_totals.items() %}
+                            <tr>
+                                <td>{{ category }}</td>
+                                <td>{{ paid_items[category]|join(', ') }}</td>
+                                <td class="text-right">Kshs {{ "{:,.2f}".format(total) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('billing.pay_bills', patient_id=patient.patient_id) }}" class="btn btn-primary">Back to Unpaid Bills</a>
+                    <button type="button" class="btn btn-info" onclick="window.print()">Print Receipt</button>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <!-- Form for Payment Actions -->
+        <form method="POST" action="{{ url_for('billing.pay_bills', patient_id=patient.patient_id) }}" id="paymentForm">
+            <!-- Dispensed Drugs -->
+            <div class="card billing-card mb-4">
+                <div class="card-body">
+                    <h3 class="card-title">Dispensed Drugs</h3>
+                    {% if dispensed_drugs %}
+                        <table class="table table-striped table-bordered billing-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><input type="checkbox" class="select-all" data-section="dispensed_drugs"></th>
+                                    <th>ID</th>
+                                    <th>Drug</th>
+                                    <th>Quantity</th>
+                                    <th>Total Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in dispensed_drugs %}
+                                <tr>
+                                    <td><input type="checkbox" name="dispensed_drugs" value="{{ item.id }}"></td>
+                                    <td>{{ item.id }}</td>
+                                    <td>{{ item.drug.generic_name }} ({{ item.drug.brand_name or 'N/A' }})</td>
+                                    <td>{{ item.quantity_dispensed }}</td>
+                                    <td class="text-right">Kshs {{ "{:,.2f}".format(item.drug.selling_price * item.quantity_dispensed) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <p class="total-text"><strong>Total: Kshs {{ "{:,.2f}".format(totals['Dispensed Drugs']) }}</strong></p>
+                    {% else %}
+                        <p class="text-muted no-data">No unbilled dispensed drugs.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Requested Labs -->
+            <div class="card billing-card mb-4">
+                <div class="card-body">
+                    <h3 class="card-title">Laboratory Tests</h3>
+                    {% if requested_labs %}
+                        <table class="table table-striped table-bordered billing-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><input type="checkbox" class="select-all" data-section="requested_labs"></th>
+                                    <th>ID</th>
+                                    <th>Test</th>
+                                    <th>Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in requested_labs %}
+                                <tr>
+                                    <td><input type="checkbox" name="requested_labs" value="{{ item.id }}"></td>
+                                    <td>{{ item.id }}</td>
+                                    <td>{{ item.lab_test.test_name }}</td>
+                                    <td class="text-right">Kshs {{ "{:,.2f}".format(item.lab_test.cost) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <p class="total-text"><strong>Total: Kshs {{ "{:,.2f}".format(totals['Lab Tests']) }}</strong></p>
+                    {% else %}
+                        <p class="text-muted no-data">No unbilled lab tests.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Clinic Bookings -->
+            <div class="card billing-card mb-4">
+                <div class="card-body">
+                    <h3 class="card-title">Clinic Consultations</h3>
+                    {% if clinic_bookings %}
+                        <table class="table table-striped table-bordered billing-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><input type="checkbox" class="select-all" data-section="clinic_bookings"></th>
+                                    <th>ID</th>
+                                    <th>Clinic</th>
+                                    <th>Fee</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in clinic_bookings %}
+                                <tr>
+                                    <td><input type="checkbox" name="clinic_bookings" value="{{ item.id }}"></td>
+                                    <td>{{ item.id }}</td>
+                                    <td>{{ item.clinic.name }}</td>
+                                    <td class="text-right">Kshs {{ "{:,.2f}".format(item.clinic.fee) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <p class="total-text"><strong>Total: Kshs {{ "{:,.2f}".format(totals['Clinic Bookings']) }}</strong></p>
+                    {% else %}
+                        <p class="text-muted no-data">No unbilled clinic bookings.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Theatre List -->
+            <div class="card billing-card mb-4">
+                <div class="card-body">
+                    <h3 class="card-title">Theatre Procedures</h3>
+                    {% if theatre_list %}
+                        <table class="table table-striped table-bordered billing-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><input type="checkbox" class="select-all" data-section="theatre_list"></th>
+                                    <th>ID</th>
+                                    <th>Procedure</th>
+                                    <th>Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in theatre_list %}
+                                <tr>
+                                    <td><input type="checkbox" name="theatre_list" value="{{ item.id }}"></td>
+                                    <td>{{ item.id }}</td>
+                                    <td>{{ item.procedure.name }}</td>
+                                    <td class="text-right">Kshs {{ "{:,.2f}".format(item.procedure.cost) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <p class="total-text"><strong>Total: Kshs {{ "{:,.2f}".format(totals['Theatre Procedures']) }}</strong></p>
+                    {% else %}
+                        <p class="text-muted no-data">No unbilled theatre procedures.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Requested Images -->
+            <div class="card billing-card mb-4">
+                <div class="card-body">
+                    <h3 class="card-title">Imaging</h3>
+                    {% if requested_images %}
+                        <table class="table table-striped table-bordered billing-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><input type="checkbox" class="select-all" data-section="requested_images"></th>
+                                    <th>ID</th>
+                                    <th>Type</th>
+                                    <th>Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in requested_images %}
+                                <tr>
+                                    <td><input type="checkbox" name="requested_images" value="{{ item.id }}"></td>
+                                    <td>{{ item.id }}</td>
+                                    <td>{{ item.imaging.imaging_type }}</td>
+                                    <td class="text-right">Kshs {{ "{:,.2f}".format(item.imaging.cost) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <p class="total-text"><strong>Total: Kshs {{ "{:,.2f}".format(totals['Imaging']) }}</strong></p>
+                    {% else %}
+                        <p class="text-muted no-data">No unbilled imaging requests.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Admitted Patients -->
+            <div class="card billing-card mb-4">
+                <div class="card-body">
+                    <h3 class="card-title">Ward Admissions</h3>
+                    {% if admitted_patients %}
+                        <table class="table table-striped table-bordered billing-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><input type="checkbox" class="select-all" data-section="admitted_patients"></th>
+                                    <th>ID</th>
+                                    <th>Ward</th>
+                                    <th>Days</th>
+                                    <th>Daily Charge</th>
+                                    <th>Total Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in admitted_patients %}
+                                <tr>
+                                    <td><input type="checkbox" name="admitted_patients" value="{{ item.id }}"></td>
+                                    <td>{{ item.id }}</td>
+                                    <td>{{ item.ward_name }}</td>
+                                    <td>{{ item.days }}</td>
+                                    <td class="text-right">Kshs {{ "{:,.2f}".format(item.daily_charge) }}</td>
+                                    <td class="text-right">Kshs {{ "{:,.2f}".format(item.total_cost) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <p class="total-text"><strong>Total: Kshs {{ "{:,.2f}".format(totals['Ward Admissions']) }}</strong></p>
+                    {% else %}
+                        <p class="text-muted no-data">No active ward admissions.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Existing Billings -->
+            <div class="card billing-card mb-4">
+                <div class="card-body">
+                    <h3 class="card-title">Other Charges (Pending)</h3>
+                    {% if unpaid_billings %}
+                        <table class="table table-striped table-bordered billing-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Charge</th>
+                                    <th>Quantity</th>
+                                    <th>Total Cost</th>
+                                    <th>Receipt Number</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for bill in unpaid_billings %}
+                                <tr>
+                                    <td>{{ bill.id }}</td>
+                                    <td>{{ bill.charge.name }}</td>
+                                    <td>{{ bill.quantity }}</td>
+                                    <td class="text-right">Kshs {{ "{:,.2f}".format(bill.total_cost) }}</td>
+                                    <td>{{ bill.receipt_number or 'N/A' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('billing.update_status', billing_id=bill.id) }}" class="btn btn-success btn-sm">Mark as Paid</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <p class="total-text"><strong>Total: Kshs {{ "{:,.2f}".format(totals['Existing Billings']) }}</strong></p>
+                    {% else %}
+                        <p class="text-muted no-data">No pending billings.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Existing Drug Bills -->
+            <div class="card billing-card mb-4">
+                <div class="card-body">
+                    <h3 class="card-title">Drug Bills (Pending)</h3>
+                    {% if unpaid_drug_bills %}
+                        <table class="table table-striped table-bordered billing-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Drug</th>
+                                    <th>Quantity</th>
+                                    <th>Total Cost</th>
+                                    <th>Receipt Number</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for bill in unpaid_drug_bills %}
+                                <tr>
+                                    <td>{{ bill.id }}</td>
+                                    <td>{{ bill.drug.generic_name if bill.drug else 'N/A' }}</td>
+                                    <td>{{ bill.quantity }}</td>
+                                    <td class="text-right">Kshs {{ "{:,.2f}".format(bill.total_cost) }}</td>
+                                    <td>{{ bill.receipt_number or 'N/A' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('billing.update_status', billing_id=bill.id) }}" class="btn btn-success btn-sm">Mark as Paid</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <p class="total-text"><strong>Total: Kshs {{ "{:,.2f}".format(totals['Existing Drug Bills']) }}</strong></p>
+                    {% else %}
+                        <p class="text-muted no-data">No pending drug bills.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Payment Summary -->
+            <div class="card billing-card mb-4">
+                <div class="card-body">
+                    <h3 class="card-title">Payment Summary</h3>
+                    <div class="summary-box">
+                        <p class="grand-total"><strong>Grand Total: Kshs {{ "{:,.2f}".format(grand_total) }}</strong></p>
+                        <p id="selected-total" class="selected-total"><strong>Selected Total: Kshs 0.00</strong></p>
+                        <div class="mb-3">
+                            <label for="amount_paid" class="form-label">Amount Paid (Kshs):</label>
+                            <input type="number" id="amount_paid" name="amount_paid" class="form-control" step="0.01" min="0" max="{{ grand_total }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="payment_method" class="form-label">Payment Method:</label>
+                            <select id="payment_method" name="payment_method" class="form-select" required>
+                                <option value="">Select method</option>
+                                <option value="Cash">Cash</option>
+                                <option value="M-Pesa">M-Pesa</option>
+                                <option value="Card">Credit/Debit Card</option>
+                                <option value="Insurance">Insurance</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="payment_reference" class="form-label">Payment Reference (Optional):</label>
+                            <input type="text" id="payment_reference" name="payment_reference" class="form-control" placeholder="e.g., M-Pesa Transaction ID">
+                        </div>
+                        <button type="submit" name="action" value="pay_selected" class="btn btn-success me-2">Pay Selected</button>
+                        <button type="submit" name="action" value="pay_all" class="btn btn-primary me-2">Pay All</button>
+                        <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#receiptModal">Preview Receipt</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="text-center mt-3">
+                <a href="{{ url_for('billing.index') }}" class="btn btn-primary">Back to Billing List</a>
+            </div>
+        </form>
+
+        <!-- Receipt Preview Modal -->
+        <div class="modal fade" id="receiptModal" tabindex="-1" aria-labelledby="receiptModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="receiptModalLabel">Receipt Preview</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <h6>Patient: {{ patient.name }} ({{ patient.patient_id }})</h6>
+                        <p>Date: {{ "now"|datetime }}</p>
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr><th>Category</th><th>Items</th><th>Total Cost</th></tr>
+                            </thead>
+                            <tbody id="receipt-items">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                        <p><strong>Total Paid: Kshs <span id="receipt-total">0.00</span></strong></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="window.print()">Print</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .billing-container { max-width: 1200px; font-family: 'Segoe UI', sans-serif; }
+    .billing-header { background-color: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; }
+    .billing-title { font-size: 30px; color: #343a40; margin-bottom: 8px; }
+    .patient-info { font-size: 18px; color: #6c757d; }
+    .billing-card { border: none; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); border-radius: 10px; overflow: hidden; }
+    .card-title { font-size: 22px; color: #343a40; margin-bottom: 20px; }
+    .billing-table th, .billing-table td { padding: 14px; vertical-align: middle; }
+    .billing-table th { font-weight: 600; }
+    .text-right { text-align: right; }
+    .total-text { font-size: 18px; margin-top: 12px; text-align: right; }
+    .no-data { font-style: italic; margin-top: 12px; color: #6c757d; }
+    .summary-box { background-color: #f1f3f5; padding: 20px; border-radius: 10px; }
+    .grand-total { font-size: 20px; color: #dc3545; margin-bottom: 25px; text-align: right; }
+    .selected-total { font-size: 18px; color: #007bff; margin-bottom: 25px; text-align: right; }
+    .btn-success, .btn-primary, .btn-info, .btn-secondary { padding: 10px 25px; font-size: 16px; border-radius: 6px; }
+    .modal-body table { font-size: 14px; }
+    @media print {
+        .btn, .summary-box, .modal-footer { display: none; }
+        .billing-container { margin-top: 0; }
+        .billing-card { box-shadow: none; border: 1px solid #dee2e6; }
+        .modal { display: block !important; position: static; }
+    }
+</style>
+
+<script>
+    {% if not payment_success %}
+    // Select All Checkboxes per Section
+    document.querySelectorAll('.select-all').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const section = this.dataset.section;
+            document.querySelectorAll(`input[name="${section}"]`).forEach(cb => cb.checked = this.checked);
+            updateSelectedTotal();
+        });
+    });
+
+    // Global Select All Button
+    document.getElementById('select-all-global').addEventListener('click', function() {
+        const isChecked = this.textContent === 'Select All';
+        document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = isChecked);
+        this.textContent = isChecked ? 'Deselect All' : 'Select All';
+        updateSelectedTotal();
+    });
+
+    // Update Selected Total
+    function updateSelectedTotal() {
+        let total = 0;
+        document.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+            const row = cb.closest('tr');
+            if (row) {
+                const costCell = row.querySelector('.text-right');
+                if (costCell) {
+                    const costText = costCell.textContent.replace('Kshs ', '').replace(/,/g, '');
+                    const cost = parseFloat(costText) || 0;
+                    total += cost;
+                }
+            }
+        });
+        document.getElementById('selected-total').innerHTML = `<strong>Selected Total: Kshs ${total.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</strong>`;
+        document.getElementById('amount_paid').value = total.toFixed(2);
+        updateReceiptPreview();
+    }
+
+    // Update Receipt Preview
+    function updateReceiptPreview() {
+        const items = [];
+        let total = 0;
+        document.querySelectorAll('.billing-card').forEach(card => {
+            const category = card.querySelector('.card-title').textContent;
+            let categoryTotal = 0;
+            const checkedRows = card.querySelectorAll('input[type="checkbox"]:checked');
+            if (checkedRows.length > 0) {
+                const details = Array.from(checkedRows).map(cb => {
+                    const row = cb.closest('tr');
+                    const costCell = row.querySelector('.text-right');
+                    const cost = costCell ? parseFloat(costCell.textContent.replace('Kshs ', '').replace(/,/g, '')) || 0 : 0;
+                    categoryTotal += cost;
+                    return row.cells[2].textContent; // e.g., Drug name, Test name
+                }).join(', ');
+                items.push(`<tr><td>${category}</td><td>${details}</td><td>Kshs ${categoryTotal.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</td></tr>`);
+                total += categoryTotal;
+            }
+        });
+        document.getElementById('receipt-items').innerHTML = items.join('');
+        document.getElementById('receipt-total').textContent = total.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+    }
+
+    // Event Listeners
+    document.querySelectorAll('input[name="dispensed_drugs"], input[name="requested_labs"], input[name="clinic_bookings"], input[name="theatre_list"], input[name="requested_images"], input[name="admitted_patients"]').forEach(cb => {
+        cb.addEventListener('change', updateSelectedTotal);
+    });
+
+    // Initial call to ensure correct state
+    updateSelectedTotal();
+    {% endif %}
+</script>
+{% endblock %}

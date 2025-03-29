@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center"><i class="bi bi-journal-medical"></i> Lab History for {{ patient.name }}</h2>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Patient Details</h4>
+        </div>
+        <div class="card-body">
+            <p><strong>Patient Name:</strong> {{ patient.name }}</p>
+            <p><strong>Patient ID:</strong> {{ patient.patient_id }}</p>
+        </div>
+    </div>
+
+    {% if lab_history %}
+    <div class="card shadow-sm">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0">Lab Test History</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Date</th>
+                        <th>Test Name</th>
+                        <th>Notes</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for test in lab_history %}
+                    <tr>
+                        <td>{{ test.test_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ test.test_name }}</td>
+                        <td>{{ test.result_notes | default("No notes available") }}</td>
+                        <td>
+                            <a href="{{ url_for('laboratory.view_lab_results', result_id=test.id) }}" 
+                               class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-eye"></i> View Result
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning text-center">
+        <i class="bi bi-exclamation-triangle"></i> No lab history found for this patient.
+    </div>
+    {% endif %}
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('laboratory.search_patient') }}" class="btn btn-secondary">Back to Search</a>
+    </div>
+</div>
+{% endblock %}

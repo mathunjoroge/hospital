@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h2 class="card-title mb-0"><i class="bi bi-heart-pulse me-2"></i>Record Vital Signs</h2>
+        </div>
+        <div class="card-body">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('nursing.vital_signs') }}">
+                <div class="mb-3">
+                    <label for="patient_id" class="form-label">Patient ID</label>
+                    <input type="text" class="form-control" id="patient_id" name="patient_id" required>
+                </div>
+                <div class="mb-3">
+                    <label for="heart_rate" class="form-label">Heart Rate (bpm)</label>
+                    <input type="number" class="form-control" id="heart_rate" name="heart_rate">
+                </div>
+                <div class="mb-3">
+                    <label for="respiratory_rate" class="form-label">Respiratory Rate (breaths/min)</label>
+                    <input type="number" class="form-control" id="respiratory_rate" name="respiratory_rate">
+                </div>
+                <div class="mb-3">
+                    <label for="oxygen_saturation" class="form-label">Oxygen Saturation (%)</label>
+                    <input type="number" class="form-control" id="oxygen_saturation" name="oxygen_saturation">
+                </div>
+                <div class="mb-3">
+                    <label for="temperature" class="form-label">Temperature (°C)</label>
+                    <input type="number" step="0.1" class="form-control" id="temperature" name="temperature">
+                </div>
+                <div class="mb-3">
+                    <label for="pulse" class="form-label">Pulse (bpm)</label>
+                    <input type="number" class="form-control" id="pulse" name="pulse">
+                </div>
+                <div class="mb-3">
+                    <label for="blood_pressure_systolic" class="form-label">Blood Pressure Systolic (mmHg)</label>
+                    <input type="number" class="form-control" id="blood_pressure_systolic" name="blood_pressure_systolic">
+                </div>
+                <div class="mb-3">
+                    <label for="blood_pressure_diastolic" class="form-label">Blood Pressure Diastolic (mmHg)</label>
+                    <input type="number" class="form-control" id="blood_pressure_diastolic" name="blood_pressure_diastolic">
+                </div>
+                <div class="mb-3">
+                    <label for="blood_glucose" class="form-label">Blood Glucose (mg/dL)</label>
+                    <input type="number" step="0.1" class="form-control" id="blood_glucose" name="blood_glucose">
+                </div>
+                <div class="mb-3">
+                    <label for="weight" class="form-label">Weight (kg)</label>
+                    <input type="number" step="0.1" class="form-control" id="weight" name="weight">
+                </div>
+                <div class="mb-3">
+                    <label for="height" class="form-label">Height (cm)</label>
+                    <input type="number" step="0.1" class="form-control" id="height" name="height">
+                </div>
+                <button type="submit" class="btn btn-primary">Record Vital Signs</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

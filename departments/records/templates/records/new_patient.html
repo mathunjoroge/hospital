@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Register New Patient</h2>
+    <form method="POST" novalidate>
+
+
+        <div class="row">
+            <!-- Left Column -->
+            <div class="col-md-6">
+                <!-- Name -->
+                <div class="mb-3">
+                    <label for="name" class="form-label">Name</label>
+                    <input type="text" class="form-control" id="name" name="name" required>
+                </div>
+
+                <!-- Place of Residence -->
+                <div class="mb-3">
+                    <label for="place_of_residence" class="form-label">Place of Residence</label>
+                    <input type="text" class="form-control" id="place_of_residence" name="place_of_residence" required>
+                </div>
+
+                <!-- Sex -->
+                <div class="mb-3">
+                    <label for="sex" class="form-label">Sex</label>
+                    <select class="form-select" id="sex" name="sex" required>
+                        <option value="">Select Sex</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <!-- Date of Birth -->
+                <div class="mb-3">
+                    <label for="date_of_birth" class="form-label">Date of Birth</label>
+                    <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" required>
+                </div>
+
+                <!-- Marital Status -->
+                <div class="mb-3">
+                    <label for="marital_status" class="form-label">Marital Status</label>
+                    <select class="form-select" id="marital_status" name="marital_status" required>
+                        <option value="">Select Marital Status</option>
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                        <option value="Divorced">Divorced</option>
+                        <option value="Widowed">Widowed</option>
+                    </select>
+                </div>
+
+                <!-- Blood Group -->
+                <div class="mb-3">
+                    <label for="blood_group" class="form-label">Blood Group</label>
+                    <select class="form-select" id="blood_group" name="blood_group" required>
+                        <option value="">Select Blood Group</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                    </select>
+                </div>
+
+                <!-- Contact Number -->
+                <div class="mb-3">
+                    <label for="contact" class="form-label">Contact Number</label>
+                    <input type="tel" class="form-control" id="contact" name="contact" required>
+                </div>
+
+                <!-- Next of Kin -->
+                <div class="mb-3">
+                    <label for="next_of_kin" class="form-label">Next of Kin</label>
+                    <input type="text" class="form-control" id="next_of_kin" name="next_of_kin" required>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="col-md-6">
+                <!-- Relationship with Next of Kin -->
+                <div class="mb-3">
+                    <label for="relationship_with_next_of_kin" class="form-label">Relationship with Next of Kin</label>
+                    <input type="text" class="form-control" id="relationship_with_next_of_kin" name="relationship_with_next_of_kin" required>
+                </div>
+
+                <!-- Next of Kin Contact -->
+                <div class="mb-3">
+                    <label for="next_of_kin_contact" class="form-label">Next of Kin Contact</label>
+                    <input type="tel" class="form-control" id="next_of_kin_contact" name="next_of_kin_contact" required>
+                </div>
+
+                <!-- National ID/Passport Number -->
+                <div class="mb-3">
+                    <label for="national_id" class="form-label">National ID/Passport Number</label>
+                    <input type="text" class="form-control" id="national_id" name="national_id" required>
+                </div>
+
+                <!-- Insurance Provider -->
+                <div class="mb-3">
+                    <label for="insurance_provider" class="form-label">Insurance Provider</label>
+                    <input type="text" class="form-control" id="insurance_provider" name="insurance_provider">
+                </div>
+
+                <!-- Insurance Policy Number -->
+                <div class="mb-3">
+                    <label for="insurance_policy_number" class="form-label">Insurance Policy Number</label>
+                    <input type="text" class="form-control" id="insurance_policy_number" name="insurance_policy_number">
+                </div>
+
+                <!-- Occupation -->
+                <div class="mb-3">
+                    <label for="occupation" class="form-label">Occupation</label>
+                    <input type="text" class="form-control" id="occupation" name="occupation">
+                </div>
+
+                <!-- Employer Name -->
+                <div class="mb-3">
+                    <label for="employer_name" class="form-label">Employer Name</label>
+                    <input type="text" class="form-control" id="employer_name" name="employer_name">
+                </div>
+
+                <!-- Emergency Contact -->
+                <div class="mb-3">
+                    <label for="emergency_contact" class="form-label">Emergency Contact</label>
+                    <input type="tel" class="form-control" id="emergency_contact" name="emergency_contact" required>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="container">
+            
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Register Patient</button>
+            </div>
+        
+    </form>
+</div>
+{% endblock %}

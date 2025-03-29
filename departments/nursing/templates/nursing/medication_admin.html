@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h2 class="card-title mb-0"><i class="bi bi-capsule me-2"></i>Record Medication Administration</h2>
+        </div>
+        <div class="card-body">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Medication Administration Form -->
+            <form method="POST" action="{{ url_for('nursing.medication_admin') }}">
+                <div class="mb-3">
+                    <label for="patient_id" class="form-label">Patient ID</label>
+                    <input type="text" class="form-control" id="patient_id" name="patient_id" required>
+                    <div class="form-text">Enter the patient's unique identifier (e.g., P001).</div>
+                </div>
+                <div class="mb-3">
+                    <label for="medication" class="form-label">Medication</label>
+                    <input type="text" class="form-control" id="medication" name="medication" required>
+                    <div class="form-text">Enter the name of the medication (e.g., Aspirin).</div>
+                </div>
+                <div class="mb-3">
+                    <label for="dosage" class="form-label">Dosage</label>
+                    <input type="text" class="form-control" id="dosage" name="dosage" required>
+                    <div class="form-text">Enter the dosage (e.g., 81mg).</div>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save me-2"></i>Record Medication</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

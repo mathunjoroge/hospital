@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Non-Pharmaceutical Inventory</h2>
+
+    <!-- Display flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Grouped Items -->
+    {% if items_by_category %}
+        <div class="accordion" id="nonPharmAccordion">
+            {% for category_id, items in items_by_category.items() %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ category_id }}">
+                        <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" 
+                                data-bs-toggle="collapse" data-bs-target="#collapse{{ category_id }}"
+                                aria-expanded="{% if loop.first %}true{% else %}false{% endif %}" 
+                                aria-controls="collapse{{ category_id }}">
+                            <span class="fw-bold">{{ category_name_map[category_id] }}</span> 
+                            <span class="badge bg-primary ms-2">{{ items|length }} items</span>
+                        </button>
+                    </h2>
+                    <div id="collapse{{ category_id }}" 
+                         class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                         aria-labelledby="heading{{ category_id }}" data-bs-parent="#nonPharmAccordion">
+                        <div class="accordion-body">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Unit</th>
+                                        <th>Unit Cost</th>
+                                        <th>Stock Level</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                    <tr>
+                                        <td>{{ item.name }}</td>
+                                        <td>{{ item.unit }}</td>
+                                        <td>${{ "%.2f"|format(item.unit_cost) }}</td>
+                                        <td>
+                                            <span class="badge {% if item.stock_level > 10 %}bg-success{% else %}bg-warning{% endif %}">
+                                                {{ item.stock_level }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info text-center" role="alert">
+            No non-pharmaceutical items available.
+        </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('stores.index') }}" class="btn btn-outline-secondary me-2">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        <a href="#" class="btn btn-primary">
+            <i class="fas fa-cart-plus"></i> Place an Order
+        </a>
+    </div>
+</div>
+{% endblock %}

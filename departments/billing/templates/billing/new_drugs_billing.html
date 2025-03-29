@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Create New Drug Billing</h2>
+    <form id="newDrugsBillingForm" method="POST">
+        <!-- Select Patient -->
+        <div class="mb-3">
+            <label for="patient_id" class="form-label">Select Patient</label>
+            <select class="form-select select2" id="patient_id" name="patient_id" required>
+                <option value="" disabled selected>Select a patient</option>
+                {% for patient in patients %}
+                <option value="{{ patient.patient_id }}">{{ patient.name }} ({{ patient.patient_id }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Select Drug -->
+        <div class="mb-3">
+            <label for="drug_id" class="form-label">Select Drug</label>
+            <select class="form-select" id="drug_id" name="drug_id" required>
+                <option value="" disabled selected>Select a drug</option>
+                {% for drug in drugs %}
+                <option value="{{ drug.id }}">{{ drug.generic_name }} - {{ drug.dosage_form }} (Kshs {{ drug.selling_price }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Quantity -->
+        <div class="mb-3">
+            <label for="quantity" class="form-label">Quantity</label>
+            <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary">Create Drug Billing</button>
+    </form>
+</div>
+{% endblock %}

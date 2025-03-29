@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Admit a Patient</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('medicine.admit_patient') }}">
+       
+
+        <!-- Patient Select2 -->
+<div class="mb-3">
+    <label for="patient_id" class="form-label">Patient</label>
+    <select id="patient_id" name="patient_id" class="form-control select2" required>
+        <option value="">Enter patient name or number...</option>
+    </select>
+</div>
+
+        <!-- Ward Selection -->
+        <div class="mb-3">
+            <label for="ward_id" class="form-label">Ward</label>
+            <select name="ward_id" class="form-control" required onchange="fetchAvailableRooms(this.value)">
+                <option value="">Select Ward</option>
+                {% for ward in wards %}
+                <option value="{{ ward.id }}">
+                    {{ ward.name }} ({{ ward.sex }}) - Available Beds: {{ ward.number_of_beds - ward.occupied_beds }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Room Selection -->
+        <div class="mb-3">
+            <label for="room_id" class="form-label">Room</label>
+            <select name="room_id" class="form-control" id="room_id" required onchange="fetchAvailableBeds(this.value)">
+                <option value="">Select Room</option>
+            </select>
+        </div>
+
+        <!-- Bed Selection -->
+        <div class="mb-3">
+            <label for="bed_id" class="form-label">Bed</label>
+            <select name="bed_id" class="form-control" id="bed_id" required>
+                <option value="">Select Bed</option>
+            </select>
+        </div>
+
+        <!-- Admission Criteria -->
+        <div class="mb-3">
+            <label for="admission_criteria" class="form-label">Admission Criteria</label>
+            <textarea name="admission_criteria" class="form-control" required></textarea>
+        </div>
+
+        <input type="hidden" name="admitted_by" value="1"> <!-- Replace with logged-in user ID -->
+
+        <button type="submit" class="btn btn-primary">Admit Patient</button>
+    </form>
+</div>
+
+
+<script>
+
+function fetchAvailableRooms(wardId) {
+    if (!wardId) return;
+    console.log("Fetching rooms for ward ID:", wardId);
+
+    let roomSelect = document.getElementById("room_id");
+    let bedSelect = document.getElementById("bed_id");
+    roomSelect.innerHTML = "<option value=''>Loading...</option>";
+    bedSelect.innerHTML = "<option value=''>Select Bed</option>";
+
+    fetch(`/medicine/available-rooms/${wardId}`)
+        .then(response => response.json())
+        .then(data => {
+            console.log("Rooms received:", data);
+            roomSelect.innerHTML = "<option value=''>Select Room</option>";
+
+            if (!data.rooms || data.rooms.length === 0) {
+                roomSelect.innerHTML = "<option value=''>No rooms available</option>";
+            } else {
+                data.rooms.forEach(room => {
+                    let option = document.createElement("option");
+                    option.value = room.id;
+                    option.textContent = `Room ${room.room_number}`;
+                    roomSelect.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching rooms:", error);
+            roomSelect.innerHTML = "<option value=''>Error loading rooms</option>";
+        });
+}
+
+function fetchAvailableBeds(roomId) {
+    if (!roomId) return;
+    console.log("Fetching beds for room ID:", roomId);
+
+    let bedSelect = document.getElementById("bed_id");
+    bedSelect.innerHTML = "<option value=''>Loading...</option>";
+
+    fetch(`/medicine/available-beds/${roomId}`)
+        .then(response => response.json())
+        .then(data => {
+            console.log("Beds received:", data);
+            bedSelect.innerHTML = "<option value=''>Select Bed</option>";
+
+            if (!data.beds || data.beds.length === 0) {
+                bedSelect.innerHTML = "<option value=''>No beds available</option>";
+            } else {
+                data.beds.forEach(bed => {
+                    let option = document.createElement("option");
+                    option.value = bed.id;
+                    option.textContent = `Bed ${bed.bed_number}`;
+                    bedSelect.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching beds:", error);
+            bedSelect.innerHTML = "<option value=''>Error loading beds</option>";
+        });
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    /* Dark mode styles for tables */
+    .dark-mode .table {
+        background-color: #444;
+        color: #fff;
+    }
+    .dark-mode .table th, .dark-mode .table td {
+        background-color: #444;
+        color: #fff;
+        border-color: #666;
+    }
+    .dark-mode .table-hover tbody tr:hover {
+        background-color: #555;
+        color: #fff;
+    }
+    .dark-mode .pagination .page-link {
+        background-color: #555;
+        color: #fff;
+        border-color: #666;
+    }
+    .dark-mode .pagination .page-link:hover, .dark-mode .pagination .page-link:focus {
+        background-color: #666;
+        color: #fff;
+        border-color: #777;
+    }
+    .dark-mode .pagination .page-item.active .page-link {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+    .dark-mode .form-control {
+        background-color: #555;
+        color: #fff;
+        border-color: #666;
+    }
+</style>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- Dark Mode Toggle -->
+<div class="text-end mt-3">
+    <button id="darkModeToggle" class="btn btn-secondary btn-sm">
+        <i class="bi bi-moon"></i> Toggle Dark Mode
+    </button>
+</div>
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h2 class="card-title mb-0"><i class="bi bi-clipboard-data me-2"></i>View Partogram Records</h2>
+        </div>
+        <div class="card-body">
+            <!-- Search Form -->
+            <form method="GET" action="{{ url_for('nursing.view_partograms') }}" class="mb-4">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <input type="text" id="patient_id" name="patient_id" class="form-control" placeholder="Enter Patient ID (e.g., P001)" value="{{ request.args.get('patient_id', '') }}">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search me-2"></i>Search
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <a href="{{ url_for('nursing.view_partograms') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle me-2"></i>Clear Search
+                        </a>
+                    </div>
+                </div>
+            </form>
+
+            {% if partograms.items %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Patient ID</th>
+                                <th>Latest Record Timestamp</th>
+                                <th>Recorded By</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for partogram in partograms.items %}
+                            <tr>
+                                <td>{{ partogram.patient_id }}</td>
+                                <td class="timestamp" data-timestamp="{{ partogram.timestamp }}">{{ partogram.timestamp }}</td>
+                                <td>{{ user_name_map.get(partogram.recorded_by, 'Unknown') }}</td>
+                                <td>
+                                    <a href="{{ url_for('nursing.view_partogram', patient_id=partogram.patient_id) }}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye me-1"></i> View Details
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if partograms.has_prev or partograms.has_next %}
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center mt-3">
+                            {% if partograms.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('nursing.view_partograms', page=partograms.prev_num, patient_id=request.args.get('patient_id', '')) }}">Previous</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">Previous</span>
+                                </li>
+                            {% endif %}
+
+                            {% for page_num in partograms.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num == partograms.page %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page_num }}</span>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('nursing.view_partograms', page=page_num, patient_id=request.args.get('patient_id', '')) }}">{{ page_num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if partograms.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('nursing.view_partograms', page=partograms.next_num, patient_id=request.args.get('patient_id', '')) }}">Next</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">Next</span>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <p class="text-muted text-center">No partogram records found for this patient.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('nursing.record_partogram') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Record Partogram
+        </a>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // Toggle dark mode
+        $('#darkModeToggle').on('click', function() {
+            $('body').toggleClass('dark-mode');
+        });
+
+        // Format timestamps using JavaScript
+        $('.timestamp').each(function() {
+            const timestampStr = $(this).data('timestamp');
+            try {
+                const date = new Date(timestampStr);
+                if (isNaN(date.getTime())) {
+                    throw new Error('Invalid date');
+                }
+                // Format as YYYY-MM-DD HH:MM:SS
+                const formatted = date.getFullYear() + '-' +
+                                 String(date.getMonth() + 1).padStart(2, '0') + '-' +
+                                 String(date.getDate()).padStart(2, '0') + ' ' +
+                                 String(date.getHours()).padStart(2, '0') + ':' +
+                                 String(date.getMinutes()).padStart(2, '0') + ':' +
+                                 String(date.getSeconds()).padStart(2, '0');
+                $(this).text(formatted);
+            } catch (e) {
+                console.log(`Error formatting timestamp ${timestampStr}: ${e}`);
+                // Leave the original timestamp if parsing fails
+            }
+        });
+    });
+</script>
+{% endblock %}

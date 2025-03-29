@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="container mt-5">
+    <h2 class="mb-4">Pharmacy Analytics Dashboard</h2>
+
+    <!-- Date Range Filter and Export -->
+    <form method="POST" class="mb-5">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label for="start_date" class="form-label">Start Date:</label>
+          <input type="date" id="start_date" name="start_date" value="{{ start_date }}" class="form-control">
+        </div>
+        <div class="col-md-3">
+          <label for="end_date" class="form-label">End Date:</label>
+          <input type="date" id="end_date" name="end_date" value="{{ end_date }}" class="form-control">
+        </div>
+        <div class="col-md-3">
+          <button type="submit" class="btn btn-primary w-100">Filter</button>
+        </div>
+        <div class="col-md-3">
+          <a href="{{ url_for('pharmacy.export_analytics') }}" class="btn btn-success w-100">Export Sales Data</a>
+        </div>
+      </div>
+    </form>
+
+    <!-- Sales Trends -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h3 class="card-title">Sales Trends (Paid)</h3>
+        {% if sales_data %}
+          <canvas id="salesChart" height="100"></canvas>
+        {% else %}
+          <p class="text-muted">No paid sales data available for this period.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Top Dispensed Drugs -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h3 class="card-title">Top 5 Dispensed Drugs</h3>
+        {% if top_drugs %}
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>Generic Name</th>
+                <th>Brand Name</th>
+                <th>Strength</th>
+                <th>Dosage Form</th>
+                <th>Dispensed Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for drug in top_drugs %}
+                <tr>
+                  <td>{{ drug.generic_name }}</td>
+                  <td>{{ drug.brand_name }}</td>
+                  <td>{{ drug.strength }}</td>
+                  <td>{{ drug.dosage_form }}</td>
+                  <td>{{ drug.count }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="text-muted">No dispensing data available for this period.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Inventory Usage -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h3 class="card-title">Inventory Usage Rates</h3>
+        {% if usage_rates %}
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>Generic Name</th>
+                <th>Brand Name</th>
+                <th>Strength</th>
+                <th>Dosage Form</th>
+                <th>Usage (%)</th>
+                <th>Remaining Stock</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in usage_rates %}
+                <tr>
+                  <td>{{ item.generic_name }}</td>
+                  <td>{{ item.brand_name }}</td>
+                  <td>{{ item.strength }}</td>
+                  <td>{{ item.dosage_form }}</td>
+                  <td>{{ "%.2f"|format(item.usage) }}%</td>
+                  <td>{{ item.remaining }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="text-muted">No inventory usage data available.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Expiry Risks -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h3 class="card-title">Drugs Nearing Expiry (Next 90 Days)</h3>
+        {% if expiry_data %}
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>Generic Name</th>
+                <th>Brand Name</th>
+                <th>Strength</th>
+                <th>Dosage Form</th>
+                <th>Batch Number</th>
+                <th>Expiry Date</th>
+                <th>Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in expiry_data %}
+                <tr>
+                  <td>{{ item.generic_name }}</td>
+                  <td>{{ item.brand_name }}</td>
+                  <td>{{ item.strength }}</td>
+                  <td>{{ item.dosage_form }}</td>
+                  <td>{{ item.batch }}</td>
+                  <td>{{ item.expiry }}</td>
+                  <td>{{ item.qty }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="text-muted">No drugs nearing expiry within the next 90 days.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Peak Dispensing Hours -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h3 class="card-title">Peak Dispensing Hours</h3>
+        {% if hours_data %}
+          <canvas id="hoursChart" height="100"></canvas>
+        {% else %}
+          <p class="text-muted">No dispensing data available for this period.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart.js Script -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Sales Chart
+    {% if sales_data %}
+      const salesCtx = document.getElementById('salesChart').getContext('2d');
+      const salesData = JSON.parse('{{ sales_data|safe }}');
+      new Chart(salesCtx, {
+        type: 'line',
+        data: {
+          labels: salesData.map(d => d[0]),
+          datasets: [{
+            label: 'Paid Sales Revenue ($)',
+            data: salesData.map(d => d[1]),
+            borderColor: '#007bff',
+            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+            fill: true,
+            tension: 0.1
+          }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: true, title: { display: true, text: 'Revenue ($)' } },
+            x: { title: { display: true, text: 'Date' } }
+          },
+          plugins: {
+            tooltip: { mode: 'index', intersect: false },
+            legend: { display: true }
+          }
+        }
+      });
+    {% endif %}
+
+    // Peak Hours Chart
+    {% if hours_data %}
+      const hoursCtx = document.getElementById('hoursChart').getContext('2d');
+      const hoursData = JSON.parse('{{ hours_data|safe }}');
+      new Chart(hoursCtx, {
+        type: 'bar',
+        data: {
+          labels: hoursData.map(h => {
+            const hour = h.hour % 12 || 12;
+            const period = h.hour < 12 ? 'AM' : 'PM';
+            return `${hour} ${period}`;
+          }),
+          datasets: [{
+            label: 'Dispensing Count',
+            data: hoursData.map(h => h.count),
+            backgroundColor: 'rgba(75, 192, 192, 0.7)',
+            borderColor: '#4bc0c0',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: true, title: { display: true, text: 'Count' } },
+            x: { title: { display: true, text: 'Hour of Day' } }
+          },
+          plugins: {
+            tooltip: { mode: 'index', intersect: false },
+            legend: { display: true }
+          }
+        }
+      });
+    {% endif %}
+  </script>
+{% endblock %}

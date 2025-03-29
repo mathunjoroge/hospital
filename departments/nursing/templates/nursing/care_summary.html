@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Nursing Care Summary</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Notes Section -->
+    {% if notes %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Recent Notes</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Patient ID</th>
+                        <th>Note</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for note in notes %}
+                    <tr>
+                        <td>{{ note.patient_id }}</td>
+                        <td>{{ note.note }}</td>
+                        <td>{{ note.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No nursing notes found.</p>
+    {% endif %}
+
+    <!-- Tasks Section -->
+    {% if tasks %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Recent Tasks</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Patient ID</th>
+                        <th>Task Description</th>
+                        <th>Status</th>
+                        <th>Created At</th>
+                        <th>Completed At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in tasks %}
+                    <tr>
+                        <td>{{ task.patient_id }}</td>
+                        <td>{{ task.task_description }}</td>
+                        <td>{{ task.status }}</td>
+                        <td>{{ task.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>{{ task.completed_at.strftime('%Y-%m-%d %H:%M:%S') if task.completed_at else 'N/A' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No care tasks assigned.</p>
+    {% endif %}
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('nursing.view_notes') }}" class="btn btn-primary">
+            <i class="bi bi-journal-text me-2"></i> View Notes
+        </a>
+        <a href="{{ url_for('nursing.care_tasks') }}" class="btn btn-primary">
+            <i class="bi bi-list-task me-2"></i> Manage Tasks
+        </a>
+        <a href="{{ url_for('home') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left me-2"></i> Back to Home
+        </a>
+    </div>
+</div>
+{% endblock %}

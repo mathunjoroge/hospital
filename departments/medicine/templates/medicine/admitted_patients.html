@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Admitted Patients</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Patient</th>
+                    <th>Ward</th>
+                    <th>Admission Date</th>
+                    <th>Admission Criteria</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for patient in patients %}
+                <tr>
+                    <td>{{ patient.patient_name }}</td>
+                    <td>{{ patient.ward_name }} ({{ patient.ward_sex }})</td>
+                    <td>{{ patient.admitted_on.strftime('%Y-%m-%d %H:%M:%S') if patient.admitted_on else 'N/A' }}</td>
+                    <td>{{ patient.admission_criteria }}</td>
+                    <td>
+                        {% if patient.discharged_on %}
+                            <span class="badge bg-success">Discharged</span>
+                        {% else %}
+                            <span class="badge bg-warning">Admitted</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if not patient.discharged_on %}
+                            <form method="POST" action="{{ url_for('medicine.discharge_patient', id=patient.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm">Discharge</button>
+                            </form>
+                        {% else %}
+                            <span class="text-muted">Completed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Create New Billing</h2>
+    <form id="newBillingForm" method="POST">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Select Patient -->
+        <div class="mb-3">
+            <label for="patient_id" class="form-label">Select Patient</label>
+            <select class="form-select select2" id="patient_id" name="patient_id" required>
+                <option value="" disabled selected>Select a patient</option>
+                {% for patient in patients %}
+                <option value="{{ patient.patient_id }}">{{ patient.name }} ({{ patient.patient_id }})</option>
+                {% else %}
+                <option value="" disabled>No patients available</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Select Charge -->
+        <div class="mb-3">
+            <label for="charge_id" class="form-label">Select Charge</label>
+            <select class="form-select" id="charge_id" name="charge_id" required>
+                <option value="" disabled selected>Select a charge</option>
+                {% for charge in charges %}
+                <option value="{{ charge.id }}">{{ charge.name }} - {{ charge.category.name }} (Kshs {{ charge.cost }})</option>
+                {% else %}
+                <option value="" disabled>No charges available</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Quantity -->
+        <div class="mb-3">
+            <label for="quantity" class="form-label">Quantity</label>
+            <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create Billing</button>
+        </div>
+    </form>
+
+    <!-- Include Select2 CSS and JS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <!-- Initialize Select2 for live search -->
+    <script>
+        $(document).ready(function() {
+            // Initialize Select2 for the patient dropdown
+            $('.select2').select2({
+                placeholder: 'Search for a patient...',
+                allowClear: true,
+                minimumInputLength: 3, // Minimum characters required to start searching
+                ajax: {
+                    url: '/billing/search_patients', // Backend route for live search
+                    dataType: 'json',
+                    delay: 250, // Delay before sending AJAX request
+                    data: function (params) {
+                        return {
+                            term: params.term // Send the search term as a parameter
+                        };
+                    },
+                    processResults: function (data) {
+                        return {
+                            results: data.results // Map the results to the expected format
+                        };
+                    },
+                    cache: true
+                }
+            });
+        });
+    </script>
+</div>
+{% endblock %}

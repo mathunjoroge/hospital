@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Department-Wise Employee Distribution</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Department Reports Table -->
+    {% if department_data %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Employee Distribution</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Department</th>
+                        <th>Total Employees</th>
+                        <th>Records</th>
+                        <th>Nursing</th>
+                        <th>Pharmacy</th>
+                        <th>Medicine</th>
+                        <th>Laboratory</th>
+                        <th>Imaging</th>
+                        <th>Mortuary</th>
+                        <th>HR</th>
+                        <th>Stores</th>
+                        <th>Admin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for department, counts in department_data.items() %}
+                    <tr>
+                        <td>{{ department }}</td>
+                        <td>{{ counts['total'] }}</td>
+                        <td>{{ counts.get('records', 0) }}</td>
+                        <td>{{ counts.get('nursing', 0) }}</td>
+                        <td>{{ counts.get('pharmacy', 0) }}</td>
+                        <td>{{ counts.get('medicine', 0) }}</td>
+                        <td>{{ counts.get('laboratory', 0) }}</td>
+                        <td>{{ counts.get('imaging', 0) }}</td>
+                        <td>{{ counts.get('mortuary', 0) }}</td>
+                        <td>{{ counts.get('hr', 0) }}</td>
+                        <td>{{ counts.get('stores', 0) }}</td>
+                        <td>{{ counts.get('admin', 0) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="12" class="text-center text-muted">No department-wise employee distribution data available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No department-wise employee distribution data available.</p>
+    {% endif %}
+
+    <!-- Chart Section -->
+    <h4 class="mt-5 text-center">Department Distribution Chart</h4>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body text-center">
+            <canvas id="departmentChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Export Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('hr.export_department_reports') }}" class="btn btn-success btn-lg px-4">
+            <i class="bi bi-download me-2"></i> Export to CSV
+        </a>
+    </div>
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('hr.index') }}" class="btn btn-secondary btn-lg px-4">
+            <i class="bi bi-arrow-left-circle me-2"></i> Back to HR Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Chart.js Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Extract department data for the chart
+    const departmentData = {{ department_data|tojson|safe }};
+    if (departmentData && Object.keys(departmentData).length > 0) {
+        const labels = Object.keys(departmentData);
+        const data = labels.map(dept => departmentData[dept].total);
+
+        // Initialize the chart
+        const ctx = document.getElementById('departmentChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Total Employees per Department',
+                    data: data,
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Employees'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Departments'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: function(tooltipItem) {
+                                return `${tooltipItem.label}: ${tooltipItem.raw}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        console.warn("No department data available for the chart.");
+    }
+</script>
+{% endblock %}

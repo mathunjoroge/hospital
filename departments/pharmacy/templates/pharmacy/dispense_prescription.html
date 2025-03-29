@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center"><i class="bi bi-prescription"></i> Dispense Prescription</h2>
+
+    {% if prescribed_medicines %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Medicines to Dispense</h4>
+            <span class="badge bg-light text-dark p-2">Total: {{ prescribed_medicines|length }} Medicines</span>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Drug Name</th>
+                        <th>Dosage</th>
+                        <th>Strength</th>
+                        <th>Frequency</th>
+                        <th>Days</th>
+                        <th>Stock Available</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for medicine in prescribed_medicines %}
+                    <tr>
+                        <td>
+                            <strong>{{ medicine.medicine.generic_name }}</strong>
+                            <small class="text-muted">({{ medicine.medicine.brand_name | default("N/A") }})</small>
+                        </td>
+                        <td>{{ medicine.dosage }}</td>
+                        <td>{{ medicine.strength }}</td>
+                        <td>{{ medicine.frequency }}</td>
+                        <td>{{ medicine.num_days }}</td>
+                        <td>
+                            {% set batch = drug_batches.get(medicine.medicine.id, None) %}
+                            <span class="badge {% if batch and batch.quantity_in_stock > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ batch.quantity_in_stock if batch else "N/A" }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if batch and batch.quantity_in_stock >= medicine.num_days %}
+                                <span class="text-success fw-bold">
+                                    <i class="bi bi-check-circle"></i> Available
+                                </span>
+                            {% elif batch %}
+                                <span class="text-warning fw-bold">
+                                    <i class="bi bi-exclamation-triangle"></i> Low Stock
+                                </span>
+                            {% else %}
+                                <span class="text-danger fw-bold">
+                                    <i class="bi bi-x-circle"></i> Out of Stock
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Dispensing Form -->
+    <form method="POST" action="{{ url_for('pharmacy.process_dispense', prescription_id=prescription_id) }}">
+        <input type="hidden" name="prescription_id" value="{{ prescription_id }}">
+
+        <div class="row g-2 align-items-end">
+            <!-- Select Drug -->
+            <div class="col-md-6 col-lg-4">
+                <label for="drugs" class="form-label fw-bold">Select Drug:</label>
+                <select id="drugs" name="drug_id" class="form-select select2" required>
+                    <option value="" disabled selected>Loading drugs...</option>
+                </select>
+            </div>
+
+            <!-- Hidden Input for Batch ID -->
+            <div class="col-md-4 col-lg-2">
+                <label for="batch_id" class="form-label fw-bold">Batch ID:</label>
+                <input type="hidden" id="batch_id" name="batch_id" required>
+                <input type="text" id="batch_display" class="form-control" disabled>
+            </div>
+
+            <!-- Quantity -->
+            <div class="col-md-4 col-lg-2">
+                <label for="quantity_dispensed" class="form-label fw-bold">Quantity:</label>
+                <input type="number" id="quantity_dispensed" name="quantity_dispensed" class="form-control" min="1" required>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="col-md-2 col-lg-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100">Dispense</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Display Dispensed Drugs -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Dispensed Drugs</h4>
+            <button class="btn btn-light btn-sm fw-bold" type="submit">
+                <i class="bi bi-save"></i> Save Dispensed Drugs
+            </button>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('pharmacy.save_dispensed_drugs') }}">
+                <input type="" name="prescription_id" value="{{ prescription_id }}">
+                <table class="table table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Drug Name</th>
+                            <th>Batch ID</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
+                            <th>Total</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for drug in dispensed_drugs %}
+                        <tr>
+                            <td>
+                                <strong>{{ drug.generic_name }}</strong>
+                                <small class="text-muted">({{ drug.brand_name | default("N/A") }})</small>
+                            </td>
+                            <td>{{ drug.batch_id }}</td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm" name="updatedDrugs[{{ drug.id }}]"
+                                       min="1" value="{{ drug.quantity_dispensed }}" required>
+                            </td>
+                            <td>Kshs {{ drug.selling_price }}</td>
+                            <td>Kshs {{ drug.total }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" onclick="confirmDelete('{{ drug.id }}')">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">No drugs have been dispensed yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <button type="submit" class="btn btn-success w-100 mt-3 fw-bold">
+                    <i class="bi bi-save"></i> Save Dispensed Drugs
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="alert alert-info text-center">
+        <i class="bi bi-info-circle"></i> No medicines available in this prescription.
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    let batchIdInput = document.getElementById("batch_id");
+    let batchDisplayInput = document.getElementById("batch_display");
+    let quantityInput = document.getElementById("quantity_dispensed");
+
+    $("#drugs").select2();
+
+    fetch("/pharmacy/get_all_batches")
+        .then(response => response.json())
+        .then(data => {
+            let drugSelect = $("#drugs");
+            drugSelect.empty().append('<option value="" disabled selected>Select drug</option>');
+            data.forEach(batch => {
+                drugSelect.append(
+                    `<option value="${batch.drug_id}" data-batch-id="${batch.batch_id}" data-batch-qty="${batch.batch_qty}">
+                        ${batch.brand_name} | ${batch.generic_name} | ${batch.dosage_form} | ${batch.strength}
+                    </option>`
+                );
+            });
+        });
+
+    $("#drugs").on("change", function () {
+        let selectedOption = this.selectedOptions[0];
+        batchIdInput.value = selectedOption.dataset.batchId;
+        batchDisplayInput.value = selectedOption.dataset.batchId;
+        quantityInput.setAttribute("max", selectedOption.dataset.batchQty);
+    });
+});
+</script>
+{% endblock %}
