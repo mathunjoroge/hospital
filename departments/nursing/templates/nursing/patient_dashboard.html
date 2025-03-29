@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Patient Dashboard Header -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h2 class="card-title mb-0"><i class="bi bi-person-lines-fill me-2"></i>Patient Dashboard: {{ patient_id }}</h2>
+        </div>
+    </div>
+
+    <!-- Partogram Section -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-secondary text-white">
+            <h3 class="card-title mb-0"><i class="bi bi-clipboard-data me-2"></i>Latest Partogram</h3>
+        </div>
+        <div class="card-body">
+            {% if partogram %}
+                <p><strong>Recorded at:</strong> {{ partogram.timestamp }}</p>
+                <p><strong>Cervical Dilation:</strong> {{ partogram.cervical_dilation }} cm</p>
+                <p><strong>Fetal Heart Rate:</strong> {{ partogram.fetal_heart_rate }} bpm</p>
+                <p><strong>Contractions:</strong> {{ partogram.contractions }} per 10 minutes</p>
+                <p><strong>Labour Status:</strong> {{ partogram.labour_status }}</p>
+                <p><strong>Maternal Pulse:</strong> {{ partogram.pulse }} bpm</p>
+                <p><strong>Blood Pressure:</strong> {{ partogram.bp_systolic }}/{{ partogram.bp_diastolic }} mmHg</p>
+                <p><strong>Temperature:</strong> {{ partogram.temperature }} °C</p>
+                <p><strong>Amniotic Fluid:</strong> {{ partogram.amniotic_fluid }}</p>
+                <p><strong>Moulding:</strong> {{ partogram.moulding }}</p>
+                <p><strong>Urine Protein:</strong> {{ partogram.urine_protein }}</p>
+                <p><strong>Urine Volume:</strong> {{ partogram.urine_volume }} mL</p>
+                <p><strong>Urine Acetone:</strong> {{ partogram.urine_acetone }}</p>
+            {% else %}
+                <div class="alert alert-info" role="alert">
+                    No partogram found for this patient.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Nursing Notes Section -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-secondary text-white">
+            <h3 class="card-title mb-0"><i class="bi bi-journal-text me-2"></i>Recent Nursing Notes</h3>
+        </div>
+        <div class="card-body">
+            {% if notes %}
+                <ul class="list-group">
+                    {% for note in notes %}
+                        <li class="list-group-item">
+                            <p class="mb-1">{{ note.note }}</p>
+                            <small class="text-muted">Recorded by {{ note.nurse.username }} at {{ note.timestamp }}</small>
+                            {% if note.allergies %}
+                                <p><strong>Allergies:</strong> {{ note.allergies }}</p>
+                            {% endif %}
+                            {% if note.code_status %}
+                                <p><strong>Code Status:</strong> {{ note.code_status }}</p>
+                            {% endif %}
+                            {% if note.medications %}
+                                <p><strong>Medications:</strong> {{ note.medications }}</p>
+                            {% endif %}
+                            {% if note.shift_update %}
+                                <p><strong>Shift Update:</strong> {{ note.shift_update }}</p>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="alert alert-info" role="alert">
+                    No recent nursing notes found for this patient.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Pending Tasks Section -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-secondary text-white">
+            <h3 class="card-title mb-0"><i class="bi bi-list-task me-2"></i>Pending Care Tasks</h3>
+        </div>
+        <div class="card-body">
+            {% if tasks %}
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Task Description</th>
+                            <th>Priority</th>
+                            <th>Created At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in tasks %}
+                            <tr>
+                                <td>{{ task.task_description }}</td>
+                                <td>{{ task.priority }}</td>
+                                <td>{{ task.created_at }}</td>
+                                <td>
+                                    <a href="{{ url_for('nursing.mark_task_completed', task_id=task.id, patient_id=patient_id) }}" class="btn btn-sm btn-success">
+                                        <i class="bi bi-check-circle me-1"></i>Mark as Completed
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="alert alert-info" role="alert">
+                    No pending care tasks for this patient.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

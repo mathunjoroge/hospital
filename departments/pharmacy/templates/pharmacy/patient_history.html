@@ -1,0 +1,418 @@
+<!-- templates/pharmacy/patient_history.html -->
+<div class="patient-history-section">
+    <!-- Patient ID Form -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title"><i class="fas fa-search me-2"></i>Search Patient History</h5>
+            <form method="POST" action="{{ url_for('pharmacy.patient_history') }}">
+                <div class="row">
+                    <div class="col-md-6 col-12">
+                        <div class="d-flex">
+                            <input type="text" id="patient_id" name="patient_id" class="form-control" placeholder="Enter Patient ID" required>
+                            <button type="submit" class="btn btn-primary ms-3">Search</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Patient History Display -->
+    {% if patient %}
+        <h3 class="mb-4 text-primary"><i class="fas fa-user me-2"></i>History for {{ patient.name }} (ID: {{ patient.patient_id }})</h3>
+
+        <!-- Prescribed Medicines -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h4 class="card-title"><i class="fas fa-pills me-2"></i>Prescribed Medicines</h4>
+                {% if prescribed_meds %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered">
+                            <thead class="bg-gradient-primary text-white">
+                                <tr>
+                                    <th>Medicine</th>
+                                    <th>Dosage</th>
+                                    <th>Strength</th>
+                                    <th>Frequency</th>
+                                    <th>Days</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for med in prescribed_meds %}
+                                <tr>
+                                    <td>{{ med.generic_name }} ({{ med.brand_name }})</td>
+                                    <td>{{ med.dosage }}</td>
+                                    <td>{{ med.strength }}</td>
+                                    <td>{{ med.frequency }}</td>
+                                    <td>{{ med.num_days }}</td>
+                                    <td>{{ 'Completed' if med.status == 1 else 'Pending' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No prescribed medicines found.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Dispensed Drugs -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h4 class="card-title"><i class="fas fa-capsules me-2"></i>Dispensed Drugs</h4>
+                {% if dispensed_drugs %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered">
+                            <thead class="bg-gradient-primary text-white">
+                                <tr>
+                                    <th>Drug</th>
+                                    <th>Batch</th>
+                                    <th>Quantity</th>
+                                    <th>Date Dispensed</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for drug in dispensed_drugs %}
+                                <tr>
+                                    <td>{{ drug.generic_name }} ({{ drug.brand_name }})</td>
+                                    <td>{{ drug.batch_number }}</td>
+                                    <td>{{ drug.quantity_dispensed }}</td>
+                                    <td>{{ drug.date_dispensed }}</td>
+                                    <td>{{ drug.status }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No dispensed drugs found.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Requested Labs -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h4 class="card-title"><i class="fas fa-flask me-2"></i>Requested Lab Tests</h4>
+                {% if requested_labs %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered">
+                            <thead class="bg-gradient-primary text-white">
+                                <tr>
+                                    <th>Test Name</th>
+                                    <th>Date Requested</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lab in requested_labs %}
+                                <tr>
+                                    <td>{{ lab.test_name }}</td>
+                                    <td>{{ lab.date_requested }}</td>
+                                    <td>{{ 'Completed' if lab.status == 1 else 'Pending' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No lab tests requested.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Lab Results -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h4 class="card-title"><i class="fas fa-file-medical me-2"></i>Lab Results</h4>
+                {% if lab_results %}
+                    {% for result_id, result_data in lab_results.items() %}
+                        <div class="card shadow-sm mb-3">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">{{ result_data.test_name }} ({{ result_data.test_date }})</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover table-bordered">
+                                        <thead class="bg-gradient-info text-white">
+                                            <tr>
+                                                <th>Parameter Name</th>
+                                                <th>Normal Range</th>
+                                                <th>Result</th>
+                                                <th>Unit</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for item in result_data.parameters %}
+                                            <tr>
+                                                <td>{{ item.parameter_name }}</td>
+                                                <td>{{ item.normal_range_low }} - {{ item.normal_range_high }}</td>
+                                                <td>{{ item.result }}</td>
+                                                <td>{{ item.unit }}</td>
+                                                <td>
+                                                    {% if item.status == "Low" %}
+                                                        <span class="text-warning fw-bold">Low</span>
+                                                    {% elif item.status == "High" %}
+                                                        <span class="text-danger fw-bold">High</span>
+                                                    {% elif item.status == "Invalid Result" %}
+                                                        <span class="text-secondary fw-bold">Invalid Result</span>
+                                                    {% else %}
+                                                        <span class="text-success fw-bold">Normal</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% if result_data.result_notes %}
+                                    <p><strong>Notes:</strong> {{ result_data.result_notes }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center">No lab results found.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Requested Imaging -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h4 class="card-title"><i class="fas fa-x-ray me-2"></i>Requested Imaging</h4>
+                {% if requested_images %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered">
+                            <thead class="bg-gradient-primary text-white">
+                                <tr>
+                                    <th>Imaging Type</th>
+                                    <th>Date Requested</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for img in requested_images %}
+                                <tr>
+                                    <td>{{ img.imaging_type }}</td>
+                                    <td>{{ img.date_requested }}</td>
+                                    <td>{{ 'Completed' if img.status == 1 else 'Pending' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No imaging requests found.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Imaging Results -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h4 class="card-title"><i class="fas fa-image me-2"></i>Imaging Results</h4>
+                {% if imaging_results %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered">
+                            <thead class="bg-gradient-primary text-white">
+                                <tr>
+                                    <th>Imaging Type</th>
+                                    <th>Test Date</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in imaging_results %}
+                                <tr>
+                                    <td>{{ result.imaging_type }}</td>
+                                    <td>{{ result.test_date }}</td>
+                                    <td>{{ result.result_notes or 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No imaging results found.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Vitals -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h4 class="card-title"><i class="fas fa-heartbeat me-2"></i>Vitals</h4>
+                {% if vitals %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered">
+                            <thead class="bg-gradient-primary text-white">
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Temperature (°C)</th>
+                                    <th>Pulse (bpm)</th>
+                                    <th>Blood Pressure (mmHg)</th>
+                                    <th>Respiratory Rate (breaths/min)</th>
+                                    <th>Oxygen Saturation (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for vital in vitals %}
+                                <tr>
+                                    <td>{{ vital.timestamp }}</td>
+                                    <td>{{ vital.temperature or 'N/A' }}</td>
+                                    <td>{{ vital.pulse or 'N/A' }}</td>
+                                    <td>{{ vital.blood_pressure_systolic }}/{{ vital.blood_pressure_diastolic if vital.blood_pressure_diastolic else 'N/A' }}</td>
+                                    <td>{{ vital.respiratory_rate or 'N/A' }}</td>
+                                    <td>{{ vital.oxygen_saturation or 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No vitals recorded.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- SOAP Notes -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h4 class="card-title"><i class="fas fa-sticky-note me-2"></i>SOAP Notes</h4>
+                {% if soap_notes %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered">
+                            <thead class="bg-gradient-primary text-white">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Situation</th>
+                                    <th>Assessment</th>
+                                    <th>Recommendation</th>
+                                    <th>Medical History</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for note in soap_notes %}
+                                <tr>
+                                    <td>{{ note.created_at or 'N/A' }}</td>
+                                    <td>{{ note.situation }}</td>
+                                    <td>{{ note.assessment }}</td>
+                                    <td>{{ note.recommendation }}</td>
+                                    <td>{{ note.medical_history or 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No SOAP notes found.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Clinic Bookings -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h4 class="card-title"><i class="fas fa-calendar-check me-2"></i>Clinic Bookings</h4>
+                {% if clinic_bookings %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered">
+                            <thead class="bg-gradient-primary text-white">
+                                <tr>
+                                    <th>Clinic</th>
+                                    <th>Date</th>
+                                    <th>Seen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for booking in clinic_bookings %}
+                                <tr>
+                                    <td>{{ booking.clinic_name }}</td>
+                                    <td>{{ booking.clinic_date }}</td>
+                                    <td>{{ 'Yes' if booking.seen == 1 else 'No' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No clinic bookings found.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Admissions -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h4 class="card-title"><i class="fas fa-procedures me-2"></i>Admissions</h4>
+                {% if admissions %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered">
+                            <thead class="bg-gradient-primary text-white">
+                                <tr>
+                                    <th>Ward</th>
+                                    <th>Admitted On</th>
+                                    <th>Discharged On</th>
+                                    <th>Criteria</th>
+                                    <th>Prescribed Drugs</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for admission in admissions %}
+                                <tr>
+                                    <td>{{ admission.ward_name }}</td>
+                                    <td>{{ admission.admitted_on }}</td>
+                                    <td>{{ admission.discharged_on or 'N/A' }}</td>
+                                    <td>{{ admission.admission_criteria }}</td>
+                                    <td>{{ admission.prescribed_drugs or 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No admissions found.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Billing -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h4 class="card-title"><i class="fas fa-file-invoice-dollar me-2"></i>Billing (Clinical Charges)</h4>
+                {% if billing %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered">
+                            <thead class="bg-gradient-primary text-white">
+                                <tr>
+                                    <th>Charge</th>
+                                    <th>Total Cost</th>
+                                    <th>Billed At</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for bill in billing %}
+                                <tr>
+                                    <td>{{ bill.charge_name }}</td>
+                                    <td>{{ bill.total_cost }}</td>
+                                    <td>{{ bill.billed_at }}</td>
+                                    <td>{{ bill.status }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No billing records found.</p>
+                {% endif %}
+            </div>
+        </div>
+
+    {% endif %}
+</div>

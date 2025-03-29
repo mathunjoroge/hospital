@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Drugs Reference Database</h2>
+
+    <!-- Search Bar -->
+    <form method="GET" action="{{ url_for('medicine.drugs_ref') }}" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="search" class="form-control" 
+                   placeholder="Search by generic name or brand name..." 
+                   value="{{ search_query }}">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i> Search
+            </button>
+        </div>
+    </form>
+
+    <!-- Search Results -->
+    {% if search_query %}
+        {% if drugs_data %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Generic Name</th>
+                            <th>Brand Name</th>
+                            <th>Route</th>
+                            <th>Form</th>
+                        
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for drug in drugs_data %}
+                        <tr>
+<td>
+                                {% set generic_name_upper = drug.generic_name.upper() %}
+                                {% if " AND " in generic_name_upper %}
+                                    {% set active_ingredients = drug.generic_name.upper().replace(" AND ", ",").split(",") %}
+                                    {% for ingredient in active_ingredients %}
+                                        <a href="{{ url_for('medicine.drug_details', drug=ingredient.strip()) }}" > {{ ingredient.strip() }}
+                                        </a>
+                                        &nbsp;
+                                    {% endfor %}
+                                {% else %}
+                                    <a href="{{ url_for('medicine.drug_details', drug=drug.generic_name) }}" >{{ drug.generic_name|default('N/A') }}
+                                    </a>
+                                {% endif %}
+                            </td>
+                            <td>{{ drug.product_name|default('N/A') }}</td>
+                            <td>{{ drug.route|default('N/A') }}</td>
+                            <td>{{ drug.form|default('N/A') }}</td>
+
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info" role="alert">
+                No results found for "{{ search_query }}".
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="text-center">
+            <p class="text-muted">Enter a search term to find drugs.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Expiries Report</h2>
+
+    <!-- Date Range Form -->
+    <form method="POST" class="mb-4">
+        <div class="row g-3 align-items-center justify-content-center">
+            <div class="col-auto">
+                <label for="start_date" class="col-form-label">Start Date:</label>
+            </div>
+            <div class="col-auto">
+                <input type="date" id="start_date" name="start_date" value="{{ start_date }}" class="form-control">
+            </div>
+            <div class="col-auto">
+                <label for="end_date" class="col-form-label">End Date:</label>
+            </div>
+            <div class="col-auto">
+                <input type="date" id="end_date" name="end_date" value="{{ end_date }}" class="form-control">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Generate Report</button>
+            </div>
+        </div>
+    </form>
+
+    {% if report_data %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0">Expired Batches Removed ({{ start_date }} to {{ end_date }})</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Generic Name</th>
+                        <th>Brand Name</th>
+                        <th>Batch Number</th>
+                        <th>Quantity Removed</th>
+                        <th>Expiry Date</th>
+                        <th>Removal Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in report_data %}
+                    <tr>
+                        <td>{{ item.generic_name }}</td>
+                        <td>{{ item.brand_name | default("N/A") }}</td>
+                        <td>{{ item.batch_number | default("N/A") }}</td>
+                        <td>{{ item.quantity_removed }}</td>
+                        <td>{{ item.expiry_date.strftime('%d-%m-%Y') if item.expiry_date else "N/A" }}</td>
+                        <td>{{ item.removal_date.strftime('%d-%m-%Y') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" class="text-end fw-bold">Total Removed:</td>
+                        <td class="fw-bold">{{ total_removed }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No expired batches removed in the selected date range.</p>
+    {% endif %}
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('pharmacy.index') }}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

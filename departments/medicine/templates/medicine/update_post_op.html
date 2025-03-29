@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Update Post-Op Notes for {{ patient_name }} ({{ entry.patient_id }})</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('medicine.update_post_op', entry_id=entry.id) }}">
+        <div class="mb-3">
+            <label for="notes_on_post_op" class="form-label">Post-Op Notes</label>
+            <textarea name="notes_on_post_op" class="form-control" rows="4" required>{{ entry.notes_on_post_op or '' }}</textarea>
+        </div>
+
+        <button type="submit" class="btn btn-success">Update Post-Op Notes</button>
+        <a href="{{ url_for('medicine.get_theatre_list') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

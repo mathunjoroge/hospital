@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    /* Dark mode styles for detail view */
+    .dark-mode {
+        background-color: #333;
+        color: #fff;
+    }
+    .dark-mode .card {
+        background-color: #444;
+        color: #fff;
+    }
+    .dark-mode .card-header {
+        background-color: #555;
+        color: #fff;
+    }
+    .dark-mode .list-group-item {
+        background-color: #555;
+        color: #fff;
+        border-color: #666;
+    }
+    .dark-mode .list-group-item:hover {
+        background-color: #666;
+        color: #fff;
+    }
+    .dark-mode .btn-secondary {
+        background-color: #666;
+        border-color: #666;
+        color: #fff;
+    }
+    .dark-mode .btn-secondary:hover {
+        background-color: #777;
+        border-color: #777;
+    }
+    .dark-mode .btn-close {
+        filter: invert(1);
+    }
+</style>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- Dark Mode Toggle -->
+<div class="text-end mt-3">
+    <button id="darkModeToggle" class="btn btn-secondary btn-sm">
+        <i class="bi bi-moon"></i> Toggle Dark Mode
+    </button>
+</div>
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h2 class="card-title mb-0"><i class="bi bi-clipboard-data me-2"></i>Partogram Details for Patient {{ partogram.patient_id }}</h2>
+        </div>
+        <div class="card-body">
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item"><strong>Timestamp:</strong> {{ partogram.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</li>
+                <li class="list-group-item"><strong>Recorded By:</strong> {{ recorder_name }}</li>
+                <li class="list-group-item"><strong>Blood Pressure:</strong> {{ partogram.bp }} mmHg</li>
+                <li class="list-group-item"><strong>Pulse:</strong> {{ partogram.pulse }} bpm</li>
+                <li class="list-group-item"><strong>Temperature:</strong> {{ "%.1f"|format(partogram.temperature) }} °C</li>
+                <li class="list-group-item"><strong>Fetal Heart Rate:</strong> {{ partogram.fetal_heart_rate }} bpm</li>
+                <li class="list-group-item"><strong>Contractions per 10 min:</strong> {{ partogram.contractions }}</li>
+                <li class="list-group-item"><strong>Fetal Presentation:</strong> {{ partogram.presentation }}</li>
+                <li class="list-group-item"><strong>Medications Administered:</strong> {{ partogram.medications or 'None' }}</li>
+                <li class="list-group-item"><strong>Notes:</strong> {{ partogram.notes or 'None' }}</li>
+                <li class="list-group-item"><strong>Membrane Rupture:</strong> {{ partogram.membrane_rupture }}
+                    {% if partogram.rupture_type %}({{ partogram.rupture_type }}){% endif %}</li>
+                <li class="list-group-item"><strong>Descent of Presenting Part:</strong> {{ partogram.descent_presenting_part }}</li>
+                <li class="list-group-item"><strong>Cervical Dilation:</strong> {{ partogram.cervical_dilation }} cm</li>
+                <li class="list-group-item"><strong>Type of Contraction:</strong> {{ partogram.contraction_type }}</li>
+                <li class="list-group-item"><strong>Number of Vaginal Examinations:</strong> {{ partogram.number_of_vaginal_examinations }}</li>
+                <li class="list-group-item"><strong>Tear or Episiotomy:</strong> {{ partogram.tear_or_episiotomy }}</li>
+                <li class="list-group-item"><strong>Apgar Score:</strong> {{ partogram.apgar_score }}</li>
+                <li class="list-group-item"><strong>Estimated Blood Loss:</strong> {{ partogram.estimated_blood_loss }} mL</li>
+                <li class="list-group-item"><strong>Baby's Condition:</strong> {{ partogram.baby_condition }}</li>
+                <li class="list-group-item"><strong>Baby's Sex:</strong> {{ partogram.baby_sex }}</li>
+                <li class="list-group-item"><strong>Birth Weight:</strong> {{ "%.1f"|format(partogram.birth_weight) }} kg</li>
+                <li class="list-group-item"><strong>Length of Baby:</strong> {{ "%.1f"|format(partogram.length_of_baby) }} cm</li>
+                <li class="list-group-item"><strong>Head Circumference:</strong> {{ "%.1f"|format(partogram.head_circumference) }} cm</li>
+                <li class="list-group-item"><strong>Completeness of Placenta:</strong> {{ partogram.completeness_of_placenta }}</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('nursing.view_partograms') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Partogram List
+        </a>
+    </div>
+</div>
+
+<!-- Load jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        // Toggle dark mode
+        $('#darkModeToggle').on('click', function() {
+            $('body').toggleClass('dark-mode');
+        });
+    });
+</script>
+{% endblock %}

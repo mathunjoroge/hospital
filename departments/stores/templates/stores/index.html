@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Store Dashboard</h2>
+
+    <!-- Display flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if pending_requests %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h4 class="mb-0">{{ title | default('Pending Drug Requests') }}</h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Request Date</th>
+                            <th>Requested By</th>
+                           
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in pending_requests %}
+                        <tr>
+                            <td>{{ req.request_date.strftime('%d-%m-%Y') if req.request_date else 'N/A' }}</td>
+                          <td>{{ user_name_map.get(req.requested_by, 'Unknown') }}</td>
+
+                            <td>
+                                <!-- Link to review page instead of direct POST -->
+                                <a href="{{ url_for('stores.issue_request', request_id=req.id) }}"
+                                   class="btn btn-sm btn-primary">Review & Issue</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No pending drug requests.</p>
+    {% endif %}
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('stores.inventory') }}" class="btn btn-secondary">View Inventory</a>
+    </div>
+</div>
+{% endblock %}

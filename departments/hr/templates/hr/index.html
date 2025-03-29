@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">HR Dashboard</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Overview Section -->
+    <div class="row g-3">
+        <!-- Active Employees -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm bg-primary text-white mb-4">
+                <div class="card-body text-center">
+                    <i class="bi bi-person-check-fill display-4"></i>
+                    <h5 class="card-title mt-3">Active Employees</h5>
+                    <p class="card-text lead">{{ active_employees_count }}</p>
+                    <a href="{{ url_for('hr.employee_list', status='active') }}" class="btn btn-light">View Details</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inactive Employees -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm bg-danger text-white mb-4">
+                <div class="card-body text-center">
+                    <i class="bi bi-person-x-fill display-4"></i>
+                    <h5 class="card-title mt-3">Inactive Employees</h5>
+                    <p class="card-text lead">{{ inactive_employees_count }}</p>
+                    <a href="{{ url_for('hr.employee_list', status='inactive') }}" class="btn btn-light">View Details</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Employees -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm bg-success text-white mb-4">
+                <div class="card-body text-center">
+                    <i class="bi bi-people-fill display-4"></i>
+                    <h5 class="card-title mt-3">Total Employees</h5>
+                    <p class="card-text lead">{{ total_employees_count }}</p>
+                    <a href="{{ url_for('hr.employee_list') }}" class="btn btn-light">View All</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Section -->
+    <div class="row g-3 mt-4">
+        <!-- Add New Employee -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm bg-info text-white text-center mb-4">
+                <div class="card-body">
+                    <i class="bi bi-person-plus-fill display-4"></i>
+                    <h5 class="card-title mt-3">Add New Employee</h5>
+                    <p class="card-text">Onboard new employees to the system.</p>
+                    <a href="{{ url_for('hr.new_employee') }}" class="btn btn-light">Add Employee</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Update Rota -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm bg-warning text-dark text-center mb-4">
+                <div class="card-body">
+                    <i class="bi bi-calendar-event-fill display-4"></i>
+                    <h5 class="card-title mt-3">Update Rota</h5>
+                    <p class="card-text">Manage employee shifts and schedules.</p>
+                    <a href="{{ url_for('hr.rota_management') }}" class="btn btn-dark">Manage Rota</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Department Reports -->
+        <div class="col-md-6 col-lg-4"> 
+            <div class="card shadow-sm bg-secondary text-white text-center mb-4">
+                <div class="card-body">
+                    <i class="bi bi-file-earmark-spreadsheet-fill display-4"></i>
+                    <h5 class="card-title mt-3">Department Reports</h5>
+                    <p class="card-text">Generate reports on department-wise employee distribution.</p>
+                    <a href="{{ url_for('hr.department_reports') }}" class="btn btn-light">Generate Report</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Changes Section -->
+    <div class="card shadow-sm border-primary mt-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Recent Changes</h4>
+        </div>
+        <div class="card-body">
+            <ul class="list-group">
+                {% for change in recent_changes %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ change.description }}
+                    <span class="badge bg-info text-dark">{{ change.date.strftime('%d/%m/%Y') }}</span>
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted text-center">No recent changes recorded.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

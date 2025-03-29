@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Add Patient to Theatre List</h2>
+
+    <form method="POST" action="{{ url_for('medicine.add_to_theatre') }}">
+        <div class="mb-3">
+            <label for="patient_id" class="form-label">Patient</label>
+            <select name="patient_id" class="form-control" required>
+                <option value="">Select Patient</option>
+                {% for patient in patients %}
+                <option value="{{ patient.patient_id }}">{{ patient.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="procedure_id" class="form-label">Procedure</label>
+            <select name="procedure_id" class="form-control" required>
+                <option value="">Select Procedure</option>
+                {% for procedure in procedures %}
+                <option value="{{ procedure.id }}">{{ procedure.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="notes_on_book" class="form-label">Booking Notes (Optional)</label>
+            <textarea name="notes_on_book" class="form-control"></textarea>
+        </div>
+
+        <input type="hidden" name="created_by" value="1">  <!-- Replace with session user ID -->
+
+        <button type="submit" class="btn btn-primary">Add to Theatre</button>
+    </form>
+</div>
+{% endblock %}

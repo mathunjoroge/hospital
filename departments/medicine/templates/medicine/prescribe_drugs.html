@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Prescribe Drugs for {{ patient.name }} ({{ patient.patient_id }})</h2>
+
+    <!-- Prescription Form -->
+    <div class="container">
+        <form method="POST" action="{{ url_for('medicine.prescribe_drugs', patient_id=patient.id) }}">
+            <!-- Hidden Input for Prescription ID -->
+            <input type="hidden" name="prescription_id" value="{{ prescription_id }}">
+            <div class="row g-2 align-items-end">
+                <!-- Select Drugs -->
+                <div class="col">
+                    <label for="drugs" class="form-label fw-bold">Select Drugs:</label>
+                    <select id="drugs" name="drugs[]" class="form-select select2" required>
+                        <option value="" disabled selected>Select drug</option>
+                        {% for drug in drugs %}
+                        <option value="{{ drug.id }}">{{ drug.generic_name }} ({{ drug.brand_name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <!-- Dosage Form -->
+                <div class="col">
+                    <label for="dosage_form" class="form-label fw-bold">Dosage Form:</label>
+                    <select id="dosage_form" name="dosage_form" class="form-select select2" required onchange="toggleCustomDosage(this)">
+                        <option value="" disabled selected>Select Dosage Form</option>
+                        <option value="Tablet">Tablet</option>
+                        <option value="Capsule">Capsule</option>
+                        <option value="Liquid">Liquid</option>
+                        <option value="Suspension">Suspension</option>
+                        <option value="Pessary">Pessary</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <!-- Custom Dosage Form Input (Hidden by Default) -->
+                    <div id="customDosageInput" class="mt-2" style="display: none;">
+                        <input type="text" id="custom_dosage" name="custom_dosage" class="form-control" placeholder="Specify Dosage Form">
+                    </div>
+                </div>
+                <!-- Strength -->
+                <div class="col">
+                    <label for="strength" class="form-label fw-bold">Strength:</label>
+                    <input type="text" id="strength" name="strength" class="form-control" placeholder="e.g., 500mg" required>
+                </div>
+                <!-- Frequency -->
+                <div class="col">
+                    <label for="frequency" class="form-label fw-bold">Frequency:</label>
+                    <select id="frequency" name="frequency" class="form-select" required onchange="toggleCustomFrequency(this)">
+                        <option value="" disabled selected>Select Frequency</option>
+                        <option value="STAT">STAT</option>
+                        <option value="BD">BD (Twice Daily)</option>
+                        <option value="TDS">TDS (Three Times Daily)</option>
+                        <option value="QID">QID (Four Times Daily)</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <!-- Custom Frequency Input (Hidden by Default) -->
+                    <div id="customFrequencyInput" class="mt-2" style="display: none;">
+                        <input type="text" id="custom_frequency" name="custom_frequency" class="form-control" placeholder="Specify Frequency">
+                    </div>
+                </div>
+                <!-- Number of Days -->
+                <div class="col">
+                    <label for="num_days" class="form-label fw-bold">Number of Days:</label>
+                    <input type="number" id="num_days" name="num_days" class="form-control" min="1" required>
+                </div>
+                <!-- Submit Button -->
+                <div class="col d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-lg w-100">Submit</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Display Existing Prescription -->
+    {% if prescribed_medicines %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Prescribed Medicines</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Generic Name</th>
+                        <th>Brand Name</th>
+                        <th>Dosage Form</th>
+                        <th>Strength</th>
+                        <th>Frequency</th>
+                        <th>Duration (Days)</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for medicine in prescribed_medicines %}
+                    <tr>
+                        <td>{{ medicine.medicine.generic_name }}</td>
+                        <td>{{ medicine.medicine.brand_name }}</td>
+                        <td>{{ medicine.dosage }}</td>
+                        <td>{{ medicine.strength }}</td>
+                        <td>{{ medicine.frequency }}</td>
+                        <td>{{ medicine.num_days }}</td>
+                        <td>
+                            <!-- Edit Button -->
+                            <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editMedicineModal" onclick="loadEditForm({{ medicine.id }})">Edit</button>
+                            <!-- Delete Button -->
+                            <form action="{{ url_for('medicine.delete_prescribed_medicine', medicine_id=medicine.id) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this medicine?')">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">No medicines prescribed yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Edit Prescribed Medicine Modal -->
+    <div class="modal fade" id="editMedicineModal" tabindex="-1" aria-labelledby="editMedicineModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editMedicineModalLabel">Edit Prescribed Medicine</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{{ url_for('medicine.edit_prescribed_medicine', medicine_id='placeholder') }}" id="editMedicineForm">
+                    <div class="modal-body">
+                        <div class="container">
+                            <div class="row g-2 align-items-end">
+                                <!-- Select Drugs -->
+                                <div class="col">
+                                    <label for="editDrugs" class="form-label fw-bold">Select Drug:</label>
+                                    <select id="editDrugs" name="medicine_id" class="form-select select2" required disabled>
+                                        {% for drug in drugs %}
+                                        <option value="{{ drug.id }}">{{ drug.generic_name }} ({{ drug.brand_name }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <!-- Dosage Form -->
+                                <div class="col">
+                                    <label for="editDosageForm" class="form-label fw-bold">Dosage Form:</label>
+                                    <select id="editDosageForm" name="dosage_form" class="form-select select2" required onchange="toggleCustomEditDosage(this)">
+                                        <option value="" disabled selected>Select Dosage Form</option>
+                                        <option value="Tablet">Tablet</option>
+                                        <option value="Capsule">Capsule</option>
+                                        <option value="Liquid">Liquid</option>
+                                        <option value="Suspension">Suspension</option>
+                                        <option value="Pessary">Pessary</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                    <!-- Custom Dosage Form Input (Hidden by Default) -->
+                                    <div id="customEditDosageInput" class="mt-2" style="display: none;">
+                                        <input type="text" id="custom_edit_dosage" name="custom_dosage" class="form-control" placeholder="Specify Dosage Form">
+                                    </div>
+                                </div>
+                                <!-- Strength -->
+                                <div class="col">
+                                    <label for="editStrength" class="form-label fw-bold">Strength:</label>
+                                    <input type="text" id="editStrength" name="strength" class="form-control" placeholder="e.g., 500mg" required>
+                                </div>
+                                <!-- Frequency -->
+                                <div class="col">
+                                    <label for="editFrequency" class="form-label fw-bold">Frequency:</label>
+                                    <select id="editFrequency" name="frequency" class="form-select" required onchange="toggleCustomEditFrequency(this)">
+                                        <option value="" disabled selected>Select Frequency</option>
+                                        <option value="STAT">STAT</option>
+                                        <option value="BD">BD (Twice Daily)</option>
+                                        <option value="TDS">TDS (Three Times Daily)</option>
+                                        <option value="QID">QID (Four Times Daily)</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                    <!-- Custom Frequency Input (Hidden by Default) -->
+                                    <div id="customEditFrequencyInput" class="mt-2" style="display: none;">
+                                        <input type="text" id="custom_edit_frequency" name="custom_frequency" class="form-control" placeholder="Specify Frequency">
+                                    </div>
+                                </div>
+                                <!-- Number of Days -->
+                                <div class="col">
+                                    <label for="editNumDays" class="form-label fw-bold">Number of Days:</label>
+                                    <input type="number" id="editNumDays" name="num_days" class="form-control" min="1" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript for Toggling Custom Inputs -->
+    <script>
+        function toggleCustomFrequency(select) {
+            let customInput = document.getElementById('customFrequencyInput');
+            if (select.value === 'Other') {
+                customInput.style.display = 'block';
+                document.getElementById('custom_frequency').setAttribute('required', 'true');
+            } else {
+                customInput.style.display = 'none';
+                document.getElementById('custom_frequency').removeAttribute('required');
+            }
+        }
+
+        function toggleCustomDosage(select) {
+            let customInput = document.getElementById('customDosageInput');
+            if (select.value === 'Other') {
+                customInput.style.display = 'block';
+                document.getElementById('custom_dosage').setAttribute('required', 'true');
+            } else {
+                customInput.style.display = 'none';
+                document.getElementById('custom_dosage').removeAttribute('required');
+            }
+        }
+
+        function toggleCustomEditFrequency(select) {
+            let customInput = document.getElementById('customEditFrequencyInput');
+            if (select.value === 'Other') {
+                customInput.style.display = 'block';
+                document.getElementById('custom_edit_frequency').setAttribute('required', 'true');
+            } else {
+                customInput.style.display = 'none';
+                document.getElementById('custom_edit_frequency').removeAttribute('required');
+            }
+        }
+
+        function toggleCustomEditDosage(select) {
+            let customInput = document.getElementById('customEditDosageInput');
+            if (select.value === 'Other') {
+                customInput.style.display = 'block';
+                document.getElementById('custom_edit_dosage').setAttribute('required', 'true');
+            } else {
+                customInput.style.display = 'none';
+                document.getElementById('custom_edit_dosage').removeAttribute('required');
+            }
+        }
+
+        function loadEditForm(medicineId) {
+            // Fetch the edit form data from the server
+            fetch(`{{ url_for('medicine.get_edit_form', _external=True) }}?medicine_id=${medicineId}`)
+                .then(response => response.text())
+                .then(html => {
+                    // Replace the modal body content with the fetched HTML
+                    document.querySelector('#editMedicineModal .modal-body').innerHTML = html;
+                    // Initialize Select2 for the newly loaded content
+                    $('.select2').select2({
+                        placeholder: "Select an option",
+                        allowClear: true
+                    });
+                })
+                .catch(error => console.error('Error loading edit form:', error));
+        }
+    </script>
+</div>
+{% endblock %}

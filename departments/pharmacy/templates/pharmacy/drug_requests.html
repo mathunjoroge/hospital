@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Drug Request</h2>
+
+<div class="card-body">
+    <form method="POST">
+        <div class="row g-3 mb-3">
+            <!-- Drug Selection -->
+            <div class="col-md-4">
+                <label for="drug_id" class="form-label">Select Drug</label>
+                <select name="drug_id" id="drug_id" class="form-select select2" required>
+                    <option value="">-- Select a Drug --</option>
+                    {% for drug in all_drugs %}
+                    <option value="{{ drug.id }}">
+                        {{ drug.generic_name }} ({{ drug.brand_name | default('N/A') }}) - 
+                        {{ drug.dosage_form }} {{ drug.strength }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Quantity Input -->
+            <div class="col-md-3">
+                <label for="quantity" class="form-label">Quantity</label>
+                <input type="number" name="quantity" id="quantity" class="form-control" min="1" required>
+            </div>
+
+            <!-- Action Button -->
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-plus-circle me-2"></i> Add
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+    <!-- Current Request -->
+    {% if latest_request %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0">Current Drug Request</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Request Date</th>
+                        <th>Status</th>
+                        <th>Drugs Requested</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ latest_request.request_date.strftime('%d-%m-%Y') }}</td>
+                        <td>{{ latest_request.status }}</td>
+                        <td>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Drug</th>
+                                        <th>Dosage Form</th>
+                                        <th>Strength</th>
+                                        <th>Qty Requested</th>
+                                        <th>Qty Issued</th>
+                                        <th>Comments</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in latest_request.items %}
+                                    <tr>
+                                        <td>{{ item.drug.generic_name }} ({{ item.drug.brand_name | default('N/A') }})</td>
+                                        <td>{{ item.drug.dosage_form }}</td>
+                                        <td>{{ item.drug.strength }}</td>
+                                        <td>{{ item.quantity_requested }}</td>
+                                        <td>{{ item.quantity_issued }}</td>
+                                        <td>{{ item.comments | default("N/A") }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Save Order Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('pharmacy.save_order') }}" class="btn btn-primary">Save Order</a>
+    </div>
+    
+    {% else %}
+    <p class="text-muted text-center">No active drug request. Please submit a request.</p>
+    {% endif %}
+
+</div>
+{% endblock %}

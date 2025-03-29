@@ -1,0 +1,124 @@
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Edit Prescribed Medicine</h2>
+    <form method="POST" action="{{ url_for('medicine.edit_prescribed_medicine', medicine_id=prescribed_medicine.id) }}">
+        <!-- Drug Name (Generic and Brand) -->
+        <div class="mb-3">
+            <label for="drug_name" class="form-label fw-bold">Drug:</label>
+            <input type="text" id="drug_name" name="drug_name" class="form-control" value="{{ prescribed_medicine.medicine.generic_name }} ({{ prescribed_medicine.medicine.brand_name }})" readonly>
+        </div>
+
+        <!-- Dosage Form -->
+        <div class="mb-3">
+            <label for="dosage_form_select" class="form-label fw-bold">Dosage Form:</label>
+            <select id="dosage_form_select" name="dosage_form" class="form-select select2" required onchange="toggleCustomDosage(this)">
+                <option value="" disabled selected>Select Dosage Form</option>
+                <option value="Tablet" {% if prescribed_medicine.dosage == 'Tablet' %}selected{% endif %}>Tablet</option>
+                <option value="Capsule" {% if prescribed_medicine.dosage == 'Capsule' %}selected{% endif %}>Capsule</option>
+                <option value="Liquid" {% if prescribed_medicine.dosage == 'Liquid' %}selected{% endif %}>Liquid</option>
+                <option value="Suspension" {% if prescribed_medicine.dosage == 'Suspension' %}selected{% endif %}>Suspension</option>
+                <option value="Pessary" {% if prescribed_medicine.dosage == 'Pessary' %}selected{% endif %}>Pessary</option>
+                <option value="Other" {% if prescribed_medicine.dosage not in ['Tablet', 'Capsule', 'Liquid', 'Suspension', 'Pessary'] %}selected{% endif %}>Other</option>
+            </select>
+            <!-- Custom Dosage Form Input (Hidden by Default) -->
+            <div id="customDosageInput" style="display: {% if prescribed_medicine.dosage not in ['Tablet', 'Capsule', 'Liquid', 'Suspension', 'Pessary'] %}block{% else %}none{% endif %};">
+                <label for="custom_dosage" class="form-label fw-bold">Specify Dosage Form:</label>
+                <input type="text" id="custom_dosage" name="custom_dosage" class="form-control" placeholder="e.g., Injection" value="{% if prescribed_medicine.dosage not in ['Tablet', 'Capsule', 'Liquid', 'Suspension', 'Pessary'] %}{{ prescribed_medicine.dosage }}{% endif %}" {% if prescribed_medicine.dosage not in ['Tablet', 'Capsule', 'Liquid', 'Suspension', 'Pessary'] %}required{% endif %}>
+            </div>
+        </div>
+
+        <!-- Strength -->
+        <div class="mb-3">
+            <label for="strength" class="form-label fw-bold">Strength:</label>
+            <input type="text" id="strength" name="strength" class="form-control" value="{{ prescribed_medicine.strength }}" required>
+        </div>
+
+        <!-- Frequency -->
+        <div class="mb-3">
+            <label for="frequency_select" class="form-label fw-bold">Frequency:</label>
+            <select id="frequency_select" name="frequency" class="form-select select2" required onchange="toggleCustomFrequency(this)">
+                <option value="" disabled selected>Select Frequency</option>
+                <option value="STAT" {% if prescribed_medicine.frequency == 'STAT' %}selected{% endif %}>STAT</option>
+                <option value="BD" {% if prescribed_medicine.frequency == 'BD' %}selected{% endif %}>BD (Twice Daily)</option>
+                <option value="TDS" {% if prescribed_medicine.frequency == 'TDS' %}selected{% endif %}>TDS (Three Times Daily)</option>
+                <option value="QID" {% if prescribed_medicine.frequency == 'QID' %}selected{% endif %}>QID (Four Times Daily)</option>
+                <option value="OTHER" {% if prescribed_medicine.frequency not in ['STAT', 'BD', 'TDS', 'QID'] %}selected{% endif %}>Other</option>
+            </select>
+            <!-- Custom Frequency Input (Hidden by Default) -->
+            <div id="customFrequencyInput" style="display: {% if prescribed_medicine.frequency not in ['STAT', 'BD', 'TDS', 'QID'] %}block{% else %}none{% endif %};">
+                <label for="custom_frequency" class="form-label fw-bold">Specify Frequency:</label>
+                <input type="text" id="custom_frequency" name="custom_frequency" class="form-control" placeholder="e.g., Once Weekly" value="{% if prescribed_medicine.frequency not in ['STAT', 'BD', 'TDS', 'QID'] %}{{ prescribed_medicine.frequency }}{% endif %}" {% if prescribed_medicine.frequency not in ['STAT', 'BD', 'TDS', 'QID'] %}required{% endif %}>
+            </div>
+        </div>
+
+        <!-- Number of Days -->
+        <div class="mb-3">
+            <label for="num_days" class="form-label fw-bold">Number of Days:</label>
+            <input type="number" id="num_days" name="num_days" class="form-control" min="1" value="{{ prescribed_medicine.num_days }}" required>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary btn-lg px-5">Update</button>
+        </div>
+    </form>
+
+    <!-- Initialize Select2 and Toggle Custom Inputs -->
+    <script type="text/javascript">
+        $(document).ready(function() {
+            // Initialize Select2 for dosage form and frequency
+            $('.select2').select2({
+                placeholder: "Select an option",
+                allowClear: false, // Prevent clearing selection
+                dropdownAutoWidth: true,
+                width: 'resolve'
+            });
+
+            // Ensure Select2 respects the initial selected value
+            function initializeSelect2(selectId) {
+                let selectElement = document.getElementById(selectId);
+                if (selectElement && selectElement.value) {
+                    $(`#${selectId}`).val(selectElement.value).trigger('change');
+                }
+            }
+
+            // Initialize dosage form and frequency selects
+            initializeSelect2('dosage_form_select');
+            initializeSelect2('frequency_select');
+
+            // Toggle custom dosage input
+            function toggleCustomDosage(select) {
+                let customInput = document.getElementById('customDosageInput');
+                if (select.value === 'Other') {
+                    customInput.style.display = 'block';
+                    document.getElementById('custom_dosage').setAttribute('required', 'true'); // Make the custom input required
+                } else {
+                    customInput.style.display = 'none';
+                    document.getElementById('custom_dosage').removeAttribute('required'); // Remove the required attribute
+                }
+            }
+
+            // Toggle custom frequency input
+            function toggleCustomFrequency(select) {
+                let customInput = document.getElementById('customFrequencyInput');
+                if (select.value === 'OTHER') {
+                    customInput.style.display = 'block';
+                    document.getElementById('custom_frequency').setAttribute('required', 'true'); // Make the custom input required
+                } else {
+                    customInput.style.display = 'none';
+                    document.getElementById('custom_frequency').removeAttribute('required'); // Remove the required attribute
+                }
+            }
+
+            // Show custom inputs if current values are "Other"
+            let dosageFormSelect = document.getElementById('dosage_form_select');
+            if (dosageFormSelect) {
+                toggleCustomDosage(dosageFormSelect); // Set initial state for dosage form
+            }
+
+            let frequencySelect = document.getElementById('frequency_select');
+            if (frequencySelect) {
+                toggleCustomFrequency(frequencySelect); // Set initial state for frequency
+            }
+        });
+    </script>
+</div>

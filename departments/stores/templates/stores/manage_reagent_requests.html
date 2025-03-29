@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h3>Lab Statistics</h3>
+<ul>
+    <li>Total Tests: {{ total_tests }}</li>
+    <li>Pending Tests: {{ pending_tests }}</li>
+    <li>Abnormal Results: {{ abnormal_tests }}</li>
+</ul>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Reagent</th>
+            <th>Requested By</th>
+            <th>Quantity</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for request in requests %}
+        <tr>
+            <td>{{ request.item.name }}</td>
+            <td>{{ request.requested_by }}</td>
+            <td>{{ request.quantity_requested }}</td>
+            <td>
+                <form method="POST">
+                    <input type="hidden" name="request_id" value="{{ request.id }}">
+                    <button type="submit" name="action" value="approve" class="btn btn-success btn-sm">Approve</button>
+                    <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm">Reject</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

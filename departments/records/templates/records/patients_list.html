@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+            <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+
+    <h2 class="mb-4">Patients List</h2>
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Patient ID</th>
+                <th>Name</th>
+                <th>Place of Residence</th>
+                <th>Sex</th>
+                <th>Date of Birth</th>
+                <th>Marital Status</th>
+                <th>Contact</th>
+                <th>Next of Kin</th>
+                <th>Relationship</th>
+                <th>Next of Kin Contact</th>
+                <th>Date Registered</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for patient in patients %}
+            <tr>
+                <td>{{ patient.patient_id }}</td>
+                <td>{{ patient.name }}</td>
+                <td>{{ patient.place_of_residence }}</td>
+                <td>{{ patient.sex }}</td>
+                <td>{{ patient.date_of_birth.strftime('%Y-%m-%d') }}</td>
+                <td>{{ patient.marital_status }}</td>
+                <td>{{ patient.contact }}</td>
+                <td>{{ patient.next_of_kin }}</td>
+                <td>{{ patient.relationship_with_next_of_kin }}</td>
+                <td>{{ patient.next_of_kin_contact }}</td>
+                <td>{{ patient.date_registered.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="11" class="text-center">No patients registered yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{{ url_for('records.new_patient') }}" class="btn btn-success mt-3">Register New Patient</a>
+</div>
+
+{% endblock %}

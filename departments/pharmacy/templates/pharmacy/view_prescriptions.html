@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Prescriptions for {{ patient.name }} ({{ patient.patient_id }})</h2>
+
+    {% if prescription_list %}
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs" id="prescriptionTabs">
+        {% for prescription in prescription_list %}
+        <li class="nav-item">
+            <a class="nav-link {% if loop.first %}active{% endif %}" data-bs-toggle="tab" href="#prescription{{ loop.index }}">
+                Prescription {{ loop.index }}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <!-- Tabs Content -->
+    <div class="tab-content mt-3">
+        {% for prescription in prescription_list %}
+        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="prescription{{ loop.index }}">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Prescription {{ loop.index }}</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-striped table-bordered">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Drug Name</th>
+                                <th>Dosage Form</th>
+                                <th>Strength</th>
+                                <th>Frequency</th>
+                                <th>Number of Days</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for medicine in prescription.medicines %}
+                            <tr>
+                                <td>{{ medicine.medicine.generic_name }} ({{ medicine.medicine.brand_name | default("N/A") }})</td>
+                                <td>{{ medicine.dosage }}</td>
+                                <td>{{ medicine.strength }}</td>
+                                <td>{{ medicine.frequency }}</td>
+                                <td>{{ medicine.num_days }}</td>
+                                <td>
+                                    {% if loop.first %}
+                                    <a href="{{ url_for('pharmacy.dispense_prescription', prescription_id=prescription.prescription_id) }}" 
+                                       class="btn btn-info btn-sm">
+                                        <i class="bi bi-check-circle me-2"></i> Dispense
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <p class="text-muted text-center">No prescriptions available for this patient.</p>
+    {% endif %}
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('pharmacy.index') }}" class="btn btn-secondary">Back to Waiting List</a>
+    </div>
+</div>
+{% endblock %}

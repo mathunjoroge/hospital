@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Update Employee</h2>
+
+    <form method="POST" action="{{ url_for('hr.update_employee', employee_id=employee.id) }}">
+        <!-- Name -->
+        <div class="mb-3">
+            <label for="name" class="form-label fw-bold">Name:</label>
+            <input type="text" id="name" name="name" class="form-control" value="{{ employee.name }}" placeholder="Enter employee name" required>
+        </div>
+
+        <!-- Position -->
+        <div class="mb-3">
+            <label for="position" class="form-label fw-bold">Position:</label>
+            <input type="text" id="position" name="position" class="form-control" value="{{ employee.position }}" placeholder="Enter job title" required>
+        </div>
+
+        <!-- Department -->
+        <div class="mb-3">
+            <label for="department" class="form-label fw-bold">Department:</label>
+            <select id="department" name="department" class="form-select" required>
+                <option value="" disabled {% if not employee.department %}selected{% endif %}>Select department</option>
+                <option value="records" {% if employee.department == 'records' %}selected{% endif %}>Records</option>
+                <option value="nursing" {% if employee.department == 'nursing' %}selected{% endif %}>Nursing</option>
+                <option value="pharmacy" {% if employee.department == 'pharmacy' %}selected{% endif %}>Pharmacy</option>
+                <option value="medicine" {% if employee.department == 'medicine' %}selected{% endif %}>Medicine</option>
+                <option value="laboratory" {% if employee.department == 'laboratory' %}selected{% endif %}>Laboratory</option>
+                <option value="imaging" {% if employee.department == 'imaging' %}selected{% endif %}>Imaging</option>
+                <option value="mortuary" {% if employee.department == 'mortuary' %}selected{% endif %}>Mortuary</option>
+                <option value="hr" {% if employee.department == 'hr' %}selected{% endif %}>HR</option>
+                <option value="stores" {% if employee.department == 'stores' %}selected{% endif %}>Stores</option>
+                <option value="admin" {% if employee.department == 'admin' %}selected{% endif %}>Admin</option>
+            </select>
+        </div>
+
+        <!-- Employment Status -->
+        <div class="mb-3 form-check">
+            <input type="checkbox" id="is_active" name="is_active" class="form-check-input" {% if employee.is_active %}checked{% endif %}>
+            <label for="is_active" class="form-check-label fw-bold">Is Active:</label>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary btn-lg px-4">
+                <i class="bi bi-save me-2"></i> Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

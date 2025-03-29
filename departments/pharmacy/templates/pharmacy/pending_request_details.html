@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center"><i class="bi bi-list-check"></i> Request Details</h2>
+
+    <!-- Request Information -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Request Information</h4>
+        </div>
+        <div class="card-body">
+            <p><strong>Request Date:</strong> {{ drug_request.request_date.strftime('%Y-%m-%d') }}</p>
+            <p><strong>Requested By:</strong> {{ requested_by }}</p>
+            <p><strong>Status:</strong> 
+                <span class="badge 
+                    {% if drug_request.status == 'Pending' %}bg-warning
+                    {% elif drug_request.status == 'Fulfilled' %}bg-success
+                    {% elif drug_request.status == 'Denied' %}bg-danger
+                    {% else %}bg-secondary{% endif %}">
+                    {{ drug_request.status }}
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Requested Drugs Table -->
+    {% if drug_request.items %}
+    <div class="card shadow-sm">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0">Drugs Requested</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Drug Name</th>
+                        <th>Dosage Form</th>
+                        <th>Strength</th>
+                        <th>Qty Requested</th>
+                        <th>Qty Issued</th>
+                        <th>Comments</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in drug_request.items %}
+                    <tr>
+                        <td>{{ item.drug.generic_name }} ({{ item.drug.brand_name | default('N/A') }})</td>
+                        <td>{{ item.drug.dosage_form }}</td>
+                        <td>{{ item.drug.strength }}</td>
+                        <td class="fw-bold">{{ item.quantity_requested }}</td>
+                        <td class="fw-bold {% if item.quantity_issued > 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ item.quantity_issued }}
+                        </td>
+                        <td>{{ item.comments | default("N/A") }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning text-center mt-3">
+        <i class="bi bi-exclamation-triangle"></i> No drugs found for this request.
+    </div>
+    {% endif %}
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('pharmacy.pending_requests') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Pending Requests
+        </a>
+    </div>
+</div>
+{% endblock %}

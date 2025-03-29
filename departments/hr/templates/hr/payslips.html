@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Payslips Management</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Payslips Table -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="bi bi-file-earmark-pdf me-2"></i>Payslips</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Employee Name</th>
+                        <th>Role</th>
+                        <th>Department</th>
+                        <th>Pay Month</th>
+                        <th>Gross Salary</th>
+                        <th>Net Salary</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for slip in payslips %}
+                    <tr>
+                        <td>{{ slip.employee.name }}</td>
+                        <td>{{ slip.employee.role }}</td>
+                        <td>{{ slip.employee.department }}</td>
+                        <td>{{ slip.pay_month.strftime('%B %Y') }}</td>
+                        <td>${{ slip.gross_salary }}</td>
+                        <td>${{ slip.net_salary }}</td>
+                        <td>
+                            <a href="{{ url_for('hr.view_payslip', payslip_id=slip.id) }}" class="btn btn-info btn-sm me-2">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">No payslips available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('hr.salaries') }}" class="btn btn-secondary btn-lg px-4">
+            <i class="bi bi-arrow-left-circle me-2"></i> Back to Salaries Management
+        </a>
+    </div>
+</div>
+{% endblock %}

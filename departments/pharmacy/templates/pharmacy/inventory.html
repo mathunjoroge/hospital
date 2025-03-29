@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Medication Inventory</h2>
+
+    <!-- Normal Stock (Always Open) -->
+    {% if normal_stock_drugs %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-success text-white">
+            <h4 class="mb-0">Normal Stock</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Generic Name</th>
+                        <th>Brand Name</th>
+                        <th>Dosage Form</th>
+                        <th>Strength</th>
+                        <th>Batch Number</th>
+                        <th>Quantity in Stock</th>
+                        <th>Expiry Date</th>
+                        <th>Total Stock</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for drug in normal_stock_drugs %}
+                    <tr>
+                        <td>{{ drug.generic_name }}</td>
+                        <td>{{ drug.brand_name | default("N/A") }}</td>
+                        <td>{{ drug.dosage_form | default("N/A") }}</td>
+                        <td>{{ drug.strength | default("N/A") }}</td>
+                        <td>{{ drug.batch_number | default("N/A") }}</td>
+                        <td>{{ drug.batch_quantity }}</td>
+                        <td>{{ drug.expiry_date.strftime('%d-%m-%Y') if drug.expiry_date else "N/A" }}</td>
+                        <td>{{ drug.total_stock }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No drugs available in normal stock.</p>
+    {% endif %}
+
+    <!-- Accordion for Near Expiry and Expired Drugs -->
+    <div class="accordion" id="inventoryAccordion">
+        <!-- Near Expiry Drugs (Collapsible) -->
+        {% if near_expiry_drugs %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-warning text-dark" id="nearExpiryHeading">
+                <h4 class="mb-0">
+                    <button class="btn btn-link text-dark text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#nearExpiryCollapse" aria-expanded="false" aria-controls="nearExpiryCollapse">
+                        Near Expiry Drugs (Within 30 Days)
+                    </button>
+                </h4>
+            </div>
+            <div id="nearExpiryCollapse" class="collapse" aria-labelledby="nearExpiryHeading" data-bs-parent="#inventoryAccordion">
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Generic Name</th>
+                                <th>Brand Name</th>
+                                <th>Dosage Form</th>
+                                <th>Strength</th>
+                                <th>Batch Number</th>
+                                <th>Quantity in Stock</th>
+                                <th>Expiry Date</th>
+                                <th>Total Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for drug in near_expiry_drugs %}
+                            <tr>
+                                <td>{{ drug.generic_name }}</td>
+                                <td>{{ drug.brand_name | default("N/A") }}</td>
+                                <td>{{ drug.dosage_form | default("N/A") }}</td>
+                                <td>{{ drug.strength | default("N/A") }}</td>
+                                <td>{{ drug.batch_number | default("N/A") }}</td>
+                                <td>{{ drug.batch_quantity }}</td>
+                                <td>{{ drug.expiry_date.strftime('%d-%m-%Y') if drug.expiry_date else "N/A" }}</td>
+                                <td>{{ drug.total_stock }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">No drugs nearing expiry in the inventory.</p>
+        {% endif %}
+
+        <!-- Expired Drugs (Collapsible) -->
+        {% if expired_drugs %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-danger text-white" id="expiredHeading">
+                <h4 class="mb-0">
+                    <button class="btn btn-link text-white text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#expiredCollapse" aria-expanded="false" aria-controls="expiredCollapse">
+                        Expired Drugs
+                    </button>
+                </h4>
+            </div>
+            <div id="expiredCollapse" class="collapse" aria-labelledby="expiredHeading" data-bs-parent="#inventoryAccordion">
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Generic Name</th>
+                                <th>Brand Name</th>
+                                <th>Dosage Form</th>
+                                <th>Strength</th>
+                                <th>Batch Number</th>
+                                <th>Quantity in Stock</th>
+                                <th>Expiry Date</th>
+                                <th>Total Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for drug in expired_drugs %}
+                            <tr>
+                                <td>{{ drug.generic_name }}</td>
+                                <td>{{ drug.brand_name | default("N/A") }}</td>
+                                <td>{{ drug.dosage_form | default("N/A") }}</td>
+                                <td>{{ drug.strength | default("N/A") }}</td>
+                                <td>{{ drug.batch_number | default("N/A") }}</td>
+                                <td>{{ drug.batch_quantity }}</td>
+                                <td>{{ drug.expiry_date.strftime('%d-%m-%Y') if drug.expiry_date else "N/A" }}</td>
+                                <td>{{ drug.total_stock }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">No expired drugs in the inventory.</p>
+        {% endif %}
+    </div>
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('pharmacy.index') }}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

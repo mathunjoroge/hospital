@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Add Ward Round Notes for {{ admission.patient.name }}</h2>
+
+    <form method="POST">
+        <div class="mb-3">
+            <label for="notes" class="form-label">Progress Notes</label>
+            <textarea name="notes" class="form-control" rows="3" required></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label for="status" class="form-label">Patient Status</label>
+            <select name="status" class="form-select" required>
+                <option value="Under Treatment">Under Treatment</option>
+                <option value="Stable">Stable</option>
+                <option value="Critical">Critical</option>
+                <option value="Ready for Discharge">Ready for Discharge</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="lab_requests" class="form-label">Lab Requests</label>
+            <select name="lab_requests[]" id="lab_requests" class="selectpicker" multiple data-live-search="true">
+                <option value="CBC">Complete Blood Count (CBC)</option>
+                <option value="LFT">Liver Function Test (LFT)</option>
+                <option value="RFT">Renal Function Test (RFT)</option>
+                <option value="Blood Culture">Blood Culture</option>
+                <option value="Urinalysis">Urinalysis</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="imaging_requests" class="form-label">Imaging Requests</label>
+            <select name="imaging_requests[]" id="imaging_requests" class="selectpicker" multiple data-live-search="true">
+                <option value="X-Ray">X-Ray</option>
+                <option value="CT Scan">CT Scan</option>
+                <option value="MRI">MRI</option>
+                <option value="Ultrasound">Ultrasound</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="ward_drugs" class="form-label">Drugs to Administer</label>
+            <select name="ward_drugs[]" id="ward_drugs" class="selectpicker" multiple data-live-search="true">
+                <option value="Paracetamol">Paracetamol</option>
+                <option value="IV Fluids">IV Fluids</option>
+                <option value="Antibiotics">Antibiotics</option>
+                <option value="Painkillers">Painkillers</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="instructions" class="form-label">Additional Instructions</label>
+            <textarea name="instructions" class="form-control" rows="2"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-success">Save Notes</button>
+        <a href="{{ url_for('medicine.ward_rounds') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

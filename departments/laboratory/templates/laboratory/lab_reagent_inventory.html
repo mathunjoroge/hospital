@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+<table class="table table-bordered table-hover">
+    <thead class="table-dark">
+        <tr>
+            <th>Name</th>
+            <th>Unit</th>
+            <th>Stock Level</th>
+            <th>Unit Cost</th>
+            <th>Restock</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for reagent in reagents %}
+        <tr class="{% if reagent.stock_level < 5 %}table-danger{% endif %}">
+            <td>{{ reagent.name }}</td>
+            <td>{{ reagent.unit }}</td>
+            <td>{{ reagent.stock_level }}</td>
+            <td>${{ "%.2f"|format(reagent.unit_cost) }}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" 
+                        data-bs-target="#restockModal" data-item-id="{{ reagent.id }}" 
+                        data-item-name="{{ reagent.name }}">
+                    <i class="bi bi-cart-plus"></i> Request Restock
+                </button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<div class="modal fade" id="restockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Request Restock for <span id="modalItemName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('laboratory.request_reagent_restock') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="item_id" id="modalItemId">
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantity</label>
+                        <input type="number" name="quantity" id="quantity" class="form-control" required min="1">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Request Restock</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    var restockModal = document.getElementById('restockModal');
+    restockModal.addEventListener('show.bs.modal', function(event) {
+        var button = event.relatedTarget;
+        var itemId = button.getAttribute('data-item-id');
+        var itemName = button.getAttribute('data-item-name');
+
+        document.getElementById('modalItemId').value = itemId;
+        document.getElementById('modalItemName').textContent = itemName;
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Clinic Bookings List</h2>
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+               
+                <th>Patient Name</th>
+                <th>Clinic Name</th>
+                <th>Patient ID</th>
+                <th>Clinic Date</th>
+                <th>Seen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for booking in bookings %}
+            <tr>
+              
+                <td>{{ booking.patient.name if booking.patient else 'N/A' }}</td> <!-- Display patient name -->
+                <td>{{ booking.clinic.name if booking.clinic else 'N/A' }}</td> <!-- Display clinic name -->
+                <td>{{ booking.patient_id }}</td>
+                <td>{{ booking.clinic_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ 'Yes' if booking.seen else 'No' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center">No clinic bookings registered yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

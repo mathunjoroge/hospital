@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4 text-center">Unmatched Imaging Requests</h2>
+
+    <!-- Filter Form -->
+    <form method="GET" class="mb-3">
+        <div class="row">
+            <div class="col-md-4">
+                <input type="text" name="patient_name" class="form-control" placeholder="Filter by Patient Name" value="{{ patient_name }}">
+            </div>
+            <div class="col-md-3">
+                <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+            </div>
+            <div class="col-md-3">
+                <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Filter</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Unmatched Imaging Requests Table -->
+    {% if unmatched_requests %}
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Patient</th>
+                    <th>Description</th>
+                    <th>Date Requested</th>
+                    <th>Assign Imaging</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for request in unmatched_requests %}
+                <tr>
+                    <td>{{ request.patient.name }} ({{ request.patient.patient_id }})</td>
+                    <td>{{ request.description }}</td>
+                    <td>{{ request.date_requested.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        <form method="POST">
+                            <input type="hidden" name="unmatched_id" value="{{ request.id }}">
+                            <select name="imaging_id" class="form-select select2" required>
+                                <option value="">Select Imaging</option>
+                                {% for imaging in imaging_options %}
+                                <option value="{{ imaging.id }}">{{ imaging.imaging_type }}</option>
+                                {% endfor %}
+                            </select>
+                    </td>
+                    <td>
+                        <button type="submit" class="btn btn-sm btn-success">Match</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No unmatched imaging requests.</p>
+    {% endif %}
+</div>
+
+<!-- Load Select2 for better dropdown UI -->
+<script>
+$(document).ready(function() {
+    $('.select2').select2();
+});
+</script>
+{% endblock %}

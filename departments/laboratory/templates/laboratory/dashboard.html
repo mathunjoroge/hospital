@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Lab Dashboard</h2>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Total Tests</h5>
+                    <p class="card-text display-4">{{ total_tests }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Pending Tests</h5>
+                    <p class="card-text display-4">{{ pending_tests }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card text-white bg-danger mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Abnormal Results</h5>
+                    <p class="card-text display-4">{{ abnormal_tests }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

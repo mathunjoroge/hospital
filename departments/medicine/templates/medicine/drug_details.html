@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Drug Details</h2>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <!-- Drug Name or Identifier -->
+            <h3 class="card-title mb-4">{{ drug|default('N/A') }}</h3>
+            <hr class="mb-4">
+
+            <!-- Additional Details (Mechanism of Action, etc.) -->
+            {% if additional_details %}
+                <div class="mb-5">
+                    <h5 class="mb-3">Mechanism of Action</h5>
+                    <p class="text-muted">{{ additional_details[0].mechanism_of_action|default('No mechanism of action available.') }}</p>
+                </div>
+
+                <div class="mb-5">
+                    <h5 class="mb-3">Target Proteins</h5>
+                    <ul class="list-group">
+                        {% for detail in additional_details %}
+                            <li class="list-group-item">
+                                <strong>{{ detail.target_protein|default('N/A') }}</strong>
+                                {% if detail.action_type and detail.action_type != "None" %}
+                                    <br>
+                                    <span class="text-muted">Action Type: {{ detail.action_type }}</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            <!-- Grouped Data from Other Tables (Collapsible) -->
+            {% for table_name, rows in grouped_data.items() %}
+                <div class="mb-3">
+                    <button class="btn btn-secondary w-100 text-start d-flex justify-content-between align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_{{ table_name|replace(' ', '_') }}" aria-expanded="false" aria-controls="collapse_{{ table_name|replace(' ', '_') }}">
+                        {{ table_name }}
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+
+                    <div class="collapse mt-2" id="collapse_{{ table_name|replace(' ', '_') }}">
+                        <!-- Search box for filtering -->
+                        <input type="text" class="form-control mb-2 search-input" placeholder="Search {{ table_name }}..." onkeyup="debouncedFilterTable(this, '{{ table_name|replace(' ', '_') }}')">
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover sortable-table" id="{{ table_name|replace(' ', '_') }}">
+                                <thead class="table-light">
+                                    <tr>
+                                        {% for column in rows[0].keys() %}
+                                            <th onclick="sortTable('{{ table_name|replace(' ', '_') }}', {{ loop.index0 }})">
+                                                {{ column|replace('_', ' ')|title }} &#x25B2;&#x25BC;
+                                            </th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in rows %}
+                                        <tr>
+                                            {% for value in row.values() %}
+                                                <td>{{ value|default('N/A') }}</td>
+                                            {% endfor %}
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Back to Search Button -->
+    <div class="mt-4 d-flex justify-content-center">
+        <a href="{{ url_for('medicine.drugs_ref') }}" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> Back to Search
+        </a>
+    </div>
+</div>
+
+<!-- JavaScript for Sorting and Filtering -->
+<script>
+function debounce(func, timeout = 300) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => { func.apply(this, args); }, timeout);
+    };
+}
+
+function filterTable(input, tableId) {
+    let filter = input.value.toLowerCase();
+    let table = document.getElementById(tableId);
+    let rows = table.querySelectorAll("tbody tr");
+
+    rows.forEach(row => {
+        let text = row.innerText.toLowerCase();
+        row.style.display = text.includes(filter) ? "" : "none";
+        if (filter) {
+            row.innerHTML = row.innerHTML.replace(new RegExp(filter, 'gi'), match => `<span class="bg-warning">${match}</span>`);
+        }
+    });
+}
+
+const debouncedFilterTable = debounce(filterTable);
+
+function sortTable(tableId, columnIndex) {
+    let table = document.getElementById(tableId);
+    let tbody = table.querySelector("tbody");
+    let rows = Array.from(tbody.rows);
+    let ascending = table.dataset.sortOrder !== "asc"; // Toggle sorting order
+
+    rows.sort((rowA, rowB) => {
+        let cellA = rowA.cells[columnIndex].innerText.trim();
+        let cellB = rowB.cells[columnIndex].innerText.trim();
+
+        // Check if the content is numeric
+        if (!isNaN(cellA)) {
+            return ascending ? cellA - cellB : cellB - cellA;
+        }
+
+        // Default to string comparison
+        return ascending ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
+    });
+
+    table.dataset.sortOrder = ascending ? "asc" : "desc";
+    rows.forEach(row => tbody.appendChild(row));
+}
+</script>
+
+<!-- Bootstrap JavaScript (Ensure Bootstrap is Loaded) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- FontAwesome Icons -->
+<script src="https://kit.fontawesome.com/your-fontawesome-kit.js" crossorigin="anonymous"></script>
+
+{% endblock %}

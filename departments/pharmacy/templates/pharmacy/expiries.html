@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Expired Medications</h2>
+
+    {% if expired_drugs %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-danger text-white">
+            <h4 class="mb-0">Expired Drugs</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Generic Name</th>
+                        <th>Brand Name</th>
+                        <th>Dosage Form</th>
+                        <th>Strength</th>
+                        <th>Batch Number</th>
+                        <th>Batch Quantity</th>
+                        <th>Expiry Date</th>
+                        <th>Total Stock</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for drug in expired_drugs %}
+                    <tr>
+                        <td>{{ drug.generic_name }}</td>
+                        <td>{{ drug.brand_name | default("N/A") }}</td>
+                        <td>{{ drug.dosage_form | default("N/A") }}</td>
+                        <td>{{ drug.strength | default("N/A") }}</td>
+                        <td>{{ drug.batch_number | default("N/A") }}</td>
+                        <td>{{ drug.batch_quantity }}</td>
+                        <td>{{ drug.expiry_date.strftime('%d-%m-%Y') if drug.expiry_date else "N/A" }}</td>
+                        <td>{{ drug.total_stock }}</td>
+                        <td>
+                            <a href="{{ url_for('pharmacy.remove_batch', batch_id=drug.batch_id) }}"
+                               class="btn btn-sm btn-warning"
+                               onclick="return confirm('Are you sure you want to remove this batch from inventory?');">
+                                Remove
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Remove All Button -->
+    <div class="text-center mb-4">
+        <a href="{{ url_for('pharmacy.remove_all_expiries') }}"
+           class="btn btn-danger"
+           onclick="return confirm('Are you sure you want to remove all expired batches from inventory?');">
+            Remove All Expired Batches
+        </a>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No expired drugs in the inventory.</p>
+    {% endif %}
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('pharmacy.index') }}" class="btn btn-secondary">Back to Dashboard</a>
+                <a href="{{ url_for('pharmacy.expiries_report') }}"
+           class="btn btn-success">
+            expries report
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+@bp.route('/ward-bed-history/<int:ward_id>', methods=['GET'])
+def ward_bed_history(ward_id):
+    """View bed history for a ward."""
+    try:
+        ward = Ward.query.get(ward_id)
+        if not ward:
+            flash("Ward not found.", "danger")
+            return redirect(url_for('medicine.view_admitted_patients'))
+
+        history = WardBedHistory.query.filter_by(ward_id=ward_id).order_by(WardBedHistory.timestamp.desc()).all()
+
+        return render_template('medicine/ward_bed_history.html', ward=ward, history=history)
+
+    except Exception as e:
+        flash(f"Error: {str(e)}", "danger")
+        return redirect(url_for('medicine.view_admitted_patients'))

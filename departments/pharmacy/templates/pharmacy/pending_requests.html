@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center"><i class="bi bi-clock-history"></i> Pending Drug Requests</h2>
+
+    <!-- Filter Form -->
+    <form method="POST" class="mb-4">
+        <div class="row">
+            <div class="col-md-4">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" name="start_date" id="start_date" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" name="end_date" id="end_date" class="form-control">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-filter"></i> Filter</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Table: Summary of Pending Requests -->
+    {% if pending_requests %}
+    <div class="card shadow-sm">
+        <div class="card-header bg-warning text-white">
+            <h4 class="mb-0">Recent Pending Requests</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Request Date</th>
+                        <th>Requested By</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in pending_requests %}
+                    <tr>
+                        <td>{{ req.request_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ req.requested_by }}</td>
+                        <td><span class="badge bg-warning">{{ req.status }}</span></td>
+                        <td>
+                            <a href="{{ url_for('pharmacy.pending_request_details', request_id=req.id) }}" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-eye"></i> View Details
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center">
+        <i class="bi bi-exclamation-triangle"></i> No pending requests found.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

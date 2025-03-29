@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Imaging Results: {{ imaging.imaging_type }}</h2>
+
+    <!-- Imaging Description -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Test Description</h4>
+        </div>
+        <div class="card-body">
+            <p>{{ imaging.description | default("No description provided") }}</p>
+        </div>
+    </div>
+
+    <!-- Results Details -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0">Imaging Results</h4>
+        </div>
+        <div class="card-body">
+            <p><strong>Patient Name:</strong> {{ imaging_result.patient.name }}</p>
+            <p><strong>Patient ID:</strong> {{ imaging_result.patient.patient_id }}</p>
+            <p><strong>Imaging Type:</strong> {{ imaging.imaging_type }}</p>
+            <p><strong>Test Date:</strong> {{ imaging_result.test_date.strftime('%Y-%m-%d %H:%M') }}</p>
+            <p><strong>Result Notes:</strong> {{ imaging_result.result_notes | default("No additional notes provided.") }}</p>
+
+            <!-- Display DICOM Image -->
+            {% if imaging_result.dicom_file_path %}
+            <iframe src="{{ url_for('imaging.view_imaging_results', result_id=imaging_result.result_id) }}" width="100%" height="500px" frameborder="0"></iframe>
+            {% else %}
+            <p class="text-muted mt-3">No image available for this result.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('imaging.index') }}" class="btn btn-secondary">Back to Waiting List</a>
+    </div>
+</div>
+{% endblock %}

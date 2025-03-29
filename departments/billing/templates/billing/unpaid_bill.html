@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Unpaid Bills for {{ patient.name }} ({{ patient.patient_id }})</h2>
+
+    <!-- Dispensed Drugs -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Dispensed Drugs</h3>
+            {% if dispensed_drugs %}
+                <table class="table table-striped table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Drug</th>
+                            <th>Quantity</th>
+                            <th>Total Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in dispensed_drugs %}
+                        <tr>
+                            <td>{{ item.id }}</td>
+                            <td>{{ item.drug.generic_name }} ({{ item.drug.brand_name or 'N/A' }})</td>
+                            <td>{{ item.quantity_dispensed }}</td>
+                            <td>Kshs {{ item.drug.selling_price * item.quantity_dispensed }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p><strong>Total: Kshs {{ totals['Dispensed Drugs'] }}</strong></p>
+            {% else %}
+                <p class="text-muted">No unbilled dispensed drugs.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Requested Labs -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Laboratory Tests</h3>
+            {% if requested_labs %}
+                <table class="table table-striped table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Test</th>
+                            <th>Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in requested_labs %}
+                        <tr>
+                            <td>{{ item.id }}</td>
+                            <td>{{ item.lab_test.test_name }}</td>
+                            <td>Kshs {{ item.lab_test.cost }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p><strong>Total: Kshs {{ totals['Lab Tests'] }}</strong></p>
+            {% else %}
+                <p class="text-muted">No unbilled lab tests.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Clinic Bookings -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Clinic Consultations</h3>
+            {% if clinic_bookings %}
+                <table class="table table-striped table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Clinic</th>
+                            <th>Fee</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in clinic_bookings %}
+                        <tr>
+                            <td>{{ item.id }}</td>
+                            <td>{{ item.clinic.name }}</td>
+                            <td>Kshs {{ item.clinic.fee }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p><strong>Total: Kshs {{ totals['Clinic Bookings'] }}</strong></p>
+            {% else %}
+                <p class="text-muted">No unbilled clinic bookings.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Theatre List -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Theatre Procedures</h3>
+            {% if theatre_list %}
+                <table class="table table-striped table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Procedure</th>
+                            <th>Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in theatre_list %}
+                        <tr>
+                            <td>{{ item.id }}</td>
+                            <td>{{ item.procedure.name }}</td>
+                            <td>Kshs {{ item.procedure.cost }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p><strong>Total: Kshs {{ totals['Theatre Procedures'] }}</strong></p>
+            {% else %}
+                <p class="text-muted">No unbilled theatre procedures.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Requested Images -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Imaging</h3>
+            {% if requested_images %}
+                <table class="table table-striped table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Type</th>
+                            <th>Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in requested_images %}
+                        <tr>
+                            <td>{{ item.id }}</td>
+                            <td>{{ item.imaging.imaging_type }}</td>
+                            <td>Kshs {{ item.imaging.cost }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p><strong>Total: Kshs {{ totals['Imaging'] }}</strong></p>
+            {% else %}
+                <p class="text-muted">No unbilled imaging requests.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Admitted Patients -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Ward Admissions</h3>
+            {% if admitted_patients %}
+                <table class="table table-striped table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Ward</th>
+                            <th>Days</th>
+                            <th>Daily Charge</th>
+                            <th>Total Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in admitted_patients %}
+                        <tr>
+                            <td>{{ item.id }}</td>
+                            <td>{{ item.ward.name }}</td>
+                            <td>{{ (datetime.utcnow() - item.admitted_on).days + 1 }}</td>
+                            <td>Kshs {{ item.ward.daily_charge }}</td>
+                            <td>Kshs {{ item.ward.daily_charge * ((datetime.utcnow() - item.admitted_on).days + 1) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p><strong>Total: Kshs {{ totals['Ward Admissions'] }}</strong></p>
+            {% else %}
+                <p class="text-muted">No active ward admissions.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Existing Billings -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Other Charges (Already Billed)</h3>
+            {% if unpaid_billings %}
+                <table class="table table-striped table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Charge</th>
+                            <th>Quantity</th>
+                            <th>Total Cost</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bill in unpaid_billings %}
+                        <tr>
+                            <td>{{ bill.id }}</td>
+                            <td>{{ bill.charge.name }}</td>
+                            <td>{{ bill.quantity }}</td>
+                            <td>Kshs {{ bill.total_cost }}</td>
+                            <td>
+                                <a href="{{ url_for('billing.update_status', billing_id=bill.id) }}" class="btn btn-success btn-sm">Mark as Paid</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p><strong>Total: Kshs {{ totals['Existing Billings'] }}</strong></p>
+            {% else %}
+                <p class="text-muted">No existing unpaid billings.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Existing Drug Bills -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Drug Bills (Already Billed)</h3>
+            {% if unpaid_drug_bills %}
+                <table class="table table-striped table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Drug</th>
+                            <th>Quantity</th>
+                            <th>Total Cost</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bill in unpaid_drug_bills %}
+                        <tr>
+                            <td>{{ bill.id }}</td>
+                            <td>{{ bill.drug.generic_name }}</td>
+                            <td>{{ bill.quantity }}</td>
+                            <td>Kshs {{ bill.total_cost }}</td>
+                            <td>
+                                <a href="{{ url_for('billing.update_status', billing_id=bill.id) }}" class="btn btn-success btn-sm">Mark as Paid</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p><strong>Total: Kshs {{ totals['Existing Drug Bills'] }}</strong></p>
+            {% else %}
+                <p class="text-muted">No existing unpaid drug bills.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Payment Summary -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="card-title">Payment Summary</h3>
+            <p><strong>Grand Total: Kshs {{ grand_total }}</strong></p>
+            <form method="POST" action="{{ url_for('billing.pay_all', patient_id=patient.patient_id) }}">
+                <div class="mb-3">
+                    <label for="amount_paid" class="form-label">Amount Paid (Kshs):</label>
+                    <input type="number" id="amount_paid" name="amount_paid" class="form-control" step="0.01" min="0" max="{{ grand_total }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="payment_method" class="form-label">Payment Method:</label>
+                    <select id="payment_method" name="payment_method" class="form-select" required>
+                        <option value="">Select method</option>
+                        <option value="Cash">Cash</option>
+                        <option value="M-Pesa">M-Pesa</option>
+                        <option value="Card">Card</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-success">Pay All</button>
+            </form>
+        </div>
+    </div>
+
+    <a href="{{ url_for('billing.index') }}" class="btn btn-primary mt-3">Back to Billing List</a>
+</div>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center"><i class="bi bi-search"></i> Search for a Patient</h2>
+
+<form method="POST" action="{{ url_for('laboratory.search_patient') }}" class="mb-4">
+    <div class="d-flex align-items-center">
+        <!-- Search Input -->
+        <select id="patient_id" name="search_query" class="form-control select2 flex-grow-1 me-2 me-md-3" required>
+            <option value="">Enter patient name or number...</option>
+            {% if patients %}
+                {% for patient in patients %}
+                    <option value="{{ patient.patient_id }}">{{ patient.name }} ({{ patient.patient_id }})</option>
+                {% endfor %}
+            {% endif %}
+        </select>
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary d-flex align-items-center">
+            <i class="bi bi-search me-2"></i> Search
+        </button>
+    </div>
+</form>
+    <!-- Search Results -->
+    {% if patients %}
+    <div class="card shadow-sm" id="Search_Results">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0">Search Results</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Patient Name</th>
+                        <th>Patient ID</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for patient in patients %}
+                    <tr>
+                        <td>{{ patient.name }}</td>
+                        <td>{{ patient.patient_id }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('laboratory.search_patient') }}">
+                                <input type="hidden" name="search_query" value="{{ patient.patient_id }}">
+                                <input type="hidden" name="selected_patient_id" value="{{ patient.patient_id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-success" id="view_history" onload="click()">
+                                    <i class="bi bi-file-medical"></i> View Lab History
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% elif request.method == 'POST' %}
+    <div class="alert alert-warning text-center">
+        <i class="bi bi-exclamation-triangle"></i> No results found.
+    </div>
+    {% endif %}
+
+    <!-- Lab History Section (Only show if a patient is selected) -->
+    {% if selected_patient %}
+    <div class="mt-5">
+        <h2 class="mb-4 text-center"><i class="bi bi-journal-medical"></i> Lab History for {{ selected_patient.name }}</h2>
+
+        {% if lab_results %}
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h4 class="mb-0">Lab Test History</h4>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Date</th>
+                            <th>Test Name</th>
+                            <th>Notes</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for test in lab_results %}
+                        <tr>
+                            <td>{{ test.test_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ test.test_name }}</td>
+                            <td>{{ test.result_notes | default("No notes available", true) }}</td>
+                            <td>
+                                <a href="{{ url_for('laboratory.view_lab_results', result_id=test.id) }}" 
+                                   class="btn btn-sm btn-outline-success">
+                                    <i class="bi bi-eye"></i> View Result
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-warning text-center">
+            <i class="bi bi-exclamation-triangle"></i> No lab history found for this patient.
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+
+{% endblock %}

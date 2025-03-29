@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Billing List</h2>
+
+    <!-- Table for Other Charges -->
+    <h3 class="mb-3">Other Charges</h3>
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Patient Name</th>
+                <th>Patient Number</th>
+                <th>Service</th>
+                <th>Quantity</th>
+                <th>Total Cost</th>
+                <th>Status</th>
+                <th>Billed At</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bill in billings if bill.__class__.__name__ == 'Billing' %}
+            <tr>
+                <td>{{ bill.patient.name }}</td>
+                <td>{{ bill.patient.patient_id }}</td>
+                <td>{{ bill.charge.name }} - {{ bill.charge.category.name }}</td>
+                <td>{{ bill.quantity }}</td>
+                <td>Kshs {{ bill.total_cost }}</td>
+                <td>
+                    {% if bill.status == 0 %}
+                        <span class="text-danger">Pending</span>
+                    {% elif bill.status == 1 %}
+                        <span class="text-success">Paid</span>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>{{ bill.billed_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                <td>
+                    <a href="{{ url_for('billing.view_billing', billing_id=bill.id) }}" class="btn btn-primary btn-sm">View</a>
+                    <a href="{{ url_for('billing.update_status', billing_id=bill.id) }}" class="btn btn-success btn-sm">Mark as Paid</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="text-center">No other charges available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Table for Drugs -->
+    <h3 class="mb-3 mt-5">Drugs</h3>
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Patient Name</th>
+                <th>Patient Number</th>
+                <th>Drug Name</th>
+                <th>Quantity</th>
+                <th>Total Cost</th>
+                <th>Status</th>
+                <th>Billed At</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bill in billings if bill.__class__.__name__ == 'DrugsBill' %}
+            <tr>
+                <td>{{ bill.patient.name }}</td>
+                <td>{{ bill.patient.patient_id }}</td>
+                <td>{{ bill.drug.name }}</td>
+                <td>{{ bill.quantity }}</td>
+                <td>Kshs {{ bill.total_cost }}</td>
+                <td>
+                    {% if bill.status == 0 %}
+                        <span class="text-danger">Pending</span>
+                    {% elif bill.status == 1 %}
+                        <span class="text-success">Paid</span>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>{{ bill.billed_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                <td>
+                    <a href="{{ url_for('billing.view_billing', billing_id=bill.id) }}" class="btn btn-primary btn-sm">View</a>
+                    <a href="{{ url_for('billing.update_status', billing_id=bill.id) }}" class="btn btn-success btn-sm">Mark as Paid</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="text-center">No drug bills available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Create New Bill Buttons -->
+    <div class="mt-5">
+        <a href="{{ url_for('billing.new_invoice') }}" class="btn btn-primary me-2">Create New Invoice</a>
+        <a href="{{ url_for('billing.new_drugs_billing') }}" class="btn btn-primary">Create New Drug Billing</a>
+    </div>
+</div>
+{% endblock %}

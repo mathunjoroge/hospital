@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Store Inventory</h2>
+
+    {% if drugs %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-success text-white">
+            <h4 class="mb-0">Available Drugs</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Generic Name</th>
+                        <th>Brand Name</th>
+                        <th>Dosage Form</th>
+                        <th>Strength</th>
+                        <th>Quantity in Stock</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for drug in drugs %}
+                    <tr>
+                        <td>{{ drug.generic_name }}</td>
+                        <td>{{ drug.brand_name | default("N/A") }}</td>
+                        <td>{{ drug.dosage_form }}</td>
+                        <td>{{ drug.strength }}</td>
+                        <td>{{ drug.quantity_in_stock }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No drugs in store inventory.</p>
+    {% endif %}
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('stores.index') }}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

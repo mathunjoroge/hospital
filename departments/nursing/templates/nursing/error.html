@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-danger text-white">
+            <h2 class="card-title mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Validation Errors</h2>
+        </div>
+        <div class="card-body">
+            <p>The following errors were found in your submission:</p>
+            <ul class="list-group mb-4">
+                {% for error in errors %}
+                    <li class="list-group-item list-group-item-danger">{{ error }}</li>
+                {% endfor %}
+            </ul>
+            <div class="text-center">
+                <a href="{{ url_for('nursing.record_partogram') }}" class="btn btn-primary">
+                    <i class="bi bi-arrow-left me-2"></i>Return to Form
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

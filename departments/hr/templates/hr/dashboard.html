@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h1>Payroll Dashboard</h1>
+    <div class="mb-4">
+        <a href="{{ url_for('hr.add_deduction') }}" class="btn btn-success me-2">
+            <i class="bi bi-plus-circle"></i> Add Deduction
+        </a>
+        <a href="{{ url_for('hr.add_allowance') }}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Add Allowance
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-dark table-striped table-hover">
+            <thead class="thead-dark">
+                <tr>
+                    <th scope="col">Employee</th>
+                    <th scope="col">Month</th>
+                    <th scope="col">Gross Pay</th>
+                    <th scope="col">Total Deductions</th>
+                    <th scope="col">Net Pay</th>
+                    <th scope="col">Actions</th> <!-- New column for actions -->
+                </tr>
+            </thead>
+            <tbody>
+                {% for payroll in payrolls %}
+                <tr>
+                    <td>{{ payroll.employee.name }}</td>
+                    <td>{{ payroll.month }}</td>
+                    <td>{{ payroll.gross_pay }}</td>
+                    <td>{{ payroll.total_deductions }}</td>
+                    <td>{{ payroll.net_pay }}</td>
+                    <td>
+                        <!-- Button to view payslip -->
+                        <a href="{{ url_for('hr.view_payslip', payroll_id=payroll.id) }}" class="btn btn-primary btn-sm">
+                            <i class="bi bi-file-earmark-text"></i> View Payslip
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

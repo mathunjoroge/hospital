@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Add New Employee</h2>
+
+    <form method="POST" action="{{ url_for('hr.new_employee') }}">
+        <!-- Name -->
+        <div class="mb-3">
+            <label for="name" class="form-label fw-bold">Name:</label>
+            <input type="text" id="name" name="name" class="form-control" placeholder="Enter employee name" required>
+        </div>
+
+        <!-- Role -->
+        <div class="mb-3">
+            <label for="role" class="form-label fw-bold">Role:</label>
+            <select id="role" name="role" class="form-select" required>
+                <option value="" disabled selected>Select role</option>
+                <option value="records">Records</option>
+                <option value="nursing">Nursing</option>
+                <option value="pharmacy">Pharmacy</option>
+                <option value="medicine">Medicine</option>
+                <option value="laboratory">Laboratory</option>
+                <option value="imaging">Imaging</option>
+                <option value="mortuary">Mortuary</option>
+                <option value="hr">HR</option>
+                <option value="stores">Stores</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+
+        <!-- Department -->
+        <div class="mb-3">
+            <label for="department" class="form-label fw-bold">Department:</label>
+            <select id="department" name="department" class="form-select" required>
+                <option value="" disabled selected>Select department</option>
+                <option value="records">Records</option>
+                <option value="nursing">Nursing</option>
+                <option value="pharmacy">Pharmacy</option>
+                <option value="medicine">Medicine</option>
+                <option value="laboratory">Laboratory</option>
+                <option value="imaging">Imaging</option>
+                <option value="mortuary">Mortuary</option>
+                <option value="hr">HR</option>
+                <option value="stores">Stores</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+
+        <!-- Job Group -->
+        <div class="mb-3">
+            <label for="job_group" class="form-label fw-bold">Job Group:</label>
+            <select id="job_group" name="job_group" class="form-select" required>
+                <option value="" disabled selected>Select job group</option>
+                <option value="Group A">Group A</option>
+                <option value="Group B">Group B</option>
+                <option value="Group C">Group C</option>
+            </select>
+        </div>
+
+        <!-- Allowances -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Allowances:</label>
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Allowance Name</th>
+                        <th>Value</th>
+                        <th>Select</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for allowance in allowances %}
+                    <tr>
+                        <td>{{ allowance.name }}</td>
+                        <td>${{ allowance.value }}</td>
+                        <td>
+                            <input type="checkbox" id="allowance_{{ allowance.id }}" name="allowances" value="{{ allowance.id }}">
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">No allowances available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Deductions -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Deductions:</label>
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Deduction Name</th>
+                        <th>Type</th>
+                        <th>Value</th>
+                        <th>Select</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for deduction in deductions %}
+                    <tr>
+                        <td>{{ deduction.name }}</td>
+                        <td>{{ deduction.type }}</td>
+                        <td>
+                            {% if deduction.type == 'absolute' %}
+                                ${{ deduction.value }}
+                            {% else %}
+                                {{ deduction.value }}%
+                            {% endif %}
+                        </td>
+                        <td>
+                            <input type="checkbox" id="deduction_{{ deduction.id }}" name="deductions" value="{{ deduction.id }}">
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">No deductions available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary btn-lg px-4">
+                <i class="bi bi-person-plus-fill me-2"></i> Save Employee
+            </button>
+        </div>
+    </form>
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('hr.employee_list') }}" class="btn btn-secondary btn-lg px-4">
+            <i class="bi bi-arrow-left-circle me-2"></i> Back to Employee List
+        </a>
+    </div>
+</div>
+{% endblock %}

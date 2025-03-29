@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Lab Test Results: {{ lab_test.test_name }}</h2>
+
+    <!-- Description -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Test Description</h4>
+        </div>
+        <div class="card-body">
+            <p>{{ lab_test.description | default("No description provided") }}</p>
+        </div>
+    </div>
+
+    <!-- Results Table -->
+    {% if test_presentation %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0">Test Results</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Parameter Name</th>
+                        <th>Normal Range</th>
+                        <th>Result</th>
+                        <th>Unit</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in test_presentation %}
+                    <tr>
+                        <td>{{ item.parameter_name }}</td>
+                        <td>{{ item.normal_range_low }} - {{ item.normal_range_high }}</td>
+                        <td>{{ item.result }}</td>
+                        <td>{{ item.unit }}</td>
+                      <td>
+    {% if item.status == "Low" %}
+        <span class="text-warning fw-bold">Low</span>
+    {% elif item.status == "High" %}
+        <span class="text-danger fw-bold">High</span>
+    {% elif item.status == "Invalid Result" %}
+        <span class="text-secondary fw-bold">Invalid Result</span>
+    {% else %}
+        <span class="text-success fw-bold">Normal</span>
+    {% endif %}
+</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No results available for this lab test.</p>
+    {% endif %}
+
+    <!-- Additional Notes -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-secondary text-white">
+            <h4 class="mb-0">Additional Notes</h4>
+        </div>
+        <div class="card-body">
+            <p>{{ lab_result.result_notes | default("No additional notes provided.") }}</p>
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('laboratory.index') }}" class="btn btn-secondary">Back to Waiting List</a>
+    </div>
+</div>
+{% endblock %}

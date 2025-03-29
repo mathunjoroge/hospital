@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Deductions Management</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Deductions Table -->
+    {% if deductions %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="bi bi-cash me-2"></i>Deductions</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Employee Name</th>
+                        <th>Deduction Name</th>
+                        <th>Type</th>
+                        <th>Value</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ded in deductions %}
+                    <tr>
+                        <td>{{ ded.employee.name }}</td>
+                        <td>{{ ded.name }}</td>
+                        <td>{{ ded.type }}</td>
+                        <td>{{ ded.value }}</td>
+                        <td>
+                            <a href="" class="btn btn-primary btn-sm me-2">
+                                <i class="bi bi-pencil-square"></i> Edit
+                            </a>
+                            <form method="POST" action="" style="display:inline;">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this deduction?');">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">No deductions available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted text-center">No deductions available.</p>
+    {% endif %}
+
+    <!-- Add New Deduction Button -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('hr.new_deduction') }}" class="btn btn-success btn-lg px-4">
+            <i class="bi bi-plus-circle me-2"></i> Add New Deduction
+        </a>
+    </div>
+</div>
+{% endblock %}

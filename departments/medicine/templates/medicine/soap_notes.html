@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">SOAP Notes for {{ patient.name }} ({{ patient.patient_id }})</h2>
+
+    {% if soap_notes %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Existing SOAP Notes</h4>
+            </div>
+            <div class="card-body">
+                {% for note in soap_notes %}
+                    <div class="card mb-3 shadow-sm">
+                        <div class="card-header bg-light text-dark">
+                            <h5 class="mb-0">Date: {{ note.created_at.strftime('%Y-%m-%d %H:%M') }}</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Situation:</strong> {{ note.situation }}</p>
+                                    <p><strong>HPI:</strong> {{ note.hpi }}</p>
+                                    <p><strong>Aggravating Factors:</strong> {{ note.aggravating_factors }}</p>
+                                    <p><strong>Alleviating Factors:</strong> {{ note.alleviating_factors }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Medical History:</strong> {{ note.medical_history }}</p>
+                                    <p><strong>Medication History:</strong> {{ note.medication_history }}</p>
+                                    <p><strong>Assessment:</strong> {{ note.assessment }}</p>
+                                    <p><strong>Recommendation:</strong> {{ note.recommendation }}</p>
+                                </div>
+                            </div>
+
+                            {% if note.additional_notes %}
+                                <p><strong>Additional Notes:</strong> {{ note.additional_notes }}</p>
+                            {% endif %}
+
+                            {% if note.file_path %}
+                                <p>
+                                    <strong>Attachments:</strong> 
+                                    <a href="{{ url_for('static', filename=note.file_path) }}" target="_blank" class="btn btn-sm btn-info">View File</a>
+                                </p>
+                            {% else %}
+                                <p class="text-muted"><em>No attachment</em></p>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+        <p class="text-center text-muted">No SOAP notes available for this patient.</p>
+    {% endif %}
+</div>
+
+
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Patient Documentation (SBAR Melabelod)</h4>
+        </div>
+        <div class="card-body">
+            <form melabelod="POST" action="{{ url_for('medicine.submit_soap_notes', patient_id=patient.patient_id) }}" enctype="multipart/form-data">
+                <div class="row">
+                    <!-- Left Column -->
+                    <div class="col-md-6">
+                        <!-- Situation -->
+                     
+                        <div class="mb-3">
+                            <label for="situation" class="form-label fw-bold">Chief Complaint:</label>
+                            <textarea id="situation" name="situation" class="form-control" required placeholder="Describe labele patient's main issue..."></textarea>
+                        </div>
+                        
+                        <!-- History of Presenting Illness (HPI) -->
+                        <h5 class="text-success">History of Presenting Illness (HPI)</h5>
+                        <div class="mb-3">
+                            <label for="hpi" class="form-label fw-bold">Detailed Description:</label>
+                            <textarea id="hpi" name="hpi" class="form-control" required placeholder="Onset, duration, severity, associated symptoms, and progression..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="aggravating_factors" class="form-label fw-bold">Aggravating Factors:</label>
+                            <textarea id="aggravating_factors" name="aggravating_factors" class="form-control" placeholder="What makes labele symptoms worse?"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="alleviating_factors" class="form-label fw-bold">Alleviating Factors:</label>
+                            <textarea id="alleviating_factors" name="alleviating_factors" class="form-control" placeholder="What helps relieve labele symptoms?"></textarea>
+                        </div>
+
+                        <!-- Background -->
+                        <h5 class="text-success">B: Background</h5>
+                        <div class="mb-3">
+                            <label for="medical_history" class="form-label fw-bold">Medical History:</label>
+                            <textarea id="medical_history" name="medical_history" class="form-control" placeholder="List chronic illnesses, past surgeries, conditions..."></textarea>
+                        </div>
+
+                    </div>
+
+                    <!-- Right Column -->
+                    <div class="col-md-6">
+                            <div class="mb-3">
+                            <label for="medication_history" class="form-label fw-bold">Medication History:</label>
+                            <textarea id="medication_history" name="medication_history" class="form-control" placeholder="List current medications & dosages..."></textarea>
+                        </div>
+                        <!-- Assessment -->
+                        <h5 class="text-warning">A: Assessment</h5>
+                        <div class="mb-3">
+                            <label for="assessment" class="form-label fw-bold">Clinical Findings / Diagnosis:</label>
+                            <textarea id="assessment" name="assessment" class="form-control" required placeholder="Provide clinical findings, possible diagnosis..."></textarea>
+                        </div>
+
+                        <!-- Recommendation -->
+                        <h5 class="text-info">R: Recommendation</h5>
+                        <div class="mb-3">
+                            <label for="recommendation" class="form-label fw-bold">Next Steps / Treatment Plan:</label>
+                            <textarea id="recommendation" name="recommendation" class="form-control" required placeholder="Specify recommended treatments, referrals, tests..."></textarea>
+                        </div>
+
+                        <!-- Additional Notes & Attachments -->
+                        <h5 class="text-secondary">Additional Information</h5>
+                        <div class="mb-3">
+                            <label for="additional_notes" class="form-label fw-bold">Additional Notes:</label>
+                            <textarea id="additional_notes" name="additional_notes" class="form-control" placeholder="Any extra observations or instructions..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="file_upload" class="form-label fw-bold">Attach Files (Optional):</label>
+                            <input type="file" id="file_upload" name="file_upload" class="form-control">
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg px-5">Submit Report</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+    <!-- Action Buttons -->
+<!-- Links to Separate Pages -->
+<div class="container">
+<div class="mt-4">
+    <h3>Actions</h3>
+<ul class="list-unstyled d-flex gap-2">
+    <li><a href="{{ url_for('medicine.request_lab_tests', patient_id=patient.patient_id) }}" class="btn btn-primary">Request Lab Tests</a></li>
+    <li><a href="{{ url_for('medicine.request_imaging', patient_id=patient.patient_id) }}" class="btn btn-primary">Request Imaging</a></li>
+    <li><a href="{{ url_for('medicine.prescribe_drugs', patient_id=patient.patient_id) }}" class="btn btn-primary">Prescribe Drugs</a></li>
+    <li> <a href="{{ url_for('medicine.index') }}" class="btn btn-secondary">Back to Waiting List</a></li>
+</ul>
+
+</div>
+</div>
+
+    
+
+    <!-- Back Button -->
+ 
+
+
+
+{% endblock %}
