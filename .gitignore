@@ -1,0 +1,39 @@
+# Ignore virtual environments
+venv/
+.env/
+
+# Ignore Python bytecode
+__pycache__/
+*.py[cod]
+
+# Ignore distribution/build files
+build/
+dist/
+*.egg-info/
+
+# Ignore logs and temp files
+*.log
+
+# Ignore environment and config files
+*.sqlite3
+
+# Ignore downloaded model files
+models/
+*.bin
+*.pt
+*.ckpt
+*.joblib
+*.pkl
+departments/imaging/model_cache/
+
+# Huggingface cache (if downloaded locally)
+**/transformers_cache/
+**/.cache/
+**/huggingface/
+
+# PyTorch and DICOM artifacts
+*.pth
+*.dcm
+
+# VS Code
+.vscode/

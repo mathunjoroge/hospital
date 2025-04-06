@@ -16,7 +16,7 @@
                         <th>Patient Name</th>
                         <th>Patient ID</th>
                         <th>Imaging Type</th>
-                        <th>Cost</th>
+               
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -26,7 +26,7 @@
                         <td>{{ req.patient.name }}</td>
                         <td>{{ req.patient.patient_id }}</td>
                         <td>{{ req.imaging.imaging_type }}</td>  <!-- Access imaging details via req.imaging -->
-                        <td>${{ "%.2f" | format(req.imaging.cost) }}</td>  <!-- Access imaging cost via req.imaging -->
+                      
                         <td>
                             <a href="{{ url_for('imaging.process_imaging_request', request_id=req.id) }}" class="btn btn-success btn-sm">Process</a>
                         </td>
