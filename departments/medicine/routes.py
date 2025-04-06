@@ -1,20 +1,20 @@
 from flask import  render_template, redirect, url_for, request, flash, jsonify
+from typing import Optional, List, Dict, Any
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from flask import current_app  # Import current_app
 from flask_login import login_required, current_user
 from flask_wtf.csrf import CSRFProtect
 from extensions import db
 from flask import session
+from flask_socketio import SocketIO
 import uuid
 from uuid import uuid4
 from sqlalchemy.orm import joinedload
 from . import bp  # Import the blueprint
 import os
 from datetime import datetime
-from flask_socketio import SocketIO
-from typing import Optional, List, Dict, Any
 from departments.models.records import PatientWaitingList,Patient
-import psycopg2
-from psycopg2.extras import RealDictCursor
 from departments.models.medicine import (
     SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, RequestedImage,UnmatchedImagingRequest,TheatreProcedure,TheatreList,Ward,AdmittedPatient
 ,WardBedHistory,WardRoom,Bed,WardRound)

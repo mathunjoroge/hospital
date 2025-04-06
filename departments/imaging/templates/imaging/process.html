@@ -3,7 +3,17 @@
 <div class="container mt-5">
     <h2 class="mb-4 text-center">Process Imaging Request</h2>
 
-    <!-- Imaging Details -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-primary text-white">
             <h4 class="mb-0">Imaging Details</h4>
@@ -17,29 +27,96 @@
         </div>
     </div>
 
-    <!-- Upload Image Form -->
-    <form method="POST" action="{{ url_for('imaging.process_imaging_request', request_id=imaging_request.id) }}" enctype="multipart/form-data">
-        <!-- Add Notes -->
+    <form method="POST" action="{{ url_for('imaging.process_imaging_request', request_id=imaging_request.id) }}" enctype="multipart/form-data" id="uploadForm">
         <div class="mb-3">
-            <label for="result_notes" class="form-label fw-bold">Additional Notes:</label>
-            <textarea id="result_notes" name="result_notes" class="form-control" rows="3" placeholder="Add any additional notes..."></textarea>
+            <label for="result_notes" class="form-label fw-bold">Radiology Report:</label>
+            <textarea id="result_notes" name="result_notes" class="form-control" rows="5">{{ draft_report }}</textarea>
         </div>
 
-        <!-- Upload Image -->
-        <div class="mb-3">
-            <label for="image_file" class="form-label fw-bold">Upload DICOM File:</label>
-            <input type="file" id="image_file" name="image_file" class="form-control" accept=".dcm" required>
+        <!-- Folder Upload Section -->
+        <div class="mb-4 border p-3 rounded">
+            <h5 class="mb-3">Upload DICOM Files</h5>
+            
+            <div class="mb-3">
+                <label for="dicom_folder" class="form-label fw-bold">Select DICOM Folder:</label>
+                <input type="file" id="dicom_folder" name="dicom_folder" class="form-control" 
+                       webkitdirectory directory multiple accept=".dcm,.dicom" required>
+                <small class="form-text text-muted">Select a folder containing all DICOM images for this study</small>
+            </div>
+
+            <div id="fileInfo" class="alert alert-info" style="display:none;">
+                <span id="fileCount">0</span> DICOM files selected
+                <div id="fileList" class="mt-2 small"></div>
+            </div>
         </div>
 
-        <!-- Submit Button -->
         <div class="text-center">
-            <button type="submit" class="btn btn-primary btn-lg px-5">Submit Results</button>
+            <button type="submit" class="btn btn-primary btn-lg px-5" id="submitBtn">
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                Process Study
+            </button>
         </div>
     </form>
 
-    <!-- Back Button -->
     <div class="text-center mt-4">
         <a href="{{ url_for('imaging.index') }}" class="btn btn-secondary">Back to Waiting List</a>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const folderInput = document.getElementById('dicom_folder');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileCount = document.getElementById('fileCount');
+    const fileList = document.getElementById('fileList');
+    const submitBtn = document.getElementById('submitBtn');
+    const uploadForm = document.getElementById('uploadForm');
+
+    folderInput.addEventListener('change', function(e) {
+        if (this.files.length > 0) {
+            fileCount.textContent = this.files.length;
+            fileInfo.style.display = 'block';
+            
+            // Show first 5 files as sample
+            fileList.innerHTML = '';
+            const maxPreview = 5;
+            for (let i = 0; i < Math.min(this.files.length, maxPreview); i++) {
+                fileList.innerHTML += `<div>${this.files[i].name}</div>`;
+            }
+            if (this.files.length > maxPreview) {
+                fileList.innerHTML += `<div>+ ${this.files.length - maxPreview} more files...</div>`;
+            }
+        } else {
+            fileInfo.style.display = 'none';
+        }
+    });
+
+    uploadForm.addEventListener('submit', function() {
+        submitBtn.disabled = true;
+        submitBtn.querySelector('.spinner-border').style.display = 'inline-block';
+        submitBtn.querySelector('span:not(.spinner-border)').textContent = 'Processing...';
+    });
+});
+const socket = io('/imaging');
+
+socket.on('progress', (data) => {
+    updateProgressBar(data.current, data.total);
+    console.log(`Processed ${data.current}/${data.total} files for request ${data.request_id}`);
+});
+
+socket.on('complete', (data) => {
+    showCompletionMessage(`Processed ${data.processed} files (${data.failed} failed)`);
+    console.log(`Completed request ${data.request_id}`);
+});
+</script>
+
+<style>
+    #fileList {
+        max-height: 150px;
+        overflow-y: auto;
+        background: #f8f9fa;
+        padding: 5px;
+        border-radius: 3px;
+    }
+</style>
 {% endblock %}
