@@ -14,8 +14,8 @@ from werkzeug.utils import secure_filename
 from extensions import db
 from departments.models.medicine import RequestedImage, Imaging, ImagingResult
 from sqlalchemy.orm import joinedload
-from . import bp, socketio  # Import bp and socketio from imaging/__init__.py
-
+from . import bp
+from app import socketio  # Import socketio from app.py
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -276,167 +276,176 @@ def generate_report(analysis_results, patient_id, result_id):
     logger.debug(f"Report generated: {report[:100]}...")
     return report
 
-@bp.route('/process_imaging_request/<int:request_id>', methods=['GET', 'POST'])
+@bp.route('/process_imaging_request/<int:request_id>', methods=['GET', 'POST'])  # Fixed: Removed '/imaging' prefix
 @login_required
 def process_imaging_request(request_id):
-    logger.debug(f"Processing imaging request {request_id} for user {current_user.id}")
+    """Process an imaging request by uploading and analyzing DICOM files."""
+    logger.debug(f"User {current_user.id} processing imaging request {request_id}")
+
+    # Check user permissions
     if current_user.role not in ['imaging', 'admin']:
-        flash('Permission denied', 'error')
         logger.debug(f"Permission denied for user {current_user.id}")
+        flash('Permission denied', 'error')
         return redirect(url_for('home'))
 
+    # Fetch request and imaging data
     try:
         imaging_request = RequestedImage.query.get_or_404(request_id)
         imaging = Imaging.query.get_or_404(imaging_request.imaging_id)
-        logger.debug(f"Retrieved imaging request {request_id} and imaging {imaging.id}")
-
-        if request.method == 'POST':
-            logger.debug(f"POST request received for request_id {request_id}")
-            if 'dicom_folder' not in request.files:
-                flash('No DICOM files uploaded', 'error')
-                logger.debug("No DICOM files in request")
-                return redirect(request.url)
-
-            result_id = str(uuid.uuid4())
-            upload_dir = os.path.join(current_app.config['DICOM_UPLOAD_FOLDER'], result_id)
-            os.makedirs(upload_dir, exist_ok=True)
-            logger.debug(f"Created upload directory: {upload_dir}")
-
-            files = request.files.getlist('dicom_folder')
-            total_files = len(files)
-            file_paths = []
-            analysis_results = []
-            processed_count = 0
-            logger.debug(f"Total files to process: {total_files}")
-
-            for i, file in enumerate(files):
-                if not file or not allowed_file(file.filename):
-                    logger.debug(f"Skipping invalid file: {file.filename if file else 'None'}")
-                    continue
-
-                filename = secure_filename(file.filename)
-                filepath = os.path.join(upload_dir, filename)
-                logger.debug(f"Processing file {i+1}/{total_files}: {filename}")
-
-                try:
-                    file.save(filepath)
-                    logger.debug(f"Saved file to {filepath}")
-                    result = analyze_dicom(filepath)
-                    result['filename'] = filename
-                    logger.debug(f"Analysis result for {filename}: {result}")
-
-                    if result.get('status') == 'success':
-                        file_paths.append(filepath)
-                        processed_count += 1
-                        logger.debug(f"File {filename} processed successfully")
-                    else:
-                        os.remove(filepath)
-                        logger.debug(f"File {filename} failed, removed")
-
-                    analysis_results.append(result)
-
-                    if (i+1) % 5 == 0 or (i+1) == total_files:
-                        try:
-                            if socketio:
-                                socketio.emit('progress', {
-                                    'current': processed_count,
-                                    'total': total_files,
-                                    'request_id': request_id
-                                }, namespace='/imaging')
-                                logger.debug(f"Emitted progress: {processed_count}/{total_files}")
-                        except Exception as emit_error:
-                            logger.error(f"Progress emit failed: {emit_error}")
-
-                except Exception as file_error:
-                    logger.error(f"Error processing {filename}: {file_error}")
-                    if os.path.exists(filepath):
-                        os.remove(filepath)
-                    analysis_results.append({
-                        'filename': filename,
-                        'status': 'error',
-                        'error': str(file_error)
-                    })
-
-            if not file_paths:
-                flash('No valid DICOM images were processed', 'error')
-                logger.debug("No valid files processed")
-                return redirect(request.url)
-
-            try:
-                ai_report = generate_report(analysis_results, imaging_request.patient_id, result_id)
-                final_report = request.form.get('result_notes', "AI-generated findings stored in AI Findings section.")
-                logger.debug(f"AI report: {ai_report[:100]}...")
-                logger.debug(f"Final report (result_notes): {final_report[:100]}...")
-            except Exception as report_error:
-                logger.error(f"Report generation failed: {report_error}")
-                ai_report = "Report generation failed. Raw AI findings available."
-                final_report = "Report generation failed. Basic findings available."
-
-            try:
-                imaging_result = ImagingResult(
-                    result_id=result_id,
-                    patient_id=imaging_request.patient_id,
-                    imaging_id=imaging.id,
-                    test_date=datetime.utcnow(),
-                    result_notes=final_report,
-                    updated_by=current_user.id,
-                    dicom_file_path=",".join(file_paths),
-                    ai_findings=ai_report,
-                    ai_generated=True,
-                    files_processed=processed_count,
-                    files_failed=total_files - processed_count,
-                    processing_metadata={'file_metadata': analysis_results, 'model_version': '1.0'}
-                )
-                db.session.add(imaging_result)
-                imaging_request.status = 'completed'
-                imaging_request.result_id = result_id
-                db.session.commit()
-                logger.debug(f"Database committed: request_id={request_id}, result_id={result_id}")
-
-                try:
-                    if socketio:
-                        socketio.emit('complete', {
-                            'request_id': request_id,
-                            'result_id': result_id,
-                            'processed': processed_count,
-                            'failed': total_files - processed_count
-                        }, namespace='/imaging')
-                        logger.debug(f"Emitted completion: processed={processed_count}, failed={total_files - processed_count}")
-                except Exception as complete_error:
-                    logger.error(f"Complete emit failed: {complete_error}")
-
-                flash(f'Processed {processed_count} of {total_files} files successfully', 'success')
-                logger.debug(f"Redirecting to view_result with result_id={result_id}")
-                return redirect(url_for('imaging.view_result', result_id=result_id))
-
-            except Exception as db_error:
-                db.session.rollback()
-                logger.error(f"Database error: {db_error}", exc_info=True)
-                flash('Error saving results to database', 'error')
-                return redirect(request.url)
-
-        draft_report = ""
-        if imaging_request.result_id:
-            existing_result = ImagingResult.query.get(imaging_request.result_id)
-            if existing_result:
-                draft_report = existing_result.result_notes
-                logger.debug(f"Draft report loaded: {draft_report[:100]}...")
-
-        logger.debug(f"Rendering process.html for request_id={request_id}")
-        return render_template(
-            'imaging/process.html',
-            imaging_request=imaging_request,
-            imaging=imaging,
-            draft_report=draft_report,
-            ai_enabled=models['image_model'] is not None
-        )
-
+        logger.debug(f"Loaded imaging request {request_id} and imaging {imaging.id}")
     except Exception as e:
-        db.session.rollback()
-        logger.error(f"Processing error: {e}", exc_info=True)
-        flash(f'Error processing request: {str(e)}', 'error')
+        logger.error(f"Error fetching request {request_id}: {e}", exc_info=True)
+        flash(f"Error loading request: {str(e)}", 'error')
         return redirect(url_for('imaging.index'))
 
+    # Handle POST request (file upload and processing)
+    if request.method == 'POST':
+        logger.debug(f"POST request for imaging request {request_id}")
+
+        # Validate file upload
+        if 'dicom_folder' not in request.files or not request.files['dicom_folder']:
+            logger.debug("No DICOM files uploaded")
+            flash('No DICOM files uploaded', 'error')
+            return redirect(request.url)
+
+        # Prepare upload directory
+        result_id = str(uuid.uuid4())
+        upload_dir = os.path.join(current_app.config['DICOM_UPLOAD_FOLDER'], result_id)
+        os.makedirs(upload_dir, exist_ok=True)
+        logger.debug(f"Upload directory created: {upload_dir}")
+
+        # Process uploaded files
+        files = request.files.getlist('dicom_folder')
+        total_files = len(files)
+        file_paths = []
+        analysis_results = []
+        processed_count = 0
+        logger.debug(f"Processing {total_files} files")
+
+        for i, file in enumerate(files, 1):
+            if not file or not allowed_file(file.filename):
+                logger.debug(f"Skipping invalid file: {file.filename if file else 'None'}")
+                continue
+
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(upload_dir, filename)
+            logger.debug(f"Processing file {i}/{total_files}: {filename}")
+
+            try:
+                file.save(filepath)
+                result = analyze_dicom(filepath)
+                result['filename'] = filename
+                logger.debug(f"Analysis for {filename}: {result}")
+
+                if result.get('status') == 'success':
+                    file_paths.append(filepath)
+                    processed_count += 1
+                    logger.debug(f"Successfully processed {filename}")
+                else:
+                    os.remove(filepath)
+                    logger.debug(f"Failed processing {filename}, removed")
+
+                analysis_results.append(result)
+
+                # Emit progress every 5 files or at the end
+                if i % 5 == 0 or i == total_files:
+                    try:
+                        socketio.emit('progress', {
+                            'current': processed_count,
+                            'total': total_files,
+                            'request_id': request_id
+                        }, namespace='/imaging')
+                        logger.debug(f"Progress emitted: {processed_count}/{total_files}")
+                    except Exception as emit_error:
+                        logger.error(f"Progress emit failed: {emit_error}")
+
+            except Exception as file_error:
+                logger.error(f"Error processing {filename}: {file_error}")
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                analysis_results.append({
+                    'filename': filename,
+                    'status': 'error',
+                    'error': str(file_error)
+                })
+
+        # Check if any files were processed
+        if not file_paths:
+            logger.debug("No valid DICOM files processed")
+            flash('No valid DICOM images were processed', 'error')
+            return redirect(request.url)
+
+        # Generate reports
+        try:
+            ai_report = generate_report(analysis_results, imaging_request.patient_id, result_id)
+            final_report = request.form.get('result_notes', "AI-generated findings stored in AI Findings section.")
+            logger.debug(f"AI report: {ai_report[:100]}...")
+            logger.debug(f"Final report: {final_report[:100]}...")
+        except Exception as report_error:
+            logger.error(f"Report generation failed: {report_error}")
+            ai_report = "Report generation failed. Raw AI findings available."
+            final_report = "Report generation failed. Basic findings available."
+
+        # Save results to database
+        try:
+            imaging_result = ImagingResult(
+                result_id=result_id,
+                patient_id=imaging_request.patient_id,
+                imaging_id=imaging.id,
+                test_date=datetime.utcnow(),
+                result_notes=final_report,
+                updated_by=current_user.id,
+                dicom_file_path=",".join(file_paths),
+                ai_findings=ai_report,
+                ai_generated=True,
+                files_processed=processed_count,
+                files_failed=total_files - processed_count,
+                processing_metadata={'file_metadata': analysis_results, 'model_version': '1.0'}
+            )
+            db.session.add(imaging_result)
+            imaging_request.status = 'completed'
+            imaging_request.result_id = result_id
+            db.session.commit()
+            logger.debug(f"Saved result: request_id={request_id}, result_id={result_id}")
+
+            # Emit completion event
+            try:
+                socketio.emit('complete', {
+                    'request_id': request_id,
+                    'result_id': result_id,
+                    'processed': processed_count,
+                    'failed': total_files - processed_count
+                }, namespace='/imaging')
+                logger.debug(f"Completion emitted: processed={processed_count}, failed={total_files - processed_count}")
+            except Exception as emit_error:
+                logger.error(f"Completion emit failed: {emit_error}")
+
+            flash(f"Processed {processed_count} of {total_files} files successfully", 'success')
+            logger.debug(f"Redirecting to view_result: result_id={result_id}")
+            return redirect(url_for('imaging.view_result', result_id=result_id))
+
+        except Exception as db_error:
+            db.session.rollback()
+            logger.error(f"Database error: {db_error}", exc_info=True)
+            flash('Error saving results to database', 'error')
+            return redirect(request.url)
+
+    # Handle GET request (render form)
+    draft_report = ""
+    if imaging_request.result_id:
+        existing_result = ImagingResult.query.get(imaging_request.result_id)
+        if existing_result:
+            draft_report = existing_result.result_notes
+            logger.debug(f"Draft report loaded: {draft_report[:100]}...")
+
+    logger.debug(f"Rendering process.html for request_id={request_id}")
+    return render_template(
+        'imaging/process.html',
+        imaging_request=imaging_request,
+        imaging=imaging,
+        draft_report=draft_report,
+        ai_enabled=models['image_model'] is not None
+    )
 @bp.route('/view_result/<string:result_id>', methods=['GET'])
 @login_required
 def view_result(result_id):
@@ -481,7 +490,7 @@ def download_file(result_id, filename):
         flash(f"Error downloading file: {str(e)}", 'error')
         return redirect(url_for('imaging.view_result', result_id=result_id))
 
-@bp.route('/imaging_results', methods=['GET'])
+@bp.route('/results', methods=['GET'])  # Changed from '/imaging_results'
 @login_required
 def imaging_results():
     """Display a list of all processed imaging results."""
@@ -493,7 +502,6 @@ def imaging_results():
         return redirect(url_for('home'))
 
     try:
-        # Query all ImagingResult records
         results = ImagingResult.query.order_by(ImagingResult.test_date.desc()).all()
         logger.debug(f"Retrieved {len(results)} imaging results from database")
         
@@ -505,12 +513,6 @@ def imaging_results():
         logger.error(f"Error retrieving imaging results: {str(e)}", exc_info=True)
         flash(f'Error retrieving results: {str(e)}', 'error')
         return redirect(url_for('imaging.index'))
-
-def init_socketio(app):
-    global socketio
-    socketio = SocketIO(app, async_mode='threading', logger=True, engineio_logger=True)
-    logger.debug("SocketIO initialized")
-    return socketio
 
 @bp.route('/view_imaging_results/<string:result_id>', methods=['GET'])
 @login_required
