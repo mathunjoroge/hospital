@@ -362,10 +362,14 @@
       <a href="{{ url_for('laboratory.abnormal_results') }}">
         <i class="bi bi-exclamation-triangle me-2"></i> Abnormal Results </a>
       <a href="{{ url_for('laboratory.dashboard') }}">
-        <i class="bi bi-bar-chart-line me-2"></i> Lab Dashboard </a> {% elif current_user.role == 'imaging' %} <a href="{{ url_for('imaging.index') }}">
+        <i class="bi bi-bar-chart-line me-2"></i> Lab Dashboard </a> 
+        {% elif current_user.role == 'imaging' %} 
+        <a href="{{ url_for('imaging.index') }}">
         <i class="bi bi-list-check me-2"></i> Requests </a>
       <a href="">
-        <i class="bi bi-boxes me-2"></i> Inventory </a>
+        <i class="bi bi-list-check me-2"></i>inventory</a>
+      <a href="{{ url_for('imaging.imaging_results') }}">
+        <i class="bi bi-boxes me-2"></i> results</a>
       <a href="">
         <i class="bi bi-file-earmark-medical me-2"></i> Reports </a>
       <a href="">
