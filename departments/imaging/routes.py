@@ -5,17 +5,19 @@ import numpy as np
 from datetime import datetime
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import pydicom
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForSeq2SeqLM
-from flask import  flash, redirect, render_template, request, url_for, current_app, send_from_directory
-from flask_socketio import SocketIO
+from torchvision import models  # Explicitly import torchvision.models
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from flask import flash, redirect, render_template, request, url_for, current_app, send_from_directory
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from extensions import db
 from departments.models.medicine import RequestedImage, Imaging, ImagingResult
 from sqlalchemy.orm import joinedload
 from . import bp
-from app import socketio  # Import socketio from app.py
+from app import socketio
+
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -24,83 +26,74 @@ logger = logging.getLogger(__name__)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger.debug(f"Using device: {device}")
 
-class MedicalImageModel(nn.Module):
-    def __init__(self, in_channels=1, num_classes=15):
-        super(MedicalImageModel, self).__init__()
-        self.layer1 = nn.Conv2d(in_channels, 16, kernel_size=3, padding=1)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.layer2 = nn.Conv2d(16, 32, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.bn2 = nn.BatchNorm2d(32)
-        self.dropout = nn.Dropout(0.5)
-        self.fc1 = nn.Linear(32 * 16 * 16, num_classes)
-
-    def forward(self, x):
-        x = self.pool(torch.relu(self.bn1(self.layer1(x))))
-        x = self.pool(torch.relu(self.bn2(self.layer2(x))))
-        x = x.view(x.size(0), -1)
-        x = self.dropout(x)
-        x = self.fc1(x)
-        return x
-
 def load_models():
-    models = {}
+    models_dict = {}  # Renamed to avoid shadowing 'models' from torchvision
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(script_dir, "models", "med_image_model.pth")
-    os.makedirs(os.path.dirname(model_path), exist_ok=True)
-    logger.debug(f"Model path: {model_path}")
+    model_dir = os.path.join(script_dir, "models")
+    model_path = os.path.join(model_dir, "med_image_model.pth")
+    os.makedirs(model_dir, exist_ok=True)
+    logger.debug(f"Model directory: {model_dir}, Model path: {model_path}")
 
+    # Load pre-trained ResNet18 and adapt for medical imaging
     try:
-        models['image_model'] = MedicalImageModel(in_channels=1, num_classes=15).to(device)
-        logger.debug("Image model initialized")
+        # Load ResNet18 pre-trained on ImageNet
+        resnet = models.resnet18(pretrained=True)  # Use torchvision.models explicitly
+        
+        # Modify the first layer to accept 1-channel input (grayscale DICOM)
+        resnet.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        
+        # Modify the final fully connected layer for 15 classes
+        num_ftrs = resnet.fc.in_features
+        resnet.fc = nn.Linear(num_ftrs, 15)
+        
+        models_dict['image_model'] = resnet.to(device)
+        logger.debug("Initialized ResNet18 with modified input and output layers")
+
+        # Load fine-tuned weights if available, otherwise use pre-trained ImageNet weights
         if os.path.exists(model_path):
             try:
-                state_dict = torch.load(model_path, map_location=device)
+                checkpoint = torch.load(model_path, map_location=device)
+                state_dict = checkpoint.get('state_dict', checkpoint)
                 state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
-                models['image_model'].load_state_dict(state_dict, strict=False)
-                logger.info(f"Custom model loaded from {model_path}")
-            except Exception as e:
-                logger.error(f"Failed to load custom model: {e}")
-                torch.save(models['image_model'].state_dict(), model_path)
-                logger.info("Created new model weights")
+                models_dict['image_model'].load_state_dict(state_dict, strict=True)
+                logger.info(f"Loaded fine-tuned weights from {model_path}")
+            except RuntimeError as e:
+                logger.warning(f"Failed to load fine-tuned weights: {e}. Using pre-trained ImageNet weights.")
+                torch.save({'state_dict': models_dict['image_model'].state_dict()}, model_path)
         else:
-            logger.info("No model found - creating new one")
-            torch.save(models['image_model'].state_dict(), model_path)
-    except Exception as e:
-        logger.error(f"Model initialization failed: {e}")
-        models['image_model'] = None
+            logger.info(f"No fine-tuned weights at {model_path}. Using pre-trained ImageNet weights and saving initial state.")
+            torch.save({'state_dict': models_dict['image_model'].state_dict()}, model_path)
 
+        models_dict['image_model'].eval()
+    except Exception as e:
+        logger.error(f"Image model initialization failed: {e}")
+        models_dict['image_model'] = None
+        flash("AI image analysis unavailable due to model loading failure.", "error")
+
+    # Load language model for report generation
     try:
-        models['report_tokenizer'] = AutoTokenizer.from_pretrained("microsoft/BioGPT-Large")
-        models['report_model'] = AutoModelForCausalLM.from_pretrained("microsoft/BioGPT-Large").to(device)
-        logger.debug("BioGPT models loaded")
+        models_dict['report_tokenizer'] = AutoTokenizer.from_pretrained("microsoft/BioGPT-Large")
+        models_dict['report_model'] = AutoModelForCausalLM.from_pretrained("microsoft/BioGPT-Large").to(device)
+        logger.info("Loaded microsoft/BioGPT-Large for report generation")
     except Exception as e:
-        logger.warning(f"Failed to load BioGPT: {e}, trying ClinicalBERT")
-        try:
-            models['report_tokenizer'] = AutoTokenizer.from_pretrained("emilyalsentzer/Bio_ClinicalBERT")
-            models['report_model'] = AutoModelForSeq2SeqLM.from_pretrained("emilyalsentzer/Bio_ClinicalBERT").to(device)
-            logger.debug("ClinicalBERT models loaded")
-        except Exception as e:
-            logger.warning(f"Failed to load ClinicalBERT: {e}, using DistilBERT")
-            models['report_tokenizer'] = AutoTokenizer.from_pretrained("distilbert-base-uncased")
-            models['report_model'] = AutoModelForSeq2SeqLM.from_pretrained("distilbert-base-uncased").to(device)
-            logger.debug("DistilBERT models loaded")
+        logger.warning(f"Failed to load BioGPT: {e}")
+        models_dict['report_tokenizer'] = None
+        models_dict['report_model'] = None
 
-    return models
+    return models_dict
 
 models = load_models()
 
 def allowed_file(filename):
-    logger.debug(f"Checking if file {filename} is allowed")
+    logger.debug(f"Checking file: {filename}")
     allowed = '.' in filename and filename.rsplit('.', 1)[1].lower() in {'dcm', 'dicom'}
     logger.debug(f"File {filename} allowed: {allowed}")
     return allowed
 
 def validate_dicom_file(filepath):
-    logger.debug(f"Validating DICOM file: {filepath}")
+    logger.debug(f"Validating DICOM: {filepath}")
     try:
         dicom = pydicom.dcmread(filepath, force=True)
-        logger.debug(f"DICOM file read: {filepath}, SOPClassUID: {getattr(dicom, 'SOPClassUID', 'None')}")
         if not hasattr(dicom, 'PixelData'):
             logger.error(f"No PixelData in {filepath}")
             return False, "DICOM file has no pixel data"
@@ -108,30 +101,32 @@ def validate_dicom_file(filepath):
             logger.debug(f"Decompressing {filepath}")
             dicom.decompress()
         _ = dicom.pixel_array
-        logger.debug(f"DICOM validated: {filepath}, shape: {dicom.pixel_array.shape}")
+        logger.debug(f"Validated DICOM: {filepath}, shape: {dicom.pixel_array.shape}")
         return True, "Valid DICOM image"
     except Exception as e:
-        logger.error(f"Invalid DICOM file {filepath}: {e}")
+        logger.error(f"DICOM validation failed for {filepath}: {e}")
         return False, f"Invalid DICOM file: {e}"
 
 def get_modality_and_body_part(dicom):
-    """Extract modality and body part from DICOM metadata."""
     modality = getattr(dicom, 'Modality', 'Unknown').upper()
     body_part = getattr(dicom, 'BodyPartExamined', 'Unknown').lower()
-    
-    modality_map = {
-        'CR': 'X-ray', 'DX': 'X-ray', 'CT': 'CT Scan', 'MR': 'MRI', 
-        'PT': 'PET', 'CY': 'Cytology'
-    }
+    modality_map = {'CR': 'X-ray', 'DX': 'X-ray', 'CT': 'CT Scan', 'MR': 'MRI', 'PT': 'PET', 'CY': 'Cytology'}
     modality = modality_map.get(modality, modality)
-    
     if body_part == 'unknown' and hasattr(dicom, 'StudyDescription'):
         body_part = dicom.StudyDescription.lower() or 'unspecified region'
     
-    return modality, body_part
+    patient_info = {
+        'patient_id': getattr(dicom, 'PatientID', 'Unknown'),
+        'patient_name': str(getattr(dicom, 'PatientName', 'Unknown')),
+        'patient_sex': getattr(dicom, 'PatientSex', 'Unknown'),
+        'patient_birth_date': getattr(dicom, 'PatientBirthDate', 'Unknown'),
+        'study_date': getattr(dicom, 'StudyDate', datetime.utcnow().strftime('%Y%m%d'))
+    }
+    logger.debug(f"Extracted: modality={modality}, body_part={body_part}")
+    return modality, body_part, patient_info
 
-def preprocess_dicom(dicom_path, target_size=64):
-    logger.debug(f"Preprocessing DICOM file: {dicom_path}")
+def preprocess_dicom(dicom_path, target_size=224):  # ResNet expects 224x224
+    logger.debug(f"Preprocessing DICOM: {dicom_path}")
     try:
         dicom = pydicom.dcmread(dicom_path, force=True)
         if dicom.file_meta.TransferSyntaxUID.is_compressed:
@@ -139,49 +134,47 @@ def preprocess_dicom(dicom_path, target_size=64):
             dicom.decompress()
         
         image = dicom.pixel_array.astype(np.float32)
-        logger.debug(f"Raw pixel array shape: {image.shape}")
+        logger.debug(f"Raw image shape: {image.shape}")
         
         if len(image.shape) == 3:
             if image.shape[-1] in [3, 4]:
-                logger.debug(f"Converting multi-channel to grayscale")
                 image = np.mean(image, axis=-1)
             elif image.shape[0] > 1:
-                logger.debug(f"Selecting middle slice for multi-slice image")
                 image = image[image.shape[0] // 2]
+        elif len(image.shape) > 3:
+            raise ValueError(f"Unsupported image dimensions: {image.shape}")
         
         if image.max() > image.min():
             image = (image - image.min()) / (image.max() - image.min())
         else:
             image = np.zeros_like(image)
-            logger.debug(f"No contrast in {dicom_path}, using zeros")
+            logger.warning(f"No contrast in {dicom_path}, using zeroed image")
         
-        image = np.expand_dims(image, axis=(0, 1))
+        image = np.expand_dims(image, axis=(0, 1))  # [1, 1, H, W]
         image = torch.from_numpy(image).float()
-        image = torch.nn.functional.interpolate(
-            image, size=(target_size, target_size), mode='bilinear', align_corners=False
-        )
+        image = F.interpolate(image, size=(target_size, target_size), mode='bilinear', align_corners=False)
         logger.debug(f"Preprocessed shape: {image.shape}")
         
-        modality, body_part = get_modality_and_body_part(dicom)
-        return image.to(device), modality, body_part
+        modality, body_part, patient_info = get_modality_and_body_part(dicom)
+        return image.to(device), modality, body_part, patient_info
     except Exception as e:
         logger.error(f"Preprocessing failed for {dicom_path}: {e}")
         raise
 
 def analyze_dicom(dicom_path):
-    logger.debug(f"Analyzing DICOM file: {dicom_path}")
+    logger.debug(f"Analyzing DICOM: {dicom_path}")
     if not models['image_model']:
-        logger.debug("Image model not available")
+        logger.error("Image model unavailable")
         return {"error": "AI analysis unavailable", "status": "error"}
     
     try:
         is_valid, message = validate_dicom_file(dicom_path)
         if not is_valid:
-            logger.error(f"Validation failed for {dicom_path}: {message}")
+            logger.error(f"Validation failed: {message}")
             return {"error": message, "status": "error"}
         
-        image, modality, body_part = preprocess_dicom(dicom_path)
-        logger.debug(f"Image preprocessed: {dicom_path}, shape: {image.shape}, modality: {modality}, body_part: {body_part}")
+        image, modality, body_part, patient_info = preprocess_dicom(dicom_path)
+        logger.debug(f"Preprocessed: shape={image.shape}, modality={modality}, body_part={body_part}")
         
         with torch.no_grad():
             outputs = models['image_model'](image)
@@ -194,101 +187,105 @@ def analyze_dicom(dicom_path):
             ]
             result = {
                 'prediction': classes[pred.item()],
-                'confidence': round(confidence.item(), 3),
-                'all_probs': {c: round(p.item(), 3) for c, p in zip(classes, probs[0])},
+                'confidence': round(confidence.item() * 100, 1),
+                'all_probs': {c: round(p.item() * 100, 1) for c, p in zip(classes, probs[0]) if p.item() > 0.05},
                 'status': 'success',
                 'filename': os.path.basename(dicom_path),
                 'modality': modality,
-                'body_part': body_part
+                'body_part': body_part,
+                'patient_info': patient_info
             }
-            logger.debug(f"Analysis result for {dicom_path}: {result}")
+            logger.debug(f"Analysis result: {result}")
             return result
     except Exception as e:
-        logger.error(f"DICOM analysis error for {dicom_path}: {e}")
+        logger.error(f"Analysis failed for {dicom_path}: {e}")
         return {"error": str(e), "status": "error"}
 
 def generate_report(analysis_results, patient_id, result_id):
-    """Generate a human-readable report for AI findings across all modalities and body parts."""
-    logger.debug(f"Generating report from analysis results: {len(analysis_results)} items")
+    logger.debug(f"Generating report from {len(analysis_results)} results")
     successful = [r for r in analysis_results if r.get('status') == 'success']
     errors = [r for r in analysis_results if r.get('status') != 'success']
-    logger.debug(f"Successful analyses: {len(successful)}, Errors: {len(errors)}")
+    logger.debug(f"Successful: {len(successful)}, Errors: {len(errors)}")
 
     if not successful:
-        return "No valid imaging results available."
+        return "Radiology Report\n" + "-" * 50 + "\n\nNo valid imaging results available.\n\n" + "-" * 50
 
-    grouped_results = {}
+    patient_info = successful[0]['patient_info']
+    patient_id = patient_info['patient_id']
+    study_date = datetime.strptime(patient_info['study_date'], '%Y%m%d').strftime('%B %d, %Y') if patient_info['study_date'] != 'Unknown' else datetime.utcnow().strftime('%B %d, %Y')
+
+    report = "Radiology Report\n" + "-" * 50 + "\n\n"
+    report += "Patient Information\n"
+    report += f"  Patient ID: {patient_id}\n"
+    report += f"  Patient Name: {patient_info['patient_name']}\n"
+    report += f"  Sex: {patient_info['patient_sex']}\n"
+    report += f"  Date of Birth: {patient_info['patient_birth_date']}\n"
+    report += f"  Date of Examination: {study_date}\n"
+    report += "  Examination Type: Multi-Modality Imaging (X-ray, CT, MRI, PET, Cytology)\n"
+    report += f"  Result ID: {result_id}\n\n"
+
+    findings = {}
     for res in successful:
-        key = (res['modality'], res['body_part'])
-        if key not in grouped_results:
-            grouped_results[key] = []
-        grouped_results[key].append(res)
+        finding = res['prediction']
+        findings[finding] = findings.get(finding, []) + [(res['filename'], res['confidence'], res.get('all_probs', {}))]
 
-    findings = []
-    for (modality, body_part), results in grouped_results.items():
-        findings.append(f"{modality} Imaging of the {body_part.capitalize()}:")
-        for i, res in enumerate(results, 1):
-            primary = f"The primary finding is {res['prediction'].lower()}, identified with a confidence of {res['confidence']*100:.0f}%."
-            secondary = [f"{condition.lower()} ({prob*100:.0f}% confidence)" 
-                         for condition, prob in res['all_probs'].items() 
-                         if prob > 0.1 and condition != res['prediction']]
-            secondary_text = f"Other notable possibilities include {', '.join(secondary)}." if secondary else ""
-            findings.append(
-                f"  Image {i} ({res['filename']}): {primary} This suggests a possible {res['prediction'].lower()} in the {body_part}. {secondary_text}"
-            )
-        findings.append("")
+    report += "Findings\n"
+    total_images = len(successful)
+    report += f"  This report is based on an AI-assisted evaluation of {total_images} DICOM images:\n\n"
 
-    findings_text = "\n".join(findings)
+    normal_images = findings.pop('Normal', [])
+    normal_count = len(normal_images)
+    report += f"  - Normal Findings: {normal_count} images ({normal_count/total_images*100:.1f}%)\n"
+    if normal_images:
+        confidences = [conf for _, conf, _ in normal_images]
+        report += f"    - Confidence range: {min(confidences):.1f}%–{max(confidences):.1f}% (median: {sorted(confidences)[len(confidences)//2]:.1f}%)\n"
 
-    impression = []
-    for (modality, body_part), results in grouped_results.items():
-        max_conf = max(r['confidence'] for r in results)
-        primary_finding = next(r['prediction'] for r in results if r['confidence'] == max_conf)
-        impression.append(
-            f"In the {modality} imaging of the {body_part}, the most significant finding is {primary_finding.lower()} "
-            f"with a confidence of {max_conf*100:.0f}%, suggesting a potential abnormality in this region."
-        )
-    impression.append(
-        "These AI-generated findings should be correlated with clinical symptoms, patient history, and additional diagnostic tests."
-    )
+    abnormal_count = total_images - normal_count
+    report += f"  - Abnormal Findings: {abnormal_count} images ({abnormal_count/total_images*100:.1f}%)\n"
+    for finding, images in sorted(findings.items(), key=lambda x: len(x[1]), reverse=True):
+        confidences = [conf for _, conf, _ in images]
+        report += f"    - {finding}s: {len(images)} images ({len(images)/total_images*100:.1f}%)\n"
+        report += f"      - Confidence range: {min(confidences):.1f}%–{max(confidences):.1f}% (median: {sorted(confidences)[len(confidences)//2]:.1f}%)\n"
 
-    error_notes = ""
+    report += "\nSummary\n"
+    report += f"  - Total Images Analyzed: {total_images}\n"
+    report += f"  - Normal: {normal_count} ({normal_count/total_images*100:.1f}%)\n"
+    report += f"  - Abnormal: {abnormal_count} ({abnormal_count/total_images*100:.1f}%)\n"
+
+    report += "\nImpression and Recommendations\n"
+    max_conf = max((r['confidence'] for r in successful), default=0)
+    max_res = next((r for r in successful if r['confidence'] == max_conf), None)
+    impression = [
+        f"  1. Significant abnormal findings in {abnormal_count/total_images*100:.1f}% of images.",
+        f"  2. Highest confidence finding: {max_res['prediction'].lower()} at {max_conf:.1f}% ({max_res['filename']}).",
+        "  3. Recommendations:\n"
+        "     - Clinical correlation required for all abnormal findings.\n"
+        "     - Consider targeted imaging for confirmation.\n"
+        "     - Radiologist review recommended."
+    ]
+    report += "\n".join(impression) + "\n"
+
     if errors:
-        error_notes = "\n\nProcessing Notes:\n" + "\n".join(
-            f"- File {i+1}: {err.get('error', 'Unknown error')}" for i, err in enumerate(errors)
-        )
+        report += "\nProcessing Notes\n"
+        report += "\n".join([f"  - Error: {e['filename']} - {e.get('error', 'Unknown error')}" for e in errors]) + "\n"
 
-    report = (
-        "Radiology Report\n\n"
-        f"Patient ID: {patient_id}\n"
-        f"Date of Examination: {datetime.utcnow().strftime('%B %d, %Y')}\n"
-        f"Examination Type: Multi-Modality Imaging (X-ray, CT Scan, MRI, PET, Cytology)\n"
-        f"Result ID: {result_id}\n\n"
-        "FINDINGS:\n"
-        f"This report is based on the evaluation of {len(successful)} images across various modalities and body parts, "
-        "analyzed using an artificial intelligence system:\n\n"
-        f"{findings_text}{error_notes}\n\n"
-        "IMPRESSION:\n" + "\n".join(f"{i+1}. {item}" for i, item in enumerate(impression)) + "\n\n"
-        "Radiologist Review Recommended: Yes\n"
-        "Reported By: AI Imaging System (Model Version 1.0)\n"
-        f"Date Reported: {datetime.utcnow().strftime('%B %d, %Y')}"
-    )
+    report += "\n" + "-" * 50 + "\n"
+    report += "Generated by: AI Imaging System v1.0 (ResNet18)\n"
+    report += f"Date Generated: {datetime.utcnow().strftime('%B %d, %Y')}\n"
+
     logger.debug(f"Report generated: {report[:100]}...")
     return report
 
-@bp.route('/process_imaging_request/<int:request_id>', methods=['GET', 'POST'])  # Fixed: Removed '/imaging' prefix
+@bp.route('/process_imaging_request/<int:request_id>', methods=['GET', 'POST'])
 @login_required
 def process_imaging_request(request_id):
-    """Process an imaging request by uploading and analyzing DICOM files."""
     logger.debug(f"User {current_user.id} processing imaging request {request_id}")
 
-    # Check user permissions
     if current_user.role not in ['imaging', 'admin']:
         logger.debug(f"Permission denied for user {current_user.id}")
         flash('Permission denied', 'error')
         return redirect(url_for('home'))
 
-    # Fetch request and imaging data
     try:
         imaging_request = RequestedImage.query.get_or_404(request_id)
         imaging = Imaging.query.get_or_404(imaging_request.imaging_id)
@@ -298,23 +295,19 @@ def process_imaging_request(request_id):
         flash(f"Error loading request: {str(e)}", 'error')
         return redirect(url_for('imaging.index'))
 
-    # Handle POST request (file upload and processing)
     if request.method == 'POST':
         logger.debug(f"POST request for imaging request {request_id}")
 
-        # Validate file upload
         if 'dicom_folder' not in request.files or not request.files['dicom_folder']:
             logger.debug("No DICOM files uploaded")
             flash('No DICOM files uploaded', 'error')
             return redirect(request.url)
 
-        # Prepare upload directory
         result_id = str(uuid.uuid4())
         upload_dir = os.path.join(current_app.config['DICOM_UPLOAD_FOLDER'], result_id)
         os.makedirs(upload_dir, exist_ok=True)
         logger.debug(f"Upload directory created: {upload_dir}")
 
-        # Process uploaded files
         files = request.files.getlist('dicom_folder')
         total_files = len(files)
         file_paths = []
@@ -347,7 +340,6 @@ def process_imaging_request(request_id):
 
                 analysis_results.append(result)
 
-                # Emit progress every 5 files or at the end
                 if i % 5 == 0 or i == total_files:
                     try:
                         socketio.emit('progress', {
@@ -369,13 +361,11 @@ def process_imaging_request(request_id):
                     'error': str(file_error)
                 })
 
-        # Check if any files were processed
         if not file_paths:
             logger.debug("No valid DICOM files processed")
             flash('No valid DICOM images were processed', 'error')
             return redirect(request.url)
 
-        # Generate reports
         try:
             ai_report = generate_report(analysis_results, imaging_request.patient_id, result_id)
             final_report = request.form.get('result_notes', "AI-generated findings stored in AI Findings section.")
@@ -386,7 +376,6 @@ def process_imaging_request(request_id):
             ai_report = "Report generation failed. Raw AI findings available."
             final_report = "Report generation failed. Basic findings available."
 
-        # Save results to database
         try:
             imaging_result = ImagingResult(
                 result_id=result_id,
@@ -400,7 +389,7 @@ def process_imaging_request(request_id):
                 ai_generated=True,
                 files_processed=processed_count,
                 files_failed=total_files - processed_count,
-                processing_metadata={'file_metadata': analysis_results, 'model_version': '1.0'}
+                processing_metadata={'file_metadata': analysis_results, 'model_version': 'ResNet18'}
             )
             db.session.add(imaging_result)
             imaging_request.status = 'completed'
@@ -408,7 +397,6 @@ def process_imaging_request(request_id):
             db.session.commit()
             logger.debug(f"Saved result: request_id={request_id}, result_id={result_id}")
 
-            # Emit completion event
             try:
                 socketio.emit('complete', {
                     'request_id': request_id,
@@ -422,7 +410,7 @@ def process_imaging_request(request_id):
 
             flash(f"Processed {processed_count} of {total_files} files successfully", 'success')
             logger.debug(f"Redirecting to view_result: result_id={result_id}")
-            return redirect(url_for('imaging.view_result', result_id=result_id))
+            return redirect(url_for('imaging.vi', result_id=result_id))
 
         except Exception as db_error:
             db.session.rollback()
@@ -430,7 +418,6 @@ def process_imaging_request(request_id):
             flash('Error saving results to database', 'error')
             return redirect(request.url)
 
-    # Handle GET request (render form)
     draft_report = ""
     if imaging_request.result_id:
         existing_result = ImagingResult.query.get(imaging_request.result_id)

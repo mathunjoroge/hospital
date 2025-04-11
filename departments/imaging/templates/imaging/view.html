@@ -34,16 +34,13 @@
                 <dt class="col-sm-3">Imaging Type:</dt>
                 <dd class="col-sm-9">{{ imaging_type }}</dd>
                 
-                <dt class="col-sm-3">Status:</dt>
-                <dd class="col-sm-9">{{ imaging_result.status }}</dd>
-                
                 <dt class="col-sm-3">Files Processed:</dt>
-                <dd class="col-sm-9">{{ imaging_result.files_processed }} / {{ imaging_result.get_file_count() }}</dd>
+                <dd class="col-sm-9">{{ imaging_result.files_processed }} / {{ imaging_result.files_processed + imaging_result.files_failed }}</dd>
             </dl>
 
             {% if imaging_result.result_notes %}
                 <h3>Result Notes</h3>
-                <pre class="bg-light p-3">{{ imaging_result.result_notes }}</pre>
+                <pre class="bg-light p-3" style="max-height: 200px; overflow-y: auto;">{{ imaging_result.result_notes }}</pre>
             {% endif %}
         </div>
     </div>
@@ -73,7 +70,7 @@
                         {% if finding.intro %}
                             <p>{{ finding.intro }}</p>
                         {% elif finding.text %}
-                            <p class="mb-2">{{ finding.text | replace('\n', '<br>') | safe }}</p>
+                            <p class="mb-2" style="white-space: pre-wrap;">{{ finding.text }}</p>
                         {% endif %}
                     {% endfor %}
                 {% endif %}
@@ -101,37 +98,48 @@
         </div>
     {% endif %}
 
-    <!-- DICOM Files Section -->
-    <div class="card">
-        <div class="card-header bg-secondary text-white">
-            <h2>DICOM Files</h2>
-        </div>
-        <div class="card-body">
-            {% if file_paths %}
-                <ul class="list-group mb-3">
-                    {% for path in file_paths %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>{{ path.split('/')[-1] }}</span>
-                            <div>
-                                <a href="{{ url_for('imaging.view_imaging_results', result_id=imaging_result.result_id, file_index=loop.index0, action='download') }}" 
-                                   class="btn btn-sm btn-primary me-2" 
-                                   download="{{ path.split('/')[-1] }}">
-                                    Download
-                                </a>
-                                <button class="btn btn-sm btn-info" 
-                                        onclick="loadDicom('{{ url_for('imaging.view_imaging_results', result_id=imaging_result.result_id, file_index=loop.index0, action='view') }}')">
-                                    View
-                                </button>
-                            </div>
-                        </li>
-                    {% endfor %}
-                </ul>
-                <div id="dicomViewer" style="width: 512px; height: 512px; border: 1px solid #ccc; margin-top: 20px;"></div>
-            {% else %}
-                <p class="text-muted">No DICOM files available for this result.</p>
-            {% endif %}
-        </div>
+   <!-- DICOM Files Section -->
+<div class="card">
+    <div class="card-header bg-secondary text-white">
+        <h2>DICOM Files</h2>
     </div>
+    <div class="card-body">
+        {% if file_paths %}
+            <ul class="list-group mb-3">
+                {% for path in file_paths %}
+                    {% set view_url = url_for('imaging.view_imaging_results', result_id=imaging_result.result_id, file_index=loop.index0, action='view') %}
+                    {% set download_url = url_for('imaging.view_imaging_results', result_id=imaging_result.result_id, file_index=loop.index0, action='download') %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ path.split('/')[-1] }}</span>
+                        <div>
+                            <a href="{{ download_url }}" 
+                               class="btn btn-sm btn-primary me-2" 
+                               download="{{ path.split('/')[-1] }}"
+                               aria-label="Download {{ path.split('/')[-1] }}">
+                                Download
+                            </a>
+                            <button class="btn btn-sm btn-info" 
+                                    onclick="loadDicom('{{ view_url }}')"
+                                    aria-label="View {{ path.split('/')[-1] }}"
+                                    data-bs-toggle="tooltip" 
+                                    title="View DICOM image">
+                                View
+                            </button>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+            <div id="dicomViewer" style="width: 80vw; max-width: 512px; height: 512px; border: 1px solid #ccc; margin-top: 20px;"></div>
+            <div id="dicomError" class="text-danger mt-2" style="display: none;"></div>
+        {% else %}
+            <p class="text-muted">No DICOM files available for this result.</p>
+        {% endif %}
+    </div>
+</div>
+
+Key Change
+
+
 
     <!-- Navigation -->
     <div class="mt-3">
@@ -139,35 +147,57 @@
     </div>
 </div>
 
-<!-- Cornerstone.js for DICOM Viewing -->
+<!-- Cornerstone.js Setup -->
 <script src="https://unpkg.com/cornerstone-core@2.6.1/dist/cornerstone.min.js"></script>
 <script src="https://unpkg.com/cornerstone-wado-image-loader@4.13.2/dist/cornerstoneWADOImageLoader.min.js"></script>
+<script src="https://unpkg.com/cornerstone-tools@6.0.7/dist/cornerstoneTools.min.js"></script>
 <script>
-    cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
-    cornerstoneWADOImageLoader.webWorkerManager.initialize({
-        maxWebWorkers: navigator.hardwareConcurrency || 1,
-        startWebWorkersOnDemand: true,
-        taskConfiguration: {
-            'decodeTask': {
-                initializeCodecsOnStartup: false,
-                usePDFJS: false
-            }
+    // Fallback if CDN fails
+    if (typeof cornerstone === 'undefined' || typeof cornerstoneWADOImageLoader === 'undefined') {
+        console.error('Cornerstone.js failed to load from CDN.');
+        document.getElementById('dicomError').innerText = 'DICOM viewer unavailable. Please try again later.';
+        document.getElementById('dicomError').style.display = 'block';
+    } else {
+        cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
+        cornerstoneWADOImageLoader.webWorkerManager.initialize({
+            maxWebWorkers: navigator.hardwareConcurrency || 1,
+            startWebWorkersOnDemand: true,
+            taskConfiguration: { 'decodeTask': { initializeCodecsOnStartup: false, usePDFJS: false } }
+        });
+
+        const element = document.getElementById('dicomViewer');
+        cornerstone.enable(element);
+
+        // Add basic tools
+        cornerstoneTools.external.cornerstone = cornerstone;
+        cornerstoneTools.init();
+        const ZoomTool = cornerstoneTools.ZoomTool;
+        const PanTool = cornerstoneTools.PanTool;
+        const WwwcTool = cornerstoneTools.WwwcTool; // Window/Level
+        cornerstoneTools.addTool(ZoomTool);
+        cornerstoneTools.addTool(PanTool);
+        cornerstoneTools.addTool(WwwcTool);
+        cornerstoneTools.setToolActive('Zoom', { mouseButtonMask: 1 });
+        cornerstoneTools.setToolActive('Pan', { mouseButtonMask: 2 });
+        cornerstoneTools.setToolActive('Wwwc', { mouseButtonMask: 4 });
+
+        function loadDicom(url) {
+            const imageId = 'wadouri:' + url;
+            cornerstone.loadAndCacheImage(imageId).then(function(image) {
+                cornerstone.displayImage(element, image);
+                cornerstone.reset(element);
+                document.getElementById('dicomError').style.display = 'none';
+            }).catch(function(err) {
+                console.error('Error loading DICOM:', err);
+                document.getElementById('dicomError').innerText = 'Failed to load DICOM file: ' + err.message;
+                document.getElementById('dicomError').style.display = 'block';
+            });
         }
-    });
 
-    const element = document.getElementById('dicomViewer');
-    cornerstone.enable(element);
-
-    function loadDicom(url) {
-        console.log("Loading DICOM from URL:", url); // Debug URL
-        const imageId = 'wadouri:' + url;
-        cornerstone.loadAndCacheImage(imageId).then(function(image) {
-            console.log("DICOM loaded successfully:", image); // Debug success
-            cornerstone.displayImage(element, image);
-            cornerstone.reset(element);
-        }).catch(function(err) {
-            console.error('Error loading DICOM:', err); // Debug error
-            alert('Failed to load DICOM file: ' + err.message);
+        // Enable tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
     }
 </script>

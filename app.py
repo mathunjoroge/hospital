@@ -23,7 +23,7 @@ app.config.from_object(Config)
 app.config['UPLOAD_FOLDER'] = os.path.join('uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['DICOM_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'dicom_uploads')
-app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32 MB file limit
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2 GB file limit
 
 os.makedirs(app.config['DICOM_UPLOAD_FOLDER'], exist_ok=True)
 
