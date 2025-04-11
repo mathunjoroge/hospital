@@ -8,11 +8,13 @@
     updated_by INTEGER,
     dicom_file_path TEXT,
     ai_findings TEXT,
-    ai_generated BOOLEAN NOT NULL DEFAULT 0,  -- SQLite uses 0/1 for BOOLEAN
+    ai_generated BOOLEAN NOT NULL DEFAULT 0,
     files_processed INTEGER NOT NULL DEFAULT 0,
     files_failed INTEGER NOT NULL DEFAULT 0,
     processing_metadata JSON,
-    FOREIGN KEY (patient_id) REFERENCES patients (id),
-    FOREIGN KEY (imaging_id) REFERENCES imaging (id),
-    FOREIGN KEY (updated_by) REFERENCES users (id)
-);</sql><current_tab id="0"/></tab_sql></sqlb_project>
+    
+    FOREIGN KEY (patient_id) REFERENCES patients(id),
+    FOREIGN KEY (imaging_id) REFERENCES imaging(id),
+    FOREIGN KEY (updated_by) REFERENCES users(id)
+);
+</sql><current_tab id="0"/></tab_sql></sqlb_project>
