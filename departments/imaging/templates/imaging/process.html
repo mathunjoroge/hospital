@@ -28,6 +28,18 @@
     </div>
 
     <form method="POST" action="{{ url_for('imaging.process_imaging_request', request_id=imaging_request.id) }}" enctype="multipart/form-data" id="uploadForm">
+        <!-- Imaging Request Description -->
+        <div class="mb-3">
+            <label for="description" class="form-label fw-bold">Imaging Request Description:</label>
+            <textarea id="description" name="description" class="form-control" rows="3" placeholder="Describe the imaging request (e.g., 'Chest X-ray for suspected pneumonia')">{{ imaging_request.description | default("") }}</textarea>
+        </div>
+
+        <!-- Patient Symptoms -->
+        <div class="mb-3">
+            <label for="symptoms" class="form-label fw-bold">Patient Symptoms:</label>
+            <textarea id="symptoms" name="symptoms" class="form-control" rows="3" placeholder="Enter patient symptoms (e.g., 'Fever, cough, shortness of breath')">{{ imaging_request.symptoms | default("") }}</textarea>
+        </div>
+
         <div class="mb-3">
             <label for="result_notes" class="form-label fw-bold">Radiology Report:</label>
             <textarea id="result_notes" name="result_notes" class="form-control" rows="5">{{ draft_report }}</textarea>
@@ -97,6 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.querySelector('span:not(.spinner-border)').textContent = 'Processing...';
     });
 });
+
 const socket = io('/imaging');
 
 socket.on('progress', (data) => {
