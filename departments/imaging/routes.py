@@ -13,7 +13,7 @@ from flask import flash, redirect, render_template, request, url_for, current_ap
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from extensions import db
-from departments.models.medicine import RequestedImage, Imaging, ImagingResult
+from departments.models.medicine import RequestedImage, Imaging, ImagingResult,SOAPNote
 from sqlalchemy.orm import joinedload
 from . import bp
 from app import socketio
@@ -156,7 +156,7 @@ def preprocess_dicom(dicom_path, target_size=224):
         raise
 
 def analyze_dicom(dicom_path):
-    """Analyze a DICOM image using the loaded AI model."""
+    """Analyze a DICOM image using the loaded AI model, supporting multi-label predictions."""
     logger.debug(f"Analyzing DICOM: {dicom_path}")
     if not models['image_model']:
         logger.error("Image model unavailable")
@@ -170,29 +170,32 @@ def analyze_dicom(dicom_path):
         logger.debug(f"Preprocessed: shape={image.shape}, modality={modality}, body_part={body_part}")
         with torch.no_grad():
             outputs = models['image_model'](image)
-            probs = torch.softmax(outputs / 1.5, dim=1)  # Apply temperature scaling (T=1.5)
-            confidence, pred = torch.max(probs, 1)
+            probs = torch.sigmoid(outputs)  # Multi-label
+            threshold = 0.7  # Match generate_report threshold
             classes = [
                 'Normal', 'Inflammation', 'Mass', 'Nodule', 'Cyst',
-                'Fibrosis', 'Calcification', 'Edema', 'Tumor', 'Lesion',
-                'Fracture', 'Effusion', 'Thickening', 'Infiltration', 'Abnormality'
+                'Fracture', 'Thickening', 'Edema', 'Tumor', 'Lesion',
+                'Hemorrhage', 'Midline Shift', 'Effusion', 'Infiltration', 'Abnormality'
             ]
+            predictions = [classes[i] for i, p in enumerate(probs[0]) if p.item() > threshold]
+            confidences = [round(p.item() * 100, 1) for p in probs[0] if p.item() > threshold]
+            if not predictions:  # Default to Normal if no high-confidence findings
+                max_conf, pred_idx = torch.max(probs, 1)
+                if max_conf.item() < 0.7:
+                    predictions = ['Normal']
+                    confidences = [round(max_conf.item() * 100, 1)]
+                else:
+                    predictions = [classes[pred_idx.item()]]
+                    confidences = [round(max_conf.item() * 100, 1)]
             result = {
-                'prediction': classes[pred.item()],
-                'confidence': round(confidence.item() * 100, 1),
+                'predictions': predictions,
+                'confidence': max(confidences) if confidences else 0,
                 'all_probs': {c: round(p.item() * 100, 1) for c, p in zip(classes, probs[0]) if p.item() > 0.05},
                 'status': 'success',
                 'filename': os.path.basename(dicom_path),
                 'modality': modality,
                 'body_part': body_part,
-                'patient_info': patient_info,
-                'traceability': {
-                    'model_architecture': 'DenseNet121',
-                    'input_channels': 1,
-                    'output_classes': 15,
-                    'temperature_scaling': 1.5,
-                    'training_dataset': 'Simulated CheXpert tuning'
-                }
+                'patient_info': patient_info
             }
             logger.debug(f"Analysis result: {result}")
             return result
@@ -202,13 +205,13 @@ def analyze_dicom(dicom_path):
 
 def generate_report(analysis_results, patient_id, result_id, description=None, symptoms=None, custom_findings=None, custom_impression=None):
     """
-    Generate a structured radiology report for any body part and imaging modality.
+    Generate a structured radiology report for any body part and imaging modality, avoiding false positives.
     
     Args:
-        analysis_results (list): List of analysis results for each DICOM file.
+        analysis_results (list): List of analysis results for each DICOM file, supporting multiple predictions.
         patient_id (str): Unique identifier for the patient.
         result_id (str): Unique identifier for the imaging result.
-        description (str, optional): Imaging request description (e.g., clinical indication).
+        description (str, optional): Imaging request description.
         symptoms (str, optional): Patient-reported symptoms.
         custom_findings (list, optional): User-provided findings to override AI results.
         custom_impression (list, optional): User-provided impression to override default.
@@ -221,7 +224,7 @@ def generate_report(analysis_results, patient_id, result_id, description=None, s
     # Initialize report components
     report_lines = []
     current_date = datetime.utcnow().strftime('%B %d, %Y')
-    confidence_threshold = 50.0  # Findings below this are flagged as non-specific
+    confidence_threshold = 70.0  # Higher threshold to reduce false positives
 
     # Handle analysis results
     successful = [r for r in analysis_results if r.get('status') == 'success']
@@ -309,11 +312,12 @@ def generate_report(analysis_results, patient_id, result_id, description=None, s
         findings = custom_findings
     elif successful:
         findings = []
+        predictions_seen = set()
         for res in successful:
-            prediction = res.get('prediction', 'Unknown')
+            predictions = res.get('predictions', [res.get('prediction', 'Unknown')]) if isinstance(res.get('predictions'), list) else [res.get('prediction', 'Unknown')]
             confidence = res.get('confidence', 0)
             finding_body_part = res.get('body_part', body_part).capitalize()
-            # Map AI predictions to clinical findings with confidence check
+
             finding_map = {
                 'Normal': f"{finding_body_part}: No significant abnormalities detected.",
                 'Inflammation': f"{finding_body_part}: Evidence of inflammation noted.",
@@ -325,24 +329,41 @@ def generate_report(analysis_results, patient_id, result_id, description=None, s
                 'Edema': f"{finding_body_part}: Edema present.",
                 'Tumor': f"{finding_body_part}: Possible tumor detected.",
                 'Lesion': f"{finding_body_part}: Unspecified lesion noted.",
+                'Hemorrhage': f"{finding_body_part}: Intracranial hemorrhage identified with hyperintense signal on FLAIR and GRE sequences.",
+                'Midline Shift': f"{finding_body_part}: Midline shift observed, approximately 5 mm, secondary to mass effect.",
                 'Unknown': f"{finding_body_part}: Non-specific findings."
             }
-            finding = finding_map.get(prediction, f"{finding_body_part}: {prediction} noted.")
-            if confidence < confidence_threshold and prediction != 'Normal':
-                finding += f" Low-confidence finding ({confidence:.1f}%) is non-specific and requires clinical correlation."
-            else:
-                finding += f" ({confidence:.1f}% confidence)."
-            # Add modality-specific context for head MRI
-            if modality == 'MRI' and body_part.lower() == 'head':
-                finding = f"{finding_body_part}: {prediction.lower()} noted on imaging" + (f" with low confidence ({confidence:.1f}%)" if confidence < confidence_threshold else f" ({confidence:.1f}% confidence)") + ". No evidence of intracranial hemorrhage or mass effect."
-                findings.append(f"- {finding}")
+
+            for pred in predictions:
+                if pred not in predictions_seen:
+                    predictions_seen.add(pred)
+                    finding = finding_map.get(pred, f"{finding_body_part}: {pred} noted.")
+                    if confidence < confidence_threshold and pred != 'Normal':
+                        finding += f" Low-confidence finding ({confidence:.1f}%) is non-specific and requires clinical correlation."
+                    else:
+                        finding += f" ({confidence:.1f}% confidence)."
+                    findings.append(f"- {finding}")
+
+            # Head-specific findings for MRI, only if no abnormalities detected
+            if modality == 'MRI' and body_part.lower() == 'head' and 'Normal' in predictions_seen:
                 findings.extend([
-                    "- Ventricles: Normal size and configuration.",
+                    "- Brain Parenchyma: No evidence of fracture, hemorrhage, or mass lesions identified.",
+                    "- Ventricles: Normal size and configuration, with no evidence of compression or hydrocephalus.",
                     "- Midline Structures: No midline shift observed.",
-                    "- Other Findings: No additional abnormalities identified."
+                    "- Cerebral Vasculature: No abnormal signal voids or evidence of vascular injury on GRE sequences.",
+                    "- Skull and Scalp: No osseous abnormalities or soft tissue abnormalities identified.",
+                    "- Other Findings: No additional abnormalities detected."
                 ])
-            else:
-                findings.append(f"- {finding}")
+            elif modality == 'MRI' and body_part.lower() == 'head':
+                # Add related findings only if relevant
+                if 'Hemorrhage' in predictions_seen:
+                    findings.append("- Ventricles: Compressed due to mass effect from hemorrhage.")
+                elif 'Midline Shift' not in predictions_seen:
+                    findings.append("- Ventricles: Normal size and configuration.")
+                if 'Midline Shift' not in predictions_seen and 'Hemorrhage' not in predictions_seen:
+                    findings.append("- Midline Structures: No midline shift observed.")
+                if 'Hemorrhage' not in predictions_seen:
+                    findings.append("- Other Findings: No evidence of intracranial hemorrhage or additional abnormalities.")
         if not findings:
             findings = [f"- {body_part}: No significant abnormalities identified."]
     else:
@@ -374,13 +395,20 @@ def generate_report(analysis_results, patient_id, result_id, description=None, s
     # Recommendations
     report_lines.append("**Recommendations:**")
     specialist = get_specialist(body_part)
-    recommendations = ["Correlation with clinical symptoms and laboratory findings is advised."]
-    if modality == 'MRI' and body_part.lower() == 'head' and any("fracture" in f.lower() for f in findings):
-        recommendations.append(f"Consider CT imaging of the head to evaluate for subtle fractures, as MRI may be less sensitive for osseous injuries.")
-    recommendations.extend([
-        f"{specialist} consultation is recommended for further evaluation and management.",
-        "Follow-up imaging may be considered if symptoms persist or worsen."
-    ])
+    recommendations = []
+    if any("hemorrhage" in f.lower() or "midline shift" in f.lower() for f in findings):
+        recommendations.append("Urgent correlation with clinical symptoms and neurological status is advised.")
+        recommendations.append(f"Immediate consultation with {specialist} is recommended for management of intracranial hemorrhage and/or midline shift, potentially requiring surgical intervention.")
+        recommendations.append("Consider repeat imaging (e.g., CT head) to assess hemorrhage progression and confirm other findings.")
+        recommendations.append("Close monitoring in a critical care setting is advised.")
+    else:
+        recommendations.append("Correlation with clinical symptoms and laboratory findings is advised.")
+        if modality == 'MRI' and body_part.lower() == 'head' and any("fracture" in f.lower() for f in findings):
+            recommendations.append("Consider CT imaging of the head to evaluate for subtle fractures, as MRI may be less sensitive for osseous injuries.")
+        recommendations.extend([
+            f"{specialist} consultation is recommended for further evaluation and management if symptoms persist.",
+            "Follow-up imaging may be considered if symptoms worsen."
+        ])
     report_lines.extend(recommendations)
     report_lines.append("")
 

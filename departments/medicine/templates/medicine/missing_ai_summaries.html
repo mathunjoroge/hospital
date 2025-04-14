@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+    <h1>Missing AI Summaries</h1>
+    <p>{{ count }} SOAP notes are missing AI summaries.</p>
+    {% if count > 0 %}
+    <form method="POST" action="{{ url_for('medicine.update_missing_ai_summaries') }}">
+        <input type="submit" value="Generate Missing Summaries">
+    </form>
+    {% endif %}
+    <a href="{{ url_for('home') }}">Back to Home</a>
+{% endblock %}

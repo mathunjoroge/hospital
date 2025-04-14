@@ -1,19 +1,29 @@
-<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="/home/mathu/projects/hospital/instance/hims.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="4418"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><current_table name="4,17:mainadmitted_patients"/><default_encoding codec=""/><browse_table_settings/></tab_browse><tab_sql><sql name="SQL 1">CREATE TABLE imaging_results (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    result_id TEXT UNIQUE NOT NULL,
-    patient_id INTEGER NOT NULL,
-    imaging_id INTEGER NOT NULL,
-    test_date DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    result_notes TEXT,
-    updated_by INTEGER,
-    dicom_file_path TEXT,
-    ai_findings TEXT,
-    ai_generated BOOLEAN DEFAULT 0 NOT NULL,
-    files_processed INTEGER DEFAULT 0 NOT NULL,
-    files_failed INTEGER DEFAULT 0 NOT NULL,
-    processing_metadata JSON,
-    FOREIGN KEY (patient_id) REFERENCES patients(id),
-    FOREIGN KEY (imaging_id) REFERENCES imaging(id),
-    FOREIGN KEY (updated_by) REFERENCES users(id)
-);
-</sql><current_tab id="0"/></tab_sql></sqlb_project>
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="/home/mathu/projects/hospital/instance/hims.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="4418"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><current_table name="4,17:mainadmitted_patients"/><default_encoding codec=""/><browse_table_settings/></tab_browse><tab_sql><sql name="SQL 1">-- Clear the table
+DELETE FROM soap_notes;
+
+-- Insert 20 notes
+INSERT INTO soap_notes (
+    patient_id, created_at, situation, hpi, aggravating_factors, alleviating_factors,
+    medical_history, medication_history, assessment, recommendation, additional_notes,
+    ai_notes, ai_analysis, file_path
+) VALUES
+('P1000', '2025-04-13 08:00:00', 'Patient experiencing severe headache and photophobia', 'Headache started 3 days ago, throbbing, right-sided, rated 8/10. Accompanied by sensitivity to light and nausea.', 'Bright lights, loud noises', 'Dark room, rest', 'Migraines, anxiety', 'Sumatriptan 50 mg as needed', 'Acute migraine attack', NULL, 'Patient reports recent stress at work.', NULL, NULL, NULL),
+('P1000', '2025-04-13 08:30:00', 'Patient reports chest pain and shortness of breath', 'Intermittent chest pain for 5 days, sharp, worse with exertion. Shortness of breath during episodes, no radiation.', 'Physical activity, stress', 'Resting', 'Hypertension, smoking history', 'Lisinopril 20 mg daily', 'Possible angina or musculoskeletal pain', NULL, 'Patient quit smoking 1 year ago.', NULL, NULL, 'uploads/ecg_report.pdf'),
+('P1000', '2025-04-13 09:00:00', 'Patient reports epigastric pain and nausea', 'Burning pain in upper abdomen for 2 weeks, worse after meals. Occasional nausea, no vomiting.', 'Spicy foods, lying down', 'Antacids, sitting upright', 'GERD', 'Omeprazole 20 mg daily', 'GERD exacerbation', NULL, 'Patient reports poor dietary habits.', NULL, NULL, NULL),
+('P1000', '2025-04-13 09:30:00', 'Patient reports right knee pain and swelling', 'Pain began 1 week ago after jogging, aching, rated 5/10. Swelling noted around knee, no trauma.', 'Walking, bending knee', 'Ice, elevation', 'Osteoarthritis', 'Ibuprofen 600 mg as needed', 'Osteoarthritis flare or possible meniscal injury', NULL, 'Patient is overweight.', NULL, NULL, NULL),
+('P1000', '2025-04-13 10:00:00', 'Patient reports numbness in both hands', 'Numbness and tingling for 3 weeks, worse at night. Affects fingers, no arm pain.', 'Typing, gripping objects', 'Shaking hands', 'Type 2 diabetes', 'Metformin 500 mg twice daily', 'Peripheral neuropathy', NULL, 'Recent A1C elevated at 8.2%.', NULL, NULL, NULL),
+('P1000', '2025-04-13 10:30:00', 'Patient presents with persistent dry cough', 'Cough for 4 weeks, worse at night, no sputum. No fever or weight loss.', 'Cold air, talking', 'Warm tea, humidifier', 'Seasonal allergies', 'Loratadine 10 mg daily', 'Possible postnasal drip or allergic cough', NULL, 'Patient exposed to new pet.', NULL, NULL, NULL),
+('P1000', '2025-04-13 11:00:00', 'Patient reports itchy rash on both arms', 'Red, raised rash for 5 days, intensely itchy. No new soaps or detergents.', 'Scratching, heat', 'Cool compresses', 'Eczema', 'Hydrocortisone cream 1% as needed', 'Eczema flare or contact dermatitis', NULL, 'Patient started new medication recently.', NULL, NULL, NULL),
+('P1000', '2025-04-13 11:30:00', 'Patient reports chronic low back pain', 'Pain for 6 months, dull, worse after sitting. No leg radiation.', 'Prolonged sitting, lifting', 'Stretching, heat', 'Sedentary job', 'Acetaminophen 500 mg as needed', 'Mechanical low back pain', NULL, 'Patient interested in physical therapy.', NULL, NULL, NULL),
+('P1000', '2025-04-13 12:00:00', 'Patient reports acute diarrhea', 'Loose stools for 3 days, 4-5 times daily. Mild cramping, no blood.', 'Eating dairy', 'Hydration', 'Lactose intolerance', 'None', 'Possible viral gastroenteritis or lactose intolerance', NULL, 'Recent travel history.', NULL, NULL, NULL),
+('P1000', '2025-04-13 12:30:00', 'Patient reports neck stiffness and pain', 'Stiffness for 2 weeks, worse in morning. Pain with rotation, rated 4/10.', 'Turning head, poor posture', 'Massage, NSAIDs', 'Office worker', 'Ibuprofen 400 mg as needed', 'Cervical strain', NULL, 'Patient uses multiple screens daily.', NULL, NULL, NULL),
+('P1000', '2025-04-13 13:00:00', 'Patient reports dizziness and vertigo', 'Episodes of spinning sensation for 1 week, triggered by head movement. No hearing loss.', 'Changing positions', 'Lying still', 'Hypertension', 'Amlodipine 5 mg daily', 'Benign paroxysmal positional vertigo (BPPV)', NULL, NULL, NULL, NULL, NULL),
+('P1000', '2025-04-13 13:30:00', 'Patient reports heart palpitations', 'Irregular heartbeat sensation for 2 days, brief episodes, no chest pain.', 'Caffeine, stress', 'Relaxation', 'Anxiety', 'Sertraline 50 mg daily', 'Possible anxiety-related palpitations', NULL, 'Patient drinks 3 coffees daily.', NULL, NULL, NULL),
+('P1000', '2025-04-13 14:00:00', 'Patient reports right flank pain', 'Pain for 4 days, sharp, no urinary symptoms. No fever or trauma.', 'Movement', 'Rest', 'Kidney stones (past)', 'None', 'Possible recurrent kidney stone', NULL, 'Patient dehydrated recently.', NULL, NULL, NULL),
+('P1000', '2025-04-13 14:30:00', 'Patient reports left ankle pain', 'Pain after twisting ankle 2 days ago, swollen, difficulty bearing weight.', 'Walking', 'Ice, elevation', 'None', 'None', 'Ankle sprain', NULL, 'Patient is active runner.', NULL, NULL, NULL),
+('P1000', '2025-04-13 15:00:00', 'Patient reports hand tremors', 'Bilateral hand shaking for 1 month, worse with stress. No rigidity or gait issues.', 'Stress, fatigue', 'Rest', 'Family history of essential tremor', 'None', 'Possible essential tremor', NULL, NULL, NULL, NULL, NULL),
+('P1000', '2025-04-13 15:30:00', 'Patient reports facial swelling', 'Swelling around eyes and cheeks for 2 days, no pain. No recent trauma.', 'None reported', 'None reported', 'Food allergies', 'Cetirizine 10 mg as needed', 'Possible allergic reaction', NULL, 'Recent exposure to new fruit.', NULL, NULL, NULL),
+('P1000', '2025-04-13 16:00:00', 'Patient reports wheezing and shortness of breath', 'Wheezing for 3 days, worse at night. Shortness of breath with activity.', 'Dust, cold air', 'Albuterol inhaler', 'Asthma', 'Albuterol as needed', 'Asthma exacerbation', NULL, 'Recent construction near home.', NULL, NULL, NULL),
+('P1000', '2025-04-13 16:30:00', 'Patient reports chronic constipation', 'Bowel movements every 4-5 days for 2 months, hard stools. Mild abdominal discomfort.', 'Low fiber diet', 'Laxatives', 'Hypothyroidism', 'Levothyroxine 75 mcg daily', 'Constipation, possibly medication-related', NULL, 'Patient reports low water intake.', NULL, NULL, NULL),
+('P1000', '2025-04-13 17:00:00', 'Patient reports general fatigue', 'Feeling tired for 3 weeks, no specific triggers. No fever or weight loss.', NULL, NULL, NULL, NULL, 'Fatigue of unclear etiology', NULL, NULL, NULL, NULL, NULL),
+('P1000', '2025-04-13 17:30:00', 'Patient reports chest pain and leg swelling', 'Chest pain for 1 week, dull, no exertion link. Bilateral leg swelling for 2 weeks, worse evening.', NULL, NULL, 'Heart failure, diabetes, COPD, renal insufficiency', 'Furosemide 40 mg daily, Insulin, Salbutamol inhaler', 'Possible heart failure exacerbation', NULL, 'Patient non-compliant with diet.', NULL, NULL, NULL);</sql><current_tab id="0"/></tab_sql></sqlb_project>
