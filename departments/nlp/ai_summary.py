@@ -7,6 +7,8 @@ from sqlalchemy.orm import load_only
 import logging
 from typing import List, Tuple, Optional, Dict, Set
 import re
+import os
+import json
 from functools import lru_cache
 from tqdm import tqdm
 from datetime import datetime
@@ -30,117 +32,127 @@ BATCH_SIZE = 10
 EMBEDDING_DIM = 768
 SIMILARITY_THRESHOLD = 0.5
 
-# Medical stop words
-MEDICAL_STOP_WORDS = {
-    'patient', 'history', 'present', 'illness', 'denies', 'reports',
-    'without', 'with', 'this', 'that', 'these', 'those', 'they', 'them',
-    'their', 'have', 'has', 'had', 'been', 'being', 'other', 'associated'
-}
+def load_medical_stop_words() -> Set[str]:
+    """Load medical stop words from an external JSON file"""
+    knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
+    stop_words_path = os.path.join(knowledge_base_dir, "medical_stop_words.json")
+    
+    try:
+        with open(stop_words_path, 'r') as f:
+            return set(json.load(f))
+    except FileNotFoundError:
+        logger.error(f"Stop words file not found: {stop_words_path}")
+        raise RuntimeError("Stop words loading failed")
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON format in stop words: {str(e)}")
+        raise RuntimeError("Stop words parsing failed")
 
-# Medical terms for symptom extraction
-MEDICAL_TERMS = {
-    'pain', 'headache', 'numbness', 'tingling', 'cough', 'wheezing', 'rash',
-    'swelling', 'diarrhea', 'nausea', 'vomiting', 'dizziness', 'stiffness',
-    'shortness of breath', 'palpitations', 'tremors', 'fatigue', 'constipation'
-}
+def load_medical_terms() -> Set[str]:
+    """Load medical terms from an external JSON file"""
+    knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
+    medical_terms_path = os.path.join(knowledge_base_dir, "medical_terms.json")
+    
+    try:
+        with open(medical_terms_path, 'r') as f:
+            return set(json.load(f))
+    except FileNotFoundError:
+        logger.error(f"Medical terms file not found: {medical_terms_path}")
+        raise RuntimeError("Medical terms loading failed")
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON format in medical terms: {str(e)}")
+        raise RuntimeError("Medical terms parsing failed")
 
-# Synonym mapping for deduplication
-SYNONYMS = {
-    'GERD': ['Gerd', 'GERD exacerbation'],
-    'Peripheral neuropathy': ['Neuropathy'],
-    'PPI trial': ['PPI for gastritis', 'PPI for GERD'],
-    'ECG': ['EKG'],
-    'Carpal tunnel syndrome': ['Carpal tunnel'],
-    'Postnasal drip': ['Postnasal']
-}
+def load_synonyms() -> Dict[str, List[str]]:
+    """Load synonym mappings from an external JSON file"""
+    knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
+    synonyms_path = os.path.join(knowledge_base_dir, "synonyms.json")
+    
+    try:
+        with open(synonyms_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.error(f"Synonyms file not found: {synonyms_path}")
+        raise RuntimeError("Synonyms loading failed")
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON format in synonyms: {str(e)}")
+        raise RuntimeError("Synonyms parsing failed")
 
-# Clinical Decision Support Knowledge
-CLINICAL_PATHWAYS = {
-    'pain': {
-        'head': {
-            'differentials': ['Migraine', 'Tension headache', 'Cluster headache', 'Sinusitis'],
-            'workup': {'urgent': ['Head CT if red flags'], 'routine': ['Neurology consult if persistent', 'CBC', 'BMP']},
-            'management': {'symptomatic': ['Hydration'], 'definitive': ['Triptans for migraine', 'NSAIDs for tension-type', 'Antibiotics for sinusitis']}
-        },
-        'chest': {
-            'differentials': ['Angina', 'GERD', 'Musculoskeletal pain', 'Pulmonary embolism'],
-            'workup': {'urgent': ['ECG', 'Cardiac enzymes', 'Chest X-ray', 'D-dimer'], 'routine': ['CBC', 'BMP']},
-            'management': {'symptomatic': [], 'definitive': ['Aspirin for cardiac', 'PPI trial for GERD', 'NSAIDs for musculoskeletal']}
-        },
-        'abdomen': {
-            'differentials': ['Gastritis', 'GERD', 'Cholecystitis', 'Pancreatitis'],
-            'workup': {'urgent': ['Abdominal ultrasound', 'LFTs', 'Lipase'], 'routine': ['CBC', 'BMP', 'Upper endoscopy if chronic']},
-            'management': {'symptomatic': ['Antiemetics'], 'definitive': ['PPI for gastritis', 'PPI trial for GERD', 'Surgical consult for cholecystitis']}
-        },
-        'joint': {
-            'differentials': ['Osteoarthritis', 'Meniscal injury', 'Gout', 'Rheumatoid arthritis'],
-            'workup': {'urgent': ['Knee X-ray'], 'routine': ['ESR', 'Uric acid', 'Rheumatoid factor', 'CBC', 'BMP']},
-            'management': {'symptomatic': ['Ice', 'Elevation'], 'definitive': ['NSAIDs', 'Physical therapy', 'Colchicine for gout']}
-        },
-        'back': {
-            'differentials': ['Mechanical back pain', 'Disc herniation', 'Spinal stenosis'],
-            'workup': {'urgent': ['Lumbar X-ray if trauma'], 'routine': ['CBC', 'BMP', 'MRI if neurological signs']},
-            'management': {'symptomatic': ['Heat'], 'definitive': ['NSAIDs', 'Physical therapy', 'Muscle relaxants']}
-        },
-        'neck': {
-            'differentials': ['Cervical strain', 'Cervical spondylosis', 'Meningitis'],
-            'workup': {'urgent': ['Cervical X-ray', 'Head CT if fever'], 'routine': ['CBC', 'BMP']},
-            'management': {'symptomatic': ['Massage'], 'definitive': ['NSAIDs', 'Physical therapy']}
-        }
-    },
-    'respiratory': {
-        'cough': {
-            'differentials': ['Allergic rhinitis', 'Postnasal drip', 'GERD', 'Chronic bronchitis'],
-            'workup': {'urgent': ['Chest X-ray if febrile'], 'routine': ['CBC', 'BMP', 'Allergy testing']},
-            'management': {'symptomatic': ['Antitussives'], 'definitive': ['Antihistamines for allergies', 'PPI trial for GERD', 'Inhaled steroids for bronchitis']}
-        },
-        'shortness of breath': {
-            'differentials': ['Asthma', 'COPD', 'Heart failure', 'Pulmonary embolism'],
-            'workup': {'urgent': ['Chest X-ray', 'Pulmonary function test', 'D-dimer', 'BNP'], 'routine': ['CBC', 'BMP']},
-            'management': {'symptomatic': [], 'definitive': ['Bronchodilators', 'Diuretics for heart failure', 'Anticoagulation for embolism']}
-        }
-    },
-    'swelling': {
-        'extremity': {
-            'differentials': ['Venous insufficiency', 'Heart failure', 'DVT', 'Lymphedema'],
-            'workup': {'urgent': ['Doppler ultrasound', 'BNP', 'D-dimer'], 'routine': ['CBC', 'BMP']},
-            'management': {'symptomatic': ['Elevation'], 'definitive': ['Compression therapy', 'Diuretics', 'Anticoagulation if DVT']}
-        }
-    },
-    'neurological': {
-        'numbness': {
-            'differentials': ['Peripheral neuropathy', 'Carpal tunnel syndrome', 'Stroke', 'Multiple sclerosis'],
-            'workup': {'urgent': ['Nerve conduction study', 'Blood glucose'], 'routine': ['CBC', 'BMP', 'B12 level', 'Neurology consult']},
-            'management': {'symptomatic': [], 'definitive': ['Gabapentin', 'Neurology referral', 'Wrist splints for carpal tunnel']}
-        },
-        'dizziness': {
-            'differentials': ['BPPV', 'Orthostatic hypotension', 'Dehydration', 'Labyrinthitis'],
-            'workup': {'urgent': ['Orthostatic vitals'], 'routine': ['CBC', 'BMP', 'Head CT if focal signs']},
-            'management': {'symptomatic': ['Meclizine'], 'definitive': ['Hydration', 'Epley maneuver for BPPV']}
-        }
-    },
-    'gastrointestinal': {
-        'nausea': {
-            'differentials': ['Gastritis', 'Vestibular disturbance', 'Medication side effect'],
-            'workup': {'urgent': ['Electrolytes'], 'routine': ['CBC', 'BMP', 'Upper endoscopy if chronic']},
-            'management': {'symptomatic': ['Antiemetics'], 'definitive': ['PPI trial', 'Discontinue offending medication']}
-        },
-        'diarrhea': {
-            'differentials': ['Viral gastroenteritis', 'Lactose intolerance', 'Bacterial gastroenteritis', 'IBD'],
-            'workup': {'urgent': ['Stool studies', 'Electrolytes'], 'routine': ['CBC', 'BMP']},
-            'management': {'symptomatic': ['Hydration'], 'definitive': ['Antidiarrheals', 'Antibiotics if bacterial', 'Dietary modification for lactose intolerance']}
-        }
-    },
-    'skin': {
-        'rash': {
-            'differentials': ['Eczema', 'Contact dermatitis', 'Psoriasis', 'Drug reaction'],
-            'workup': {'urgent': [], 'routine': ['CBC', 'BMP', 'Skin biopsy if persistent', 'Allergy testing']},
-            'management': {'symptomatic': ['Cool compresses'], 'definitive': ['Topical steroids', 'Antihistamines', 'Discontinue offending drug']}
-        }
-    }
-}
+def load_knowledge_base() -> Dict:
+    """Load clinical pathways from an external JSON file"""
+    knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
+    knowledge_base_path = os.path.join(knowledge_base_dir, "clinical_pathways.json")
+    
+    try:
+        with open(knowledge_base_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.error(f"Knowledge base file not found: {knowledge_base_path}")
+        raise RuntimeError("Knowledge base loading failed")
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON format in knowledge base: {str(e)}")
+        raise RuntimeError("Knowledge base parsing failed")
 
-# Initialize model
+def load_history_diagnoses() -> Dict[str, str]:
+    """Load history-to-diagnosis mappings from an external JSON file"""
+    knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
+    history_diagnoses_path = os.path.join(knowledge_base_dir, "history_diagnoses.json")
+    
+    try:
+        with open(history_diagnoses_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.error(f"History diagnoses file not found: {history_diagnoses_path}")
+        raise RuntimeError("History diagnoses loading failed")
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON format in history diagnoses: {str(e)}")
+        raise RuntimeError("History diagnoses parsing failed")
+
+def load_diagnosis_relevance() -> Dict[str, List[str]]:
+    """Load diagnosis relevance rules from an external JSON file"""
+    knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
+    relevance_path = os.path.join(knowledge_base_dir, "diagnosis_relevance.json")
+    
+    try:
+        with open(relevance_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.error(f"Diagnosis relevance file not found: {relevance_path}")
+        raise RuntimeError("Diagnosis relevance loading failed")
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON format in diagnosis relevance: {str(e)}")
+        raise RuntimeError("Diagnosis relevance parsing failed")
+
+def load_management_config() -> Dict[str, List[str]]:
+    """Load management configuration (medications, specialties, tests) from an external JSON file"""
+    knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
+    config_path = os.path.join(knowledge_base_dir, "management_config.json")
+    
+    try:
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.error(f"Management config file not found: {config_path}")
+        raise RuntimeError("Management config loading failed")
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON format in management config: {str(e)}")
+        raise RuntimeError("Management config parsing failed")
+
+def load_diagnosis_treatments() -> Dict[str, Dict]:
+    """Load diagnosis-to-treatment mappings from an external JSON file"""
+    knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
+    treatments_path = os.path.join(knowledge_base_dir, "diagnosis_treatments.json")
+    
+    try:
+        with open(treatments_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.error(f"Diagnosis treatments file not found: {treatments_path}")
+        raise RuntimeError("Diagnosis treatments loading failed")
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON format in diagnosis treatments: {str(e)}")
+        raise RuntimeError("Diagnosis treatments parsing failed")
+
+# Initialize model and tokenizer
 try:
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModel.from_pretrained(MODEL_NAME).to(DEVICE)
@@ -169,199 +181,215 @@ def embed_text(text: str) -> torch.Tensor:
         logger.error(f"Embedding failed: {str(e)}")
         return torch.zeros(EMBEDDING_DIM)
 
-def preprocess_text(text: str) -> str:
+def preprocess_text(text: str, stop_words: Set[str]) -> str:
     """Clean and standardize medical text for analysis"""
     if not text:
         return ""
     text = text.lower()
     text = re.sub(r'[^\w\s\-/]', ' ', text)
-    text = ' '.join(word for word in text.split() if word not in MEDICAL_STOP_WORDS)
+    text = ' '.join(word for word in text.split() if word not in stop_words)
     return text
 
 def deduplicate(items: List[str], synonyms: Dict[str, List[str]]) -> List[str]:
-    """Deduplicate items using synonym mapping"""
     seen = set()
     result = []
     for item in items:
         canonical = item
         for key, aliases in synonyms.items():
-            if item in aliases:
+            if item.lower() in [a.lower() for a in aliases]:
                 canonical = key
                 break
-        if canonical not in seen:
-            seen.add(canonical)
+        if canonical.lower() not in seen:
+            seen.add(canonical.lower())
             result.append(item)
     return result
 
 # Clinical Analysis Engine
-def extract_clinical_features(note: SOAPNote) -> Dict:
-    """Extract structured clinical features from SOAP note"""
-    features = {
-        'chief_complaint': note.situation.replace("Patient presents with", "").replace("Patient experiencing", "").strip(),
-        'hpi': note.hpi or "",
-        'history': note.medical_history or "",
-        'medications': note.medication_history or "",
-        'assessment': note.assessment or "",
-        'recommendation': note.recommendation or "",
-        'additional_notes': note.additional_notes or ""
-    }
-    
-    features['symptoms'] = []
-    if features['chief_complaint']:
-        features['symptoms'].append({
-            'description': preprocess_text(features['chief_complaint']),
-            'duration': extract_duration(features['hpi']),
-            'severity': classify_severity(features['hpi']),
-            'location': extract_location(features['chief_complaint'] + " " + features['hpi'])
-        })
-    
-    text = f"{features['chief_complaint']} {features['hpi']} {features['additional_notes']}"
-    symptom_candidates = [word for word in preprocess_text(text).split() if word in MEDICAL_TERMS]
-    symptom_candidates = list(set(symptom_candidates))
-    clinical_embedding = embed_text("clinical symptom")
-    for term in symptom_candidates:
-        term_embedding = embed_text(term)
-        similarity = torch.cosine_similarity(term_embedding.unsqueeze(0), clinical_embedding.unsqueeze(0)).item()
-        if similarity > SIMILARITY_THRESHOLD:
+class ClinicalAnalyzer:
+    def __init__(self):
+        self.model = model
+        self.tokenizer = tokenizer
+        self.medical_stop_words = load_medical_stop_words()
+        self.medical_terms = load_medical_terms()
+        self.synonyms = load_synonyms()
+        self.clinical_pathways = load_knowledge_base()
+        self.history_diagnoses = load_history_diagnoses()
+        self.diagnosis_relevance = load_diagnosis_relevance()
+        self.management_config = load_management_config()
+        self.diagnosis_treatments = load_diagnosis_treatments()
+        
+        # Warn if any resource is empty
+        for name, resource in [
+            ("Medical stop words", self.medical_stop_words),
+            ("Medical terms", self.medical_terms),
+            ("Synonyms", self.synonyms),
+            ("Clinical pathways", self.clinical_pathways),
+            ("History diagnoses", self.history_diagnoses),
+            ("Diagnosis relevance", self.diagnosis_relevance),
+            ("Management config", self.management_config),
+            ("Diagnosis treatments", self.diagnosis_treatments)
+        ]:
+            if not resource:
+                logger.warning(f"{name} is empty")
+
+    def extract_clinical_features(self, note: SOAPNote) -> Dict:
+        """Extract structured clinical features from SOAP note"""
+        features = {
+            'chief_complaint': note.situation.replace("Patient presents with", "").replace("Patient experiencing", "").strip() if note.situation else "",
+            'hpi': note.hpi or "",
+            'history': note.medical_history or "",
+            'medications': note.medication_history or "",
+            'assessment': note.assessment or "",
+            'recommendation': note.recommendation or "",
+            'additional_notes': note.additional_notes or ""
+        }
+        features['symptoms'] = []
+        if features['chief_complaint']:
             features['symptoms'].append({
-                'description': term,
-                'duration': 'Unknown',
-                'severity': 'Unknown',
-                'location': extract_location(text)
+                'description': preprocess_text(features['chief_complaint'], self.medical_stop_words),
+                'duration': extract_duration(features['hpi']),
+                'severity': classify_severity(features['hpi']),
+                'location': extract_location(features['chief_complaint'] + " " + features['hpi'])
             })
-    
-    return features
-
-def generate_differential_dx(features: Dict) -> List[str]:
-    """Generate prioritized differential diagnoses"""
-    dx = set()
-    
-    if features['assessment']:
-        for term in features['assessment'].lower().split():
-            if term.endswith("itis") or term in ["migraine", "angina", "asthma", "gerd", "neuropathy", "postnasal", "eczema", "dermatitis"]:
-                dx.add(term.capitalize())
-    
-    for symptom in features['symptoms']:
-        symptom_type = symptom['description'].lower()
-        location = symptom.get('location', '').lower()
-        
-        for category, pathways in CLINICAL_PATHWAYS.items():
-            for key, path in pathways.items():
-                if symptom_type in key or (location and location in key):
-                    dx.update(path['differentials'])
-    
-    history_checks = {
-        'hypertension': 'Hypertensive complication',
-        'diabetes': 'Peripheral neuropathy',
-        'allergies': 'Allergic rhinitis',
-        'gerd': 'GERD exacerbation',
-        'asthma': 'Asthma exacerbation',
-        'eczema': 'Eczema flare',
-        'lactose intolerance': 'Lactose intolerance'
-    }
-    for condition, diag in history_checks.items():
-        if condition in features['history'].lower():
-            dx.add(diag)
-    
-    if 'travel' in features['additional_notes'].lower():
-        dx.add('Traveler’s diarrhea')
-    if 'pet' in features['additional_notes'].lower():
-        dx.add('Allergic reaction')
-    
-    if len(dx) < 3:
-        common_diagnoses = ['Viral infection', 'Dehydration', 'Medication side effect']
         text = f"{features['chief_complaint']} {features['hpi']} {features['additional_notes']}"
-        text_embedding = embed_text(text)
-        diagnosis_scores = []
-        for diag in common_diagnoses:
-            diag_embedding = embed_text(diag)
-            similarity = torch.cosine_similarity(text_embedding.unsqueeze(0), diag_embedding.unsqueeze(0)).item()
+        symptom_candidates = [word for word in preprocess_text(text, self.medical_stop_words).split() if word in self.medical_terms]
+        symptom_candidates = list(set(symptom_candidates))
+        clinical_embedding = embed_text("clinical symptom")
+        for term in symptom_candidates:
+            term_embedding = embed_text(term)
+            similarity = torch.cosine_similarity(term_embedding.unsqueeze(0), clinical_embedding.unsqueeze(0)).item()
             if similarity > SIMILARITY_THRESHOLD:
-                diagnosis_scores.append((diag, similarity))
-        diagnosis_scores.sort(key=lambda x: x[1], reverse=True)
-        dx.update(diag for diag, _ in diagnosis_scores[:5 - len(dx)])
-    
-    def is_relevant(dx, symptoms, history):
-        symptom_words = {s['description'].lower() for s in symptoms}
-        if dx.lower() in ['copd', 'bronchitis'] and not any(w in ['cough', 'wheezing'] for w in symptom_words):
-            return False
-        if dx.lower() in ['anemia', 'uti'] and not any(w in ['fatigue', 'dysuria'] for w in symptom_words):
-            return False
-        if dx.lower() == 'appendicitis' and not 'abdomen' in [s.get('location', '').lower() for s in symptoms]:
-            return False
-        return True
-    
-    dx = {d for d in dx if is_relevant(d, features['symptoms'], features['history'])}
-    return deduplicate(sorted(dx)[:5], SYNONYMS)
+                features['symptoms'].append({
+                    'description': term,
+                    'duration': 'Unknown',
+                    'severity': 'Unknown',
+                    'location': extract_location(text)
+                })
+        return features
 
-def generate_management_plan(features: Dict, differentials: List[str]) -> Dict:
-    """Generate comprehensive management plan"""
-    plan = {
-        'workup': {'urgent': [], 'routine': []},
-        'treatment': {'symptomatic': [], 'definitive': []},
-        'follow_up': ['Follow-up in 1-2 weeks']
-    }
-    
-    recommendation = features['recommendation'].lower()
-    if recommendation:
-        if 'prescribe' in recommendation:
-            for med in ['sumatriptan', 'omeprazole', 'albuterol', 'gabapentin']:
-                if med in recommendation:
-                    plan['treatment']['definitive'].append(f"{med.capitalize()} as prescribed")
-        if 'refer' in recommendation:
-            for spec in ['neurology', 'cardiology', 'surgical', 'orthopedic', 'dermatology']:
-                if spec in recommendation:
-                    plan['treatment']['definitive'].append(f"{spec.capitalize()} referral")
-                    plan['workup']['routine'].append(f"{spec.capitalize()} consult")
-        for test in ['ecg', 'x-ray', 'ultrasound', 'ct', 'mri']:
-            if test in recommendation:
-                plan['workup']['urgent'].append(test.upper())
-    
-    for symptom in features['symptoms']:
-        symptom_type = symptom['description'].lower()
-        location = symptom.get('location', '').lower()
+    def generate_differential_dx(self, features: Dict) -> List[str]:
+        """Generate prioritized differential diagnoses"""
+        dx = set()
         
-        for category, pathways in CLINICAL_PATHWAYS.items():
-            for key, path in pathways.items():
-                if symptom_type in key or (location and location in key):
-                    plan['workup']['urgent'].extend(path['workup']['urgent'])
-                    plan['workup']['routine'].extend(path['workup']['routine'])
-                    plan['treatment']['symptomatic'].extend(path['management']['symptomatic'])
-                    plan['treatment']['definitive'].extend(path['management']['definitive'])
-    
-    for dx in differentials:
-        dx_lower = dx.lower()
-        if 'migraine' in dx_lower:
-            plan['treatment']['definitive'].append('Triptans for migraine')
-            plan['workup']['routine'].append('Neurology consult')
-        elif 'angina' in dx_lower:
-            plan['treatment']['definitive'].append('Aspirin for cardiac')
-            plan['workup']['urgent'].append('Cardiac enzymes')
-        elif 'asthma' in dx_lower or 'copd' in dx_lower:
-            plan['treatment']['definitive'].append('Bronchodilators')
-            plan['workup']['urgent'].append('Pulmonary function test')
-        elif 'gerd' in dx_lower:
-            plan['treatment']['definitive'].append('PPI trial for GERD')
-        elif 'eczema' in dx_lower or 'dermatitis' in dx_lower:
-            plan['treatment']['definitive'].append('Topical steroids')
-            plan['workup']['routine'].append('Dermatology consult')
-        elif 'osteoarthritis' in dx_lower or 'meniscal' in dx_lower:
-            plan['treatment']['definitive'].append('Physical therapy')
-            plan['workup']['routine'].append('Orthopedic consult')
-        elif 'cervical strain' in dx_lower:
-            plan['treatment']['definitive'].append('Physical therapy')
-            plan['workup']['routine'].append('Cervical X-ray')
-        elif 'lactose intolerance' in dx_lower:
-            plan['treatment']['definitive'].append('Dietary modification for lactose intolerance')
-    
-    for key in plan['workup']:
-        plan['workup'][key] = deduplicate(sorted(set(plan['workup'][key])), SYNONYMS)
-        if key == 'routine':
-            plan['workup'][key] = [item for item in plan['workup'][key] if item not in plan['workup']['urgent']]
-    for key in plan['treatment']:
-        plan['treatment'][key] = deduplicate(sorted(set(plan['treatment'][key])), SYNONYMS)
-    
-    return plan
+        # Extract from assessment
+        assessment = features.get('assessment', '').lower()
+        if assessment:
+            for term in assessment.split():
+                if (term.endswith("itis") or 
+                    term in ["migraine", "angina", "asthma", "gerd", "neuropathy", "postnasal", "eczema", "dermatitis"]):
+                    dx.add(term.capitalize())
+        
+        # Match symptoms and locations
+        symptoms = features.get('symptoms', [])
+        for symptom in symptoms:
+            symptom_type = symptom.get('description', '').lower()
+            location = symptom.get('location', '').lower()
+            if symptom_type or location:
+                for category, pathways in self.clinical_pathways.items():
+                    for key, path in pathways.items():
+                        key_lower = key.lower()
+                        if (symptom_type and symptom_type in key_lower) or (location and location in key_lower):
+                            dx.update(path.get('differentials', []))
+        
+        # Check medical history
+        history = features.get('history', '').lower()
+        for condition, diag in self.history_diagnoses.items():
+            if condition in history:
+                dx.add(diag)
+        
+        # Contextual clues from additional notes
+        additional_notes = features.get('additional_notes', '').lower()
+        if 'travel' in additional_notes:
+            dx.add('Traveler’s diarrhea')
+        if 'pet' in additional_notes:
+            dx.add('Allergic reaction')
+        
+        # Ensure minimum diagnoses using embeddings
+        if len(dx) < 3:
+            common_diagnoses = ['Viral infection', 'Dehydration', 'Medication side effect']
+            text = f"{features.get('chief_complaint', '')} {features.get('hpi', '')} {additional_notes}"
+            text_embedding = embed_text(text)
+            diagnosis_scores = []
+            for diag in common_diagnoses:
+                diag_embedding = embed_text(diag)
+                similarity = torch.cosine_similarity(text_embedding.unsqueeze(0), diag_embedding.unsqueeze(0)).item()
+                if similarity > SIMILARITY_THRESHOLD:
+                    diagnosis_scores.append((diag, similarity))
+            diagnosis_scores.sort(key=lambda x: x[1], reverse=True)
+            dx.update(diag for diag, _ in diagnosis_scores[:5 - len(dx)])
+        
+        # Filter irrelevant diagnoses
+        def is_relevant(diag: str, symptoms: List[Dict], history: str) -> bool:
+            diag_lower = diag.lower()
+            symptom_words = {s.get('description', '').lower() for s in symptoms}
+            locations = {s.get('location', '').lower() for s in symptoms}
+            
+            for condition, required in self.diagnosis_relevance.items():
+                if diag_lower == condition:
+                    if condition == 'appendicitis':
+                        return any(loc in required for loc in locations)
+                    return any(word in symptom_words for word in required)
+            return True
+        
+        dx = {d for d in dx if is_relevant(d, symptoms, history)}
+        
+        # Return deduplicated and sorted list
+        return deduplicate(sorted(dx)[:5], self.synonyms)
+
+    def generate_management_plan(self, features: Dict, differentials: List[str]) -> Dict:
+        """Generate comprehensive management plan"""
+        plan = {
+            'workup': {'urgent': [], 'routine': []},
+            'treatment': {'symptomatic': [], 'definitive': []},
+            'follow_up': ['Follow-up in 1-2 weeks']
+        }
+        
+        # Process recommendations
+        recommendation = features.get('recommendation', '').lower()
+        if recommendation:
+            if 'prescribe' in recommendation:
+                for med in self.management_config.get('medications', []):
+                    if med in recommendation:
+                        plan['treatment']['definitive'].append(f"{med.capitalize()} as prescribed")
+            if 'refer' in recommendation:
+                for spec in self.management_config.get('specialties', []):
+                    if spec in recommendation:
+                        plan['treatment']['definitive'].append(f"{spec.capitalize()} referral")
+                        plan['workup']['routine'].append(f"{spec.capitalize()} consult")
+            for test in self.management_config.get('tests', []):
+                if test in recommendation:
+                    plan['workup']['urgent'].append(test.upper())
+        
+        # Process symptoms and clinical pathways
+        for symptom in features.get('symptoms', []):
+            symptom_type = symptom.get('description', '').lower()
+            location = symptom.get('location', '').lower()
+            for category, pathways in self.clinical_pathways.items():
+                for key, path in pathways.items():
+                    if symptom_type in key.lower() or (location and location in key.lower()):
+                        plan['workup']['urgent'].extend(path.get('workup', {}).get('urgent', []))
+                        plan['workup']['routine'].extend(path.get('workup', {}).get('routine', []))
+                        plan['treatment']['symptomatic'].extend(path.get('management', {}).get('symptomatic', []))
+                        plan['treatment']['definitive'].extend(path.get('management', {}).get('definitive', []))
+        
+        # Process differential diagnoses
+        for dx in differentials:
+            dx_lower = dx.lower()
+            for diag_key, mappings in self.diagnosis_treatments.items():
+                if diag_key in dx_lower:
+                    plan['treatment']['definitive'].extend(mappings.get('treatment', {}).get('definitive', []))
+                    plan['workup']['urgent'].extend(mappings.get('workup', {}).get('urgent', []))
+                    plan['workup']['routine'].extend(mappings.get('workup', {}).get('routine', []))
+        
+        # Deduplicate and sort
+        for key in plan['workup']:
+            plan['workup'][key] = deduplicate(sorted(set(plan['workup'][key])), self.synonyms)
+            if key == 'routine':
+                plan['workup'][key] = [item for item in plan['workup'][key] if item not in plan['workup']['urgent']]
+        for key in plan['treatment']:
+            plan['treatment'][key] = deduplicate(sorted(set(plan['treatment'][key])), self.synonyms)
+        
+        return plan
 
 # SOAP Note Processing
 def build_note_text(note: SOAPNote) -> str:
@@ -393,7 +421,7 @@ def generate_ai_summary(note: SOAPNote) -> str:
                 if key == "Chief Complaint" and not value.startswith("Patient"):
                     value = "Patient experiencing " + value
                 selected.append(f"{prefix}{value}")
-        return "\n".join(selected)  # MODIFIED: Newline separator
+        return "\n".join(selected)
     except Exception as e:
         logger.error(f"Summary failed: {str(e)}")
         return "Summary unavailable"
@@ -401,10 +429,10 @@ def generate_ai_summary(note: SOAPNote) -> str:
 def generate_ai_analysis(note: SOAPNote, patient: Patient = None) -> str:
     """Generate clinical analysis with semicolon-separated lists"""
     try:
-        features = extract_clinical_features(note)
-        differentials = generate_differential_dx(features)
-        plan = generate_management_plan(features, differentials)
-        
+        analyzer = ClinicalAnalyzer()
+        features = analyzer.extract_clinical_features(note)
+        differentials = analyzer.generate_differential_dx(features)
+        plan = analyzer.generate_management_plan(features, differentials)
         analysis_output = f"""
 === AI CLINICAL ANALYSIS ===
 [CHIEF CONCERN]
@@ -445,7 +473,7 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
 def update_all_ai_notes(batch_size: int = BATCH_SIZE) -> Tuple[int, int]:
     """Process all notes needing AI updates"""
     from flask import current_app
-    
+    analyzer = ClinicalAnalyzer()
     with current_app.app_context():
         try:
             base_query = db.session.query(SOAPNote, Patient).filter(
@@ -453,17 +481,13 @@ def update_all_ai_notes(batch_size: int = BATCH_SIZE) -> Tuple[int, int]:
                 (SOAPNote.ai_analysis.is_(None)),
                 SOAPNote.patient_id == Patient.patient_id
             )
-            
             total = base_query.count()
             if total == 0:
                 return 0, 0
-                
             success = error = 0
-            
             with tqdm(total=total) as pbar:
                 for offset in range(0, total, batch_size):
                     batch = base_query.offset(offset).limit(batch_size).all()
-                    
                     for note, patient in batch:
                         try:
                             if note.ai_notes is None:
@@ -474,12 +498,9 @@ def update_all_ai_notes(batch_size: int = BATCH_SIZE) -> Tuple[int, int]:
                         except Exception as e:
                             error += 1
                             logger.error(f"Error processing note {note.id}: {str(e)}")
-                    
                     db.session.commit()
                     pbar.update(len(batch))
-            
             return success, error
-            
         except Exception as e:
             db.session.rollback()
             logger.error(f"Batch processing failed: {str(e)}")
