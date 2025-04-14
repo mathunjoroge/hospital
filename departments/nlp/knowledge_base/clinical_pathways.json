@@ -1,0 +1,354 @@
+{
+  "pain": {
+    "head": {
+      "differentials": ["Migraine", "Tension headache", "Cluster headache", "Sinusitis"],
+      "workup": {
+        "urgent": ["Head CT if red flags", "MRI if neurological deficits"],
+        "routine": ["Neurology consult if persistent", "CBC", "BMP", "Thyroid function tests"]
+      },
+      "management": {
+        "symptomatic": ["Hydration", "Rest in a dark room"],
+        "definitive": ["Triptans for migraine", "NSAIDs for tension-type", "Antibiotics for sinusitis"]
+      }
+    },
+    "chest": {
+      "differentials": ["Angina", "GERD", "Musculoskeletal pain", "Pulmonary embolism", "Pneumonia", "Pericarditis"],
+      "workup": {
+        "urgent": ["ECG", "Cardiac enzymes", "Chest X-ray", "D-dimer", "CT pulmonary angiography"],
+        "routine": ["CBC", "BMP", "Lipid panel", "Stress test"]
+      },
+      "management": {
+        "symptomatic": ["Oxygen therapy", "Nitroglycerin"],
+        "definitive": ["Aspirin for cardiac", "PPI trial for GERD", "NSAIDs for musculoskeletal", "Anticoagulation for embolism"]
+      }
+    },
+    "abdomen": {
+      "differentials": ["Gastritis", "GERD", "Cholecystitis", "Pancreatitis", "Appendicitis", "Diverticulitis", "IBS"],
+      "workup": {
+        "urgent": ["Abdominal ultrasound", "LFTs", "Lipase", "CT abdomen if severe"],
+        "routine": ["CBC", "BMP", "Upper endoscopy if chronic", "Stool studies"]
+      },
+      "management": {
+        "symptomatic": ["Antiemetics", "Hydration"],
+        "definitive": ["PPI for gastritis", "PPI trial for GERD", "Surgical consult for cholecystitis", "Antibiotics for diverticulitis"]
+      }
+    },
+    "joint": {
+      "differentials": ["Osteoarthritis", "Meniscal injury", "Gout", "Rheumatoid arthritis", "Septic arthritis", "Lyme disease"],
+      "workup": {
+        "urgent": ["Knee X-ray", "Joint aspiration if septic"],
+        "routine": ["ESR", "Uric acid", "Rheumatoid factor", "ANA", "CBC", "BMP"]
+      },
+      "management": {
+        "symptomatic": ["Ice", "Elevation", "Compression"],
+        "definitive": ["NSAIDs", "Physical therapy", "Colchicine for gout", "DMARDs for rheumatoid arthritis"]
+      }
+    },
+    "back": {
+      "differentials": ["Mechanical back pain", "Disc herniation", "Spinal stenosis", "Pyelonephritis", "Kidney stones"],
+      "workup": {
+        "urgent": ["Lumbar X-ray if trauma", "CT spine if neurological deficits", "Urinalysis"],
+        "routine": ["CBC", "BMP", "MRI if persistent", "Renal ultrasound"]
+      },
+      "management": {
+        "symptomatic": ["Heat", "Massage", "TENS unit"],
+        "definitive": ["NSAIDs", "Physical therapy", "Muscle relaxants", "Surgical consult if severe"]
+      }
+    },
+    "neck": {
+      "differentials": ["Cervical strain", "Cervical spondylosis", "Meningitis", "Vertebral artery dissection"],
+      "workup": {
+        "urgent": ["Cervical X-ray", "Head CT if fever", "Lumbar puncture if meningitis suspected"],
+        "routine": ["CBC", "BMP", "MRI neck if needed"]
+      },
+      "management": {
+        "symptomatic": ["Massage", "Soft collar"],
+        "definitive": ["NSAIDs", "Physical therapy", "Antibiotics for meningitis"]
+      }
+    }
+  },
+  "respiratory": {
+    "cough": {
+      "differentials": ["Allergic rhinitis", "Postnasal drip", "GERD", "Chronic bronchitis", "Asthma", "Bronchiectasis"],
+      "workup": {
+        "urgent": ["Chest X-ray if febrile", "Pulmonary function test if wheezing"],
+        "routine": ["CBC", "BMP", "Allergy testing", "Sputum culture"]
+      },
+      "management": {
+        "symptomatic": ["Antitussives", "Humidification"],
+        "definitive": ["Antihistamines for allergies", "PPI trial for GERD", "Inhaled steroids for bronchitis"]
+      }
+    },
+    "shortness of breath": {
+      "differentials": ["Asthma", "COPD", "Heart failure", "Pulmonary embolism", "Pneumothorax", "Anemia"],
+      "workup": {
+        "urgent": ["Chest X-ray", "Pulmonary function test", "D-dimer", "BNP", "ABG"],
+        "routine": ["CBC", "BMP", "Echocardiogram"]
+      },
+      "management": {
+        "symptomatic": ["Oxygen therapy"],
+        "definitive": ["Bronchodilators", "Diuretics for heart failure", "Anticoagulation for embolism"]
+      }
+    }
+  },
+  "swelling": {
+    "extremity": {
+      "differentials": ["Venous insufficiency", "Heart failure", "DVT", "Lymphedema", "Cellulitis", "Deep vein thrombosis"],
+      "workup": {
+        "urgent": ["Doppler ultrasound", "BNP", "D-dimer", "Blood cultures if infection suspected"],
+        "routine": ["CBC", "BMP", "Coagulation profile"]
+      },
+      "management": {
+        "symptomatic": ["Elevation", "Compression stockings"],
+        "definitive": ["Compression therapy", "Diuretics", "Anticoagulation if DVT"]
+      }
+    }
+  },
+  "neurological": {
+    "numbness": {
+      "differentials": ["Peripheral neuropathy", "Carpal tunnel syndrome", "Stroke", "Multiple sclerosis", "Vitamin B12 deficiency", "Diabetic neuropathy"],
+      "workup": {
+        "urgent": ["Nerve conduction study", "Blood glucose", "MRI brain if focal deficits"],
+        "routine": ["CBC", "BMP", "B12 level", "Thyroid function tests", "Neurology consult"]
+      },
+      "management": {
+        "symptomatic": ["Gabapentin", "Topical lidocaine"],
+        "definitive": ["Neurology referral", "Wrist splints for carpal tunnel", "B12 supplementation"]
+      }
+    },
+    "dizziness": {
+      "differentials": ["BPPV", "Orthostatic hypotension", "Dehydration", "Labyrinthitis", "Vestibular neuritis", "Stroke"],
+      "workup": {
+        "urgent": ["Orthostatic vitals", "CT/MRI brain if stroke suspected"],
+        "routine": ["CBC", "BMP", "Electrolytes", "Hearing tests"]
+      },
+      "management": {
+        "symptomatic": ["Meclizine", "Hydration"],
+        "definitive": ["Epley maneuver for BPPV", "Fluid resuscitation", "Antivirals for labyrinthitis"]
+      }
+    }
+  },
+  "gastrointestinal": {
+    "nausea": {
+      "differentials": ["Gastritis", "Vestibular disturbance", "Medication side effect", "Hyperemesis gravidarum", "Gallbladder disease"],
+      "workup": {
+        "urgent": ["Electrolytes", "Liver function tests"],
+        "routine": ["CBC", "BMP", "Upper endoscopy if chronic", "Ultrasound if gallbladder suspected"]
+      },
+      "management": {
+        "symptomatic": ["Antiemetics", "IV fluids"],
+        "definitive": ["PPI trial", "Discontinue offending medication", "Surgical consult for gallbladder"]
+      }
+    },
+    "diarrhea": {
+      "differentials": ["Viral gastroenteritis", "Lactose intolerance", "Bacterial gastroenteritis", "IBD", "Celiac disease", "Colon cancer"],
+      "workup": {
+        "urgent": ["Stool studies", "Electrolytes", "Fecal occult blood test"],
+        "routine": ["CBC", "BMP", "Colonoscopy if chronic"]
+      },
+      "management": {
+        "symptomatic": ["Hydration", "Probiotics"],
+        "definitive": ["Antidiarrheals", "Antibiotics if bacterial", "Dietary modification for lactose intolerance"]
+      }
+    }
+  },
+  "skin": {
+    "rash": {
+      "differentials": ["Eczema", "Contact dermatitis", "Psoriasis", "Drug reaction", "Shingles", "Scabies", "Fungal infection"],
+      "workup": {
+        "urgent": ["Skin scraping if fungal", "Biopsy if malignant"],
+        "routine": ["CBC", "BMP", "Skin biopsy if persistent", "Allergy testing", "Patch testing"]
+      },
+      "management": {
+        "symptomatic": ["Cool compresses", "Moisturizers"],
+        "definitive": ["Topical steroids", "Antihistamines", "Antifungals", "Discontinue offending drug"]
+      }
+    }
+  },
+  "cardiovascular": {
+    "chest pain": {
+      "differentials": ["Angina", "Myocardial infarction", "Pericarditis", "Aortic dissection", "Pulmonary embolism"],
+      "workup": {
+        "urgent": ["ECG", "Cardiac enzymes", "Chest X-ray", "CT angiography"],
+        "routine": ["CBC", "BMP", "Lipid panel", "Stress echocardiogram"]
+      },
+      "management": {
+        "symptomatic": ["Oxygen therapy", "Morphine"],
+        "definitive": ["Aspirin", "Beta-blockers", "Anticoagulation", "Surgical repair if dissection"]
+      }
+    },
+    "hypertension": {
+      "differentials": ["Essential hypertension", "Secondary hypertension", "Renovascular hypertension"],
+      "workup": {
+        "urgent": [],
+        "routine": ["Renal ultrasound", "Plasma renin activity", "Aldosterone levels"]
+      },
+      "management": {
+        "symptomatic": ["Lifestyle modifications"],
+        "definitive": ["ACE inhibitors", "ARBs", "Diuretics", "Beta-blockers"]
+      }
+    }
+  },
+  "endocrine": {
+    "fatigue": {
+      "differentials": ["Hypothyroidism", "Adrenal insufficiency", "Diabetes mellitus", "Depression", "Iron deficiency anemia"],
+      "workup": {
+        "urgent": ["Blood glucose", "TSH", "Cortisol levels"],
+        "routine": ["CBC", "BMP", "Thyroid function tests", "Iron studies"]
+      },
+      "management": {
+        "symptomatic": ["Hydration", "Rest"],
+        "definitive": ["Levothyroxine for hypothyroidism", "Steroids for adrenal insufficiency"]
+      }
+    }
+  },
+   "psychiatric": {
+    "anxiety": {
+      "differentials": ["Generalized anxiety disorder", "Panic disorder", "Social anxiety disorder", "Post-traumatic stress disorder", "Medication-induced anxiety"],
+      "workup": {
+        "urgent": ["Electrolytes", "Thyroid function tests", "Toxicology screen if substance use suspected"],
+        "routine": ["CBC", "BMP", "Psychiatric evaluation"]
+      },
+      "management": {
+        "symptomatic": ["Relaxation techniques", "Breathing exercises"],
+        "definitive": ["SSRIs", "Benzodiazepines for acute episodes", "Cognitive behavioral therapy"]
+      }
+    },
+    "depression": {
+      "differentials": ["Major depressive disorder", "Bipolar disorder", "Dysthymia", "Adjustment disorder", "Substance-induced depression"],
+      "workup": {
+        "urgent": ["Electrolytes", "Thyroid function tests", "Vitamin B12/folate levels"],
+        "routine": ["CBC", "BMP", "Psychiatric evaluation"]
+      },
+      "management": {
+        "symptomatic": ["Sleep hygiene", "Exercise"],
+        "definitive": ["SSRIs", "SNRIs", "Psychotherapy", "ECT if severe"]
+      }
+    },
+    "insomnia": {
+      "differentials": ["Primary insomnia", "Depression-related insomnia", "Anxiety-related insomnia", "Medication-induced insomnia", "Sleep apnea"],
+      "workup": {
+        "urgent": ["Polysomnography if sleep apnea suspected"],
+        "routine": ["CBC", "BMP", "Thyroid function tests"]
+      },
+      "management": {
+        "symptomatic": ["Sleep hygiene education", "Melatonin"],
+        "definitive": ["Cognitive behavioral therapy for insomnia", "Sedative-hypnotics if necessary"]
+      }
+    },
+    "psychosis": {
+      "differentials": ["Schizophrenia", "Bipolar disorder with psychotic features", "Delirium", "Substance-induced psychosis", "Major depressive disorder with psychotic features"],
+      "workup": {
+        "urgent": ["Toxicology screen", "Electrolytes", "Head CT if trauma or neurological signs"],
+        "routine": ["CBC", "BMP", "Psychiatric evaluation"]
+      },
+      "management": {
+        "symptomatic": ["Environmental safety measures"],
+        "definitive": ["Antipsychotics", "Mood stabilizers if bipolar", "Psychiatric hospitalization if severe"]
+      }
+    },
+    "bipolar disorder": {
+      "differentials": ["Bipolar I disorder", "Bipolar II disorder", "Cyclothymic disorder", "Substance-induced mood disorder"],
+      "workup": {
+        "urgent": ["Toxicology screen", "Electrolytes"],
+        "routine": ["CBC", "BMP", "Thyroid function tests", "Psychiatric evaluation"]
+      },
+      "management": {
+        "symptomatic": ["Mood stabilization techniques"],
+        "definitive": ["Mood stabilizers", "Antipsychotics", "Psychotherapy"]
+      }
+    },
+    "eating disorders": {
+      "differentials": ["Anorexia nervosa", "Bulimia nervosa", "Binge-eating disorder", "Avoidant/restrictive food intake disorder"],
+      "workup": {
+        "urgent": ["Electrolytes", "ECG if cardiac concerns"],
+        "routine": ["CBC", "BMP", "Nutritional assessment", "Psychiatric evaluation"]
+      },
+      "management": {
+        "symptomatic": ["Nutritional rehabilitation", "Hydration"],
+        "definitive": ["Multidisciplinary team approach", "Psychotherapy", "Nutritional counseling"]
+      }
+    },
+    "substance use disorders": {
+      "differentials": ["Alcohol use disorder", "Opioid use disorder", "Stimulant use disorder", "Cannabis use disorder"],
+      "workup": {
+        "urgent": ["Toxicology screen", "Electrolytes", "Liver function tests if alcohol use"],
+        "routine": ["CBC", "BMP", "Psychiatric evaluation"]
+      },
+      "management": {
+        "symptomatic": ["Detoxification protocols", "Hydration"],
+        "definitive": ["Medication-assisted treatment", "Psychotherapy", "Rehabilitation programs"]
+      }
+    },
+    "suicidal ideation": {
+      "differentials": ["Major depressive disorder", "Bipolar disorder", "Borderline personality disorder", "Substance-induced mood disorder"],
+      "workup": {
+        "urgent": ["Risk assessment", "Toxicology screen", "Psychiatric evaluation"],
+        "routine": ["CBC", "BMP", "Thyroid function tests"]
+      },
+      "management": {
+        "symptomatic": ["Safety planning", "Removal of lethal means"],
+        "definitive": ["Hospitalization if high risk", "Antidepressants", "Psychotherapy"]
+      }
+    }
+  },
+  "endocrine": {
+    "hyperglycemia": {
+      "differentials": ["Diabetes mellitus", "Hyperosmolar hyperglycemic state", "Diabetic ketoacidosis", "Medication-induced hyperglycemia"],
+      "workup": {
+        "urgent": ["Blood glucose", "Serum ketones", "Electrolytes"],
+        "routine": ["HbA1c", "CBC", "BMP"]
+      },
+      "management": {
+        "symptomatic": ["Hydration", "Insulin therapy"],
+        "definitive": ["Long-term insulin or oral hypoglycemics", "Diabetes education"]
+      }
+    },
+    "hypoglycemia": {
+      "differentials": ["Insulin overdose", "Oral hypoglycemic overdose", "Factitious hypoglycemia", "Endogenous hyperinsulinism"],
+      "workup": {
+        "urgent": ["Blood glucose", "Insulin level", "C-peptide level"],
+        "routine": ["CBC", "BMP", "Endocrinology consult"]
+      },
+      "management": {
+        "symptomatic": ["Glucose administration", "Dextrose IV"],
+        "definitive": ["Adjustment of diabetic medications", "Endocrine workup"]
+      }
+    },
+    "thyroid dysfunction": {
+      "differentials": ["Hypothyroidism", "Hyperthyroidism", "Thyroiditis", "Thyroid nodules"],
+      "workup": {
+        "urgent": ["TSH", "Free T4", "Thyroid ultrasound if nodules"],
+        "routine": ["Thyroid antibodies", "Fine needle aspiration if nodules"]
+      },
+      "management": {
+        "symptomatic": ["Beta-blockers for hyperthyroid symptoms"],
+        "definitive": ["Levothyroxine for hypothyroidism", "Antithyroid medications for hyperthyroidism", "Surgical referral if nodules"]
+      }
+    }
+  },
+  "hematologic": {
+    "anemia": {
+      "differentials": ["Iron deficiency anemia", "Vitamin B12 deficiency", "Folate deficiency", "Hemolytic anemia", "Chronic disease anemia"],
+      "workup": {
+        "urgent": ["CBC", "Peripheral smear", "Iron studies"],
+        "routine": ["Vitamin B12", "Folate", "Reticulocyte count"]
+      },
+      "management": {
+        "symptomatic": ["Hydration", "Iron supplementation"],
+        "definitive": ["Vitamin B12 injections", "Folate supplementation", "Erythropoietin if chronic kidney disease"]
+      }
+    },
+    "bleeding disorders": {
+      "differentials": ["Hemophilia", "Von Willebrand disease", "Thrombocytopenia", "Disseminated intravascular coagulation"],
+      "workup": {
+        "urgent": ["PT", "aPTT", "Platelet count"],
+        "routine": ["Factor assays", "Von Willebrand factor assay"]
+      },
+      "management": {
+        "symptomatic": ["Transfusion if severe bleeding"],
+        "definitive": ["Factor replacement therapy", "Desmopressin for von Willebrand disease"]
+      }
+    }
+  }
+}

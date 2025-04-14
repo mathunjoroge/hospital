@@ -1,0 +1,342 @@
+{
+    "migraine": {
+        "treatment": {
+            "definitive": ["Triptans", "Ergotamines", "NSAIDs", "Preventive beta-blockers"],
+            "symptomatic": ["Hydration", "Rest in a dark room"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Neurology consult", "MRI if persistent or severe"]
+        }
+    },
+    "angina": {
+        "treatment": {
+            "definitive": ["Aspirin", "Nitroglycerin", "Beta-blockers", "Calcium channel blockers"],
+            "symptomatic": ["Oxygen therapy"]
+        },
+        "workup": {
+            "urgent": ["ECG", "Cardiac enzymes", "Chest X-ray"],
+            "routine": ["Stress test", "Coronary angiography if indicated"]
+        }
+    },
+    "asthma": {
+        "treatment": {
+            "definitive": ["Short-acting bronchodilators", "Inhaled corticosteroids", "Leukotriene modifiers"],
+            "symptomatic": ["Oxygen therapy", "Nebulized medications"]
+        },
+        "workup": {
+            "urgent": ["Pulmonary function test", "Peak flow measurement"],
+            "routine": ["Allergy testing", "Chest X-ray if needed"]
+        }
+    },
+    "copd": {
+        "treatment": {
+            "definitive": ["Long-acting bronchodilators", "Inhaled corticosteroids", "Antibiotics for exacerbations"],
+            "symptomatic": ["Oxygen therapy", "Smoking cessation counseling"]
+        },
+        "workup": {
+            "urgent": ["Pulmonary function test", "Arterial blood gases"],
+            "routine": ["Chest X-ray", "Sputum culture"]
+        }
+    },
+    "gerd": {
+        "treatment": {
+            "definitive": ["Proton pump inhibitors", "H2 receptor blockers", "Lifestyle modifications"],
+            "symptomatic": ["Antacids"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Upper endoscopy if chronic", "Esophageal pH monitoring"]
+        }
+    },
+    "eczema": {
+        "treatment": {
+            "definitive": ["Topical steroids", "Moisturizers", "Topical calcineurin inhibitors"],
+            "symptomatic": ["Cool compresses", "Antihistamines"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Dermatology consult", "Patch testing for allergens"]
+        }
+    },
+    "dermatitis": {
+        "treatment": {
+            "definitive": ["Topical steroids", "Moisturizers", "Avoidance of irritants"],
+            "symptomatic": ["Cool compresses", "Antihistamines"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Dermatology consult", "Patch testing for allergens"]
+        }
+    },
+    "osteoarthritis": {
+        "treatment": {
+            "definitive": ["Physical therapy", "NSAIDs", "Joint injections"],
+            "symptomatic": ["Heat/cold therapy", "Weight management"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["X-rays", "Orthopedic consult"]
+        }
+    },
+    "meniscal tear": {
+        "treatment": {
+            "definitive": ["Physical therapy", "Knee bracing"],
+            "symptomatic": ["Ice packs", "NSAIDs"]
+        },
+        "workup": {
+            "urgent": ["Knee MRI"],
+            "routine": ["Orthopedic consult"]
+        }
+    },
+    "cervical strain": {
+        "treatment": {
+            "definitive": ["Physical therapy", "NSAIDs"],
+            "symptomatic": ["Heat therapy", "Muscle relaxants"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Cervical X-ray", "MRI if neurological deficits"]
+        }
+    },
+    "lactose intolerance": {
+        "treatment": {
+            "definitive": ["Dietary modification", "Lactase enzyme supplements"],
+            "symptomatic": []
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Hydrogen breath test", "Lactose tolerance test"]
+        }
+    },
+    "hypertension": {
+        "treatment": {
+            "definitive": ["ACE inhibitors", "ARBs", "Diuretics", "Beta-blockers"],
+            "symptomatic": []
+        },
+        "workup": {
+            "urgent": ["Blood pressure monitoring"],
+            "routine": ["Renal function tests", "Electrolyte panel"]
+        }
+    },
+    "diabetes mellitus": {
+        "treatment": {
+            "definitive": ["Insulin", "Metformin", "GLP-1 receptor agonists"],
+            "symptomatic": ["Glucose monitoring"]
+        },
+        "workup": {
+            "urgent": ["Blood glucose levels", "HbA1c"],
+            "routine": ["Kidney function tests", "Eye exam"]
+        }
+    },
+    "pneumonia": {
+        "treatment": {
+            "definitive": ["Antibiotics", "Antivirals if viral"],
+            "symptomatic": ["Oxygen therapy", "Hydration"]
+        },
+        "workup": {
+            "urgent": ["Chest X-ray", "Sputum culture"],
+            "routine": ["CBC", "Blood cultures"]
+        }
+    },
+    "appendicitis": {
+        "treatment": {
+            "definitive": ["Surgical appendectomy"],
+            "symptomatic": ["IV fluids", "Pain management"]
+        },
+        "workup": {
+            "urgent": ["Abdominal ultrasound", "CT scan"],
+            "routine": ["CBC", "CRP"]
+        }
+    },
+    "peptic ulcer disease": {
+        "treatment": {
+            "definitive": ["Proton pump inhibitors", "H. pylori eradication therapy"],
+            "symptomatic": ["Antacids"]
+        },
+        "workup": {
+            "urgent": ["Upper endoscopy"],
+            "routine": ["H. pylori testing"]
+        }
+    },
+    "deep vein thrombosis": {
+        "treatment": {
+            "definitive": ["Anticoagulation therapy", "Compression stockings"],
+            "symptomatic": ["Pain management"]
+        },
+        "workup": {
+            "urgent": ["Doppler ultrasound"],
+            "routine": ["D-dimer test", "Coagulation profile"]
+        }
+    },
+    "pulmonary embolism": {
+        "treatment": {
+            "definitive": ["Anticoagulation therapy", "Thrombolytics if severe"],
+            "symptomatic": ["Oxygen therapy"]
+        },
+        "workup": {
+            "urgent": ["CT pulmonary angiography", "D-dimer test"],
+            "routine": ["ECG", "Chest X-ray"]
+        }
+    },
+    "anemia": {
+        "treatment": {
+            "definitive": ["Iron supplementation", "Vitamin B12/folate replacement"],
+            "symptomatic": ["Blood transfusion if severe"]
+        },
+        "workup": {
+            "urgent": ["CBC", "Peripheral smear"],
+            "routine": ["Iron studies", "Vitamin B12/folate levels"]
+        }
+    },
+    "gout": {
+        "treatment": {
+            "definitive": ["Colchicine", "Allopurinol", "NSAIDs"],
+            "symptomatic": ["Ice packs", "Hydration"]
+        },
+        "workup": {
+            "urgent": ["Serum uric acid levels"],
+            "routine": ["Joint aspiration if needed"]
+        }
+    },
+    "thyroid dysfunction": {
+        "treatment": {
+            "definitive": ["Levothyroxine for hypothyroidism", "Beta-blockers for hyperthyroidism"],
+            "symptomatic": []
+        },
+        "workup": {
+            "urgent": ["TSH levels", "Free T4 levels"],
+            "routine": ["Thyroid ultrasound", "Antibody testing"]
+        }
+    },
+    "uti": {
+        "treatment": {
+            "definitive": ["Antibiotics", "Urinary analgesics"],
+            "symptomatic": ["Hydration"]
+        },
+        "workup": {
+            "urgent": ["Urine analysis", "Urine culture"],
+            "routine": ["Renal ultrasound if recurrent"]
+        }
+    },
+    "kidney stones": {
+        "treatment": {
+            "definitive": ["Hydration", "Pain management", "Lithotripsy if needed"],
+            "symptomatic": ["NSAIDs"]
+        },
+        "workup": {
+            "urgent": ["CT scan", "Ultrasound"],
+            "routine": ["Urinalysis", "Serum electrolytes"]
+        }
+    },
+    "depression": {
+        "treatment": {
+            "definitive": ["SSRIs", "Cognitive behavioral therapy", "Lifestyle modifications"],
+            "symptomatic": []
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Psychiatric evaluation", "Thyroid function tests"]
+        }
+    },
+    "anxiety": {
+        "treatment": {
+            "definitive": ["Benzodiazepines", "SSRIs", "Psychotherapy"],
+            "symptomatic": []
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Psychiatric evaluation"]
+        }
+    },
+    "heart failure": {
+        "treatment": {
+            "definitive": ["ACE inhibitors", "Beta-blockers", "Diuretics"],
+            "symptomatic": ["Fluid restriction", "Low-sodium diet"]
+        },
+        "workup": {
+            "urgent": ["BNP levels", "Chest X-ray"],
+            "routine": ["Echocardiogram", "Electrolyte panel"]
+        }
+    },
+    "stroke": {
+        "treatment": {
+            "definitive": ["Thrombolytics if ischemic", "Antiplatelet therapy"],
+            "symptomatic": ["Oxygen therapy", "Blood pressure management"]
+        },
+        "workup": {
+            "urgent": ["CT scan", "MRI"],
+            "routine": ["Carotid Doppler", "ECG"]
+        }
+    },
+    "sepsis": {
+        "treatment": {
+            "definitive": ["Broad-spectrum antibiotics", "Fluid resuscitation"],
+            "symptomatic": ["Oxygen therapy", "Vasopressors if needed"]
+        },
+        "workup": {
+            "urgent": ["Blood cultures", "Lactate levels"],
+            "routine": ["CBC", "CRP", "Procalcitonin"]
+        }
+    },
+    "celiac disease": {
+        "treatment": {
+            "definitive": ["Gluten-free diet"],
+            "symptomatic": []
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Tissue transglutaminase antibodies", "Endoscopy with biopsy"]
+        }
+    },
+    "irritable bowel syndrome": {
+        "treatment": {
+            "definitive": ["Dietary modifications", "Antispasmodics"],
+            "symptomatic": ["Fiber supplements"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Colonoscopy if indicated", "Stool studies"]
+        }
+    },
+    "fibromyalgia": {
+        "treatment": {
+            "definitive": ["Gabapentin", "Pregabalin", "Antidepressants"],
+            "symptomatic": ["Physical therapy", "Stress management"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Rheumatology consult", "Exclusion of other causes"]
+        }
+    },
+    "osteoporosis": {
+        "treatment": {
+            "definitive": ["Bisphosphonates", "Calcium and vitamin D supplementation"],
+            "symptomatic": ["Fall prevention strategies"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["DEXA scan", "Bone turnover markers"]
+        }
+    },
+    "rheumatoid arthritis": {
+        "treatment": {
+            "definitive": ["DMARDs", "Biologic agents", "NSAIDs"],
+            "symptomatic": ["Joint protection techniques"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Rheumatoid factor", "Anti-CCP antibodies", "Joint imaging"]
+        }
+    },
+    "multiple sclerosis": {
+        "treatment": {
+            "definitive": ["Immunomodulatory therapies", "Steroids for relapses"],
+            "symptomatic": ["Physical therapy", "Bladder management"]
+        },
+        "workup": {
+            "urgent": ["MRI brain and spine"],
+            "routine": ["Lumbar puncture", "Evoked potentials"]
+        }
+    }
+}
