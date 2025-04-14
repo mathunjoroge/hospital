@@ -17,8 +17,10 @@ class SOAPNote(db.Model):
     medical_history = db.Column(db.Text)
     medication_history = db.Column(db.Text)
     assessment = db.Column(db.Text, nullable=False)
-    recommendation = db.Column(db.Text, nullable=False)
+    recommendation = db.Column(db.Text, nullable=True)
     additional_notes = db.Column(db.Text)
+    ai_notes= db.Column(db.Text)
+    ai_analysis = db.Column(db.Text)  # New column
 
     # File Upload Path (if any)
     file_path = db.Column(db.String(255))  # Store the path to the uploaded file

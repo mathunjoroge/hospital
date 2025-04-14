@@ -1,8 +1,9 @@
-from flask import  render_template, redirect, url_for, request, flash, jsonify
+from flask import render_template, redirect, url_for, request, flash, jsonify
 from typing import Optional, List, Dict, Any
 import psycopg2
+from departments.nlp.ai_summary import generate_ai_summary 
 from psycopg2.extras import RealDictCursor
-from flask import current_app  # Import current_app
+from flask import current_app
 from flask_login import login_required, current_user
 from flask_wtf.csrf import CSRFProtect
 from extensions import db
@@ -11,17 +12,202 @@ from flask_socketio import SocketIO
 import uuid
 from uuid import uuid4
 from sqlalchemy.orm import joinedload
-from . import bp  # Import the blueprint
+from . import bp
 import os
 from datetime import datetime
-from departments.models.records import PatientWaitingList,Patient
+from departments.models.records import PatientWaitingList, Patient
 from departments.models.medicine import (
-    SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, RequestedImage,UnmatchedImagingRequest,TheatreProcedure,TheatreList,Ward,AdmittedPatient
-,WardBedHistory,WardRoom,Bed,WardRound)
+    SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, 
+    RequestedImage, UnmatchedImagingRequest, TheatreProcedure, TheatreList, 
+    Ward, AdmittedPatient, WardBedHistory, WardRoom, Bed, WardRound
+)
 from departments.forms import AdmitPatientForm
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 socketio = SocketIO()
-prescription_id = str(uuid.uuid4())  # Generate a UUID and convert it to a string
-csrf = CSRFProtect()  # Initialize CSRF globally
+prescription_id = str(uuid.uuid4())
+csrf = CSRFProtect()
+
+@bp.route('/submit_soap_notes/<patient_id>', methods=['POST'])
+@login_required
+def submit_soap_notes(patient_id):
+    """Handles SOAP note submission, including imaging requests and AI summary generation."""
+    if current_user.role not in ['medicine', 'admin']:
+        flash('You do not have permission to access this page.', 'error')
+        return redirect(url_for('home'))
+
+    try:
+        # Extract form data
+        situation = request.form.get('situation')
+        hpi = request.form.get('hpi')
+        aggravating_factors = request.form.get('aggravating_factors')
+        alleviating_factors = request.form.get('alleviating_factors')
+        medical_history = request.form.get('medical_history')
+        medication_history = request.form.get('medication_history')
+        assessment = request.form.get('assessment')
+        recommendation = request.form.get('recommendation')
+        additional_notes = request.form.get('additional_notes')
+
+        # Handle file upload
+        file = request.files.get('file_upload')
+        file_path = None
+        if file and file.filename:
+            upload_folder = os.path.join(current_app.root_path, 'Uploads')
+            if not os.path.exists(upload_folder):
+                os.makedirs(upload_folder)
+            file_path = os.path.join('Uploads', file.filename)
+            file.save(os.path.join(upload_folder, file.filename))
+
+        # Validate required fields
+        if not all([situation, hpi, assessment, recommendation]):
+            flash('All required fields must be filled out!', 'error')
+            return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
+
+        # Save SOAP note
+        new_soap_note = SOAPNote(
+            patient_id=patient_id,
+            situation=situation,
+            hpi=hpi,
+            aggravating_factors=aggravating_factors,
+            alleviating_factors=alleviating_factors,
+            medical_history=medical_history,
+            medication_history=medication_history,
+            assessment=assessment,
+            recommendation=recommendation,
+            additional_notes=additional_notes,
+            file_path=file_path
+        )
+        db.session.add(new_soap_note)
+        db.session.flush()  # Ensure ID is assigned but not committed yet
+
+        # Combine all relevant text for AI summary
+        note_text = f"""
+Chief Complaint: {situation}
+HPI: {hpi}
+Aggravating Factors: {aggravating_factors or 'None'}
+Alleviating Factors: {alleviating_factors or 'None'}
+Medical History: {medical_history or 'None'}
+Medication History: {medication_history or 'None'}
+Assessment: {assessment}
+Recommendation: {recommendation}
+Additional Notes: {additional_notes or 'None'}
+"""
+
+        # Generate and save AI summary
+        try:
+            ai_summary = generate_ai_summary(note_text)
+            new_soap_note.ai_notes = ai_summary
+        except Exception as e:
+            flash(f'Error generating AI summary: {e}', 'warning')
+            new_soap_note.ai_notes = 'Summary generation failed'
+
+        # Extract imaging requests using NLP logic
+        imaging_keywords = ["ct", "mri", "x-ray", "ultrasound", "pet", "scan"]
+        words = recommendation.lower().split()
+        matched_imaging = set()
+
+        for i, word in enumerate(words):
+            for keyword in imaging_keywords:
+                if keyword in word:
+                    phrase = " ".join(words[i:i+2]) if i + 1 < len(words) else word
+                    matched_imaging.add(phrase)
+
+        unmatched_requests = []
+
+        for imaging_request in matched_imaging:
+            imaging_match = Imaging.query.filter(Imaging.imaging_type.ilike(f"%{imaging_request}%")).first()
+            if imaging_match:
+                requested_imaging = RequestedImage(
+                    patient_id=patient_id,
+                    imaging_id=imaging_match.id,
+                    description=recommendation
+                )
+                db.session.add(requested_imaging)
+            else:
+                unmatched_request = UnmatchedImagingRequest(
+                    patient_id=patient_id,
+                    description=imaging_request
+                )
+                db.session.add(unmatched_request)
+                unmatched_requests.append(imaging_request)
+
+        # Commit all changes
+        db.session.commit()
+
+        # Notify admin if there are unmatched imaging requests
+        if unmatched_requests:
+            notify_admin()
+            flash(f"The following imaging requests need manual review: {', '.join(unmatched_requests)}", 'warning')
+
+        flash('SOAP notes submitted successfully!', 'success')
+        return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
+
+    except Exception as e:
+        flash(f'Error submitting SOAP notes: {e}', 'error')
+        db.session.rollback()
+        print(f"Debug: Error in medicine.submit_soap_notes: {e}")
+        return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
+
+@bp.route('/update_missing_ai_summaries', methods=['POST'])
+@login_required
+def update_missing_ai_summaries():
+    """Manually update SOAP notes with missing AI summaries."""
+    if current_user.role not in ['admin']:
+        flash('Only admins can update AI summaries.', 'error')
+        return redirect(url_for('home'))
+
+    try:
+        # Find SOAP notes where ai_notes is null
+        soap_notes = SOAPNote.query.filter(SOAPNote.ai_notes.is_(None)).all()
+        if not soap_notes:
+            flash('No SOAP notes found with missing AI summaries.', 'info')
+            return redirect(url_for('home'))
+
+        updated_count = 0
+        for note in soap_notes:
+            note_text = f"""
+Chief Complaint: {note.situation}
+HPI: {note.hpi}
+Aggravating Factors: {note.aggravating_factors or 'None'}
+Alleviating Factors: {note.alleviating_factors or 'None'}
+Medical History: {note.medical_history or 'None'}
+Medication History: {note.medication_history or 'None'}
+Assessment: {note.assessment}
+Recommendation: {note.recommendation}
+Additional Notes: {note.additional_notes or 'None'}
+"""
+            try:
+                ai_summary = generate_ai_summary(note_text)
+                note.ai_notes = ai_summary
+                updated_count += 1
+            except Exception as e:
+                logger.error(f"Failed to generate summary for SOAP note {note.id}: {e}")
+                note.ai_notes = 'Summary generation failed'
+
+        db.session.commit()
+        flash(f'Updated {updated_count} SOAP notes with AI summaries.', 'success')
+        return redirect(url_for('home'))
+
+    except Exception as e:
+        flash(f'Error updating AI summaries: {e}', 'error')
+        db.session.rollback()
+        logger.error(f"Error in update_missing_ai_summaries: {e}")
+        return redirect(url_for('home'))
+
+@bp.route('/check_missing_ai_summaries', methods=['GET'])
+@login_required
+def check_missing_ai_summaries():
+    """Display count of SOAP notes with missing AI summaries."""
+    if current_user.role not in ['admin']:
+        flash('Only admins can view this page.', 'error')
+        return redirect(url_for('home'))
+
+    count = SOAPNote.query.filter(SOAPNote.ai_notes.is_(None)).count()
+    return render_template('missing_ai_summaries.html', count=count)
+
 # Display the medicine waiting list
 @bp.route('/')
 @login_required
@@ -153,110 +339,6 @@ def submit_prescription(patient_id):
         db.session.rollback()  # Rollback changes in case of error
         print(f"Debug: Error in medicine.submit_prescription: {e}")  # Debugging
         return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
-
-
-@bp.route('/submit_soap_notes/<patient_id>', methods=['POST'])
-@login_required
-def submit_soap_notes(patient_id):
-    """Handles SOAP note submission, including imaging requests."""
-    if current_user.role not in ['medicine', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
-
-    try:
-        # Extract form data
-        situation = request.form.get('situation')  # Chief Complaint
-        hpi = request.form.get('hpi')  # History of Presenting Illness
-        aggravating_factors = request.form.get('aggravating_factors')
-        alleviating_factors = request.form.get('alleviating_factors')
-        medical_history = request.form.get('medical_history')
-        medication_history = request.form.get('medication_history')
-        assessment = request.form.get('assessment')  # Diagnosis
-        recommendation = request.form.get('recommendation')  # Treatment Plan
-        additional_notes = request.form.get('additional_notes')  # Additional Notes
-
-        # Handle file upload
-        file = request.files.get('file_upload')
-        file_path = None
-        if file and file.filename:
-            upload_folder = os.path.join(current_app.root_path, 'uploads')
-            if not os.path.exists(upload_folder):
-                os.makedirs(upload_folder)
-            file_path = os.path.join('uploads', file.filename)
-            file.save(os.path.join(upload_folder, file.filename))
-
-        # Validate required fields
-        if not all([situation, hpi, assessment, recommendation]):
-            flash('All required fields must be filled out!', 'error')
-            return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
-
-        # Save SOAP note
-        new_soap_note = SOAPNote(
-            patient_id=patient_id,
-            situation=situation,
-            hpi=hpi,
-            aggravating_factors=aggravating_factors,
-            alleviating_factors=alleviating_factors,
-            medical_history=medical_history,
-            medication_history=medication_history,
-            assessment=assessment,
-            recommendation=recommendation,
-            additional_notes=additional_notes,
-            file_path=file_path
-        )
-        db.session.add(new_soap_note)
-        db.session.commit()
-
-        # Extract imaging requests using NLP logic
-        imaging_keywords = ["ct", "mri", "x-ray", "ultrasound", "pet", "scan"]
-        words = recommendation.lower().split()
-        matched_imaging = set()
-
-        for i, word in enumerate(words):
-            for keyword in imaging_keywords:
-                if keyword in word:
-                    # Capture full phrase (e.g., "CT head" instead of just "CT")
-                    phrase = " ".join(words[i:i+2]) if i + 1 < len(words) else word
-                    matched_imaging.add(phrase)
-
-        unmatched_requests = []
-
-        for imaging_request in matched_imaging:
-            imaging_match = Imaging.query.filter(Imaging.imaging_type.ilike(f"%{imaging_request}%")).first()
-            if imaging_match:
-                # Create requested imaging entry
-                requested_imaging = RequestedImage(
-                    patient_id=patient_id,
-                    imaging_id=imaging_match.id,
-                    description=recommendation
-                )
-                db.session.add(requested_imaging)
-            else:
-                # Save unmatched imaging request
-                unmatched_request = UnmatchedImagingRequest(
-                    patient_id=patient_id,
-                    description=imaging_request
-                )
-                db.session.add(unmatched_request)
-                unmatched_requests.append(imaging_request)
-
-        db.session.commit()
-
-        # Notify admin if there are unmatched imaging requests
-        if unmatched_requests:
-            notify_admin()
-            flash(f"The following imaging requests need manual review: {', '.join(unmatched_requests)}", 'warning')
-
-        flash('SOAP notes submitted successfully!', 'success')
-        return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
-
-    except Exception as e:
-        flash(f'Error submitting SOAP notes: {e}', 'error')
-        db.session.rollback()
-        print(f"Debug: Error in medicine.submit_soap_notes: {e}")
-        return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
-
-
 # Handle lab test requests
 @bp.route('/request_lab_tests/<patient_id>', methods=['GET', 'POST'])
 @login_required

@@ -3,7 +3,9 @@ from flask_login import login_user, current_user, logout_user, login_required
 from flask_migrate import Migrate
 from flask_mail import Mail
 from flask_socketio import SocketIO
+from flask_apscheduler import APScheduler
 from werkzeug.security import check_password_hash
+from departments.nlp.ai_summary import update_all_ai_notes
 from datetime import datetime
 import os
 import logging
@@ -20,9 +22,9 @@ app = Flask(__name__)
 app.config.from_object(Config)
 
 # Upload folders
-app.config['UPLOAD_FOLDER'] = os.path.join('uploads')
+app.config['UPLOAD_FOLDER'] = os.path.join('Uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
-app.config['DICOM_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'dicom_uploads')
+app.config['DICOM_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'dicom_Uploads')
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2 GB file limit
 
 os.makedirs(app.config['DICOM_UPLOAD_FOLDER'], exist_ok=True)
@@ -33,11 +35,38 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 mail = Mail(app)
 migrate = Migrate(app, db)
-socketio = SocketIO(app)  # SocketIO initialized with app
+socketio = SocketIO(app)
+
+# Initialize APScheduler
+scheduler = APScheduler()
+scheduler.init_app(app)
 
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Scheduler task for AI notes
+def scheduled_update_ai_notes():
+    """Scheduled task to update missing AI notes in SOAPNote entries."""
+    with app.app_context():
+        try:
+            logger.info("Starting scheduled update of missing AI notes.")
+            update_all_ai_notes()
+            logger.info("Completed scheduled update of missing AI notes.")
+        except Exception as e:
+            logger.error(f"Error in scheduled_update_ai_notes: {e}", exc_info=True)
+            db.session.rollback()
+            db.session.add(Log(level='ERROR', message=f"Scheduled AI notes update error: {e}", source='scheduler'))
+            db.session.commit()
+
+# Add scheduler job (daily at 2 AM)
+scheduler.add_job(
+    id='update_ai_notes',
+    func=scheduled_update_ai_notes,
+    trigger='cron',
+    hour=2,
+    minute=0
+)
 
 # Jinja filters
 @app.template_filter('parse_iso')
@@ -49,7 +78,7 @@ def parse_iso(timestamp):
             return dt.strftime('%Y-%m-%d %H:%M:%S')
         return timestamp
     except (ValueError, TypeError) as e:
-        print(f"Error parsing timestamp {timestamp}: {e}")
+        logger.error(f"Error parsing timestamp {timestamp}: {e}")
         return timestamp
 
 @app.context_processor
@@ -61,7 +90,7 @@ def inject_unread_notifications():
             count = 0
         return dict(unread_notifications=count)
     except Exception as e:
-        print(f"Error in inject_unread_notifications: {e}")
+        logger.error(f"Error in inject_unread_notifications: {e}")
         return dict(unread_notifications=0)
 
 def datetime_filter(value):
@@ -155,4 +184,18 @@ if __name__ == '__main__':
     app.register_blueprint(hr_bp, url_prefix='/hr')
     app.register_blueprint(api_bp, url_prefix='/api')
 
-    socketio.run(app, debug=True)  # Use socketio.run
+    with app.app_context():
+        db.create_all()  # Ensure tables exist
+        # Run initial AI notes update
+        try:
+            logger.info("Running initial AI notes update on startup.")
+            update_all_ai_notes()
+            logger.info("Completed initial AI notes update.")
+        except Exception as e:
+            logger.error(f"Error in initial AI notes update: {e}", exc_info=True)
+            db.session.rollback()
+            db.session.add(Log(level='ERROR', message=f"Startup AI notes update error: {e}", source='startup'))
+            db.session.commit()
+
+    scheduler.start()  # Start APScheduler
+    socketio.run(app, debug=True)
