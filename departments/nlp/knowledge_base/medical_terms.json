@@ -1,100 +1,275 @@
-[
-    "pain", "headache", "chest pain", "abdominal pain", "back pain", "joint pain",
-    "muscle pain", "tothache", "earache", "neck pain", "pelvic pain", "leg pain",
-    "arm pain", "shoulder pain", "knee pain", "ankle pain", "wrist pain",
-    "numbness", "tingling", "weakness", "paralysis", "seizure", "tremors",
-    "dizziness", "vertigo", "confusion", "memory loss", "vision changes",
-    "blurred vision", "double vision", "loss of consciousness", "fainting",
-    "cough", "wheezing", "shortness of breath", "difficulty breathing",
-    "nasal congestion", "sore throat", "hoarseness", "chest tightness",
-    "hemoptysis", "stridor", "snoring", "apnea",
-    "nausea", "vomiting", "diarrhea", "constipation", "abdominal distension",
-    "bloating", "heartburn", "indigestion", "belching", "flatulence", "melena",
-    "hematochezia", "dysphagia", "odynophagia", "appetite loss", "weight loss",
-    "palpitations", "chest discomfort", "edema", "swelling", "claudication",
-    "syncope", "orthopnea", "paroxysmal nocturnal dyspnea", "cyanosis",
-    "rash", "itching", "pruritus", "redness", "swelling", "bruising", "lesion",
-    "ulcer", "blister", "hives", "eczema", "psoriasis", "dermatitis", "dry skin",
-    "dysuria", "frequency", "urgency", "incontinence", "hematuria", "nocturia",
-    "menstrual irregularity", "vaginal discharge", "pelvic pressure", "erectile dysfunction",
-    "stiffness", "swelling", "deformity", "limited range of motion", "cramps",
-    "spasms", "fracture", "dislocation", "instability", "joint swelling",
-    "fatigue", "fever", "chills", "night sweats", "malaise", "anxiety",
-    "depression", "irritability", "insomnia", "restlessness", "weight gain",
-    "palpitations", "tachycardia", "bradycardia", "hypertension", "hypotension",
-    "dehydration", "thirst", "polyuria", "polydipsia", "jaundice", "lymphadenopathy",
-    "postnasal drip", "rhinorrhea", "epistaxis", "sinus pressure", "facial pain",
-    "tinnitus", "otalgia", "hearing loss", "vertigo", "otalgia",
-    "photophobia", "diplopia", "scotoma", "floaters", "blindness",
-    "gingival bleeding", "halitosis", "xerostomia", "oral ulceration",
-    "dysmenorrhea", "amenorrhea", "polymenorrhea", "oligomenorrhea",
-    "breast tenderness", "galactorrhea", "mastalgia", "nipple discharge",
-    "testicular pain", "scrotal swelling", "penile discharge", "balanitis",
-    "inguinal hernia", "hydrocele", "varicocele",
-    "gynecomastia", "hirsutism", "alopecia", "acne", "hyperpigmentation",
-    "hypopigmentation", "vitiligo", "keloid", "scar", "callus",
-    "petechiae", "purpura", "ecchymosis", "telangiectasia", "angioedema",
-    "urticaria", "lichen planus", "rosacea", "cellulitis", "abscess",
-    "onychomycosis", "paronychia", "splinter hemorrhage", "clubbing",
-    "cyanosis", "pallor", "jaundice", "erythema", "rubor",
-    "cold extremities", "warm extremities", "clammy skin", "diaphoresis",
-    "ascites", "splenomegaly", "hepatomegaly", "hepatic tenderness",
-    "costovertebral angle tenderness", "flank pain", "renal colic",
-    "ureteral colic", "hydronephrosis", "pyuria", "proteinuria", "glycosuria",
-    "polyneuropathy", "mononeuropathy", "radiculopathy", "myopathy",
-    "ataxia", "dysarthria", "aphasia", "dysphonia", "hoarseness",
-    "paresthesia", "hyperesthesia", "hypoesthesia", "dysesthesia",
-    "hyperreflexia", "hyporeflexia", "areflexia", "clonus", "babinski sign",
-    "muscle wasting", "muscle hypertrophy", "muscle cramps", "muscle stiffness",
-    "trismus", "tetany", "myoclonus", "fasciculations", "rigidity",
-    "akinesia", "bradykinesia", "dystonia", "chorea", "athetosis",
-    "torticollis", "blepharospasm", "ptosis", "proptosis", "exophthalmos",
-    "diplopia", "strabismus", "amblyopia", "glaucoma", "cataract",
-    "conjunctivitis", "keratitis", "uveitis", "retinitis", "macular degeneration",
-    "optic neuritis", "papilledema", "amaurosis fugax", "visual field defect",
-    "anosmia", "hyposmia", "dysgeusia", "ageusia", "hyperacusis",
-    "hypacusis", "otalgia", "otalgia", "vertigo", "tinnitus",
-    "rhinorrhea", "epistaxis", "nasal obstruction", "sinusitis", "pharyngitis",
-    "laryngitis", "tonsillitis", "tracheitis", "bronchitis", "pneumonitis",
-    "pleuritis", "empyema", "hemothorax", "pneumothorax", "atelectasis",
-    "pulmonary fibrosis", "pulmonary embolism", "pulmonary hypertension",
-    "respiratory failure", "acute respiratory distress syndrome",
-    "chronic obstructive pulmonary disease", "asthma", "bronchiectasis",
-    "pneumonia", "lung abscess", "tuberculosis", "aspergillosis", "histoplasmosis",
-    "coccidioidomycosis", "cryptococcosis", "blastomycosis", "pneumocystis pneumonia",
-    "esophageal varices", "gastritis", "peptic ulcer disease", "duodenitis",
-    "gastroenteritis", "colitis", "diverticulitis", "appendicitis", "peritonitis",
-    "pancreatitis", "cholecystitis", "choledocholithiasis", "hepatitis",
-    "cirrhosis", "liver failure", "portal hypertension", "splenic rupture",
-    "intestinal obstruction", "intestinal ischemia", "mesenteric ischemia",
-    "volvulus", "intussusception", "hernia", "fistula", "abscess",
-    "ulcerative colitis", "crohn's disease", "celiac disease", "whipple's disease",
-    "irritable bowel syndrome", "functional dyspepsia", "small intestinal bacterial overgrowth",
-    "gastroesophageal reflux disease", "hiatal hernia", "achalasia", "esophageal stricture",
-    "barrett's esophagus", "esophageal cancer", "gastric cancer", "colorectal cancer",
-    "pancreatic cancer", "hepatocellular carcinoma", "cholangiocarcinoma", "gallbladder cancer",
-    "renal cell carcinoma", "transitional cell carcinoma", "bladder cancer", "prostate cancer",
-    "testicular cancer", "penile cancer", "ovarian cancer", "endometrial cancer", "cervical cancer",
-    "breast cancer", "lung cancer", "melanoma", "basal cell carcinoma", "squamous cell carcinoma",
-    "sarcoma", "lymphoma", "leukemia", "multiple myeloma", "plasma cell dyscrasia",
-    "anemia", "polycythemia", "leukopenia", "leukocytosis", "thrombocytopenia",
-    "thrombocytosis", "coagulopathy", "disseminated intravascular coagulation",
-    "hemophilia", "von willebrand disease", "thrombophilia", "deep vein thrombosis",
-    "pulmonary embolism", "arterial thrombosis", "venous thrombosis", "embolism",
-    "hypothyroidism", "hyperthyroidism", "thyroiditis", "goiter", "thyroid nodule",
-    "thyroid cancer", "adrenal insufficiency", "cushing's syndrome", "addison's disease",
-    "pheochromocytoma", "hyperparathyroidism", "hypoparathyroidism", "osteoporosis",
-    "rickets", "osteomalacia", "paget's disease", "fibrous dysplasia", "osteogenesis imperfecta",
-    "marfan syndrome", "ehlers-danlos syndrome", "achondroplasia", "scoliosis", "kyphosis",
-    "lordosis", "spina bifida", "meningitis", "encephalitis", "brain abscess",
-    "subdural hematoma", "epidural hematoma", "intracerebral hemorrhage", "subarachnoid hemorrhage",
-    "stroke", "transient ischemic attack", "migraine", "cluster headache", "tension headache",
-    "trigeminal neuralgia", "bell's palsy", "guillain-barre syndrome", "multiple sclerosis",
-    "amyotrophic lateral sclerosis", "parkinson's disease", "alzheimer's disease",
-    "frontotemporal dementia", "vascular dementia", "lewy body dementia", "prion disease",
-    "schizophrenia", "bipolar disorder", "major depressive disorder", "generalized anxiety disorder",
-    "panic disorder", "obsessive-compulsive disorder", "post-traumatic stress disorder",
-    "eating disorder", "substance use disorder", "personality disorder", "autism spectrum disorder",
-    "attention deficit hyperactivity disorder", "intellectual disability", "developmental disorder",
-    "psychosis", "delirium", "mania", "hypomania", "catatonia", "dissociative identity disorder"
-]
+{
+    "severe headache": {
+        "category": "Neurological",
+        "location": "Head",
+        "potential_causes": ["migraine", "meningitis", "cluster headache", "temporal arteritis"],
+        "severity": "Severe",
+        "synonyms": ["throbbing headache", "occipital headache"]
+    },
+    "throbbing headache": {
+        "category": "Neurological",
+        "location": "Head",
+        "potential_causes": ["migraine", "hypertension", "tension headache"],
+        "severity": "Moderate to Severe",
+        "synonyms": ["severe headache"]
+    },
+    "occipital headache": {
+        "category": "Neurological",
+        "location": "Head",
+        "potential_causes": ["hypertension", "cervical strain", "occipital neuralgia"],
+        "severity": "Moderate",
+        "synonyms": []
+    },
+    "cluster headache": {
+        "category": "Neurological",
+        "location": "Head",
+        "potential_causes": ["cluster headache", "trigeminal neuralgia"],
+        "severity": "Severe",
+        "synonyms": []
+    },
+    "chest pain": {
+        "category": "Cardiovascular",
+        "location": "Chest",
+        "potential_causes": ["angina", "myocardial infarction", "pulmonary embolism", "pericarditis"],
+        "severity": "Variable",
+        "synonyms": ["retrosternal pain"]
+    },
+    "pleuritic chest pain": {
+        "category": "Respiratory",
+        "location": "Chest",
+        "potential_causes": ["pneumonia", "pulmonary embolism", "pleuritis"],
+        "severity": "Moderate to Severe",
+        "synonyms": []
+    },
+    "epigastric pain": {
+        "category": "Gastrointestinal",
+        "location": "Abdomen",
+        "potential_causes": ["gerd", "gastritis", "peptic ulcer disease", "pancreatitis"],
+        "severity": "Moderate",
+        "synonyms": []
+    },
+    "flank pain": {
+        "category": "Renal",
+        "location": "Flank",
+        "potential_causes": ["kidney stones", "pyelonephritis", "renal colic"],
+        "severity": "Moderate to Severe",
+        "synonyms": ["renal colic"]
+    },
+    "knee pain": {
+        "category": "Musculoskeletal",
+        "location": "Knee",
+        "potential_causes": ["osteoarthritis", "meniscal tear", "ligament sprain"],
+        "severity": "Mild to Moderate",
+        "synonyms": []
+    },
+    "ankle pain": {
+        "category": "Musculoskeletal",
+        "location": "Ankle",
+        "potential_causes": ["ankle sprain", "fracture", "tendinitis"],
+        "severity": "Mild to Moderate",
+        "synonyms": []
+    },
+    "numbness": {
+        "category": "Neurological",
+        "location": "Variable",
+        "potential_causes": ["peripheral neuropathy", "carpal tunnel syndrome", "stroke", "multiple sclerosis"],
+        "severity": "Mild to Moderate",
+        "synonyms": ["paresthesia"]
+    },
+    "tremors": {
+        "category": "Neurological",
+        "location": "Variable",
+        "potential_causes": ["parkinson's disease", "hyperthyroidism", "essential tremor"],
+        "severity": "Mild to Moderate",
+        "synonyms": ["hand tremors"]
+    },
+    "dizziness": {
+        "category": "Neurological",
+        "location": "Head",
+        "potential_causes": ["vertigo", "orthostatic hypotension", "anemia"],
+        "severity": "Mild to Moderate",
+        "synonyms": []
+    },
+    "vertigo": {
+        "category": "Neurological",
+        "location": "Head",
+        "potential_causes": ["vertigo", "meniere’s disease", "vestibular migraine"],
+        "severity": "Moderate",
+        "synonyms": ["spinning sensation"]
+    },
+    "diarrhea": {
+        "category": "Gastrointestinal",
+        "location": "Abdomen",
+        "potential_causes": ["gastroenteritis", "lactose intolerance", "irritable bowel syndrome", "inflammatory bowel disease"],
+        "severity": "Mild to Severe",
+        "synonyms": ["loose stools", "acute diarrhea"]
+    },
+    "nausea": {
+        "category": "Gastrointestinal",
+        "location": "Abdomen",
+        "potential_causes": ["gastritis", "gastroenteritis", "migraine", "motion sickness"],
+        "severity": "Mild to Moderate",
+        "synonyms": []
+    },
+    "facial swelling": {
+        "category": "Allergic",
+        "location": "Face",
+        "potential_causes": ["allergic reaction", "angioedema", "cellulitis"],
+        "severity": "Mild to Severe",
+        "synonyms": ["edema of face"]
+    },
+    "postnasal drip": {
+        "category": "Respiratory",
+        "location": "Nasal/Throat",
+        "potential_causes": ["sinusitis", "allergic rhinitis", "pharyngitis"],
+        "severity": "Mild",
+        "synonyms": []
+    },
+    "dry cough": {
+        "category": "Respiratory",
+        "location": "Chest",
+        "potential_causes": ["pharyngitis", "gerd", "allergic cough"],
+        "severity": "Mild to Moderate",
+        "synonyms": ["persistent dry cough"]
+    },
+    "palpitations": {
+        "category": "Cardiovascular",
+        "location": "Chest",
+        "potential_causes": ["arrhythmia", "anxiety", "hyperthyroidism"],
+        "severity": "Mild to Moderate",
+        "synonyms": ["heart palpitations"]
+    },
+    "itchy rash": {
+        "category": "Dermatological",
+        "location": "Skin",
+        "potential_causes": ["atopic dermatitis", "psoriasis", "contact dermatitis"],
+        "severity": "Mild to Moderate",
+        "synonyms": ["pruritic rash"]
+    },
+    "neck stiffness": {
+        "category": "Musculoskeletal",
+        "location": "Neck",
+        "potential_causes": ["cervical strain", "meningitis", "muscle spasm"],
+        "severity": "Mild to Moderate",
+        "synonyms": []
+    },
+    "back pain": {
+        "category": "Musculoskeletal",
+        "location": "Back",
+        "potential_causes": ["cervical strain", "herniated disc", "osteoarthritis"],
+        "severity": "Mild to Moderate",
+        "synonyms": ["chronic low back pain"]
+    },
+    "photophobia": {
+        "category": "Neurological",
+        "location": "Eyes/Head",
+        "potential_causes": ["migraine", "meningitis", "uveitis"],
+        "severity": "Moderate",
+        "synonyms": []
+    },
+    "fever": {
+        "category": "Systemic",
+        "location": "General",
+        "potential_causes": ["pneumonia", "meningitis", "sepsis", "malaria"],
+        "severity": "Mild to Severe",
+        "synonyms": ["pyrexia"]
+    },
+    "dyspnea": {
+        "category": "Respiratory",
+        "location": "Chest",
+        "potential_causes": ["copd", "heart failure", "pulmonary embolism", "asthma"],
+        "severity": "Moderate to Severe",
+        "synonyms": ["shortness of breath"]
+    },
+    "joint pain": {
+        "category": "Musculoskeletal",
+        "location": "Joints",
+        "potential_causes": ["rheumatoid arthritis", "gout", "osteoarthritis", "lupus"],
+        "severity": "Mild to Severe",
+        "synonyms": ["arthralgia"]
+    },
+    "fatigue": {
+        "category": "Systemic",
+        "location": "General",
+        "potential_causes": ["anemia", "hypothyroidism", "chronic kidney disease", "depression"],
+        "severity": "Mild to Moderate",
+        "synonyms": ["tiredness"]
+    },
+    "abdominal pain": {
+        "category": "Gastrointestinal",
+        "location": "Abdomen",
+        "potential_causes": ["appendicitis", "diverticulitis", "cholecystitis", "inflammatory bowel disease"],
+        "severity": "Moderate to Severe",
+        "synonyms": ["abdominal discomfort"]
+    },
+    "vaginal discharge": {
+        "category": "Gynecological",
+        "location": "Pelvis",
+        "potential_causes": ["bacterial vaginosis", "candidiasis", "chlamydia", "gonorrhea"],
+        "severity": "Mild to Moderate",
+        "synonyms": []
+    },
+    "hematuria": {
+        "category": "Renal",
+        "location": "Urinary tract",
+        "potential_causes": ["uti", "kidney stones", "bladder cancer"],
+        "severity": "Mild to Severe",
+        "synonyms": ["blood in urine"]
+    },
+    "night sweats": {
+        "category": "Systemic",
+        "location": "General",
+        "potential_causes": ["tuberculosis", "lymphoma", "hiv/aids", "mononucleosis"],
+        "severity": "Mild to Moderate",
+        "synonyms": []
+    },
+    "polydipsia": {
+        "category": "Endocrine",
+        "location": "General",
+        "potential_causes": ["diabetes mellitus", "gestational diabetes", "diabetes insipidus"],
+        "severity": "Mild to Moderate",
+        "synonyms": ["excessive thirst"]
+    },
+    "myalgia": {
+        "category": "Musculoskeletal",
+        "location": "Muscles",
+        "potential_causes": ["influenza", "dengue fever", "leptospirosis", "fibromyalgia"],
+        "severity": "Mild to Moderate",
+        "synonyms": ["muscle pain"]
+    },
+    "edema": {
+        "category": "Cardiovascular",
+        "location": "Variable",
+        "potential_causes": ["heart failure", "chronic kidney disease", "deep vein thrombosis", "preeclampsia"],
+        "severity": "Mild to Severe",
+        "synonyms": ["swelling"]
+    },
+    "vesicular rash": {
+        "category": "Dermatological",
+        "location": "Skin",
+        "potential_causes": ["herpes zoster", "herpes simplex", "varicella"],
+        "severity": "Mild to Moderate",
+        "synonyms": []
+    },
+    "sore throat": {
+        "category": "Respiratory",
+        "location": "Throat",
+        "potential_causes": ["pharyngitis", "tonsillitis", "mononucleosis", "influenza"],
+        "severity": "Mild to Moderate",
+        "synonyms": []
+    },
+    "lymphadenopathy": {
+        "category": "Systemic",
+        "location": "Lymph nodes",
+        "potential_causes": ["lymphoma", "tuberculosis", "mononucleosis", "hiv/aids"],
+        "severity": "Mild to Moderate",
+        "synonyms": ["swollen lymph nodes"]
+    },
+    "jaundice": {
+        "category": "Hepatic",
+        "location": "Skin/Eyes",
+        "potential_causes": ["hepatitis", "cirrhosis", "gallstones", "thalassemia"],
+        "severity": "Moderate to Severe",
+        "synonyms": ["yellowing of skin"]
+    }
+}

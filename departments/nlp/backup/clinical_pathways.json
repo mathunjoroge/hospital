@@ -28,7 +28,7 @@
           "Sumatriptan 50-100 mg orally as needed for migraine",
           "Propranolol 40-80 mg daily for migraine prophylaxis if frequent",
           "Ceftriaxone 2 g IV for suspected meningitis (pending cultures)",
-          "Aspirin 81-325 mg orally for ischemic stroke (pending imaging confirmation)"
+          "Aspirin 81-325 mg orally for ischemic stroke (pending imaging confirmation)" 
         ],
         "lifestyle": [
           "Stress management: mindfulness, counseling",
@@ -38,11 +38,11 @@
       "follow_up": [
         "Follow-up in 3-5 days for acute migraine",
         "Follow-up in 2-4 weeks for prophylaxis evaluation"
-      ],
+      ], 
       "metadata": {
         "notes": "Consider pregnancy test in women of childbearing age; avoid triptans in cardiovascular disease.",
         "source": "Mayo Clinic"
-      }
+      } 
     },
     "chest": {
       "differentials": [
@@ -72,9 +72,9 @@
           "Nitroglycerin 0.4 mg sublingual every 5 min (up to 3 doses) if cardiac"
         ],
         "definitive": [
-          "Aspirin 325 mg chewed for acute coronary syndrome",
+          "Aspirin 325 mg chewed for acute coronary syndrome", 
           "Heparin or enoxaparin for pulmonary embolism",
-          "Antibiotics (e.g., ceftriaxone 1 g IV daily) for pneumonia",
+          "Antibiotics (e.g., ceftriaxone 1 g IV daily) for pneumonia", 
           "Surgical consult for aortic dissection"
         ],
         "lifestyle": [
@@ -307,7 +307,7 @@
         "COPD",
         "Pneumonia",
         "GERD",
-        "Allergic cough"
+        "Allergic cough" 
       ],
       "workup": {
         "urgent": [
@@ -321,15 +321,15 @@
       },
       "management": {
         "symptomatic": [
-          "Dextromethorphan 10-20 mg orally every 4 hours as needed",
+          "Dextromethorphan 10-20 mg orally every 4 hours as needed", 
           "Humidifier for airway moisture"
         ],
         "definitive": [
           "Fluticasone nasal spray 50 mcg daily for postnasal drip",
           "Albuterol inhaler 2 puffs every 4 hours for asthma",
-          "Antibiotics (e.g., ceftriaxone 1 g IV daily) for pneumonia",
+          "Antibiotics (e.g., ceftriaxone 1 g IV daily) for pneumonia", 
           "Esomeprazole 40 mg daily for GERD",
-          "Cetirizine 10 mg daily for allergic cough"
+          "Cetirizine 10 mg daily for allergic cough" 
         ],
         "lifestyle": [
           "Avoid allergens: pets, dust (use HEPA filter)",
@@ -478,7 +478,7 @@
         "source": "NICE"
       }
     },
-    "asthma exacerbation": {
+    "asthma exacerbation": { 
       "differentials": [
         "Asthma",
         "Allergic bronchitis",
@@ -615,7 +615,7 @@
         "Venous insufficiency",
         "Deep vein thrombosis",
         "Nephrotic syndrome",
-        "Chronic kidney disease",
+        "Chronic kidney disease", 
         "Liver cirrhosis"
       ],
       "workup": {
@@ -628,7 +628,7 @@
           "Echocardiogram for heart failure",
           "Urine protein/creatinine ratio for nephrotic syndrome",
           "Renal function tests",
-          "Serum albumin for liver or kidney pathology"
+          "Serum albumin for liver or kidney pathology" 
         ]
       },
       "management": {
@@ -641,7 +641,7 @@
           "Enoxaparin 1 mg/kg SC twice daily for DVT",
           "Compression stockings for venous insufficiency",
           "Prednisone 1 mg/kg daily for nephrotic syndrome",
-          "Spironolactone 100 mg daily for cirrhosis"
+          "Spironolactone 100 mg daily for cirrhosis" 
         ],
         "lifestyle": [
           "Low-sodium diet: <2 g/day",
@@ -707,7 +707,7 @@
         "Lactose intolerance",
         "Irritable bowel syndrome",
         "Inflammatory bowel disease",
-        "Viral gastroenteritis"
+        "Viral gastroenteritis" 
       ],
       "workup": {
         "urgent": [
@@ -728,7 +728,7 @@
           "Ciprofloxacin 500 mg twice daily for bacterial diarrhea",
           "Lactose-free diet for intolerance",
           "Mesalamine 2.4 g daily for IBD",
-          "Supportive care for viral gastroenteritis"
+          "Supportive care for viral gastroenteritis" 
         ],
         "lifestyle": [
           "High-fiber diet for IBS",
@@ -872,7 +872,7 @@
         "Stroke",
         "Peripheral neuropathy",
         "Myasthenia gravis",
-        "Guillain-Barr\u00e9 syndrome"
+        "Guillain-Barré syndrome"
       ],
       "workup": {
         "urgent": [
@@ -890,7 +890,7 @@
           "Physical therapy for mobility"
         ],
         "definitive": [
-          "Aspirin 81-325 mg for ischemic stroke (pending imaging confirmation)",
+          "Aspirin 81-325 mg for ischemic stroke (pending imaging confirmation)", 
           "Gabapentin 300 mg nightly for neuropathy",
           "Pyridostigmine 60 mg every 4 hours for myasthenia"
         ],
@@ -995,9 +995,9 @@
     "tremors": {
       "differentials": [
         "Essential tremor",
-        "Parkinson\u2019s disease",
+        "Parkinson’s disease",
         "Hyperthyroidism",
-        "Wilson\u2019s disease"
+        "Wilson’s disease"
       ],
       "workup": {
         "urgent": [
@@ -1005,7 +1005,7 @@
         ],
         "routine": [
           "Neurology consult for diagnostic confirmation",
-          "Ceruloplasmin for Wilson\u2019s disease (age <40)"
+          "Ceruloplasmin for Wilson’s disease (age <40)"
         ]
       },
       "management": {
@@ -1014,7 +1014,7 @@
         ],
         "definitive": [
           "Propranolol 20-40 mg daily for essential tremor",
-          "Levodopa/carbidopa 25/100 mg thrice daily for Parkinson\u2019s",
+          "Levodopa/carbidopa 25/100 mg thrice daily for Parkinson’s",
           "Methimazole 5-10 mg daily for hyperthyroidism"
         ],
         "lifestyle": [
@@ -1027,14 +1027,14 @@
         "Follow-up in 1-2 weeks for hyperthyroidism"
       ],
       "metadata": {
-        "notes": "Family history relevant for essential tremor; monitor for rigidity in Parkinson\u2019s.",
+        "notes": "Family history relevant for essential tremor; monitor for rigidity in Parkinson’s.",
         "source": "Mayo Clinic"
       }
     },
     "vertigo": {
       "differentials": [
         "Benign paroxysmal positional vertigo",
-        "Meniere\u2019s disease",
+        "Meniere’s disease",
         "Vestibular neuritis",
         "Cerebellar stroke"
       ],
@@ -1044,7 +1044,7 @@
           "CT head if stroke suspected"
         ],
         "routine": [
-          "Audiometry for Meniere\u2019s",
+          "Audiometry for Meniere’s",
           "MRI brain if central cause suspected"
         ]
       },
@@ -1054,17 +1054,17 @@
         ],
         "definitive": [
           "Epley maneuver for BPPV",
-          "Hydrochlorothiazide 25 mg daily for Meniere\u2019s",
+          "Hydrochlorothiazide 25 mg daily for Meniere’s",
           "Prednisone 60 mg daily for vestibular neuritis"
         ],
         "lifestyle": [
           "Home canalith repositioning exercises",
-          "Low-sodium diet for Meniere\u2019s"
+          "Low-sodium diet for Meniere’s"
         ]
       },
       "follow_up": [
         "Follow-up in 3-5 days for BPPV",
-        "Follow-up in 1-2 weeks for Meniere\u2019s or neuritis"
+        "Follow-up in 1-2 weeks for Meniere’s or neuritis"
       ],
       "metadata": {
         "notes": "Refer to ENT for persistent symptoms; monitor for hearing loss.",
@@ -1260,7 +1260,7 @@
         ],
         "definitive": [
           "Ceftriaxone 1 g IV daily for bacterial infection",
-          "Artemether-lumefantrine for confirmed malaria (per WHO)",
+          "Artemether-lumefantrine for confirmed malaria (per WHO)", 
           "Nitrofurantoin 100 mg twice daily for UTI"
         ],
         "lifestyle": [
@@ -1416,7 +1416,7 @@
       "workup": {
         "urgent": [
           "Fundoscopic exam for retinal pathology",
-          "CT head if acute onset with neurological signs"
+          "CT head if acute onset with neurological signs" 
         ],
         "routine": [
           "Comprehensive eye exam",
@@ -1430,7 +1430,7 @@
         "definitive": [
           "Laser therapy for diabetic retinopathy",
           "Timolol 0.5% eye drops twice daily for glaucoma",
-          "Aspirin 81-325 mg for ischemic stroke (pending imaging confirmation)",
+          "Aspirin 81-325 mg for ischemic stroke (pending imaging confirmation)", 
           "Ranibizumab injections for macular degeneration"
         ],
         "lifestyle": [
@@ -1452,7 +1452,7 @@
         "Sensorineural hearing loss",
         "Conductive hearing loss",
         "Otitis media",
-        "Meniere\u2019s disease"
+        "Meniere’s disease"
       ],
       "workup": {
         "urgent": [],
@@ -1471,11 +1471,11 @@
           "Hearing aids for sensorineural loss",
           "Amoxicillin 500 mg thrice daily for otitis media",
           "Myringotomy for chronic conductive loss",
-          "Hydrochlorothiazide 25 mg daily for Meniere\u2019s"
+          "Hydrochlorothiazide 25 mg daily for Meniere’s"
         ],
         "lifestyle": [
           "Ear protection in noisy environments",
-          "Low-sodium diet for Meniere\u2019s"
+          "Low-sodium diet for Meniere’s"
         ]
       },
       "follow_up": [
@@ -1491,7 +1491,7 @@
       "differentials": [
         "Sensorineural hearing loss",
         "Otitis media",
-        "Meniere\u2019s disease",
+        "Meniere’s disease",
         "Acoustic neuroma"
       ],
       "workup": {
@@ -1509,7 +1509,7 @@
         "definitive": [
           "Hearing aids for sensorineural loss",
           "Amoxicillin 500 mg thrice daily for otitis media",
-          "Hydrochlorothiazide 25 mg daily for Meniere\u2019s",
+          "Hydrochlorothiazide 25 mg daily for Meniere’s",
           "Neurosurgery consult for acoustic neuroma"
         ],
         "lifestyle": [
@@ -1537,7 +1537,7 @@
       ],
       "workup": {
         "urgent": [
-          "Rapid strep test if Centor score \u22653"
+          "Rapid strep test if Centor score ≥3"
         ],
         "routine": [
           "Throat culture if rapid test negative",
@@ -1611,25 +1611,6 @@
         "notes": "Strain urine for stone analysis; avoid NSAIDs in renal impairment.",
         "source": "Mayo Clinic"
       }
-    },
-    "edema": {
-      "differentials": [
-        "for chronic kidney diseaserisk factors for ckd include diabetes",
-        "high blood pressure",
-        "heart failure",
-        "and family history"
-      ],
-      "workup": {
-        "urgent": [],
-        "routine": []
-      },
-      "management": {
-        "symptomatic": [],
-        "definitive": [
-          "websites"
-        ]
-      },
-      "source": "CDC"
     }
   },
   "psychiatric": {
@@ -1768,7 +1749,7 @@
       },
       "management": {
         "symptomatic": [
-          "Transfusion: platelets if <10,000/\u00b5L"
+          "Transfusion: platelets if <10,000/µL"
         ],
         "definitive": [
           "Prednisone 1 mg/kg daily for ITP",
