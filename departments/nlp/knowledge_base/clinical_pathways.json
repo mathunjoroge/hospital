@@ -1,353 +1,1920 @@
 {
   "pain": {
     "head": {
-      "differentials": ["Migraine", "Tension headache", "Cluster headache", "Sinusitis"],
+      "differentials": [
+        "Migraine",
+        "Tension headache",
+        "Meningitis",
+        "Stroke",
+        "Cluster headache"
+      ],
       "workup": {
-        "urgent": ["Head CT if red flags", "MRI if neurological deficits"],
-        "routine": ["Neurology consult if persistent", "CBC", "BMP", "Thyroid function tests"]
+        "urgent": [
+          "Head CT if neurological signs (e.g., focal deficits, altered consciousness)",
+          "Lumbar puncture if fever, neck stiffness, or suspected meningitis"
+        ],
+        "routine": [
+          "Neurology consult if refractory or atypical",
+          "CBC if systemic symptoms"
+        ]
       },
       "management": {
-        "symptomatic": ["Hydration", "Rest in a dark room"],
-        "definitive": ["Triptans for migraine", "NSAIDs for tension-type", "Antibiotics for sinusitis"]
+        "symptomatic": [
+          "Hydration: 2 L water daily",
+          "Rest in a dark, quiet room",
+          "Acetaminophen 1000 mg orally as needed (max 4 g/day)"
+        ],
+        "definitive": [
+          "Sumatriptan 50-100 mg orally as needed for migraine",
+          "Propranolol 40-80 mg daily for migraine prophylaxis if frequent",
+          "Ceftriaxone 2 g IV for suspected meningitis (pending cultures)",
+          "Aspirin 81-325 mg orally for ischemic stroke (pending imaging confirmation)"
+        ],
+        "lifestyle": [
+          "Stress management: mindfulness, counseling",
+          "Avoid triggers: caffeine (<200 mg/day), bright lights"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 3-5 days for acute migraine",
+        "Follow-up in 2-4 weeks for prophylaxis evaluation"
+      ],
+      "metadata": {
+        "notes": "Consider pregnancy test in women of childbearing age; avoid triptans in cardiovascular disease.",
+        "source": "Mayo Clinic"
       }
     },
     "chest": {
-      "differentials": ["Angina", "GERD", "Musculoskeletal pain", "Pulmonary embolism", "Pneumonia", "Pericarditis"],
+      "differentials": [
+        "Angina",
+        "Pulmonary embolism",
+        "Pneumonia",
+        "Aortic dissection",
+        "Pericarditis"
+      ],
       "workup": {
-        "urgent": ["ECG", "Cardiac enzymes", "Chest X-ray", "D-dimer", "CT pulmonary angiography"],
-        "routine": ["CBC", "BMP", "Lipid panel", "Stress test"]
+        "urgent": [
+          "ECG for ischemia or arrhythmia",
+          "Cardiac enzymes (troponin) for myocardial infarction",
+          "Chest X-ray for pneumonia or pneumothorax",
+          "D-dimer if pulmonary embolism suspected",
+          "CT angiogram if aortic dissection suspected"
+        ],
+        "routine": [
+          "Stress test if stable angina suspected",
+          "Echocardiogram for structural heart disease",
+          "CBC for infection or anemia"
+        ]
       },
       "management": {
-        "symptomatic": ["Oxygen therapy", "Nitroglycerin"],
-        "definitive": ["Aspirin for cardiac", "PPI trial for GERD", "NSAIDs for musculoskeletal", "Anticoagulation for embolism"]
+        "symptomatic": [
+          "Oxygen therapy if SpO2 <92%",
+          "Nitroglycerin 0.4 mg sublingual every 5 min (up to 3 doses) if cardiac"
+        ],
+        "definitive": [
+          "Aspirin 325 mg chewed for acute coronary syndrome",
+          "Heparin or enoxaparin for pulmonary embolism",
+          "Antibiotics (e.g., ceftriaxone 1 g IV daily) for pneumonia",
+          "Surgical consult for aortic dissection"
+        ],
+        "lifestyle": [
+          "Smoking cessation counseling",
+          "Low-sodium, heart-healthy diet"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 24-48 hours for high-risk symptoms",
+        "Follow-up in 1-2 weeks for stable cases"
+      ],
+      "metadata": {
+        "notes": "Escalate to cardiology for abnormal ECG or troponin; consider DVT risk factors.",
+        "source": "Mayo Clinic"
       }
     },
     "abdomen": {
-      "differentials": ["Gastritis", "GERD", "Cholecystitis", "Pancreatitis", "Appendicitis", "Diverticulitis", "IBS"],
+      "differentials": [
+        "Appendicitis",
+        "Peptic ulcer disease",
+        "GERD",
+        "Cholecystitis",
+        "Pancreatitis"
+      ],
       "workup": {
-        "urgent": ["Abdominal ultrasound", "LFTs", "Lipase", "CT abdomen if severe"],
-        "routine": ["CBC", "BMP", "Upper endoscopy if chronic", "Stool studies"]
+        "urgent": [
+          "Abdominal ultrasound for gallstones or appendicitis",
+          "CT abdomen if acute or unclear etiology",
+          "Amylase/lipase for suspected pancreatitis"
+        ],
+        "routine": [
+          "Upper endoscopy for suspected GERD or ulcer",
+          "CBC for infection or anemia",
+          "Liver function tests for hepatobiliary disease"
+        ]
       },
       "management": {
-        "symptomatic": ["Antiemetics", "Hydration"],
-        "definitive": ["PPI for gastritis", "PPI trial for GERD", "Surgical consult for cholecystitis", "Antibiotics for diverticulitis"]
+        "symptomatic": [
+          "Ondansetron 4 mg orally as needed for nausea",
+          "Hydration: oral rehydration solution"
+        ],
+        "definitive": [
+          "Surgical consult for appendicitis",
+          "Esomeprazole 40 mg daily for GERD or ulcer",
+          "Cholecystectomy for gallstones"
+        ],
+        "lifestyle": [
+          "Avoid spicy foods, caffeine, large meals",
+          "Dietary counseling for high-fiber diet"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 3-5 days for acute symptoms",
+        "Follow-up in 2-4 weeks for chronic conditions"
+      ],
+      "metadata": {
+        "notes": "Monitor for red flags: weight loss, bloody stools, persistent vomiting.",
+        "source": "Mayo Clinic"
       }
     },
     "joint": {
-      "differentials": ["Osteoarthritis", "Meniscal injury", "Gout", "Rheumatoid arthritis", "Septic arthritis", "Lyme disease"],
+      "differentials": [
+        "Osteoarthritis",
+        "Rheumatoid arthritis",
+        "Gout",
+        "Septic arthritis",
+        "Meniscal injury"
+      ],
       "workup": {
-        "urgent": ["Knee X-ray", "Joint aspiration if septic"],
-        "routine": ["ESR", "Uric acid", "Rheumatoid factor", "ANA", "CBC", "BMP"]
+        "urgent": [
+          "Joint aspiration if infection or gout suspected"
+        ],
+        "routine": [
+          "X-rays for structural damage",
+          "Rheumatoid factor if systemic symptoms",
+          "Uric acid if gout suspected"
+        ]
       },
       "management": {
-        "symptomatic": ["Ice", "Elevation", "Compression"],
-        "definitive": ["NSAIDs", "Physical therapy", "Colchicine for gout", "DMARDs for rheumatoid arthritis"]
+        "symptomatic": [
+          "Ice packs: 15 min every 4 hours",
+          "Ibuprofen 400-600 mg orally as needed (max 3.2 g/day)"
+        ],
+        "definitive": [
+          "Physical therapy for strengthening",
+          "Methotrexate for rheumatoid arthritis (per rheumatology)",
+          "Colchicine 0.6 mg twice daily for acute gout",
+          "Antibiotics (e.g., ceftriaxone 1 g IV) for septic arthritis"
+        ],
+        "lifestyle": [
+          "Weight loss counseling if BMI >25",
+          "Low-impact exercise (e.g., swimming)"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks for acute flare",
+        "Follow-up in 4-6 weeks for therapy response"
+      ],
+      "metadata": {
+        "notes": "Consider MRI for suspected meniscal injury; avoid NSAIDs in renal impairment.",
+        "source": "Mayo Clinic"
       }
     },
     "back": {
-      "differentials": ["Mechanical back pain", "Disc herniation", "Spinal stenosis", "Pyelonephritis", "Kidney stones"],
+      "differentials": [
+        "Mechanical back pain",
+        "Herniated disc",
+        "Spinal stenosis",
+        "Osteoporosis",
+        "Spondylolisthesis"
+      ],
       "workup": {
-        "urgent": ["Lumbar X-ray if trauma", "CT spine if neurological deficits", "Urinalysis"],
-        "routine": ["CBC", "BMP", "MRI if persistent", "Renal ultrasound"]
+        "urgent": [
+          "MRI spine if neurological deficits (e.g., leg weakness, incontinence)"
+        ],
+        "routine": [
+          "Spine X-ray if symptoms >6 weeks",
+          "DEXA scan if osteoporosis risk (e.g., age >65, steroid use)"
+        ]
       },
       "management": {
-        "symptomatic": ["Heat", "Massage", "TENS unit"],
-        "definitive": ["NSAIDs", "Physical therapy", "Muscle relaxants", "Surgical consult if severe"]
+        "symptomatic": [
+          "Heat therapy: 15 min every 4 hours",
+          "Acetaminophen 500-1000 mg orally as needed (max 4 g/day)"
+        ],
+        "definitive": [
+          "Physical therapy for core strengthening",
+          "Alendronate 70 mg weekly for osteoporosis",
+          "Surgical referral if severe stenosis or disc herniation"
+        ],
+        "lifestyle": [
+          "Ergonomic workstation adjustments",
+          "Regular stretching and low-impact exercise"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 4-6 weeks for therapy response",
+        "Follow-up sooner if neurological deficits"
+      ],
+      "metadata": {
+        "notes": "Red flags: trauma, fever, unexplained weight loss require urgent evaluation.",
+        "source": "Mayo Clinic"
       }
     },
     "neck": {
-      "differentials": ["Cervical strain", "Cervical spondylosis", "Meningitis", "Vertebral artery dissection"],
+      "differentials": [
+        "Cervical strain",
+        "Cervical spondylosis",
+        "Meningitis",
+        "Cervical radiculopathy"
+      ],
       "workup": {
-        "urgent": ["Cervical X-ray", "Head CT if fever", "Lumbar puncture if meningitis suspected"],
-        "routine": ["CBC", "BMP", "MRI neck if needed"]
+        "urgent": [
+          "Lumbar puncture if fever and suspected meningitis",
+          "CT neck if trauma history"
+        ],
+        "routine": [
+          "Cervical X-ray if symptoms >4 weeks",
+          "EMG if radiculopathy suspected"
+        ]
       },
       "management": {
-        "symptomatic": ["Massage", "Soft collar"],
-        "definitive": ["NSAIDs", "Physical therapy", "Antibiotics for meningitis"]
+        "symptomatic": [
+          "Heat therapy: 15 min every 4 hours",
+          "Ibuprofen 400 mg orally as needed (max 3.2 g/day)"
+        ],
+        "definitive": [
+          "Physical therapy for strain or spondylosis",
+          "Ceftriaxone 2 g IV for meningitis (pending cultures)"
+        ],
+        "lifestyle": [
+          "Ergonomic adjustments: monitor at eye level, frequent breaks",
+          "Neck exercises to improve posture"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 2-4 weeks for strain",
+        "Follow-up in 24-48 hours for meningitis"
+      ],
+      "metadata": {
+        "notes": "Avoid NSAIDs in renal impairment; escalate if fever or neurological signs.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "sprain": {
+      "differentials": [
+        "Ankle sprain",
+        "Ligament tear",
+        "Fracture",
+        "Tendonitis"
+      ],
+      "workup": {
+        "urgent": [
+          "X-ray if unable to bear weight or bony tenderness"
+        ],
+        "routine": [
+          "MRI if ligament tear suspected"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "RICE: rest, ice (15 min every 4 hours), compression, elevation",
+          "Ibuprofen 400-600 mg orally as needed (max 3.2 g/day)"
+        ],
+        "definitive": [
+          "Physical therapy for rehabilitation",
+          "Ankle brace for stability",
+          "Surgical consult if severe tear or fracture"
+        ],
+        "lifestyle": [
+          "Gradual return to activity with proper footwear",
+          "Strengthening exercises to prevent recurrence"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks for recovery",
+        "Follow-up in 4-6 weeks for full rehabilitation"
+      ],
+      "metadata": {
+        "notes": "Ottawa Ankle Rules guide X-ray need; avoid early weight-bearing.",
+        "source": "Mayo Clinic"
       }
     }
   },
   "respiratory": {
     "cough": {
-      "differentials": ["Allergic rhinitis", "Postnasal drip", "GERD", "Chronic bronchitis", "Asthma", "Bronchiectasis"],
+      "differentials": [
+        "Postnasal drip",
+        "Asthma",
+        "COPD",
+        "Pneumonia",
+        "GERD",
+        "Allergic cough"
+      ],
       "workup": {
-        "urgent": ["Chest X-ray if febrile", "Pulmonary function test if wheezing"],
-        "routine": ["CBC", "BMP", "Allergy testing", "Sputum culture"]
+        "urgent": [
+          "Chest X-ray if fever, weight loss, or hemoptysis"
+        ],
+        "routine": [
+          "Allergy testing for allergic cough",
+          "Pulmonary function test for asthma or COPD",
+          "Upper endoscopy if GERD suspected"
+        ]
       },
       "management": {
-        "symptomatic": ["Antitussives", "Humidification"],
-        "definitive": ["Antihistamines for allergies", "PPI trial for GERD", "Inhaled steroids for bronchitis"]
+        "symptomatic": [
+          "Dextromethorphan 10-20 mg orally every 4 hours as needed",
+          "Humidifier for airway moisture"
+        ],
+        "definitive": [
+          "Fluticasone nasal spray 50 mcg daily for postnasal drip",
+          "Albuterol inhaler 2 puffs every 4 hours for asthma",
+          "Antibiotics (e.g., ceftriaxone 1 g IV daily) for pneumonia",
+          "Esomeprazole 40 mg daily for GERD",
+          "Cetirizine 10 mg daily for allergic cough"
+        ],
+        "lifestyle": [
+          "Avoid allergens: pets, dust (use HEPA filter)",
+          "Smoking cessation counseling"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks for allergic cough",
+        "Follow-up in 3-5 days for pneumonia"
+      ],
+      "metadata": {
+        "notes": "Consider TB testing in high-risk populations; monitor for worsening dyspnea.",
+        "source": "CDC"
       }
     },
     "shortness of breath": {
-      "differentials": ["Asthma", "COPD", "Heart failure", "Pulmonary embolism", "Pneumothorax", "Anemia"],
+      "differentials": [
+        "Asthma",
+        "COPD",
+        "Heart failure",
+        "Pulmonary embolism",
+        "Anemia"
+      ],
       "workup": {
-        "urgent": ["Chest X-ray", "Pulmonary function test", "D-dimer", "BNP", "ABG"],
-        "routine": ["CBC", "BMP", "Echocardiogram"]
+        "urgent": [
+          "Chest X-ray for pneumonia or heart failure",
+          "D-dimer if pulmonary embolism suspected",
+          "ECG for cardiac etiology",
+          "Oxygen saturation"
+        ],
+        "routine": [
+          "Pulmonary function test for asthma or COPD",
+          "Echocardiogram for heart failure",
+          "CBC for anemia"
+        ]
       },
       "management": {
-        "symptomatic": ["Oxygen therapy"],
-        "definitive": ["Bronchodilators", "Diuretics for heart failure", "Anticoagulation for embolism"]
-      }
-    }
-  },
-  "swelling": {
-    "extremity": {
-      "differentials": ["Venous insufficiency", "Heart failure", "DVT", "Lymphedema", "Cellulitis", "Deep vein thrombosis"],
-      "workup": {
-        "urgent": ["Doppler ultrasound", "BNP", "D-dimer", "Blood cultures if infection suspected"],
-        "routine": ["CBC", "BMP", "Coagulation profile"]
+        "symptomatic": [
+          "Oxygen therapy if SpO2 <92%"
+        ],
+        "definitive": [
+          "Albuterol inhaler 2 puffs every 4 hours for asthma",
+          "Enoxaparin 1 mg/kg SC twice daily for pulmonary embolism",
+          "Furosemide 40 mg orally daily for heart failure",
+          "Iron supplementation for anemia"
+        ],
+        "lifestyle": [
+          "Smoking cessation counseling",
+          "Avoid environmental triggers: dust, cold air"
+        ]
       },
-      "management": {
-        "symptomatic": ["Elevation", "Compression stockings"],
-        "definitive": ["Compression therapy", "Diuretics", "Anticoagulation if DVT"]
-      }
-    }
-  },
-  "neurological": {
-    "numbness": {
-      "differentials": ["Peripheral neuropathy", "Carpal tunnel syndrome", "Stroke", "Multiple sclerosis", "Vitamin B12 deficiency", "Diabetic neuropathy"],
-      "workup": {
-        "urgent": ["Nerve conduction study", "Blood glucose", "MRI brain if focal deficits"],
-        "routine": ["CBC", "BMP", "B12 level", "Thyroid function tests", "Neurology consult"]
-      },
-      "management": {
-        "symptomatic": ["Gabapentin", "Topical lidocaine"],
-        "definitive": ["Neurology referral", "Wrist splints for carpal tunnel", "B12 supplementation"]
+      "follow_up": [
+        "Follow-up in 24-48 hours for acute symptoms",
+        "Follow-up in 1-2 weeks for stable cases"
+      ],
+      "metadata": {
+        "notes": "Escalate to pulmonology or cardiology for persistent symptoms.",
+        "source": "Mayo Clinic"
       }
     },
-    "dizziness": {
-      "differentials": ["BPPV", "Orthostatic hypotension", "Dehydration", "Labyrinthitis", "Vestibular neuritis", "Stroke"],
+    "wheezing": {
+      "differentials": [
+        "Asthma",
+        "COPD",
+        "Allergic bronchitis",
+        "Heart failure",
+        "Foreign body aspiration"
+      ],
       "workup": {
-        "urgent": ["Orthostatic vitals", "CT/MRI brain if stroke suspected"],
-        "routine": ["CBC", "BMP", "Electrolytes", "Hearing tests"]
+        "urgent": [
+          "Peak flow measurement for asthma",
+          "Chest X-ray if fever or foreign body suspected",
+          "Oxygen saturation"
+        ],
+        "routine": [
+          "Pulmonary function test for asthma or COPD",
+          "Allergy testing for allergic triggers",
+          "BNP levels if heart failure suspected"
+        ]
       },
       "management": {
-        "symptomatic": ["Meclizine", "Hydration"],
-        "definitive": ["Epley maneuver for BPPV", "Fluid resuscitation", "Antivirals for labyrinthitis"]
+        "symptomatic": [
+          "Albuterol inhaler 2 puffs every 4 hours",
+          "Oxygen therapy if SpO2 <92%"
+        ],
+        "definitive": [
+          "Budesonide/formoterol inhaler 160/4.5 mcg 2 puffs twice daily",
+          "Fexofenadine 180 mg daily for allergic triggers",
+          "Furosemide 40 mg daily for heart failure",
+          "Bronchoscopy for foreign body"
+        ],
+        "lifestyle": [
+          "Avoid dust, pollen (use HEPA filter)",
+          "Smoking cessation counseling"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks for asthma control",
+        "Follow-up in 24-48 hours for heart failure"
+      ],
+      "metadata": {
+        "notes": "Pediatric patients: consider foreign body in acute onset.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "chronic lung": {
+      "differentials": [
+        "Cystic fibrosis",
+        "COPD",
+        "Interstitial lung disease",
+        "Bronchiectasis"
+      ],
+      "workup": {
+        "urgent": [
+          "Chest X-ray if acute exacerbation"
+        ],
+        "routine": [
+          "Sweat chloride test for cystic fibrosis",
+          "Pulmonary function test for obstructive or restrictive disease",
+          "High-resolution CT chest for interstitial disease",
+          "Sputum culture for bronchiectasis"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Mucolytics: guaifenesin 600 mg twice daily",
+          "Oxygen therapy if SpO2 <88%"
+        ],
+        "definitive": [
+          "Ivacaftor 150 mg twice daily for cystic fibrosis (if eligible)",
+          "Tiotropium inhaler 18 mcg daily for COPD",
+          "Prednisone 40 mg daily for interstitial lung disease flare",
+          "Pulmonary rehabilitation"
+        ],
+        "lifestyle": [
+          "Smoking cessation counseling",
+          "High-calorie diet for cystic fibrosis"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 2-4 weeks for stable disease",
+        "Follow-up in 3-5 days for exacerbation"
+      ],
+      "metadata": {
+        "notes": "Pediatric dosing for CFTR modulators; monitor for hemoptysis in bronchiectasis.",
+        "source": "NICE"
+      }
+    },
+    "asthma exacerbation": {
+      "differentials": [
+        "Asthma",
+        "Allergic bronchitis",
+        "Pulmonary embolism",
+        "Heart failure"
+      ],
+      "workup": {
+        "urgent": [
+          "Peak flow measurement",
+          "Oxygen saturation",
+          "Chest X-ray if infection or pneumothorax suspected"
+        ],
+        "routine": [
+          "Pulmonary function test post-exacerbation",
+          "Allergy testing for triggers",
+          "Serum IgE levels"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Albuterol 2-4 puffs every 4 hours",
+          "Oxygen therapy if SpO2 <92%"
+        ],
+        "definitive": [
+          "Prednisone 40 mg daily for 5 days",
+          "Budesonide/formoterol 160/4.5 mcg 2 puffs twice daily",
+          "Dust mite avoidance: mattress covers, HEPA filters",
+          "Fexofenadine 180 mg daily for allergic triggers"
+        ],
+        "lifestyle": [
+          "Avoid environmental triggers: dust, smoke",
+          "Asthma action plan education"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks to assess control",
+        "Follow-up in 24-48 hours if severe"
+      ],
+      "metadata": {
+        "notes": "Refer to pulmonology if frequent exacerbations; ensure inhaler technique.",
+        "source": "Mayo Clinic"
+      }
+    }
+  },
+  "cardiovascular": {
+    "palpitations": {
+      "differentials": [
+        "Arrhythmia",
+        "Hyperthyroidism",
+        "Anemia",
+        "Anxiety"
+      ],
+      "workup": {
+        "urgent": [
+          "ECG for arrhythmia",
+          "Holter monitor if intermittent"
+        ],
+        "routine": [
+          "CBC for anemia",
+          "Thyroid function tests for hyperthyroidism",
+          "Electrolyte panel"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Hydration: 2 L water daily",
+          "Avoid caffeine: <200 mg/day"
+        ],
+        "definitive": [
+          "Metoprolol 25-50 mg daily for arrhythmia",
+          "Ferrous sulfate 325 mg daily for anemia",
+          "Methimazole 5-10 mg daily for hyperthyroidism",
+          "Sertraline 50 mg daily for anxiety"
+        ],
+        "lifestyle": [
+          "Stress management: meditation, counseling",
+          "Regular sleep schedule"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 2-4 weeks for stable symptoms",
+        "Follow-up in 24-48 hours for persistent arrhythmia"
+      ],
+      "metadata": {
+        "notes": "Refer to cardiology for abnormal ECG; screen for substance use.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "syncope": {
+      "differentials": [
+        "Vasovagal syncope",
+        "Arrhythmia",
+        "Orthostatic hypotension",
+        "Seizure"
+      ],
+      "workup": {
+        "urgent": [
+          "ECG for arrhythmia",
+          "Orthostatic vitals for hypotension"
+        ],
+        "routine": [
+          "Tilt table test for vasovagal",
+          "CBC for anemia",
+          "EEG if seizure suspected"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Hydration: 2 L water daily",
+          "Leg elevation during episodes"
+        ],
+        "definitive": [
+          "Metoprolol 25-50 mg daily for arrhythmia",
+          "Compression stockings for hypotension",
+          "Levetiracetam 500 mg twice daily for seizures"
+        ],
+        "lifestyle": [
+          "Avoid dehydration and prolonged standing",
+          "Salt supplementation if hypotensive"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks for initial evaluation",
+        "Follow-up in 24-48 hours for recurrent syncope"
+      ],
+      "metadata": {
+        "notes": "Refer to neurology if seizure suspected; caution in elderly patients.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "edema": {
+      "differentials": [
+        "Heart failure",
+        "Venous insufficiency",
+        "Deep vein thrombosis",
+        "Nephrotic syndrome",
+        "Chronic kidney disease",
+        "Liver cirrhosis"
+      ],
+      "workup": {
+        "urgent": [
+          "BNP levels for heart failure",
+          "D-dimer if DVT suspected",
+          "Ultrasound legs for DVT"
+        ],
+        "routine": [
+          "Echocardiogram for heart failure",
+          "Urine protein/creatinine ratio for nephrotic syndrome",
+          "Renal function tests",
+          "Serum albumin for liver or kidney pathology"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Leg elevation: 30 min twice daily",
+          "Fluid restriction: 1.5-2 L/day if heart failure"
+        ],
+        "definitive": [
+          "Furosemide 40-80 mg daily for heart failure",
+          "Enoxaparin 1 mg/kg SC twice daily for DVT",
+          "Compression stockings for venous insufficiency",
+          "Prednisone 1 mg/kg daily for nephrotic syndrome",
+          "Spironolactone 100 mg daily for cirrhosis"
+        ],
+        "lifestyle": [
+          "Low-sodium diet: <2 g/day",
+          "Weight monitoring for fluid retention"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 24-48 hours for heart failure or DVT",
+        "Follow-up in 1-2 weeks for stable edema"
+      ],
+      "metadata": {
+        "notes": "Monitor electrolytes with diuretics; refer to nephrology for proteinuria or CKD.",
+        "source": "WHO"
       }
     }
   },
   "gastrointestinal": {
     "nausea": {
-      "differentials": ["Gastritis", "Vestibular disturbance", "Medication side effect", "Hyperemesis gravidarum", "Gallbladder disease"],
+      "differentials": [
+        "Gastritis",
+        "GERD",
+        "Celiac disease",
+        "Vestibular disturbance",
+        "Pregnancy"
+      ],
       "workup": {
-        "urgent": ["Electrolytes", "Liver function tests"],
-        "routine": ["CBC", "BMP", "Upper endoscopy if chronic", "Ultrasound if gallbladder suspected"]
+        "urgent": [
+          "Upper endoscopy if severe epigastric pain or hematemesis"
+        ],
+        "routine": [
+          "H. pylori stool antigen test",
+          "Tissue transglutaminase antibodies for celiac",
+          "Pregnancy test in women of childbearing age"
+        ]
       },
       "management": {
-        "symptomatic": ["Antiemetics", "IV fluids"],
-        "definitive": ["PPI trial", "Discontinue offending medication", "Surgical consult for gallbladder"]
+        "symptomatic": [
+          "Ondansetron 4 mg orally as needed",
+          "Hydration: oral rehydration solution"
+        ],
+        "definitive": [
+          "Esomeprazole 40 mg daily for GERD or gastritis",
+          "Gluten-free diet for celiac disease",
+          "Pyridoxine 25 mg daily for pregnancy-related nausea"
+        ],
+        "lifestyle": [
+          "Small, frequent meals",
+          "Avoid fatty or spicy foods"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks for symptom resolution",
+        "Follow-up in 3-5 days if severe"
+      ],
+      "metadata": {
+        "notes": "Refer to gastroenterology for refractory symptoms; avoid ondansetron in first trimester.",
+        "source": "Mayo Clinic"
       }
     },
     "diarrhea": {
-      "differentials": ["Viral gastroenteritis", "Lactose intolerance", "Bacterial gastroenteritis", "IBD", "Celiac disease", "Colon cancer"],
+      "differentials": [
+        "Infectious diarrhea",
+        "Lactose intolerance",
+        "Irritable bowel syndrome",
+        "Inflammatory bowel disease",
+        "Viral gastroenteritis"
+      ],
       "workup": {
-        "urgent": ["Stool studies", "Electrolytes", "Fecal occult blood test"],
-        "routine": ["CBC", "BMP", "Colonoscopy if chronic"]
+        "urgent": [
+          "Stool culture if bloody, prolonged, or travel history"
+        ],
+        "routine": [
+          "Hydrogen breath test for lactose intolerance",
+          "Stool ova/parasites for travel-related diarrhea",
+          "Colonoscopy if chronic or red flags"
+        ]
       },
       "management": {
-        "symptomatic": ["Hydration", "Probiotics"],
-        "definitive": ["Antidiarrheals", "Antibiotics if bacterial", "Dietary modification for lactose intolerance"]
+        "symptomatic": [
+          "Hydration: oral rehydration solution",
+          "Loperamide 2 mg after loose stool (max 8 mg/day) if non-infectious"
+        ],
+        "definitive": [
+          "Ciprofloxacin 500 mg twice daily for bacterial diarrhea",
+          "Lactose-free diet for intolerance",
+          "Mesalamine 2.4 g daily for IBD",
+          "Supportive care for viral gastroenteritis"
+        ],
+        "lifestyle": [
+          "High-fiber diet for IBS",
+          "Hand hygiene to prevent infectious spread"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 3-5 days for acute diarrhea",
+        "Follow-up in 2-4 weeks for chronic"
+      ],
+      "metadata": {
+        "notes": "Monitor for dehydration; avoid loperamide in bloody diarrhea.",
+        "source": "CDC"
+      }
+    },
+    "dysphagia": {
+      "differentials": [
+        "GERD",
+        "Esophageal stricture",
+        "Stroke",
+        "Achalasia"
+      ],
+      "workup": {
+        "urgent": [
+          "Barium swallow if acute or progressive"
+        ],
+        "routine": [
+          "Upper endoscopy for structural lesions",
+          "Esophageal manometry for motility disorders"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Soft diet to reduce discomfort"
+        ],
+        "definitive": [
+          "Esomeprazole 40 mg daily for GERD",
+          "Endoscopic dilation for stricture",
+          "Botulinum toxin injection for achalasia"
+        ],
+        "lifestyle": [
+          "Elevate head of bed",
+          "Avoid large meals before bedtime"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks for symptom improvement",
+        "Follow-up in 3-5 days if progressive"
+      ],
+      "metadata": {
+        "notes": "Refer to gastroenterology for endoscopy; monitor for weight loss.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "constipation": {
+      "differentials": [
+        "Medication-induced constipation",
+        "Hypothyroidism",
+        "Irritable bowel syndrome",
+        "Colonic obstruction"
+      ],
+      "workup": {
+        "urgent": [
+          "Abdominal X-ray if obstruction or severe pain"
+        ],
+        "routine": [
+          "Thyroid function tests for hypothyroidism",
+          "Stool studies if infectious cause",
+          "Colonoscopy if chronic or red flags"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Hydration: 2 L water daily",
+          "Fiber supplementation: 20-30 g/day"
+        ],
+        "definitive": [
+          "Polyethylene glycol 17 g daily for constipation",
+          "Levothyroxine for hypothyroidism (per TSH)",
+          "Surgical consult for obstruction"
+        ],
+        "lifestyle": [
+          "Dietary counseling: high-fiber foods",
+          "Regular physical activity"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 2-4 weeks for symptom improvement",
+        "Follow-up in 3-5 days if severe"
+      ],
+      "metadata": {
+        "notes": "Review medications (e.g., opioids, anticholinergics); monitor for rectal bleeding.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "bowel obstruction": {
+      "differentials": [
+        "Hirschsprung disease",
+        "Volvulus",
+        "Adhesions",
+        "Intussusception"
+      ],
+      "workup": {
+        "urgent": [
+          "Abdominal X-ray for air-fluid levels",
+          "CT abdomen for structural cause"
+        ],
+        "routine": [
+          "Contrast enema for intussusception",
+          "Rectal biopsy for Hirschsprung disease"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Nasogastric decompression",
+          "IV fluids: 0.9% saline"
+        ],
+        "definitive": [
+          "Surgical correction for Hirschsprung disease",
+          "Adhesiolysis for adhesions",
+          "Air enema for intussusception (pediatric)"
+        ],
+        "lifestyle": [
+          "High-fiber diet post-recovery",
+          "Monitor for recurrence"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 24-48 hours post-intervention",
+        "Follow-up in 1-2 weeks for recovery"
+      ],
+      "metadata": {
+        "notes": "Pediatric dosing for enema; urgent surgical consult for peritonitis.",
+        "source": "Nationwide Children's"
+      }
+    }
+  },
+  "neurological": {
+    "weakness": {
+      "differentials": [
+        "Stroke",
+        "Peripheral neuropathy",
+        "Myasthenia gravis",
+        "Guillain-Barr\u00e9 syndrome"
+      ],
+      "workup": {
+        "urgent": [
+          "CT head if acute onset",
+          "EMG if progressive weakness"
+        ],
+        "routine": [
+          "MRI brain and spine if central cause",
+          "Nerve conduction studies for neuropathy",
+          "Acetylcholine receptor antibodies for myasthenia"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Physical therapy for mobility"
+        ],
+        "definitive": [
+          "Aspirin 81-325 mg for ischemic stroke (pending imaging confirmation)",
+          "Gabapentin 300 mg nightly for neuropathy",
+          "Pyridostigmine 60 mg every 4 hours for myasthenia"
+        ],
+        "lifestyle": [
+          "Fall prevention: assistive devices",
+          "Regular exercise for strength"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 24-48 hours for stroke",
+        "Follow-up in 2-4 weeks for neuropathy"
+      ],
+      "metadata": {
+        "notes": "Refer to neurology for progressive symptoms; monitor for respiratory involvement.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "confusion": {
+      "differentials": [
+        "Delirium",
+        "Stroke",
+        "Hypoglycemia",
+        "Dementia"
+      ],
+      "workup": {
+        "urgent": [
+          "Blood glucose for hypoglycemia",
+          "CT head if acute or focal deficits",
+          "Electrolyte panel for metabolic cause"
+        ],
+        "routine": [
+          "EEG for encephalopathy",
+          "Vitamin B12 levels for deficiency",
+          "MMSE for cognitive impairment"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Hydration: IV fluids if dehydrated",
+          "Reorientation strategies"
+        ],
+        "definitive": [
+          "Treat underlying cause (e.g., glucose for hypoglycemia)",
+          "Haloperidol 0.5-1 mg for severe delirium",
+          "Donepezil 5 mg daily for dementia"
+        ],
+        "lifestyle": [
+          "Regular sleep schedule",
+          "Cognitive stimulation"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 24-48 hours for delirium",
+        "Follow-up in 2-4 weeks for dementia"
+      ],
+      "metadata": {
+        "notes": "Avoid antipsychotics in Lewy body dementia; screen for infection.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "numbness": {
+      "differentials": [
+        "Peripheral neuropathy",
+        "Carpal tunnel syndrome",
+        "Stroke",
+        "Multiple sclerosis"
+      ],
+      "workup": {
+        "urgent": [
+          "CT head if acute or unilateral",
+          "Nerve conduction study for neuropathy"
+        ],
+        "routine": [
+          "Vitamin B12 levels for deficiency",
+          "HbA1c for diabetic neuropathy",
+          "MRI brain/spine for MS"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Physical therapy for hand exercises"
+        ],
+        "definitive": [
+          "Gabapentin 300 mg nightly for neuropathy",
+          "Wrist splints at night for carpal tunnel",
+          "Methylprednisolone 1 g IV for MS flare"
+        ],
+        "lifestyle": [
+          "Glycemic control for diabetes",
+          "Ergonomic adjustments for repetitive tasks"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 2-4 weeks for neuropathy",
+        "Follow-up in 24-48 hours for stroke or MS"
+      ],
+      "metadata": {
+        "notes": "Optimize diabetes management; refer to neurology for MS suspicion.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "tremors": {
+      "differentials": [
+        "Essential tremor",
+        "Parkinson\u2019s disease",
+        "Hyperthyroidism",
+        "Wilson\u2019s disease"
+      ],
+      "workup": {
+        "urgent": [
+          "Thyroid function tests for hyperthyroidism"
+        ],
+        "routine": [
+          "Neurology consult for diagnostic confirmation",
+          "Ceruloplasmin for Wilson\u2019s disease (age <40)"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Avoid caffeine: <200 mg/day"
+        ],
+        "definitive": [
+          "Propranolol 20-40 mg daily for essential tremor",
+          "Levodopa/carbidopa 25/100 mg thrice daily for Parkinson\u2019s",
+          "Methimazole 5-10 mg daily for hyperthyroidism"
+        ],
+        "lifestyle": [
+          "Stress management: relaxation techniques",
+          "Regular sleep schedule"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 2-4 weeks for treatment response",
+        "Follow-up in 1-2 weeks for hyperthyroidism"
+      ],
+      "metadata": {
+        "notes": "Family history relevant for essential tremor; monitor for rigidity in Parkinson\u2019s.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "vertigo": {
+      "differentials": [
+        "Benign paroxysmal positional vertigo",
+        "Meniere\u2019s disease",
+        "Vestibular neuritis",
+        "Cerebellar stroke"
+      ],
+      "workup": {
+        "urgent": [
+          "Dix-Hallpike maneuver for BPPV",
+          "CT head if stroke suspected"
+        ],
+        "routine": [
+          "Audiometry for Meniere\u2019s",
+          "MRI brain if central cause suspected"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Meclizine 25 mg orally as needed"
+        ],
+        "definitive": [
+          "Epley maneuver for BPPV",
+          "Hydrochlorothiazide 25 mg daily for Meniere\u2019s",
+          "Prednisone 60 mg daily for vestibular neuritis"
+        ],
+        "lifestyle": [
+          "Home canalith repositioning exercises",
+          "Low-sodium diet for Meniere\u2019s"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 3-5 days for BPPV",
+        "Follow-up in 1-2 weeks for Meniere\u2019s or neuritis"
+      ],
+      "metadata": {
+        "notes": "Refer to ENT for persistent symptoms; monitor for hearing loss.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "seizures": {
+      "differentials": [
+        "Epilepsy",
+        "Febrile seizure",
+        "Electrolyte imbalance",
+        "Brain tumor"
+      ],
+      "workup": {
+        "urgent": [
+          "EEG for seizure activity",
+          "CT head if new onset or trauma"
+        ],
+        "routine": [
+          "MRI brain for structural lesions",
+          "Electrolyte panel for metabolic cause",
+          "Antiepileptic drug levels"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Lorazepam 2 mg IV for acute seizures"
+        ],
+        "definitive": [
+          "Levetiracetam 500 mg twice daily for epilepsy",
+          "Correct electrolyte imbalances (e.g., sodium, magnesium)",
+          "Neurosurgery consult for tumor"
+        ],
+        "lifestyle": [
+          "Seizure precautions: avoid driving",
+          "Regular sleep schedule"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks for epilepsy",
+        "Follow-up in 24-48 hours for new onset"
+      ],
+      "metadata": {
+        "notes": "Pediatric: weight-based dosing (e.g., levetiracetam 10-20 mg/kg/day).",
+        "source": "Nationwide Children's"
       }
     }
   },
   "skin": {
     "rash": {
-      "differentials": ["Eczema", "Contact dermatitis", "Psoriasis", "Drug reaction", "Shingles", "Scabies", "Fungal infection"],
+      "differentials": [
+        "Eczema",
+        "Contact dermatitis",
+        "Psoriasis",
+        "Drug-induced rash"
+      ],
       "workup": {
-        "urgent": ["Skin scraping if fungal", "Biopsy if malignant"],
-        "routine": ["CBC", "BMP", "Skin biopsy if persistent", "Allergy testing", "Patch testing"]
+        "urgent": [
+          "Skin biopsy if systemic symptoms or bullous lesions"
+        ],
+        "routine": [
+          "Dermatology consult for diagnostic uncertainty",
+          "Patch testing for contact dermatitis"
+        ]
       },
       "management": {
-        "symptomatic": ["Cool compresses", "Moisturizers"],
-        "definitive": ["Topical steroids", "Antihistamines", "Antifungals", "Discontinue offending drug"]
-      }
-    }
-  },
-  "cardiovascular": {
-    "chest pain": {
-      "differentials": ["Angina", "Myocardial infarction", "Pericarditis", "Aortic dissection", "Pulmonary embolism"],
-      "workup": {
-        "urgent": ["ECG", "Cardiac enzymes", "Chest X-ray", "CT angiography"],
-        "routine": ["CBC", "BMP", "Lipid panel", "Stress echocardiogram"]
+        "symptomatic": [
+          "Cool compresses: 15 min every 4 hours",
+          "Cetirizine 10 mg daily for itching"
+        ],
+        "definitive": [
+          "Triamcinolone 0.1% cream twice daily for eczema or psoriasis",
+          "Discontinue offending agent for drug-induced rash",
+          "Avoid known triggers (e.g., allergens, irritants)"
+        ],
+        "lifestyle": [
+          "Moisturizer use: apply twice daily",
+          "Avoid scratching and hot showers"
+        ]
       },
-      "management": {
-        "symptomatic": ["Oxygen therapy", "Morphine"],
-        "definitive": ["Aspirin", "Beta-blockers", "Anticoagulation", "Surgical repair if dissection"]
+      "follow_up": [
+        "Follow-up in 1-2 weeks for symptom resolution",
+        "Follow-up in 3-5 days if severe"
+      ],
+      "metadata": {
+        "notes": "Monitor for signs of infection; review new medications.",
+        "source": "Mayo Clinic"
       }
     },
-    "hypertension": {
-      "differentials": ["Essential hypertension", "Secondary hypertension", "Renovascular hypertension"],
+    "itching": {
+      "differentials": [
+        "Eczema",
+        "Urticaria",
+        "Liver dysfunction",
+        "Renal failure"
+      ],
       "workup": {
         "urgent": [],
-        "routine": ["Renal ultrasound", "Plasma renin activity", "Aldosterone levels"]
+        "routine": [
+          "Liver function tests if jaundice or systemic symptoms",
+          "Renal function tests if uremia suspected",
+          "Dermatology consult"
+        ]
       },
       "management": {
-        "symptomatic": ["Lifestyle modifications"],
-        "definitive": ["ACE inhibitors", "ARBs", "Diuretics", "Beta-blockers"]
+        "symptomatic": [
+          "Cetirizine 10 mg daily",
+          "Moisturizers: apply twice daily"
+        ],
+        "definitive": [
+          "Hydrocortisone 1% cream twice daily for eczema",
+          "Ursodiol 300 mg twice daily for cholestatic itching",
+          "Treat underlying cause (e.g., dialysis for renal failure)"
+        ],
+        "lifestyle": [
+          "Avoid irritants: harsh soaps, wool",
+          "Cool showers to reduce itching"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks for symptom improvement",
+        "Follow-up in 3-5 days if systemic"
+      ],
+      "metadata": {
+        "notes": "Consider allergy testing for chronic urticaria; monitor for weight loss.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "facial swelling": {
+      "differentials": [
+        "Allergic reaction",
+        "Angioedema",
+        "Nephrotic syndrome",
+        "Cellulitis"
+      ],
+      "workup": {
+        "urgent": [
+          "C1 esterase inhibitor levels if hereditary angioedema suspected"
+        ],
+        "routine": [
+          "Allergy testing for allergic triggers",
+          "Urine protein/creatinine ratio for nephrotic syndrome"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Cetirizine 10 mg daily"
+        ],
+        "definitive": [
+          "Prednisone 40 mg daily for 5 days for allergic reaction",
+          "Icatibant 30 mg SC for hereditary angioedema",
+          "Ceftriaxone 1 g IV for cellulitis"
+        ],
+        "lifestyle": [
+          "Avoid known allergens (e.g., foods, drugs)",
+          "Monitor for anaphylaxis symptoms"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 3-5 days for resolution",
+        "Follow-up in 24-48 hours if severe or cellulitis"
+      ],
+      "metadata": {
+        "notes": "Epinephrine auto-injector for recurrent angioedema; urgent ENT consult if airway involvement.",
+        "source": "Mayo Clinic"
       }
     }
   },
-  "endocrine": {
+  "general": {
+    "fever": {
+      "differentials": [
+        "Viral infection",
+        "Bacterial infection",
+        "Malaria",
+        "Urinary tract infection",
+        "Tuberculosis"
+      ],
+      "workup": {
+        "urgent": [
+          "Blood cultures if sepsis suspected",
+          "Urine analysis for UTI"
+        ],
+        "routine": [
+          "CBC for leukocytosis or anemia",
+          "Chest X-ray if respiratory symptoms",
+          "Malaria smear if travel history"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Acetaminophen 1000 mg every 6 hours as needed (max 4 g/day)",
+          "Hydration: 2 L water daily"
+        ],
+        "definitive": [
+          "Ceftriaxone 1 g IV daily for bacterial infection",
+          "Artemether-lumefantrine for confirmed malaria (per WHO)",
+          "Nitrofurantoin 100 mg twice daily for UTI"
+        ],
+        "lifestyle": [
+          "Rest and adequate nutrition",
+          "Hand hygiene to prevent spread"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 3-5 days for resolution",
+        "Follow-up in 24-48 hours if sepsis suspected"
+      ],
+      "metadata": {
+        "notes": "Consider TB in chronic fever with weight loss; pediatric dosing for antipyretics.",
+        "source": "WHO"
+      }
+    },
+    "weight loss": {
+      "differentials": [
+        "Hyperthyroidism",
+        "Diabetes mellitus",
+        "Malignancy",
+        "Lymphoma",
+        "Depression"
+      ],
+      "workup": {
+        "urgent": [
+          "Blood glucose for diabetes",
+          "TSH levels for hyperthyroidism"
+        ],
+        "routine": [
+          "CT scan if unintentional weight loss",
+          "Tumor markers (e.g., CEA, CA-125)",
+          "PHQ-9 for depression"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Nutritional support: high-calorie diet"
+        ],
+        "definitive": [
+          "Insulin for type 1 diabetes",
+          "Methimazole 5-10 mg daily for hyperthyroidism",
+          "Oncology referral for malignancy"
+        ],
+        "lifestyle": [
+          "Dietary counseling for balanced nutrition",
+          "Regular physical activity"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks for initial evaluation",
+        "Follow-up in 3-5 days if malignancy suspected"
+      ],
+      "metadata": {
+        "notes": "Screen for night sweats, fever; urgent referral for rapid weight loss.",
+        "source": "Mayo Clinic"
+      }
+    },
     "fatigue": {
-      "differentials": ["Hypothyroidism", "Adrenal insufficiency", "Diabetes mellitus", "Depression", "Iron deficiency anemia"],
+      "differentials": [
+        "Anemia",
+        "Hypothyroidism",
+        "Depression",
+        "Chronic fatigue syndrome",
+        "Sleep apnea"
+      ],
       "workup": {
-        "urgent": ["Blood glucose", "TSH", "Cortisol levels"],
-        "routine": ["CBC", "BMP", "Thyroid function tests", "Iron studies"]
+        "urgent": [
+          "CBC if severe fatigue or pallor",
+          "Blood glucose for diabetes"
+        ],
+        "routine": [
+          "Thyroid function tests for hypothyroidism",
+          "Iron studies for anemia",
+          "PHQ-9 for depression",
+          "Polysomnography for sleep apnea"
+        ]
       },
       "management": {
-        "symptomatic": ["Hydration", "Rest"],
-        "definitive": ["Levothyroxine for hypothyroidism", "Steroids for adrenal insufficiency"]
+        "symptomatic": [
+          "Hydration: 2 L water daily",
+          "Rest: 7-9 hours sleep nightly"
+        ],
+        "definitive": [
+          "Ferrous sulfate 325 mg daily for anemia",
+          "Levothyroxine 25-50 mcg daily for hypothyroidism",
+          "Sertraline 50 mg daily for depression",
+          "CPAP for sleep apnea"
+        ],
+        "lifestyle": [
+          "Sleep hygiene: consistent bedtime",
+          "Moderate exercise: 30 min most days"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks for lab results",
+        "Follow-up in 2-4 weeks for treatment response"
+      ],
+      "metadata": {
+        "notes": "Screen for chronic infections (e.g., EBV, HIV); refer to sleep specialist if snoring.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "inattention": {
+      "differentials": [
+        "Attention deficit hyperactivity disorder",
+        "Anxiety",
+        "Learning disability",
+        "Sleep deprivation"
+      ],
+      "workup": {
+        "urgent": [],
+        "routine": [
+          "Behavioral assessment (e.g., Vanderbilt scale)",
+          "Psychological evaluation for cognitive function",
+          "School performance review"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Structured routines: daily schedule",
+          "Counseling for coping strategies"
+        ],
+        "definitive": [
+          "Methylphenidate 5 mg twice daily for ADHD (pediatric: 0.3-1 mg/kg/day)",
+          "Cognitive behavioral therapy for anxiety",
+          "Educational interventions for learning disability"
+        ],
+        "lifestyle": [
+          "Limit screen time: <2 hours/day",
+          "Ensure 8-10 hours sleep (pediatric)"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 2-4 weeks for treatment response",
+        "Follow-up in 1-2 weeks for medication adjustment"
+      ],
+      "metadata": {
+        "notes": "Pediatric focus; monitor for medication side effects (e.g., appetite suppression).",
+        "source": "Nationwide Children's"
       }
     }
   },
-   "psychiatric": {
-    "anxiety": {
-      "differentials": ["Generalized anxiety disorder", "Panic disorder", "Social anxiety disorder", "Post-traumatic stress disorder", "Medication-induced anxiety"],
+  "sensory": {
+    "vision changes": {
+      "differentials": [
+        "Diabetic retinopathy",
+        "Glaucoma",
+        "Stroke",
+        "Macular degeneration",
+        "Cataracts"
+      ],
       "workup": {
-        "urgent": ["Electrolytes", "Thyroid function tests", "Toxicology screen if substance use suspected"],
-        "routine": ["CBC", "BMP", "Psychiatric evaluation"]
+        "urgent": [
+          "Fundoscopic exam for retinal pathology",
+          "CT head if acute onset with neurological signs"
+        ],
+        "routine": [
+          "Comprehensive eye exam",
+          "Intraocular pressure measurement for glaucoma"
+        ]
       },
       "management": {
-        "symptomatic": ["Relaxation techniques", "Breathing exercises"],
-        "definitive": ["SSRIs", "Benzodiazepines for acute episodes", "Cognitive behavioral therapy"]
+        "symptomatic": [
+          "Avoid bright lights if photophobia"
+        ],
+        "definitive": [
+          "Laser therapy for diabetic retinopathy",
+          "Timolol 0.5% eye drops twice daily for glaucoma",
+          "Aspirin 81-325 mg for ischemic stroke (pending imaging confirmation)",
+          "Ranibizumab injections for macular degeneration"
+        ],
+        "lifestyle": [
+          "Glycemic control for diabetes",
+          "UV-protective sunglasses"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks for urgent cases",
+        "Follow-up in 4-6 weeks for stable conditions"
+      ],
+      "metadata": {
+        "notes": "Refer to ophthalmology for abnormal fundoscopy; monitor for sudden vision loss.",
+        "source": "Mayo Clinic"
       }
     },
+    "hearing loss": {
+      "differentials": [
+        "Sensorineural hearing loss",
+        "Conductive hearing loss",
+        "Otitis media",
+        "Meniere\u2019s disease"
+      ],
+      "workup": {
+        "urgent": [],
+        "routine": [
+          "Audiometry for hearing threshold",
+          "Tympanometry for middle ear pathology",
+          "ENT consult",
+          "MRI if unilateral or sudden"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Avoid loud noises"
+        ],
+        "definitive": [
+          "Hearing aids for sensorineural loss",
+          "Amoxicillin 500 mg thrice daily for otitis media",
+          "Myringotomy for chronic conductive loss",
+          "Hydrochlorothiazide 25 mg daily for Meniere\u2019s"
+        ],
+        "lifestyle": [
+          "Ear protection in noisy environments",
+          "Low-sodium diet for Meniere\u2019s"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 2-4 weeks for treatment response",
+        "Follow-up in 3-5 days for infection"
+      ],
+      "metadata": {
+        "notes": "Pediatric: consider congenital causes; urgent ENT for sudden hearing loss.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "tinnitus": {
+      "differentials": [
+        "Sensorineural hearing loss",
+        "Otitis media",
+        "Meniere\u2019s disease",
+        "Acoustic neuroma"
+      ],
+      "workup": {
+        "urgent": [],
+        "routine": [
+          "Audiometry for hearing assessment",
+          "ENT consult",
+          "MRI brain if unilateral or pulsatile"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Sound therapy: white noise devices"
+        ],
+        "definitive": [
+          "Hearing aids for sensorineural loss",
+          "Amoxicillin 500 mg thrice daily for otitis media",
+          "Hydrochlorothiazide 25 mg daily for Meniere\u2019s",
+          "Neurosurgery consult for acoustic neuroma"
+        ],
+        "lifestyle": [
+          "Avoid caffeine and loud noises",
+          "Stress management: relaxation techniques"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 2-4 weeks for symptom improvement",
+        "Follow-up in 1-2 weeks if unilateral"
+      ],
+      "metadata": {
+        "notes": "Urgent MRI for pulsatile tinnitus; consider medication-induced causes.",
+        "source": "Mayo Clinic"
+      }
+    }
+  },
+  "infectious": {
+    "sore throat": {
+      "differentials": [
+        "Streptococcal pharyngitis",
+        "Viral pharyngitis",
+        "Mononucleosis",
+        "Peritonsillar abscess"
+      ],
+      "workup": {
+        "urgent": [
+          "Rapid strep test if Centor score \u22653"
+        ],
+        "routine": [
+          "Throat culture if rapid test negative",
+          "Monospot test for mononucleosis",
+          "CBC if systemic symptoms"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Hydration: 2 L water daily",
+          "Ibuprofen 400 mg every 6 hours as needed"
+        ],
+        "definitive": [
+          "Amoxicillin 500 mg twice daily for 10 days for strep",
+          "Supportive care for viral pharyngitis",
+          "Steroids (e.g., dexamethasone 10 mg single dose) for mononucleosis"
+        ],
+        "lifestyle": [
+          "Rest and avoid irritants (e.g., smoke)",
+          "Hand hygiene to prevent spread"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 3-5 days for symptom resolution",
+        "Follow-up in 24-48 hours if abscess suspected"
+      ],
+      "metadata": {
+        "notes": "ENT consult for abscess; avoid contact sports in mononucleosis.",
+        "source": "CDC"
+      }
+    }
+  },
+  "renal": {
+    "flank pain": {
+      "differentials": [
+        "Kidney stones",
+        "Pyelonephritis",
+        "Renal colic",
+        "Renal infarction"
+      ],
+      "workup": {
+        "urgent": [
+          "Non-contrast CT abdomen for stones",
+          "Urine analysis for hematuria or infection"
+        ],
+        "routine": [
+          "Urine culture for pyelonephritis",
+          "Renal ultrasound for structural disease"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Ibuprofen 600 mg orally as needed (max 3.2 g/day)",
+          "Hydration: 2-3 L water daily"
+        ],
+        "definitive": [
+          "Tamsulosin 0.4 mg daily for kidney stones",
+          "Ceftriaxone 1 g IV daily for pyelonephritis",
+          "Urology consult for stone management"
+        ],
+        "lifestyle": [
+          "Low-oxalate diet for stone prevention",
+          "Monitor for fever or dysuria"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 3-5 days for stone passage",
+        "Follow-up in 24-48 hours for infection"
+      ],
+      "metadata": {
+        "notes": "Strain urine for stone analysis; avoid NSAIDs in renal impairment.",
+        "source": "Mayo Clinic"
+      }
+    },
+    "edema": {
+      "differentials": [
+        "for chronic kidney diseaserisk factors for ckd include diabetes",
+        "high blood pressure",
+        "heart failure",
+        "and family history"
+      ],
+      "workup": {
+        "urgent": [],
+        "routine": []
+      },
+      "management": {
+        "symptomatic": [],
+        "definitive": [
+          "websites"
+        ]
+      },
+      "source": "CDC"
+    }
+  },
+  "psychiatric": {
     "depression": {
-      "differentials": ["Major depressive disorder", "Bipolar disorder", "Dysthymia", "Adjustment disorder", "Substance-induced depression"],
+      "differentials": [
+        "Major depressive disorder",
+        "Hypothyroidism",
+        "Bipolar disorder",
+        "Vitamin D deficiency"
+      ],
       "workup": {
-        "urgent": ["Electrolytes", "Thyroid function tests", "Vitamin B12/folate levels"],
-        "routine": ["CBC", "BMP", "Psychiatric evaluation"]
+        "urgent": [],
+        "routine": [
+          "PHQ-9 screening for severity",
+          "Thyroid function tests for hypothyroidism",
+          "Vitamin D levels"
+        ]
       },
       "management": {
-        "symptomatic": ["Sleep hygiene", "Exercise"],
-        "definitive": ["SSRIs", "SNRIs", "Psychotherapy", "ECT if severe"]
+        "symptomatic": [
+          "Counseling: weekly sessions"
+        ],
+        "definitive": [
+          "Sertraline 50 mg daily, titrate to 200 mg",
+          "Levothyroxine for hypothyroidism (per TSH)",
+          "Vitamin D3 2000 IU daily for deficiency"
+        ],
+        "lifestyle": [
+          "Regular exercise: 30 min most days",
+          "Sleep hygiene: 7-9 hours nightly"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 2-4 weeks for treatment response",
+        "Follow-up in 1-2 weeks if suicidal ideation"
+      ],
+      "metadata": {
+        "notes": "Screen for mania before SSRIs; urgent psychiatry referral for suicidality.",
+        "source": "Mayo Clinic"
       }
     },
-    "insomnia": {
-      "differentials": ["Primary insomnia", "Depression-related insomnia", "Anxiety-related insomnia", "Medication-induced insomnia", "Sleep apnea"],
+    "anxiety": {
+      "differentials": [
+        "Generalized anxiety disorder",
+        "Hyperthyroidism",
+        "Panic disorder",
+        "Substance-induced anxiety"
+      ],
       "workup": {
-        "urgent": ["Polysomnography if sleep apnea suspected"],
-        "routine": ["CBC", "BMP", "Thyroid function tests"]
+        "urgent": [],
+        "routine": [
+          "GAD-7 screening for severity",
+          "Thyroid function tests for hyperthyroidism",
+          "Toxicology screen if substance use"
+        ]
       },
       "management": {
-        "symptomatic": ["Sleep hygiene education", "Melatonin"],
-        "definitive": ["Cognitive behavioral therapy for insomnia", "Sedative-hypnotics if necessary"]
+        "symptomatic": [
+          "Relaxation techniques: deep breathing"
+        ],
+        "definitive": [
+          "Sertraline 50 mg daily, titrate to 200 mg",
+          "Cognitive behavioral therapy: weekly sessions",
+          "Methimazole 5-10 mg daily for hyperthyroidism"
+        ],
+        "lifestyle": [
+          "Avoid caffeine: <200 mg/day",
+          "Regular sleep: 7-9 hours nightly"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 2-4 weeks for treatment response",
+        "Follow-up in 1-2 weeks for severe symptoms"
+      ],
+      "metadata": {
+        "notes": "Monitor for substance use; refer to psychiatry for refractory cases.",
+        "source": "Mayo Clinic"
       }
     },
-    "psychosis": {
-      "differentials": ["Schizophrenia", "Bipolar disorder with psychotic features", "Delirium", "Substance-induced psychosis", "Major depressive disorder with psychotic features"],
+    "low mood": {
+      "differentials": [
+        "Depression",
+        "Dysthymia",
+        "Anemia",
+        "Vitamin D deficiency"
+      ],
       "workup": {
-        "urgent": ["Toxicology screen", "Electrolytes", "Head CT if trauma or neurological signs"],
-        "routine": ["CBC", "BMP", "Psychiatric evaluation"]
+        "urgent": [],
+        "routine": [
+          "PHQ-9 screening for depression",
+          "CBC for anemia",
+          "Vitamin D levels"
+        ]
       },
       "management": {
-        "symptomatic": ["Environmental safety measures"],
-        "definitive": ["Antipsychotics", "Mood stabilizers if bipolar", "Psychiatric hospitalization if severe"]
-      }
-    },
-    "bipolar disorder": {
-      "differentials": ["Bipolar I disorder", "Bipolar II disorder", "Cyclothymic disorder", "Substance-induced mood disorder"],
-      "workup": {
-        "urgent": ["Toxicology screen", "Electrolytes"],
-        "routine": ["CBC", "BMP", "Thyroid function tests", "Psychiatric evaluation"]
+        "symptomatic": [
+          "Counseling: weekly sessions"
+        ],
+        "definitive": [
+          "Sertraline 50 mg daily for depression",
+          "Ferrous sulfate 325 mg daily for anemia",
+          "Vitamin D3 2000 IU daily for deficiency"
+        ],
+        "lifestyle": [
+          "Regular exercise: 30 min most days",
+          "Sunlight exposure: 15-30 min daily"
+        ]
       },
-      "management": {
-        "symptomatic": ["Mood stabilization techniques"],
-        "definitive": ["Mood stabilizers", "Antipsychotics", "Psychotherapy"]
-      }
-    },
-    "eating disorders": {
-      "differentials": ["Anorexia nervosa", "Bulimia nervosa", "Binge-eating disorder", "Avoidant/restrictive food intake disorder"],
-      "workup": {
-        "urgent": ["Electrolytes", "ECG if cardiac concerns"],
-        "routine": ["CBC", "BMP", "Nutritional assessment", "Psychiatric evaluation"]
-      },
-      "management": {
-        "symptomatic": ["Nutritional rehabilitation", "Hydration"],
-        "definitive": ["Multidisciplinary team approach", "Psychotherapy", "Nutritional counseling"]
-      }
-    },
-    "substance use disorders": {
-      "differentials": ["Alcohol use disorder", "Opioid use disorder", "Stimulant use disorder", "Cannabis use disorder"],
-      "workup": {
-        "urgent": ["Toxicology screen", "Electrolytes", "Liver function tests if alcohol use"],
-        "routine": ["CBC", "BMP", "Psychiatric evaluation"]
-      },
-      "management": {
-        "symptomatic": ["Detoxification protocols", "Hydration"],
-        "definitive": ["Medication-assisted treatment", "Psychotherapy", "Rehabilitation programs"]
-      }
-    },
-    "suicidal ideation": {
-      "differentials": ["Major depressive disorder", "Bipolar disorder", "Borderline personality disorder", "Substance-induced mood disorder"],
-      "workup": {
-        "urgent": ["Risk assessment", "Toxicology screen", "Psychiatric evaluation"],
-        "routine": ["CBC", "BMP", "Thyroid function tests"]
-      },
-      "management": {
-        "symptomatic": ["Safety planning", "Removal of lethal means"],
-        "definitive": ["Hospitalization if high risk", "Antidepressants", "Psychotherapy"]
-      }
-    }
-  },
-  "endocrine": {
-    "hyperglycemia": {
-      "differentials": ["Diabetes mellitus", "Hyperosmolar hyperglycemic state", "Diabetic ketoacidosis", "Medication-induced hyperglycemia"],
-      "workup": {
-        "urgent": ["Blood glucose", "Serum ketones", "Electrolytes"],
-        "routine": ["HbA1c", "CBC", "BMP"]
-      },
-      "management": {
-        "symptomatic": ["Hydration", "Insulin therapy"],
-        "definitive": ["Long-term insulin or oral hypoglycemics", "Diabetes education"]
-      }
-    },
-    "hypoglycemia": {
-      "differentials": ["Insulin overdose", "Oral hypoglycemic overdose", "Factitious hypoglycemia", "Endogenous hyperinsulinism"],
-      "workup": {
-        "urgent": ["Blood glucose", "Insulin level", "C-peptide level"],
-        "routine": ["CBC", "BMP", "Endocrinology consult"]
-      },
-      "management": {
-        "symptomatic": ["Glucose administration", "Dextrose IV"],
-        "definitive": ["Adjustment of diabetic medications", "Endocrine workup"]
-      }
-    },
-    "thyroid dysfunction": {
-      "differentials": ["Hypothyroidism", "Hyperthyroidism", "Thyroiditis", "Thyroid nodules"],
-      "workup": {
-        "urgent": ["TSH", "Free T4", "Thyroid ultrasound if nodules"],
-        "routine": ["Thyroid antibodies", "Fine needle aspiration if nodules"]
-      },
-      "management": {
-        "symptomatic": ["Beta-blockers for hyperthyroid symptoms"],
-        "definitive": ["Levothyroxine for hypothyroidism", "Antithyroid medications for hyperthyroidism", "Surgical referral if nodules"]
+      "follow_up": [
+        "Follow-up in 2-4 weeks for treatment response",
+        "Follow-up in 1-2 weeks if severe"
+      ],
+      "metadata": {
+        "notes": "Screen for suicidal ideation; consider dysthymia if chronic low mood.",
+        "source": "Mayo Clinic"
       }
     }
   },
   "hematologic": {
-    "anemia": {
-      "differentials": ["Iron deficiency anemia", "Vitamin B12 deficiency", "Folate deficiency", "Hemolytic anemia", "Chronic disease anemia"],
+    "bleeding": {
+      "differentials": [
+        "Thrombocytopenia",
+        "Hemophilia",
+        "Von Willebrand disease",
+        "Liver disease"
+      ],
       "workup": {
-        "urgent": ["CBC", "Peripheral smear", "Iron studies"],
-        "routine": ["Vitamin B12", "Folate", "Reticulocyte count"]
+        "urgent": [
+          "CBC for platelet count",
+          "Coagulation panel (PT/INR, aPTT)"
+        ],
+        "routine": [
+          "Bone marrow biopsy if pancytopenia",
+          "Von Willebrand factor assay"
+        ]
       },
       "management": {
-        "symptomatic": ["Hydration", "Iron supplementation"],
-        "definitive": ["Vitamin B12 injections", "Folate supplementation", "Erythropoietin if chronic kidney disease"]
+        "symptomatic": [
+          "Transfusion: platelets if <10,000/\u00b5L"
+        ],
+        "definitive": [
+          "Prednisone 1 mg/kg daily for ITP",
+          "Factor VIII replacement for hemophilia",
+          "Desmopressin 0.3 mcg/kg for von Willebrand disease"
+        ],
+        "lifestyle": [
+          "Avoid NSAIDs and high-risk activities",
+          "Monitor for bleeding signs"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 24-48 hours for acute bleeding",
+        "Follow-up in 1-2 weeks for stable cases"
+      ],
+      "metadata": {
+        "notes": "Refer to hematology for abnormal coagulation; urgent if mucosal bleeding.",
+        "source": "Mayo Clinic"
+      }
+    }
+  },
+  "cardiac": {
+    "congenital defect": {
+      "differentials": [
+        "Atrial septal defect",
+        "Ventricular septal defect",
+        "Tetralogy of Fallot",
+        "Patent ductus arteriosus"
+      ],
+      "workup": {
+        "urgent": [
+          "Echocardiogram for structural defects",
+          "ECG for arrhythmia"
+        ],
+        "routine": [
+          "Cardiology consult",
+          "Chest X-ray for cardiomegaly",
+          "Cardiac MRI for complex defects"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Oxygen therapy if cyanotic",
+          "Furosemide 1 mg/kg/day (pediatric) for heart failure"
+        ],
+        "definitive": [
+          "Catheter-based closure for ASD",
+          "Surgical repair for VSD",
+          "Corrective surgery for Tetralogy of Fallot"
+        ],
+        "lifestyle": [
+          "Monitor for growth delays (pediatric)",
+          "Avoid strenuous activity pre-repair"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks post-diagnosis",
+        "Follow-up in 24-48 hours if cyanotic"
+      ],
+      "metadata": {
+        "notes": "Pediatric focus: weight-based dosing; urgent cardiology for heart failure.",
+        "source": "Nationwide Children's"
+      }
+    }
+  },
+  "endocrinologic": {
+    "diabetes": {
+      "differentials": [
+        "Type 1 diabetes",
+        "Type 2 diabetes",
+        "Gestational diabetes",
+        "Monogenic diabetes"
+      ],
+      "workup": {
+        "urgent": [
+          "Blood glucose for hyperglycemia",
+          "Ketone testing for DKA"
+        ],
+        "routine": [
+          "HbA1c for glycemic control",
+          "Lipid panel for cardiovascular risk",
+          "C-peptide levels for type differentiation"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Hydration: IV fluids for DKA",
+          "Glucose monitoring: 4 times daily"
+        ],
+        "definitive": [
+          "Insulin (e.g., glargine 0.2 units/kg/day) for type 1",
+          "Metformin 500 mg twice daily for type 2",
+          "Insulin for gestational diabetes if uncontrolled"
+        ],
+        "lifestyle": [
+          "Dietary counseling: low-carb diet",
+          "Regular exercise: 150 min/week"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks for initial control",
+        "Follow-up in 3 months for HbA1c recheck"
+      ],
+      "metadata": {
+        "notes": "Refer to endocrinology for complex cases; screen for retinopathy.",
+        "source": "MedlinePlus"
       }
     },
-    "bleeding disorders": {
-      "differentials": ["Hemophilia", "Von Willebrand disease", "Thrombocytopenia", "Disseminated intravascular coagulation"],
+    "thyroid disorder": {
+      "differentials": [
+        "Hypothyroidism",
+        "Hyperthyroidism",
+        "Thyroiditis",
+        "Goiter"
+      ],
       "workup": {
-        "urgent": ["PT", "aPTT", "Platelet count"],
-        "routine": ["Factor assays", "Von Willebrand factor assay"]
+        "urgent": [
+          "TSH levels if severe symptoms (e.g., myxedema, thyroid storm)"
+        ],
+        "routine": [
+          "Free T4 for thyroid function",
+          "Thyroid antibodies for autoimmune disease",
+          "Thyroid ultrasound for nodules"
+        ]
       },
       "management": {
-        "symptomatic": ["Transfusion if severe bleeding"],
-        "definitive": ["Factor replacement therapy", "Desmopressin for von Willebrand disease"]
+        "symptomatic": [
+          "Monitor symptoms: fatigue, palpitations"
+        ],
+        "definitive": [
+          "Levothyroxine 25-50 mcg daily for hypothyroidism",
+          "Methimazole 5-10 mg daily for hyperthyroidism",
+          "Prednisone 40 mg daily for subacute thyroiditis"
+        ],
+        "lifestyle": [
+          "Avoid iodine excess in hyperthyroidism",
+          "Regular monitoring of thyroid function"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 2-4 weeks for dose adjustment",
+        "Follow-up in 6-8 weeks for stable therapy"
+      ],
+      "metadata": {
+        "notes": "Adjust levothyroxine in pregnancy; monitor for arrhythmias in hyperthyroidism.",
+        "source": "MedlinePlus"
       }
     }
   }

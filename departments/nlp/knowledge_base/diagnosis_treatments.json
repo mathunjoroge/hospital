@@ -5,7 +5,7 @@
             "symptomatic": ["Hydration", "Rest in a dark room"]
         },
         "workup": {
-            "urgent": [],
+            "urgent": ["Head CT if red flags like sudden onset or neurological deficits"],
             "routine": ["Neurology consult", "MRI if persistent or severe"]
         }
     },
@@ -61,7 +61,7 @@
     },
     "dermatitis": {
         "treatment": {
-            "definitive": ["Topical steroids", "Moisturizers", "Avoidance of irritants"],
+            "definitive": ["Topical steroids", "Moisturizers", "Avoidance of irritants", "Discontinue offending agent if drug-induced"],
             "symptomatic": ["Cool compresses", "Antihistamines"]
         },
         "workup": {
@@ -242,7 +242,7 @@
     "anxiety": {
         "treatment": {
             "definitive": ["Benzodiazepines", "SSRIs", "Psychotherapy"],
-            "symptomatic": []
+            "symptomatic": ["Caffeine reduction", "Relaxation techniques"]
         },
         "workup": {
             "urgent": [],
@@ -337,6 +337,126 @@
         "workup": {
             "urgent": ["MRI brain and spine"],
             "routine": ["Lumbar puncture", "Evoked potentials"]
+        }
+    },
+    "pharyngitis": {
+        "treatment": {
+            "definitive": ["Antibiotics if bacterial", "Supportive care"],
+            "symptomatic": ["Analgesics", "Hydration"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Rapid strep test", "Throat culture"]
+        }
+    },
+    "tonsillitis": {
+        "treatment": {
+            "definitive": ["Antibiotics if bacterial", "Tonsillectomy if recurrent"],
+            "symptomatic": ["Analgesics", "Hydration"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Rapid strep test", "Throat culture"]
+        }
+    },
+    "ankle sprain": {
+        "treatment": {
+            "definitive": ["RICE protocol", "Physical therapy", "Ankle brace"],
+            "symptomatic": ["NSAIDs", "Elevation"]
+        },
+        "workup": {
+            "urgent": ["Ankle X-ray to rule out fracture"],
+            "routine": ["Orthopedic consult if persistent"]
+        }
+    },
+    "bPPV": {
+        "treatment": {
+            "definitive": ["Epley maneuver", "Vestibular rehabilitation"],
+            "symptomatic": ["Antihistamines like meclizine"]
+        },
+        "workup": {
+            "urgent": ["Dix-Hallpike maneuver"],
+            "routine": ["Neurology consult if recurrent", "Brain MRI if atypical"]
+        }
+    },
+    "allergic reaction": {
+        "treatment": {
+            "definitive": ["Antihistamines", "Corticosteroids", "Epinephrine if severe"],
+            "symptomatic": ["Avoidance of allergen"]
+        },
+        "workup": {
+            "urgent": ["Vital signs", "Allergy testing if unclear trigger"],
+            "routine": ["Immunology consult"]
+        }
+    },
+    "angioedema": {
+        "treatment": {
+            "definitive": ["Antihistamines", "Corticosteroids", "Epinephrine for airway involvement"],
+            "symptomatic": ["Airway monitoring"]
+        },
+        "workup": {
+            "urgent": ["C1 esterase inhibitor levels if hereditary suspected"],
+            "routine": ["Allergy or immunology consult"]
+        }
+    },
+    "transient ischemic attack": {
+        "treatment": {
+            "definitive": ["Antiplatelet therapy", "Statins", "Blood pressure control"],
+            "symptomatic": ["Hydration"]
+        },
+        "workup": {
+            "urgent": ["Brain CT or MRI", "Carotid ultrasound"],
+            "routine": ["Echocardiogram", "Lipid panel"]
+        }
+    },
+    "viral gastroenteritis": {
+        "treatment": {
+            "definitive": ["Hydration", "Electrolyte replacement"],
+            "symptomatic": ["Antiemetics", "Antidiarrheals if needed"]
+        },
+        "workup": {
+            "urgent": ["Stool studies if severe"],
+            "routine": ["Electrolyte panel", "CBC"]
+        }
+    },
+    "traveler’s diarrhea": {
+        "treatment": {
+            "definitive": ["Antibiotics like ciprofloxacin", "Hydration"],
+            "symptomatic": ["Loperamide"]
+        },
+        "workup": {
+            "urgent": ["Stool culture if persistent"],
+            "routine": ["Travel history review"]
+        }
+    },
+    "essential tremor": {
+        "treatment": {
+            "definitive": ["Propranolol", "Primidone"],
+            "symptomatic": ["Occupational therapy"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Neurology consult", "Thyroid function tests"]
+        }
+    },
+    "caffeine overuse": {
+        "treatment": {
+            "definitive": ["Caffeine reduction", "Lifestyle counseling"],
+            "symptomatic": ["Hydration"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Review of dietary habits"]
+        }
+    },
+    "tension headache": {
+        "treatment": {
+            "definitive": ["NSAIDs", "Muscle relaxants"],
+            "symptomatic": ["Stress management", "Hydration"]
+        },
+        "workup": {
+            "urgent": [],
+            "routine": ["Neurology consult if chronic"]
         }
     }
 }
