@@ -6,3 +6,671 @@
 2025-04-17 10:13:19,918 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with leg swelling for 1 week., symptoms: [{'description': '55-year-old male presents leg swelling for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}, {'description': 'swelling', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}, {'description': 'dyspnea', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}]
 2025-04-17 10:14:12,697 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with knee pain for 1 month., symptoms: [{'description': '50-year-old male presents knee pain for 1 month', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}, {'description': 'swelling', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}]
 2025-04-17 10:14:28,311 - WARNING -  * Debugger is active!
+2025-04-18 10:44:53,781 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with joint pain for 2 weeks., symptoms: [{'description': '60-year-old male presents joint pain for 2 weeks', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}, {'description': 'swelling', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}]
+2025-04-18 10:45:08,689 - WARNING - No differentials generated for chief complaint: 33-year-old female presents with dysuria for 3 days., symptoms: [{'description': '33-year-old female presents dysuria for 3 days', 'duration': '3 days', 'severity': 'Mild', 'location': 'Flank', 'aggravating': 'Urination', 'alleviating': 'Hydration'}]
+2025-04-18 10:45:45,582 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with memory loss for 6 months., symptoms: [{'description': '60-year-old male presents memory loss for 6 months', 'duration': '6 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Stress', 'alleviating': 'None'}]
+2025-04-18 10:46:51,072 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with leg swelling for 1 week., symptoms: [{'description': '55-year-old male presents leg swelling for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}, {'description': 'dyspnea', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}, {'description': 'swelling', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}]
+2025-04-18 10:47:53,783 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with knee pain for 1 month., symptoms: [{'description': '50-year-old male presents knee pain for 1 month', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}, {'description': 'swelling', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}]
+2025-04-18 10:48:12,078 - WARNING -  * Debugger is active!
+2025-04-18 12:18:12,337 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:18:12,349 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:18:14,385 - ERROR - Analysis failed for note 49: name 'instanceof' is not defined
+2025-04-18 12:18:14,388 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:18:14,407 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:18:14,415 - ERROR - Analysis failed for note 50: name 'instanceof' is not defined
+2025-04-18 12:18:14,457 - WARNING -  * Debugger is active!
+2025-04-18 12:20:48,598 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:20:48,604 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:20:54,548 - WARNING - No differentials generated for chief complaint: 45-year-old male presents with palpitations for 3 days., symptoms: [{'description': '45-year-old male presents palpitations for 3 days', 'duration': '3 days', 'severity': 'Mild', 'location': 'Chest', 'aggravating': 'Stress, caffeine, exertion', 'alleviating': 'Resting, lying down'}]
+2025-04-18 12:20:54,558 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:20:54,564 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:20:55,415 - WARNING - No differentials generated for chief complaint: 30-year-old female presents with vaginal discharge for 5 days., symptoms: [{'description': '30-year-old female presents vaginal discharge for 5 days', 'duration': '5 days', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Tight clothing, warm weather', 'alleviating': 'Cool showers'}]
+2025-04-18 12:20:55,417 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:20:55,419 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:01,907 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:01,910 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:02,750 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:02,752 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:07,819 - WARNING - No differentials generated for chief complaint: 40-year-old male presents with abdominal pain for 2 days., symptoms: [{'description': '40-year-old male presents abdominal pain for 2 days', 'duration': '2 days', 'severity': 'Mild', 'location': 'Abdomen', 'aggravating': 'Movement, eating', 'alleviating': 'Lying still'}]
+2025-04-18 12:21:07,823 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:07,825 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:08,713 - WARNING - No differentials generated for chief complaint: 25-year-old female presents with sore throat for 4 days., symptoms: [{'description': '25-year-old female presents sore throat for 4 days', 'duration': '4 days', 'severity': 'Mild', 'location': 'Chest', 'aggravating': 'Swallowing, talking', 'alleviating': 'Warm liquids'}]
+2025-04-18 12:21:08,715 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:08,718 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:09,590 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:09,592 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:10,441 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:10,447 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:11,281 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with joint pain for 2 weeks., symptoms: [{'description': '60-year-old male presents joint pain for 2 weeks', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}]
+2025-04-18 12:21:11,284 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:11,286 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:12,125 - WARNING - No differentials generated for chief complaint: 28-year-old female presents with pelvic pain for 3 days., symptoms: [{'description': '28-year-old female presents pelvic pain for 3 days', 'duration': '3 days', 'severity': 'Mild', 'location': 'Abdomen', 'aggravating': 'Movement, pressure', 'alleviating': 'Rest'}]
+2025-04-18 12:21:12,127 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:12,130 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:17,067 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:17,070 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:17,882 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:17,884 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:18,720 - WARNING - No differentials generated for chief complaint: 33-year-old female presents with dysuria for 3 days., symptoms: [{'description': '33-year-old female presents dysuria for 3 days', 'duration': '3 days', 'severity': 'Mild', 'location': 'Flank', 'aggravating': 'Urination', 'alleviating': 'Hydration'}]
+2025-04-18 12:21:18,722 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:18,725 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:19,580 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:19,582 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:20,449 - WARNING - No differentials generated for chief complaint: 60-year-old female presents with jaundice for 1 week., symptoms: [{'description': '60-year-old female presents jaundice for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Generalized', 'aggravating': 'Fatty meals', 'alleviating': 'Avoiding heavy foods'}]
+2025-04-18 12:21:20,451 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:20,453 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:21,296 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:21,298 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:22,166 - WARNING - No differentials generated for chief complaint: 30-year-old female presents with anxiety for 1 month., symptoms: [{'description': '30-year-old female presents anxiety for 1 month', 'duration': '1 month', 'severity': 'Mild', 'location': 'Generalized', 'aggravating': 'Stressful situations', 'alleviating': 'Relaxation techniques'}]
+2025-04-18 12:21:22,179 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:22,182 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:23,026 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:23,028 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:23,888 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:23,890 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:24,732 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:24,734 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:25,555 - WARNING - No differentials generated for chief complaint: 28-year-old female presents with irregular menses for 3 months., symptoms: [{'description': '28-year-old female presents irregular menses for 3 months', 'duration': '3 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'None', 'alleviating': 'None'}]
+2025-04-18 12:21:25,561 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:25,564 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:27,226 - WARNING - No differentials generated for chief complaint: 65-year-old female presents with vision changes for 1 week., symptoms: [{'description': '65-year-old female presents vision changes for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Abdomen', 'aggravating': 'Bright lights', 'alleviating': 'Dark environment'}]
+2025-04-18 12:21:27,229 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:27,232 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:28,058 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:28,061 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:28,888 - WARNING - No differentials generated for chief complaint: 30-year-old female presents with rash for 3 days., symptoms: [{'description': '30-year-old female presents rash for 3 days', 'duration': '3 days', 'severity': 'Mild', 'location': 'Skin', 'aggravating': 'Scratching', 'alleviating': 'Moisturizers'}]
+2025-04-18 12:21:28,891 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:28,894 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:29,721 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with tremors for 1 month., symptoms: [{'description': '50-year-old male presents tremors for 1 month', 'duration': '1 month', 'severity': 'Mild', 'location': 'Hand', 'aggravating': 'Stress', 'alleviating': 'Relaxation'}]
+2025-04-18 12:21:29,729 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:29,732 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:30,563 - WARNING - No differentials generated for chief complaint: 35-year-old female presents with diarrhea for 1 week., symptoms: [{'description': '35-year-old female presents diarrhea for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Abdomen', 'aggravating': 'Eating', 'alleviating': 'Fasting'}]
+2025-04-18 12:21:30,567 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:30,570 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:31,391 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with memory loss for 6 months., symptoms: [{'description': '60-year-old male presents memory loss for 6 months', 'duration': '6 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Stress', 'alleviating': 'None'}]
+2025-04-18 12:21:31,396 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:31,398 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:32,227 - WARNING - No differentials generated for chief complaint: 25-year-old male presents with wheezing for 2 days., symptoms: [{'description': '25-year-old male presents wheezing for 2 days', 'duration': '2 days', 'severity': 'Mild', 'location': 'Chest', 'aggravating': 'Cold air, exertion', 'alleviating': 'Warm environment'}]
+2025-04-18 12:21:32,233 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:32,235 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:33,064 - WARNING - No differentials generated for chief complaint: 70-year-old female presents with bone pain for 1 month., symptoms: [{'description': '70-year-old female presents bone pain for 1 month', 'duration': '1 month', 'severity': 'Mild', 'location': 'Generalized', 'aggravating': 'Movement', 'alleviating': 'Rest'}]
+2025-04-18 12:21:33,067 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:33,069 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:33,924 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:33,927 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:21:34,760 - WARNING - No differentials generated for chief complaint: 50-year-old female presents with edema for 1 week., symptoms: [{'description': '50-year-old female presents edema for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Chest', 'aggravating': 'Standing', 'alleviating': 'Elevation'}]
+2025-04-18 12:21:34,766 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:21:34,769 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:07,109 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:07,114 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:12,778 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:12,783 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:14,453 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:14,455 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:15,298 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with leg swelling for 1 week., symptoms: [{'description': '55-year-old male presents leg swelling for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}]
+2025-04-18 12:22:15,306 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:15,309 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:19,325 - WARNING - No differentials generated for chief complaint: 38-year-old female presents with fatigue for 1 month., symptoms: [{'description': '38-year-old female presents fatigue for 1 month', 'duration': '1 month', 'severity': 'Mild', 'location': 'Abdomen', 'aggravating': 'Cold weather', 'alleviating': 'Warm environment'}]
+2025-04-18 12:22:19,334 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:19,336 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:20,160 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:20,163 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:20,979 - WARNING - No differentials generated for chief complaint: 29-year-old female presents with abdominal pain for 1 week., symptoms: [{'description': '29-year-old female presents abdominal pain for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Abdomen', 'aggravating': 'Eating, stress', 'alleviating': 'Rest'}]
+2025-04-18 12:22:20,982 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:20,985 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:21,810 - WARNING - No differentials generated for chief complaint: 45-year-old male presents with numbness for 2 weeks., symptoms: [{'description': '45-year-old male presents numbness for 2 weeks', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Neck, Hand', 'aggravating': 'Hand use, sleeping', 'alleviating': 'Shaking hands'}]
+2025-04-18 12:22:21,815 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:21,817 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:22,636 - WARNING - No differentials generated for chief complaint: 50-year-old female presents with vertigo for 3 days., symptoms: [{'description': '50-year-old female presents vertigo for 3 days', 'duration': '3 days', 'severity': 'Mild', 'location': 'Abdomen', 'aggravating': 'Head turning', 'alleviating': 'Lying still'}]
+2025-04-18 12:22:22,639 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:22,641 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:23,460 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with hematuria for 2 days., symptoms: [{'description': '60-year-old male presents hematuria for 2 days', 'duration': '2 days', 'severity': 'Mild', 'location': 'Flank', 'aggravating': 'Urination', 'alleviating': 'Hydration'}]
+2025-04-18 12:22:23,463 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:23,466 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:24,286 - WARNING - No differentials generated for chief complaint: 35-year-old female presents with rash for 5 days., symptoms: [{'description': '35-year-old female presents rash for 5 days', 'duration': '5 days', 'severity': 'Mild', 'location': 'Skin', 'aggravating': 'Scratching, tight clothing', 'alleviating': 'Cool compresses'}]
+2025-04-18 12:22:24,288 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:24,291 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:25,112 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with weight loss for 2 months., symptoms: [{'description': '55-year-old male presents weight loss for 2 months', 'duration': '2 months', 'severity': 'Mild', 'location': 'Generalized', 'aggravating': 'Activity', 'alleviating': 'Rest'}]
+2025-04-18 12:22:25,119 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:25,122 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:25,938 - WARNING - No differentials generated for chief complaint: 40-year-old female presents with polydipsia for 3 weeks., symptoms: [{'description': '40-year-old female presents polydipsia for 3 weeks', 'duration': '3 weeks', 'severity': 'Mild', 'location': 'Generalized', 'aggravating': 'Dehydration', 'alleviating': 'Drinking water'}]
+2025-04-18 12:22:25,943 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:25,945 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:26,764 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with knee pain for 1 month., symptoms: [{'description': '50-year-old male presents knee pain for 1 month', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}]
+2025-04-18 12:22:26,767 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:26,770 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:34,162 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:34,165 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:34,988 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:22:34,991 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:22:35,810 - WARNING - No differentials generated for chief complaint: 45-year-old male presents with flank pain for 2 days., symptoms: [{'description': '45-year-old male presents flank pain for 2 days', 'duration': '2 days', 'severity': 'Severe', 'location': 'Abdomen', 'aggravating': 'Movement', 'alleviating': 'Hydration'}]
+2025-04-18 12:22:35,832 - WARNING -  * Debugger is active!
+2025-04-18 12:55:03,378 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:55:03,385 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:55:07,945 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with weakness for 1 week., symptoms: [{'description': '60-year-old male presents weakness for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Leg', 'aggravating': 'Activity', 'alleviating': 'Rest'}]
+2025-04-18 12:55:07,961 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms.json, got <class 'dict'>
+2025-04-18 12:55:07,972 - ERROR - Expected dict with follow-up keys for management_config.json, got <class 'dict'>
+2025-04-18 12:55:09,910 - WARNING - No differentials generated for chief complaint: 45-year-old female presents with itching for 2 weeks., symptoms: [{'description': '45-year-old female presents itching for 2 weeks', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Skin', 'aggravating': 'Dry weather', 'alleviating': 'Moisturizers'}]
+2025-04-18 12:55:09,964 - WARNING -  * Debugger is active!
+2025-04-18 15:18:42,400 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:18:42,431 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:18:42,486 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:18:48,700 - WARNING - No differentials generated for chief complaint: 45-year-old male presents with palpitations for 3 days., symptoms: [{'description': '45-year-old male presents palpitations for 3 days', 'duration': '3 days', 'severity': 'Mild', 'location': 'Chest', 'aggravating': 'Stress, caffeine, exertion', 'alleviating': 'Resting, lying down'}]
+2025-04-18 15:18:48,725 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:18:48,729 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:18:48,759 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:18:49,688 - WARNING - No differentials generated for chief complaint: 30-year-old female presents with vaginal discharge for 5 days., symptoms: [{'description': '30-year-old female presents vaginal discharge for 5 days', 'duration': '5 days', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Tight clothing, warm weather', 'alleviating': 'Cool showers'}]
+2025-04-18 15:18:49,702 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:18:49,705 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:18:49,751 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:18:57,586 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:18:57,596 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:18:57,627 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:18:58,609 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:18:58,613 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:18:58,657 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:03,822 - WARNING - No differentials generated for chief complaint: 40-year-old male presents with abdominal pain for 2 days., symptoms: [{'description': '40-year-old male presents abdominal pain for 2 days', 'duration': '2 days', 'severity': 'Mild', 'location': 'Abdomen', 'aggravating': 'Movement, eating', 'alleviating': 'Lying still'}]
+2025-04-18 15:19:03,836 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:03,838 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:03,853 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:04,750 - WARNING - No differentials generated for chief complaint: 25-year-old female presents with sore throat for 4 days., symptoms: [{'description': '25-year-old female presents sore throat for 4 days', 'duration': '4 days', 'severity': 'Mild', 'location': 'Chest', 'aggravating': 'Swallowing, talking', 'alleviating': 'Warm liquids'}]
+2025-04-18 15:19:04,764 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:04,766 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:04,789 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:05,713 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:05,716 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:05,741 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:06,661 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:06,664 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:06,679 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:07,733 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with joint pain for 2 weeks., symptoms: [{'description': '60-year-old male presents joint pain for 2 weeks', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}]
+2025-04-18 15:19:07,745 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:07,748 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:07,764 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:08,702 - WARNING - No differentials generated for chief complaint: 28-year-old female presents with pelvic pain for 3 days., symptoms: [{'description': '28-year-old female presents pelvic pain for 3 days', 'duration': '3 days', 'severity': 'Mild', 'location': 'Abdomen', 'aggravating': 'Movement, pressure', 'alleviating': 'Rest'}]
+2025-04-18 15:19:08,713 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:08,716 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:08,754 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:14,160 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:14,162 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:14,194 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:15,100 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:15,103 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:15,131 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:16,057 - WARNING - No differentials generated for chief complaint: 33-year-old female presents with dysuria for 3 days., symptoms: [{'description': '33-year-old female presents dysuria for 3 days', 'duration': '3 days', 'severity': 'Mild', 'location': 'Flank', 'aggravating': 'Urination', 'alleviating': 'Hydration'}]
+2025-04-18 15:19:16,067 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:16,072 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:16,096 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:16,997 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:17,009 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:17,037 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:17,946 - WARNING - No differentials generated for chief complaint: 60-year-old female presents with jaundice for 1 week., symptoms: [{'description': '60-year-old female presents jaundice for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Generalized', 'aggravating': 'Fatty meals', 'alleviating': 'Avoiding heavy foods'}]
+2025-04-18 15:19:17,957 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:17,960 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:17,976 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:18,908 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:18,911 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:18,928 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:19,848 - WARNING - No differentials generated for chief complaint: 30-year-old female presents with anxiety for 1 month., symptoms: [{'description': '30-year-old female presents anxiety for 1 month', 'duration': '1 month', 'severity': 'Mild', 'location': 'Generalized', 'aggravating': 'Stressful situations', 'alleviating': 'Relaxation techniques'}]
+2025-04-18 15:19:19,865 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:19,869 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:19,895 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:20,851 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:20,861 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:20,889 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:21,810 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:21,813 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:21,838 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:22,772 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:22,775 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:22,810 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:23,712 - WARNING - No differentials generated for chief complaint: 28-year-old female presents with irregular menses for 3 months., symptoms: [{'description': '28-year-old female presents irregular menses for 3 months', 'duration': '3 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'None', 'alleviating': 'None'}]
+2025-04-18 15:19:23,727 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:23,730 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:23,761 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:25,671 - WARNING - No differentials generated for chief complaint: 65-year-old female presents with vision changes for 1 week., symptoms: [{'description': '65-year-old female presents vision changes for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Abdomen', 'aggravating': 'Bright lights', 'alleviating': 'Dark environment'}]
+2025-04-18 15:19:25,683 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:25,686 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:25,719 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:26,642 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:26,644 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:26,667 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:27,578 - WARNING - No differentials generated for chief complaint: 30-year-old female presents with rash for 3 days., symptoms: [{'description': '30-year-old female presents rash for 3 days', 'duration': '3 days', 'severity': 'Mild', 'location': 'Skin', 'aggravating': 'Scratching', 'alleviating': 'Moisturizers'}]
+2025-04-18 15:19:27,591 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:27,594 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:27,628 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:28,519 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with tremors for 1 month., symptoms: [{'description': '50-year-old male presents tremors for 1 month', 'duration': '1 month', 'severity': 'Mild', 'location': 'Hand', 'aggravating': 'Stress', 'alleviating': 'Relaxation'}]
+2025-04-18 15:19:28,543 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:28,557 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:28,579 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:29,482 - WARNING - No differentials generated for chief complaint: 35-year-old female presents with diarrhea for 1 week., symptoms: [{'description': '35-year-old female presents diarrhea for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Abdomen', 'aggravating': 'Eating', 'alleviating': 'Fasting'}]
+2025-04-18 15:19:29,497 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:29,501 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:29,534 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:30,449 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with memory loss for 6 months., symptoms: [{'description': '60-year-old male presents memory loss for 6 months', 'duration': '6 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Stress', 'alleviating': 'None'}]
+2025-04-18 15:19:30,465 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:30,471 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:30,504 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:31,416 - WARNING - No differentials generated for chief complaint: 25-year-old male presents with wheezing for 2 days., symptoms: [{'description': '25-year-old male presents wheezing for 2 days', 'duration': '2 days', 'severity': 'Mild', 'location': 'Chest', 'aggravating': 'Cold air, exertion', 'alleviating': 'Warm environment'}]
+2025-04-18 15:19:31,430 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:31,438 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:31,471 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:32,361 - WARNING - No differentials generated for chief complaint: 70-year-old female presents with bone pain for 1 month., symptoms: [{'description': '70-year-old female presents bone pain for 1 month', 'duration': '1 month', 'severity': 'Mild', 'location': 'Generalized', 'aggravating': 'Movement', 'alleviating': 'Rest'}]
+2025-04-18 15:19:32,375 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:32,380 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:32,413 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:33,360 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:33,367 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:33,394 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:19:34,431 - WARNING - No differentials generated for chief complaint: 50-year-old female presents with edema for 1 week., symptoms: [{'description': '50-year-old female presents edema for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Chest', 'aggravating': 'Standing', 'alleviating': 'Elevation'}]
+2025-04-18 15:19:34,452 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:19:34,456 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:19:34,490 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:07,759 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:07,774 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:07,811 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:13,777 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:13,780 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:13,816 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:15,625 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:15,630 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:15,663 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:16,551 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with leg swelling for 1 week., symptoms: [{'description': '55-year-old male presents leg swelling for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}]
+2025-04-18 15:20:16,569 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:16,573 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:16,595 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:20,932 - WARNING - No differentials generated for chief complaint: 38-year-old female presents with fatigue for 1 month., symptoms: [{'description': '38-year-old female presents fatigue for 1 month', 'duration': '1 month', 'severity': 'Mild', 'location': 'Abdomen', 'aggravating': 'Cold weather', 'alleviating': 'Warm environment'}]
+2025-04-18 15:20:20,949 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:20,952 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:20,984 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:22,046 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:22,049 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:22,073 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:22,981 - WARNING - No differentials generated for chief complaint: 29-year-old female presents with abdominal pain for 1 week., symptoms: [{'description': '29-year-old female presents abdominal pain for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Abdomen', 'aggravating': 'Eating, stress', 'alleviating': 'Rest'}]
+2025-04-18 15:20:22,994 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:22,997 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:23,025 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:23,944 - WARNING - No differentials generated for chief complaint: 45-year-old male presents with numbness for 2 weeks., symptoms: [{'description': '45-year-old male presents numbness for 2 weeks', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Neck, Hand', 'aggravating': 'Hand use, sleeping', 'alleviating': 'Shaking hands'}]
+2025-04-18 15:20:23,958 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:23,961 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:23,986 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:24,909 - WARNING - No differentials generated for chief complaint: 50-year-old female presents with vertigo for 3 days., symptoms: [{'description': '50-year-old female presents vertigo for 3 days', 'duration': '3 days', 'severity': 'Mild', 'location': 'Abdomen', 'aggravating': 'Head turning', 'alleviating': 'Lying still'}]
+2025-04-18 15:20:24,920 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:24,922 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:24,934 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:25,839 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with hematuria for 2 days., symptoms: [{'description': '60-year-old male presents hematuria for 2 days', 'duration': '2 days', 'severity': 'Mild', 'location': 'Flank', 'aggravating': 'Urination', 'alleviating': 'Hydration'}]
+2025-04-18 15:20:25,851 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:25,854 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:25,874 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:26,786 - WARNING - No differentials generated for chief complaint: 35-year-old female presents with rash for 5 days., symptoms: [{'description': '35-year-old female presents rash for 5 days', 'duration': '5 days', 'severity': 'Mild', 'location': 'Skin', 'aggravating': 'Scratching, tight clothing', 'alleviating': 'Cool compresses'}]
+2025-04-18 15:20:26,800 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:26,807 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:26,835 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:27,736 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with weight loss for 2 months., symptoms: [{'description': '55-year-old male presents weight loss for 2 months', 'duration': '2 months', 'severity': 'Mild', 'location': 'Generalized', 'aggravating': 'Activity', 'alleviating': 'Rest'}]
+2025-04-18 15:20:27,753 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:27,762 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:27,790 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:28,704 - WARNING - No differentials generated for chief complaint: 40-year-old female presents with polydipsia for 3 weeks., symptoms: [{'description': '40-year-old female presents polydipsia for 3 weeks', 'duration': '3 weeks', 'severity': 'Mild', 'location': 'Generalized', 'aggravating': 'Dehydration', 'alleviating': 'Drinking water'}]
+2025-04-18 15:20:28,717 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:28,720 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:28,745 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:29,644 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with knee pain for 1 month., symptoms: [{'description': '50-year-old male presents knee pain for 1 month', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}]
+2025-04-18 15:20:29,655 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:29,659 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:29,696 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:37,642 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:37,645 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:37,668 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:38,755 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:20:38,761 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:20:38,788 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:20:39,697 - WARNING - No differentials generated for chief complaint: 45-year-old male presents with flank pain for 2 days., symptoms: [{'description': '45-year-old male presents flank pain for 2 days', 'duration': '2 days', 'severity': 'Severe', 'location': 'Abdomen', 'aggravating': 'Movement', 'alleviating': 'Hydration'}]
+2025-04-18 15:20:39,719 - WARNING -  * Debugger is active!
+2025-04-18 15:50:05,158 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:05,168 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:05,201 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:16,871 - WARNING - No differentials generated for chief complaint: 45-year-old male presents with palpitations for 3 days.
+2025-04-18 15:50:16,897 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:16,902 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:16,931 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:18,510 - WARNING - No differentials generated for chief complaint: 30-year-old female presents with vaginal discharge for 5 days.
+2025-04-18 15:50:18,524 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:18,528 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:18,553 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:27,357 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:27,361 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:27,399 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:28,537 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:28,542 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:28,580 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:34,999 - WARNING - No differentials generated for chief complaint: 40-year-old male presents with abdominal pain for 2 days.
+2025-04-18 15:50:35,018 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:35,022 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:35,056 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:36,179 - WARNING - No differentials generated for chief complaint: 25-year-old female presents with sore throat for 4 days.
+2025-04-18 15:50:36,205 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:36,213 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:36,243 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:37,379 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:37,386 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:37,411 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:38,522 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:38,529 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:38,799 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:39,877 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with joint pain for 2 weeks.
+2025-04-18 15:50:39,894 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:39,901 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:39,929 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:40,968 - WARNING - No differentials generated for chief complaint: 28-year-old female presents with pelvic pain for 3 days.
+2025-04-18 15:50:40,983 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:40,989 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:41,020 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:47,429 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:47,433 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:47,466 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:48,555 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:48,562 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:48,595 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:49,701 - WARNING - No differentials generated for chief complaint: 33-year-old female presents with dysuria for 3 days.
+2025-04-18 15:50:49,715 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:49,719 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:49,749 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:51,518 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:51,529 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:51,574 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:53,505 - WARNING - No differentials generated for chief complaint: 60-year-old female presents with jaundice for 1 week.
+2025-04-18 15:50:53,521 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:53,527 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:53,570 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:54,910 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:54,917 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:54,977 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:56,185 - WARNING - No differentials generated for chief complaint: 30-year-old female presents with anxiety for 1 month.
+2025-04-18 15:50:56,211 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:56,217 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:56,277 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:57,413 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:57,424 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:57,475 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:58,586 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:58,590 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:58,638 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:50:59,830 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:50:59,838 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:50:59,882 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:51:01,002 - WARNING - No differentials generated for chief complaint: 28-year-old female presents with irregular menses for 3 months.
+2025-04-18 15:51:01,034 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:51:01,039 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:51:01,078 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:51:03,385 - WARNING - No differentials generated for chief complaint: 65-year-old female presents with vision changes for 1 week.
+2025-04-18 15:51:03,399 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:51:03,402 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:51:03,444 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:51:05,212 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:51:05,227 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:51:05,267 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:51:06,540 - WARNING - No differentials generated for chief complaint: 30-year-old female presents with rash for 3 days.
+2025-04-18 15:51:06,572 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:51:06,583 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:51:06,682 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:51:08,639 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with tremors for 1 month.
+2025-04-18 15:51:08,661 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:51:08,670 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:51:08,701 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:51:09,961 - WARNING - No differentials generated for chief complaint: 35-year-old female presents with diarrhea for 1 week.
+2025-04-18 15:51:09,985 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:51:09,989 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:51:10,027 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:51:11,330 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with memory loss for 6 months.
+2025-04-18 15:51:11,353 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:51:11,357 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:51:11,386 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:51:12,406 - WARNING - No differentials generated for chief complaint: 25-year-old male presents with wheezing for 2 days.
+2025-04-18 15:51:12,433 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:51:12,448 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:51:12,476 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:51:13,522 - WARNING - No differentials generated for chief complaint: 70-year-old female presents with bone pain for 1 month.
+2025-04-18 15:51:13,537 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:51:13,548 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:51:13,575 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:51:14,777 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:51:14,782 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:51:14,810 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:51:15,883 - WARNING - No differentials generated for chief complaint: 50-year-old female presents with edema for 1 week.
+2025-04-18 15:51:15,908 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:51:15,917 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:51:15,946 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:51:51,709 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:51:51,722 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:51:51,754 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:51:59,219 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:51:59,226 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:51:59,257 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:01,339 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:52:01,347 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:52:01,372 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:02,443 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with leg swelling for 1 week.
+2025-04-18 15:52:02,471 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:52:02,477 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:52:02,504 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:08,026 - WARNING - No differentials generated for chief complaint: 38-year-old female presents with fatigue for 1 month.
+2025-04-18 15:52:08,068 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:52:08,076 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:52:08,139 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:09,464 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:52:09,471 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:52:09,495 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:10,635 - WARNING - No differentials generated for chief complaint: 29-year-old female presents with abdominal pain for 1 week.
+2025-04-18 15:52:10,656 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:52:10,661 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:52:10,690 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:11,855 - WARNING - No differentials generated for chief complaint: 45-year-old male presents with numbness for 2 weeks.
+2025-04-18 15:52:11,875 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:52:11,881 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:52:11,908 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:13,280 - WARNING - No differentials generated for chief complaint: 50-year-old female presents with vertigo for 3 days.
+2025-04-18 15:52:13,295 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:52:13,300 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:52:13,611 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:14,879 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with hematuria for 2 days.
+2025-04-18 15:52:14,893 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:52:14,898 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:52:14,923 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:16,177 - WARNING - No differentials generated for chief complaint: 35-year-old female presents with rash for 5 days.
+2025-04-18 15:52:16,221 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:52:16,232 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:52:16,295 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:17,424 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with weight loss for 2 months.
+2025-04-18 15:52:17,449 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:52:17,455 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:52:17,492 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:18,592 - WARNING - No differentials generated for chief complaint: 40-year-old female presents with polydipsia for 3 weeks.
+2025-04-18 15:52:18,614 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:52:18,618 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:52:18,647 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:19,688 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with knee pain for 1 month.
+2025-04-18 15:52:19,704 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:52:19,707 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:52:19,741 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:29,488 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:52:29,492 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:52:29,519 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:30,813 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 15:52:30,817 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 15:52:30,845 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 15:52:31,906 - WARNING - No differentials generated for chief complaint: 45-year-old male presents with flank pain for 2 days.
+2025-04-18 15:52:31,936 - WARNING -  * Debugger is active!
+2025-04-18 22:36:12,560 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:12,581 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:12,603 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:18,459 - WARNING - No differentials generated for chief complaint: 45-year-old male presents with palpitations for 3 days.
+2025-04-18 22:36:18,487 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:18,491 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:18,516 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:19,377 - WARNING - No differentials generated for chief complaint: 30-year-old female presents with vaginal discharge for 5 days.
+2025-04-18 22:36:19,391 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:19,398 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:19,426 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:26,015 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:26,018 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:26,048 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:26,925 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:26,927 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:26,950 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:31,903 - WARNING - No differentials generated for chief complaint: 40-year-old male presents with abdominal pain for 2 days.
+2025-04-18 22:36:31,928 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:31,931 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:31,954 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:32,823 - WARNING - No differentials generated for chief complaint: 25-year-old female presents with sore throat for 4 days.
+2025-04-18 22:36:32,845 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:32,850 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:32,865 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:33,783 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:33,786 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:33,816 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:34,716 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:34,719 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:34,747 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:35,632 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with joint pain for 2 weeks.
+2025-04-18 22:36:35,656 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:35,663 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:35,690 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:36,561 - WARNING - No differentials generated for chief complaint: 28-year-old female presents with pelvic pain for 3 days.
+2025-04-18 22:36:36,582 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:36,586 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:36,614 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:41,552 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:41,560 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:41,587 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:42,465 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:42,467 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:42,502 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:43,382 - WARNING - No differentials generated for chief complaint: 33-year-old female presents with dysuria for 3 days.
+2025-04-18 22:36:43,396 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:43,398 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:43,428 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:44,334 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:44,337 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:44,354 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:45,298 - WARNING - No differentials generated for chief complaint: 60-year-old female presents with jaundice for 1 week.
+2025-04-18 22:36:45,322 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:45,332 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:45,368 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:46,425 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:46,427 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:46,455 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:47,357 - WARNING - No differentials generated for chief complaint: 30-year-old female presents with anxiety for 1 month.
+2025-04-18 22:36:47,386 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:47,389 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:47,412 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:48,303 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:48,306 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:48,335 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:49,239 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:49,245 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:49,258 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:50,139 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:50,142 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:50,176 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:51,047 - WARNING - No differentials generated for chief complaint: 28-year-old female presents with irregular menses for 3 months.
+2025-04-18 22:36:51,070 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:51,076 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:51,089 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:52,810 - WARNING - No differentials generated for chief complaint: 65-year-old female presents with vision changes for 1 week.
+2025-04-18 22:36:52,828 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:52,833 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:52,863 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:53,764 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:53,773 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:53,801 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:54,687 - WARNING - No differentials generated for chief complaint: 30-year-old female presents with rash for 3 days.
+2025-04-18 22:36:54,702 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:54,711 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:54,727 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:55,581 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with tremors for 1 month.
+2025-04-18 22:36:55,608 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:55,612 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:55,634 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:56,513 - WARNING - No differentials generated for chief complaint: 35-year-old female presents with diarrhea for 1 week.
+2025-04-18 22:36:56,539 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:56,541 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:56,560 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:57,433 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with memory loss for 6 months.
+2025-04-18 22:36:57,456 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:57,461 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:57,489 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:58,380 - WARNING - No differentials generated for chief complaint: 25-year-old male presents with wheezing for 2 days.
+2025-04-18 22:36:58,399 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:58,408 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:58,439 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:36:59,311 - WARNING - No differentials generated for chief complaint: 70-year-old female presents with bone pain for 1 month.
+2025-04-18 22:36:59,325 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:36:59,328 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:36:59,356 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:00,269 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:00,277 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:00,311 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:01,238 - WARNING - No differentials generated for chief complaint: 50-year-old female presents with edema for 1 week.
+2025-04-18 22:37:01,268 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:01,272 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:01,299 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:34,186 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:34,194 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:34,232 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:40,061 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:40,065 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:40,093 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:41,822 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:41,825 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:41,845 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:42,715 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with leg swelling for 1 week.
+2025-04-18 22:37:42,742 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:42,747 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:42,772 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:46,911 - WARNING - No differentials generated for chief complaint: 38-year-old female presents with fatigue for 1 month.
+2025-04-18 22:37:46,938 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:46,941 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:46,969 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:47,858 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:47,863 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:47,876 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:48,744 - WARNING - No differentials generated for chief complaint: 29-year-old female presents with abdominal pain for 1 week.
+2025-04-18 22:37:48,757 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:48,762 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:48,784 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:49,654 - WARNING - No differentials generated for chief complaint: 45-year-old male presents with numbness for 2 weeks.
+2025-04-18 22:37:49,671 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:49,674 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:49,705 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:50,728 - WARNING - No differentials generated for chief complaint: 50-year-old female presents with vertigo for 3 days.
+2025-04-18 22:37:50,762 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:50,764 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:50,785 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:51,675 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with hematuria for 2 days.
+2025-04-18 22:37:51,691 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:51,699 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:51,728 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:52,600 - WARNING - No differentials generated for chief complaint: 35-year-old female presents with rash for 5 days.
+2025-04-18 22:37:52,623 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:52,628 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:52,646 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:53,517 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with weight loss for 2 months.
+2025-04-18 22:37:53,545 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:53,548 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:53,571 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:54,438 - WARNING - No differentials generated for chief complaint: 40-year-old female presents with polydipsia for 3 weeks.
+2025-04-18 22:37:54,454 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:54,463 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:54,493 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:37:55,363 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with knee pain for 1 month.
+2025-04-18 22:37:55,384 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:37:55,390 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:37:55,408 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:38:02,874 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:38:02,877 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:38:02,898 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:38:03,810 - WARNING - No data found in collection: medical_stop_words
+2025-04-18 22:38:03,817 - ERROR - Expected dict with symptoms, diagnoses, procedures for medical_terms
+2025-04-18 22:38:03,839 - ERROR - Expected dict with follow-up keys for management_config
+2025-04-18 22:38:04,709 - WARNING - No differentials generated for chief complaint: 45-year-old male presents with flank pain for 2 days.
+2025-04-18 22:38:04,750 - WARNING -  * Debugger is active!
