@@ -1,8 +1,191 @@
-2025-04-17 10:03:02,058 - WARNING -  * Debugger is active!
-2025-04-17 10:05:39,318 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with joint pain for 2 weeks., symptoms: [{'description': '60-year-old male presents joint pain for 2 weeks', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}, {'description': 'swelling', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}]
-2025-04-17 10:05:51,847 - WARNING - No differentials generated for chief complaint: 33-year-old female presents with dysuria for 3 days., symptoms: [{'description': '33-year-old female presents dysuria for 3 days', 'duration': '3 days', 'severity': 'Mild', 'location': 'Flank', 'aggravating': 'Urination', 'alleviating': 'Hydration'}]
-2025-04-17 10:06:21,273 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with memory loss for 6 months., symptoms: [{'description': '60-year-old male presents memory loss for 6 months', 'duration': '6 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Stress', 'alleviating': 'None'}]
-2025-04-17 10:06:26,414 - WARNING -  * Debugger is active!
-2025-04-17 10:13:19,918 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with leg swelling for 1 week., symptoms: [{'description': '55-year-old male presents leg swelling for 1 week', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}, {'description': 'swelling', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}, {'description': 'dyspnea', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}]
-2025-04-17 10:14:12,697 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with knee pain for 1 month., symptoms: [{'description': '50-year-old male presents knee pain for 1 month', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}, {'description': 'swelling', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}]
-2025-04-17 10:14:28,311 - WARNING -  * Debugger is active!
+2025-04-21 14:55:21,196 - ERROR - Analysis failed for note 1: name 're' is not defined
+2025-04-21 14:55:21,199 - ERROR - Analysis failed for note 2: name 're' is not defined
+2025-04-21 14:55:21,209 - ERROR - Analysis failed for note 3: name 're' is not defined
+2025-04-21 14:55:21,214 - ERROR - Analysis failed for note 4: name 're' is not defined
+2025-04-21 14:55:21,227 - ERROR - Analysis failed for note 5: name 're' is not defined
+2025-04-21 14:55:21,236 - ERROR - Analysis failed for note 6: name 're' is not defined
+2025-04-21 14:55:21,243 - ERROR - Analysis failed for note 7: name 're' is not defined
+2025-04-21 14:55:21,251 - ERROR - Analysis failed for note 8: name 're' is not defined
+2025-04-21 14:55:21,259 - ERROR - Analysis failed for note 9: name 're' is not defined
+2025-04-21 14:55:21,267 - ERROR - Analysis failed for note 10: name 're' is not defined
+2025-04-21 14:55:21,274 - ERROR - Analysis failed for note 11: name 're' is not defined
+2025-04-21 14:55:21,281 - ERROR - Analysis failed for note 12: name 're' is not defined
+2025-04-21 14:55:21,287 - ERROR - Analysis failed for note 13: name 're' is not defined
+2025-04-21 14:55:21,293 - ERROR - Analysis failed for note 14: name 're' is not defined
+2025-04-21 14:55:21,300 - ERROR - Analysis failed for note 15: name 're' is not defined
+2025-04-21 14:55:21,307 - ERROR - Analysis failed for note 16: name 're' is not defined
+2025-04-21 14:55:21,345 - ERROR - Analysis failed for note 33: name 're' is not defined
+2025-04-21 14:55:21,350 - ERROR - Analysis failed for note 34: name 're' is not defined
+2025-04-21 14:55:21,354 - ERROR - Analysis failed for note 35: name 're' is not defined
+2025-04-21 14:55:21,358 - ERROR - Analysis failed for note 36: name 're' is not defined
+2025-04-21 14:55:21,365 - ERROR - Analysis failed for note 37: name 're' is not defined
+2025-04-21 14:55:21,372 - ERROR - Analysis failed for note 38: name 're' is not defined
+2025-04-21 14:55:21,378 - ERROR - Analysis failed for note 39: name 're' is not defined
+2025-04-21 14:55:21,384 - ERROR - Analysis failed for note 40: name 're' is not defined
+2025-04-21 14:55:21,391 - ERROR - Analysis failed for note 41: name 're' is not defined
+2025-04-21 14:55:21,399 - ERROR - Analysis failed for note 42: name 're' is not defined
+2025-04-21 14:55:21,406 - ERROR - Analysis failed for note 43: name 're' is not defined
+2025-04-21 14:55:21,415 - ERROR - Analysis failed for note 44: name 're' is not defined
+2025-04-21 14:55:21,422 - ERROR - Analysis failed for note 45: name 're' is not defined
+2025-04-21 14:55:21,430 - ERROR - Analysis failed for note 46: name 're' is not defined
+2025-04-21 14:55:21,434 - ERROR - Analysis failed for note 47: name 're' is not defined
+2025-04-21 14:55:21,442 - ERROR - Analysis failed for note 48: name 're' is not defined
+2025-04-21 14:56:02,617 - ERROR - Analysis failed for note 17: name 're' is not defined
+2025-04-21 14:56:02,627 - ERROR - Analysis failed for note 18: name 're' is not defined
+2025-04-21 14:56:02,635 - ERROR - Analysis failed for note 19: name 're' is not defined
+2025-04-21 14:56:02,639 - ERROR - Analysis failed for note 20: name 're' is not defined
+2025-04-21 14:56:02,647 - ERROR - Analysis failed for note 21: name 're' is not defined
+2025-04-21 14:56:02,653 - ERROR - Analysis failed for note 22: name 're' is not defined
+2025-04-21 14:56:02,660 - ERROR - Analysis failed for note 23: name 're' is not defined
+2025-04-21 14:56:02,667 - ERROR - Analysis failed for note 24: name 're' is not defined
+2025-04-21 14:56:02,671 - ERROR - Analysis failed for note 25: name 're' is not defined
+2025-04-21 14:56:02,678 - ERROR - Analysis failed for note 26: name 're' is not defined
+2025-04-21 14:56:02,685 - ERROR - Analysis failed for note 27: name 're' is not defined
+2025-04-21 14:56:02,690 - ERROR - Analysis failed for note 28: name 're' is not defined
+2025-04-21 14:56:02,700 - ERROR - Analysis failed for note 29: name 're' is not defined
+2025-04-21 14:56:02,704 - ERROR - Analysis failed for note 30: name 're' is not defined
+2025-04-21 14:56:02,710 - ERROR - Analysis failed for note 31: name 're' is not defined
+2025-04-21 14:56:02,718 - ERROR - Analysis failed for note 32: name 're' is not defined
+2025-04-21 14:56:02,754 - WARNING -  * Debugger is active!
+2025-04-21 15:03:33,167 - ERROR - Analysis failed for note 49: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:03:50,361 - ERROR - Analysis failed for note 50: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:03:50,381 - WARNING -  * Debugger is active!
+2025-04-21 15:04:57,131 - WARNING -  * Debugger is active!
+2025-04-21 15:06:24,151 - ERROR - Analysis failed for note 1: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:06:30,030 - ERROR - Analysis failed for note 2: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:06:35,709 - ERROR - Analysis failed for note 3: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:06:51,008 - ERROR - Analysis failed for note 4: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:00,805 - ERROR - Analysis failed for note 5: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:01,686 - ERROR - Analysis failed for note 6: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:04,283 - ERROR - Analysis failed for note 7: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:13,623 - ERROR - Analysis failed for note 8: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:15,370 - ERROR - Analysis failed for note 9: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:16,249 - ERROR - Analysis failed for note 10: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:26,377 - ERROR - Analysis failed for note 11: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:27,310 - ERROR - Analysis failed for note 12: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:28,204 - WARNING - No differentials generated for chief complaint: 33-year-old female presents with dysuria for 3 days., symptoms: [{'description': '33-year-old female presents dysuria for 3 days', 'duration': '3 days', 'severity': 'Mild', 'location': 'Flank', 'aggravating': 'Urination', 'alleviating': 'Hydration'}]
+2025-04-21 15:07:28,205 - ERROR - Analysis failed for note 13: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:30,845 - ERROR - Analysis failed for note 14: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:34,300 - ERROR - Analysis failed for note 15: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:36,914 - ERROR - Analysis failed for note 16: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:38,777 - ERROR - Analysis failed for note 33: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:39,714 - ERROR - Analysis failed for note 34: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:45,732 - ERROR - Analysis failed for note 35: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:46,631 - ERROR - Analysis failed for note 36: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:47,524 - ERROR - Analysis failed for note 37: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:49,300 - ERROR - Analysis failed for note 38: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:50,197 - ERROR - Analysis failed for note 39: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:51,102 - ERROR - Analysis failed for note 40: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:56,300 - ERROR - Analysis failed for note 41: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:58,091 - ERROR - Analysis failed for note 42: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:58,971 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with memory loss for 6 months., symptoms: [{'description': '60-year-old male presents memory loss for 6 months', 'duration': '6 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Stress', 'alleviating': 'None'}]
+2025-04-21 15:07:58,972 - ERROR - Analysis failed for note 43: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:07:59,969 - ERROR - Analysis failed for note 44: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:08:00,852 - ERROR - Analysis failed for note 45: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:08:01,754 - ERROR - Analysis failed for note 46: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:08:02,666 - ERROR - Analysis failed for note 47: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:08:04,414 - ERROR - Analysis failed for note 48: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:08:49,089 - ERROR - Analysis failed for note 17: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:08:49,998 - ERROR - Analysis failed for note 18: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:09:02,366 - ERROR - Analysis failed for note 19: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:09:15,619 - ERROR - Analysis failed for note 20: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:09:22,143 - ERROR - Analysis failed for note 21: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:09:28,127 - ERROR - Analysis failed for note 22: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:09:34,091 - ERROR - Analysis failed for note 23: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:09:40,908 - ERROR - Analysis failed for note 24: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:09:44,369 - ERROR - Analysis failed for note 25: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:09:48,644 - ERROR - Analysis failed for note 26: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:09:52,112 - ERROR - Analysis failed for note 27: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:09:55,582 - ERROR - Analysis failed for note 28: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:09:56,499 - ERROR - Analysis failed for note 29: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:10:06,313 - ERROR - Analysis failed for note 30: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:10:11,874 - ERROR - Analysis failed for note 31: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:10:13,715 - ERROR - Analysis failed for note 32: name 'CONFIDENCE_THRESHOLD' is not defined
+2025-04-21 15:10:13,746 - WARNING -  * Debugger is active!
+2025-04-21 15:11:38,479 - ERROR - Analysis failed for note 49: name 're' is not defined
+2025-04-21 15:11:38,487 - ERROR - Analysis failed for note 50: name 're' is not defined
+2025-04-21 15:11:38,509 - WARNING -  * Debugger is active!
+2025-04-21 15:12:54,173 - ERROR - Analysis failed for note 1: name 're' is not defined
+2025-04-21 15:12:54,183 - ERROR - Analysis failed for note 2: name 're' is not defined
+2025-04-21 15:12:54,186 - ERROR - Analysis failed for note 3: name 're' is not defined
+2025-04-21 15:12:54,190 - ERROR - Analysis failed for note 4: name 're' is not defined
+2025-04-21 15:12:54,195 - ERROR - Analysis failed for note 5: name 're' is not defined
+2025-04-21 15:12:54,202 - ERROR - Analysis failed for note 6: name 're' is not defined
+2025-04-21 15:12:54,209 - ERROR - Analysis failed for note 7: name 're' is not defined
+2025-04-21 15:12:54,217 - ERROR - Analysis failed for note 8: name 're' is not defined
+2025-04-21 15:12:54,225 - ERROR - Analysis failed for note 9: name 're' is not defined
+2025-04-21 15:12:54,232 - ERROR - Analysis failed for note 10: name 're' is not defined
+2025-04-21 15:12:54,240 - ERROR - Analysis failed for note 11: name 're' is not defined
+2025-04-21 15:12:54,245 - ERROR - Analysis failed for note 12: name 're' is not defined
+2025-04-21 15:12:54,250 - ERROR - Analysis failed for note 13: name 're' is not defined
+2025-04-21 15:12:54,257 - ERROR - Analysis failed for note 14: name 're' is not defined
+2025-04-21 15:12:54,263 - ERROR - Analysis failed for note 15: name 're' is not defined
+2025-04-21 15:12:54,271 - ERROR - Analysis failed for note 16: name 're' is not defined
+2025-04-21 15:12:54,301 - ERROR - Analysis failed for note 33: name 're' is not defined
+2025-04-21 15:12:54,309 - ERROR - Analysis failed for note 34: name 're' is not defined
+2025-04-21 15:12:54,319 - ERROR - Analysis failed for note 35: name 're' is not defined
+2025-04-21 15:12:54,330 - ERROR - Analysis failed for note 36: name 're' is not defined
+2025-04-21 15:12:54,339 - ERROR - Analysis failed for note 37: name 're' is not defined
+2025-04-21 15:12:54,347 - ERROR - Analysis failed for note 38: name 're' is not defined
+2025-04-21 15:12:54,357 - ERROR - Analysis failed for note 39: name 're' is not defined
+2025-04-21 15:12:54,364 - ERROR - Analysis failed for note 40: name 're' is not defined
+2025-04-21 15:12:54,372 - ERROR - Analysis failed for note 41: name 're' is not defined
+2025-04-21 15:12:54,378 - ERROR - Analysis failed for note 42: name 're' is not defined
+2025-04-21 15:12:54,385 - ERROR - Analysis failed for note 43: name 're' is not defined
+2025-04-21 15:12:54,392 - ERROR - Analysis failed for note 44: name 're' is not defined
+2025-04-21 15:12:54,400 - ERROR - Analysis failed for note 45: name 're' is not defined
+2025-04-21 15:12:54,407 - ERROR - Analysis failed for note 46: name 're' is not defined
+2025-04-21 15:12:54,412 - ERROR - Analysis failed for note 47: name 're' is not defined
+2025-04-21 15:12:54,417 - ERROR - Analysis failed for note 48: name 're' is not defined
+2025-04-21 15:13:22,588 - ERROR - Analysis failed for note 17: name 're' is not defined
+2025-04-21 15:13:22,592 - ERROR - Analysis failed for note 18: name 're' is not defined
+2025-04-21 15:13:22,596 - ERROR - Analysis failed for note 19: name 're' is not defined
+2025-04-21 15:13:22,606 - ERROR - Analysis failed for note 20: name 're' is not defined
+2025-04-21 15:13:22,611 - ERROR - Analysis failed for note 21: name 're' is not defined
+2025-04-21 15:13:22,618 - ERROR - Analysis failed for note 22: name 're' is not defined
+2025-04-21 15:13:22,624 - ERROR - Analysis failed for note 23: name 're' is not defined
+2025-04-21 15:13:22,630 - ERROR - Analysis failed for note 24: name 're' is not defined
+2025-04-21 15:13:22,640 - ERROR - Analysis failed for note 25: name 're' is not defined
+2025-04-21 15:13:22,644 - ERROR - Analysis failed for note 26: name 're' is not defined
+2025-04-21 15:13:22,651 - ERROR - Analysis failed for note 27: name 're' is not defined
+2025-04-21 15:13:22,658 - ERROR - Analysis failed for note 28: name 're' is not defined
+2025-04-21 15:13:22,664 - ERROR - Analysis failed for note 29: name 're' is not defined
+2025-04-21 15:13:22,673 - ERROR - Analysis failed for note 30: name 're' is not defined
+2025-04-21 15:13:22,677 - ERROR - Analysis failed for note 31: name 're' is not defined
+2025-04-21 15:13:22,684 - ERROR - Analysis failed for note 32: name 're' is not defined
+2025-04-21 15:13:22,728 - WARNING -  * Debugger is active!
+2025-04-21 15:24:12,626 - ERROR - Analysis failed for note 49: name 're' is not defined
+Traceback (most recent call last):
+  File "/home/mathu/projects/hospital/departments/nlp/ai_summary.py", line 35, in generate_ai_analysis
+    features = analyzer.extract_clinical_features(note)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mathu/projects/hospital/departments/nlp/clinical_analyzer.py", line 71, in extract_clinical_features
+    for match in re.finditer(r'\b(?:no|denies|without)\s+([\w\s]+?)(?:\s|$)', text.lower()):
+                 ^^
+NameError: name 're' is not defined
+2025-04-21 15:24:12,633 - ERROR - Analysis failed for note 50: name 're' is not defined
+Traceback (most recent call last):
+  File "/home/mathu/projects/hospital/departments/nlp/ai_summary.py", line 35, in generate_ai_analysis
+    features = analyzer.extract_clinical_features(note)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mathu/projects/hospital/departments/nlp/clinical_analyzer.py", line 71, in extract_clinical_features
+    for match in re.finditer(r'\b(?:no|denies|without)\s+([\w\s]+?)(?:\s|$)', text.lower()):
+                 ^^
+NameError: name 're' is not defined
+2025-04-21 15:24:12,653 - WARNING -  * Debugger is active!
+2025-04-21 15:26:01,216 - WARNING -  * Debugger is active!
+2025-04-21 15:28:08,601 - WARNING -  * Debugger is active!
+2025-04-21 15:31:52,115 - WARNING - No differentials generated for chief complaint: 33-year-old female presents with dysuria for 3 days., symptoms: [{'description': '33-year-old female presents dysuria for 3 days', 'duration': '3 days', 'severity': 'Mild', 'location': 'Flank', 'aggravating': 'Urination', 'alleviating': 'Hydration'}]
+2025-04-21 15:32:22,070 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with memory loss for 6 months., symptoms: [{'description': '60-year-old male presents memory loss for 6 months', 'duration': '6 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Stress', 'alleviating': 'None'}]
+2025-04-21 15:34:32,790 - WARNING -  * Debugger is active!
+2025-04-21 16:34:05,555 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with joint pain for 2 weeks., symptoms: [{'description': '60-year-old male presents joint pain for 2 weeks', 'category': 'unknown', 'definition': 'No description available', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}]
+2025-04-21 16:34:26,461 - WARNING - No differentials generated for chief complaint: 33-year-old female presents with dysuria for 3 days., symptoms: [{'description': '33-year-old female presents dysuria for 3 days', 'category': 'unknown', 'definition': 'No description available', 'duration': '3 days', 'severity': 'Mild', 'location': 'Flank', 'aggravating': 'Urination', 'alleviating': 'Hydration'}]
+2025-04-21 16:37:16,191 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with leg swelling for 1 week., symptoms: [{'description': '55-year-old male presents leg swelling for 1 week', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}, {'description': 'dyspnea', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}]
+2025-04-21 16:38:17,144 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with knee pain for 1 month., symptoms: [{'description': '50-year-old male presents knee pain for 1 month', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}]
+2025-04-21 16:38:34,938 - WARNING -  * Debugger is active!
+2025-04-21 16:40:12,348 - WARNING -  * Debugger is active!
+2025-04-21 16:45:15,538 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with joint pain for 2 weeks., symptoms: [{'description': '60-year-old male presents joint pain for 2 weeks', 'category': 'unknown', 'definition': 'No description available', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}]
+2025-04-21 16:45:32,223 - WARNING - No differentials generated for chief complaint: 33-year-old female presents with dysuria for 3 days., symptoms: [{'description': '33-year-old female presents dysuria for 3 days', 'category': 'unknown', 'definition': 'No description available', 'duration': '3 days', 'severity': 'Mild', 'location': 'Flank', 'aggravating': 'Urination', 'alleviating': 'Hydration'}]
+2025-04-21 16:47:24,935 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with leg swelling for 1 week., symptoms: [{'description': '55-year-old male presents leg swelling for 1 week', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}, {'description': 'dyspnea', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}]
+2025-04-21 16:48:24,140 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with knee pain for 1 month., symptoms: [{'description': '50-year-old male presents knee pain for 1 month', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}]
+2025-04-21 16:48:37,408 - WARNING -  * Debugger is active!

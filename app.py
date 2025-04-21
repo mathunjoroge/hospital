@@ -5,7 +5,7 @@ from flask_mail import Mail
 from flask_socketio import SocketIO
 from flask_apscheduler import APScheduler
 from werkzeug.security import check_password_hash
-from departments.nlp.ai_summary import update_all_ai_notes
+from departments.nlp.batch_processing import update_all_ai_notes
 from datetime import datetime
 import os
 import logging
