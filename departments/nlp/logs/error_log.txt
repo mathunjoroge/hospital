@@ -189,3 +189,238 @@ NameError: name 're' is not defined
 2025-04-21 16:47:24,935 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with leg swelling for 1 week., symptoms: [{'description': '55-year-old male presents leg swelling for 1 week', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}, {'description': 'dyspnea', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}]
 2025-04-21 16:48:24,140 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with knee pain for 1 month., symptoms: [{'description': '50-year-old male presents knee pain for 1 month', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}]
 2025-04-21 16:48:37,408 - WARNING -  * Debugger is active!
+2025-04-21 17:02:45,843 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:02:55,242 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:03:09,581 - WARNING -  * Debugger is active!
+2025-04-21 17:08:23,163 - WARNING -  * Debugger is active!
+2025-04-21 17:11:19,165 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:11:19,165 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:11:31,366 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:11:31,366 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:11:36,274 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:11:36,274 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:11:41,217 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:11:41,217 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:11:52,336 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:11:52,336 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:00,398 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:00,398 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:01,305 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:01,306 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:02,207 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:02,207 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:07,911 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:07,911 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:09,659 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:09,659 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:10,552 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:10,552 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:18,078 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:18,078 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:18,982 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:18,982 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:19,870 - WARNING - No differentials generated for chief complaint: 33-year-old female presents with dysuria for 3 days., symptoms: [{'description': '33-year-old female presents dysuria for 3 days', 'category': 'unknown', 'definition': 'No description available', 'duration': '3 days', 'severity': 'Mild', 'location': 'Flank', 'aggravating': 'Urination', 'alleviating': 'Hydration'}]
+2025-04-21 17:12:19,911 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:19,911 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:20,843 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:20,844 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:21,766 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:21,767 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:22,727 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:22,727 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:23,686 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:23,686 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:24,621 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:24,621 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:25,565 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:25,565 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:26,491 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:26,492 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:27,405 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:27,405 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:29,209 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:29,209 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:30,135 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:30,135 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:31,017 - WARNING - No differentials generated for chief complaint: 30-year-old female presents with rash for 3 days., symptoms: [{'description': '30-year-old female presents rash for 3 days', 'category': 'unknown', 'definition': 'No description available', 'duration': '3 days', 'severity': 'Mild', 'location': 'Skin', 'aggravating': 'Scratching', 'alleviating': 'Moisturizers'}]
+2025-04-21 17:12:31,057 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:31,058 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:34,498 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:34,498 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:35,427 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:35,428 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:36,312 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with memory loss for 6 months., symptoms: [{'description': '60-year-old male presents memory loss for 6 months', 'category': 'unknown', 'definition': 'No description available', 'duration': '6 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Stress', 'alleviating': 'None'}]
+2025-04-21 17:12:36,342 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:36,342 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:37,245 - WARNING - No differentials generated for chief complaint: 25-year-old male presents with wheezing for 2 days., symptoms: [{'description': '25-year-old male presents wheezing for 2 days', 'category': 'unknown', 'definition': 'No description available', 'duration': '2 days', 'severity': 'Mild', 'location': 'Chest', 'aggravating': 'Cold air, exertion', 'alleviating': 'Warm environment'}]
+2025-04-21 17:12:37,292 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:37,292 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:38,428 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:38,428 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:39,791 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:39,791 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:12:40,721 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:12:40,721 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:13:15,851 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:13:15,852 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:13:25,721 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:13:25,721 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:13:27,489 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:13:27,489 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:13:38,676 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:13:38,676 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:13:46,870 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:13:46,870 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:13:51,062 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:13:51,062 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:13:56,017 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:13:56,017 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:14:00,174 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:14:00,174 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:14:04,462 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:14:04,462 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:14:05,383 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:14:05,383 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:14:06,274 - WARNING - No differentials generated for chief complaint: 35-year-old female presents with rash for 5 days., symptoms: [{'description': '35-year-old female presents rash for 5 days', 'category': 'unknown', 'definition': 'No description available', 'duration': '5 days', 'severity': 'Mild', 'location': 'Skin', 'aggravating': 'Scratching, tight clothing', 'alleviating': 'Cool compresses'}]
+2025-04-21 17:14:06,309 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:14:06,309 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:14:07,228 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:14:07,228 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:14:08,156 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:14:08,157 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:14:09,121 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:14:09,121 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:14:14,245 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:14:14,245 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:14:17,695 - ERROR - No symptoms loaded from MongoDB. Collection may be empty.
+2025-04-21 17:14:17,695 - WARNING - No symptoms loaded into SymptomTracker. Symptom extraction may be limited.
+2025-04-21 17:14:18,621 - WARNING -  * Debugger is active!
+2025-04-21 17:50:22,966 - WARNING -  * Debugger is active!
+2025-04-21 17:55:05,052 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with joint pain for 2 weeks., symptoms: [{'description': '60-year-old male presents with joint pain for 2 weeks', 'category': 'unknown', 'definition': 'No description available', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}, {'description': 'arthritis', 'category': 'unknown', 'definition': 'No description available', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}, {'description': 'hypertension', 'category': 'unknown', 'definition': 'No description available', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}]
+2025-04-21 17:55:16,579 - WARNING - No differentials generated for chief complaint: 33-year-old female presents with dysuria for 3 days., symptoms: [{'description': '33-year-old female presents with dysuria for 3 days', 'category': 'unknown', 'definition': 'No description available', 'duration': '3 days', 'severity': 'Mild', 'location': 'Flank', 'aggravating': 'Urination', 'alleviating': 'Hydration'}]
+2025-04-21 17:55:38,391 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with tremors for 1 month., symptoms: [{'description': '50-year-old male presents with tremors for 1 month', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 month', 'severity': 'Mild', 'location': 'Hand', 'aggravating': 'Stress', 'alleviating': 'Relaxation'}]
+2025-04-21 17:55:40,399 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with memory loss for 6 months., symptoms: [{'description': '60-year-old male presents with memory loss for 6 months', 'category': 'unknown', 'definition': 'No description available', 'duration': '6 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Stress', 'alleviating': 'None'}, {'description': 'hypertension', 'category': 'unknown', 'definition': 'No description available', 'duration': '6 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Stress', 'alleviating': 'None'}]
+2025-04-21 17:56:47,164 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with leg swelling for 1 week., symptoms: [{'description': '55-year-old male presents with leg swelling for 1 week', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}, {'description': 'hypertension', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}]
+2025-04-21 17:57:51,072 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with knee pain for 1 month., symptoms: [{'description': '50-year-old male presents with knee pain for 1 month', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}, {'description': 'arthritis', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}]
+2025-04-21 17:58:04,965 - WARNING -  * Debugger is active!
+2025-04-21 18:25:33,118 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with joint pain for 2 weeks., symptoms: [{'description': '60-year-old male presents with joint pain for 2 weeks', 'category': 'unknown', 'definition': 'No description available', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}, {'description': 'arthritis', 'category': 'unknown', 'definition': 'No description available', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}, {'description': 'hypertension', 'category': 'unknown', 'definition': 'No description available', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}]
+2025-04-21 18:25:53,105 - WARNING - No differentials generated for chief complaint: 33-year-old female presents with dysuria for 3 days., symptoms: [{'description': '33-year-old female presents with dysuria for 3 days', 'category': 'unknown', 'definition': 'No description available', 'duration': '3 days', 'severity': 'Mild', 'location': 'Flank', 'aggravating': 'Urination', 'alleviating': 'Hydration'}]
+2025-04-21 18:26:25,462 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with tremors for 1 month., symptoms: [{'description': '50-year-old male presents with tremors for 1 month', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 month', 'severity': 'Mild', 'location': 'Hand', 'aggravating': 'Stress', 'alleviating': 'Relaxation'}]
+2025-04-21 18:26:28,403 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with memory loss for 6 months., symptoms: [{'description': '60-year-old male presents with memory loss for 6 months', 'category': 'unknown', 'definition': 'No description available', 'duration': '6 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Stress', 'alleviating': 'None'}, {'description': 'hypertension', 'category': 'unknown', 'definition': 'No description available', 'duration': '6 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Stress', 'alleviating': 'None'}]
+2025-04-21 18:28:15,704 - WARNING - No differentials generated for chief complaint: 55-year-old male presents with leg swelling for 1 week., symptoms: [{'description': '55-year-old male presents with leg swelling for 1 week', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}, {'description': 'hypertension', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 week', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Standing, walking', 'alleviating': 'Elevation'}]
+2025-04-21 18:29:52,212 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with knee pain for 1 month., symptoms: [{'description': '50-year-old male presents with knee pain for 1 month', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}, {'description': 'arthritis', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}]
+2025-04-21 18:30:08,417 - WARNING -  * Debugger is active!
+2025-04-21 18:33:25,169 - WARNING -  * Debugger is active!
+2025-04-21 18:56:14,149 - WARNING -  * Debugger is active!
+2025-04-21 21:01:06,082 - WARNING -  * Debugger is active!
+2025-04-21 21:05:06,582 - WARNING -  * Debugger is active!
+2025-04-21 21:23:23,321 - WARNING -  * Debugger is active!
+2025-04-21 21:29:56,951 - WARNING -  * Debugger is active!
+2025-04-21 21:37:49,105 - WARNING -  * Debugger is active!
+2025-04-21 21:44:51,604 - WARNING -  * Debugger is active!
+2025-04-21 21:51:14,029 - WARNING -  * Debugger is active!
+2025-04-22 09:32:34,013 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with joint pain for 2 weeks., symptoms: [{'description': '60-year-old male presents with joint pain for 2 weeks', 'category': 'unknown', 'definition': 'No description available', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}, {'description': 'hypertension', 'category': 'unknown', 'definition': 'No description available', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}, {'description': 'arthritis', 'category': 'unknown', 'definition': 'No description available', 'duration': '2 weeks', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, pressure on toe', 'alleviating': 'Rest, elevation'}]
+2025-04-22 09:33:10,462 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with tremors for 1 month., symptoms: [{'description': '50-year-old male presents with tremors for 1 month', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 month', 'severity': 'Mild', 'location': 'Hand', 'aggravating': 'Stress', 'alleviating': 'Relaxation'}]
+2025-04-22 09:33:12,577 - WARNING - No differentials generated for chief complaint: 60-year-old male presents with memory loss for 6 months., symptoms: [{'description': '60-year-old male presents with memory loss for 6 months', 'category': 'unknown', 'definition': 'No description available', 'duration': '6 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Stress', 'alleviating': 'None'}, {'description': 'hypertension', 'category': 'unknown', 'definition': 'No description available', 'duration': '6 months', 'severity': 'Mild', 'location': 'Unspecified', 'aggravating': 'Stress', 'alleviating': 'None'}]
+2025-04-22 09:36:34,607 - WARNING - No differentials generated for chief complaint: 50-year-old male presents with knee pain for 1 month., symptoms: [{'description': '50-year-old male presents with knee pain for 1 month', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}, {'description': 'arthritis', 'category': 'unknown', 'definition': 'No description available', 'duration': '1 month', 'severity': 'Mild', 'location': 'Knee', 'aggravating': 'Walking, stairs', 'alleviating': 'Rest, ice'}]
+2025-04-22 09:36:47,481 - WARNING -  * Debugger is active!
+2025-04-22 11:39:39,304 - WARNING -  * Debugger is active!
+2025-04-22 11:52:52,174 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:54:52,579 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:54:59,427 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:55:05,306 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:55:12,299 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:55:19,153 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:55:22,238 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:55:30,076 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:55:32,175 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:55:39,043 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:55:44,909 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:55:50,804 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:55:53,844 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:55:57,825 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:04,691 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:08,733 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:09,878 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:14,946 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:16,061 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:21,201 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:24,497 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:28,609 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:31,584 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:35,515 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:39,418 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:42,380 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:45,333 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:47,330 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:52,232 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:55,207 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:58,193 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:56:59,256 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:57:00,289 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:57:48,630 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:57:52,034 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:57:59,818 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:58:07,302 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:58:15,106 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:58:18,231 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:58:29,652 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:58:37,143 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:58:43,063 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:58:49,014 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:58:54,951 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:59:02,772 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:59:07,736 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:59:12,757 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:59:15,849 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:59:19,888 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 11:59:19,918 - WARNING -  * Debugger is active!
+2025-04-22 12:03:30,813 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:03:37,888 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:03:43,855 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:03:50,780 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:03:57,637 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:04:00,702 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:04:08,827 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:04:10,996 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:04:17,928 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:04:23,849 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:04:29,777 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:04:32,837 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:04:36,888 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:04:43,797 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:04:47,836 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:04:48,992 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:04:54,101 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:04:55,236 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:05:00,182 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:05:03,271 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:05:07,265 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:05:10,381 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:05:14,427 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:05:18,451 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:05:21,559 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:05:24,693 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:05:26,843 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:05:31,817 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:05:34,872 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:05:37,944 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:05:39,068 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:05:40,184 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:06:15,473 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:06:18,590 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:06:26,524 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:06:33,568 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:06:41,439 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:06:44,538 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:06:55,256 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:07:02,181 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:07:08,116 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:07:14,130 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:07:20,091 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:07:27,993 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:07:32,967 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:07:38,032 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:07:41,127 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:07:45,195 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:07:45,232 - WARNING -  * Debugger is active!

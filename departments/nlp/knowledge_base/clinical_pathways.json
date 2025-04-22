@@ -656,6 +656,84 @@
         "notes": "Monitor electrolytes with diuretics; refer to nephrology for proteinuria or CKD.",
         "source": "WHO"
       }
+    },
+    "shortness of breath": {
+      "differentials": [
+        "Heart failure",
+        "COPD exacerbation",
+        "Pulmonary embolism",
+        "Pneumonia",
+        "Cardiac ischemia"
+      ],
+      "workup": {
+        "urgent": [
+          "BNP levels",
+          "Chest X-ray",
+          "ECG",
+          "Troponin if chest pain present"
+        ],
+        "routine": []
+      },
+      "management": {
+        "symptomatic": [
+          "Furosemide 40 mg daily",
+          "Oxygen therapy if SpO2 <92%",
+          "Nitrates if ischemic symptoms"
+        ],
+        "definitive": [],
+        "lifestyle": [
+          "Low-sodium diet (<2 g/day)",
+          "Smoking cessation",
+          "Daily weight monitoring"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1 week",
+        "Consider cardiology referral if EF <40%"
+      ],
+      "metadata": {
+        "updates": [
+          {
+            "title": "Silencing miR-370-3p rescues funny current and sinus node function in heart failure",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          },
+          {
+            "title": "CSI position statement on management of heart failure in India",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          },
+          {
+            "title": "2020 ACC/AHA Clinical Performance and Quality Measures for Adults\nWith Heart Failure: A Report of the American College of Cardiology/American Heart Association\nTask Force on Performance Measures",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          },
+          {
+            "title": "Heart failure in Europe: Guideline\u2010directed medical therapy use and decision making in chronic and acute, pre\u2010existing and de novo, heart failure with reduced, mildly reduced, and preserved ejection fraction\u00a0\u2013\u00a0the ESC EORP Heart Failure III Registry",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          },
+          {
+            "title": "Diuretic Treatment in Heart Failure: A Practical Guide for Clinicians",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          }
+        ],
+        "last_updated": "2025-04-21T21:23:45.762825",
+        "source": "PubMed, Medscape, WHO, CDC, Mayo Clinic, NIH, Cleveland Clinic",
+        "sources": [
+          "PubMed",
+          "PubMed",
+          "PubMed",
+          "PubMed",
+          "PubMed"
+        ]
+      }
     }
   },
   "gastrointestinal": {
@@ -1236,16 +1314,18 @@
   "general": {
     "fever": {
       "differentials": [
-        "Viral infection",
-        "Bacterial infection",
         "Malaria",
-        "Urinary tract infection",
-        "Tuberculosis"
+        "Dengue fever",
+        "Leptospirosis",
+        "Typhoid fever",
+        "Viral syndrome"
       ],
       "workup": {
         "urgent": [
-          "Blood cultures if sepsis suspected",
-          "Urine analysis for UTI"
+          "Thick and thin blood smears",
+          "Rapid malaria test",
+          "CBC with differential",
+          "Blood cultures if febrile"
         ],
         "routine": [
           "CBC for leukocytosis or anemia",
@@ -1255,13 +1335,12 @@
       },
       "management": {
         "symptomatic": [
-          "Acetaminophen 1000 mg every 6 hours as needed (max 4 g/day)",
-          "Hydration: 2 L water daily"
+          "Acetaminophen 1000 mg every 6 hours (max 4 g/day)",
+          "IV fluids if dehydrated"
         ],
         "definitive": [
-          "Ceftriaxone 1 g IV daily for bacterial infection",
-          "Artemether-lumefantrine for confirmed malaria (per WHO)",
-          "Nitrofurantoin 100 mg twice daily for UTI"
+          "Artemether-lumefantrine for confirmed malaria",
+          "Doxycycline for suspected rickettsial infection"
         ],
         "lifestyle": [
           "Rest and adequate nutrition",
@@ -1269,12 +1348,52 @@
         ]
       },
       "follow_up": [
-        "Follow-up in 3-5 days for resolution",
-        "Follow-up in 24-48 hours if sepsis suspected"
+        "Follow-up in 2 days",
+        "Return immediately if neurological symptoms develop"
       ],
       "metadata": {
         "notes": "Consider TB in chronic fever with weight loss; pediatric dosing for antipyretics.",
-        "source": "WHO"
+        "source": "PubMed, Medscape, WHO, CDC, Mayo Clinic, NIH, Cleveland Clinic",
+        "updates": [
+          {
+            "title": "Rapid shifts in the age-specific burden of malaria following successful control interventions in four regions of Uganda",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          },
+          {
+            "title": "Performance of passive case detection for malaria surveillance: results from nine countries in Mesoamerica and the Dominican Republic",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          },
+          {
+            "title": "Sporozoite immunization: innovative translational science to support the fight against malaria",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          },
+          {
+            "title": "Attitudes, practices, and determinants of community care-seeking behaviours for fever/malaria episodes in the context of the implementation of multiple first-line therapies for uncomplicated malaria in the health district of Kaya, Burkina Faso",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          },
+          {
+            "title": "Management of uncomplicated malaria among children under five years at public and private sector facilities in Mali",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          }
+        ],
+        "last_updated": "2025-04-21T21:24:34.048904",
+        "sources": [
+          "PubMed",
+          "PubMed",
+          "PubMed",
+          "PubMed",
+          "PubMed"
+        ]
       }
     },
     "weight loss": {
@@ -1915,6 +2034,87 @@
       "metadata": {
         "notes": "Adjust levothyroxine in pregnancy; monitor for arrhythmias in hyperthyroidism.",
         "source": "MedlinePlus"
+      }
+    }
+  },
+  "musculoskeletal": {
+    "joint pain": {
+      "differentials": [
+        "Gout",
+        "Osteoarthritis",
+        "Rheumatoid arthritis",
+        "Septic arthritis",
+        "Pseudogout"
+      ],
+      "workup": {
+        "urgent": [
+          "Joint aspiration",
+          "Uric acid level",
+          "Inflammatory markers"
+        ],
+        "routine": []
+      },
+      "management": {
+        "symptomatic": [
+          "Ibuprofen 400-600 mg as needed (max 3.2 g/day)",
+          "Colchicine 0.6 mg twice daily for acute gout"
+        ],
+        "definitive": [
+          "Allopurinol for recurrent gout (start after acute episode resolves)",
+          "Prednisone taper for severe inflammation"
+        ],
+        "lifestyle": [
+          "Low-purine diet",
+          "Hydration",
+          "Weight loss if obese"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1 week",
+        "Rheumatology referral if polyarticular or systemic symptoms"
+      ],
+      "metadata": {
+        "updates": [
+          {
+            "title": "Profiling of serum oxylipins identifies distinct spectrums and potential biomarkers in young people with very early onset gout",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          },
+          {
+            "title": "Elevated serum CA72-4 predicts gout flares during urate lowering therapy initiation: a prospective cohort study",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          },
+          {
+            "title": "Does seasonality of the microbiota contribute to the seasonality of acute gout flares?",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          },
+          {
+            "title": "Progress in modeling avian hyperuricemia and gout (Review)",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          },
+          {
+            "title": "Management of gout in chronic kidney disease: a G-CAN Consensus Statement on the research priorities",
+            "url": "https://pubmed.ncbi.nlm.nih.gov//",
+            "source": "PubMed",
+            "id": ""
+          }
+        ],
+        "last_updated": "2025-04-21T21:25:23.034491",
+        "source": "PubMed, Medscape, WHO, CDC, Mayo Clinic, NIH, Cleveland Clinic",
+        "sources": [
+          "PubMed",
+          "PubMed",
+          "PubMed",
+          "PubMed",
+          "PubMed"
+        ]
       }
     }
   }

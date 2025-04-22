@@ -1,44 +1,139 @@
 # departments/nlp/clinical_analyzer.py
 
-from typing import List, Tuple, Dict, Set
+from typing import List, Dict, Set, Tuple
 import torch
 import re
+import os
+from dotenv import load_dotenv
+from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure
 from departments.models.medicine import SOAPNote
+from departments.models.records import Patient
 from departments.nlp.logging_setup import logger
 from departments.nlp.config import SIMILARITY_THRESHOLD, CONFIDENCE_THRESHOLD, EMBEDDING_DIM
-from departments.nlp.knowledge_base import load_knowledge_base
 from departments.nlp.nlp_utils import embed_text, preprocess_text, deduplicate
 from departments.nlp.helper_functions import extract_duration, classify_severity, extract_location, extract_aggravating_alleviating
 from departments.nlp.models.transformer_model import model, tokenizer
-from departments.nlp.symptom_tracker import SymptomTracker  # Import SymptomTracker
+from departments.nlp.symptom_tracker import SymptomTracker
+
+# Load environment variables
+load_dotenv()
 
 class ClinicalAnalyzer:
     def __init__(self):
         self.model = model
         self.tokenizer = tokenizer
-        self.knowledge = load_knowledge_base()
-        self.medical_stop_words = self.knowledge.get("medical_stop_words", set())
-        self.medical_terms = self.knowledge.get("medical_terms", set())
-        self.synonyms = self.knowledge.get("synonyms", {})
-        self.clinical_pathways = self.knowledge.get("clinical_pathways", {})
-        self.history_diagnoses = self.knowledge.get("history_diagnoses", {})
-        self.diagnosis_relevance = self.knowledge.get("diagnosis_relevance", {})
-        self.management_config = self.knowledge.get("management_config", {})
-        self.diagnosis_treatments = self.knowledge.get("diagnosis_treatments", {})
+        
+        # MongoDB connection parameters
+        mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017')
+        db_name = os.getenv('DB_NAME', 'clinical_db')
+        kb_prefix = os.getenv('KB_PREFIX', 'kb_')
+        
+        # Initialize knowledge base components
+        self.medical_stop_words: Set[str] = set()
+        self.medical_terms: Set[str] = set()
+        self.synonyms: Dict[str, List[str]] = {}
+        self.clinical_pathways: Dict[str, Dict[str, Dict]] = {}
+        self.history_diagnoses: Dict[str, List[str]] = {}
+        self.diagnosis_relevance: Dict[str, List[str]] = {}
+        self.management_config: Dict[str, str] = {}
+        self.diagnosis_treatments: Dict[str, Dict] = {}
+        
+        try:
+            client = MongoClient(mongo_uri)
+            client.admin.command('ping')
+            db = client[db_name]
+            
+            # Load medical_stop_words
+            stop_words_coll = db[f'{kb_prefix}medical_stop_words']
+            self.medical_stop_words = {doc['word'] for doc in stop_words_coll.find() if 'word' in doc and isinstance(doc['word'], str)}
+            logger.info(f"Loaded {len(self.medical_stop_words)} medical stop words.")
+            
+            # Load medical_terms
+            terms_coll = db[f'{kb_prefix}medical_terms']
+            self.medical_terms = {doc['term'] for doc in terms_coll.find() if 'term' in doc and isinstance(doc['term'], str)}
+            logger.info(f"Loaded {len(self.medical_terms)} medical terms.")
+            
+            # Load synonyms
+            synonyms_coll = db[f'{kb_prefix}synonyms']
+            for doc in synonyms_coll.find():
+                if 'key' in doc and 'aliases' in doc and isinstance(doc['key'], str) and isinstance(doc['aliases'], list):
+                    self.synonyms[doc['key']] = [a for a in doc['aliases'] if isinstance(a, str)]
+            logger.info(f"Loaded {len(self.synonyms)} synonym mappings.")
+            
+            # Load clinical_pathways
+            pathways_coll = db[f'{kb_prefix}clinical_pathways']
+            for doc in pathways_coll.find():
+                if 'category' in doc and 'key' in doc and 'path' in doc and isinstance(doc['category'], str) and isinstance(doc['path'], dict):
+                    category = doc['category']
+                    if category not in self.clinical_pathways:
+                        self.clinical_pathways[category] = {}
+                    self.clinical_pathways[category][doc['key']] = doc['path']
+            logger.info(f"Loaded {sum(len(paths) for paths in self.clinical_pathways.values())} clinical pathways.")
+            
+            # Load history_diagnoses
+            history_coll = db[f'{kb_prefix}history_diagnoses']
+            for doc in history_coll.find():
+                if 'condition' in doc and 'aliases' in doc and isinstance(doc['condition'], str) and isinstance(doc['aliases'], list):
+                    self.history_diagnoses[doc['condition']] = [a for a in doc['aliases'] if isinstance(a, str)]
+            logger.info(f"Loaded {len(self.history_diagnoses)} history diagnoses.")
+            
+            # Load diagnosis_relevance
+            relevance_coll = db[f'{kb_prefix}diagnosis_relevance']
+            for doc in relevance_coll.find():
+                if 'condition' in doc and 'required' in doc and isinstance(doc['condition'], str) and isinstance(doc['required'], list):
+                    self.diagnosis_relevance[doc['condition']] = [r for r in doc['required'] if isinstance(r, str)]
+            logger.info(f"Loaded {len(self.diagnosis_relevance)} diagnosis relevance mappings.")
+            
+            # Load management_config
+            config_coll = db[f'{kb_prefix}management_config']
+            for doc in config_coll.find():
+                if 'key' in doc and 'value' in doc and isinstance(doc['key'], str):
+                    self.management_config[doc['key']] = doc['value']
+            logger.info(f"Loaded {len(self.management_config)} management config entries.")
+            
+            # Load diagnosis_treatments
+            treatments_coll = db[f'{kb_prefix}diagnosis_treatments']
+            for doc in treatments_coll.find():
+                if 'diagnosis' in doc and 'mappings' in doc and isinstance(doc['diagnosis'], str) and isinstance(doc['mappings'], dict):
+                    self.diagnosis_treatments[doc['diagnosis']] = doc['mappings']
+            logger.info(f"Loaded {len(self.diagnosis_treatments)} diagnosis treatments.")
+            
+            client.close()
+            
+            for name, data in [
+                ('medical_stop_words', self.medical_stop_words),
+                ('medical_terms', self.medical_terms),
+                ('synonyms', self.synonyms),
+                ('clinical_pathways', self.clinical_pathways),
+                ('history_diagnoses', self.history_diagnoses),
+                ('diagnosis_relevance', self.diagnosis_relevance),
+                ('management_config', self.management_config),
+                ('diagnosis_treatments', self.diagnosis_treatments)
+            ]:
+                if not data:
+                    logger.warning(f"No data loaded for {name}. Functionality may be limited.")
+        
+        except ConnectionFailure as e:
+            logger.error(f"Failed to connect to MongoDB: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error loading knowledge base from MongoDB: {str(e)}")
         
         # Cache diagnoses list
-        self.diagnoses_list = set()
-        if isinstance(self.clinical_pathways, dict):
-            for category, pathways in self.clinical_pathways.items():
-                if isinstance(pathways, dict):
-                    for key, path in pathways.items():
-                        if isinstance(path, dict):
-                            differentials = path.get('differentials', [])
-                            if isinstance(differentials, list):
-                                self.diagnoses_list.update(d.lower() for d in differentials)
+        self.diagnoses_list: Set[str] = set()
+        for category, pathways in self.clinical_pathways.items():
+            for key, path in pathways.items():
+                differentials = path.get('differentials', [])
+                self.diagnoses_list.update(d.lower() for d in differentials if isinstance(d, str))
         
         # Initialize SymptomTracker
-        self.common_symptoms = SymptomTracker()
+        self.common_symptoms = SymptomTracker(
+            mongo_uri=mongo_uri,
+            db_name=db_name,
+            collection_name=os.getenv('SYMPTOMS_COLLECTION', 'symptoms')
+        )
+        if not self.common_symptoms.get_all_symptoms():
+            logger.warning("No symptoms loaded into SymptomTracker. Symptom extraction may be limited.")
 
     def extract_clinical_features(self, note: SOAPNote) -> Dict:
         """Extract structured clinical features from SOAP note."""
@@ -58,7 +153,17 @@ class ClinicalAnalyzer:
 
         # Set chief complaint
         if hasattr(note, 'situation') and note.situation:
-            features['chief_complaint'] = note.situation.replace("Patient presents with", "").replace("Patient reports", "").replace("Patient experiencing", "").strip()
+            # Extract clinical terms from situation
+            situation = note.situation.lower()
+            for prefix in ["patient presents with", "patient reports", "patient experiencing"]:
+                situation = situation.replace(prefix, "").strip()
+            # Use synonym mappings to identify key symptoms
+            chief_complaint = situation
+            for key, aliases in self.synonyms.items():
+                if key in situation or any(alias in situation for alias in aliases):
+                    chief_complaint = key
+                    break
+            features['chief_complaint'] = chief_complaint
             logger.debug(f"Chief complaint set: {features['chief_complaint']}")
         else:
             logger.warning(f"No situation for note {note.id}")
@@ -111,7 +216,6 @@ class ClinicalAnalyzer:
 
         # Rule-based symptom extraction
         symptom_candidates = set(preprocess_text(text, self.medical_stop_words).split())
-        logger.debug(f"Symptom candidates: {symptom_candidates}")
         for term in symptom_candidates:
             if not isinstance(term, str):
                 logger.warning(f"Non-string symptom candidate: {term}")
@@ -131,56 +235,26 @@ class ClinicalAnalyzer:
                 features['symptoms'].append(symptom_dict)
                 logger.debug(f"Added rule-based symptom: {symptom_dict}")
 
-        # Embedding-based symptom validation
-        clinical_embedding = embed_text("clinical symptom")
-        expanded_candidates = set()
-        for term in symptom_candidates:
+        # Embedding-based symptom validation with category-specific embeddings
+        for symptom in features['symptoms'][:]:  # Copy to allow modification
+            term = symptom.get('description', '')
             if not isinstance(term, str):
-                logger.warning(f"Skipping invalid term (non-string): {term}")
                 continue
             if term in negated_terms:
-                logger.debug(f"Skipping negated term: {term}")
                 continue
-            if term not in self.common_symptoms.get_all_symptoms() and term not in self.medical_terms:
-                continue
-            expanded_candidates.add(term)
-            if isinstance(self.synonyms, dict):
-                for key, aliases in self.synonyms.items():
-                    if not isinstance(aliases, list):
-                        logger.warning(f"Invalid aliases for {key}: {aliases}")
-                        continue
-                    if term.lower() in [a.lower() for a in aliases if isinstance(a, str)]:
-                        if key.lower() not in self.diagnoses_list:
-                            expanded_candidates.add(key.lower())
-                            expanded_candidates.update(a.lower() for a in aliases if isinstance(a, str))
-
-        for term in expanded_candidates:
-            if not isinstance(term, str):
-                logger.warning(f"Non-string expanded candidate: {term}")
-                continue
-            if term in self.medical_terms and term not in self.diagnoses_list:
-                try:
-                    term_embedding = embed_text(term)
-                    location = extract_location(term + " " + text)
-                    context_term = f"{term} {location.lower()}" if location != "Unspecified" else term
-                    context_embedding = embed_text(context_term)
-                    similarity = torch.cosine_similarity(context_embedding.unsqueeze(0), clinical_embedding.unsqueeze(0)).item()
-                    if similarity > SIMILARITY_THRESHOLD:
-                        category, description = self.common_symptoms.search_symptom(term)
-                        symptom_dict = {
-                            'description': term,
-                            'category': category or 'unknown',
-                            'definition': description or 'No description available',
-                            'duration': extract_duration(text),
-                            'severity': classify_severity(text),
-                            'location': location,
-                            'aggravating': features['aggravating_factors'] or extract_aggravating_alleviating(text, "aggravating"),
-                            'alleviating': features['alleviating_factors'] or extract_aggravating_alleviating(text, "alleviating")
-                        }
-                        features['symptoms'].append(symptom_dict)
-                        logger.debug(f"Added embedding-based symptom: {symptom_dict}, similarity: {similarity}")
-                except Exception as e:
-                    logger.warning(f"Embedding failed for term {term}: {str(e)}")
+            category = symptom.get('category', 'unknown').lower()
+            try:
+                clinical_embedding = embed_text(f"{category} symptom")
+                term_embedding = embed_text(term)
+                location = symptom.get('location', 'Unspecified')
+                context_term = f"{term} {location.lower()}" if location != "Unspecified" else term
+                context_embedding = embed_text(context_term)
+                similarity = torch.cosine_similarity(context_embedding.unsqueeze(0), clinical_embedding.unsqueeze(0)).item()
+                if similarity <= 0.85:  # Increased SIMILARITY_THRESHOLD
+                    features['symptoms'].remove(symptom)
+                    logger.debug(f"Removed low-similarity symptom: {term}, similarity: {similarity}")
+            except Exception as e:
+                logger.warning(f"Embedding failed for term {term}: {str(e)}")
 
         # Deduplicate symptoms
         original_symptoms = features['symptoms'].copy()
@@ -190,14 +264,12 @@ class ClinicalAnalyzer:
         seen = set()
         for desc in deduped_descriptions:
             if not isinstance(desc, str):
-                logger.warning(f"Non-string description in deduplication: {desc}")
                 continue
             desc_lower = desc.lower()
             if desc_lower not in seen:
                 seen.add(desc_lower)
                 for symptom in original_symptoms:
                     if not isinstance(symptom, dict):
-                        logger.warning(f"Non-dict symptom in deduplication: {symptom}")
                         continue
                     if symptom.get('description', '').lower() == desc_lower:
                         features['symptoms'].append(symptom)
@@ -205,10 +277,39 @@ class ClinicalAnalyzer:
         logger.debug(f"Final symptoms: {features['symptoms']}")
         return features
 
-    def generate_differential_dx(self, features: Dict) -> List[Tuple[str, float, str]]:
-        """Generate ranked differential diagnoses."""
-        logger.debug(f"Generating differentials for chief complaint: {features.get('chief_complaint')}, symptoms: {features.get('symptoms', [])}")
-        dx_scores = {}
+    def is_relevant_dx(self, dx: str, age: int, sex: str, symptom_type: str, symptom_category: str, features: Dict) -> bool:
+        """Check if a diagnosis is relevant based on demographics and clinical features."""
+        dx_lower = dx.lower()
+        symptom_words = {s.get('description', '').lower() for s in features.get('symptoms', [])}
+        history = features.get('history', '').lower()
+        chief_complaint = features.get('chief_complaint', '').lower()
+        
+        # Demographic filters
+        if age and 'pediatric' in dx_lower and age > 18:
+            return False
+        if sex and 'prostate' in dx_lower and sex.lower() == 'female':
+            return False
+        if sex and 'ovarian' in dx_lower and sex.lower() == 'male':
+            return False
+        
+        # Symptom and context relevance
+        required_symptoms = self.diagnosis_relevance.get(dx_lower, [])
+        matches = sum(1 for req in required_symptoms if req in symptom_words or req in history or req in chief_complaint)
+        critical_conditions = {'myocardial infarction', 'pericarditis', 'pulmonary embolism', 'angina', 'aortic dissection'}
+        relevance = (matches >= 2 or (matches >= 1 and dx_lower in critical_conditions) or
+                     any(req in chief_complaint for req in required_symptoms))
+        if not relevance:
+            logger.debug(f"Excluded dx {dx_lower}: insufficient symptom matches ({matches}/{len(required_symptoms)} required)")
+        return relevance
+
+    def generate_differential_dx(self, features: Dict, patient: Patient = None) -> List[Tuple]:
+        """Generate ranked differential diagnoses with demographic and context filtering.
+        
+        Returns:
+            List of tuples (diagnosis: str, score: float, reasoning: str)
+        """
+        logger.debug(f"Generating differentials for chief complaint: {features.get('chief_complaint')}")
+        dx_scores: Dict[str, Tuple[float, str]] = {}
         symptoms = features.get('symptoms', [])
         history = features.get('history', '').lower()
         additional_notes = features.get('additional_notes', '').lower()
@@ -216,74 +317,59 @@ class ClinicalAnalyzer:
         text_embedding = embed_text(text)
         primary_dx = features.get('assessment', '').lower()
         chief_complaint = features.get('chief_complaint', '').lower()
-
-        # Assessment-based differential
-        if primary_dx:
-            clean_assessment = primary_dx.replace("possible ", "").strip()
-            logger.debug(f"Primary diagnosis: {clean_assessment}")
+        age = patient.age if patient and hasattr(patient, 'age') else None
+        sex = patient.sex if patient and hasattr(patient, 'sex') else None
 
         # Symptom and location matching with category consideration
         for symptom in symptoms:
             if not isinstance(symptom, dict):
-                logger.warning(f"Invalid symptom format: {symptom}")
                 continue
             symptom_type = symptom.get('description', '').lower()
             symptom_category = symptom.get('category', 'unknown').lower()
             location = symptom.get('location', '').lower()
             aggravating = symptom.get('aggravating', '').lower()
             alleviating = symptom.get('alleviating', '').lower()
-            if not isinstance(self.clinical_pathways, dict):
-                logger.error(f"clinical_pathways not a dict: {type(self.clinical_pathways)}")
-                continue
             for category, pathways in self.clinical_pathways.items():
-                if not isinstance(pathways, dict):
-                    logger.error(f"pathways not a dict for {category}: {type(pathways)}")
-                    continue
                 for key, path in pathways.items():
                     if not isinstance(path, dict):
-                        logger.error(f"path not a dict for {key}: {type(path)}")
                         continue
                     key_lower = key.lower()
                     synonyms = self.synonyms.get(symptom_type, [])
                     if (symptom_type == key_lower or location == key_lower or symptom_type in synonyms or
                         symptom_category == category.lower()):
                         differentials = path.get('differentials', [])
-                        if not isinstance(differentials, list):
-                            logger.error(f"differentials not a list for {key}: {type(differentials)}")
-                            continue
                         for diff in differentials:
                             if not isinstance(diff, str):
-                                logger.warning(f"Non-string differential for {key}: {diff}")
                                 continue
-                            if diff.lower() != primary_dx:
-                                score = 0.7
-                                if symptom_type in chief_complaint:
-                                    score += 0.2
-                                if symptom_category == category.lower():
-                                    score += 0.1  # Bonus for category match
-                                reasoning = f"Matches symptom: {symptom_type} (category: {symptom_category}) in {location}"
-                                if aggravating and alleviating:
-                                    reasoning += f"; influenced by {aggravating}/{alleviating}"
-                                dx_scores[diff] = (score, reasoning)
-                                logger.debug(f"Added symptom-based dx: {diff}")
+                            if diff.lower() == primary_dx:
+                                continue
+                            if not self.is_relevant_dx(diff, age, sex, symptom_type, symptom_category, features):
+                                continue
+                            score = 0.5
+                            if symptom_type in chief_complaint:
+                                score += 0.3
+                            if symptom_category == category.lower():
+                                score += 0.2
+                            required_symptoms = self.diagnosis_relevance.get(diff.lower(), [])
+                            matches = sum(1 for req in required_symptoms if req in symptom_type or req in text.lower())
+                            score += matches / max(len(required_symptoms), 1) * 0.3
+                            reasoning = f"Matches symptom: {symptom_type} (category: {symptom_category}) in {location}"
+                            if aggravating and alleviating:
+                                reasoning += f"; influenced by {aggravating}/{alleviating}"
+                            dx_scores[diff] = (min(score, 0.95), reasoning)
+                            logger.debug(f"Added symptom-based dx: {diff}, score: {score}")
 
         # History-based differentials
-        if isinstance(self.history_diagnoses, dict):
-            for condition, aliases in self.history_diagnoses.items():
-                if not isinstance(aliases, list):
-                    logger.error(f"aliases not a list for {condition}: {type(aliases)}")
-                    continue
-                if any(alias.lower() in history for alias in aliases):
-                    if condition.lower() != primary_dx:
-                        dx_scores[condition] = (0.75, f"Supported by medical history: {condition}")
-                        logger.debug(f"Added history-based dx: {condition}")
+        for condition, aliases in self.history_diagnoses.items():
+            if any(alias.lower() in history for alias in aliases):
+                if condition.lower() != primary_dx and self.is_relevant_dx(condition, age, sex, '', '', features):
+                    dx_scores[condition] = (0.75, f"Supported by medical history: {condition}")
+                    logger.debug(f"Added history-based dx: {condition}")
 
-        # Contextual clues with symptom descriptions
+        # Contextual adjustments
         for symptom in symptoms:
-            if not isinstance(symptom, dict):
-                continue
             symptom_type = symptom.get('description', '').lower()
-            symptom_definition = symptom.get('definition', '').lower()
+            symptom_category = symptom.get('category', '').lower()
             if 'new pet' in additional_notes and 'cough' in symptom_type:
                 dx_scores['Allergic cough'] = (0.75, f"Supported by new pet exposure and symptom: {symptom_type}")
             if 'new medication' in additional_notes and 'rash' in symptom_type:
@@ -292,13 +378,10 @@ class ClinicalAnalyzer:
                 dx_scores['Traveler’s diarrhea'] = (0.75, f"Suggested by recent travel and symptom: {symptom_type}")
             if 'sedentary job' in history and 'back pain' in symptom_type:
                 dx_scores['Mechanical low back pain'] = (0.75, f"Supported by sedentary lifestyle and symptom: {symptom_type}")
-            if 'eczema' in history and 'skin' in symptom_definition:
-                dx_scores['Eczema flare'] = (0.75, f"Supported by eczema history and symptom: {symptom_type}")
-            if 'lactose intolerance' in history and 'abdominal' in symptom_definition:
-                dx_scores['Lactose intolerance'] = (0.75, f"Supported by lactose intolerance history and symptom: {symptom_type}")
-        if "no weight loss" in text.lower():
-            dx_scores.pop("Malignancy", None)
-            logger.debug("Removed Malignancy due to no weight loss")
+            if 'palpitations' in symptom_type and 'no weight loss' in text.lower():
+                dx_scores.pop('Hyperthyroidism', None)
+            if 'vaginal discharge' in symptom_type and 'antibiotics' in features.get('medications', '').lower():
+                dx_scores['Candidiasis'] = (0.85, f"Supported by recent antibiotic use and symptom: {symptom_type}")
 
         # Embedding-based scoring
         for dx in dx_scores:
@@ -306,25 +389,9 @@ class ClinicalAnalyzer:
                 dx_embedding = embed_text(dx)
                 similarity = torch.cosine_similarity(text_embedding.unsqueeze(0), dx_embedding.unsqueeze(0)).item()
                 old_score, reasoning = dx_scores[dx]
-                dx_scores[dx] = (min(old_score + similarity * 0.1, 0.9), reasoning)
+                dx_scores[dx] = (min(old_score + similarity * 0.1, 0.95), reasoning)
             except Exception as e:
                 logger.warning(f"Similarity failed for dx {dx}: {str(e)}")
-
-        # Filter irrelevant diagnoses
-        def is_relevant(dx: str) -> bool:
-            dx_lower = dx.lower()
-            symptom_words = {s.get('description', '').lower() for s in symptoms if isinstance(s, dict)}
-            locations = {s.get('location', '').lower() for s in symptoms if isinstance(s, dict)}
-            categories = {s.get('category', '').lower() for s in symptoms if isinstance(s, dict)}
-            if isinstance(self.diagnosis_relevance, dict):
-                for condition, required in self.diagnosis_relevance.items():
-                    if dx_lower == condition.lower():
-                        matches = sum(1 for word in required if word in symptom_words or word in locations or word in categories)
-                        return matches >= len(required) * 0.1 or any(s in chief_complaint for s in required)
-            return True
-
-        dx_scores = {dx: score for dx, score in dx_scores.items() if is_relevant(dx)}
-        logger.debug(f"Filtered dx: {dx_scores.keys()}")
 
         # Normalize scores
         if dx_scores:
@@ -332,28 +399,23 @@ class ClinicalAnalyzer:
             if total_score > 0:
                 dx_scores = {dx: (score / total_score * 0.9, reason) for dx, (score, reason) in dx_scores.items()}
 
-        ranked_dx = []
-        logger.debug(f"dx_scores before sorting: {dx_scores}")
-        try:
-            ranked_dx = [(dx, score, reason) for dx, (score, reason) in sorted(dx_scores.items(), key=lambda x: x[1][0], reverse=True)[:5]]
-        except ValueError as e:
-            logger.error(f"Error sorting differentials: {str(e)}")
-            ranked_dx = []
-            for dx, value in dx_scores.items():
-                if not isinstance(value, tuple) or len(value) != 2:
-                    logger.warning(f"Invalid dx_scores entry for {dx}: {value}")
-                    continue
-                ranked_dx.append((dx, value[0], value[1]))
-            ranked_dx = sorted(ranked_dx, key=lambda x: x[1], reverse=True)[:5]
-
+        ranked_dx = [(dx, score, reason) for dx, (score, reason) in sorted(dx_scores.items(), key=lambda x: x[1][0], reverse=True)[:5]]
         if not ranked_dx:
             ranked_dx = [("Undetermined", 0.1, "Insufficient data")]
-            logger.warning(f"No differentials generated for chief complaint: {features.get('chief_complaint', 'None')}, symptoms: {features.get('symptoms', [])}")
+            logger.warning("No differentials generated; knowledge base or relevance criteria may need review")
         logger.debug(f"Returning differentials: {ranked_dx}")
         return ranked_dx
 
-    def generate_management_plan(self, features: Dict, differentials: List[Tuple[str, float, str]]) -> Dict:
-        """Generate tailored management plan."""
+    def generate_management_plan(self, features: Dict, differentials: List[Tuple]) -> Dict:
+        """Generate tailored management plan with filtered workups and treatments.
+        
+        Args:
+            features: Dictionary of extracted clinical features
+            differentials: List of tuples (diagnosis: str, score: float, reasoning: str)
+        
+        Returns:
+            Dictionary with workup, treatment, and follow-up plans
+        """
         logger.debug(f"Generating management plan for {features.get('chief_complaint')}")
         plan = {
             'workup': {'urgent': [], 'routine': []},
@@ -365,142 +427,62 @@ class ClinicalAnalyzer:
         symptom_categories = {s.get('category', '').lower() for s in symptoms if isinstance(s, dict)}
         primary_dx = features.get('assessment', '').lower()
         filtered_dx = set()
+        high_risk_conditions = {'temporal arteritis', 'atrial fibrillation', 'subarachnoid hemorrhage', 'myocardial infarction', 'pulmonary embolism', 'aortic dissection'}
         high_risk = False
 
         # Validate differentials
         validated_differentials = []
         for diff in differentials:
             if not isinstance(diff, tuple) or len(diff) != 3:
-                logger.warning(f"Invalid differential format: {diff}")
-                if isinstance(diff, str):
-                    validated_differentials.append((diff, 0.5, "Unknown reasoning"))
-                    filtered_dx.add(diff.lower())
                 continue
             dx, score, reason = diff
             if not isinstance(dx, str) or not isinstance(score, (int, float)) or not isinstance(reason, str):
-                logger.warning(f"Invalid differential components: {diff}")
                 continue
             validated_differentials.append(diff)
             filtered_dx.add(dx.lower())
-            if score >= CONFIDENCE_THRESHOLD:
+            if dx.lower() in high_risk_conditions:
                 high_risk = True
 
         # Primary diagnosis-based plan
-        if primary_dx and isinstance(self.clinical_pathways, dict):
-            for category, pathways in self.clinical_pathways.items():
-                if not isinstance(pathways, dict):
-                    logger.error(f"pathways not a dict for {category}: {type(pathways)}")
+        for category, pathways in self.clinical_pathways.items():
+            for key, path in pathways.items():
+                if not isinstance(path, dict):
                     continue
-                for key, path in pathways.items():
-                    if not isinstance(path, dict):
-                        logger.error(f"path not a dict for {key}: {type(path)}")
-                        continue
-                    differentials = path.get('differentials', [])
-                    if not isinstance(differentials, list):
-                        logger.error(f"differentials not a list for {key}: {type(differentials)}")
-                        continue
-                    if any(d.lower() in primary_dx for d in differentials):
-                        workup = path.get('workup', {})
-                        if not isinstance(workup, dict):
-                            logger.error(f"workup not a dict for {key}: {type(workup)}")
-                            continue
-                        for w in workup.get('urgent', []):
-                            parsed = parse_conditional_workup(w, symptoms)
-                            if parsed:
-                                plan['workup']['urgent'].append(parsed)
-                        for w in workup.get('routine', []):
-                            parsed = parse_conditional_workup(w, symptoms)
-                            if parsed:
-                                plan['workup']['routine'].append(parsed)
-                        management = path.get('management', {})
-                        if not isinstance(management, dict):
-                            logger.error(f"management not a dict for {key}: {type(management)}")
-                            continue
-                        plan['treatment']['symptomatic'].extend(management.get('symptomatic', []))
-                        plan['treatment']['definitive'].extend(management.get('definitive', []))
-                        logger.debug(f"Added primary dx-based plan for {key}")
-
-        # Symptom-based pathways with category consideration
-        for symptom in symptoms:
-            if not isinstance(symptom, dict):
-                logger.warning(f"Invalid symptom format: {symptom}")
-                continue
-            symptom_type = symptom.get('description', '').lower()
-            symptom_category = symptom.get('category', 'unknown').lower()
-            location = symptom.get('location', '').lower()
-            if not isinstance(self.clinical_pathways, dict):
-                logger.error(f"clinical_pathways not a dict: {type(self.clinical_pathways)}")
-                continue
-            for category, pathways in self.clinical_pathways.items():
-                if not isinstance(pathways, dict):
-                    logger.error(f"pathways not a dict for {category}: {type(pathways)}")
-                    continue
-                for key, path in pathways.items():
-                    if not isinstance(path, dict):
-                        logger.error(f"path not a dict for {key}: {type(path)}")
-                        continue
-                    if symptom_type == key.lower() or location == key.lower() or symptom_category == category.lower():
-                        differentials = path.get('differentials', [])
-                        if not isinstance(differentials, list):
-                            logger.error(f"differentials not a list for {key}: {type(differentials)}")
-                            continue
-                        for diff in differentials:
-                            if not isinstance(diff, str):
-                                logger.warning(f"Non-string differential for {key}: {diff}")
-                                continue
-                            if diff.lower() == primary_dx or diff.lower() not in filtered_dx:
-                                continue
-                            workup = path.get('workup', {})
-                            if not isinstance(workup, dict):
-                                logger.error(f"workup not a dict for {key}: {type(workup)}")
-                                continue
-                            for w in workup.get('urgent', []):
-                                parsed = parse_conditional_workup(w, symptoms)
-                                if parsed:
-                                    plan['workup']['urgent'].append(parsed)
-                            for w in workup.get('routine', []):
-                                parsed = parse_conditional_workup(w, symptoms)
-                                if parsed:
-                                    plan['workup']['routine'].append(parsed)
-                            management = path.get('management', {})
-                            if not isinstance(management, dict):
-                                logger.error(f"management not a dict for {key}: {type(management)}")
-                            plan['treatment']['symptomatic'].extend(management.get('symptomatic', []))
-                            plan['treatment']['definitive'].extend(management.get('definitive', []))
-                            logger.debug(f"Added differential-based plan for {key}")
+                differentials = path.get('differentials', [])
+                if any(d.lower() in primary_dx for d in differentials):
+                    workup = path.get('workup', {})
+                    for w in workup.get('urgent', []):
+                        parsed = parse_conditional_workup(w, symptoms)
+                        if parsed:
+                            plan['workup']['urgent'].append(parsed)
+                    for w in workup.get('routine', []):
+                        parsed = parse_conditional_workup(w, symptoms)
+                        if parsed:
+                            plan['workup']['routine'].append(parsed)
+                    management = path.get('management', {})
+                    plan['treatment']['symptomatic'].extend(management.get('symptomatic', []))
+                    plan['treatment']['definitive'].extend(management.get('definitive', []))
+                    logger.debug(f"Added primary dx-based plan for {key}")
 
         # Differential-based management
-        if isinstance(self.diagnosis_treatments, dict):
-            for diff in validated_differentials:
-                dx, _, _ = diff
-                if not isinstance(dx, str):
-                    logger.warning(f"Non-string differential: {dx}")
+        for diff in validated_differentials:
+            dx, score, _ = diff
+            if score < 0.4:  # Skip low-confidence diagnoses
+                continue
+            for diag_key, mappings in self.diagnosis_treatments.items():
+                if not isinstance(mappings, dict):
                     continue
-                for diag_key, mappings in self.diagnosis_treatments.items():
-                    if not isinstance(mappings, dict):
-                        logger.error(f"mappings not a dict for {diag_key}: {type(mappings)}")
-                        continue
-                    if diag_key.lower() in dx.lower():
-                        workup = mappings.get('workup', {})
-                        if not isinstance(workup, dict):
-                            logger.error(f"workup not a dict for {diag_key}: {type(workup)}")
-                            continue
-                        for w in workup.get('urgent', []):
-                            parsed = parse_conditional_workup(w, symptoms)
-                            if parsed:
-                                plan['workup']['urgent'].append(parsed)
-                        for w in workup.get('routine', []):
-                            parsed = parse_conditional_workup(w, symptoms)
-                            if parsed:
-                                plan['workup']['routine'].append(parsed)
-                        treatment = mappings.get('treatment', {})
-                        if not isinstance(treatment, dict):
-                            logger.error(f"treatment not a dict for {diag_key}: {type(treatment)}")
-                            continue
-                        plan['treatment']['definitive'].extend(treatment.get('definitive', []))
-                        logger.debug(f"Added dx-based plan for {dx}")
+                if diag_key.lower() in dx.lower():
+                    workup = mappings.get('workup', {})
+                    for w in workup.get('urgent', []) if score >= CONFIDENCE_THRESHOLD else workup.get('routine', []):
+                        parsed = parse_conditional_workup(w, symptoms)
+                        if parsed:
+                            plan['workup']['urgent' if score >= CONFIDENCE_THRESHOLD else 'routine'].append(parsed)
+                    treatment = mappings.get('treatment', {})
+                    plan['treatment']['definitive'].extend(treatment.get('definitive', []) if score >= CONFIDENCE_THRESHOLD else treatment.get('symptomatic', []))
+                    logger.debug(f"Added dx-based plan for {dx}")
 
-        # Contextual adjustments with category-based rules
+        # Contextual adjustments
         additional_notes = features.get('additional_notes', '').lower()
         if 'new pet' in additional_notes and 'respiratory' in symptom_categories:
             plan['workup']['routine'].append("Allergy testing")
@@ -512,10 +494,7 @@ class ClinicalAnalyzer:
             plan['treatment']['definitive'].append("Ergonomic counseling")
 
         # Follow-up customization
-        if high_risk:
-            plan['follow_up'] = ["Follow-up in 3-5 days or sooner if symptoms worsen"]
-        else:
-            plan['follow_up'] = ["Follow-up in 1-2 weeks"]
+        plan['follow_up'] = ["Follow-up in 3-5 days or sooner if symptoms worsen"] if high_risk else ["Follow-up in 1-2 weeks"]
 
         # Deduplicate and filter
         for key in plan['workup']:
@@ -528,17 +507,18 @@ class ClinicalAnalyzer:
         return plan
 
 def parse_conditional_workup(workup: str, symptoms: List[Dict]) -> str:
-    """Parse conditional workup requirements."""
+    """Parse conditional workup requirements with severity and duration checks."""
     if not isinstance(workup, str):
         logger.warning(f"Invalid workup format: {workup}")
         return ""
-    if 'if' in workup.lower():
-        condition = workup.lower().split('if')[1].strip()
-        for symptom in symptoms:
-            if not isinstance(symptom, dict):
-                logger.warning(f"Invalid symptom format: {symptom}")
-                continue
-            if (condition in symptom.get('description', '').lower() or
-                condition in symptom.get('definition', '').lower()):
-                return workup.split('if')[0].strip()
-    return workup
+    if 'if' not in workup.lower():
+        return workup
+    condition = workup.lower().split('if')[1].strip()
+    for symptom in symptoms:
+        if not isinstance(symptom, dict):
+            continue
+        desc = symptom.get('description', '').lower()
+        severity = symptom.get('severity', '').lower()
+        if condition in desc and (severity in ['severe', 'moderate'] or 'urgent' in condition):
+            return workup.split('if')[0].strip()
+    return ""
