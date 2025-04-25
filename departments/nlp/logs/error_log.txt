@@ -424,3 +424,197 @@ NameError: name 're' is not defined
 2025-04-22 12:07:41,127 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
 2025-04-22 12:07:45,195 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
 2025-04-22 12:07:45,232 - WARNING -  * Debugger is active!
+2025-04-22 12:46:57,246 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:47:04,101 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:47:09,985 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:47:16,824 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:47:23,731 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:47:26,788 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:47:34,570 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:47:36,723 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:47:43,584 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:47:49,437 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:47:55,316 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:47:58,393 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:02,404 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:09,260 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:13,241 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:14,383 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:19,462 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:20,593 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:25,543 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:28,574 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:32,546 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:35,600 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:39,650 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:43,708 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:46,745 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:49,789 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:51,898 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:48:56,993 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:49:00,060 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:49:03,176 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:49:04,293 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:49:05,426 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:49:50,404 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:49:53,477 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:50:01,368 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:50:08,251 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:50:16,212 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:50:19,291 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:50:29,991 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:50:36,851 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:50:43,517 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:50:49,448 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:50:55,382 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:51:03,207 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:51:08,197 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:51:13,257 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:51:16,339 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:51:20,391 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 12:51:20,425 - WARNING -  * Debugger is active!
+2025-04-22 13:31:51,649 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:33:07,790 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:33:18,908 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:33:23,007 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:33:34,430 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:33:57,095 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:34:09,430 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:34:12,619 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:34:15,708 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:34:17,766 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:34:26,242 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:35:21,219 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:36:20,154 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:36:25,592 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:36:30,897 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:36:43,502 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:36:56,453 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-22 13:36:56,489 - WARNING -  * Debugger is active!
+2025-04-23 10:40:08,527 - WARNING - No data loaded for diagnosis_relevance. Functionality may be limited.
+2025-04-23 10:40:18,371 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-23 10:40:18,510 - WARNING - No data loaded for diagnosis_relevance. Functionality may be limited.
+2025-04-23 10:40:28,767 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-23 10:41:09,331 - WARNING -  * Debugger is active!
+2025-04-23 15:09:44,780 - WARNING -  * Debugger is active!
+2025-04-23 15:35:21,194 - WARNING -  * Debugger is active!
+2025-04-23 15:40:41,689 - WARNING -  * Debugger is active!
+2025-04-23 15:52:46,293 - WARNING -  * Debugger is active!
+2025-04-23 15:54:42,452 - WARNING -  * Debugger is active!
+2025-04-23 15:57:35,210 - WARNING -  * Debugger is active!
+2025-04-23 16:20:46,773 - WARNING -  * Debugger is active!
+2025-04-23 16:23:53,670 - WARNING -  * Debugger is active!
+2025-04-23 16:26:24,688 - WARNING -  * Debugger is active!
+2025-04-23 16:29:52,886 - WARNING -  * Debugger is active!
+2025-04-23 16:34:44,118 - WARNING -  * Debugger is active!
+2025-04-23 16:57:05,059 - WARNING -  * Debugger is active!
+2025-04-23 17:04:11,725 - WARNING -  * Debugger is active!
+2025-04-23 17:10:02,533 - WARNING -  * Debugger is active!
+2025-04-24 16:52:25,682 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:52:44,982 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:52:57,828 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:53:10,050 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:53:15,281 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:53:17,982 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:53:21,586 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:53:31,245 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:53:44,915 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:53:48,444 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:53:51,347 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:53:54,931 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:53:58,466 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:54:01,153 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:54:03,879 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:54:05,753 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:54:13,815 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:54:16,612 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:54:18,645 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:54:55,029 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:54:57,654 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:55:04,303 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:55:10,150 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:55:21,991 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:55:31,152 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:55:37,200 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:55:42,408 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:55:47,620 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:55:52,856 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:55:59,734 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:56:04,166 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:56:15,718 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 16:56:15,748 - WARNING -  * Debugger is active!
+2025-04-24 17:01:38,971 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 17:02:07,827 - WARNING -  * Debugger is active!
+2025-04-24 17:46:50,847 - WARNING -  * Debugger is active!
+2025-04-24 17:47:45,342 - WARNING -  * Debugger is active!
+2025-04-24 17:49:22,590 - WARNING -  * Debugger is active!
+2025-04-24 17:50:48,042 - WARNING -  * Debugger is active!
+2025-04-24 17:51:59,242 - WARNING -  * Debugger is active!
+2025-04-24 17:54:00,761 - WARNING -  * Debugger is active!
+2025-04-24 18:01:05,137 - WARNING -  * Debugger is active!
+2025-04-24 18:03:34,473 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:03:55,538 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:04:09,652 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:04:22,802 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:04:28,604 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:04:31,600 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:04:35,462 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:04:45,865 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:05:00,818 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:05:04,982 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:05:08,051 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:05:11,966 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:05:15,803 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:05:18,797 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:05:21,698 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:05:24,031 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:05:33,102 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:05:36,005 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-24 18:05:38,655 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 10:54:40,024 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 10:54:43,518 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 10:54:51,643 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 10:54:59,366 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 10:55:15,842 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 10:55:26,399 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 10:55:33,150 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 10:55:38,982 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 10:55:45,098 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 10:55:51,161 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 10:56:02,438 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 10:56:08,173 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 10:56:25,072 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 10:56:25,095 - WARNING -  * Debugger is active!
+2025-04-25 14:10:31,622 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:10:50,071 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:11:02,232 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:11:13,486 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:11:18,394 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:11:20,924 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:11:24,278 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:11:33,476 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:11:46,666 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:11:50,022 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:11:52,553 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:11:55,897 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:11:59,216 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:12:01,730 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:12:04,261 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:12:05,975 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:12:13,507 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:12:16,077 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:12:17,883 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:13:03,808 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:13:06,284 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:13:12,697 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:13:18,320 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:13:29,595 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:13:37,940 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:13:43,563 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:13:48,410 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:13:53,336 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:13:58,301 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:14:04,887 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:14:09,044 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:14:19,924 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 14:14:19,956 - WARNING -  * Debugger is active!
