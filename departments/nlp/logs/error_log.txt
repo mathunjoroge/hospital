@@ -690,3 +690,50 @@ NameError: name 're' is not defined
 2025-05-03 18:03:47,864 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
 2025-05-03 18:41:28,141 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
 2025-05-03 18:42:06,428 - WARNING -  * Debugger is active!
+2025-05-03 18:44:32,089 - WARNING -  * Debugger is active!
+2025-05-03 19:01:46,774 - WARNING -  * Debugger is active!
+2025-05-03 19:03:10,213 - WARNING -  * Debugger is active!
+2025-05-03 19:05:00,517 - WARNING -  * Debugger is active!
+2025-05-03 19:12:27,157 - WARNING -  * Debugger is active!
+2025-05-03 19:15:13,479 - WARNING -  * Debugger is active!
+2025-05-03 20:10:00,714 - WARNING -  * Debugger is active!
+2025-05-03 21:17:11,437 - WARNING -  * Debugger is active!
+2025-05-03 21:24:52,086 - WARNING -  * Debugger is active!
+2025-05-03 21:28:48,641 - WARNING -  * Debugger is active!
+2025-05-03 21:43:07,754 - WARNING -  * Debugger is active!
+2025-05-03 21:51:16,645 - WARNING -  * Debugger is active!
+2025-05-03 21:55:18,703 - WARNING - Duplicate symptom 'edema' in category 'renal' skipped
+2025-05-03 21:55:18,717 - ERROR - Expected list of strings for medical_terms.json, got <class 'dict'>
+2025-05-03 21:55:18,722 - WARNING - Skipping path edema: no workup options
+2025-05-03 21:56:02,669 - WARNING -  * Debugger is active!
+2025-05-03 22:00:19,561 - WARNING - Duplicate symptom 'edema' in category 'renal' skipped
+2025-05-03 22:00:19,574 - ERROR - Expected list of strings for medical_terms.json, got <class 'dict'>
+2025-05-03 22:00:19,578 - WARNING - Skipping path edema: no workup options
+2025-05-03 22:00:57,207 - WARNING -  * Debugger is active!
+2025-05-03 22:11:28,585 - WARNING - Duplicate symptom 'edema' in category 'renal' skipped
+2025-05-03 22:11:28,590 - ERROR - Expected list of strings for medical_terms.json, got <class 'dict'>
+2025-05-03 22:11:28,592 - WARNING - Skipping path edema: no workup options
+2025-05-03 22:11:38,259 - WARNING -  * Debugger is active!
+2025-05-03 22:15:20,798 - WARNING -  * Debugger is active!
+2025-05-03 22:37:40,435 - ERROR - Expected list of strings for medical_terms.json, got <class 'dict'>
+2025-05-03 22:37:40,441 - WARNING - Skipping path edema: no workup options
+2025-05-03 22:37:47,051 - ERROR - Expected list of strings for medical_terms.json, got <class 'dict'>
+2025-05-03 22:37:47,052 - WARNING - Skipping path edema: no workup options
+2025-05-03 22:37:47,059 - ERROR - Expected list of strings for medical_terms.json, got <class 'dict'>
+2025-05-03 22:37:47,061 - WARNING - Skipping path edema: no workup options
+2025-05-03 22:37:47,064 - ERROR - Analysis failed for note 1: generate_rationale() takes 2 positional arguments but 3 were given
+Traceback (most recent call last):
+  File "/home/mathu/projects/hospital/departments/nlp/ai_summary.py", line 179, in generate_ai_analysis
+    {generate_rationale(features, differentials, plan)}
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: generate_rationale() takes 2 positional arguments but 3 were given
+2025-05-03 22:37:47,066 - ERROR - Expected list of strings for medical_terms.json, got <class 'dict'>
+2025-05-03 22:37:47,067 - WARNING - Skipping path edema: no workup options
+2025-05-03 22:38:27,409 - WARNING -  * Debugger is active!
+2025-05-03 22:57:12,334 - ERROR - Expected list of strings for medical_terms.json, got <class 'dict'>
+2025-05-03 22:57:12,336 - WARNING - Skipping path edema: no workup options
+2025-05-03 22:57:16,495 - ERROR - Expected list of strings for medical_terms.json, got <class 'dict'>
+2025-05-03 22:57:16,496 - WARNING - Skipping path edema: no workup options
+2025-05-03 22:57:16,508 - ERROR - Expected list of strings for medical_terms.json, got <class 'dict'>
+2025-05-03 22:57:16,510 - WARNING - Skipping path edema: no workup options
+2025-05-03 22:57:51,846 - WARNING -  * Debugger is active!

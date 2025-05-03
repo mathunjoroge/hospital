@@ -2,6 +2,8 @@ from functools import lru_cache
 from typing import List, Tuple, Dict, Set, Optional
 import torch
 import re
+from datetime import date
+from departments.models.records import Patient
 from departments.nlp.logging_setup import logger
 from departments.nlp.config import MAX_LENGTH, EMBEDDING_DIM, DEVICE
 from departments.nlp.models.transformer_model import tokenizer, model
@@ -91,3 +93,24 @@ def batch_embed_texts(texts: List[str]) -> torch.Tensor:
     except Exception as e:
         logger.error(f"Batch embedding failed: {str(e)}")
         return torch.zeros(len(texts), EMBEDDING_DIM)
+    
+def get_patient_info(patient_id: str) -> dict:
+    """Retrieve patient sex and age from the Patient table."""
+    try:
+        patient = Patient.query.filter_by(patient_id=patient_id).first()
+        if not patient:
+            logger.error(f"No patient found with patient_id: {patient_id}")
+            return {"sex": "Unknown", "age": None}
+        
+        # Get sex
+        sex = patient.sex
+        
+        # Calculate age
+        today = date(2025, 5, 3)  # Current date
+        dob = patient.date_of_birth
+        age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        
+        return {"sex": sex, "age": age}
+    except Exception as e:
+        logger.error(f"Error retrieving patient info for {patient_id}: {str(e)}")
+        return {"sex": "Unknown", "age": None}    
