@@ -1,5 +1,3 @@
-# departments/nlp/clinical_analyzer.py
-
 from typing import List, Dict, Set, Tuple
 import torch
 import re

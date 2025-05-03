@@ -1,7 +1,9 @@
 from flask import render_template, redirect, url_for, request, flash, jsonify
 from typing import Optional, List, Dict, Any
 import psycopg2
-from departments.nlp.ai_summary import generate_ai_summary 
+from departments.nlp.ai_summary import generate_ai_analysis
+from departments.nlp.note_processing import generate_ai_summary
+from departments.nlp.ai_summary import generate_ai_analysis
 from psycopg2.extras import RealDictCursor
 from flask import current_app
 from flask_login import login_required, current_user
@@ -34,13 +36,12 @@ csrf = CSRFProtect()
 @bp.route('/submit_soap_notes/<patient_id>', methods=['POST'])
 @login_required
 def submit_soap_notes(patient_id):
-    """Handles SOAP note submission, including imaging requests and AI summary generation."""
+    """Handles SOAP note submission with in-route AI generation."""
     if current_user.role not in ['medicine', 'admin']:
         flash('You do not have permission to access this page.', 'error')
         return redirect(url_for('home'))
 
     try:
-        # Extract form data
         situation = request.form.get('situation')
         hpi = request.form.get('hpi')
         aggravating_factors = request.form.get('aggravating_factors')
@@ -51,7 +52,6 @@ def submit_soap_notes(patient_id):
         recommendation = request.form.get('recommendation')
         additional_notes = request.form.get('additional_notes')
 
-        # Handle file upload
         file = request.files.get('file_upload')
         file_path = None
         if file and file.filename:
@@ -61,12 +61,10 @@ def submit_soap_notes(patient_id):
             file_path = os.path.join('Uploads', file.filename)
             file.save(os.path.join(upload_folder, file.filename))
 
-        # Validate required fields
         if not all([situation, hpi, assessment, recommendation]):
             flash('All required fields must be filled out!', 'error')
             return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
 
-        # Save SOAP note
         new_soap_note = SOAPNote(
             patient_id=patient_id,
             situation=situation,
@@ -81,34 +79,35 @@ def submit_soap_notes(patient_id):
             file_path=file_path
         )
         db.session.add(new_soap_note)
-        db.session.flush()  # Ensure ID is assigned but not committed yet
+        db.session.flush()
 
-        # Combine all relevant text for AI summary
-        note_text = f"""
-Chief Complaint: {situation}
-HPI: {hpi}
-Aggravating Factors: {aggravating_factors or 'None'}
-Alleviating Factors: {alleviating_factors or 'None'}
-Medical History: {medical_history or 'None'}
-Medication History: {medication_history or 'None'}
-Assessment: {assessment}
-Recommendation: {recommendation}
-Additional Notes: {additional_notes or 'None'}
-"""
-
-        # Generate and save AI summary
         try:
-            ai_summary = generate_ai_summary(note_text)
+            logger.debug(f"Generating AI summary for SOAP note ID {new_soap_note.id}")
+            ai_summary = generate_ai_summary(new_soap_note)
             new_soap_note.ai_notes = ai_summary
+            if ai_summary == "Summary unavailable":
+                flash('AI summary could not be generated.', 'warning')
+            else:
+                logger.info(f"AI summary generated for SOAP note ID {new_soap_note.id}")
         except Exception as e:
-            flash(f'Error generating AI summary: {e}', 'warning')
-            new_soap_note.ai_notes = 'Summary generation failed'
+            logger.error(f"Error generating AI summary for SOAP note ID {new_soap_note.id}: {str(e)}")
+            flash(f'Error generating AI summary: {str(e)}', 'warning')
+            new_soap_note.ai_notes = None
 
-        # Extract imaging requests using NLP logic
+        try:
+            logger.debug(f"Generating AI analysis for SOAP note ID {new_soap_note.id}")
+            patient = Patient.query.get(patient_id)
+            ai_analysis = generate_ai_analysis(new_soap_note, patient)
+            new_soap_note.ai_analysis = ai_analysis
+            logger.info(f"AI analysis generated for SOAP note ID {new_soap_note.id}")
+        except Exception as e:
+            logger.error(f"Error generating AI analysis for SOAP note ID {new_soap_note.id}: {str(e)}")
+            flash(f'Error generating AI analysis: {str(e)}', 'warning')
+            new_soap_note.ai_analysis = None
+
         imaging_keywords = ["ct", "mri", "x-ray", "ultrasound", "pet", "scan"]
         words = recommendation.lower().split()
         matched_imaging = set()
-
         for i, word in enumerate(words):
             for keyword in imaging_keywords:
                 if keyword in word:
@@ -116,7 +115,6 @@ Additional Notes: {additional_notes or 'None'}
                     matched_imaging.add(phrase)
 
         unmatched_requests = []
-
         for imaging_request in matched_imaging:
             imaging_match = Imaging.query.filter(Imaging.imaging_type.ilike(f"%{imaging_request}%")).first()
             if imaging_match:
@@ -134,22 +132,35 @@ Additional Notes: {additional_notes or 'None'}
                 db.session.add(unmatched_request)
                 unmatched_requests.append(imaging_request)
 
-        # Commit all changes
         db.session.commit()
 
-        # Notify admin if there are unmatched imaging requests
         if unmatched_requests:
-            notify_admin()
+            try:
+                message = f"Unmatched imaging requests for patient {patient_id}: {', '.join(unmatched_requests)}"
+                notify_admin(message)
+            except Exception as e:
+                logger.error(f"Failed to notify admin for SOAP note ID {new_soap_note.id}: {str(e)}")
             flash(f"The following imaging requests need manual review: {', '.join(unmatched_requests)}", 'warning')
 
         flash('SOAP notes submitted successfully!', 'success')
-        return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
+        return redirect(url_for('medicine.notes', patient_id=patient_id))
 
     except Exception as e:
-        flash(f'Error submitting SOAP notes: {e}', 'error')
+        flash(f'Error submitting SOAP notes: {str(e)}', 'error')
         db.session.rollback()
-        print(f"Debug: Error in medicine.submit_soap_notes: {e}")
+        logger.error(f"Error in submit_soap_notes for patient {patient_id}: {str(e)}")
         return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
+@bp.route('/notes/<string:patient_id>', methods=['GET']) 
+@login_required
+def notes(patient_id):
+    """Displays SOAP notes for a patient."""
+    if current_user.role not in ['medicine', 'admin']:
+        flash('You do not have permission to access this page.', 'error')
+        return redirect(url_for('medicine.index'))
+
+    patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
+    soap_notes = SOAPNote.query.filter_by(patient_id=patient_id).order_by(SOAPNote.created_at.desc()).all()
+    return render_template('medicine/notes.html', patient=patient, soap_notes=soap_notes)  
 
 @bp.route('/update_missing_ai_summaries', methods=['POST'])
 @login_required
@@ -1307,13 +1318,4 @@ def add_ward_round():
     except Exception as e:
         db.session.rollback()
         flash(f"Error: {str(e)}", "danger")
-        return redirect(url_for('medicine.view_ward_rounds', admission_id=admission_id))   
-    
-    
-    
-    
-
-    
-
-
-    
+        return redirect(url_for('medicine.view_ward_rounds', admission_id=admission_id))     
