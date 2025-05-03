@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Patient Documentation (SBAR Format) for {{ patient.name }} ({{ patient.patient_id }})</h4>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('medicine.submit_soap_notes', patient_id=patient.patient_id) }}" enctype="multipart/form-data">
+                <div class="row">
+                    <!-- Left Column -->
+                    <div class="col-md-6">
+                        <!-- Situation -->
+                        <div class="mb-3">
+                            <label for="situation" class="form-label fw-bold">Chief Complaint:</label>
+                            <textarea id="situation" name="situation" class="form-control" required placeholder="Describe the patient's main issue..."></textarea>
+                        </div>
+                        
+                        <!-- History of Presenting Illness (HPI) -->
+                        <h5 class="text-success">History of Presenting Illness (HPI)</h5>
+                        <div class="mb-3">
+                            <label for="hpi" class="form-label fw-bold">Detailed Description:</label>
+                            <textarea id="hpi" name="hpi" class="form-control" required placeholder="Onset, duration, severity, associated symptoms, and progression..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="aggravating_factors" class="form-label fw-bold">Aggravating Factors:</label>
+                            <textarea id="aggravating_factors" name="aggravating_factors" class="form-control" placeholder="What makes the symptoms worse?"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="alleviating_factors" class="form-label fw-bold">Alleviating Factors:</label>
+                            <textarea id="alleviating_factors" name="alleviating_factors" class="form-control" placeholder="What helps relieve the symptoms?"></textarea>
+                        </div>
+
+                        <!-- Background -->
+                        <h5 class="text-success">B: Background</h5>
+                        <div class="mb-3">
+                            <label for="medical_history" class="form-label fw-bold">Medical History:</label>
+                            <textarea id="medical_history" name="medical_history" class="form-control" placeholder="List chronic illnesses, past surgeries, conditions..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Right Column -->
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="medication_history" class="form-label fw-bold">Medication History:</label>
+                            <textarea id="medication_history" name="medication_history" class="form-control" placeholder="List current medications & dosages..."></textarea>
+                        </div>
+                        <!-- Assessment -->
+                        <h5 class="text-warning">A: Assessment</h5>
+                        <div class="mb-3">
+                            <label for="assessment" class="form-label fw-bold">Clinical Findings / Diagnosis:</label>
+                            <textarea id="assessment" name="assessment" class="form-control" required placeholder="Provide clinical findings, possible diagnosis..."></textarea>
+                        </div>
+
+                        <!-- Recommendation -->
+                        <h5 class="text-info">R: Recommendation</h5>
+                        <div class="mb-3">
+                            <label for="recommendation" class="form-label fw-bold">Next Steps / Treatment Plan:</label>
+                            <textarea id="recommendation" name="recommendation" class="form-control" required placeholder="Specify recommended treatments, referrals, tests..."></textarea>
+                        </div>
+
+                        <!-- Additional Notes & Attachments -->
+                        <h5 class="text-secondary">Additional Information</h5>
+                        <div class="mb-3">
+                            <label for="additional_notes" class="form-label fw-bold">Additional Notes:</label>
+                            <textarea id="additional_notes" name="additional_notes" class="form-control" placeholder="Any extra observations or instructions..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="file_upload" class="form-label fw-bold">Attach Files (Optional):</label>
+                            <input type="file" id="file_upload" name="file_upload" class="form-control">
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg px-5">Submit Report</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

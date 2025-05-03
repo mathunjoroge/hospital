@@ -618,3 +618,75 @@ NameError: name 're' is not defined
 2025-04-25 14:14:09,044 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
 2025-04-25 14:14:19,924 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
 2025-04-25 14:14:19,956 - WARNING -  * Debugger is active!
+2025-04-25 15:56:47,175 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 15:56:47,199 - WARNING -  * Debugger is active!
+2025-04-25 15:58:33,664 - WARNING -  * Debugger is active!
+2025-04-25 16:06:26,512 - WARNING -  * Debugger is active!
+2025-04-25 17:37:25,255 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-25 17:38:01,115 - WARNING -  * Debugger is active!
+2025-04-25 18:06:48,881 - WARNING -  * Debugger is active!
+2025-04-25 18:37:30,107 - WARNING -  * Debugger is active!
+2025-04-25 18:38:15,584 - WARNING -  * Debugger is active!
+2025-04-25 18:44:01,190 - WARNING -  * Debugger is active!
+2025-04-25 20:50:20,052 - WARNING -  * Debugger is active!
+2025-04-25 21:00:46,136 - WARNING -  * Debugger is active!
+2025-04-29 12:33:25,545 - WARNING -  * Debugger is active!
+2025-04-29 16:57:01,656 - WARNING -  * Debugger is active!
+2025-04-29 16:59:04,134 - WARNING -  * Debugger is active!
+2025-04-29 17:03:42,236 - WARNING -  * Debugger is active!
+2025-04-29 17:37:57,876 - WARNING -  * Debugger is active!
+2025-04-29 17:41:53,612 - WARNING -  * Debugger is active!
+2025-04-29 17:47:16,976 - WARNING -  * Debugger is active!
+2025-04-29 17:55:40,133 - WARNING -  * Debugger is active!
+2025-04-29 18:00:14,872 - WARNING -  * Debugger is active!
+2025-04-29 18:07:14,990 - WARNING -  * Debugger is active!
+2025-04-29 18:15:02,059 - WARNING -  * Debugger is active!
+2025-04-29 18:23:17,785 - ERROR - Unexpected error submitting SOAP note for patient_id P1000: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+2025-04-29 18:34:51,010 - ERROR - Unexpected error submitting SOAP note for patient_id P1000: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+2025-04-29 18:40:37,293 - WARNING -  * Debugger is active!
+2025-04-29 20:44:26,271 - ERROR - Invalid note type: <class 'str'>
+2025-04-29 20:54:40,760 - WARNING -  * Debugger is active!
+2025-04-29 21:02:06,913 - WARNING -  * Debugger is active!
+2025-04-29 21:03:28,861 - WARNING -  * Debugger is active!
+2025-04-29 21:06:01,578 - WARNING -  * Debugger is active!
+2025-04-29 21:11:46,759 - ERROR - Invalid note type: <class 'str'>
+2025-04-29 21:17:45,251 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-29 21:17:45,277 - WARNING -  * Debugger is active!
+2025-04-29 21:19:15,783 - WARNING -  * Debugger is active!
+2025-04-29 21:21:19,910 - WARNING -  * Debugger is active!
+2025-04-29 21:31:35,640 - WARNING -  * Debugger is active!
+2025-04-29 21:34:10,108 - WARNING -  * Debugger is active!
+2025-04-29 21:43:42,244 - WARNING -  * Debugger is active!
+2025-04-29 21:44:27,027 - ERROR - Invalid note type: <class 'str'>
+2025-04-29 21:49:51,990 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-29 21:50:27,607 - WARNING -  * Debugger is active!
+2025-04-29 21:52:32,089 - WARNING -  * Debugger is active!
+2025-04-29 21:54:58,795 - WARNING -  * Debugger is active!
+2025-04-29 21:58:14,613 - WARNING -  * Debugger is active!
+2025-04-29 22:07:46,408 - WARNING -  * Debugger is active!
+2025-04-29 22:15:58,084 - WARNING -  * Debugger is active!
+2025-04-29 22:19:12,103 - ERROR - Invalid note type: <class 'str'>
+2025-04-29 22:28:26,027 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-04-29 22:28:26,047 - WARNING -  * Debugger is active!
+2025-04-30 14:06:54,013 - WARNING - Run time of job "update_ai_notes (trigger: cron[hour='2', minute='0'], next run at: 2025-05-01 02:00:00 EAT)" was missed by 12:06:54.013372
+2025-04-30 14:06:54,094 - WARNING - Run time of job "update_ai_notes (trigger: cron[hour='2', minute='0'], next run at: 2025-05-01 02:00:00 EAT)" was missed by 12:06:54.085308
+2025-05-02 21:46:19,481 - WARNING -  * Debugger is active!
+2025-05-03 16:41:34,452 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-05-03 16:41:34,474 - ERROR - Error in submit_soap_notes: 'NoneType' object has no attribute 'emit'
+2025-05-03 16:55:17,587 - WARNING -  * Debugger is active!
+2025-05-03 17:04:41,317 - WARNING -  * Debugger is active!
+2025-05-03 17:08:40,292 - ERROR - Failed to notify admin: notify_admin() takes 0 positional arguments but 1 was given
+2025-05-03 17:14:08,784 - WARNING -  * Debugger is active!
+2025-05-03 17:17:05,609 - WARNING -  * Debugger is active!
+2025-05-03 17:19:48,260 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-05-03 17:19:53,562 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-05-03 17:19:53,663 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-05-03 17:19:53,785 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-05-03 17:19:53,931 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-05-03 17:20:24,902 - WARNING -  * Debugger is active!
+2025-05-03 17:32:17,270 - WARNING -  * Debugger is active!
+2025-05-03 17:44:26,840 - WARNING -  * Debugger is active!
+2025-05-03 18:03:32,128 - ERROR - Failed to notify admin for SOAP note ID 1: notify_admin() takes 0 positional arguments but 1 was given
+2025-05-03 18:03:47,864 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-05-03 18:41:28,141 - WARNING - No differentials generated; knowledge base or relevance criteria may need review
+2025-05-03 18:42:06,428 - WARNING -  * Debugger is active!
