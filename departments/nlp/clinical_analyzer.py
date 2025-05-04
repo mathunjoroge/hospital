@@ -151,7 +151,6 @@ class ClinicalAnalyzer:
         return features
 
     def is_relevant_dx(self, dx: str, age: Optional[int], sex: Optional[str], symptom_type: str, symptom_category: str, features: Dict) -> bool:
-        """Determine if a diagnosis is relevant based on patient data and symptoms."""
         dx_lower = dx.lower()
         symptom_words = {s.get('description', '').lower() for s in features.get('symptoms', [])}
         history = features.get('history', '').lower()
@@ -167,17 +166,18 @@ class ClinicalAnalyzer:
             return False
         required_symptoms = self.diagnosis_relevance.get(dx_lower, [])
         matches = sum(1 for req in required_symptoms if req in symptom_words or req in history or req in chief_complaint)
-        critical_conditions = {'myocardial infarction', 'pericarditis', 'pulmonary embolism', 'angina', 'aortic dissection'}
-        relevance = (matches >= 1 or dx_lower in critical_conditions or
-                     any(req in chief_complaint for req in required_symptoms))
+        critical_conditions = {'myocardial infarction', 'pulmonary embolism', 'aortic dissection'}
+        min_matches = 2 if dx_lower in critical_conditions else 1
+        relevance = matches >= min_matches or any(req in chief_complaint for req in required_symptoms)
         if not relevance:
-            logger.debug(f"Excluded dx {dx_lower}: insufficient symptom matches ({matches}/{len(required_symptoms)} required)")
+            logger.debug(f"Excluded dx {dx_lower}: insufficient symptom matches ({matches}/{min_matches} required)")
         return relevance
 
     def generate_differential_dx(self, features: Dict, patient: Patient = None) -> List[Tuple]:
-        """Generate differential diagnoses based on clinical features."""
+        """Generate differential diagnoses based on clinical features, using a tiered system."""
         logger.debug(f"Generating differentials for chief complaint: {features.get('chief_complaint')}")
         dx_scores: Dict[str, Tuple[float, str]] = {}
+        tiered_dx = {'tier1': [], 'tier2': [], 'tier3': []}
         symptoms = features.get('symptoms', [])
         history = features.get('history', '').lower()
         additional_notes = features.get('additional_notes', '').lower()
@@ -185,6 +185,9 @@ class ClinicalAnalyzer:
         text_embedding = embed_text(text)
         primary_dx = features.get('assessment', '').lower()
         chief_complaint = features.get('chief_complaint', '').lower()
+        symptom_descriptions = {s.get('description', '').lower() for s in symptoms}
+
+        # Patient info
         patient_id = getattr(patient, 'patient_id', None) if patient else None
         if patient_id:
             patient_info = get_patient_info(patient_id)
@@ -194,102 +197,145 @@ class ClinicalAnalyzer:
             sex = None
             age = None
             logger.warning(f"No patient_id provided for differential diagnosis")
-        # Check expected symptoms
-        expected_symptoms = []
-        if 'acute bacterial sinusitis' in primary_dx:
-            expected_symptoms = ['facial pain', 'nasal congestion', 'purulent nasal discharge', 'fever', 'headache']
-        symptom_descriptions = {s.get('description', '').lower() for s in symptoms}
-        if expected_symptoms and not any(s in expected_symptoms for s in symptom_descriptions):
-            logger.warning("Extracted symptoms do not match expected symptoms. Forcing sinusitis differentials.")
-            dx_scores['Acute Bacterial Sinusitis'] = (0.95, "Primary diagnosis from assessment: acute bacterial sinusitis")
-            dx_scores['Viral Sinusitis'] = (0.60, "Matches symptoms: nasal congestion, fever, headache")
-            dx_scores['Allergic Rhinitis'] = (0.40, "Matches symptom: nasal congestion")
-        else:
-            # Primary diagnosis from assessment
-            if primary_dx and 'primary assessment:' in primary_dx:
-                dx_name = re.search(r"primary assessment: (.*?)(?:\.|$)", primary_dx, re.DOTALL)
-                if dx_name:
-                    dx_name = dx_name.group(1).strip().lower()
-                    if self.is_relevant_dx(dx_name, age, sex, '', '', features):
+
+        # Define high-risk and rare conditions
+        high_risk_conditions = {'pulmonary embolism', 'myocardial infarction', 'meningitis', 'aortic dissection'}
+        rare_conditions = {'malaria', 'leptospirosis', 'dengue'}
+
+        # Primary diagnosis from assessment
+        if primary_dx and 'primary assessment:' in primary_dx:
+            dx_name = re.search(r"primary assessment: (.*?)(?:\.|$)", primary_dx, re.DOTALL)
+            if dx_name:
+                dx_name = dx_name.group(1).strip().lower()
+                if self.is_relevant_dx(dx_name, age, sex, '', '', features):
+                    required_symptoms = self.diagnosis_relevance.get(dx_name, [])
+                    matches = sum(1 for req in required_symptoms if req in symptom_descriptions)
+                    if required_symptoms and matches >= min(2, len(required_symptoms)):
                         dx_scores[dx_name.capitalize()] = (0.95, f"Primary diagnosis from assessment: {dx_name}")
-                        logger.debug(f"Added primary dx: {dx_name}")
-            # Symptom-based differentials
-            for symptom in symptoms:
-                if not isinstance(symptom, dict):
-                    continue
-                symptom_type = symptom.get('description', '').lower()
-                symptom_category = symptom.get('category', 'unknown').lower()
-                location = symptom.get('location', '').lower()
-                aggravating = symptom.get('aggravating', '').lower()
-                alleviating = symptom.get('alleviating', '').lower()
-                for category, pathways in self.clinical_pathways.items():
-                    for key, path in pathways.items():
-                        if not isinstance(path, dict):
+                        tiered_dx['tier1'].append((dx_name.capitalize(), 0.95, f"Primary diagnosis from assessment: {dx_name}"))
+                        logger.debug(f"Added primary dx: {dx_name}, matches: {matches}/{len(required_symptoms)}")
+                    else:
+                        logger.warning(f"Primary dx {dx_name} lacks sufficient symptom matches: {matches}/{len(required_symptoms)}")
+
+        # Symptom-based differentials
+        for symptom in symptoms:
+            if not isinstance(symptom, dict):
+                continue
+            symptom_type = symptom.get('description', '').lower()
+            symptom_category = symptom.get('category', 'unknown').lower()
+            location = symptom.get('location', '').lower()
+            aggravating = symptom.get('aggravating', '').lower()
+            alleviating = symptom.get('alleviating', '').lower()
+            for category, pathways in self.clinical_pathways.items():
+                for key, path in pathways.items():
+                    if not isinstance(path, dict):
+                        continue
+                    key_lower = key.lower()
+                    synonyms = self.synonyms.get(symptom_type, [])
+                    if not (any(k.lower() in {symptom_type, location, chief_complaint} for k in key_lower.split('|')) or
+                            symptom_type in synonyms or symptom_category == category.lower()):
+                        continue
+                    differentials = path.get('differentials', [])
+                    contextual_triggers = path.get('contextual_triggers', [])
+                    for diff in differentials:
+                        if not isinstance(diff, str) or diff.lower() == primary_dx:
                             continue
-                        key_lower = key.lower()
-                        synonyms = self.synonyms.get(symptom_type, [])
-                        if any(k.lower() in {symptom_type, location, chief_complaint} for k in key_lower.split('|')) or \
-                           symptom_type in synonyms or symptom_category == category.lower():
-                            differentials = path.get('differentials', [])
-                            for diff in differentials:
-                                if not isinstance(diff, str):
-                                    continue
-                                if diff.lower() == primary_dx:
-                                    continue
-                                if not self.is_relevant_dx(diff, age, sex, symptom_type, symptom_category, features):
-                                    continue
-                                score = 0.5
-                                if symptom_type in chief_complaint:
-                                    score += 0.3
-                                if symptom_category == category.lower():
-                                    score += 0.2
-                                required_symptoms = self.diagnosis_relevance.get(diff.lower(), [])
-                                matches = sum(1 for req in required_symptoms if req in symptom_type or req in text.lower())
-                                score += matches / max(len(required_symptoms), 1) * 0.3
-                                reasoning = f"Matches symptom: {symptom_type} (category: {symptom_category}) in {location}"
-                                if aggravating and alleviating:
-                                    reasoning += f"; influenced by {aggravating}/{alleviating}"
-                                dx_scores[diff] = (min(score, 0.95), reasoning)
-                                logger.debug(f"Added symptom-based dx: {diff}, score: {score}")
-            # History-based differentials
-            for condition, aliases in self.history_diagnoses.items():
-                if any(alias.lower() in history for alias in aliases):
-                    if condition.lower() != primary_dx and self.is_relevant_dx(condition, age, sex, '', '', features):
-                        dx_scores[condition] = (0.75, f"Supported by medical history: {condition}")
-                        logger.debug(f"Added history-based dx: {condition}")
-            # Contextual differentials
-            for symptom in symptoms:
-                symptom_type = symptom.get('description', '').lower()
-                symptom_category = symptom.get('category', '').lower()
-                if 'new pet' in additional_notes and 'cough' in symptom_type:
-                    dx_scores['Allergic cough'] = (0.75, f"Supported by new pet exposure and symptom: {symptom_type}")
-                if 'new medication' in additional_notes and 'rash' in symptom_type:
-                    dx_scores['Drug reaction'] = (0.75, f"Suggested by new medication and symptom: {symptom_type}")
-                if 'travel' in additional_notes and 'diarrhea' in symptom_type:
-                    dx_scores['Traveler’s diarrhea'] = (0.75, f"Suggested by recent travel and symptom: {symptom_type}")
-                if 'sedentary job' in history and 'back pain' in symptom_type:
-                    dx_scores['Mechanical low back pain'] = (0.75, f"Supported by sedentary lifestyle and symptom: {symptom_type}")
-                if 'palpitations' in symptom_type and 'no weight loss' in text.lower():
-                    dx_scores.pop('Hyperthyroidism', None)
-                if 'vaginal discharge' in symptom_type and 'antibiotics' in features.get('medications', '').lower():
-                    dx_scores['Candidiasis'] = (0.85, f"Supported by recent antibiotic use and symptom: {symptom_type}")
-            # Embedding-based scoring
-            for dx in dx_scores:
-                try:
-                    dx_embedding = embed_text(dx)
-                    similarity = torch.cosine_similarity(text_embedding.unsqueeze(0), dx_embedding.unsqueeze(0)).item()
-                    old_score, reasoning = dx_scores[dx]
-                    dx_scores[dx] = (min(old_score + similarity * 0.1, 0.95), reasoning)
-                except Exception as e:
-                    logger.warning(f"Similarity failed for dx {dx}: {str(e)}")
-            if dx_scores:
-                total_score = sum(score for score, _ in dx_scores.values())
-                if total_score > 0:
-                    dx_scores = {dx: (score / total_score * 0.9, reason) for dx, (score, reason) in dx_scores.items()}
-        ranked_dx = [(dx, score, reason) for dx, (score, reason) in sorted(dx_scores.items(), key=lambda x: x[1][0], reverse=True)[:5]]
-        if not ranked_dx and primary_dx:
+                        if not self.is_relevant_dx(diff, age, sex, symptom_type, symptom_category, features):
+                            continue
+                        required_symptoms = self.diagnosis_relevance.get(diff.lower(), [])
+                        matches = sum(1 for req in required_symptoms if req in symptom_descriptions or req in text.lower())
+                        score = 0.5
+                        if symptom_type in chief_complaint:
+                            score += 0.2
+                        if symptom_category == category.lower():
+                            score += 0.15
+                        score += matches / max(len(required_symptoms), 1) * 0.25
+                        reasoning = f"Matches symptom: {symptom_type} (category: {symptom_category}) in {location}"
+                        if aggravating and alleviating:
+                            reasoning += f"; influenced by {aggravating}/{alleviating}"
+
+                        # Tier assignment
+                        if diff.lower() in high_risk_conditions or diff.lower() in rare_conditions:
+                            if matches >= 3 and (not contextual_triggers or any(t.lower() in text for t in contextual_triggers)):
+                                tiered_dx['tier3'].append((diff, min(score, 0.7), reasoning + "; high-risk/rare condition"))
+                                logger.debug(f"Added Tier 3 dx: {diff}, score: {score}, matches: {matches}")
+                            else:
+                                logger.debug(f"Excluded Tier 3 dx: {diff}, insufficient matches ({matches}/3) or missing triggers")
+                                continue
+                        elif matches >= 2:
+                            tiered_dx['tier1'].append((diff, min(score, 0.85), reasoning))
+                            logger.debug(f"Added Tier 1 dx: {diff}, score: {score}, matches: {matches}")
+                        else:
+                            tiered_dx['tier2'].append((diff, min(score, 0.65), reasoning))
+                            logger.debug(f"Added Tier 2 dx: {diff}, score: {score}, matches: {matches}")
+                        dx_scores[diff] = (min(score, 0.95), reasoning)
+
+        # History-based differentials
+        for condition, aliases in self.history_diagnoses.items():
+            if any(alias.lower() in history for alias in aliases):
+                if condition.lower() != primary_dx and self.is_relevant_dx(condition, age, sex, '', '', features):
+                    required_symptoms = self.diagnosis_relevance.get(condition.lower(), [])
+                    matches = sum(1 for req in required_symptoms if req in symptom_descriptions)
+                    if matches >= 1:
+                        tiered_dx['tier2'].append((condition, 0.7, f"Supported by medical history: {condition}"))
+                        dx_scores[condition] = (0.7, f"Supported by medical history: {condition}")
+                        logger.debug(f"Added history-based dx: {condition}, matches: {matches}")
+
+        # Contextual differentials
+        for symptom in symptoms:
+            symptom_type = symptom.get('description', '').lower()
+            symptom_category = symptom.get('category', '').lower()
+            if 'new pet' in additional_notes and 'cough' in symptom_type and 'respiratory' in symptom_category:
+                dx_scores['Allergic cough'] = (0.75, f"Supported by new pet exposure and symptom: {symptom_type}")
+                tiered_dx['tier2'].append(('Allergic cough', 0.75, f"Supported by new pet exposure and symptom: {symptom_type}"))
+            if 'new medication' in additional_notes and 'rash' in symptom_type and 'dermatological' in symptom_category:
+                dx_scores['Drug reaction'] = (0.75, f"Suggested by new medication and symptom: {symptom_type}")
+                tiered_dx['tier2'].append(('Drug reaction', 0.75, f"Suggested by new medication and symptom: {symptom_type}"))
+            if 'travel' in additional_notes and 'diarrhea' in symptom_type and 'gastrointestinal' in symptom_category:
+                dx_scores['Traveler’s diarrhea'] = (0.75, f"Suggested by recent travel and symptom: {symptom_type}")
+                tiered_dx['tier2'].append(('Traveler’s diarrhea', 0.75, f"Suggested by recent travel and symptom: {symptom_type}"))
+            if 'sedentary job' in history and 'back pain' in symptom_type and 'musculoskeletal' in symptom_category:
+                dx_scores['Mechanical low back pain'] = (0.75, f"Supported by sedentary lifestyle and symptom: {symptom_type}")
+                tiered_dx['tier2'].append(('Mechanical low back pain', 0.75, f"Supported by sedentary lifestyle and symptom: {symptom_type}"))
+            if 'vaginal discharge' in symptom_type and 'antibiotics' in features.get('medications', '').lower():
+                dx_scores['Candidiasis'] = (0.85, f"Supported by recent antibiotic use and symptom: {symptom_type}")
+                tiered_dx['tier2'].append(('Candidiasis', 0.85, f"Supported by recent antibiotic use and symptom: {symptom_type}"))
+
+        # Embedding-based scoring (single pass)
+        for dx in dx_scores:
+            try:
+                dx_embedding = embed_text(dx)
+                similarity = torch.cosine_similarity(text_embedding.unsqueeze(0), dx_embedding.unsqueeze(0)).item()
+                if similarity < 0.75:  # Higher similarity threshold
+                    logger.debug(f"Excluding dx {dx}: similarity {similarity} below threshold")
+                    continue
+                old_score, reasoning = dx_scores[dx]
+                adjusted_score = min(old_score + similarity * 0.05, 0.95)  # Reduced impact of similarity
+                dx_scores[dx] = (adjusted_score, reasoning)
+                # Update tiered_dx
+                for tier in tiered_dx:
+                    for i, (t_dx, t_score, t_reason) in enumerate(tiered_dx[tier]):
+                        if t_dx == dx:
+                            tiered_dx[tier][i] = (dx, adjusted_score, t_reason)
+                            break
+            except Exception as e:
+                logger.warning(f"Similarity failed for dx {dx}: {str(e)}")
+
+        # Normalize scores
+        if dx_scores:
+            total_score = sum(score for score, _ in dx_scores.values())
+            if total_score > 0:
+                dx_scores = {dx: (score / total_score * 0.9, reason) for dx, (score, reason) in dx_scores.items()}
+                for tier in tiered_dx:
+                    tiered_dx[tier] = [(dx, score / total_score * 0.9, reason) for dx, score, reason in tiered_dx[tier]]
+
+        # Combine and rank differentials (limit to top 5)
+        ranked_dx = tiered_dx['tier1'] + tiered_dx['tier2'] + tiered_dx['tier3']
+        ranked_dx = sorted(ranked_dx, key=lambda x: x[1], reverse=True)[:5]
+        if not ranked_dx:
             ranked_dx = [("Undetermined", 0.1, "Insufficient data")]
             logger.warning("No differentials generated; knowledge base or relevance criteria may need review")
+
         logger.debug(f"Returning differentials: {ranked_dx}")
         return ranked_dx
 
@@ -348,11 +394,9 @@ class ClinicalAnalyzer:
         # Add secondary differential plans
         for diff in validated_differentials:
             dx, score, _ = diff
-            if score < 0.4:
+            if score < 0.8 and dx.lower() not in primary_dx:  # Only high-confidence secondary diagnoses
                 continue
             for diag_key, mappings in self.diagnosis_treatments.items():
-                if not isinstance(mappings, dict):
-                    continue
                 if diag_key.lower() in dx.lower():
                     workup = mappings.get('workup', {})
                     for w in workup.get('urgent', []) if score >= CONFIDENCE_THRESHOLD else workup.get('routine', []):
