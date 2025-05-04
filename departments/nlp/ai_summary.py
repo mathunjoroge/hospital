@@ -1,5 +1,5 @@
 # departments/nlp/ai_summary.py
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from departments.models.medicine import SOAPNote
 from departments.models.records import Patient
 from departments.nlp.clinical_analyzer import ClinicalAnalyzer
@@ -13,37 +13,29 @@ from datetime import date
 logger = logging.getLogger(__name__)
 
 def generate_rationale(features: Dict, differentials: List[Tuple], plan: Dict) -> str:
-    """Generate clinical rationale from differentials, features, and management plan."""
     rationale = []
-    # Build rationale based on differentials
-    for diff in differentials:
-        if not isinstance(diff, tuple) or len(diff) != 3:
-            continue
-        dx, score, reason = diff
-        rationale.append(f"{dx} (Confidence: {score:.2f}): {reason}")
-    
-    # Incorporate primary diagnosis from features
     primary_dx = features.get('assessment', '').lower()
     if primary_dx and 'primary assessment:' in primary_dx:
         dx_name = re.search(r"primary assessment: (.*?)(?:\.|$)", primary_dx, re.DOTALL)
         if dx_name:
             primary_dx = dx_name.group(1).strip()
-            rationale.insert(0, f"Primary diagnosis: {primary_dx} based on clinical features: {', '.join([s.get('description', '') for s in features.get('symptoms', [])] or ['none identified'])}.")
-
-    # Add treatment plan justification
+            rationale.append(f"Primary diagnosis: {primary_dx} based on clinical features: {', '.join([s.get('description', '') for s in features.get('symptoms', [])] or ['none identified'])}.")
+    for diff in differentials[:2]:  # Limit to top 2 differentials
+        dx, score, reason = diff
+        if score < 0.6:
+            continue
+        rationale.append(f"{dx} (Confidence: {score:.2f}): {reason}")
     if plan:
         symptomatic = plan.get('treatment', {}).get('symptomatic', [])
         definitive = plan.get('treatment', {}).get('definitive', [])
         lifestyle = plan.get('treatment', {}).get('lifestyle', [])
         treatments = symptomatic + definitive + lifestyle
         if treatments:
-            rationale.append(f"Treatment plan: {', '.join(treatments)} to address symptoms and underlying condition.")
+            rationale.append(f"Treatment plan: {', '.join(treatments)} to address primary diagnosis.")
         workup = plan.get('workup', {}).get('urgent', []) + plan.get('workup', {}).get('routine', [])
         if workup:
-            rationale.append(f"Workup: {', '.join(workup)} to confirm diagnosis and guide management.")
-    
-    # Fallback if no rationale is generated
-    return '; '.join(rationale) or 'Based on clinical features, history, and proposed management plan.'
+            rationale.append(f"Workup: {', '.join(workup)} to confirm diagnosis.")
+    return '; '.join(rationale) or 'Based on clinical features and proposed management plan.'
 
 def generate_ai_analysis(note: SOAPNote, patient: Patient = None) -> str:
     """Generate AI clinical analysis for a SOAP note."""
@@ -90,7 +82,7 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
             patient_info = {"sex": "Unknown", "age": None}
         else:
             patient_info = get_patient_info(patient_id)
-            logger.debug(f"Patient ID: {patient_id}, Patient Info: {patient_info}")  # Added logging for debugging
+            logger.debug(f"Patient ID: {patient_id}, Patient Info: {patient_info}")
             if patient_info["sex"] == "Unknown":
                 logger.warning(f"Patient info not found for patient_id: {patient_id}")
 
@@ -170,11 +162,19 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
         kb = load_knowledge_base()
         references = set()
         pathways = kb.get('clinical_pathways', {}).get('respiratory', {})
-        for key, path in pathways.items():
-            if 'sinusitis' in key.lower():
-                refs = path.get('references', [])
-                if isinstance(refs, list):
-                    references.update(refs)
+        if not pathways:
+            logger.warning("No respiratory pathways found in clinical_pathways. Skipping reference collection for respiratory.")
+        else:
+            for key, path in pathways.items():
+                if not isinstance(path, dict):
+                    logger.warning(f"Invalid pathway for key {key}: expected dict, got {type(path)}")
+                    continue
+                if 'sinusitis' in key.lower():
+                    refs = path.get('references', [])
+                    if isinstance(refs, list):
+                        references.update(refs)
+                    else:
+                        logger.warning(f"Invalid references for pathway {key}: expected list, got {type(refs)}")
         references_output = '\n• '.join(sorted(references)) or 'None available'
 
         # Extract follow-up from SOAP note recommendation
@@ -184,7 +184,6 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
             if follow_up_match:
                 follow_up = follow_up_match.group(1).strip()
 
-        # Added logging before generate_rationale for debugging
         logger.debug(f"Calling generate_rationale with features={features}, differentials={differentials}, plan={plan}")
 
         # Build analysis output
@@ -221,7 +220,7 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation. {disclaime
         return analysis_output.strip()
     except Exception as e:
         logger.error(f"Analysis failed for note {getattr(note, 'id', 'unknown')}: {str(e)}", exc_info=True)
-        # Improved fallback to preserve partial results
+        # Initialize partial output with safe defaults
         partial_output = {
             'patient_profile': patient_profile_text or 'Sex: Unknown; Age: Unknown',
             'chief_complaint': chief_complaint or 'Unknown',
@@ -239,24 +238,55 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation. {disclaime
             'references': references_output or 'None available',
             'disclaimer': 'This AI-generated analysis requires clinical correlation.'
         }
+        # Fallback: Use generic pathway based on assessment or symptoms
         try:
-            kb = load_knowledge_base()
-            pathways = kb.get('clinical_pathways', {}).get('respiratory', {})
-            for key, path in pathways.items():
-                if 'sinusitis' in key.lower():
-                    partial_output.update({
-                        'rationale': 'Analysis failed, using fallback pathway for sinusitis',
-                        'workup_urgent': '; '.join(path['workup']['urgent']) or 'None',
-                        'workup_routine': '; '.join(path['workup']['routine']) or 'None',
-                        'treatment_symptomatic': '; '.join(path['management']['symptomatic']) or 'None',
-                        'treatment_definitive': '; '.join(path['management']['definitive']) or 'Pending diagnosis',
-                        'treatment_lifestyle': '; '.join(path['management'].get('lifestyle', [])) or 'None',
-                        'follow_up': '; '.join(path.get('follow_up', ['Follow-up in 2 weeks'])),
-                        'references': '; '.join(path.get('references', ['None available']))
-                    })
-                    break
+            if 'sinusitis' in (note.assessment or '').lower():
+                # Define fallback pathway for sinusitis
+                fallback_pathway = {
+                    'workup': {
+                        'urgent': ['Nasal endoscopy if persistent >14 days'],
+                        'routine': ['Sinus CT if no improvement']
+                    },
+                    'management': {
+                        'symptomatic': ['Nasal saline irrigation', 'Pseudoephedrine 60 mg PRN for 3-5 days'],
+                        'definitive': ['Amoxicillin 500 mg TID for 10 days'],
+                        'lifestyle': ['Hydration (2 L/day)', 'Avoid irritants like smoke']
+                    },
+                    'follow_up': ['Follow-up in 2 weeks'],
+                    'references': ['IDSA Guidelines: https://www.idsociety.org', 'AAO-HNS Sinusitis Guidelines: https://www.entnet.org']
+                }
+                partial_output.update({
+                    'rationale': 'Analysis failed, using fallback pathway for sinusitis',
+                    'workup_urgent': '; '.join(fallback_pathway['workup']['urgent']) or 'None',
+                    'workup_routine': '; '.join(fallback_pathway['workup']['routine']) or 'None',
+                    'treatment_symptomatic': '; '.join(fallback_pathway['management']['symptomatic']) or 'None',
+                    'treatment_definitive': '; '.join(fallback_pathway['management']['definitive']) or 'Pending diagnosis',
+                    'treatment_lifestyle': '; '.join(fallback_pathway['management'].get('lifestyle', [])) or 'None',
+                    'follow_up': '; '.join(fallback_pathway.get('follow_up', ['Follow-up in 2 weeks'])),
+                    'references': '; '.join(fallback_pathway.get('references', ['None available']))
+                })
+            elif features.get('symptoms'):
+                # Generic fallback based on symptoms
+                primary_symptom = features['symptoms'][0].get('description', '').lower()
+                symptom_pathway = kb.get('clinical_pathways', {}).get('respiratory' if 'nasal' in primary_symptom else 'general', {})
+                if symptom_pathway:
+                    for key, path in symptom_pathway.items():
+                        if not isinstance(path, dict):
+                            logger.warning(f"Invalid pathway for key {key}: expected dict, got {type(path)}")
+                            continue
+                        partial_output.update({
+                            'rationale': f'Analysis failed, using fallback pathway for {primary_symptom}',
+                            'workup_urgent': '; '.join(path.get('workup', {}).get('urgent', [])) or 'None',
+                            'workup_routine': '; '.join(path.get('workup', {}).get('routine', [])) or 'None',
+                            'treatment_symptomatic': '; '.join(path.get('management', {}).get('symptomatic', [])) or 'None',
+                            'treatment_definitive': '; '.join(path.get('management', {}).get('definitive', [])) or 'Pending diagnosis',
+                            'treatment_lifestyle': '; '.join(path.get('management', {}).get('lifestyle', [])) or 'None',
+                            'follow_up': '; '.join(path.get('follow_up', ['Follow-up in 2 weeks'])),
+                            'references': '; '.join(path.get('references', ['None available']))
+                        })
+                        break
         except Exception as fallback_e:
-            logger.error(f"Fallback failed: {str(fallback_e)}")
+            logger.error(f"Fallback failed for note {getattr(note, 'id', 'unknown')}: {str(fallback_e)}", exc_info=True)
         return f"""
 [=== AI CLINICAL ANALYSIS ===]
 [PATIENT PROFILE]
