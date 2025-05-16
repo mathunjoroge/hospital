@@ -6,7 +6,6 @@ from departments.nlp.logging_setup import logger
 from typing import Dict, Set, List
 
 def initialize_knowledge_files() -> None:
-    """Initialize default JSON files for knowledge base resources if they don't exist."""
     knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
     os.makedirs(knowledge_base_dir, exist_ok=True)
 
@@ -30,7 +29,8 @@ def initialize_knowledge_files() -> None:
         "shortness of breath": ["dyspnea", "breathlessness"],
         "photophobia": ["light sensitivity", "eye discomfort"],
         "neck stiffness": ["nuchal rigidity", "neck pain"],
-        "rash": ["skin eruption", "dermatitis"]
+        "rash": ["skin eruption", "dermatitis"],
+        "back pain": ["lower back pain", "lumbar pain", "backache", "back stiffness"]
     }
 
     default_diagnosis_relevance = {
@@ -85,6 +85,16 @@ def initialize_knowledge_files() -> None:
             {"symptom": "fever", "weight": 0.3},
             {"symptom": "neck stiffness", "weight": 0.4},
             {"symptom": "photophobia", "weight": 0.3}
+        ],
+        "mechanical low back pain": [
+            {"symptom": "back pain", "weight": 0.5},
+            {"symptom": "obesity", "weight": 0.3},
+            {"symptom": "pain on movement", "weight": 0.2}
+        ],
+        "lumbar strain": [
+            {"symptom": "back pain", "weight": 0.5},
+            {"symptom": "pain on movement", "weight": 0.3},
+            {"symptom": "no trauma", "weight": 0.2}
         ]
     }
 
@@ -94,7 +104,7 @@ def initialize_knowledge_files() -> None:
                 "differentials": ["Acute Bacterial Sinusitis", "Viral Sinusitis", "Allergic Rhinitis"],
                 "contextual_triggers": ["recent viral infection"],
                 "required_symptoms": ["facial pain", "nasal congestion", "purulent nasal discharge"],
-                "exclusion_criteria": ["photophobia", "nausea"],  # Prevent migraine confusion
+                "exclusion_criteria": ["photophobia", "nausea"],
                 "workup": {
                     "urgent": ["Nasal endoscopy if persistent >14 days"],
                     "routine": ["Sinus CT if no improvement"]
@@ -130,7 +140,7 @@ def initialize_knowledge_files() -> None:
                 "differentials": ["Migraine", "Tension headache", "Meningitis"],
                 "contextual_triggers": ["fever for meningitis"],
                 "required_symptoms": ["headache", "photophobia"],
-                "exclusion_criteria": ["nasal congestion", "purulent nasal discharge"],  # Prevent sinusitis confusion
+                "exclusion_criteria": ["nasal congestion", "purulent nasal discharge"],
                 "workup": {"urgent": ["CT head if thunderclap", "Lumbar puncture if fever"], "routine": ["CBC", "ESR"]},
                 "management": {
                     "symptomatic": ["Ibuprofen 400 mg", "Hydration"],
@@ -186,6 +196,27 @@ def initialize_knowledge_files() -> None:
                 "follow_up": ["Follow-up in 4 weeks"],
                 "references": ["AAOS Guidelines: https://www.aaos.org", "ACR Guidelines: https://www.rheumatology.org"],
                 "metadata": {"source": ["AAOS", "ACR"], "last_updated": "2025-05-04"}
+            },
+            "back pain|lower back pain|backache": {
+                "differentials": ["Mechanical low back pain", "Lumbar strain", "Herniated disc", "Ankylosing spondylitis"],
+                "required_symptoms": ["back pain"],
+                "contextual_triggers": ["obesity", "sedentary lifestyle"],
+                "exclusion_criteria": ["fever", "weight loss", "trauma"],
+                "workup": {
+                    "urgent": ["MRI if neurological symptoms (e.g., radiating pain, weakness)"],
+                    "routine": ["Lumbar X-ray", "MRI if persistent >4 weeks"]
+                },
+                "management": {
+                    "symptomatic": ["Ibuprofen 400-600 mg PRN", "Acetaminophen 500 mg PRN"],
+                    "definitive": ["Physical therapy if persistent"],
+                    "lifestyle": ["Weight management", "Core strengthening exercises"]
+                },
+                "follow_up": ["Follow-up in 2-4 weeks"],
+                "references": [
+                    "ACP Guidelines: https://www.acponline.org",
+                    "UpToDate: Evaluation of low back pain"
+                ],
+                "metadata": {"source": ["ACP", "UpToDate"], "last_updated": "2025-05-16"}
             }
         },
         "infectious": {
@@ -216,7 +247,7 @@ def initialize_knowledge_files() -> None:
         "follow_up_default": "Follow-up in 2 weeks",
         "follow_up_urgent": "Follow-up in 3-5 days or sooner if symptoms worsen",
         "urgent_threshold": "0.9",
-        "min_symptom_match": 0.7  # Minimum score for pathway matching
+        "min_symptom_match": 0.7
     }
 
     resources = {
@@ -240,7 +271,6 @@ def initialize_knowledge_files() -> None:
                 logger.error(f"Failed to create {file_path}: {str(e)}")
 
 def load_knowledge_base() -> Dict:
-    """Load knowledge base resources with enhanced validation and fallback."""
     initialize_knowledge_files()
     knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
     resources = {

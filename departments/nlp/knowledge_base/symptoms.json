@@ -1,0 +1,18 @@
+{
+  "respiratory": {
+    "facial pain": "Pain in the facial region, often over sinuses",
+    "nasal congestion": "Blocked or stuffy nose",
+    "purulent nasal discharge": "Yellow or green nasal discharge",
+    "fever": "Elevated body temperature"
+  },
+  "neurological": {
+    "headache": "Pain in the head or neck"
+  },
+  "musculoskeletal": {
+    "back pain": "Automatically added: back pain",
+    "pain on movement": "Automatically added: pain on movement"
+  },
+  "general": {
+    "radiating pain": "Automatically added: radiating pain"
+  }
+}

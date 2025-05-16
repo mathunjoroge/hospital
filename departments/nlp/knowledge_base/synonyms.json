@@ -1,7 +1,37 @@
 {
-  "purulent nasal discharge": ["yellow discharge", "green discharge", "pus from nose"],
-  "nasal congestion": ["stuffy nose", "blocked nose", "nasal obstruction"],
-  "facial pain": ["sinus pain", "sinus pressure", "facial pressure"],
-  "fever": ["elevated temperature", "pyrexia"],
-  "headache": ["cephalalgia", "head pain"]
+  "purulent nasal discharge": [
+    "yellow discharge",
+    "green discharge",
+    "pus from nose"
+  ],
+  "nasal congestion": [
+    "stuffy nose",
+    "blocked nose",
+    "nasal obstruction"
+  ],
+  "facial pain": [
+    "sinus pain",
+    "sinus pressure",
+    "facial pressure"
+  ],
+  "fever": [
+    "elevated temperature",
+    "pyrexia"
+  ],
+  "headache": [
+    "cephalalgia",
+    "head pain"
+  ],
+  "back pain": [
+    "the patient is obese the backpain is made worse by sitting down for long the pain is alleviated by standing and stretching",
+    "back pain for two weeks the patient reports backpain for three weeks on assessment"
+  ],
+  "pain on movement": [
+    "the patient is obese the backpain is made worse by sitting down for long the pain is alleviated by standing and stretching",
+    "back pain for two weeks the patient reports backpain for three weeks on assessment"
+  ],
+  "radiating pain": [
+    "the patient is obese the backpain is made worse by sitting down for long the pain is alleviated by standing and stretching",
+    "back pain for two weeks the patient reports backpain for three weeks on assessment"
+  ]
 }

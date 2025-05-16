@@ -53,7 +53,13 @@ def extract_location(text: str) -> str:
         'cramping': 'Abdomen',
         'constipation': 'Abdomen',
         'abdominal discomfort': 'Abdomen',
-        'fatigue': 'Generalized'
+        'fatigue': 'Generalized',
+        'weakness': 'Generalized',
+        'fatigue': 'Systemic',
+        'headache': 'Head',
+        'chest pain': 'Chest',
+        'abdominal pain': 'Abdomen',
+        'fever': 'Systemic',
     }
     text = text.lower()
     for term, loc in symptom_specific.items():
