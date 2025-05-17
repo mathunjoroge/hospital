@@ -41,8 +41,12 @@
       ],
       "metadata": {
         "notes": "Consider pregnancy test in women of childbearing age; avoid triptans in cardiovascular disease.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "chest": {
       "differentials": [
@@ -88,8 +92,12 @@
       ],
       "metadata": {
         "notes": "Escalate to cardiology for abnormal ECG or troponin; consider DVT risk factors.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "abdomen": {
       "differentials": [
@@ -132,8 +140,12 @@
       ],
       "metadata": {
         "notes": "Monitor for red flags: weight loss, bloody stools, persistent vomiting.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "joint": {
       "differentials": [
@@ -175,8 +187,12 @@
       ],
       "metadata": {
         "notes": "Consider MRI for suspected meniscal injury; avoid NSAIDs in renal impairment.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "back": {
       "differentials": [
@@ -216,8 +232,12 @@
       ],
       "metadata": {
         "notes": "Red flags: trauma, fever, unexplained weight loss require urgent evaluation.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "neck": {
       "differentials": [
@@ -256,8 +276,12 @@
       ],
       "metadata": {
         "notes": "Avoid NSAIDs in renal impairment; escalate if fever or neurological signs.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "sprain": {
       "differentials": [
@@ -295,8 +319,12 @@
       ],
       "metadata": {
         "notes": "Ottawa Ankle Rules guide X-ray need; avoid early weight-bearing.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     }
   },
   "respiratory": {
@@ -342,8 +370,12 @@
       ],
       "metadata": {
         "notes": "Consider TB testing in high-risk populations; monitor for worsening dyspnea.",
-        "source": "CDC"
-      }
+        "source": "CDC",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "shortness of breath": {
       "differentials": [
@@ -387,8 +419,12 @@
       ],
       "metadata": {
         "notes": "Escalate to pulmonology or cardiology for persistent symptoms.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "wheezing": {
       "differentials": [
@@ -432,8 +468,12 @@
       ],
       "metadata": {
         "notes": "Pediatric patients: consider foreign body in acute onset.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "chronic lung": {
       "differentials": [
@@ -475,8 +515,12 @@
       ],
       "metadata": {
         "notes": "Pediatric dosing for CFTR modulators; monitor for hemoptysis in bronchiectasis.",
-        "source": "NICE"
-      }
+        "source": "NICE",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "asthma exacerbation": {
       "differentials": [
@@ -519,8 +563,12 @@
       ],
       "metadata": {
         "notes": "Refer to pulmonology if frequent exacerbations; ensure inhaler technique.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     }
   },
   "cardiovascular": {
@@ -564,8 +612,12 @@
       ],
       "metadata": {
         "notes": "Refer to cardiology for abnormal ECG; screen for substance use.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "syncope": {
       "differentials": [
@@ -606,8 +658,12 @@
       ],
       "metadata": {
         "notes": "Refer to neurology if seizure suspected; caution in elderly patients.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "edema": {
       "differentials": [
@@ -654,8 +710,12 @@
       ],
       "metadata": {
         "notes": "Monitor electrolytes with diuretics; refer to nephrology for proteinuria or CKD.",
-        "source": "WHO"
-      }
+        "source": "WHO",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "shortness of breath": {
       "differentials": [
@@ -733,7 +793,10 @@
           "PubMed",
           "PubMed"
         ]
-      }
+      },
+      "references": [
+        "None specified"
+      ]
     }
   },
   "gastrointestinal": {
@@ -776,8 +839,12 @@
       ],
       "metadata": {
         "notes": "Refer to gastroenterology for refractory symptoms; avoid ondansetron in first trimester.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "diarrhea": {
       "differentials": [
@@ -819,8 +886,12 @@
       ],
       "metadata": {
         "notes": "Monitor for dehydration; avoid loperamide in bloody diarrhea.",
-        "source": "CDC"
-      }
+        "source": "CDC",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "dysphagia": {
       "differentials": [
@@ -858,8 +929,12 @@
       ],
       "metadata": {
         "notes": "Refer to gastroenterology for endoscopy; monitor for weight loss.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "constipation": {
       "differentials": [
@@ -899,8 +974,12 @@
       ],
       "metadata": {
         "notes": "Review medications (e.g., opioids, anticholinergics); monitor for rectal bleeding.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "bowel obstruction": {
       "differentials": [
@@ -940,8 +1019,12 @@
       ],
       "metadata": {
         "notes": "Pediatric dosing for enema; urgent surgical consult for peritonitis.",
-        "source": "Nationwide Children's"
-      }
+        "source": "Nationwide Children's",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     }
   },
   "neurological": {
@@ -983,8 +1066,12 @@
       ],
       "metadata": {
         "notes": "Refer to neurology for progressive symptoms; monitor for respiratory involvement.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "confusion": {
       "differentials": [
@@ -1026,8 +1113,12 @@
       ],
       "metadata": {
         "notes": "Avoid antipsychotics in Lewy body dementia; screen for infection.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "numbness": {
       "differentials": [
@@ -1067,8 +1158,12 @@
       ],
       "metadata": {
         "notes": "Optimize diabetes management; refer to neurology for MS suspicion.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "tremors": {
       "differentials": [
@@ -1106,8 +1201,12 @@
       ],
       "metadata": {
         "notes": "Family history relevant for essential tremor; monitor for rigidity in Parkinson\u2019s.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "vertigo": {
       "differentials": [
@@ -1146,8 +1245,12 @@
       ],
       "metadata": {
         "notes": "Refer to ENT for persistent symptoms; monitor for hearing loss.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "seizures": {
       "differentials": [
@@ -1187,8 +1290,12 @@
       ],
       "metadata": {
         "notes": "Pediatric: weight-based dosing (e.g., levetiracetam 10-20 mg/kg/day).",
-        "source": "Nationwide Children's"
-      }
+        "source": "Nationwide Children's",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     }
   },
   "skin": {
@@ -1229,8 +1336,12 @@
       ],
       "metadata": {
         "notes": "Monitor for signs of infection; review new medications.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "itching": {
       "differentials": [
@@ -1268,8 +1379,12 @@
       ],
       "metadata": {
         "notes": "Consider allergy testing for chronic urticaria; monitor for weight loss.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "facial swelling": {
       "differentials": [
@@ -1307,8 +1422,12 @@
       ],
       "metadata": {
         "notes": "Epinephrine auto-injector for recurrent angioedema; urgent ENT consult if airway involvement.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     }
   },
   "general": {
@@ -1394,7 +1513,10 @@
           "PubMed",
           "PubMed"
         ]
-      }
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "weight loss": {
       "differentials": [
@@ -1435,8 +1557,12 @@
       ],
       "metadata": {
         "notes": "Screen for night sweats, fever; urgent referral for rapid weight loss.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "fatigue": {
       "differentials": [
@@ -1480,8 +1606,12 @@
       ],
       "metadata": {
         "notes": "Screen for chronic infections (e.g., EBV, HIV); refer to sleep specialist if snoring.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "inattention": {
       "differentials": [
@@ -1519,8 +1649,12 @@
       ],
       "metadata": {
         "notes": "Pediatric focus; monitor for medication side effects (e.g., appetite suppression).",
-        "source": "Nationwide Children's"
-      }
+        "source": "Nationwide Children's",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     }
   },
   "sensory": {
@@ -1563,8 +1697,12 @@
       ],
       "metadata": {
         "notes": "Refer to ophthalmology for abnormal fundoscopy; monitor for sudden vision loss.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "hearing loss": {
       "differentials": [
@@ -1603,8 +1741,12 @@
       ],
       "metadata": {
         "notes": "Pediatric: consider congenital causes; urgent ENT for sudden hearing loss.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "tinnitus": {
       "differentials": [
@@ -1642,8 +1784,12 @@
       ],
       "metadata": {
         "notes": "Urgent MRI for pulsatile tinnitus; consider medication-induced causes.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     }
   },
   "infectious": {
@@ -1685,8 +1831,12 @@
       ],
       "metadata": {
         "notes": "ENT consult for abscess; avoid contact sports in mononucleosis.",
-        "source": "CDC"
-      }
+        "source": "CDC",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     }
   },
   "renal": {
@@ -1728,27 +1878,12 @@
       ],
       "metadata": {
         "notes": "Strain urine for stone analysis; avoid NSAIDs in renal impairment.",
-        "source": "Mayo Clinic"
-      }
-    },
-    "edema": {
-      "differentials": [
-        "for chronic kidney diseaserisk factors for ckd include diabetes",
-        "high blood pressure",
-        "heart failure",
-        "and family history"
-      ],
-      "workup": {
-        "urgent": [],
-        "routine": []
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
       },
-      "management": {
-        "symptomatic": [],
-        "definitive": [
-          "websites"
-        ]
-      },
-      "source": "CDC"
+      "references": [
+        "None specified"
+      ]
     }
   },
   "psychiatric": {
@@ -1787,8 +1922,12 @@
       ],
       "metadata": {
         "notes": "Screen for mania before SSRIs; urgent psychiatry referral for suicidality.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "anxiety": {
       "differentials": [
@@ -1825,8 +1964,12 @@
       ],
       "metadata": {
         "notes": "Monitor for substance use; refer to psychiatry for refractory cases.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "low mood": {
       "differentials": [
@@ -1863,8 +2006,12 @@
       ],
       "metadata": {
         "notes": "Screen for suicidal ideation; consider dysthymia if chronic low mood.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     }
   },
   "hematologic": {
@@ -1905,8 +2052,12 @@
       ],
       "metadata": {
         "notes": "Refer to hematology for abnormal coagulation; urgent if mucosal bleeding.",
-        "source": "Mayo Clinic"
-      }
+        "source": "Mayo Clinic",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     }
   },
   "cardiac": {
@@ -1949,8 +2100,12 @@
       ],
       "metadata": {
         "notes": "Pediatric focus: weight-based dosing; urgent cardiology for heart failure.",
-        "source": "Nationwide Children's"
-      }
+        "source": "Nationwide Children's",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     }
   },
   "endocrinologic": {
@@ -1993,8 +2148,12 @@
       ],
       "metadata": {
         "notes": "Refer to endocrinology for complex cases; screen for retinopathy.",
-        "source": "MedlinePlus"
-      }
+        "source": "MedlinePlus",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     },
     "thyroid disorder": {
       "differentials": [
@@ -2033,8 +2192,12 @@
       ],
       "metadata": {
         "notes": "Adjust levothyroxine in pregnancy; monitor for arrhythmias in hyperthyroidism.",
-        "source": "MedlinePlus"
-      }
+        "source": "MedlinePlus",
+        "last_updated": "2025-05-16"
+      },
+      "references": [
+        "None specified"
+      ]
     }
   },
   "musculoskeletal": {
@@ -2115,7 +2278,30 @@
           "PubMed",
           "PubMed"
         ]
-      }
+      },
+      "references": [
+        "None specified"
+      ]
+    },
+    "obesity": {
+      "differentials": [
+        "Possible obesity disorder"
+      ],
+      "workup": {
+        "urgent": [],
+        "routine": [
+          "Evaluate obesity"
+        ]
+      },
+      "management": {
+        "symptomatic": [],
+        "definitive": [],
+        "lifestyle": []
+      },
+      "follow_up": [
+        "Follow-up in 2 weeks"
+      ],
+      "references": []
     }
   }
 }

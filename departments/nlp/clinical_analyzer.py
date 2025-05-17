@@ -15,6 +15,7 @@ from departments.nlp.helper_functions import extract_duration, classify_severity
 from departments.nlp.models.transformer_model import model, tokenizer
 from departments.nlp.symptom_tracker import SymptomTracker
 from departments.nlp.knowledge_base import load_knowledge_base
+from departments.nlp.kb_updater import KnowledgeBaseUpdater
 
 class ClinicalAnalyzer:
     def __init__(self):
@@ -75,6 +76,9 @@ class ClinicalAnalyzer:
             logger.error(f"Error loading from MongoDB: {str(e)}. Falling back to JSON.")
             self._load_knowledge_fallback()
 
+        # Initialize KnowledgeBaseUpdater
+        self.kb_updater = KnowledgeBaseUpdater(mongo_uri=mongo_uri, db_name=db_name, kb_prefix=kb_prefix)
+
         # Validate loaded data
         for name, data in [
             ('medical_stop_words', self.medical_stop_words),
@@ -116,7 +120,7 @@ class ClinicalAnalyzer:
         self.diagnosis_treatments = kb.get('diagnosis_treatments', {})
 
     def extract_clinical_features(self, note: SOAPNote, expected_symptoms: Optional[List[str]] = None) -> Dict:
-        """Extract clinical features from a SOAP note."""
+        """Extract clinical features from a SOAP note and update knowledge base with new symptoms."""
         if not isinstance(note, SOAPNote):
             logger.error(f"Invalid note type: {type(note)}")
             return {
@@ -144,15 +148,35 @@ class ClinicalAnalyzer:
                 'additional_notes': note.additional_notes or '',
                 'aggravating_factors': note.aggravating_factors or '',
                 'alleviating_factors': note.alleviating_factors or '',
-                'symptoms': [],
-                'context': {}
+                'symptoms': []
             }
 
             # Symptom extraction
             features['symptoms'] = self.common_symptoms.process_note(note, features['chief_complaint'], expected_symptoms)
+            text = f"{note.situation or ''} {note.hpi or ''} {note.assessment or ''} {note.aggravating_factors or ''} {note.alleviating_factors or ''}".lower()
+
+            # Detect new symptoms
+            potential_symptoms = getattr(note, 'symptoms', None) or [s.strip() for s in text.split(',') if s.strip() and len(s.strip()) > 2]
+            for symptom in potential_symptoms:
+                if self.kb_updater.is_new_symptom(symptom):
+                    category = self.kb_updater.infer_category(symptom, text)
+                    synonyms = self.kb_updater.generate_synonyms(symptom)
+                    self.kb_updater.update_knowledge_base(symptom, category, synonyms, text)
+                    features['symptoms'].append({
+                        'description': symptom,
+                        'category': category,
+                        'definition': f"Newly detected: {symptom}",
+                        'duration': extract_duration(text) or 'Unknown',
+                        'severity': classify_severity(text) or 'Unknown',
+                        'location': extract_location(text, symptom) or 'Unknown',
+                        'aggravating': features['aggravating_factors'],
+                        'alleviating': features['alleviating_factors']
+                    })
+                    logger.info(f"Added new symptom {symptom} to knowledge base (category: {category})")
+
+            # Fallback symptom extraction
             if not features['symptoms'] and expected_symptoms:
                 logger.warning(f"No symptoms extracted for note ID {note.id}. Using fallback.")
-                text = f"{note.situation or ''} {note.hpi or ''} {note.assessment or ''} {note.aggravating_factors or ''} {note.alleviating_factors or ''}".lower()
                 for symptom in expected_symptoms:
                     symptom_lower = symptom.lower()
                     synonyms = self.synonyms.get(symptom_lower, [])

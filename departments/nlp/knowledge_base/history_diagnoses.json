@@ -1,125 +1,621 @@
 {
-    "GERD": ["gerd", "gerd exacerbation", "acid reflux", "reflux esophagitis", "heartburn"],
-    "Peripheral neuropathy": ["neuropathy", "peripheral nerve damage", "nerve pain", "sensory neuropathy"],
-    "PPI trial": ["ppi for gastritis", "ppi for gerd", "proton pump inhibitor trial", "omeprazole trial", "esomeprazole trial"],
-    "ECG": ["ekg", "electrocardiogram", "cardiac ecg", "12-lead ecg"],
-    "Carpal tunnel syndrome": ["carpal tunnel", "median nerve compression", "wrist nerve entrapment"],
-    "Postnasal drip": ["postnasal", "nasal drip", "pharyngeal drainage", "sinus drainage"],
-    "Asthma": ["bronchial asthma", "reactive airway disease", "asthmatic bronchitis"],
-    "COPD": ["chronic obstructive pulmonary disease", "emphysema", "chronic bronchitis", "obstructive lung disease"],
-    "Migraine": ["migraine headache", "vascular headache", "severe headache"],
-    "Tension headache": ["stress headache", "muscle contraction headache", "tension-type headache"],
-    "Sinusitis": ["sinus infection", "rhinosinusitis", "nasal sinus inflammation"],
-    "Angina": ["chest pain", "cardiac angina", "ischemic chest pain", "angina pectoris"],
-    "Gastritis": ["stomach inflammation", "gastric irritation", "stomach lining inflammation"],
-    "Cholecystitis": ["gallbladder inflammation", "acute cholecystitis", "gallbladder infection"],
-    "Pancreatitis": ["pancreatic inflammation", "acute pancreatitis", "chronic pancreatitis"],
-    "Osteoarthritis": ["degenerative joint disease", "wear-and-tear arthritis", "arthrosis"],
-    "Gout": ["uric acid arthritis", "crystal-induced arthritis", "gouty arthritis"],
-    "Rheumatoid arthritis": ["ra", "autoimmune arthritis", "inflammatory arthritis"],
-    "Spinal stenosis": ["narrowing of the spine", "lumbar stenosis", "cervical stenosis"],
-    "Disc herniation": ["slipped disc", "herniated nucleus pulposus", "bulging disc"],
-    "Venous insufficiency": ["chronic venous insufficiency", "varicose veins", "venous reflux"],
-    "DVT": ["deep vein thrombosis", "venous thrombosis", "thrombotic leg"],
-    "Lymphedema": ["lymphatic obstruction", "swollen lymph nodes", "lymphatic swelling"],
-    "BPPV": ["benign paroxysmal positional vertigo", "positional vertigo", "ear crystals"],
-    "Orthostatic hypotension": ["postural hypotension", "low blood pressure on standing", "orthostatic drop"],
-    "Dehydration": ["fluid deficit", "hypovolemia", "water loss"],
-    "Labyrinthitis": ["inner ear infection", "vestibular neuritis", "ear inflammation"],
-    "Eczema": ["atopic dermatitis", "contact eczema", "dermatitis"],
-    "Psoriasis": ["plaque psoriasis", "psoriatic skin condition", "psoriatic arthritis"],
-    "Drug reaction": ["adverse drug reaction", "medication allergy", "drug hypersensitivity"],
-    "Anemia": ["low red blood cell count", "iron deficiency anemia", "hemoglobin deficiency"],
-    "Hyperlipidemia": ["high cholesterol", "dyslipidemia", "hypercholesterolemia"],
-    "Hypertension": ["high blood pressure", "htn", "blood pressure elevation"],
-    "Diabetes mellitus": ["type 1 diabetes", "type 2 diabetes", "insulin-dependent diabetes"],
-    "Hypothyroidism": ["underactive thyroid", "low thyroid function", "thyroid hormone deficiency"],
-    "Hyperthyroidism": ["overactive thyroid", "thyroid storm", "graves' disease"],
-    "Depression": ["major depressive disorder", "clinical depression", "mood disorder"],
-    "Anxiety": ["generalized anxiety disorder", "panic disorder", "stress disorder"],
-    "Insomnia": ["sleeplessness", "difficulty sleeping", "restless sleep"],
-    "Fever": ["pyrexia", "temperature elevation", "febrile illness"],
-    "Allergic rhinitis": ["hay fever", "seasonal allergies", "nasal allergy"],
-    "UTI": ["urinary tract infection", "bladder infection", "kidney infection"],
-    "Cellulitis": ["skin infection", "soft tissue infection", "bacterial cellulitis"],
-    "Abscess": ["skin abscess", "boil", "localized infection"],
-    "Pneumonia": ["lung infection", "bacterial pneumonia", "viral pneumonia"],
-    "Bronchitis": ["chest infection", "acute bronchitis", "chronic bronchitis"],
-    "Peptic ulcer": ["stomach ulcer", "duodenal ulcer", "ulcerative lesion"],
-    "Appendicitis": ["appendix inflammation", "acute appendicitis", "appendix infection"],
-    "Kidney stones": ["renal calculi", "nephrolithiasis", "ureteral stone"],
-    "Meniscal tear": ["knee cartilage tear", "torn meniscus", "cartilage injury"],
-    "Cervical strain": ["neck strain", "cervical sprain", "neck muscle injury"],
-    "Pharyngitis": ["sore throat", "throat infection", "strep throat"],
-    "Tonsillitis": ["tonsil infection", "acute tonsillitis", "tonsil inflammation"],
-    "Plantar fasciitis": ["heel pain", "foot arch pain", "plantar tendonitis"],
-    "Tendonitis": ["tendon inflammation", "tendinitis", "overuse injury"],
-    "Sciatica": ["sciatic nerve pain", "lower back nerve pain", "lumbar radiculopathy"],
-    "Conjunctivitis": ["pink eye", "eye infection", "red eye"],
-    "Glaucoma": ["eye pressure", "optic nerve damage", "vision loss"],
-    "Cataract": ["lens opacity", "cloudy lens", "age-related cataract"],
-    "Melanoma": ["skin cancer", "malignant melanoma", "pigmented lesion"],
-    "Basal cell carcinoma": ["bcc", "non-melanoma skin cancer", "skin tumor"],
-    "Squamous cell carcinoma": ["scc", "cutaneous squamous cell cancer", "epidermal carcinoma"],
-    "Leukemia": ["blood cancer", "acute leukemia", "chronic leukemia"],
-    "Lymphoma": ["hodgkin's lymphoma", "non-hodgkin lymphoma", "lymph node cancer"],
-    "Myocardial infarction": ["heart attack", "cardiac arrest", "coronary event"],
-    "Stroke": ["cerebrovascular accident", "brain attack", "ischemic stroke"],
-    "Transient ischemic attack": ["mini-stroke", "tia", "temporary stroke"],
-    "Seizure": ["epileptic seizure", "convulsion", "focal seizure"],
-    "Parkinson's disease": ["parkinsonism", "shaking palsy", "neurodegenerative disorder"],
-    "Alzheimer's disease": ["dementia", "senile dementia", "memory loss disorder"],
-    "Schizophrenia": ["psychosis", "mental illness", "thought disorder"],
-    "Bipolar disorder": ["manic-depressive illness", "mood swings", "manic episodes"],
-    "Obsessive-compulsive disorder": ["ocd", "compulsive behavior", "obsessive thoughts"],
-    "Post-traumatic stress disorder": ["ptsd", "trauma disorder", "stress-related disorder"],
-    "Autism spectrum disorder": ["asd", "autistic disorder", "developmental delay"],
-    "Attention deficit hyperactivity disorder": ["adhd", "attention deficit", "hyperactivity disorder"],
-    "Chronic kidney disease": ["ckd", "kidney failure", "renal insufficiency"],
-    "Liver cirrhosis": ["end-stage liver disease", "hepatic cirrhosis", "liver scarring"],
-    "HIV/AIDS": ["human immunodeficiency virus", "acquired immune deficiency syndrome", "immunosuppression"],
-    "Tuberculosis": ["tb", "pulmonary tuberculosis", "mycobacterial infection"],
-    "Meningitis": ["brain membrane infection", "spinal infection", "meningeal inflammation"],
-    "Encephalitis": ["brain inflammation", "central nervous system infection", "viral encephalitis"],
-    "Multiple sclerosis": ["ms", "demyelinating disease", "autoimmune neurology"],
-    "Amyotrophic lateral sclerosis": ["als", "lou gehrig's disease", "motor neuron disease"],
-    "Crohn's disease": ["inflammatory bowel disease", "ibd", "gastrointestinal inflammation"],
-    "Ulcerative colitis": ["colon inflammation", "colitis", "rectal bleeding"],
-    "Celiac disease": ["gluten intolerance", "gluten sensitivity", "autoimmune enteropathy"],
-    "Irritable bowel syndrome": ["ibs", "functional bowel disorder", "spastic colon"],
-    "Endometriosis": ["uterine lining disorder", "pelvic pain syndrome", "reproductive inflammation"],
-    "Polycystic ovary syndrome": ["pcos", "ovarian cysts", "hormonal imbalance"],
-    "Erectile dysfunction": ["impotence", "sexual dysfunction", "ed"],
-    "Premenstrual syndrome": ["pms", "menstrual symptoms", "hormonal mood swings"],
-    "Vaginitis": ["yeast infection", "bacterial vaginosis", "vaginal inflammation"],
-    "Prostatitis": ["prostate inflammation", "prostate infection", "pelvic discomfort"],
-    "Bladder cancer": ["urothelial carcinoma", "bladder tumor", "urinary malignancy"],
-    "Breast cancer": ["mammary carcinoma", "breast tumor", "malignant breast lesion"],
-    "Colorectal cancer": ["colon cancer", "rectal cancer", "bowel cancer"],
-    "Lung cancer": ["bronchogenic carcinoma", "small cell lung cancer", "non-small cell lung cancer"],
-    "Prostate cancer": ["prostatic adenocarcinoma", "prostate tumor", "male reproductive cancer"],
-    "Ovarian cancer": ["ovarian carcinoma", "fallopian tube cancer", "peritoneal cancer"],
-    "Cervical cancer": ["cervical carcinoma", "hpv-related cancer", "uterine neck cancer"],
-    "Thyroid cancer": ["thyroid carcinoma", "papillary thyroid cancer", "follicular thyroid cancer"],
-    "Pancreatic cancer": ["pancreas adenocarcinoma", "pancreatic ductal cancer", "abdominal malignancy"],
-    "Arrhythmia": ["cardiac arrhythmia", "heart palpitations", "irregular heartbeat"],
-    "Aortic dissection": ["aortic tear", "dissecting aneurysm", "aortic rupture"],
-    "Pericarditis": ["pericardial inflammation", "heart sac inflammation", "pericardial effusion"],
-    "Pulmonary embolism": ["pe", "lung clot", "pulmonary thrombosis"],
-    "Chronic kidney disease": ["ckd", "renal failure", "kidney insufficiency"],
-    "Acute kidney injury": ["aki", "acute renal failure", "kidney shutdown"],
-    "Bacterial vaginosis": ["bv", "vaginal bacterial infection", "gardnerella vaginitis"],
-    "Candidiasis": ["yeast infection", "candida overgrowth", "thrush"],
-    "Chlamydia": ["chlamydia infection", "sexually transmitted chlamydia", "genital chlamydia"],
-    "Gonorrhea": ["gonococcal infection", "sti gonorrhea", "genital gonorrhea"],
-    "Trigeminal neuralgia": ["facial neuralgia", "tic douloureux", "trigeminal nerve pain"],
-    "Cluster headache": ["severe unilateral headache", "horton’s headache", "cluster migraine"],
-    "Temporal arteritis": ["giant cell arteritis", "cranial arteritis", "temporal artery inflammation"],
-    "Malaria": ["plasmodium infection", "tropical fever", "malarial fever"],
-    "Leptospirosis": ["weil’s disease", "zoonotic infection", "lepto fever"],
-    "Mononucleosis": ["mono", "epstein-barr virus", "kissing disease"],
-    "Bronchiolitis": ["respiratory bronchiolitis", "infant lung infection", "viral bronchiolitis"],
-    "Croup": ["laryngotracheobronchitis", "barking cough syndrome", "pediatric croup"],
-    "Barrett’s esophagus": ["esophageal metaplasia", "gerd complication", "pre-cancerous esophagus"],
-    "Diverticulosis": ["colonic diverticula", "diverticular disease", "bowel pockets"]
+  "GERD": [
+    "gerd",
+    "gerd exacerbation",
+    "acid reflux",
+    "reflux esophagitis",
+    "heartburn"
+  ],
+  "Peripheral neuropathy": [
+    "neuropathy",
+    "peripheral nerve damage",
+    "nerve pain",
+    "sensory neuropathy"
+  ],
+  "PPI trial": [
+    "ppi for gastritis",
+    "ppi for gerd",
+    "proton pump inhibitor trial",
+    "omeprazole trial",
+    "esomeprazole trial"
+  ],
+  "ECG": [
+    "ekg",
+    "electrocardiogram",
+    "cardiac ecg",
+    "12-lead ecg"
+  ],
+  "Carpal tunnel syndrome": [
+    "carpal tunnel",
+    "median nerve compression",
+    "wrist nerve entrapment"
+  ],
+  "Postnasal drip": [
+    "postnasal",
+    "nasal drip",
+    "pharyngeal drainage",
+    "sinus drainage"
+  ],
+  "Asthma": [
+    "bronchial asthma",
+    "reactive airway disease",
+    "asthmatic bronchitis"
+  ],
+  "COPD": [
+    "chronic obstructive pulmonary disease",
+    "emphysema",
+    "chronic bronchitis",
+    "obstructive lung disease"
+  ],
+  "Migraine": [
+    "migraine headache",
+    "vascular headache",
+    "severe headache"
+  ],
+  "Tension headache": [
+    "stress headache",
+    "muscle contraction headache",
+    "tension-type headache"
+  ],
+  "Sinusitis": [
+    "sinus infection",
+    "rhinosinusitis",
+    "nasal sinus inflammation"
+  ],
+  "Angina": [
+    "chest pain",
+    "cardiac angina",
+    "ischemic chest pain",
+    "angina pectoris"
+  ],
+  "Gastritis": [
+    "stomach inflammation",
+    "gastric irritation",
+    "stomach lining inflammation"
+  ],
+  "Cholecystitis": [
+    "gallbladder inflammation",
+    "acute cholecystitis",
+    "gallbladder infection"
+  ],
+  "Pancreatitis": [
+    "pancreatic inflammation",
+    "acute pancreatitis",
+    "chronic pancreatitis"
+  ],
+  "Osteoarthritis": [
+    "degenerative joint disease",
+    "wear-and-tear arthritis",
+    "arthrosis"
+  ],
+  "Gout": [
+    "uric acid arthritis",
+    "crystal-induced arthritis",
+    "gouty arthritis"
+  ],
+  "Rheumatoid arthritis": [
+    "ra",
+    "autoimmune arthritis",
+    "inflammatory arthritis"
+  ],
+  "Spinal stenosis": [
+    "narrowing of the spine",
+    "lumbar stenosis",
+    "cervical stenosis"
+  ],
+  "Disc herniation": [
+    "slipped disc",
+    "herniated nucleus pulposus",
+    "bulging disc"
+  ],
+  "Venous insufficiency": [
+    "chronic venous insufficiency",
+    "varicose veins",
+    "venous reflux"
+  ],
+  "DVT": [
+    "deep vein thrombosis",
+    "venous thrombosis",
+    "thrombotic leg"
+  ],
+  "Lymphedema": [
+    "lymphatic obstruction",
+    "swollen lymph nodes",
+    "lymphatic swelling"
+  ],
+  "BPPV": [
+    "benign paroxysmal positional vertigo",
+    "positional vertigo",
+    "ear crystals"
+  ],
+  "Orthostatic hypotension": [
+    "postural hypotension",
+    "low blood pressure on standing",
+    "orthostatic drop"
+  ],
+  "Dehydration": [
+    "fluid deficit",
+    "hypovolemia",
+    "water loss"
+  ],
+  "Labyrinthitis": [
+    "inner ear infection",
+    "vestibular neuritis",
+    "ear inflammation"
+  ],
+  "Eczema": [
+    "atopic dermatitis",
+    "contact eczema",
+    "dermatitis"
+  ],
+  "Psoriasis": [
+    "plaque psoriasis",
+    "psoriatic skin condition",
+    "psoriatic arthritis"
+  ],
+  "Drug reaction": [
+    "adverse drug reaction",
+    "medication allergy",
+    "drug hypersensitivity"
+  ],
+  "Anemia": [
+    "low red blood cell count",
+    "iron deficiency anemia",
+    "hemoglobin deficiency"
+  ],
+  "Hyperlipidemia": [
+    "high cholesterol",
+    "dyslipidemia",
+    "hypercholesterolemia"
+  ],
+  "Hypertension": [
+    "high blood pressure",
+    "htn",
+    "blood pressure elevation"
+  ],
+  "Diabetes mellitus": [
+    "type 1 diabetes",
+    "type 2 diabetes",
+    "insulin-dependent diabetes"
+  ],
+  "Hypothyroidism": [
+    "underactive thyroid",
+    "low thyroid function",
+    "thyroid hormone deficiency"
+  ],
+  "Hyperthyroidism": [
+    "overactive thyroid",
+    "thyroid storm",
+    "graves' disease"
+  ],
+  "Depression": [
+    "major depressive disorder",
+    "clinical depression",
+    "mood disorder"
+  ],
+  "Anxiety": [
+    "generalized anxiety disorder",
+    "panic disorder",
+    "stress disorder"
+  ],
+  "Insomnia": [
+    "sleeplessness",
+    "difficulty sleeping",
+    "restless sleep"
+  ],
+  "Fever": [
+    "pyrexia",
+    "temperature elevation",
+    "febrile illness"
+  ],
+  "Allergic rhinitis": [
+    "hay fever",
+    "seasonal allergies",
+    "nasal allergy"
+  ],
+  "UTI": [
+    "urinary tract infection",
+    "bladder infection",
+    "kidney infection"
+  ],
+  "Cellulitis": [
+    "skin infection",
+    "soft tissue infection",
+    "bacterial cellulitis"
+  ],
+  "Abscess": [
+    "skin abscess",
+    "boil",
+    "localized infection"
+  ],
+  "Pneumonia": [
+    "lung infection",
+    "bacterial pneumonia",
+    "viral pneumonia"
+  ],
+  "Bronchitis": [
+    "chest infection",
+    "acute bronchitis",
+    "chronic bronchitis"
+  ],
+  "Peptic ulcer": [
+    "stomach ulcer",
+    "duodenal ulcer",
+    "ulcerative lesion"
+  ],
+  "Appendicitis": [
+    "appendix inflammation",
+    "acute appendicitis",
+    "appendix infection"
+  ],
+  "Kidney stones": [
+    "renal calculi",
+    "nephrolithiasis",
+    "ureteral stone"
+  ],
+  "Meniscal tear": [
+    "knee cartilage tear",
+    "torn meniscus",
+    "cartilage injury"
+  ],
+  "Cervical strain": [
+    "neck strain",
+    "cervical sprain",
+    "neck muscle injury"
+  ],
+  "Pharyngitis": [
+    "sore throat",
+    "throat infection",
+    "strep throat"
+  ],
+  "Tonsillitis": [
+    "tonsil infection",
+    "acute tonsillitis",
+    "tonsil inflammation"
+  ],
+  "Plantar fasciitis": [
+    "heel pain",
+    "foot arch pain",
+    "plantar tendonitis"
+  ],
+  "Tendonitis": [
+    "tendon inflammation",
+    "tendinitis",
+    "overuse injury"
+  ],
+  "Sciatica": [
+    "sciatic nerve pain",
+    "lower back nerve pain",
+    "lumbar radiculopathy"
+  ],
+  "Conjunctivitis": [
+    "pink eye",
+    "eye infection",
+    "red eye"
+  ],
+  "Glaucoma": [
+    "eye pressure",
+    "optic nerve damage",
+    "vision loss"
+  ],
+  "Cataract": [
+    "lens opacity",
+    "cloudy lens",
+    "age-related cataract"
+  ],
+  "Melanoma": [
+    "skin cancer",
+    "malignant melanoma",
+    "pigmented lesion"
+  ],
+  "Basal cell carcinoma": [
+    "bcc",
+    "non-melanoma skin cancer",
+    "skin tumor"
+  ],
+  "Squamous cell carcinoma": [
+    "scc",
+    "cutaneous squamous cell cancer",
+    "epidermal carcinoma"
+  ],
+  "Leukemia": [
+    "blood cancer",
+    "acute leukemia",
+    "chronic leukemia"
+  ],
+  "Lymphoma": [
+    "hodgkin's lymphoma",
+    "non-hodgkin lymphoma",
+    "lymph node cancer"
+  ],
+  "Myocardial infarction": [
+    "heart attack",
+    "cardiac arrest",
+    "coronary event"
+  ],
+  "Stroke": [
+    "cerebrovascular accident",
+    "brain attack",
+    "ischemic stroke"
+  ],
+  "Transient ischemic attack": [
+    "mini-stroke",
+    "tia",
+    "temporary stroke"
+  ],
+  "Seizure": [
+    "epileptic seizure",
+    "convulsion",
+    "focal seizure"
+  ],
+  "Parkinson's disease": [
+    "parkinsonism",
+    "shaking palsy",
+    "neurodegenerative disorder"
+  ],
+  "Alzheimer's disease": [
+    "dementia",
+    "senile dementia",
+    "memory loss disorder"
+  ],
+  "Schizophrenia": [
+    "psychosis",
+    "mental illness",
+    "thought disorder"
+  ],
+  "Bipolar disorder": [
+    "manic-depressive illness",
+    "mood swings",
+    "manic episodes"
+  ],
+  "Obsessive-compulsive disorder": [
+    "ocd",
+    "compulsive behavior",
+    "obsessive thoughts"
+  ],
+  "Post-traumatic stress disorder": [
+    "ptsd",
+    "trauma disorder",
+    "stress-related disorder"
+  ],
+  "Autism spectrum disorder": [
+    "asd",
+    "autistic disorder",
+    "developmental delay"
+  ],
+  "Attention deficit hyperactivity disorder": [
+    "adhd",
+    "attention deficit",
+    "hyperactivity disorder"
+  ],
+  "Chronic kidney disease": [
+    "ckd",
+    "renal failure",
+    "kidney insufficiency"
+  ],
+  "Liver cirrhosis": [
+    "end-stage liver disease",
+    "hepatic cirrhosis",
+    "liver scarring"
+  ],
+  "HIV/AIDS": [
+    "human immunodeficiency virus",
+    "acquired immune deficiency syndrome",
+    "immunosuppression"
+  ],
+  "Tuberculosis": [
+    "tb",
+    "pulmonary tuberculosis",
+    "mycobacterial infection"
+  ],
+  "Meningitis": [
+    "brain membrane infection",
+    "spinal infection",
+    "meningeal inflammation"
+  ],
+  "Encephalitis": [
+    "brain inflammation",
+    "central nervous system infection",
+    "viral encephalitis"
+  ],
+  "Multiple sclerosis": [
+    "ms",
+    "demyelinating disease",
+    "autoimmune neurology"
+  ],
+  "Amyotrophic lateral sclerosis": [
+    "als",
+    "lou gehrig's disease",
+    "motor neuron disease"
+  ],
+  "Crohn's disease": [
+    "inflammatory bowel disease",
+    "ibd",
+    "gastrointestinal inflammation"
+  ],
+  "Ulcerative colitis": [
+    "colon inflammation",
+    "colitis",
+    "rectal bleeding"
+  ],
+  "Celiac disease": [
+    "gluten intolerance",
+    "gluten sensitivity",
+    "autoimmune enteropathy"
+  ],
+  "Irritable bowel syndrome": [
+    "ibs",
+    "functional bowel disorder",
+    "spastic colon"
+  ],
+  "Endometriosis": [
+    "uterine lining disorder",
+    "pelvic pain syndrome",
+    "reproductive inflammation"
+  ],
+  "Polycystic ovary syndrome": [
+    "pcos",
+    "ovarian cysts",
+    "hormonal imbalance"
+  ],
+  "Erectile dysfunction": [
+    "impotence",
+    "sexual dysfunction",
+    "ed"
+  ],
+  "Premenstrual syndrome": [
+    "pms",
+    "menstrual symptoms",
+    "hormonal mood swings"
+  ],
+  "Vaginitis": [
+    "yeast infection",
+    "bacterial vaginosis",
+    "vaginal inflammation"
+  ],
+  "Prostatitis": [
+    "prostate inflammation",
+    "prostate infection",
+    "pelvic discomfort"
+  ],
+  "Bladder cancer": [
+    "urothelial carcinoma",
+    "bladder tumor",
+    "urinary malignancy"
+  ],
+  "Breast cancer": [
+    "mammary carcinoma",
+    "breast tumor",
+    "malignant breast lesion"
+  ],
+  "Colorectal cancer": [
+    "colon cancer",
+    "rectal cancer",
+    "bowel cancer"
+  ],
+  "Lung cancer": [
+    "bronchogenic carcinoma",
+    "small cell lung cancer",
+    "non-small cell lung cancer"
+  ],
+  "Prostate cancer": [
+    "prostatic adenocarcinoma",
+    "prostate tumor",
+    "male reproductive cancer"
+  ],
+  "Ovarian cancer": [
+    "ovarian carcinoma",
+    "fallopian tube cancer",
+    "peritoneal cancer"
+  ],
+  "Cervical cancer": [
+    "cervical carcinoma",
+    "hpv-related cancer",
+    "uterine neck cancer"
+  ],
+  "Thyroid cancer": [
+    "thyroid carcinoma",
+    "papillary thyroid cancer",
+    "follicular thyroid cancer"
+  ],
+  "Pancreatic cancer": [
+    "pancreas adenocarcinoma",
+    "pancreatic ductal cancer",
+    "abdominal malignancy"
+  ],
+  "Arrhythmia": [
+    "cardiac arrhythmia",
+    "heart palpitations",
+    "irregular heartbeat"
+  ],
+  "Aortic dissection": [
+    "aortic tear",
+    "dissecting aneurysm",
+    "aortic rupture"
+  ],
+  "Pericarditis": [
+    "pericardial inflammation",
+    "heart sac inflammation",
+    "pericardial effusion"
+  ],
+  "Pulmonary embolism": [
+    "pe",
+    "lung clot",
+    "pulmonary thrombosis"
+  ],
+  "Acute kidney injury": [
+    "aki",
+    "acute renal failure",
+    "kidney shutdown"
+  ],
+  "Bacterial vaginosis": [
+    "bv",
+    "vaginal bacterial infection",
+    "gardnerella vaginitis"
+  ],
+  "Candidiasis": [
+    "yeast infection",
+    "candida overgrowth",
+    "thrush"
+  ],
+  "Chlamydia": [
+    "chlamydia infection",
+    "sexually transmitted chlamydia",
+    "genital chlamydia"
+  ],
+  "Gonorrhea": [
+    "gonococcal infection",
+    "sti gonorrhea",
+    "genital gonorrhea"
+  ],
+  "Trigeminal neuralgia": [
+    "facial neuralgia",
+    "tic douloureux",
+    "trigeminal nerve pain"
+  ],
+  "Cluster headache": [
+    "severe unilateral headache",
+    "horton\u2019s headache",
+    "cluster migraine"
+  ],
+  "Temporal arteritis": [
+    "giant cell arteritis",
+    "cranial arteritis",
+    "temporal artery inflammation"
+  ],
+  "Malaria": [
+    "plasmodium infection",
+    "tropical fever",
+    "malarial fever"
+  ],
+  "Leptospirosis": [
+    "weil\u2019s disease",
+    "zoonotic infection",
+    "lepto fever"
+  ],
+  "Mononucleosis": [
+    "mono",
+    "epstein-barr virus",
+    "kissing disease"
+  ],
+  "Bronchiolitis": [
+    "respiratory bronchiolitis",
+    "infant lung infection",
+    "viral bronchiolitis"
+  ],
+  "Croup": [
+    "laryngotracheobronchitis",
+    "barking cough syndrome",
+    "pediatric croup"
+  ],
+  "Barrett\u2019s esophagus": [
+    "esophageal metaplasia",
+    "gerd complication",
+    "pre-cancerous esophagus"
+  ],
+  "Diverticulosis": [
+    "colonic diverticula",
+    "diverticular disease",
+    "bowel pockets"
+  ]
 }

@@ -1,9 +1,11 @@
+# departments/nlp/soap_notes.py
 from flask import render_template, redirect, url_for, request, flash, jsonify
 from typing import Optional, List, Dict, Any
 import psycopg2
 from departments.nlp.note_processing import generate_ai_summary
 from departments.nlp.ai_summary import generate_ai_analysis
 from departments.nlp.batch_processing import update_single_soap_note
+from departments.nlp.clinical_analyzer import ClinicalAnalyzer
 from psycopg2.extras import RealDictCursor
 from flask import current_app
 from flask_login import login_required, current_user
@@ -25,6 +27,7 @@ from departments.models.medicine import (
 )
 from departments.forms import AdmitPatientForm
 import logging
+import json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -50,6 +53,7 @@ def submit_soap_notes(patient_id):
         assessment = request.form.get('assessment')
         recommendation = request.form.get('recommendation')
         additional_notes = request.form.get('additional_notes')
+        symptoms = request.form.get('symptoms', '')  # New symptoms field
 
         file = request.files.get('file_upload')
         file_path = None
@@ -63,6 +67,16 @@ def submit_soap_notes(patient_id):
             flash('All required fields must be filled out!', 'error')
             return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
 
+        # Process symptoms
+        symptom_list = []
+        if symptoms:
+            if isinstance(symptoms, str):
+                symptom_list = [s.strip() for s in symptoms.split(',') if s.strip()]
+            elif isinstance(symptoms, list):
+                symptom_list = [s.strip() for s in symptoms if isinstance(s, str) and s.strip()]
+            logger.debug(f"Received symptoms for patient {patient_id}: {symptom_list}")
+
+        # Create SOAP note
         new_soap_note = SOAPNote(
             patient_id=patient_id,
             situation=situation,
@@ -74,10 +88,37 @@ def submit_soap_notes(patient_id):
             assessment=assessment,
             recommendation=recommendation,
             additional_notes=additional_notes,
+            symptoms=json.dumps(symptom_list) if symptom_list else '',  # Store as JSON string
             file_path=file_path,
             ai_notes=None,  # Save as NULL
             ai_analysis=None  # Save as NULL
         )
+
+        # Extract clinical features and update knowledge base
+        try:
+            analyzer = ClinicalAnalyzer()
+            new_soap_note.symptoms = symptoms  # Temporarily set for extraction
+            features = analyzer.extract_clinical_features(new_soap_note)
+            extracted_symptoms = features.get('symptoms', [])
+            if extracted_symptoms:
+                symptom_descriptions = [s['description'] for s in extracted_symptoms]
+                logger.info(f"Extracted symptoms for SOAP note ID {new_soap_note.id}: {symptom_descriptions}")
+                # Update symptoms if none provided
+                if not symptom_list:
+                    new_soap_note.symptoms = json.dumps(symptom_descriptions)
+                elif set(symptom_list).issubset(set(symptom_descriptions)):
+                    logger.debug("All provided symptoms validated by ClinicalAnalyzer")
+                else:
+                    # Add extracted symptoms not in input
+                    new_symptoms = list(set(symptom_descriptions) | set(symptom_list))
+                    new_soap_note.symptoms = json.dumps(new_symptoms)
+                    logger.info(f"Updated symptoms with extracted: {new_symptoms}")
+            else:
+                logger.debug(f"No symptoms extracted for SOAP note ID {new_soap_note.id}")
+        except Exception as e:
+            logger.error(f"Error extracting clinical features for SOAP note ID {new_soap_note.id}: {str(e)}")
+            # Continue without failing note creation
+
         db.session.add(new_soap_note)
         db.session.commit()
 
