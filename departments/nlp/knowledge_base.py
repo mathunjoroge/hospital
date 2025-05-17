@@ -2,11 +2,13 @@
 import os
 import json
 from datetime import datetime
+
+from sqlalchemy import null
 from departments.nlp.logging_setup import logger
 from typing import Dict, Set, List
 
 def initialize_knowledge_files() -> None:
-    """Initialize default JSON files for knowledge base resources."""
+    """Initialize default JSON files for knowledge base resources with UMLS metadata."""
     knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
     os.makedirs(knowledge_base_dir, exist_ok=True)
 
@@ -19,10 +21,25 @@ def initialize_knowledge_files() -> None:
     ]
 
     default_medical_terms = [
-        "facial pain", "nasal congestion", "purulent nasal discharge", "fever",
-        "headache", "cough", "chest pain", "diarrhea", "shortness of breath",
-        "photophobia", "neck stiffness", "rash", "back pain", "knee pain",
-        "epigastric pain", "chills", "chest tightness", "fatigue"
+        # Ensure all entries are properly closed
+        {"term": "facial pain", "category": "respiratory", "umls_cui": None, "semantic_type": "Unknown"},
+        {"term": "nasal congestion", "category": "respiratory", "umls_cui": null, "semantic_type": "Unknown"},
+        {"term": "purulent nasal discharge", "category": "respiratory", "umls_cui": null, "semantic_type": "Unknown"},
+        {"term": "fever", "category": "infectious", "umls_cui": null, "semantic_type": "Unknown"},
+        {"term": "headache", "category": "neurological", "umls_cui": null, "semantic_type": "Unknown"},
+        {"term": "cough", "category": "respiratory", "umls_cui": null, "semantic_type": "Unknown"},
+        {"term": "chest pain", "category": "cardiovascular", "umls_cui": null, "semantic_type": "Unknown"},
+        {"term": "diarrhea", "category": "gastrointestinal", "umls_cui": null, "semantic_type": "Unknown"},
+        {"term": "shortness of breath", "category": "cardiovascular", "umls_cui": null, "semantic_type": "Unknown"},
+        {"term": "photophobia", "category": "neurological", "umls_cui": null, "semantic_type": "Unknown"},
+        {"term": "neck stiffness", "category": "neurological", "umls_cui": null, "semantic_type": "Unknown"},
+        {"term": "rash", "category": "dermatological", "umls_cui": null, "semantic_type": "Unknown"},
+        {"term": "back pain", "category": "musculoskeletal", "umls_cui": "C0004604", "semantic_type": "Sign or Symptom"},
+        {"term": "knee pain", "category": "musculoskeletal", "umls_cui": null, "semantic_type": "Unknown"},
+        {"term": "epigastric pain", "category": "gastrointestinal", "umls_cui": null, "semantic_type": "Unknown"},
+        {"term": "fatigue", "category": "general", "umls_cui": null, "semantic_type": "Unknown"},
+        {"term": "chest tightness", "category": "cardiovascular", "umls_cui": "C0242209", "semantic_type": "Sign or Symptom"},
+        {"term": "fatigue", "category": "general", "umls_cui": null, "semantic_type": "Unknown"}
     ]
 
     default_synonyms = {
@@ -132,7 +149,7 @@ def initialize_knowledge_files() -> None:
                     "IDSA Guidelines: https://www.idsociety.org",
                     "AAO-HNS Sinusitis Guidelines: https://www.entnet.org"
                 ],
-                "metadata": {"source": ["IDSA", "AAO-HNS"], "last_updated": "2025-05-04"}
+                "metadata": {"source": ["IDSA", "AAO-HNS"], "last_updated": "2025-05-04", "umls_cui": null}
             },
             "cough": {
                 "differentials": ["Postnasal drip", "Allergic cough", "Chronic bronchitis"],
@@ -145,7 +162,7 @@ def initialize_knowledge_files() -> None:
                 },
                 "follow_up": ["Follow-up in 2 weeks"],
                 "references": ["ATS Guidelines: https://www.thoracic.org"],
-                "metadata": {"source": ["ATS"], "last_updated": "2025-05-04"}
+                "metadata": {"source": ["ATS"], "last_updated": "2025-05-04", "umls_cui": null}
             }
         },
         "neurological": {
@@ -162,7 +179,7 @@ def initialize_knowledge_files() -> None:
                 },
                 "follow_up": ["Follow-up in 3-5 days if urgent, else 1-2 weeks"],
                 "references": ["AHS Guidelines: https://americanheadachesociety.org", "UpToDate: https://www.uptodate.com/contents/meningitis"],
-                "metadata": {"source": ["AHS", "UpToDate"], "last_updated": "2025-05-04"}
+                "metadata": {"source": ["AHS", "UpToDate"], "last_updated": "2025-05-04", "umls_cui": null}
             }
         },
         "cardiovascular": {
@@ -178,7 +195,7 @@ def initialize_knowledge_files() -> None:
                 },
                 "follow_up": ["Follow-up in 3-5 days if urgent, else 1 week"],
                 "references": ["ACC/AHA Guidelines: https://www.acc.org"],
-                "metadata": {"source": ["ACC/AHA"], "last_updated": "2025-05-04"}
+                "metadata": {"source": ["ACC/AHA"], "last_updated": "2025-05-04", "umls_cui": "C0242209"}
             }
         },
         "gastrointestinal": {
@@ -193,7 +210,7 @@ def initialize_knowledge_files() -> None:
                 },
                 "follow_up": ["Follow-up in 2 weeks"],
                 "references": ["AGA Guidelines: https://gastro.org"],
-                "metadata": {"source": ["AGA"], "last_updated": "2025-05-04"}
+                "metadata": {"source": ["AGA"], "last_updated": "2025-05-04", "umls_cui": null}
             }
         },
         "musculoskeletal": {
@@ -208,7 +225,7 @@ def initialize_knowledge_files() -> None:
                 },
                 "follow_up": ["Follow-up in 4 weeks"],
                 "references": ["AAOS Guidelines: https://www.aaos.org", "ACR Guidelines: https://www.rheumatology.org"],
-                "metadata": {"source": ["AAOS", "ACR"], "last_updated": "2025-05-04"}
+                "metadata": {"source": ["AAOS", "ACR"], "last_updated": "2025-05-04", "umls_cui": null}
             },
             "back pain|lower back pain|backache": {
                 "differentials": ["Mechanical low back pain", "Lumbar strain", "Herniated disc", "Ankylosing spondylitis"],
@@ -229,7 +246,7 @@ def initialize_knowledge_files() -> None:
                     "ACP Guidelines: https://www.acponline.org",
                     "UpToDate: Evaluation of low back pain"
                 ],
-                "metadata": {"source": ["ACP", "UpToDate"], "last_updated": "2025-05-16"}
+                "metadata": {"source": ["ACP", "UpToDate"], "last_updated": "2025-05-16", "umls_cui": "C0004604"}
             }
         },
         "infectious": {
@@ -245,7 +262,7 @@ def initialize_knowledge_files() -> None:
                 },
                 "follow_up": ["Follow-up in 3-5 days"],
                 "references": ["WHO Guidelines: https://www.who.int", "UpToDate: https://www.uptodate.com/contents/meningitis"],
-                "metadata": {"source": ["WHO", "UpToDate"], "last_updated": "2025-05-04"}
+                "metadata": {"source": ["WHO", "UpToDate"], "last_updated": "2025-05-04", "umls_cui": null}
             }
         }
     }
@@ -265,7 +282,7 @@ def initialize_knowledge_files() -> None:
 
     resources = {
         "medical_stop_words": (default_stop_words, lambda x: set(x)),
-        "medical_terms": (default_medical_terms, lambda x: set(x)),
+        "medical_terms": (default_medical_terms, lambda x: x),  # Now a list of dicts
         "synonyms": (default_synonyms, lambda x: x),
         "clinical_pathways": (default_clinical_pathways, lambda x: x),
         "history_diagnoses": (default_history_diagnoses, lambda x: x),
@@ -284,7 +301,7 @@ def initialize_knowledge_files() -> None:
                 logger.error(f"Failed to create {file_path}: {str(e)}")
 
 def load_knowledge_base() -> Dict:
-    """Load knowledge base from JSON files with validation."""
+    """Load knowledge base from JSON files with validation and UMLS metadata."""
     initialize_knowledge_files()
     knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
     resources = {
@@ -311,6 +328,19 @@ def load_knowledge_base() -> Dict:
                         logger.error(f"Expected list of strings for {filename}, got {type(data)}")
                         data = resources[key][0]
                     data = set(data).union(resources["medical_stop_words"][0])
+                elif key == "medical_terms":
+                    if not isinstance(data, list) or not all(isinstance(t, dict) and "term" in t for t in data):
+                        logger.error(f"Expected list of dicts with 'term' for {filename}, got {type(data)}")
+                        data = resources[key][0]
+                    else:
+                        data = [
+                            {
+                                "term": t.get("term", ""),
+                                "category": t.get("category", "unknown"),
+                                "umls_cui": t.get("umls_cui"),
+                                "semantic_type": t.get("semantic_type", "Unknown")
+                            } for t in data if isinstance(t, dict) and t.get("term")
+                        ]
                 elif key == "clinical_pathways":
                     if not isinstance(data, dict):
                         logger.error(f"Expected dict for {filename}, got {type(data)}")
@@ -333,10 +363,10 @@ def load_knowledge_base() -> Dict:
                                 diagnosis_relevance = knowledge.get('diagnosis_relevance', resources["diagnosis_relevance"][0])
                                 for dx in differentials:
                                     if dx.lower() not in diagnosis_relevance:
-                                        logger.warning(f"Path {pkey}: differential {dx} lacks required symptoms in diagnosis_relevance, including for flexibility")
+                                        logger.warning(f"Path {pkey}: differential {dx} lacks required symptoms in diagnosis_relevance")
                                 if any(dx.lower() in high_risk_conditions for dx in differentials):
                                     if not path.get("contextual_triggers", []):
-                                        logger.warning(f"Path {pkey}: high-risk differentials require contextual_triggers, including for flexibility")
+                                        logger.warning(f"Path {pkey}: high-risk differentials require contextual_triggers")
                                 management = path.get("management", {})
                                 if not management.get("symptomatic") and not management.get("definitive"):
                                     logger.warning(f"Skipping path {pkey}: no management options")
@@ -359,6 +389,7 @@ def load_knowledge_base() -> Dict:
                                 if not path.get("follow_up", []):
                                     path["follow_up"] = ["Follow-up in 2 weeks"]
                                     logger.info(f"Added default follow-up for {pkey}")
+                                metadata["umls_cui"] = metadata.get("umls_cui")  # Ensure UMLS CUI is included
                                 valid_paths[pkey] = path
                             if valid_paths:
                                 valid_data[cat] = valid_paths
@@ -381,11 +412,6 @@ def load_knowledge_base() -> Dict:
                         data = resources[key][0]
                     else:
                         data = {k: v for k, v in data.items() if isinstance(v, list) and all(isinstance(r, dict) and "symptom" in r and "weight" in r for r in v)}
-                elif key == "medical_terms":
-                    if not isinstance(data, list) or not all(isinstance(t, str) for t in data):
-                        logger.error(f"Expected list of strings for {filename}, got {type(data)}")
-                        data = resources[key][0]
-                    data = set(data)
                 else:
                     if not isinstance(data, dict):
                         logger.error(f"Expected dict for {filename}, got {type(data)}")
@@ -420,7 +446,7 @@ def save_knowledge_base(kb: Dict) -> bool:
         for key, filename in resources.items():
             file_path = os.path.join(knowledge_base_dir, filename)
             data = kb.get(key, {})
-            if key == "medical_stop_words" or key == "medical_terms":
+            if key == "medical_stop_words":
                 data = list(data) if isinstance(data, set) else data
             with open(file_path, 'w') as f:
                 json.dump(data, f, indent=2)

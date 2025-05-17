@@ -10,3 +10,9 @@ BATCH_SIZE = 16
 EMBEDDING_DIM = 768
 SIMILARITY_THRESHOLD = 0.9
 CONFIDENCE_THRESHOLD = 0.85
+
+# departments/nlp/config.py
+UTS_API_KEY = 'mock_api_key'
+UTS_BASE_URL = 'http://mock-uts.local/rest'
+
+
