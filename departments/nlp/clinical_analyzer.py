@@ -9,23 +9,25 @@ from pymongo.errors import ConnectionFailure
 from departments.models.medicine import SOAPNote
 from departments.models.records import Patient
 from departments.nlp.logging_setup import logger
-from departments.nlp.config import SIMILARITY_THRESHOLD, CONFIDENCE_THRESHOLD, EMBEDDING_DIM
+from departments.nlp.config import SIMILARITY_THRESHOLD, CONFIDENCE_THRESHOLD, EMBEDDING_DIM, UTS_API_KEY
 from departments.nlp.nlp_utils import embed_text, preprocess_text, deduplicate, get_patient_info
 from departments.nlp.helper_functions import extract_duration, classify_severity, extract_location, extract_aggravating_alleviating
 from departments.nlp.models.transformer_model import model, tokenizer
 from departments.nlp.symptom_tracker import SymptomTracker
 from departments.nlp.knowledge_base import load_knowledge_base
 from departments.nlp.kb_updater import KnowledgeBaseUpdater
+import requests
 
 class ClinicalAnalyzer:
     def __init__(self):
         self.model = model
         self.tokenizer = tokenizer
+        self.uts_api_key = UTS_API_KEY or 'mock_api_key'
         mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017')
         db_name = os.getenv('DB_NAME', 'clinical_db')
         kb_prefix = os.getenv('KB_PREFIX', 'kb_')
         self.medical_stop_words: Set[str] = set()
-        self.medical_terms: Set[str] = set()
+        self.medical_terms: List[Dict] = []  # Updated to list of dicts for UMLS metadata
         self.synonyms: Dict[str, List[str]] = {}
         self.clinical_pathways: Dict[str, Dict[str, Dict]] = {}
         self.history_diagnoses: Dict[str, List[str]] = {}
@@ -47,7 +49,14 @@ class ClinicalAnalyzer:
                 'diagnosis_treatments': f'{kb_prefix}diagnosis_treatments'
             }
             self.medical_stop_words = {doc['word'] for doc in db[collections['medical_stop_words']].find() if 'word' in doc}
-            self.medical_terms = {doc['term'] for doc in db[collections['medical_terms']].find() if 'term' in doc}
+            self.medical_terms = [
+                {
+                    'term': doc['term'],
+                    'category': doc.get('category', 'unknown'),
+                    'umls_cui': doc.get('umls_cui'),
+                    'semantic_type': doc.get('semantic_type', 'Unknown')
+                } for doc in db[collections['medical_terms']].find() if 'term' in doc
+            ]
             for doc in db[collections['synonyms']].find():
                 if 'key' in doc and 'aliases' in doc:
                     self.synonyms[doc['key']] = doc['aliases']
@@ -111,13 +120,45 @@ class ClinicalAnalyzer:
         """Load knowledge base from JSON if MongoDB fails."""
         kb = load_knowledge_base()
         self.medical_stop_words = kb.get('medical_stop_words', set())
-        self.medical_terms = kb.get('medical_terms', set())
+        self.medical_terms = kb.get('medical_terms', [])  # Already a list of dicts
         self.synonyms = kb.get('synonyms', {})
         self.clinical_pathways = kb.get('clinical_pathways', {})
         self.history_diagnoses = kb.get('history_diagnoses', {})
         self.diagnosis_relevance = kb.get('diagnosis_relevance', {})
         self.management_config = kb.get('management_config', {})
         self.diagnosis_treatments = kb.get('diagnosis_treatments', {})
+
+    def _get_umls_cui(self, symptom: str) -> Tuple[Optional[str], Optional[str]]:
+        """Retrieve UMLS CUI and semantic type for a symptom."""
+        if self.uts_api_key == 'mock_api_key':
+            mock_data = {
+                'chest tightness': {'cui': 'C0242209', 'semantic_type': 'Sign or Symptom'},
+                'back pain': {'cui': 'C0004604', 'semantic_type': 'Sign or Symptom'},
+                'obesity': {'cui': 'C0028754', 'semantic_type': 'Disease or Syndrome'}
+            }
+            return mock_data.get(symptom.lower(), {'cui': None, 'semantic_type': 'Unknown'}).values()
+        try:
+            ticket_url = "https://uts-ws.nlm.nih.gov/rest/tickets"
+            ticket_response = requests.post(ticket_url, data={'apiKey': self.uts_api_key})
+            ticket_response.raise_for_status()
+            ticket = ticket_response.text
+            search_url = "https://uts-ws.nlm.nih.gov/rest/search/current"
+            params = {'string': symptom, 'ticket': ticket, 'searchType': 'exact', 'sabs': 'SNOMEDCT_US'}
+            response = requests.get(search_url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            if data.get('result', {}).get('results'):
+                cui = data['result']['results'][0]['ui']
+                concept_url = f"https://uts-ws.nlm.nih.gov/rest/content/current/CUI/{cui}"
+                concept_response = requests.get(concept_url, params={'ticket': ticket})
+                concept_response.raise_for_status()
+                concept_data = concept_response.json()
+                semantic_type = concept_data['result'].get('semanticTypes', [{}])[0].get('name', 'Unknown')
+                return cui, semantic_type
+            return None, 'Unknown'
+        except Exception as e:
+            logger.error(f"UMLS CUI retrieval failed for '{symptom}': {str(e)}")
+            return None, 'Unknown'
 
     def extract_clinical_features(self, note: SOAPNote, expected_symptoms: Optional[List[str]] = None) -> Dict:
         """Extract clinical features from a SOAP note and update knowledge base with new symptoms."""
@@ -158,21 +199,25 @@ class ClinicalAnalyzer:
             # Detect new symptoms
             potential_symptoms = getattr(note, 'symptoms', None) or [s.strip() for s in text.split(',') if s.strip() and len(s.strip()) > 2]
             for symptom in potential_symptoms:
-                if self.kb_updater.is_new_symptom(symptom):
-                    category = self.kb_updater.infer_category(symptom, text)
-                    synonyms = self.kb_updater.generate_synonyms(symptom)
-                    self.kb_updater.update_knowledge_base(symptom, category, synonyms, text)
+                symptom_lower = symptom.lower()
+                if self.kb_updater.is_new_symptom(symptom_lower):
+                    category = self.kb_updater.infer_category(symptom_lower, text)
+                    synonyms = self.kb_updater.generate_synonyms(symptom_lower)
+                    cui, semantic_type = self._get_umls_cui(symptom_lower)
+                    self.kb_updater.update_knowledge_base(symptom_lower, category, synonyms, text)
                     features['symptoms'].append({
-                        'description': symptom,
+                        'description': symptom_lower,
                         'category': category,
-                        'definition': f"Newly detected: {symptom}",
+                        'definition': f"Newly detected: {symptom_lower}",
                         'duration': extract_duration(text) or 'Unknown',
                         'severity': classify_severity(text) or 'Unknown',
-                        'location': extract_location(text, symptom) or 'Unknown',
+                        'location': extract_location(text, symptom_lower) or 'Unknown',
                         'aggravating': features['aggravating_factors'],
-                        'alleviating': features['alleviating_factors']
+                        'alleviating': features['alleviating_factors'],
+                        'umls_cui': cui,
+                        'semantic_type': semantic_type
                     })
-                    logger.info(f"Added new symptom {symptom} to knowledge base (category: {category})")
+                    logger.info(f"Added new symptom {symptom_lower} to knowledge base (category: {category}, CUI: {cui})")
 
             # Fallback symptom extraction
             if not features['symptoms'] and expected_symptoms:
@@ -181,25 +226,29 @@ class ClinicalAnalyzer:
                     symptom_lower = symptom.lower()
                     synonyms = self.synonyms.get(symptom_lower, [])
                     patterns = [symptom_lower] + [s.lower() for s in synonyms]
+                    cui, semantic_type = self._get_umls_cui(symptom_lower)
                     for pattern in patterns:
                         if pattern in text:
                             duration = extract_duration(text) or 'Unknown'
                             severity = classify_severity(text) or 'Unknown'
                             location = extract_location(text, symptom_lower) or 'Unknown'
                             features['symptoms'].append({
-                                'description': symptom,
-                                'category': self.common_symptoms._infer_category(symptom, features['chief_complaint']),
-                                'definition': f"Automatically extracted: {symptom}",
+                                'description': symptom_lower,
+                                'category': self.common_symptoms._infer_category(symptom_lower, features['chief_complaint']),
+                                'definition': f"Automatically extracted: {symptom_lower}",
                                 'duration': duration,
                                 'severity': severity,
                                 'location': location,
                                 'aggravating': features['aggravating_factors'],
-                                'alleviating': features['alleviating_factors']
+                                'alleviating': features['alleviating_factors'],
+                                'umls_cui': cui,
+                                'semantic_type': semantic_type
                             })
                             break
 
             # Add obesity for back pain
             if 'obese' in features['assessment'].lower():
+                cui, semantic_type = self._get_umls_cui('obesity')
                 features['symptoms'].append({
                     'description': 'obesity',
                     'category': 'musculoskeletal',
@@ -208,7 +257,9 @@ class ClinicalAnalyzer:
                     'severity': 'Unknown',
                     'location': 'N/A',
                     'aggravating': features['aggravating_factors'],
-                    'alleviating': features['alleviating_factors']
+                    'alleviating': features['alleviating_factors'],
+                    'umls_cui': cui,
+                    'semantic_type': semantic_type
                 })
 
             # Context extraction
@@ -239,6 +290,7 @@ class ClinicalAnalyzer:
         """Check if a diagnosis is relevant based on patient and symptom data."""
         dx_lower = dx.lower()
         symptom_words = {s.get('description', '').lower() for s in features.get('symptoms', [])}
+        symptom_cuis = {s.get('umls_cui') for s in features.get('symptoms', []) if s.get('umls_cui')}
         history = features.get('history', '').lower()
         chief_complaint = features.get('chief_complaint', '').lower()
         assessment = features.get('assessment', '').lower()
@@ -268,6 +320,7 @@ class ClinicalAnalyzer:
             tiered_dx = {'tier1': [], 'tier2': [], 'tier3': []}
             symptoms = features.get('symptoms', [])
             symptom_descriptions = {s.get('description', '').lower() for s in symptoms}
+            symptom_cuis = {s.get('umls_cui') for s in symptoms if s.get('umls_cui')}
             history = features.get('history', '').lower()
             additional_notes = features.get('additional_notes', '').lower()
             chief_complaint = features.get('chief_complaint', '').lower()
@@ -324,6 +377,7 @@ class ClinicalAnalyzer:
             for symptom in symptoms:
                 symptom_type = symptom.get('description', '').lower()
                 symptom_category = symptom.get('category', '').lower()
+                symptom_cui = symptom.get('umls_cui')
                 location = symptom.get('location', '').lower()
                 aggravating = symptom.get('aggravating', '').lower()
                 alleviating = symptom.get('alleviating', '').lower()
@@ -331,8 +385,10 @@ class ClinicalAnalyzer:
                     for key, path in pathways.items():
                         key_lower = key.lower()
                         synonyms = self.synonyms.get(symptom_type, [])
+                        path_cui = path.get('metadata', {}).get('umls_cui')
                         if not (any(k.lower() in {symptom_type, location, chief_complaint} for k in key_lower.split('|')) or
-                                symptom_type in synonyms or symptom_category == category.lower()):
+                                symptom_type in synonyms or symptom_category == category.lower() or
+                                (symptom_cui and path_cui and symptom_cui == path_cui)):
                             continue
                         differentials = path.get('differentials', [])
                         contextual_triggers = path.get('contextual_triggers', [])
@@ -348,8 +404,10 @@ class ClinicalAnalyzer:
                                 score += 0.2
                             if symptom_category == category.lower():
                                 score += 0.15
+                            if symptom_cui and path_cui and symptom_cui == path_cui:
+                                score += 0.1
                             score += matches / max(len(required_symptoms), 1) * 0.25
-                            reasoning = f"Matches symptom: {symptom_type} (category: {symptom_category}) in {location}"
+                            reasoning = f"Matches symptom: {symptom_type} (category: {symptom_category}, CUI: {symptom_cui}) in {location}"
                             if aggravating and alleviating:
                                 reasoning += f"; influenced by {aggravating}/{alleviating}"
 
@@ -438,6 +496,7 @@ class ClinicalAnalyzer:
             }
             symptoms = features.get('symptoms', [])
             symptom_descriptions = {s.get('description', '').lower() for s in symptoms}
+            symptom_cuis = {s.get('umls_cui') for s in symptoms if s.get('umls_cui')}
             symptom_categories = {s.get('category', '').lower() for s in symptoms}
             primary_dx = features.get('assessment', '').lower()
             additional_notes = features.get('additional_notes', '').lower()
@@ -464,7 +523,9 @@ class ClinicalAnalyzer:
                 for key, path in pathways.items():
                     differentials = path.get('differentials', [])
                     key_parts = key.lower().split('|')
-                    if any(d.lower() in primary_dx for d in differentials) or any(k in symptom_descriptions or k in primary_dx for k in key_parts):
+                    path_cui = path.get('metadata', {}).get('umls_cui')
+                    if any(d.lower() in primary_dx for d in differentials) or any(k in symptom_descriptions or k in primary_dx for k in key_parts) or \
+                       any(symptom_cuis and path_cui and cui == path_cui for cui in symptom_cuis):
                         workup = path.get('workup', {})
                         for w in workup.get('urgent', []):
                             parsed = parse_conditional_workup(w, symptoms)
@@ -549,6 +610,8 @@ def parse_conditional_workup(workup: str, symptoms: List[Dict]) -> str:
     condition = workup.lower().split('if')[1].strip()
     for symptom in symptoms:
         desc = symptom.get('description', '').lower()
-        if condition in desc or condition in symptom.get('category', '').lower():
+        cui = symptom.get('umls_cui')
+        if condition in desc or condition in symptom.get('category', '').lower() or \
+           (cui and cui in condition):  # Match by CUI if available
             return workup.split('if')[0].strip()
     return ''
