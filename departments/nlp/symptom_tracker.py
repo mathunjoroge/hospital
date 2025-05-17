@@ -8,6 +8,7 @@ import json
 from typing import List, Dict, Set, Tuple, Optional
 from departments.nlp.logging_setup import logger
 from departments.nlp.knowledge_base import load_knowledge_base
+from departments.nlp.kb_updater import KnowledgeBaseUpdater
 
 class SymptomTracker:
     def __init__(self, mongo_uri: str = 'mongodb://localhost:27017', db_name: str = 'clinical_db', collection_name: str = 'symptoms'):
@@ -56,6 +57,8 @@ class SymptomTracker:
         except Exception as e:
             logger.error(f"Error loading synonyms from knowledge base: {str(e)}")
             self.synonyms = {}
+        # Initialize KnowledgeBaseUpdater
+        self.kb_updater = KnowledgeBaseUpdater(mongo_uri=mongo_uri, db_name=db_name, kb_prefix='kb_')
 
     def _load_json_fallback(self):
         default_symptoms = {
@@ -73,7 +76,8 @@ class SymptomTracker:
             "cardiovascular": {
                 "chest pain": "Pain or discomfort in the chest",
                 "shortness of breath": "Difficulty breathing or feeling out of breath",
-                "palpitations": "Irregular or rapid heartbeat"
+                "palpitations": "Irregular or rapid heartbeat",
+                "chest tightness": "Pressure or tightness in the chest"
             },
             "gastrointestinal": {
                 "epigastric pain": "Pain in the upper abdomen",
@@ -201,52 +205,24 @@ class SymptomTracker:
             return
 
         logger.warning(f"Missing symptoms: {missing_symptoms}. Initiating knowledge base update.")
-        synonyms_json_path = os.path.join(os.path.dirname(__file__), "knowledge_base", "synonyms.json")
-        symptoms_json_path = os.path.join(os.path.dirname(__file__), "knowledge_base", "symptoms.json")
-        
-        try:
-            with open(synonyms_json_path, 'r') as f:
-                synonyms = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            synonyms = {}
-
-        note_words = set(re.findall(r'\b[\w\s-]+\b', note_text.lower()))
         for symptom in missing_symptoms:
-            possible_synonyms = [
-                w for w in note_words
-                if w not in extracted_desc and any(kw in w for kw in symptom.split()) and len(w) > 3
-            ]
-            if possible_synonyms:
-                if symptom not in synonyms:
-                    synonyms[symptom] = []
-                synonyms[symptom].extend([s for s in possible_synonyms if s not in synonyms[symptom]])
-                logger.info(f"Added synonyms for '{symptom}': {possible_synonyms}")
-
+            if self.kb_updater.is_new_symptom(symptom):
                 category = self._infer_category(symptom, chief_complaint)
+                synonyms = self.kb_updater.generate_synonyms(symptom)
                 description = f"Automatically added: {symptom}"
-                if category not in self.common_symptoms:
-                    self.common_symptoms[category] = {}
-                if symptom not in self.common_symptoms[category]:
-                    self.common_symptoms[category][symptom] = description
-                    self.add_symptom(category, symptom, description)
-                    logger.info(f"Added symptom '{symptom}' to category '{category}' in common_symptoms.")
-
-        try:
-            with open(synonyms_json_path, 'w') as f:
-                json.dump(synonyms, f, indent=2)
-            logger.info(f"Updated {synonyms_json_path} with new synonyms.")
-        except Exception as e:
-            logger.error(f"Failed to update {synonyms_json_path}: {str(e)}")
-
-        self._update_symptoms_json()
+                self.kb_updater.update_knowledge_base(symptom, category, synonyms, note_text)
+                self.add_symptom(category, symptom, description)
+                logger.info(f"Updated knowledge base with new symptom '{symptom}' (category: {category}, synonyms: {synonyms})")
+            else:
+                logger.debug(f"Symptom '{symptom}' already exists in knowledge base. Skipping update.")
 
     def _infer_category(self, symptom: str, chief_complaint: str) -> str:
         symptom_lower = symptom.lower()
-        if any(kw in symptom_lower for kw in ['nasal', 'sinus', 'facial', 'congestion', 'discharge']):
+        if any(kw in symptom_lower for kw in ['nasal', 'sinus', 'facial', 'congestion', 'discharge', 'cough']):
             return "respiratory"
         if any(kw in symptom_lower for kw in ['headache', 'dizziness', 'photophobia']):
             return "neurological"
-        if any(kw in symptom_lower for kw in ['chest', 'palpitations', 'shortness of breath']):
+        if any(kw in symptom_lower for kw in ['chest', 'palpitations', 'shortness of breath', 'tightness']):
             return "cardiovascular"
         if any(kw in symptom_lower for kw in ['nausea', 'diarrhea', 'epigastric']):
             return "gastrointestinal"
@@ -286,7 +262,7 @@ class SymptomTracker:
 
     def process_note(self, note, chief_complaint: str, expected_symptoms: List[str] = None) -> List[Dict]:
         logger.debug(f"Processing note ID {getattr(note, 'id', 'unknown')} for symptoms with chief complaint: {chief_complaint}")
-        text = f"{note.situation or ''} {note.hpi or ''} {note.assessment or ''} {note.aggravating_factors or ''} {note.alleviating_factors or ''}".lower().strip()
+        text = f"{note.situation or ''} {note.hpi or ''} {note.assessment or ''} {note.aggravating_factors or ''} {note.alleviating_factors or ''} {getattr(note, 'symptoms', '') or ''}".lower().strip()
         if not text:
             logger.warning("No text available for symptom extraction")
             return []
@@ -320,9 +296,31 @@ class SymptomTracker:
                     })
                     matched_terms.add(matched_term)
                     logger.debug(f"Matched symptom: {symptom} (category: {category}, term: {matched_term})")
+        # Handle structured symptoms field
+        structured_symptoms = getattr(note, 'symptoms', None)
+        if structured_symptoms:
+            if isinstance(structured_symptoms, str):
+                structured_symptoms = [s.strip() for s in structured_symptoms.split(',')]
+            for symptom in structured_symptoms:
+                if isinstance(symptom, str) and symptom.lower() not in matched_terms:
+                    category = self._infer_category(symptom, chief_complaint)
+                    description = self.common_symptoms.get(category, {}).get(symptom, f"Automatically detected: {symptom}")
+                    if symptom.lower() not in self.get_all_symptoms():
+                        self.add_symptom(category, symptom, description)
+                        self.kb_updater.update_knowledge_base(symptom, category, self.kb_updater.generate_synonyms(symptom), text)
+                        logger.info(f"Added structured symptom '{symptom}' to category '{category}'")
+                    symptoms.append({
+                        'description': symptom,
+                        'category': category,
+                        'definition': description,
+                        'duration': 'Unknown',
+                        'severity': 'Unknown',
+                        'location': 'Unknown'
+                    })
+                    matched_terms.add(symptom.lower())
         negation_pattern = r"\b(no|without|denies|not)\b\s+([\w\s-]+?)(?=\.|,\s*|\s+and\b|\s+or\b|\s+no\b|\s+without\b|\s+denies\b|\s+not\b|$)"
         negated_symptoms = []
-        for field in [note.situation or '', note.hpi or '', note.assessment or '', note.aggravating_factors or '', note.alleviating_factors or '']:
+        for field in [note.situation or '', note.hpi or '', note.assessment or '', note.aggravating_factors or '', note.alleviating_factors or '', getattr(note, 'symptoms', '') or '']:
             field_lower = re.sub(r'[;:]', ' ', re.sub(r'\s+', ' ', field.lower()))
             matches = re.findall(negation_pattern, field_lower, re.IGNORECASE)
             for _, negated in matches:

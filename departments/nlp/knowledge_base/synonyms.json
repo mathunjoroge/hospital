@@ -33,5 +33,20 @@
   "radiating pain": [
     "the patient is obese the backpain is made worse by sitting down for long the pain is alleviated by standing and stretching",
     "back pain for two weeks the patient reports backpain for three weeks on assessment"
+  ],
+  "patient presents with facial pain": [
+    "patient presents with facial pain syndrome",
+    "acute patient presents with facial pain",
+    "chronic patient presents with facial pain"
+  ],
+  "and fever for 10 days. reports purulent nasal discharge.  facial pain over maxillary sinuses": [
+    "and fever for 10 days. reports purulent nasal discharge.  facial pain over maxillary sinuses syndrome",
+    "acute and fever for 10 days. reports purulent nasal discharge.  facial pain over maxillary sinuses",
+    "chronic and fever for 10 days. reports purulent nasal discharge.  facial pain over maxillary sinuses"
+  ],
+  "obesity": [
+    "obesity syndrome",
+    "acute obesity",
+    "chronic obesity"
   ]
 }

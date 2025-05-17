@@ -6,6 +6,7 @@ from departments.nlp.logging_setup import logger
 from typing import Dict, Set, List
 
 def initialize_knowledge_files() -> None:
+    """Initialize default JSON files for knowledge base resources."""
     knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
     os.makedirs(knowledge_base_dir, exist_ok=True)
 
@@ -15,6 +16,13 @@ def initialize_knowledge_files() -> None:
         "their", "have", "has", "had", "been", "being", "other", "associated",
         "complains", "noted", "states", "observed", "left", "right", "ago",
         "since", "recently", "following", "during", "upon", "after"
+    ]
+
+    default_medical_terms = [
+        "facial pain", "nasal congestion", "purulent nasal discharge", "fever",
+        "headache", "cough", "chest pain", "diarrhea", "shortness of breath",
+        "photophobia", "neck stiffness", "rash", "back pain", "knee pain",
+        "epigastric pain", "chills", "chest tightness", "fatigue"
     ]
 
     default_synonyms = {
@@ -30,7 +38,8 @@ def initialize_knowledge_files() -> None:
         "photophobia": ["light sensitivity", "eye discomfort"],
         "neck stiffness": ["nuchal rigidity", "neck pain"],
         "rash": ["skin eruption", "dermatitis"],
-        "back pain": ["lower back pain", "lumbar pain", "backache", "back stiffness"]
+        "back pain": ["lower back pain", "lumbar pain", "backache", "back stiffness"],
+        "chest tightness": ["chest pressure", "tightness in chest"]
     }
 
     default_diagnosis_relevance = {
@@ -95,6 +104,10 @@ def initialize_knowledge_files() -> None:
             {"symptom": "back pain", "weight": 0.5},
             {"symptom": "pain on movement", "weight": 0.3},
             {"symptom": "no trauma", "weight": 0.2}
+        ],
+        "angina": [
+            {"symptom": "chest tightness", "weight": 0.5},
+            {"symptom": "chest pain", "weight": 0.3}
         ]
     }
 
@@ -153,7 +166,7 @@ def initialize_knowledge_files() -> None:
             }
         },
         "cardiovascular": {
-            "chest pain|shortness of breath": {
+            "chest pain|shortness of breath|chest tightness": {
                 "differentials": ["Angina", "Myocardial infarction", "Pulmonary embolism"],
                 "contextual_triggers": ["recent immobility for pulmonary embolism"],
                 "required_symptoms": ["chest pain"],
@@ -252,7 +265,7 @@ def initialize_knowledge_files() -> None:
 
     resources = {
         "medical_stop_words": (default_stop_words, lambda x: set(x)),
-        "medical_terms": ([], lambda x: set(x)),
+        "medical_terms": (default_medical_terms, lambda x: set(x)),
         "synonyms": (default_synonyms, lambda x: x),
         "clinical_pathways": (default_clinical_pathways, lambda x: x),
         "history_diagnoses": (default_history_diagnoses, lambda x: x),
@@ -271,6 +284,7 @@ def initialize_knowledge_files() -> None:
                 logger.error(f"Failed to create {file_path}: {str(e)}")
 
 def load_knowledge_base() -> Dict:
+    """Load knowledge base from JSON files with validation."""
     initialize_knowledge_files()
     knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
     resources = {
@@ -388,3 +402,31 @@ def load_knowledge_base() -> Dict:
             logger.error(f"Invalid JSON in {file_path}: {str(e)}. Using default data.")
             knowledge[key] = resources[key][0]
     return knowledge
+
+def save_knowledge_base(kb: Dict) -> bool:
+    """Save knowledge base to respective JSON files."""
+    knowledge_base_dir = os.path.join(os.path.dirname(__file__), "knowledge_base")
+    os.makedirs(knowledge_base_dir, exist_ok=True)
+    resources = {
+        "medical_stop_words": "medical_stop_words.json",
+        "medical_terms": "medical_terms.json",
+        "synonyms": "synonyms.json",
+        "clinical_pathways": "clinical_pathways.json",
+        "history_diagnoses": "history_diagnoses.json",
+        "diagnosis_relevance": "diagnosis_relevance.json",
+        "management_config": "management_config.json"
+    }
+    try:
+        for key, filename in resources.items():
+            file_path = os.path.join(knowledge_base_dir, filename)
+            data = kb.get(key, {})
+            if key == "medical_stop_words" or key == "medical_terms":
+                data = list(data) if isinstance(data, set) else data
+            with open(file_path, 'w') as f:
+                json.dump(data, f, indent=2)
+            logger.info(f"Saved {key} to {file_path}")
+        logger.info("Knowledge base saved to JSON files.")
+        return True
+    except Exception as e:
+        logger.error(f"Error saving knowledge base: {str(e)}")
+        return False

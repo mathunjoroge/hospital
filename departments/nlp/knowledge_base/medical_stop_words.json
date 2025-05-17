@@ -1,5 +1,25 @@
 [
-    "patient", "history", "present", "illness", "denies", "reports",
-    "without", "with", "this", "that", "these", "those", "they", "them",
-    "their", "have", "has", "had", "been", "being", "other", "associated"
+  "those",
+  "them",
+  "reports",
+  "m",
+  "they",
+  "illness",
+  "their",
+  "without",
+  "associated",
+  "patient",
+  "had",
+  "this",
+  "that",
+  "have",
+  "been",
+  "history",
+  "present",
+  "these",
+  "other",
+  "with",
+  "denies",
+  "being",
+  "has"
 ]
