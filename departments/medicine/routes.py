@@ -6,6 +6,9 @@ from departments.nlp.note_processing import generate_ai_summary
 from departments.nlp.ai_summary import generate_ai_analysis
 from departments.nlp.batch_processing import update_single_soap_note
 from departments.nlp.clinical_analyzer import ClinicalAnalyzer
+from departments.nlp.batch_processing import update_single_soap_note
+from departments.nlp.kb_updater import KnowledgeBaseUpdater
+from departments.nlp.logging_setup import logger
 from psycopg2.extras import RealDictCursor
 from flask import current_app
 from flask_login import login_required, current_user
@@ -16,6 +19,7 @@ from flask_socketio import SocketIO
 import uuid
 from uuid import uuid4
 from sqlalchemy.orm import joinedload
+import bleach  # For sanitizing descriptions
 from . import bp
 import os
 from datetime import datetime
@@ -185,7 +189,49 @@ def notes(patient_id):
 
     patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
     last_soap_note = SOAPNote.query.filter_by(patient_id=patient_id).order_by(SOAPNote.created_at.desc()).first()
-    return render_template('medicine/notes.html', patient=patient, soap_notes=last_soap_note)  
+    return render_template('medicine/notes.html', patient=patient, soap_notes=last_soap_note)      
+@bp.route('/notes/<int:note_id>/reprocess', methods=['POST'])
+@login_required
+def reprocess_note(note_id):
+    if current_user.role not in ['medicine', 'admin']:
+        flash('You do not have permission to perform this action.', 'error')
+        return redirect(url_for('medicine.index'))
+    try:
+        update_single_soap_note(note_id)
+        flash('SOAP note reprocessed successfully.', 'success')
+    except Exception as e:
+        logger.error(f"Error reprocessing note {note_id}: {str(e)}")
+        flash('Error reprocessing note.', 'error')
+    return redirect(url_for('medicine.notes', patient_id=SOAPNote.query.get(note_id).patient_id))
+
+@bp.route('/notes/<int:note_id>/update_kb', methods=['POST'])
+@login_required
+def update_knowledge_base(note_id):
+    if current_user.role not in ['medicine', 'admin']:
+        flash('You do not have permission to perform this action.', 'error')
+        return redirect(url_for('medicine.index'))
+    from flask import request
+    symptom = request.form.get('symptom')
+    category = request.form.get('category')
+    context = request.form.get('context', '')
+    if not symptom or not category:
+        flash('Symptom and category are required.', 'error')
+        return redirect(url_for('medicine.notes', patient_id=SOAPNote.query.get(note_id).patient_id))
+    try:
+        kb_updater = KnowledgeBaseUpdater()
+        if kb_updater.is_new_symptom(symptom.lower()):
+            synonyms = kb_updater.generate_synonyms(symptom)
+            success = kb_updater.update_knowledge_base(symptom, category, synonyms, context)
+            if success:
+                flash(f"Knowledge base updated with new symptom: {symptom}.", 'success')
+            else:
+                flash('Symptom already exists in knowledge base.', 'info')
+        else:
+            flash('Symptom already exists in knowledge base.', 'info')
+    except Exception as e:
+        logger.error(f"Error updating knowledge base for symptom {symptom}: {str(e)}")
+        flash('Error updating knowledge base.', 'error')
+    return redirect(url_for('medicine.notes', patient_id=SOAPNote.query.get(note_id).patient_id))
 
 @bp.route('/update_missing_ai_summaries', methods=['POST'])
 @login_required
@@ -434,7 +480,6 @@ def request_lab_tests(patient_id):
         return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
 
 
-# Handle imaging requests
 @bp.route('/request_imaging/<patient_id>', methods=['GET', 'POST'])
 @login_required
 def request_imaging(patient_id):
@@ -444,52 +489,100 @@ def request_imaging(patient_id):
         return redirect(url_for('home'))
 
     try:
-        # Fetch the patient from the waiting list
+        # Fetch patient from waiting list
         patient_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).options(
             joinedload(PatientWaitingList.patient)
         ).first()
         if not patient_entry or not patient_entry.patient:
             flash(f'Patient with ID {patient_id} not found in the waiting list!', 'error')
-            return redirect(url_for('medicine.index'))  # Redirect to index if patient not found
+            return redirect(url_for('medicine.index'))
         patient = patient_entry.patient
 
-        # Fetch available imaging types for dropdowns
+        # Fetch latest SOAP note
+        soap_notes = SOAPNote.query.filter_by(patient_id=patient_id).order_by(SOAPNote.created_at.desc()).first()
+
+        # Fetch available imaging types
         imaging_types = Imaging.query.all()
 
         if request.method == 'POST':
-            # Extract form data
+            # 🔍 DEBUG: Log raw form data
+            print("Raw form data:", request.form)
+            logger.debug(f"Raw form data for patient {patient_id}: {dict(request.form)}")
+            flash("Form submitted. Processing data...", "info")
+
+            # Get selected imaging types
             imaging_ids = request.form.getlist('imaging_types[]')
+
             if not imaging_ids:
                 flash('No imaging types selected!', 'error')
                 return render_template(
                     'medicine/request_imaging.html',
                     patient=patient,
+                    soap_notes=soap_notes,
                     imaging_types=imaging_types
                 )
 
-            # Save requested imaging to the database
+            # 🔍 DEBUG: Show what imaging IDs were received
+            logger.debug(f"Imaging IDs received: {imaging_ids}")
+            flash(f"Imaging types selected: {', '.join(imaging_ids)}", "debug")
+
+            # Extract descriptions dynamically (e.g., descriptions[3])
+            descriptions = {}
+            for key, value in request.form.items():
+                if key.startswith('descriptions['):
+                    imaging_id = key.split('[')[1].split(']')[0]
+                    descriptions[imaging_id] = value.strip() if value else ''
+
+            # 🔍 DEBUG: Show parsed descriptions
+            logger.debug(f"Parsed descriptions: {descriptions}")
+            flash(f"Parsed descriptions: {descriptions}", "debug")
+
+            # Validate and save each imaging request
             for imaging_id in imaging_ids:
+                description = descriptions.get(str(imaging_id), '').strip()
+
+                # 🔍 DEBUG: Show each imaging ID and its description
+                logger.debug(f"Processing imaging ID: {imaging_id}, Description: {description[:50]}...")
+
+                # Enforce 500-character limit
+                if len(description) > 500:
+                    error_msg = f'Description for imaging ID {imaging_id} exceeds 500 characters.'
+                    logger.warning(error_msg)
+                    flash(error_msg, 'error')
+                    return render_template(
+                        'medicine/request_imaging.html',
+                        patient=patient,
+                        soap_notes=soap_notes,
+                        imaging_types=imaging_types
+                    )
+                result_id = str(uuid.uuid4())    
                 new_image_request = RequestedImage(
                     patient_id=patient_id,
-                    imaging_id=imaging_id
+                    imaging_id=imaging_id,
+                    result_id=result_id,  # ✅ Add the UUID here for every request
+                    description=description or None  # Store as NULL if empty
                 )
                 db.session.add(new_image_request)
 
             db.session.commit()
-            flash('Imaging requested successfully!', 'success')
+            success_msg = 'Imaging requested successfully!'
+            logger.info(success_msg)
+            flash(success_msg, 'success')
             return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
 
-        # Render the imaging request form on GET request
+        # GET: Render the form
         return render_template(
             'medicine/request_imaging.html',
             patient=patient,
+            soap_notes=soap_notes,
             imaging_types=imaging_types
         )
 
     except Exception as e:
-        flash(f'Error requesting imaging: {e}', 'error')
-        db.session.rollback()  # Rollback changes in case of error
-        print(f"Debug: Error in medicine.request_imaging: {e}")  # Debugging
+        db.session.rollback()
+        error_msg = f"Error in medicine.request_imaging: {e}"
+        logger.error(error_msg, exc_info=True)
+        flash(f'An error occurred: {e}', 'error')
         return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
 # # Handle drug prescription requests
 @bp.route('/prescribe_drugs/<patient_id>', methods=['GET', 'POST'])

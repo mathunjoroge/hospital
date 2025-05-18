@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
+
 <div class="container mt-5">
     <h2 class="mb-4 text-center">Request Lab Tests for {{ patient.name }} ({{ patient.patient_id }})</h2>
     <form method="POST" action="{{ url_for('medicine.request_lab_tests', patient_id=patient.id) }}">
         <div class="mb-3">
             <label for="lab_tests" class="form-label fw-bold">Select Lab Tests:</label>
             <!-- Combine classes into a single `class` attribute -->
-            <select id="lab_tests" name="lab_tests[]" class="form-select select2" multiple required>
+            <select id="lab_tests" name="lab_tests[]" class="selectpicker form-control" multiple required data-live-search="true" multiple required>
                 {% for lab in lab_tests %}
                 <option value="{{ lab.id }}">{{ lab.test_name }} - ${{ lab.cost }}</option>
                 {% endfor %}
@@ -19,14 +20,5 @@
     </form>
 </div>
 
-<!-- Initialize Select2 -->
-<script type="text/javascript">
-    $(document).ready(function() {
-        // Initialize Select2 on elements with the 'select2' class
-        $('.select2').select2({
-            placeholder: "Select Lab Tests", // Optional: Add a placeholder
-            allowClear: true // Optional: Allow clearing the selection
-        });
-    });
-</script>
+
 {% endblock %}

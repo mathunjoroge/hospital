@@ -19,6 +19,7 @@ class SOAPNote(db.Model):
     assessment = db.Column(db.Text, nullable=False)
     recommendation = db.Column(db.Text, nullable=True)
     additional_notes = db.Column(db.Text)
+    symptoms = db.Column(db.Text, nullable=True)
     ai_notes= db.Column(db.Text)
     ai_analysis = db.Column(db.Text)  # New column
 
@@ -152,6 +153,7 @@ class RequestedImage(db.Model):
     date_requested = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
     status = db.Column(db.Integer, default=0)  # 0: Pending, 1: Processed, 2: Cancelled
     result_id = db.Column(db.String, db.ForeignKey('imaging_results.result_id'), unique=True, nullable=True)
+    description = db.Column(db.Text, nullable=True)
     receipt_number = db.Column(db.String(255), nullable=True)  # Added for billing integration
 
     # Relationships

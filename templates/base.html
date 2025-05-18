@@ -578,5 +578,67 @@
         console.log("Select2 initialized!");
       });
     </script>
+    <script>
+$(document).ready(function () {
+    $('#imaging_types').select2({
+        placeholder: "Choose imaging studies...",
+        closeOnSelect: false,
+        width: 'resolve'
+    });
+
+    function updateDescriptionFields() {
+        const selectedOptions = $('#imaging_types').val() || [];
+        const container = $('#descriptionFields').empty();
+
+        if (selectedOptions.length === 0) {
+            container.append(`
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    No imaging studies selected. Descriptions will appear here when you select studies.
+                </div>
+            `);
+            return;
+        }
+
+        selectedOptions.forEach(imagingId => {
+            const imagingText = $(`#imaging_types option[value="${imagingId}"]`).text();
+
+            container.append(`
+                <div class="description-field">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h4 class="h6 mb-0">${imagingText} Details</h4>
+                    </div>
+                    <textarea class="form-control" 
+                              id="description_${imagingId}" 
+                              name="descriptions[${imagingId}]" 
+                              rows="3"
+                              placeholder="Enter specific instructions..."
+                              aria-label="Instructions for ${imagingText}"></textarea>
+                    <div class="form-text mt-2">Maximum 500 characters</div>
+                </div>
+            `);
+        });
+    }
+
+    updateDescriptionFields();
+    $('#imaging_types').on('change', updateDescriptionFields);
+
+    $('#imagingForm').on('submit', function () {
+        $('#submitButton').prop('disabled', true)
+            .html(`<div class="spinner-border spinner-border-sm me-2" role="status"></div> Processing...`);
+    });
+});
+</script>
+<script type="text/javascript">
+  $(document).ready(function () {
+    $('#imaging_types').select2({
+        placeholder: "Choose imaging studies...",
+        allowClear: true,
+        width: 'resolve'
+    });
+
+    // rest of your code...
+});
+</script>
   </body>
 </html>
