@@ -1,32 +1,71 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">Request Imaging for {{ patient.name }} ({{ patient.patient_id }})</h2>
-    <form method="POST" action="{{ url_for('medicine.request_imaging', patient_id=patient.id) }}">
-        <div class="mb-3">
-            <label for="imaging_types" class="form-label fw-bold">Select Imaging Type:</label>
-            <!-- Add the 'select2' class to enable Select2 -->
-            <select id="imaging_types" name="imaging_types[]" class="form-select select2" multiple required>
-                {% for imaging in imaging_types %}
-                <option value="{{ imaging.id }}">{{ imaging.imaging_type }} - ${{ imaging.cost }}</option>
-                {% endfor %}
-            </select>
+<div class="container mt-4">
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+           
+             <h2 class="mb-4 text-center">Request Imaging Study for {{ patient.name }} ({{ patient.patient_id }})</h2>
         </div>
-        <div class="text-center">
-            <button type="submit" class="btn btn-primary btn-lg px-5">Submit</button>
-            <a href="{{ url_for('medicine.soap_notes', patient_id=patient.id) }}" class="btn btn-secondary">Cancel</a>
+
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('medicine.request_imaging', patient_id=patient.patient_id ) }}" id="imagingForm">
+                <div class="mb-4">
+                    <label for="imaging_types" class="form-label">
+                        Imaging Type <span class="required-asterisk">*</span>
+                    </label>
+                 <select id="imaging_types" name="imaging_types[]" 
+        class="form-control select2" multiple="multiple" required
+        data-placeholder="Choose imaging studies..."
+        style="width: 100%;">
+    {% for imaging in imaging_types %}
+    <option value="{{ imaging.id }}">
+        {{ imaging.imaging_type }}
+    </option>
+    {% endfor %}
+</select>
+                    <div id="imagingTypesHelp" class="form-text mt-2">
+                        💡 Select multiple studies if needed. Click × to remove.
+                    </div>
+                </div>
+
+                <div id="descriptionFields" class="mb-4" aria-live="polite"></div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg" id="submitButton">
+                        <i class="bi bi-send-fill me-2"></i>Submit Request
+                    </button>
+                    <a href="{{ url_for('medicine.soap_notes', patient_id=patient.id) }}" 
+                       class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </a>
+                </div>
+            </form>
         </div>
-    </form>
+    </div>
+
+    <!-- Patient Summary Card -->
+    <div class="card border-info mb-4">
+        <div class="card-header bg-info text-white">
+            <h3 class="h6 mb-0">Patient Summary</h3>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Patient ID</dt>
+                <dd class="col-sm-9">{{ patient.patient_id }}</dd>
+
+                <dt class="col-sm-3">Name</dt>
+                <dd class="col-sm-9">{{ patient.name }}</dd>
+
+                <dt class="col-sm-3">Recent Notes</dt>
+                <dd class="col-sm-9 text-muted">{{ soap_notes.ai_notes|truncate(150) }}</dd>
+            </dl>
+        </div>
+    </div>
 </div>
 
-<!-- Initialize Select2 -->
-<script type="text/javascript">
-    $(document).ready(function() {
-        // Initialize Select2 on elements with the 'select2' class
-        $('.select2').select2({
-            placeholder: "Select Imaging Types", // Optional: Add a placeholder
-            allowClear: true // Optional: Allow clearing the selection
-        });
-    });
-</script>
+<!-- Select2 JS -->
+
+
+
 {% endblock %}

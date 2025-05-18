@@ -4,7 +4,7 @@
 <div class="container mt-4">
     <div class="card shadow">
         <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">Patient Documentation (SBAR)</h4>
+            <h4 class="mb-0">Patient Documentation (SBAR)  for {{ patient.name }} ({{ patient.patient_id }})</h4>
         </div>
         <div class="card-body">
             <form method="POST" action="{{ url_for('medicine.submit_soap_notes', patient_id=patient.patient_id) }}" enctype="multipart/form-data">
@@ -89,9 +89,7 @@
 <div class="mt-4">
     <h3>Actions</h3>
 <ul class="list-unstyled d-flex gap-2">
-    <li><a href="{{ url_for('medicine.request_lab_tests', patient_id=patient.patient_id) }}" class="btn btn-primary">Request Lab Tests</a></li>
-    <li><a href="{{ url_for('medicine.request_imaging', patient_id=patient.patient_id) }}" class="btn btn-primary">Request Imaging</a></li>
-    <li><a href="{{ url_for('medicine.prescribe_drugs', patient_id=patient.patient_id) }}" class="btn btn-primary">Prescribe Drugs</a></li>
+
     <li> <a href="{{ url_for('medicine.index') }}" class="btn btn-secondary">Back to Waiting List</a></li>
 </ul>
 
