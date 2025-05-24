@@ -2,6 +2,7 @@ from extensions import db
 from datetime import datetime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from departments.models.user import User
 class SOAPNote(db.Model):
     __tablename__ = 'soap_notes'
 

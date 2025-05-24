@@ -8,7 +8,6 @@ from departments.nlp.batch_processing import update_single_soap_note
 from departments.nlp.clinical_analyzer import ClinicalAnalyzer
 from departments.nlp.batch_processing import update_single_soap_note
 from departments.nlp.kb_updater import KnowledgeBaseUpdater
-from departments.nlp.logging_setup import logger
 from psycopg2.extras import RealDictCursor
 from flask import current_app
 from flask_login import login_required, current_user
@@ -32,9 +31,10 @@ from departments.models.medicine import (
 from departments.forms import AdmitPatientForm
 import logging
 import json
+from departments.nlp.logging_setup import get_logger
+logger = get_logger()
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+
 
 socketio = SocketIO()
 prescription_id = str(uuid.uuid4())

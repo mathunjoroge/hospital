@@ -1,6 +1,86 @@
 [
-  "m",
-  "patient presents with facial pain",
-  "obesity",
-  "and fever for 10 days. reports purulent nasal discharge.  facial pain over maxillary sinuses"
+  {
+    "term": "bilateral nasal congestion",
+    "category": "genitourinary",
+    "umls_cui": null,
+    "semantic_type": "Unknown"
+  },
+  {
+    "term": "patient complains of headache the headache started three days ago. the headache is associated with fevers and chills",
+    "category": "musculoskeletal",
+    "umls_cui": null,
+    "semantic_type": "Unknown"
+  },
+  {
+    "term": "nausea and vomiting and loss of appetite the patient has jaundice in the eyes taking foods with fats makes the nausea worse taking strong tea and licking salt alleviates the nausea",
+    "category": "musculoskeletal",
+    "umls_cui": null,
+    "semantic_type": "Unknown"
+  },
+  {
+    "term": "and purulent nasal discharge for 10 days. low-grade fever (up to 100.5\u00b0f). no sore throat or hearing loss. pulmonary: no cough or shortness of breath. cardiovascular: no chest pain or palpitations. neurological: mild headache associated with sinus pain",
+    "category": "musculoskeletal",
+    "umls_cui": null,
+    "semantic_type": "Unknown"
+  },
+  {
+    "term": "no dizziness. musculoskeletal: no joint pain or stiffness. gastrointestinal: no nausea or diarrhea. genitourinary: no urinary changes. endocrine: no weight changes or thirst. hematologic: no easy bruising or bleeding. dermatologic: no rashes or lesions. psychiatric: no mood changes. ophthalmologic: no vision changes. primary assessment: symptoms consistent with acute bacterial sinusitis",
+    "category": "genitourinary",
+    "umls_cui": null,
+    "semantic_type": "Unknown"
+  },
+  {
+    "term": "likely secondary to recent viral upper respiratory infection. differential includes viral sinusitis or allergic rhinitis. other systems: neurological: headache likely related to sinusitis. endocrine: stable diabetes. cardiovascular: stable hypertension. no acute abnormalities in pulmonary",
+    "category": "genitourinary",
+    "umls_cui": null,
+    "semantic_type": "Unknown"
+  },
+  {
+    "term": "back pain for two weeks",
+    "category": "musculoskeletal",
+    "umls_cui": null,
+    "semantic_type": "Unknown"
+  },
+  {
+    "term": "patient complains of headache",
+    "category": "neurological",
+    "umls_cui": null,
+    "semantic_type": "Unknown"
+  },
+  {
+    "term": "musculoskeletal",
+    "category": "hematologic",
+    "umls_cui": null,
+    "semantic_type": "Unknown"
+  },
+  {
+    "term": "hematologic",
+    "category": "gastrointestinal",
+    "umls_cui": null,
+    "semantic_type": "Unknown"
+  },
+  {
+    "term": "dermatologic",
+    "category": "genitourinary",
+    "umls_cui": null,
+    "semantic_type": "Unknown"
+  },
+  {
+    "term": "psychiatric",
+    "category": "gastrointestinal",
+    "umls_cui": null,
+    "semantic_type": "Unknown"
+  },
+  {
+    "term": "or ophthalmologic systems. cold air and bending forward worsen facial pain. warm compresses and over-the-counter decongestants provide partial relief.",
+    "category": "genitourinary",
+    "umls_cui": null,
+    "semantic_type": "Unknown"
+  },
+  {
+    "term": "patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge.",
+    "category": "respiratory",
+    "umls_cui": null,
+    "semantic_type": "Unknown"
+  }
 ]

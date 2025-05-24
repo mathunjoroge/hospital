@@ -1,4 +1,3 @@
-# departments/nlp/clinical_analyzer.py
 from typing import List, Dict, Set, Tuple, Optional
 import torch
 import re
@@ -6,37 +5,53 @@ import os
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
+import spacy
+import medspacy
+from medspacy.target_matcher import TargetRule
+from scispacy.linking import EntityLinker
+import requests
+from tenacity import retry, stop_after_attempt, wait_fixed
 from departments.models.medicine import SOAPNote
 from departments.models.records import Patient
-from departments.nlp.logging_setup import logger
-from departments.nlp.config import SIMILARITY_THRESHOLD, CONFIDENCE_THRESHOLD, EMBEDDING_DIM, UTS_API_KEY
+from departments.nlp.logging_setup import get_logger
+from departments.nlp.nlp_pipeline import get_nlp
+from departments.nlp.config import SIMILARITY_THRESHOLD, CONFIDENCE_THRESHOLD, EMBEDDING_DIM, UTS_API_KEY, UTS_BASE_URL
 from departments.nlp.nlp_utils import embed_text, preprocess_text, deduplicate, get_patient_info
 from departments.nlp.helper_functions import extract_duration, classify_severity, extract_location, extract_aggravating_alleviating
 from departments.nlp.models.transformer_model import model, tokenizer
 from departments.nlp.symptom_tracker import SymptomTracker
 from departments.nlp.knowledge_base import load_knowledge_base
 from departments.nlp.kb_updater import KnowledgeBaseUpdater
-import requests
+
+logger = get_logger()
 
 class ClinicalAnalyzer:
     def __init__(self):
         self.model = model
         self.tokenizer = tokenizer
         self.uts_api_key = UTS_API_KEY or 'mock_api_key'
+        self.uts_base_url = UTS_BASE_URL
         mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017')
         db_name = os.getenv('DB_NAME', 'clinical_db')
         kb_prefix = os.getenv('KB_PREFIX', 'kb_')
         self.medical_stop_words: Set[str] = set()
-        self.medical_terms: List[Dict] = []  # Updated to list of dicts for UMLS metadata
+        self.medical_terms: List[Dict] = []
         self.synonyms: Dict[str, List[str]] = {}
         self.clinical_pathways: Dict[str, Dict[str, Dict]] = {}
         self.history_diagnoses: Dict[str, List[str]] = {}
         self.diagnosis_relevance: Dict[str, List[Dict]] = {}
         self.management_config: Dict[str, str] = {}
         self.diagnosis_treatments: Dict[str, Dict] = {}
-        try:
+
+        # Connect to MongoDB with retry
+        @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+        def connect_to_mongo():
             client = MongoClient(mongo_uri)
             client.admin.command('ping')
+            return client
+
+        try:
+            client = connect_to_mongo()
             db = client[db_name]
             collections = {
                 'medical_stop_words': f'{kb_prefix}medical_stop_words',
@@ -108,6 +123,7 @@ class ClinicalAnalyzer:
                 differentials = path.get('differentials', [])
                 self.diagnoses_list.update(d.lower() for d in differentials if isinstance(d, str))
 
+        # Initialize SymptomTracker
         self.common_symptoms = SymptomTracker(
             mongo_uri=mongo_uri,
             db_name=db_name,
@@ -116,11 +132,30 @@ class ClinicalAnalyzer:
         if not self.common_symptoms.get_all_symptoms():
             logger.warning("No symptoms loaded into SymptomTracker.")
 
+        # Initialize spaCy with medspacy
+        self.nlp = get_nlp()
+        self._add_symptom_rules()
+
+    def _add_symptom_rules(self):
+        """Add explicit symptom rules to medspacy_target_matcher."""
+        try:
+            target_matcher = self.nlp.get_pipe("medspacy_target_matcher")
+            rules = [
+                TargetRule("facial pain", "SYMPTOM"),
+                TargetRule("nasal congestion", "SYMPTOM"),
+                TargetRule("fever", "SYMPTOM"),
+                TargetRule("purulent nasal discharge", "SYMPTOM"),
+            ]
+            target_matcher.add(rules)
+            logger.debug("Added symptom rules to medspacy_target_matcher")
+        except Exception as e:
+            logger.error(f"Failed to add symptom rules: {str(e)}")
+
     def _load_knowledge_fallback(self):
         """Load knowledge base from JSON if MongoDB fails."""
         kb = load_knowledge_base()
         self.medical_stop_words = kb.get('medical_stop_words', set())
-        self.medical_terms = kb.get('medical_terms', [])  # Already a list of dicts
+        self.medical_terms = kb.get('medical_terms', [])
         self.synonyms = kb.get('synonyms', {})
         self.clinical_pathways = kb.get('clinical_pathways', {})
         self.history_diagnoses = kb.get('history_diagnoses', {})
@@ -128,40 +163,83 @@ class ClinicalAnalyzer:
         self.management_config = kb.get('management_config', {})
         self.diagnosis_treatments = kb.get('diagnosis_treatments', {})
 
+    def _get_uts_ticket(self) -> str:
+        """Retrieve a single-use ticket for UTS API."""
+        if not self.uts_api_key or self.uts_api_key == 'mock_api_key':
+            logger.error("UTS_API_KEY is not set or is using mock key. Please configure a valid API key.")
+            return ''
+        try:
+            ticket_url = f"{self.uts_base_url}/tickets"
+            response = requests.post(ticket_url, data={'apiKey': self.uts_api_key})
+            response.raise_for_status()
+            return response.text
+        except Exception as e:
+            logger.error(f"Failed to get UTS ticket: {str(e)}")
+            return ''
+
     def _get_umls_cui(self, symptom: str) -> Tuple[Optional[str], Optional[str]]:
-        """Retrieve UMLS CUI and semantic type for a symptom."""
+        """Retrieve UMLS CUI and semantic type for a symptom with caching."""
+        symptom_lower = symptom.lower()
+        try:
+            client = MongoClient(os.getenv('MONGO_URI', 'mongodb://localhost:27017'))
+            db = client[os.getenv('DB_NAME', 'clinical_db')]
+            cache = db['umls_cache']
+            cached = cache.find_one({'symptom': symptom_lower})
+            if cached:
+                logger.debug(f"Retrieved cached UMLS data for '{symptom_lower}'")
+                client.close()
+                return cached['cui'], cached['semantic_type']
+        except Exception as e:
+            logger.error(f"Error accessing UMLS cache: {str(e)}")
+
         if self.uts_api_key == 'mock_api_key':
             mock_data = {
                 'chest tightness': {'cui': 'C0242209', 'semantic_type': 'Sign or Symptom'},
                 'back pain': {'cui': 'C0004604', 'semantic_type': 'Sign or Symptom'},
-                'obesity': {'cui': 'C0028754', 'semantic_type': 'Disease or Syndrome'}
+                'obesity': {'cui': 'C0028754', 'semantic_type': 'Disease or Syndrome'},
+                'facial pain': {'cui': 'C0234450', 'semantic_type': 'Sign or Symptom'},
+                'nasal congestion': {'cui': 'C0027424', 'semantic_type': 'Sign or Symptom'},
+                'fever': {'cui': 'C0015967', 'semantic_type': 'Sign or Symptom'},
+                'purulent nasal discharge': {'cui': 'C0242209', 'semantic_type': 'Sign or Symptom'}
             }
-            return mock_data.get(symptom.lower(), {'cui': None, 'semantic_type': 'Unknown'}).values()
+            result = mock_data.get(symptom_lower, {'cui': None, 'semantic_type': 'Unknown'})
+            return result['cui'], result['semantic_type']
+
         try:
-            ticket_url = "https://uts-ws.nlm.nih.gov/rest/tickets"
-            ticket_response = requests.post(ticket_url, data={'apiKey': self.uts_api_key})
-            ticket_response.raise_for_status()
-            ticket = ticket_response.text
-            search_url = "https://uts-ws.nlm.nih.gov/rest/search/current"
-            params = {'string': symptom, 'ticket': ticket, 'searchType': 'exact', 'sabs': 'SNOMEDCT_US'}
+            ticket = self._get_uts_ticket()
+            if not ticket:
+                return None, 'Unknown'
+            search_url = f"{self.uts_base_url}/search/current"
+            params = {'string': symptom_lower, 'ticket': ticket, 'searchType': 'exact', 'sabs': 'SNOMEDCT_US'}
             response = requests.get(search_url, params=params)
             response.raise_for_status()
             data = response.json()
             if data.get('result', {}).get('results'):
                 cui = data['result']['results'][0]['ui']
-                concept_url = f"https://uts-ws.nlm.nih.gov/rest/content/current/CUI/{cui}"
+                concept_url = f"{self.uts_base_url}/content/current/CUI/{cui}"
                 concept_response = requests.get(concept_url, params={'ticket': ticket})
                 concept_response.raise_for_status()
                 concept_data = concept_response.json()
                 semantic_type = concept_data['result'].get('semanticTypes', [{}])[0].get('name', 'Unknown')
+                try:
+                    cache.insert_one({
+                        'symptom': symptom_lower,
+                        'cui': cui,
+                        'semantic_type': semantic_type
+                    })
+                    logger.debug(f"Cached UMLS data for '{symptom_lower}'")
+                except Exception as e:
+                    logger.error(f"Failed to cache UMLS data: {str(e)}")
+                finally:
+                    client.close()
                 return cui, semantic_type
             return None, 'Unknown'
         except Exception as e:
-            logger.error(f"UMLS CUI retrieval failed for '{symptom}': {str(e)}")
+            logger.error(f"UMLS CUI retrieval failed for '{symptom_lower}': {str(e)}")
             return None, 'Unknown'
 
     def extract_clinical_features(self, note: SOAPNote, expected_symptoms: Optional[List[str]] = None) -> Dict:
-        """Extract clinical features from a SOAP note and update knowledge base with new symptoms."""
+        """Extract clinical features from a SOAP note, integrating spaCy and UMLS."""
         if not isinstance(note, SOAPNote):
             logger.error(f"Invalid note type: {type(note)}")
             return {
@@ -192,9 +270,36 @@ class ClinicalAnalyzer:
                 'symptoms': []
             }
 
-            # Symptom extraction
+            # Combine text for processing
+            text = f"{note.situation or ''} {note.hpi or ''} {note.assessment or ''} {note.aggravating_factors or ''} {note.alleviating_factors or ''}".lower().strip()
+
+            # spaCy-based symptom extraction
+            spacy_symptoms = []
+            if self.nlp:
+                doc = self.nlp(text)
+                for ent in doc.ents:
+                    for umls_ent in ent._.kb_ents:
+                        cui, score = umls_ent[0], umls_ent[1]
+                        if score < 0.7:  # Confidence threshold
+                            continue
+                        linker = self.nlp.get_pipe("scispacy_linker")
+                        concept = linker.kb.cui_to_entity[cui]
+                        spacy_symptoms.append({
+                            'description': ent.text.lower(),
+                            'category': self.common_symptoms._infer_category(ent.text.lower(), features['chief_complaint']),
+                            'definition': concept.canonical_name,
+                            'duration': extract_duration(text) or 'Unknown',
+                            'severity': classify_severity(text) or 'Unknown',
+                            'location': extract_location(text, ent.text.lower()) or 'Unknown',
+                            'aggravating': features['aggravating_factors'],
+                            'alleviating': features['alleviating_factors'],
+                            'umls_cui': cui,
+                            'semantic_type': concept.types[0] if concept.types else 'Unknown'
+                        })
+
+            # Merge spaCy symptoms with existing extraction
             features['symptoms'] = self.common_symptoms.process_note(note, features['chief_complaint'], expected_symptoms)
-            text = f"{note.situation or ''} {note.hpi or ''} {note.assessment or ''} {note.aggravating_factors or ''} {note.alleviating_factors or ''}".lower()
+            features['symptoms'].extend([s for s in spacy_symptoms if s['description'] not in [x['description'] for x in features['symptoms']]])
 
             # Detect new symptoms
             potential_symptoms = getattr(note, 'symptoms', None) or [s.strip() for s in text.split(',') if s.strip() and len(s.strip()) > 2]
@@ -263,9 +368,13 @@ class ClinicalAnalyzer:
                 })
 
             # Context extraction
-            features['context'] = extract_aggravating_alleviating(note)
-            features['context']['sedentary'] = 'sedentary' in features['hpi'].lower() or 'sitting' in features['aggravating_factors'].lower()
-            features['context']['medication'] = features['medications']
+            context = extract_aggravating_alleviating(note)
+            features['context'] = {
+                'aggravating': context.get('aggravating', ''),
+                'alleviating': context.get('alleviating', ''),
+                'sedentary': 'sedentary' in features['hpi'].lower() or 'sitting' in features['aggravating_factors'].lower(),
+                'medication': features['medications']
+            }
 
             features['symptoms'] = deduplicate(features['symptoms'])
             logger.debug(f"Extracted features for note ID {note.id}: {features}")
@@ -291,6 +400,7 @@ class ClinicalAnalyzer:
         dx_lower = dx.lower()
         symptom_words = {s.get('description', '').lower() for s in features.get('symptoms', [])}
         symptom_cuis = {s.get('umls_cui') for s in features.get('symptoms', []) if s.get('umls_cui')}
+        semantic_types = {s.get('semantic_type') for s in features.get('symptoms', []) if s.get('semantic_type')}
         history = features.get('history', '').lower()
         chief_complaint = features.get('chief_complaint', '').lower()
         assessment = features.get('assessment', '').lower()
@@ -306,6 +416,8 @@ class ClinicalAnalyzer:
 
         required_symptoms = [r['symptom'] for r in self.diagnosis_relevance.get(dx_lower, [])]
         matches = sum(1 for req in required_symptoms if req in symptom_words or req in history or req in chief_complaint)
+        if 'Sign or Symptom' in semantic_types:
+            matches += 0.5
         critical_conditions = {'myocardial infarction', 'pulmonary embolism', 'aortic dissection'}
         min_matches = 2 if dx_lower in critical_conditions else 1
         relevance = matches >= min_matches or any(req in chief_complaint for req in required_symptoms)
@@ -325,8 +437,14 @@ class ClinicalAnalyzer:
             additional_notes = features.get('additional_notes', '').lower()
             chief_complaint = features.get('chief_complaint', '').lower()
             assessment = features.get('assessment', '').lower()
-            text = f"{chief_complaint} {features.get('hpi', '')} {additional_notes}"
-            text_embedding = embed_text(text)
+            text = f"{chief_complaint} {features.get('hpi', '')} {additional_notes}".strip()
+
+            # Check for empty text
+            if not text:
+                logger.warning("Empty text for embedding, skipping embedding-based scoring")
+                text_embedding = None
+            else:
+                text_embedding = embed_text(text)
 
             # Patient info
             patient_id = getattr(patient, 'patient_id', None) if patient else None
@@ -411,7 +529,6 @@ class ClinicalAnalyzer:
                             if aggravating and alleviating:
                                 reasoning += f"; influenced by {aggravating}/{alleviating}"
 
-                            # Tier assignment
                             if diff.lower() in high_risk_conditions or diff.lower() in rare_conditions:
                                 if matches >= 3 and (not contextual_triggers or any(t.lower() in text for t in contextual_triggers)):
                                     tiered_dx['tier3'].append((diff, min(score, 0.7), reasoning + "; high-risk/rare condition"))
@@ -452,22 +569,23 @@ class ClinicalAnalyzer:
                     tiered_dx['tier2'].append(('Candidiasis', 0.85, f"Supported by recent antibiotic use and symptom: {symptom_type}"))
 
             # Embedding-based scoring
-            for dx in dx_scores:
-                try:
-                    dx_embedding = embed_text(dx)
-                    similarity = torch.cosine_similarity(text_embedding.unsqueeze(0), dx_embedding.unsqueeze(0)).item()
-                    if similarity < SIMILARITY_THRESHOLD:
-                        continue
-                    old_score, reasoning = dx_scores[dx]
-                    adjusted_score = min(old_score + similarity * 0.05, 0.95)
-                    dx_scores[dx] = (adjusted_score, reasoning)
-                    for tier in tiered_dx:
-                        for i, (t_dx, t_score, t_reason) in enumerate(tiered_dx[tier]):
-                            if t_dx == dx:
-                                tiered_dx[tier][i] = (dx, adjusted_score, t_reason)
-                                break
-                except Exception as e:
-                    logger.warning(f"Similarity failed for dx {dx}: {str(e)}")
+            if text_embedding is not None:
+                for dx in dx_scores:
+                    try:
+                        dx_embedding = embed_text(dx)
+                        similarity = torch.cosine_similarity(text_embedding.unsqueeze(0), dx_embedding.unsqueeze(0)).item()
+                        if similarity < SIMILARITY_THRESHOLD:
+                            continue
+                        old_score, reasoning = dx_scores[dx]
+                        adjusted_score = min(old_score + similarity * 0.05, 0.95)
+                        dx_scores[dx] = (adjusted_score, reasoning)
+                        for tier in tiered_dx:
+                            for i, (t_dx, t_score, t_reason) in enumerate(tiered_dx[tier]):
+                                if t_dx == dx:
+                                    tiered_dx[tier][i] = (dx, adjusted_score, t_reason)
+                                    break
+                    except Exception as e:
+                        logger.warning(f"Similarity failed for dx {dx}: {str(e)}")
 
             # Normalize and rank
             ranked_dx = tiered_dx['tier1'] + tiered_dx['tier2'] + tiered_dx['tier3']
@@ -612,6 +730,6 @@ def parse_conditional_workup(workup: str, symptoms: List[Dict]) -> str:
         desc = symptom.get('description', '').lower()
         cui = symptom.get('umls_cui')
         if condition in desc or condition in symptom.get('category', '').lower() or \
-           (cui and cui in condition):  # Match by CUI if available
+           (cui and cui in condition):
             return workup.split('if')[0].strip()
     return ''

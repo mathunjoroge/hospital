@@ -1,25 +1,26 @@
-# departments/nlp/ai_summary.py
 from typing import List, Dict, Tuple, Optional
 from departments.models.medicine import SOAPNote
 from departments.models.records import Patient
 from departments.nlp.clinical_analyzer import ClinicalAnalyzer
 from departments.nlp.symptom_tracker import SymptomTracker
 from departments.nlp.nlp_utils import get_patient_info
-from departments.nlp.knowledge_base import load_knowledge_base
+from departments.nlp.knowledge_base_io import load_knowledge_base
+from departments.nlp.nlp_pipeline import get_nlp
 import re
-import logging
-from datetime import date
-
-logger = logging.getLogger(__name__)
+from departments.nlp.logging_setup import get_logger
+logger = get_logger()
 
 def generate_rationale(features: Dict, differentials: List[Tuple], plan: Dict) -> str:
+    """Generate clinical rationale for the analysis."""
     rationale = []
     primary_dx = features.get('assessment', '').lower()
     if primary_dx and 'primary assessment:' in primary_dx:
         dx_name = re.search(r"primary assessment: (.*?)(?:\.|$)", primary_dx, re.DOTALL)
         if dx_name:
             primary_dx = dx_name.group(1).strip()
-            rationale.append(f"Primary diagnosis: {primary_dx} based on clinical features: {', '.join([s.get('description', '') for s in features.get('symptoms', [])] or ['none identified'])}.")
+            symptoms = [f"{s.get('description', '')} (CUI: {s.get('umls_cui', 'None')})" 
+                        for s in features.get('symptoms', [])]
+            rationale.append(f"Primary diagnosis: {primary_dx} based on clinical features: {', '.join(symptoms or ['none identified'])}.")
     for diff in differentials[:2]:
         dx, score, reason = diff
         if score < 0.6:
@@ -38,6 +39,7 @@ def generate_rationale(features: Dict, differentials: List[Tuple], plan: Dict) -
     return '; '.join(rationale) or 'Based on clinical features and proposed management plan.'
 
 def generate_ai_analysis(note: SOAPNote, patient: Patient = None) -> str:
+    """Generate a comprehensive AI clinical analysis for a SOAP note."""
     logger.debug(f"Generating analysis for note {getattr(note, 'id', 'unknown')}, situation: {note.situation}")
     if not isinstance(note, SOAPNote):
         logger.error(f"Invalid note type: {type(note)}")
@@ -70,6 +72,16 @@ As needed
 None available
 DISCLAIMER: This AI-generated analysis requires clinical correlation.
 """
+
+    # Initialize variables to avoid UnboundLocalError
+    negated_output = 'None reported'
+    plan = {
+        'workup': {'urgent': [], 'routine': []},
+        'treatment': {'symptomatic': [], 'definitive': [], 'lifestyle': []},
+        'follow_up': ['Follow-up in 2 weeks'],
+        'references': []
+    }
+
     try:
         analyzer = ClinicalAnalyzer()
         situation = getattr(note, 'situation', '').lower().strip()
@@ -91,11 +103,18 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
             patient_profile.append(f"Age: {patient_info['age']}")
         patient_profile_text = '; '.join(patient_profile) or 'Not provided'
 
+        # Load knowledge base for pathways
+        kb = load_knowledge_base()
         expected_symptoms = []
-        if 'acute bacterial sinusitis' in (note.assessment or '').lower():
-            expected_symptoms = ['facial pain', 'nasal congestion', 'purulent nasal discharge', 'fever', 'headache']
-        elif 'back pain' in (note.situation or '').lower() or 'backpain' in (note.hpi or '').lower():
-            expected_symptoms = ['back pain', 'pain on movement', 'obesity', 'radiating pain']
+        category = None
+        for cat, pathways in kb.get('clinical_pathways', {}).items():
+            for key, path in pathways.items():
+                if any(s.lower() in chief_complaint.lower() for s in key.split('|')):
+                    expected_symptoms = path.get('required_symptoms', [])
+                    category = cat
+                    break
+            if expected_symptoms:
+                break
 
         features = analyzer.extract_clinical_features(note, expected_symptoms=expected_symptoms)
         differentials = analyzer.generate_differential_dx(features, patient)
@@ -104,58 +123,66 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
         if differentials and differentials[0][0] == "Undetermined":
             assessment = "Not specified (insufficient data)"
 
+        # Symptom output with UMLS metadata
         symptom_text = []
         for symptom in features.get('symptoms', []):
             desc = symptom.get('description', '')
             severity = symptom.get('severity', 'Unknown')
             duration = symptom.get('duration', 'Unknown')
             location = symptom.get('location', 'Unknown')
-            symptom_text.append(f"{desc}, Severity: {severity}, Duration: {duration}, Location: {location}")
+            cui = symptom.get('umls_cui', 'None')
+            sem_type = symptom.get('semantic_type', 'Unknown')
+            symptom_text.append(f"{desc} (CUI: {cui}, Semantic Type: {sem_type}), Severity: {severity}, Duration: {duration}, Location: {location}")
         symptoms_output = '\n• '.join(symptom_text) or 'None identified'
 
+        # Negation detection with SymptomTracker
+# Negation detection with SymptomTracker
         tracker = SymptomTracker()
         negated_symptoms = tracker.process_note(note, chief_complaint, expected_symptoms)
-        negated_terms = set()
-        for field in [note.situation or '', note.hpi or '', note.assessment or '', note.additional_notes or '', note.aggravating_factors or '', note.alleviating_factors or '']:
+        negated_terms = set(s['description'].lower() for s in negated_symptoms if isinstance(s, dict) and 'description' in s)
+        # Fallback regex negation
+        for field in [note.situation or '', note.hpi or '', note.assessment or '', 
+                    note.additional_notes or '', note.aggravating_factors or '', 
+                    note.alleviating_factors or '']:
             field_lower = re.sub(r'[;:]', ' ', re.sub(r'\s+', ' ', field.lower()))
             negation_pattern = r"\b(no|denies|without|not)\b\s+([\w\s-]+?)(?=\.|,\s*|\s+and\b|\s+or\b|\s+no\b|\s+without\b|\s+denies\b|\s+not\b|$)"
             for match in re.finditer(negation_pattern, field_lower, re.IGNORECASE):
                 term = match.group(2).strip()
                 if term in tracker.get_all_symptoms():
                     negated_terms.add(term)
-        negated_terms.update(['radiculopathy', 'trauma', 'fever'])  # Add back pain-specific negations
+        negated_terms.update(['radiculopathy', 'trauma', 'fever'])  # Context-specific negations
         negated_output = '; '.join(sorted(negated_terms)) or 'None reported'
 
-        if expected_symptoms and not any(s['description'].lower() in [e.lower() for e in expected_symptoms] for s in features.get('symptoms', [])):
+        # Adjust features if symptoms don’t match expected
+        if expected_symptoms and not any(s['description'].lower() in [e.lower() for e in expected_symptoms] 
+                                       for s in features.get('symptoms', [])):
             logger.warning("Extracted symptoms do not match expected symptoms. Adjusting differentials.")
-            if 'back pain' in (note.situation or '').lower() or 'backpain' in (note.hpi or '').lower():
-                duration = '2-3 weeks' if 'two weeks' in note.situation.lower() and 'three weeks' in note.hpi.lower() else '2 weeks'
-                features['symptoms'] = [
-                    {'description': 'back pain', 'severity': 'Moderate', 'duration': duration, 'location': 'Lower back', 'category': 'musculoskeletal'},
-                    {'description': 'pain on movement', 'severity': 'Moderate', 'duration': 'Unknown', 'location': 'Lower back', 'category': 'musculoskeletal'}
-                ]
-                if 'obese' in (note.assessment or '').lower():
-                    features['symptoms'].append({'description': 'obesity', 'severity': 'Unknown', 'duration': 'Chronic', 'location': 'N/A', 'category': 'musculoskeletal'})
-                differentials = [
-                    ("Mechanical low back pain", 0.75, "Supported by obesity and sedentary factors"),
-                    ("Lumbar strain", 0.65, "Possible due to pain on movement"),
-                    ("Herniated disc", 0.55, "MRI recommended to rule out"),
-                    ("Ankylosing spondylitis", 0.45, "Less likely without systemic symptoms")
-                ]
-                plan = {
-                    'workup': {
-                        'urgent': [],
-                        'routine': ['MRI of lumbar spine' if 'mri' in (note.recommendation or '').lower() else 'Lumbar X-ray']
-                    },
-                    'treatment': {
-                        'symptomatic': ['Ibuprofen 400-600 mg PRN' if 'ibuprofen' in (note.medication_history or '').lower() else 'NSAIDs PRN'],
-                        'definitive': ['Physical therapy if persistent >4 weeks'],
-                        'lifestyle': ['Weight management', 'Core strengthening exercises']
-                    },
-                    'follow_up': ['Follow-up in 2-4 weeks'],
-                    'references': ['ACP Guidelines: https://www.acponline.org']
-                }
-                assessment = "Likely mechanical low back pain (pending imaging)"
+            if category and category in kb['clinical_pathways']:
+                path = next((p for k, p in kb['clinical_pathways'][category].items() 
+                            if any(s.lower() in chief_complaint.lower() for s in k.split('|'))), None)
+                if path:
+                    features['symptoms'] = [
+                        {
+                            'description': s,
+                            'severity': 'Moderate',
+                            'duration': 'Unknown',
+                            'location': 'Unknown',
+                            'category': category,
+                            'umls_cui': next((t['umls_cui'] for t in kb['medical_terms'] 
+                                             if t['term'].lower() == s.lower()), None),
+                            'semantic_type': next((t['semantic_type'] for t in kb['medical_terms'] 
+                                                  if t['term'].lower() == s.lower()), 'Unknown')
+                        } for s in path.get('required_symptoms', [])
+                    ]
+                    differentials = [(dx, 0.7 - 0.1*i, f"Supported by {', '.join(path.get('required_symptoms', []))}")
+                                    for i, dx in enumerate(path.get('differentials', []))]
+                    plan = {
+                        'workup': path.get('workup', {'urgent': [], 'routine': []}),
+                        'treatment': path.get('management', {'symptomatic': [], 'definitive': [], 'lifestyle': []}),
+                        'follow_up': path.get('follow_up', ['Follow-up in 2 weeks']),
+                        'references': path.get('references', [])
+                    }
+                    assessment = f"Likely {path.get('differentials', ['undetermined'])[0].lower()} (pending workup)"
 
         differential_text = []
         for i, diff in enumerate(differentials):
@@ -173,16 +200,16 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
         high_risk = any(dx.lower() in high_risk_conditions for dx, _, _ in differentials if isinstance(dx, str))
         disclaimer = "High-risk conditions detected; urgent review recommended." if high_risk else "This AI-generated analysis requires clinical correlation."
 
-        kb = load_knowledge_base()
+        # Collect references from relevant pathways
         references = set()
-        pathways = kb.get('clinical_pathways', {}).get('musculoskeletal' if 'back pain' in chief_complaint.lower() else 'respiratory', {})
-        for key, path in pathways.items():
-            if not isinstance(path, dict):
-                continue
-            if 'back pain' in key.lower() or 'sinusitis' in key.lower():
-                refs = path.get('references', [])
-                if isinstance(refs, list):
-                    references.update(refs)
+        for cat, pathways in kb.get('clinical_pathways', {}).items():
+            for key, path in pathways.items():
+                if not isinstance(path, dict):
+                    continue
+                if any(s.lower() in chief_complaint.lower() for s in key.split('|')):
+                    refs = path.get('references', [])
+                    if isinstance(refs, list):
+                        references.update(refs)
         references_output = '\n• '.join(sorted(references)) or 'None available'
 
         follow_up = 'Follow-up in 2 weeks'
@@ -190,8 +217,8 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
             follow_up_match = re.search(r'Follow-Up:\s*([^\.]+)', note.recommendation, re.IGNORECASE)
             if follow_up_match:
                 follow_up = follow_up_match.group(1).strip()
-        elif 'back pain' in chief_complaint.lower():
-            follow_up = 'Follow-up in 2-4 weeks or sooner if neurological symptoms develop'
+        elif category:
+            follow_up = plan.get('follow_up', ['Follow-up in 2 weeks'])[0]
 
         analysis_output = f"""
 [=== AI CLINICAL ANALYSIS ===]
@@ -230,30 +257,33 @@ DISCLAIMER: {disclaimer}
             'patient_profile': patient_profile_text or 'Sex: Unknown; Age: Unknown',
             'chief_complaint': chief_complaint or 'Unknown',
             'symptoms': symptoms_output or 'None identified',
-            'negated': negated_output or 'None reported',
+            'negated': negated_output,
             'diagnosis': assessment or 'Not specified',
             'differentials': differential_output or 'Undetermined: Insufficient data',
             'rationale': 'Analysis failed due to processing error',
-            'workup_urgent': '; '.join(sorted(plan['workup']['urgent'])) if 'plan' in locals() else 'None',
-            'workup_routine': '; '.join(sorted(plan['workup']['routine'])) if 'plan' in locals() else 'None',
-            'treatment_symptomatic': '; '.join(sorted(plan['treatment']['symptomatic'])) if 'plan' in locals() else 'None',
-            'treatment_definitive': '; '.join(sorted(plan['treatment']['definitive'])) if 'plan' in locals() else 'Pending diagnosis',
-            'treatment_lifestyle': '; '.join(sorted(plan['treatment'].get('lifestyle', []))) if 'plan' in locals() else 'None',
+            'workup_urgent': '; '.join(sorted(plan['workup']['urgent'])),
+            'workup_routine': '; '.join(sorted(plan['workup']['routine'])),
+            'treatment_symptomatic': '; '.join(sorted(plan['treatment']['symptomatic'])),
+            'treatment_definitive': '; '.join(sorted(plan['treatment']['definitive'])),
+            'treatment_lifestyle': '; '.join(sorted(plan['treatment'].get('lifestyle', []))),
             'follow_up': follow_up or 'As needed',
             'references': references_output or 'None available',
             'disclaimer': 'This AI-generated analysis requires clinical correlation.'
         }
-        if 'back pain' in (note.situation or '').lower() or 'backpain' in (note.hpi or '').lower():
-            partial_output.update({
-                'rationale': 'Analysis failed, using fallback for back pain',
-                'workup_urgent': 'None',
-                'workup_routine': 'MRI of lumbar spine',
-                'treatment_symptomatic': 'Ibuprofen 400-600 mg PRN',
-                'treatment_definitive': 'Physical therapy if persistent',
-                'treatment_lifestyle': 'Weight management; Core strengthening exercises',
-                'follow_up': 'Follow-up in 2-4 weeks',
-                'references': 'ACP Guidelines: https://www.acponline.org'
-            })
+        if category and category in kb.get('clinical_pathways', {}):
+            path = next((p for k, p in kb['clinical_pathways'][category].items() 
+                        if any(s.lower() in chief_complaint.lower() for s in k.split('|'))), None)
+            if path:
+                partial_output.update({
+                    'rationale': f"Analysis failed, using fallback for {category}",
+                    'workup_urgent': '; '.join(sorted(path['workup']['urgent'])),
+                    'workup_routine': '; '.join(sorted(path['workup']['routine'])),
+                    'treatment_symptomatic': '; '.join(sorted(path['management']['symptomatic'])),
+                    'treatment_definitive': '; '.join(sorted(path['management']['definitive'])),
+                    'treatment_lifestyle': '; '.join(sorted(path['management']['lifestyle'])),
+                    'follow_up': path['follow_up'][0],
+                    'references': '; '.join(sorted(path['references']))
+                })
         return f"""
 [=== AI CLINICAL ANALYSIS ===]
 [PATIENT PROFILE]

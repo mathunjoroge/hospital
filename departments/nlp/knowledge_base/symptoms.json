@@ -1,19 +1,70 @@
 {
   "respiratory": {
-    "facial pain": "Pain in the facial region, often over sinuses",
-    "nasal congestion": "Blocked or stuffy nose",
-    "purulent nasal discharge": "Yellow or green nasal discharge",
-    "fever": "Elevated body temperature"
+    "facial pain": {
+      "description": "Pain in the facial region, often over sinuses",
+      "umls_cui": null,
+      "semantic_type": "Unknown"
+    },
+    "nasal congestion": {
+      "description": "Blocked or stuffy nose",
+      "umls_cui": null,
+      "semantic_type": "Unknown"
+    },
+    "purulent nasal discharge": {
+      "description": "Yellow or green nasal discharge",
+      "umls_cui": null,
+      "semantic_type": "Unknown"
+    },
+    "fever": {
+      "description": "Elevated body temperature",
+      "umls_cui": null,
+      "semantic_type": "Unknown"
+    },
+    "patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge.": {
+      "description": "Automatically added: patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge.",
+      "umls_cui": null,
+      "semantic_type": "Unknown"
+    }
   },
   "neurological": {
-    "headache": "Pain in the head or neck"
+    "headache": {
+      "description": "Pain in the head or neck",
+      "umls_cui": null,
+      "semantic_type": "Unknown"
+    },
+    "patient complains of headache": {
+      "description": "Automatically added: patient complains of headache",
+      "umls_cui": null,
+      "semantic_type": "Unknown"
+    }
   },
   "musculoskeletal": {
-    "back pain": "Automatically added: back pain",
-    "pain on movement": "Automatically added: pain on movement",
-    "obesity": "Automatically added: obesity"
+    "back pain": {
+      "description": "Automatically added: back pain",
+      "umls_cui": null,
+      "semantic_type": "Unknown"
+    },
+    "pain on movement": {
+      "description": "Automatically added: pain on movement",
+      "umls_cui": null,
+      "semantic_type": "Unknown"
+    },
+    "obesity": {
+      "description": "Automatically added: obesity",
+      "umls_cui": null,
+      "semantic_type": "Unknown"
+    },
+    "back pain for two weeks": {
+      "description": "Automatically added: back pain for two weeks",
+      "umls_cui": null,
+      "semantic_type": "Unknown"
+    }
   },
   "general": {
-    "radiating pain": "Automatically added: radiating pain"
+    "radiating pain": {
+      "description": "Automatically added: radiating pain",
+      "umls_cui": null,
+      "semantic_type": "Unknown"
+    }
   }
 }
