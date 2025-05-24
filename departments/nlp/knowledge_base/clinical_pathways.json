@@ -42,7 +42,8 @@
       "metadata": {
         "notes": "Consider pregnancy test in women of childbearing age; avoid triptans in cardiovascular disease.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -93,7 +94,8 @@
       "metadata": {
         "notes": "Escalate to cardiology for abnormal ECG or troponin; consider DVT risk factors.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -141,7 +143,8 @@
       "metadata": {
         "notes": "Monitor for red flags: weight loss, bloody stools, persistent vomiting.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -188,7 +191,8 @@
       "metadata": {
         "notes": "Consider MRI for suspected meniscal injury; avoid NSAIDs in renal impairment.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -233,7 +237,8 @@
       "metadata": {
         "notes": "Red flags: trauma, fever, unexplained weight loss require urgent evaluation.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -277,7 +282,8 @@
       "metadata": {
         "notes": "Avoid NSAIDs in renal impairment; escalate if fever or neurological signs.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -320,7 +326,8 @@
       "metadata": {
         "notes": "Ottawa Ankle Rules guide X-ray need; avoid early weight-bearing.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -371,7 +378,8 @@
       "metadata": {
         "notes": "Consider TB testing in high-risk populations; monitor for worsening dyspnea.",
         "source": "CDC",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -420,7 +428,8 @@
       "metadata": {
         "notes": "Escalate to pulmonology or cardiology for persistent symptoms.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -469,7 +478,8 @@
       "metadata": {
         "notes": "Pediatric patients: consider foreign body in acute onset.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -516,7 +526,8 @@
       "metadata": {
         "notes": "Pediatric dosing for CFTR modulators; monitor for hemoptysis in bronchiectasis.",
         "source": "NICE",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -564,11 +575,55 @@
       "metadata": {
         "notes": "Refer to pulmonology if frequent exacerbations; ensure inhaler technique.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
       ]
+    },
+    "patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge.": {
+      "differentials": [
+        "patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge. disorder",
+        "Possible respiratory condition"
+      ],
+      "contextual_triggers": [
+        "Recent onset of patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge."
+      ],
+      "required_symptoms": [
+        "patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge."
+      ],
+      "exclusion_criteria": [],
+      "workup": {
+        "urgent": [
+          "Assess patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge. severity"
+        ],
+        "routine": [
+          "Diagnostic test for respiratory conditions"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Symptomatic relief for patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge."
+        ],
+        "definitive": [],
+        "lifestyle": [
+          "Monitor symptom progression"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks"
+      ],
+      "references": [
+        "Clinical guidelines pending"
+      ],
+      "metadata": {
+        "source": [
+          "Automated update"
+        ],
+        "last_updated": "2025-05-24",
+        "umls_cui": null
+      }
     }
   },
   "cardiovascular": {
@@ -613,7 +668,8 @@
       "metadata": {
         "notes": "Refer to cardiology for abnormal ECG; screen for substance use.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -659,7 +715,8 @@
       "metadata": {
         "notes": "Refer to neurology if seizure suspected; caution in elderly patients.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -711,7 +768,8 @@
       "metadata": {
         "notes": "Monitor electrolytes with diuretics; refer to nephrology for proteinuria or CKD.",
         "source": "WHO",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -792,7 +850,8 @@
           "PubMed",
           "PubMed",
           "PubMed"
-        ]
+        ],
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -840,7 +899,8 @@
       "metadata": {
         "notes": "Refer to gastroenterology for refractory symptoms; avoid ondansetron in first trimester.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -887,7 +947,8 @@
       "metadata": {
         "notes": "Monitor for dehydration; avoid loperamide in bloody diarrhea.",
         "source": "CDC",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -930,7 +991,8 @@
       "metadata": {
         "notes": "Refer to gastroenterology for endoscopy; monitor for weight loss.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -975,7 +1037,8 @@
       "metadata": {
         "notes": "Review medications (e.g., opioids, anticholinergics); monitor for rectal bleeding.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1020,11 +1083,98 @@
       "metadata": {
         "notes": "Pediatric dosing for enema; urgent surgical consult for peritonitis.",
         "source": "Nationwide Children's",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
       ]
+    },
+    "hematologic": {
+      "differentials": [
+        "hematologic disorder",
+        "Possible gastrointestinal condition"
+      ],
+      "contextual_triggers": [
+        "Recent onset of hematologic"
+      ],
+      "required_symptoms": [
+        "hematologic"
+      ],
+      "exclusion_criteria": [],
+      "workup": {
+        "urgent": [
+          "Assess hematologic severity"
+        ],
+        "routine": [
+          "Diagnostic test for gastrointestinal conditions"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Symptomatic relief for hematologic"
+        ],
+        "definitive": [],
+        "lifestyle": [
+          "Monitor symptom progression"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks"
+      ],
+      "references": [
+        "Clinical guidelines pending"
+      ],
+      "metadata": {
+        "source": [
+          "Automated update"
+        ],
+        "last_updated": "2025-05-24",
+        "umls_cui": null
+      }
+    },
+    "psychiatric": {
+      "differentials": [
+        "psychiatric disorder",
+        "Possible gastrointestinal condition"
+      ],
+      "contextual_triggers": [
+        "Recent onset of psychiatric"
+      ],
+      "required_symptoms": [
+        "psychiatric"
+      ],
+      "exclusion_criteria": [],
+      "workup": {
+        "urgent": [
+          "Assess psychiatric severity"
+        ],
+        "routine": [
+          "Diagnostic test for gastrointestinal conditions"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Symptomatic relief for psychiatric"
+        ],
+        "definitive": [],
+        "lifestyle": [
+          "Monitor symptom progression"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks"
+      ],
+      "references": [
+        "Clinical guidelines pending"
+      ],
+      "metadata": {
+        "source": [
+          "Automated update"
+        ],
+        "last_updated": "2025-05-24",
+        "umls_cui": null
+      }
     }
   },
   "neurological": {
@@ -1067,7 +1217,8 @@
       "metadata": {
         "notes": "Refer to neurology for progressive symptoms; monitor for respiratory involvement.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1114,7 +1265,8 @@
       "metadata": {
         "notes": "Avoid antipsychotics in Lewy body dementia; screen for infection.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1159,7 +1311,8 @@
       "metadata": {
         "notes": "Optimize diabetes management; refer to neurology for MS suspicion.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1202,7 +1355,8 @@
       "metadata": {
         "notes": "Family history relevant for essential tremor; monitor for rigidity in Parkinson\u2019s.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1246,7 +1400,8 @@
       "metadata": {
         "notes": "Refer to ENT for persistent symptoms; monitor for hearing loss.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1291,11 +1446,55 @@
       "metadata": {
         "notes": "Pediatric: weight-based dosing (e.g., levetiracetam 10-20 mg/kg/day).",
         "source": "Nationwide Children's",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
       ]
+    },
+    "patient complains of headache": {
+      "differentials": [
+        "patient complains of headache disorder",
+        "Possible neurological condition"
+      ],
+      "contextual_triggers": [
+        "Recent onset of patient complains of headache"
+      ],
+      "required_symptoms": [
+        "patient complains of headache"
+      ],
+      "exclusion_criteria": [],
+      "workup": {
+        "urgent": [
+          "Assess patient complains of headache severity"
+        ],
+        "routine": [
+          "Diagnostic test for neurological conditions"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Symptomatic relief for patient complains of headache"
+        ],
+        "definitive": [],
+        "lifestyle": [
+          "Monitor symptom progression"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks"
+      ],
+      "references": [
+        "Clinical guidelines pending"
+      ],
+      "metadata": {
+        "source": [
+          "Automated update"
+        ],
+        "last_updated": "2025-05-24",
+        "umls_cui": null
+      }
     }
   },
   "skin": {
@@ -1337,7 +1536,8 @@
       "metadata": {
         "notes": "Monitor for signs of infection; review new medications.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1380,7 +1580,8 @@
       "metadata": {
         "notes": "Consider allergy testing for chronic urticaria; monitor for weight loss.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1423,7 +1624,8 @@
       "metadata": {
         "notes": "Epinephrine auto-injector for recurrent angioedema; urgent ENT consult if airway involvement.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1512,7 +1714,8 @@
           "PubMed",
           "PubMed",
           "PubMed"
-        ]
+        ],
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1558,7 +1761,8 @@
       "metadata": {
         "notes": "Screen for night sweats, fever; urgent referral for rapid weight loss.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1607,7 +1811,8 @@
       "metadata": {
         "notes": "Screen for chronic infections (e.g., EBV, HIV); refer to sleep specialist if snoring.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1650,7 +1855,8 @@
       "metadata": {
         "notes": "Pediatric focus; monitor for medication side effects (e.g., appetite suppression).",
         "source": "Nationwide Children's",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1698,7 +1904,8 @@
       "metadata": {
         "notes": "Refer to ophthalmology for abnormal fundoscopy; monitor for sudden vision loss.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1742,7 +1949,8 @@
       "metadata": {
         "notes": "Pediatric: consider congenital causes; urgent ENT for sudden hearing loss.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1785,7 +1993,8 @@
       "metadata": {
         "notes": "Urgent MRI for pulsatile tinnitus; consider medication-induced causes.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1832,7 +2041,8 @@
       "metadata": {
         "notes": "ENT consult for abscess; avoid contact sports in mononucleosis.",
         "source": "CDC",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1879,7 +2089,8 @@
       "metadata": {
         "notes": "Strain urine for stone analysis; avoid NSAIDs in renal impairment.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1923,7 +2134,8 @@
       "metadata": {
         "notes": "Screen for mania before SSRIs; urgent psychiatry referral for suicidality.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -1965,7 +2177,8 @@
       "metadata": {
         "notes": "Monitor for substance use; refer to psychiatry for refractory cases.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -2007,7 +2220,8 @@
       "metadata": {
         "notes": "Screen for suicidal ideation; consider dysthymia if chronic low mood.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -2053,11 +2267,55 @@
       "metadata": {
         "notes": "Refer to hematology for abnormal coagulation; urgent if mucosal bleeding.",
         "source": "Mayo Clinic",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
       ]
+    },
+    "musculoskeletal": {
+      "differentials": [
+        "musculoskeletal disorder",
+        "Possible hematologic condition"
+      ],
+      "contextual_triggers": [
+        "Recent onset of musculoskeletal"
+      ],
+      "required_symptoms": [
+        "musculoskeletal"
+      ],
+      "exclusion_criteria": [],
+      "workup": {
+        "urgent": [
+          "Assess musculoskeletal severity"
+        ],
+        "routine": [
+          "Diagnostic test for hematologic conditions"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Symptomatic relief for musculoskeletal"
+        ],
+        "definitive": [],
+        "lifestyle": [
+          "Monitor symptom progression"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks"
+      ],
+      "references": [
+        "Clinical guidelines pending"
+      ],
+      "metadata": {
+        "source": [
+          "Automated update"
+        ],
+        "last_updated": "2025-05-24",
+        "umls_cui": null
+      }
     }
   },
   "cardiac": {
@@ -2101,7 +2359,8 @@
       "metadata": {
         "notes": "Pediatric focus: weight-based dosing; urgent cardiology for heart failure.",
         "source": "Nationwide Children's",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -2149,7 +2408,8 @@
       "metadata": {
         "notes": "Refer to endocrinology for complex cases; screen for retinopathy.",
         "source": "MedlinePlus",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -2193,7 +2453,8 @@
       "metadata": {
         "notes": "Adjust levothyroxine in pregnancy; monitor for arrhythmias in hyperthyroidism.",
         "source": "MedlinePlus",
-        "last_updated": "2025-05-16"
+        "last_updated": "2025-05-16",
+        "umls_cui": null
       },
       "references": [
         "None specified"
@@ -2277,31 +2538,401 @@
           "PubMed",
           "PubMed",
           "PubMed"
-        ]
+        ],
+        "umls_cui": null
       },
       "references": [
         "None specified"
       ]
     },
-    "obesity": {
+    "patient complains of headache the headache started three days ago. the headache is associated with fevers and chills": {
       "differentials": [
-        "Possible obesity disorder"
+        "patient complains of headache the headache started three days ago. the headache is associated with fevers and chills disorder",
+        "Possible musculoskeletal condition"
       ],
+      "contextual_triggers": [
+        "Recent onset of patient complains of headache the headache started three days ago. the headache is associated with fevers and chills"
+      ],
+      "required_symptoms": [
+        "patient complains of headache the headache started three days ago. the headache is associated with fevers and chills"
+      ],
+      "exclusion_criteria": [],
       "workup": {
-        "urgent": [],
+        "urgent": [
+          "Assess patient complains of headache the headache started three days ago. the headache is associated with fevers and chills severity"
+        ],
         "routine": [
-          "Evaluate obesity"
+          "Diagnostic test for musculoskeletal conditions"
         ]
       },
       "management": {
-        "symptomatic": [],
+        "symptomatic": [
+          "Symptomatic relief for patient complains of headache the headache started three days ago. the headache is associated with fevers and chills"
+        ],
         "definitive": [],
-        "lifestyle": []
+        "lifestyle": [
+          "Monitor symptom progression"
+        ]
       },
       "follow_up": [
-        "Follow-up in 2 weeks"
+        "Follow-up in 1-2 weeks"
       ],
-      "references": []
+      "references": [
+        "Clinical guidelines pending"
+      ],
+      "metadata": {
+        "source": [
+          "Automated update"
+        ],
+        "last_updated": "2025-05-24",
+        "umls_cui": null
+      }
+    },
+    "nausea and vomiting and loss of appetite the patient has jaundice in the eyes taking foods with fats makes the nausea worse taking strong tea and licking salt alleviates the nausea": {
+      "differentials": [
+        "nausea and vomiting and loss of appetite the patient has jaundice in the eyes taking foods with fats makes the nausea worse taking strong tea and licking salt alleviates the nausea disorder",
+        "Possible musculoskeletal condition"
+      ],
+      "contextual_triggers": [
+        "Recent onset of nausea and vomiting and loss of appetite the patient has jaundice in the eyes taking foods with fats makes the nausea worse taking strong tea and licking salt alleviates the nausea"
+      ],
+      "required_symptoms": [
+        "nausea and vomiting and loss of appetite the patient has jaundice in the eyes taking foods with fats makes the nausea worse taking strong tea and licking salt alleviates the nausea"
+      ],
+      "exclusion_criteria": [],
+      "workup": {
+        "urgent": [
+          "Assess nausea and vomiting and loss of appetite the patient has jaundice in the eyes taking foods with fats makes the nausea worse taking strong tea and licking salt alleviates the nausea severity"
+        ],
+        "routine": [
+          "Diagnostic test for musculoskeletal conditions"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Symptomatic relief for nausea and vomiting and loss of appetite the patient has jaundice in the eyes taking foods with fats makes the nausea worse taking strong tea and licking salt alleviates the nausea"
+        ],
+        "definitive": [],
+        "lifestyle": [
+          "Monitor symptom progression"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks"
+      ],
+      "references": [
+        "Clinical guidelines pending"
+      ],
+      "metadata": {
+        "source": [
+          "Automated update"
+        ],
+        "last_updated": "2025-05-24",
+        "umls_cui": null
+      }
+    },
+    "and purulent nasal discharge for 10 days. low-grade fever (up to 100.5\u00b0f). no sore throat or hearing loss. pulmonary: no cough or shortness of breath. cardiovascular: no chest pain or palpitations. neurological: mild headache associated with sinus pain": {
+      "differentials": [
+        "and purulent nasal discharge for 10 days. low-grade fever (up to 100.5\u00b0f). no sore throat or hearing loss. pulmonary: no cough or shortness of breath. cardiovascular: no chest pain or palpitations. neurological: mild headache associated with sinus pain disorder",
+        "Possible musculoskeletal condition"
+      ],
+      "contextual_triggers": [
+        "Recent onset of and purulent nasal discharge for 10 days. low-grade fever (up to 100.5\u00b0f). no sore throat or hearing loss. pulmonary: no cough or shortness of breath. cardiovascular: no chest pain or palpitations. neurological: mild headache associated with sinus pain"
+      ],
+      "required_symptoms": [
+        "and purulent nasal discharge for 10 days. low-grade fever (up to 100.5\u00b0f). no sore throat or hearing loss. pulmonary: no cough or shortness of breath. cardiovascular: no chest pain or palpitations. neurological: mild headache associated with sinus pain"
+      ],
+      "exclusion_criteria": [],
+      "workup": {
+        "urgent": [
+          "Assess and purulent nasal discharge for 10 days. low-grade fever (up to 100.5\u00b0f). no sore throat or hearing loss. pulmonary: no cough or shortness of breath. cardiovascular: no chest pain or palpitations. neurological: mild headache associated with sinus pain severity"
+        ],
+        "routine": [
+          "Diagnostic test for musculoskeletal conditions"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Symptomatic relief for and purulent nasal discharge for 10 days. low-grade fever (up to 100.5\u00b0f). no sore throat or hearing loss. pulmonary: no cough or shortness of breath. cardiovascular: no chest pain or palpitations. neurological: mild headache associated with sinus pain"
+        ],
+        "definitive": [],
+        "lifestyle": [
+          "Monitor symptom progression"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks"
+      ],
+      "references": [
+        "Clinical guidelines pending"
+      ],
+      "metadata": {
+        "source": [
+          "Automated update"
+        ],
+        "last_updated": "2025-05-24",
+        "umls_cui": null
+      }
+    },
+    "back pain for two weeks": {
+      "differentials": [
+        "back pain for two weeks disorder",
+        "Possible musculoskeletal condition"
+      ],
+      "contextual_triggers": [
+        "Recent onset of back pain for two weeks"
+      ],
+      "required_symptoms": [
+        "back pain for two weeks"
+      ],
+      "exclusion_criteria": [],
+      "workup": {
+        "urgent": [
+          "Assess back pain for two weeks severity"
+        ],
+        "routine": [
+          "Diagnostic test for musculoskeletal conditions"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Symptomatic relief for back pain for two weeks"
+        ],
+        "definitive": [],
+        "lifestyle": [
+          "Monitor symptom progression"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks"
+      ],
+      "references": [
+        "Clinical guidelines pending"
+      ],
+      "metadata": {
+        "source": [
+          "Automated update"
+        ],
+        "last_updated": "2025-05-24",
+        "umls_cui": null
+      }
+    }
+  },
+  "genitourinary": {
+    "bilateral nasal congestion": {
+      "differentials": [
+        "bilateral nasal congestion disorder",
+        "Possible genitourinary condition"
+      ],
+      "contextual_triggers": [
+        "Recent onset of bilateral nasal congestion"
+      ],
+      "required_symptoms": [
+        "bilateral nasal congestion"
+      ],
+      "exclusion_criteria": [],
+      "workup": {
+        "urgent": [
+          "Assess bilateral nasal congestion severity"
+        ],
+        "routine": [
+          "Diagnostic test for genitourinary conditions"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Symptomatic relief for bilateral nasal congestion"
+        ],
+        "definitive": [],
+        "lifestyle": [
+          "Monitor symptom progression"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks"
+      ],
+      "references": [
+        "Clinical guidelines pending"
+      ],
+      "metadata": {
+        "source": [
+          "Automated update"
+        ],
+        "last_updated": "2025-05-24",
+        "umls_cui": null
+      }
+    },
+    "no dizziness. musculoskeletal: no joint pain or stiffness. gastrointestinal: no nausea or diarrhea. genitourinary: no urinary changes. endocrine: no weight changes or thirst. hematologic: no easy bruising or bleeding. dermatologic: no rashes or lesions. psychiatric: no mood changes. ophthalmologic: no vision changes. primary assessment: symptoms consistent with acute bacterial sinusitis": {
+      "differentials": [
+        "no dizziness. musculoskeletal: no joint pain or stiffness. gastrointestinal: no nausea or diarrhea. genitourinary: no urinary changes. endocrine: no weight changes or thirst. hematologic: no easy bruising or bleeding. dermatologic: no rashes or lesions. psychiatric: no mood changes. ophthalmologic: no vision changes. primary assessment: symptoms consistent with acute bacterial sinusitis disorder",
+        "Possible genitourinary condition"
+      ],
+      "contextual_triggers": [
+        "Recent onset of no dizziness. musculoskeletal: no joint pain or stiffness. gastrointestinal: no nausea or diarrhea. genitourinary: no urinary changes. endocrine: no weight changes or thirst. hematologic: no easy bruising or bleeding. dermatologic: no rashes or lesions. psychiatric: no mood changes. ophthalmologic: no vision changes. primary assessment: symptoms consistent with acute bacterial sinusitis"
+      ],
+      "required_symptoms": [
+        "no dizziness. musculoskeletal: no joint pain or stiffness. gastrointestinal: no nausea or diarrhea. genitourinary: no urinary changes. endocrine: no weight changes or thirst. hematologic: no easy bruising or bleeding. dermatologic: no rashes or lesions. psychiatric: no mood changes. ophthalmologic: no vision changes. primary assessment: symptoms consistent with acute bacterial sinusitis"
+      ],
+      "exclusion_criteria": [],
+      "workup": {
+        "urgent": [
+          "Assess no dizziness. musculoskeletal: no joint pain or stiffness. gastrointestinal: no nausea or diarrhea. genitourinary: no urinary changes. endocrine: no weight changes or thirst. hematologic: no easy bruising or bleeding. dermatologic: no rashes or lesions. psychiatric: no mood changes. ophthalmologic: no vision changes. primary assessment: symptoms consistent with acute bacterial sinusitis severity"
+        ],
+        "routine": [
+          "Diagnostic test for genitourinary conditions"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Symptomatic relief for no dizziness. musculoskeletal: no joint pain or stiffness. gastrointestinal: no nausea or diarrhea. genitourinary: no urinary changes. endocrine: no weight changes or thirst. hematologic: no easy bruising or bleeding. dermatologic: no rashes or lesions. psychiatric: no mood changes. ophthalmologic: no vision changes. primary assessment: symptoms consistent with acute bacterial sinusitis"
+        ],
+        "definitive": [],
+        "lifestyle": [
+          "Monitor symptom progression"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks"
+      ],
+      "references": [
+        "Clinical guidelines pending"
+      ],
+      "metadata": {
+        "source": [
+          "Automated update"
+        ],
+        "last_updated": "2025-05-24",
+        "umls_cui": null
+      }
+    },
+    "likely secondary to recent viral upper respiratory infection. differential includes viral sinusitis or allergic rhinitis. other systems: neurological: headache likely related to sinusitis. endocrine: stable diabetes. cardiovascular: stable hypertension. no acute abnormalities in pulmonary": {
+      "differentials": [
+        "likely secondary to recent viral upper respiratory infection. differential includes viral sinusitis or allergic rhinitis. other systems: neurological: headache likely related to sinusitis. endocrine: stable diabetes. cardiovascular: stable hypertension. no acute abnormalities in pulmonary disorder",
+        "Possible genitourinary condition"
+      ],
+      "contextual_triggers": [
+        "Recent onset of likely secondary to recent viral upper respiratory infection. differential includes viral sinusitis or allergic rhinitis. other systems: neurological: headache likely related to sinusitis. endocrine: stable diabetes. cardiovascular: stable hypertension. no acute abnormalities in pulmonary"
+      ],
+      "required_symptoms": [
+        "likely secondary to recent viral upper respiratory infection. differential includes viral sinusitis or allergic rhinitis. other systems: neurological: headache likely related to sinusitis. endocrine: stable diabetes. cardiovascular: stable hypertension. no acute abnormalities in pulmonary"
+      ],
+      "exclusion_criteria": [],
+      "workup": {
+        "urgent": [
+          "Assess likely secondary to recent viral upper respiratory infection. differential includes viral sinusitis or allergic rhinitis. other systems: neurological: headache likely related to sinusitis. endocrine: stable diabetes. cardiovascular: stable hypertension. no acute abnormalities in pulmonary severity"
+        ],
+        "routine": [
+          "Diagnostic test for genitourinary conditions"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Symptomatic relief for likely secondary to recent viral upper respiratory infection. differential includes viral sinusitis or allergic rhinitis. other systems: neurological: headache likely related to sinusitis. endocrine: stable diabetes. cardiovascular: stable hypertension. no acute abnormalities in pulmonary"
+        ],
+        "definitive": [],
+        "lifestyle": [
+          "Monitor symptom progression"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks"
+      ],
+      "references": [
+        "Clinical guidelines pending"
+      ],
+      "metadata": {
+        "source": [
+          "Automated update"
+        ],
+        "last_updated": "2025-05-24",
+        "umls_cui": null
+      }
+    },
+    "dermatologic": {
+      "differentials": [
+        "dermatologic disorder",
+        "Possible genitourinary condition"
+      ],
+      "contextual_triggers": [
+        "Recent onset of dermatologic"
+      ],
+      "required_symptoms": [
+        "dermatologic"
+      ],
+      "exclusion_criteria": [],
+      "workup": {
+        "urgent": [
+          "Assess dermatologic severity"
+        ],
+        "routine": [
+          "Diagnostic test for genitourinary conditions"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Symptomatic relief for dermatologic"
+        ],
+        "definitive": [],
+        "lifestyle": [
+          "Monitor symptom progression"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks"
+      ],
+      "references": [
+        "Clinical guidelines pending"
+      ],
+      "metadata": {
+        "source": [
+          "Automated update"
+        ],
+        "last_updated": "2025-05-24",
+        "umls_cui": null
+      }
+    },
+    "or ophthalmologic systems. cold air and bending forward worsen facial pain. warm compresses and over-the-counter decongestants provide partial relief.": {
+      "differentials": [
+        "or ophthalmologic systems. cold air and bending forward worsen facial pain. warm compresses and over-the-counter decongestants provide partial relief. disorder",
+        "Possible genitourinary condition"
+      ],
+      "contextual_triggers": [
+        "Recent onset of or ophthalmologic systems. cold air and bending forward worsen facial pain. warm compresses and over-the-counter decongestants provide partial relief."
+      ],
+      "required_symptoms": [
+        "or ophthalmologic systems. cold air and bending forward worsen facial pain. warm compresses and over-the-counter decongestants provide partial relief."
+      ],
+      "exclusion_criteria": [],
+      "workup": {
+        "urgent": [
+          "Assess or ophthalmologic systems. cold air and bending forward worsen facial pain. warm compresses and over-the-counter decongestants provide partial relief. severity"
+        ],
+        "routine": [
+          "Diagnostic test for genitourinary conditions"
+        ]
+      },
+      "management": {
+        "symptomatic": [
+          "Symptomatic relief for or ophthalmologic systems. cold air and bending forward worsen facial pain. warm compresses and over-the-counter decongestants provide partial relief."
+        ],
+        "definitive": [],
+        "lifestyle": [
+          "Monitor symptom progression"
+        ]
+      },
+      "follow_up": [
+        "Follow-up in 1-2 weeks"
+      ],
+      "references": [
+        "Clinical guidelines pending"
+      ],
+      "metadata": {
+        "source": [
+          "Automated update"
+        ],
+        "last_updated": "2025-05-24",
+        "umls_cui": null
+      }
     }
   }
 }

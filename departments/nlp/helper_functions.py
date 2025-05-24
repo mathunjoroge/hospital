@@ -1,7 +1,8 @@
 from typing import Optional
 import re
 from datetime import datetime
-from departments.nlp.logging_setup import logger
+from departments.nlp.logging_setup import get_logger
+logger = get_logger()
 
 def calculate_age(dob: datetime.date) -> Optional[int]:
     """Calculate age from date of birth."""

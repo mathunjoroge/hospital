@@ -4,8 +4,10 @@ import json
 from datetime import datetime
 
 from sqlalchemy import null
-from departments.nlp.logging_setup import logger
+
 from typing import Dict, Set, List
+from departments.nlp.logging_setup import get_logger
+logger = get_logger()
 
 def initialize_knowledge_files() -> None:
     """Initialize default JSON files for knowledge base resources with UMLS metadata."""
