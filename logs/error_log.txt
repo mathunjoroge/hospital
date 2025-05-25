@@ -372,3 +372,221 @@ AttributeError: 'SymptomTracker' object has no attribute 'nlp'
 2025-05-24 22:06:39,329 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
 2025-05-24 22:06:39,335 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
 2025-05-24 22:06:39,336 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 22:31:31,980 - WARNING - Empty resource loaded: diagnosis_relevance.json
+2025-05-24 22:31:31,996 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:33:05,399 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,427 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:33:05,510 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,537 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:33:05,629 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,629 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 22:33:05,636 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:33:05,666 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,711 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,741 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,750 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,758 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,759 - WARNING - Missing symptoms: ['patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge.']. Initiating knowledge base update.
+2025-05-24 22:33:05,760 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 22:33:05,784 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,811 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:33:05,836 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,864 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:33:05,896 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,896 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 22:33:05,904 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:33:05,922 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,932 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,939 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,948 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,954 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:05,955 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 22:33:05,981 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:06,006 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:33:06,044 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:06,069 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:33:06,103 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:06,103 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 22:33:06,111 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:33:06,126 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:06,139 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:06,149 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:06,155 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:06,164 - ERROR - Error processing field with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:33:06,165 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 22:44:29,341 - WARNING - Empty resource loaded: diagnosis_relevance.json
+2025-05-24 22:44:29,362 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:46:00,343 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:46:00,373 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:46:00,455 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:46:00,485 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:46:00,580 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:46:00,580 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 22:46:00,590 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:46:00,606 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,607 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,609 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,610 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,610 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,611 - WARNING - Missing symptoms: ['patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge.']. Initiating knowledge base update.
+2025-05-24 22:46:00,613 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 22:46:00,636 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:46:00,659 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:46:00,690 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:46:00,720 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:46:00,751 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:46:00,751 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 22:46:00,759 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:46:00,768 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,769 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,769 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,770 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,770 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,771 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 22:46:00,798 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:46:00,820 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:46:00,852 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:46:00,878 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:46:00,916 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:46:00,916 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 22:46:00,923 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:46:00,931 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,931 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,931 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,932 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,932 - ERROR - Error processing field with NLP: [E001] No component 'sentencizer' found in pipeline. Available names: ['tok2vec', 'tagger', 'attribute_ruler', 'lemmatizer', 'parser', 'ner', 'medspacy_pyrush', 'medspacy_target_matcher', 'medspacy_context', 'scispacy_linker']. Falling back to regex for this field.
+2025-05-24 22:46:00,932 - WARNING - Missing symptoms: ['patient complains of headache']. Initiating knowledge base update.
+2025-05-24 22:46:00,932 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 22:51:47,697 - WARNING - Empty resource loaded: diagnosis_relevance.json
+2025-05-24 22:51:47,713 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:53:16,025 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:53:16,295 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:53:16,383 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:53:16,414 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:53:16,510 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:53:16,510 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 22:53:16,519 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:53:16,612 - WARNING - Missing symptoms: ['patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge.']. Initiating knowledge base update.
+2025-05-24 22:53:16,613 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 22:53:16,637 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:53:16,670 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:53:16,693 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:53:16,721 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:53:16,750 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:53:16,750 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 22:53:16,756 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:53:16,799 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 22:53:16,827 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:53:16,849 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:53:16,879 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:53:16,902 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:53:16,950 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 22:53:16,950 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 22:53:16,958 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 22:53:17,007 - WARNING - Missing symptoms: ['patient complains of headache']. Initiating knowledge base update.
+2025-05-24 22:53:17,008 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 23:06:27,228 - WARNING - Empty resource loaded: diagnosis_relevance.json
+2025-05-24 23:06:27,244 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 23:07:53,814 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:07:54,070 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 23:07:54,159 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:07:54,189 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 23:07:54,284 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:07:54,284 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 23:07:54,294 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 23:07:54,383 - WARNING - Missing symptoms: ['patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge.']. Initiating knowledge base update.
+2025-05-24 23:07:54,384 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 23:07:54,404 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:07:54,438 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 23:07:54,464 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:07:54,491 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 23:07:54,521 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:07:54,521 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 23:07:54,527 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 23:07:54,567 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 23:07:54,594 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:07:54,622 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 23:07:54,654 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:07:54,681 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 23:07:54,720 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:07:54,720 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 23:07:54,728 - WARNING - Index 'category_1_symptom_1' exists but is not unique. Consider updating the index to include 'unique: true'.
+2025-05-24 23:07:54,772 - WARNING - Missing symptoms: ['patient complains of headache']. Initiating knowledge base update.
+2025-05-24 23:07:54,772 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 23:16:47,500 - WARNING - Empty resource loaded: diagnosis_relevance.json
+2025-05-24 23:18:16,274 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:18:16,608 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:18:16,734 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:18:16,734 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 23:18:16,840 - WARNING - Missing symptoms: ['patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge.']. Initiating knowledge base update.
+2025-05-24 23:18:16,841 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 23:18:16,867 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:18:16,921 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:18:16,979 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:18:16,979 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 23:18:17,028 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 23:18:17,054 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:18:17,107 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:18:17,167 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:18:17,167 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 23:18:17,211 - WARNING - Missing symptoms: ['patient complains of headache']. Initiating knowledge base update.
+2025-05-24 23:18:17,211 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 23:30:53,268 - WARNING - Empty resource loaded: diagnosis_relevance.json
+2025-05-24 23:32:20,135 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:20,487 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:20,604 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:20,605 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 23:32:20,636 - ERROR - Error processing situation with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:20,678 - ERROR - Error processing hpi with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:20,709 - ERROR - Error processing assessment with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:20,776 - WARNING - Missing symptoms: ['patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge.']. Initiating knowledge base update.
+2025-05-24 23:32:20,777 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 23:32:20,800 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:20,857 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:20,918 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:20,918 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 23:32:20,945 - ERROR - Error processing situation with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:20,951 - ERROR - Error processing hpi with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:20,958 - ERROR - Error processing assessment with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:20,975 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 23:32:21,003 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:21,073 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:21,149 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:21,150 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 23:32:21,184 - ERROR - Error processing situation with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:21,199 - ERROR - Error processing hpi with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:21,209 - ERROR - Error processing assessment with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:32:21,236 - WARNING - Missing symptoms: ['patient complains of headache']. Initiating knowledge base update.
+2025-05-24 23:32:21,237 - WARNING - Extracted symptoms do not match expected symptoms. Adjusting differentials.
+2025-05-24 23:38:02,404 - WARNING - Empty resource loaded: diagnosis_relevance.json
+2025-05-24 23:39:28,549 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:28,666 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:28,750 - ERROR - Error processing situation with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:28,792 - ERROR - Error processing hpi with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:28,825 - ERROR - Error processing assessment with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:28,884 - WARNING - Missing symptoms: ['patient presents with facial pain, nasal congestion, and fever for 10 days. reports purulent nasal discharge.']. Initiating knowledge base update.
+2025-05-24 23:39:28,983 - ERROR - Error extracting features for note ID 1: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:28,983 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 23:39:28,985 - ERROR - Error generating differentials: string indices must be integers, not 'str'
+2025-05-24 23:39:28,988 - WARNING - Extracted symptoms do not match expected symptoms. Using knowledge base fallback.
+2025-05-24 23:39:29,014 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:29,067 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:29,131 - ERROR - Error processing situation with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:29,137 - ERROR - Error processing hpi with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:29,143 - ERROR - Error processing assessment with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:29,175 - ERROR - Error extracting features for note ID 2: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:29,176 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 23:39:29,178 - ERROR - Error generating differentials: string indices must be integers, not 'str'
+2025-05-24 23:39:29,209 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:29,270 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:29,331 - ERROR - Error processing situation with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:29,345 - ERROR - Error processing hpi with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:29,351 - ERROR - Error processing assessment with NLP: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:29,368 - WARNING - Missing symptoms: ['patient complains of headache']. Initiating knowledge base update.
+2025-05-24 23:39:29,387 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
+2025-05-24 23:39:29,388 - WARNING - Empty text for embedding, skipping embedding-based scoring
+2025-05-24 23:39:29,389 - ERROR - Error generating differentials: string indices must be integers, not 'str'
+2025-05-24 23:39:29,391 - WARNING - Extracted symptoms do not match expected symptoms. Using knowledge base fallback.
+2025-05-24 23:40:51,742 - WARNING - Patient not found for SOAP note ID 3
+2025-05-24 23:40:51,866 - WARNING - Empty resource loaded: diagnosis_relevance.json
+2025-05-24 23:42:37,477 - ERROR - Error extracting features for note ID 3: [E043] Refusing to write to token.sent_start if its document is parsed, because this may cause inconsistent state.
