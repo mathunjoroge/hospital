@@ -137,17 +137,28 @@ class ClinicalAnalyzer:
         self._add_symptom_rules()
 
     def _add_symptom_rules(self):
-        """Add explicit symptom rules to medspacy_target_matcher."""
+        """Add dynamic symptom rules to medspacy_target_matcher from MongoDB."""
         try:
             target_matcher = self.nlp.get_pipe("medspacy_target_matcher")
-            rules = [
-                TargetRule("facial pain", "SYMPTOM"),
-                TargetRule("nasal congestion", "SYMPTOM"),
-                TargetRule("fever", "SYMPTOM"),
-                TargetRule("purulent nasal discharge", "SYMPTOM"),
-            ]
-            target_matcher.add(rules)
-            logger.debug("Added symptom rules to medspacy_target_matcher")
+            client = MongoClient(os.getenv('MONGO_URI', 'mongodb://localhost:27017'))
+            db = client[os.getenv('DB_NAME', 'clinical_db')]
+            symptoms_collection = db[os.getenv('SYMPTOMS_COLLECTION', 'symptoms')]
+            rules = []
+            for doc in symptoms_collection.find():
+                if 'symptom' in doc and 'umls_cui' in doc:
+                    rules.append(
+                        TargetRule(
+                            literal=doc['symptom'].lower(),
+                            category="SYMPTOM",
+                            attributes={"cui": doc['umls_cui']}
+                        )
+                    )
+            if rules:
+                target_matcher.add(rules)
+                logger.debug(f"Added {len(rules)} dynamic symptom rules from MongoDB")
+            else:
+                logger.warning("No symptom rules found in MongoDB. Relying on spaCy entities.")
+            client.close()
         except Exception as e:
             logger.error(f"Failed to add symptom rules: {str(e)}")
 
@@ -193,17 +204,8 @@ class ClinicalAnalyzer:
             logger.error(f"Error accessing UMLS cache: {str(e)}")
 
         if self.uts_api_key == 'mock_api_key':
-            mock_data = {
-                'chest tightness': {'cui': 'C0242209', 'semantic_type': 'Sign or Symptom'},
-                'back pain': {'cui': 'C0004604', 'semantic_type': 'Sign or Symptom'},
-                'obesity': {'cui': 'C0028754', 'semantic_type': 'Disease or Syndrome'},
-                'facial pain': {'cui': 'C0234450', 'semantic_type': 'Sign or Symptom'},
-                'nasal congestion': {'cui': 'C0027424', 'semantic_type': 'Sign or Symptom'},
-                'fever': {'cui': 'C0015967', 'semantic_type': 'Sign or Symptom'},
-                'purulent nasal discharge': {'cui': 'C0242209', 'semantic_type': 'Sign or Symptom'}
-            }
-            result = mock_data.get(symptom_lower, {'cui': None, 'semantic_type': 'Unknown'})
-            return result['cui'], result['semantic_type']
+            logger.warning("Using mock UMLS data due to missing API key")
+            return None, 'Unknown'
 
         try:
             ticket = self._get_uts_ticket()
@@ -259,49 +261,56 @@ class ClinicalAnalyzer:
         try:
             features = {
                 'chief_complaint': (note.situation or '').lower().strip() or 'Unknown',
-                'hpi': note.hpi or '',
-                'history': note.medical_history or '',
-                'medications': note.medication_history or '',
-                'assessment': note.assessment or '',
-                'recommendation': note.recommendation or '',
-                'additional_notes': note.additional_notes or '',
-                'aggravating_factors': note.aggravating_factors or '',
-                'alleviating_factors': note.alleviating_factors or '',
+                'hpi': (note.hpi or '').lower().strip(),
+                'history': (note.medical_history or '').lower().strip(),
+                'medications': (note.medication_history or '').lower().strip(),
+                'assessment': (note.assessment or '').lower().strip(),
+                'recommendation': (note.recommendation or '').lower().strip(),
+                'additional_notes': (note.additional_notes or '').lower().strip(),
+                'aggravating_factors': (note.aggravating_factors or '').lower().strip(),
+                'alleviating_factors': (note.alleviating_factors or '').lower().strip(),
                 'symptoms': []
             }
 
             # Combine text for processing
-            text = f"{note.situation or ''} {note.hpi or ''} {note.assessment or ''} {note.aggravating_factors or ''} {note.alleviating_factors or ''}".lower().strip()
+            text = f"{features['chief_complaint']} {features['hpi']} {features['assessment']} {features['aggravating_factors']} {features['alleviating_factors']}".strip()
+            if not text:
+                logger.warning(f"No valid text for note ID {note.id}, skipping NLP processing")
+                text = features['chief_complaint'] or 'Unknown'
 
             # spaCy-based symptom extraction
             spacy_symptoms = []
-            if self.nlp:
+            try:
                 doc = self.nlp(text)
                 for ent in doc.ents:
-                    for umls_ent in ent._.kb_ents:
+                    for umls_ent in getattr(ent._, 'kb_ents', []):
                         cui, score = umls_ent[0], umls_ent[1]
                         if score < 0.7:  # Confidence threshold
                             continue
                         linker = self.nlp.get_pipe("scispacy_linker")
-                        concept = linker.kb.cui_to_entity[cui]
-                        spacy_symptoms.append({
-                            'description': ent.text.lower(),
-                            'category': self.common_symptoms._infer_category(ent.text.lower(), features['chief_complaint']),
-                            'definition': concept.canonical_name,
-                            'duration': extract_duration(text) or 'Unknown',
-                            'severity': classify_severity(text) or 'Unknown',
-                            'location': extract_location(text, ent.text.lower()) or 'Unknown',
-                            'aggravating': features['aggravating_factors'],
-                            'alleviating': features['alleviating_factors'],
-                            'umls_cui': cui,
-                            'semantic_type': concept.types[0] if concept.types else 'Unknown'
-                        })
+                        concept = linker.kb.cui_to_entity.get(cui, None)
+                        if concept:
+                            spacy_symptoms.append({
+                                'description': ent.text.lower(),
+                                'category': self.common_symptoms._infer_category(ent.text.lower(), features['chief_complaint']),
+                                'definition': concept.canonical_name,
+                                'duration': extract_duration(text) or 'Unknown',
+                                'severity': classify_severity(text) or 'Unknown',
+                                'location': extract_location(text, ent.text.lower()) or 'Unknown',
+                                'aggravating': features['aggravating_factors'],
+                                'alleviating': features['alleviating_factors'],
+                                'umls_cui': cui,
+                                'semantic_type': concept.types[0] if concept.types else 'Unknown'
+                            })
+            except Exception as e:
+                logger.error(f"NLP processing error for note ID {note.id}: {str(e)}")
 
-            # Merge spaCy symptoms with existing extraction
-            features['symptoms'] = self.common_symptoms.process_note(note, features['chief_complaint'], expected_symptoms)
-            features['symptoms'].extend([s for s in spacy_symptoms if s['description'] not in [x['description'] for x in features['symptoms']]])
+            # Merge spaCy symptoms with SymptomTracker, prioritizing tracker metadata
+            tracker_symptoms = self.common_symptoms.process_note(note, features['chief_complaint'], expected_symptoms)
+            spacy_descriptions = {s['description'] for s in spacy_symptoms}
+            features['symptoms'] = tracker_symptoms + [s for s in spacy_symptoms if s['description'] not in {t['description'] for t in tracker_symptoms}]
 
-            # Detect new symptoms
+            # Detect new symptoms dynamically
             potential_symptoms = getattr(note, 'symptoms', None) or [s.strip() for s in text.split(',') if s.strip() and len(s.strip()) > 2]
             for symptom in potential_symptoms:
                 symptom_lower = symptom.lower()
@@ -351,28 +360,20 @@ class ClinicalAnalyzer:
                             })
                             break
 
-            # Add obesity for back pain
-            if 'obese' in features['assessment'].lower():
-                cui, semantic_type = self._get_umls_cui('obesity')
-                features['symptoms'].append({
-                    'description': 'obesity',
-                    'category': 'musculoskeletal',
-                    'definition': 'Excess body weight contributing to musculoskeletal strain',
-                    'duration': 'Chronic',
-                    'severity': 'Unknown',
-                    'location': 'N/A',
-                    'aggravating': features['aggravating_factors'],
-                    'alleviating': features['alleviating_factors'],
-                    'umls_cui': cui,
-                    'semantic_type': semantic_type
-                })
-
             # Context extraction
-            context = extract_aggravating_alleviating(note)
+            context = {}
+            for factor in ['aggravating', 'alleviating']:
+                field = f"{factor}_factors"
+                if getattr(note, field, None):
+                    try:
+                        context.update(extract_aggravating_alleviating(note, factor))
+                    except TypeError as e:
+                        logger.error(f"Error calling extract_aggravating_alleviating for {factor}: {str(e)}")
+                        context[factor] = getattr(note, field).lower().strip()
             features['context'] = {
                 'aggravating': context.get('aggravating', ''),
                 'alleviating': context.get('alleviating', ''),
-                'sedentary': 'sedentary' in features['hpi'].lower() or 'sitting' in features['aggravating_factors'].lower(),
+                'sedentary': 'sedentary' in features['hpi'] or 'sitting' in features['aggravating_factors'],
                 'medication': features['medications']
             }
 
@@ -455,30 +456,11 @@ class ClinicalAnalyzer:
             else:
                 sex = None
                 age = None
-                logger.warning(f"No patient_id for differential diagnosis")
+                logger.warning("No patient_id for differential diagnosis, using default values")
 
             # High-risk and rare conditions
             high_risk_conditions = {'pulmonary embolism', 'myocardial infarction', 'meningitis', 'aortic dissection'}
             rare_conditions = {'malaria', 'leptospirosis', 'dengue'}
-
-            # Back pain-specific logic
-            if any('back pain' in s.lower() for s in symptom_descriptions) or 'backpain' in assessment:
-                base_diffs = [
-                    ("Mechanical low back pain", 0.75, "Supported by obesity and sedentary factors" if features['context'].get('sedentary') or 'obese' in assessment else "Common etiology"),
-                    ("Lumbar strain", 0.65, "Possible due to pain on movement"),
-                    ("Herniated disc", 0.55, "Consider if neurological symptoms present"),
-                    ("Ankylosing spondylitis", 0.45, "Less likely without systemic symptoms")
-                ]
-                if 'obese' in assessment:
-                    base_diffs[0] = ("Mechanical low back pain", 0.85, "Strongly supported by obesity and sedentary factors")
-                if any('radiating pain' in s.get('description', '').lower() for s in symptoms):
-                    base_diffs[2] = ("Herniated disc", 0.70, "Supported by radiating pain")
-                if age and age < 30:
-                    base_diffs[3] = ("Ankylosing spondylitis", 0.60, "More likely in younger patients")
-                for dx, score, reason in base_diffs:
-                    if self.is_relevant_dx(dx, age, sex, 'back pain', 'musculoskeletal', features):
-                        tiered_dx['tier1'].append((dx, score, reason))
-                        dx_scores[dx] = (score, reason)
 
             # Primary diagnosis from assessment
             if assessment and 'primary assessment:' in assessment:
@@ -552,21 +534,13 @@ class ClinicalAnalyzer:
             for symptom in symptoms:
                 symptom_type = symptom.get('description', '').lower()
                 symptom_category = symptom.get('category', '').lower()
-                if 'new pet' in additional_notes and 'cough' in symptom_type and 'respiratory' in symptom_category:
-                    dx_scores['Allergic cough'] = (0.75, f"Supported by new pet exposure and symptom: {symptom_type}")
-                    tiered_dx['tier2'].append(('Allergic cough', 0.75, f"Supported by new pet exposure and symptom: {symptom_type}"))
-                if 'new medication' in additional_notes and 'rash' in symptom_type and 'dermatological' in symptom_category:
-                    dx_scores['Drug reaction'] = (0.75, f"Suggested by new medication and symptom: {symptom_type}")
-                    tiered_dx['tier2'].append(('Drug reaction', 0.75, f"Suggested by new medication and symptom: {symptom_type}"))
-                if 'travel' in additional_notes and 'diarrhea' in symptom_type and 'gastrointestinal' in symptom_category:
-                    dx_scores['Traveler’s diarrhea'] = (0.75, f"Suggested by recent travel and symptom: {symptom_type}")
-                    tiered_dx['tier2'].append(('Traveler’s diarrhea', 0.75, f"Suggested by recent travel and symptom: {symptom_type}"))
-                if 'sedentary job' in additional_notes and 'back pain' in symptom_type and 'musculoskeletal' in symptom_category:
-                    dx_scores['Mechanical low back pain'] = (0.85, f"Supported by sedentary lifestyle and symptom: {symptom_type}")
-                    tiered_dx['tier1'].append(('Mechanical low back pain', 0.85, f"Supported by sedentary lifestyle and symptom: {symptom_type}"))
-                if 'vaginal discharge' in symptom_type and 'antibiotics' in features.get('medications', '').lower():
-                    dx_scores['Candidiasis'] = (0.85, f"Supported by recent antibiotic use and symptom: {symptom_type}")
-                    tiered_dx['tier2'].append(('Candidiasis', 0.85, f"Supported by recent antibiotic use and symptom: {symptom_type}"))
+                for category, pathways in self.clinical_pathways.items():
+                    for key, path in pathways.items():
+                        if symptom_type in key.lower() or symptom_category == category.lower():
+                            for diff in path.get('differentials', []):
+                                if self.is_relevant_dx(diff, age, sex, symptom_type, symptom_category, features):
+                                    dx_scores[diff] = (0.75, f"Supported by symptom: {symptom_type}")
+                                    tiered_dx['tier2'].append((diff, 0.75, f"Supported by symptom: {symptom_type}"))
 
             # Embedding-based scoring
             if text_embedding is not None:
@@ -623,19 +597,6 @@ class ClinicalAnalyzer:
             validated_differentials = [(dx, score, reason) for dx, score, reason in differentials if isinstance(dx, str) and isinstance(score, (int, float)) and isinstance(reason, str)]
             filtered_dx = {dx.lower() for dx, _, _ in validated_differentials if dx.lower() in high_risk_conditions and (high_risk := True)}
 
-            # Back pain-specific plan
-            if any('back pain' in s for s in symptom_descriptions) or 'mechanical low back pain' in filtered_dx:
-                plan['workup']['routine'] = ['MRI of lumbar spine' if 'mri' in features.get('recommendation', '').lower() else 'Lumbar X-ray']
-                plan['treatment']['symptomatic'] = ['Ibuprofen 400-600 mg PRN'] if 'ibuprofen' in features.get('medications', '').lower() else ['NSAIDs PRN']
-                plan['treatment']['definitive'] = ['Physical therapy if persistent >4 weeks']
-                plan['treatment']['lifestyle'] = ['Weight management', 'Core strengthening exercises']
-                plan['follow_up'] = ['Follow-up in 2-4 weeks']
-                plan['references'] = ['ACP Guidelines: https://www.acponline.org']
-                if any('radiating pain' in s.get('description', '').lower() for s in symptoms):
-                    plan['workup']['urgent'] = ['MRI of lumbar spine to rule out herniated disc']
-                if any('obesity' in s.get('description', '').lower() for s in symptoms):
-                    plan['treatment']['lifestyle'].append('Referral to nutritionist')
-
             # Primary diagnosis pathway
             for category, pathways in self.clinical_pathways.items():
                 for key, path in pathways.items():
@@ -676,23 +637,11 @@ class ClinicalAnalyzer:
                         plan['treatment']['lifestyle'].extend(treatment.get('lifestyle', []))
                         plan['references'].extend(treatment.get('references', []))
 
-            # Contextual additions
-            if 'new pet' in additional_notes and 'respiratory' in symptom_categories:
-                plan['workup']['routine'].append('Allergy testing')
-            if 'new medication' in additional_notes and 'dermatological' in symptom_categories:
-                plan['workup']['routine'].append('Medication history review')
-            if 'travel' in additional_notes and 'gastrointestinal' in symptom_categories:
-                plan['workup']['routine'].append('Stool culture')
-            if 'sedentary job' in additional_notes and 'musculoskeletal' in symptom_categories:
-                plan['treatment']['definitive'].append('Ergonomic counseling')
-
             # Follow-up
             follow_up_match = re.search(r'Follow-Up:\s*([^\.]+)', features.get('recommendation', ''), re.IGNORECASE)
             plan['follow_up'] = [follow_up_match.group(1).strip()] if follow_up_match else \
                                ['Follow-up in 3-5 days or sooner if symptoms worsen'] if high_risk else \
                                ['Follow-up in 2 weeks']
-            if any('back pain' in s for s in symptom_descriptions):
-                plan['follow_up'] = ['Follow-up in 2-4 weeks or sooner if neurological symptoms develop']
 
             # Deduplicate
             for key in plan['workup']:

@@ -1,1 +1,1 @@
-from extensions import db  # Import db from extensions.py
+from extensions import db 
