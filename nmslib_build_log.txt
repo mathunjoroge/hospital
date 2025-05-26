@@ -1,0 +1,1195 @@
+Using pip 25.1.1 from /home/mathu/projects/hospital/venv/lib/python3.11/site-packages/pip (python 3.11)
+Collecting nmslib
+  Downloading nmslib-2.1.1.tar.gz (188 kB)
+  Preparing metadata (setup.py): started
+  Running command python setup.py egg_info
+  /home/mathu/projects/hospital/venv/lib/python3.11/site-packages/setuptools/dist.py:599: SetuptoolsDeprecationWarning: Invalid dash-separated key 'description-file' in 'metadata' (setup.cfg), please use the underscore name 'description_file' instead.
+  !!
+
+          ********************************************************************************
+          Usage of dash-separated 'description-file' will not be supported in future
+          versions. Please use the underscore name 'description_file' instead.
+
+          By 2026-Mar-03, you need to update your project and remove deprecated calls
+          or your builds will no longer be supported.
+
+          See https://setuptools.pypa.io/en/latest/userguide/declarative_config.html for details.
+          ********************************************************************************
+
+  !!
+    opt = self._enforce_underscore(opt, section)
+  /home/mathu/projects/hospital/venv/lib/python3.11/site-packages/setuptools/__init__.py:92: _DeprecatedInstaller: setuptools.installer and fetch_build_eggs are deprecated.
+  !!
+
+          ********************************************************************************
+          Requirements should be satisfied by a PEP 517 installer.
+          If you are using pip, you can try `pip install --use-pep517`.
+
+          By 2025-Oct-31, you need to update your project and remove deprecated calls
+          or your builds will no longer be supported.
+          ********************************************************************************
+
+  !!
+    dist.fetch_build_eggs(dist.setup_requires)
+  /home/mathu/projects/hospital/venv/lib/python3.11/site-packages/setuptools/_distutils/dist.py:289: UserWarning: Unknown distribution option: 'test_suite'
+    warnings.warn(msg)
+  /home/mathu/projects/hospital/venv/lib/python3.11/site-packages/setuptools/dist.py:599: SetuptoolsDeprecationWarning: Invalid dash-separated key 'description-file' in 'metadata' (setup.cfg), please use the underscore name 'description_file' instead.
+  !!
+
+          ********************************************************************************
+          Usage of dash-separated 'description-file' will not be supported in future
+          versions. Please use the underscore name 'description_file' instead.
+          (Affected: nmslib).
+
+          By 2026-Mar-03, you need to update your project and remove deprecated calls
+          or your builds will no longer be supported.
+
+          See https://setuptools.pypa.io/en/latest/userguide/declarative_config.html for details.
+          ********************************************************************************
+
+  !!
+    opt = self._enforce_underscore(opt, section)
+  Dependence list: ['pybind11<2.6.2', 'psutil', "numpy>=1.10.0,<1.17 ; python_version=='2.7'", "numpy>=1.10.0 ; python_version>='3.5'"]
+  running egg_info
+  creating /tmp/pip-pip-egg-info-9m_l8yy1/nmslib.egg-info
+  writing /tmp/pip-pip-egg-info-9m_l8yy1/nmslib.egg-info/PKG-INFO
+  writing dependency_links to /tmp/pip-pip-egg-info-9m_l8yy1/nmslib.egg-info/dependency_links.txt
+  writing requirements to /tmp/pip-pip-egg-info-9m_l8yy1/nmslib.egg-info/requires.txt
+  writing top-level names to /tmp/pip-pip-egg-info-9m_l8yy1/nmslib.egg-info/top_level.txt
+  writing manifest file '/tmp/pip-pip-egg-info-9m_l8yy1/nmslib.egg-info/SOURCES.txt'
+  reading manifest file '/tmp/pip-pip-egg-info-9m_l8yy1/nmslib.egg-info/SOURCES.txt'
+  reading manifest template 'MANIFEST.in'
+  warning: no previously-included files matching 'similarity_search/src/space/space_sqfd.cc' found anywhere in distribution
+  warning: no previously-included files matching 'similarity_search/src/main.cc' found anywhere in distribution
+  no previously-included directories found matching 'similarity_search/test'
+  no previously-included directories found matching 'similarity_search/apps'
+  adding license file 'LICENSE'
+  adding license file 'LICENSE-Apache-2.0'
+  writing manifest file '/tmp/pip-pip-egg-info-9m_l8yy1/nmslib.egg-info/SOURCES.txt'
+  Preparing metadata (setup.py): finished with status 'done'
+Collecting pybind11<2.6.2 (from nmslib)
+  Obtaining dependency information for pybind11<2.6.2 from https://files.pythonhosted.org/packages/00/84/fc9dc13ee536ba5e6b8fd10ce368fea5b738fe394c3b296cde7c9b144a92/pybind11-2.6.1-py2.py3-none-any.whl.metadata
+  Downloading pybind11-2.6.1-py2.py3-none-any.whl.metadata (8.7 kB)
+Requirement already satisfied: psutil in ./venv/lib/python3.11/site-packages (from nmslib) (7.0.0)
+Requirement already satisfied: numpy>=1.10.0 in ./venv/lib/python3.11/site-packages (from nmslib) (1.26.4)
+Downloading pybind11-2.6.1-py2.py3-none-any.whl (188 kB)
+Building wheels for collected packages: nmslib
+  DEPRECATION: Building 'nmslib' using the legacy setup.py bdist_wheel mechanism, which will be removed in a future version. pip 25.3 will enforce this behaviour change. A possible replacement is to use the standardized build interface by setting the `--use-pep517` option, (possibly combined with `--no-build-isolation`), or adding a `pyproject.toml` file to the source tree of 'nmslib'. Discussion can be found at https://github.com/pypa/pip/issues/6334
+  Building wheel for nmslib (setup.py): started
+  Running command python setup.py bdist_wheel
+  Dependence list: ['pybind11<2.6.2', 'psutil', "numpy>=1.10.0,<1.17 ; python_version=='2.7'", "numpy>=1.10.0 ; python_version>='3.5'"]
+  /home/mathu/projects/hospital/venv/lib/python3.11/site-packages/setuptools/dist.py:599: SetuptoolsDeprecationWarning: Invalid dash-separated key 'description-file' in 'metadata' (setup.cfg), please use the underscore name 'description_file' instead.
+  !!
+
+          ********************************************************************************
+          Usage of dash-separated 'description-file' will not be supported in future
+          versions. Please use the underscore name 'description_file' instead.
+
+          By 2026-Mar-03, you need to update your project and remove deprecated calls
+          or your builds will no longer be supported.
+
+          See https://setuptools.pypa.io/en/latest/userguide/declarative_config.html for details.
+          ********************************************************************************
+
+  !!
+    opt = self._enforce_underscore(opt, section)
+  /home/mathu/projects/hospital/venv/lib/python3.11/site-packages/setuptools/__init__.py:92: _DeprecatedInstaller: setuptools.installer and fetch_build_eggs are deprecated.
+  !!
+
+          ********************************************************************************
+          Requirements should be satisfied by a PEP 517 installer.
+          If you are using pip, you can try `pip install --use-pep517`.
+
+          By 2025-Oct-31, you need to update your project and remove deprecated calls
+          or your builds will no longer be supported.
+          ********************************************************************************
+
+  !!
+    dist.fetch_build_eggs(dist.setup_requires)
+  /home/mathu/projects/hospital/venv/lib/python3.11/site-packages/setuptools/_distutils/dist.py:289: UserWarning: Unknown distribution option: 'test_suite'
+    warnings.warn(msg)
+  /home/mathu/projects/hospital/venv/lib/python3.11/site-packages/setuptools/dist.py:599: SetuptoolsDeprecationWarning: Invalid dash-separated key 'description-file' in 'metadata' (setup.cfg), please use the underscore name 'description_file' instead.
+  !!
+
+          ********************************************************************************
+          Usage of dash-separated 'description-file' will not be supported in future
+          versions. Please use the underscore name 'description_file' instead.
+          (Affected: nmslib).
+
+          By 2026-Mar-03, you need to update your project and remove deprecated calls
+          or your builds will no longer be supported.
+
+          See https://setuptools.pypa.io/en/latest/userguide/declarative_config.html for details.
+          ********************************************************************************
+
+  !!
+    opt = self._enforce_underscore(opt, section)
+  running bdist_wheel
+  running build
+  running build_ext
+  creating tmp
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c /tmp/tmpfubagwxt.cpp -o tmp/tmpfubagwxt.o -std=c++14
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c /tmp/tmpzvsw7yde.cpp -o tmp/tmpzvsw7yde.o -fvisibility=hidden
+  Extra compilation arguments: ['-O3', '-march=native', '-fopenmp', '-DVERSION_INFO="2.1.1"', '-std=c++14', '-fvisibility=hidden']
+  building 'nmslib' extension
+  creating build/temp.linux-x86_64-cpython-311/similarity_search/src
+  creating build/temp.linux-x86_64-cpython-311/similarity_search/src/method
+  creating build/temp.linux-x86_64-cpython-311/similarity_search/src/space
+  creating build/temp.linux-x86_64-cpython-311/tensorflow
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/distcomp_bregman.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/distcomp_bregman.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/distcomp_diverg.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/distcomp_diverg.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/distcomp_edist.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/distcomp_edist.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/distcomp_js.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/distcomp_js.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/distcomp_l2sqr_sift.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/distcomp_l2sqr_sift.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  ./similarity_search/src/distcomp_l2sqr_sift.cc: In function ‘similarity::DistTypeSIFT similarity::l2SqrSIFTPrecompSSE2(const uint8_t*, const uint8_t*)’:
+  ./similarity_search/src/distcomp_l2sqr_sift.cc:69:23: warning: ‘zero’ is used uninitialized [-Wuninitialized]
+     69 |   zero = _mm_xor_si128(zero,zero);
+        |          ~~~~~~~~~~~~~^~~~~~~~~~~
+  ./similarity_search/src/distcomp_l2sqr_sift.cc:68:11: note: ‘zero’ was declared here
+     68 |   __m128i zero, x1, y1;
+        |           ^~~~
+  ./similarity_search/src/distcomp_l2sqr_sift.cc: In function ‘similarity::DistTypeSIFT similarity::l2SqrSIFTPrecompAVX(const uint8_t*, const uint8_t*)’:
+  ./similarity_search/src/distcomp_l2sqr_sift.cc:122:26: warning: ‘zero’ is used uninitialized [-Wuninitialized]
+    122 |   zero = _mm256_xor_si256(zero,zero);
+        |          ~~~~~~~~~~~~~~~~^~~~~~~~~~~
+  ./similarity_search/src/distcomp_l2sqr_sift.cc:121:11: note: ‘zero’ was declared here
+    121 |   __m256i zero, x1, y1;
+        |           ^~~~
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/distcomp_lp.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/distcomp_lp.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/distcomp_overlap.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/distcomp_overlap.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/distcomp_rankcorr.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/distcomp_rankcorr.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/distcomp_scalar.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/distcomp_scalar.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/distcomp_sparse_scalar_fast.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/distcomp_sparse_scalar_fast.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from ./similarity_search/src/distcomp_sparse_scalar_fast.cc:18:
+  ./similarity_search/src/distcomp_sparse_scalar_fast.cc: In function ‘similarity::ScalarProductFastRes similarity::SparseScalarProductFastIntern(const char*, size_t, const char*, size_t)’:
+  ./similarity_search/src/distcomp_sparse_scalar_fast.cc:253:20: warning: comparison of integer expressions of different signedness: ‘size_t’ {aka ‘long unsigned int’} and ‘long int’ [-Wsign-compare]
+    253 |       CHECK(resQty == pVal2 - val2);
+        |             ~~~~~~~^~~~~~~~~~~~~~~
+  ./similarity_search/include/logging.h:124:9: note: in definition of macro ‘CHECK’
+    124 |   if (!(condition)) {\
+        |         ^~~~~~~~~
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/experimentconf.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/experimentconf.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  ./similarity_search/src/experimentconf.cc: In instantiation of ‘void similarity::ExperimentConfig<dist_t>::Write(std::ostream&, std::ostream&) [with dist_t = float; std::ostream = std::basic_ostream<char>]’:
+  ./similarity_search/src/experimentconf.cc:428:16:   required from here
+  ./similarity_search/src/experimentconf.cc:232:17: warning: comparison of integer expressions of different signedness: ‘int’ and ‘unsigned int’ [-Wsign-compare]
+    232 |         if (dst >= testSetQty_) {
+        |             ~~~~^~~~~~~~~~~~~~
+  ./similarity_search/src/experimentconf.cc:267:17: warning: comparison of integer expressions of different signedness: ‘int’ and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    267 |         if (dst == SetNum) {
+        |             ~~~~^~~~~~~~~
+  ./similarity_search/src/experimentconf.cc: In instantiation of ‘void similarity::ExperimentConfig<dist_t>::Write(std::ostream&, std::ostream&) [with dist_t = int; std::ostream = std::basic_ostream<char>]’:
+  ./similarity_search/src/experimentconf.cc:429:16:   required from here
+  ./similarity_search/src/experimentconf.cc:232:17: warning: comparison of integer expressions of different signedness: ‘int’ and ‘unsigned int’ [-Wsign-compare]
+    232 |         if (dst >= testSetQty_) {
+        |             ~~~~^~~~~~~~~~~~~~
+  ./similarity_search/src/experimentconf.cc:267:17: warning: comparison of integer expressions of different signedness: ‘int’ and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    267 |         if (dst == SetNum) {
+        |             ~~~~^~~~~~~~~
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/global.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/global.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/init.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/init.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from ./similarity_search/include/index.h:22,
+                   from ./similarity_search/include/methodfactory.h:21,
+                   from ./similarity_search/include/factory/init_methods.h:18,
+                   from ./similarity_search/src/init.cc:24:
+  ./similarity_search/include/params.h: In member function ‘void similarity::AnyParamManager::copySeen(similarity::AnyParamManager&)’:
+  ./similarity_search/include/params.h:256:23: warning: loop variable ‘s’ creates a copy from type ‘const std::string’ {aka ‘const std::__cxx11::basic_string<char>’} [-Wrange-loop-construct]
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+  ./similarity_search/include/params.h:256:23: note: use reference type to prevent copying
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+        |                       &
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/knnquery.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/knnquery.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from ./similarity_search/include/index.h:22,
+                   from ./similarity_search/src/knnquery.cc:23:
+  ./similarity_search/include/params.h: In member function ‘void similarity::AnyParamManager::copySeen(similarity::AnyParamManager&)’:
+  ./similarity_search/include/params.h:256:23: warning: loop variable ‘s’ creates a copy from type ‘const std::string’ {aka ‘const std::__cxx11::basic_string<char>’} [-Wrange-loop-construct]
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+  ./similarity_search/include/params.h:256:23: note: use reference type to prevent copying
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+        |                       &
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/logging.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/logging.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/memory.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/memory.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/method/dummy.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/method/dummy.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from ./similarity_search/include/index.h:22,
+                   from ./similarity_search/include/method/dummy.h:21,
+                   from ./similarity_search/src/method/dummy.cc:18:
+  ./similarity_search/include/params.h: In member function ‘void similarity::AnyParamManager::copySeen(similarity::AnyParamManager&)’:
+  ./similarity_search/include/params.h:256:23: warning: loop variable ‘s’ creates a copy from type ‘const std::string’ {aka ‘const std::__cxx11::basic_string<char>’} [-Wrange-loop-construct]
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+  ./similarity_search/include/params.h:256:23: note: use reference type to prevent copying
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+        |                       &
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/method/hnsw.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/method/hnsw.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from ./similarity_search/include/index.h:22,
+                   from ./similarity_search/include/method/hnsw.h:28,
+                   from ./similarity_search/src/method/hnsw.cc:33:
+  ./similarity_search/include/params.h: In member function ‘void similarity::AnyParamManager::copySeen(similarity::AnyParamManager&)’:
+  ./similarity_search/include/params.h:256:23: warning: loop variable ‘s’ creates a copy from type ‘const std::string’ {aka ‘const std::__cxx11::basic_string<char>’} [-Wrange-loop-construct]
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+  ./similarity_search/include/params.h:256:23: note: use reference type to prevent copying
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+        |                       &
+  In file included from ./similarity_search/include/params.h:29:
+  ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h: In function ‘float similarity::L2Sqr16Ext(const float*, const float*, size_t&, float*)’:
+  ./similarity_search/include/utils.h:54:50: note: ‘#pragma message: ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h(43) : INFO: L2Sqr16Ext: using AVX version’
+     54 | #   define INFO(exp) (FILE_LINE_LINK "INFO: " exp)
+        |                                                  ^
+  ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h:43:19: note: in expansion of macro ‘INFO’
+     43 |   #pragma message INFO("L2Sqr16Ext: using AVX version")
+        |                   ^~~~
+  ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h: In function ‘float similarity::L2SqrExt(const float*, const float*, size_t&, float*)’:
+  ./similarity_search/include/utils.h:54:50: note: ‘#pragma message: ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h(73) : INFO: L2SqrExt: using AVX version’
+     54 | #   define INFO(exp) (FILE_LINE_LINK "INFO: " exp)
+        |                                                  ^
+  ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h:73:19: note: in expansion of macro ‘INFO’
+     73 |   #pragma message INFO("L2SqrExt: using AVX version")
+        |                   ^~~~
+  ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h: In function ‘float similarity::ScalarProduct(const float*, const float*, size_t, float*)’:
+  ./similarity_search/include/utils.h:54:50: note: ‘#pragma message: ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h(126) : INFO: ScalarProduct: using AVX version’
+     54 | #   define INFO(exp) (FILE_LINE_LINK "INFO: " exp)
+        |                                                  ^
+  ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h:126:19: note: in expansion of macro ‘INFO’
+    126 |   #pragma message INFO("ScalarProduct: using AVX version")
+        |                   ^~~~
+  ./similarity_search/src/method/hnsw.cc: In function ‘float (* similarity::getDistFunc(DistFuncType))(const float*, const float*, size_t&, float*)’:
+  ./similarity_search/src/method/hnsw.cc:92:16: warning: enumeration value ‘kDistTypeUnknown’ not handled in switch [-Wswitch]
+     92 |         switch (funcType) {
+        |                ^
+  ./similarity_search/src/method/hnsw.cc: In instantiation of ‘void similarity::Hnsw<dist_t>::CreateIndex(const similarity::AnyParams&) [with dist_t = float]’:
+  ./similarity_search/src/method/hnsw.cc:1303:20:   required from here
+  ./similarity_search/src/method/hnsw.cc:293:38: warning: comparison of integer expressions of different signedness: ‘std::unordered_set<long unsigned int>::size_type’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
+    293 |                 if (intersect.size() > maxF)
+        |                     ~~~~~~~~~~~~~~~~~^~~~~~
+  ./similarity_search/src/method/hnsw.cc:335:31: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    335 |             for (int i = 0; i < temp.size(); i++)
+        |                             ~~^~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:357:27: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    357 |         for (int i = 0; i < ElList_.size(); i++) {
+        |                         ~~^~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:358:55: warning: comparison of integer expressions of different signedness: ‘size_t’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
+    358 |             if (ElList_[i]->getData()->bufferlength() > dataSectionSize)
+        |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:430:28: warning: comparison of integer expressions of different signedness: ‘long int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    430 |         for (long i = 0; i < ElList_.size(); i++) {
+        |                          ~~^~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:442:32: warning: comparison of integer expressions of different signedness: ‘long int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    442 |             for (long i = 0; i < ElList_.size(); i++) {
+        |                              ~~^~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:453:28: warning: comparison of integer expressions of different signedness: ‘long int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    453 |         for (long i = 0; i < ElList_.size(); i++) {
+        |                          ~~^~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc: In instantiation of ‘similarity::Hnsw<dist_t>::~Hnsw() [with dist_t = float]’:
+  ./similarity_search/src/method/hnsw.cc:1303:20:   required from here
+  ./similarity_search/src/method/hnsw.cc:522:31: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<const similarity::Object*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    522 |             for (int i = 0; i < data_rearranged_.size(); i++) {
+        |                             ~~^~~~~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:528:27: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    528 |         for (int i = 0; i < ElList_.size(); i++)
+        |                         ~~^~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc: In instantiation of ‘void similarity::Hnsw<dist_t>::baseSearchAlgorithmV1Merge(similarity::KNNQuery<dist_t>*) [with dist_t = float]’:
+  ./similarity_search/src/method/hnsw.cc:1303:20:   required from here
+  ./similarity_search/src/method/hnsw.cc:1229:25: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘const long unsigned int’ [-Wsign-compare]
+   1229 |         while (currElem < min(sortedArr.size(), ef_)) {
+        |                ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  In file included from ./similarity_search/include/object.h:31,
+                   from ./similarity_search/include/knnquery.h:18,
+                   from ./similarity_search/src/method/hnsw.cc:32:
+  ./similarity_search/src/method/hnsw.cc:1246:43: warning: comparison of integer expressions of different signedness: ‘similarity::IdType’ {aka ‘int’} and ‘std::vector<const similarity::Object*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+   1246 |                 CHECK(curId >= 0 && curId < this->data_.size());
+        |                                     ~~~~~~^~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/logging.h:124:9: note: in definition of macro ‘CHECK’
+    124 |   if (!(condition)) {\
+        |         ^~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:1275:34: warning: comparison of integer expressions of different signedness: ‘size_t’ {aka ‘long unsigned int’} and ‘int_fast32_t’ {aka ‘long int’} [-Wsign-compare]
+   1275 |                     if (insIndex < currElem) {
+        |                         ~~~~~~~~~^~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:1283:38: warning: comparison of integer expressions of different signedness: ‘size_t’ {aka ‘long unsigned int’} and ‘int_fast32_t’ {aka ‘long int’} [-Wsign-compare]
+   1283 |                         if (insIndex < currElem) {
+        |                             ~~~~~~~~~^~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:1291:29: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+   1291 |             while (currElem < sortedArr.size() && queueData[currElem].used == true)
+        |                    ~~~~~~~~~^~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::Hnsw<dist_t>::NormalizeVect(float*, size_t) [with dist_t = float; size_t = long unsigned int]’:
+  ./similarity_search/src/method/hnsw.cc:1303:20:   required from here
+  ./similarity_search/include/method/hnsw.h:488:31: warning: comparison of integer expressions of different signedness: ‘int’ and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    488 |             for (int i = 0; i < qty; i++) {
+        |                             ~~^~~~~
+  ./similarity_search/include/method/hnsw.h:493:35: warning: comparison of integer expressions of different signedness: ‘int’ and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    493 |                 for (int i = 0; i < qty; i++) {
+        |                                 ~~^~~~~
+  ./similarity_search/src/method/hnsw.cc: In instantiation of ‘void similarity::Hnsw<dist_t>::LoadRegularIndexBin(std::istream&) [with dist_t = float; std::istream = std::basic_istream<char>]’:
+  ./similarity_search/src/method/hnsw.cc:1303:20:   required from here
+  ./similarity_search/src/method/hnsw.cc:985:57: warning: comparison of integer expressions of different signedness: ‘similarity::IdType’ {aka ‘int’} and ‘unsigned int’ [-Wsign-compare]
+    985 |                     CHECK_MSG(friendId >= 0 && friendId < totalElementsStored_,
+        |                                                ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/logging.h:130:9: note: in definition of macro ‘CHECK_MSG’
+    130 |   if (!(condition)) {\
+        |         ^~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc: In instantiation of ‘void similarity::Hnsw<dist_t>::LoadRegularIndexText(std::istream&) [with dist_t = float; std::istream = std::basic_istream<char>]’:
+  ./similarity_search/src/method/hnsw.cc:1303:20:   required from here
+  ./similarity_search/src/method/hnsw.cc:927:57: warning: comparison of integer expressions of different signedness: ‘similarity::IdType’ {aka ‘int’} and ‘unsigned int’ [-Wsign-compare]
+    927 |                     CHECK_MSG(friendId >= 0 && friendId < totalElementsStored_,
+        |                                                ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/logging.h:130:9: note: in definition of macro ‘CHECK_MSG’
+    130 |   if (!(condition)) {\
+        |         ^~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc: In instantiation of ‘void similarity::Hnsw<dist_t>::CreateIndex(const similarity::AnyParams&) [with dist_t = int]’:
+  ./similarity_search/src/method/hnsw.cc:1304:20:   required from here
+  ./similarity_search/src/method/hnsw.cc:293:38: warning: comparison of integer expressions of different signedness: ‘std::unordered_set<long unsigned int>::size_type’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
+    293 |                 if (intersect.size() > maxF)
+        |                     ~~~~~~~~~~~~~~~~~^~~~~~
+  ./similarity_search/src/method/hnsw.cc:335:31: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    335 |             for (int i = 0; i < temp.size(); i++)
+        |                             ~~^~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:357:27: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    357 |         for (int i = 0; i < ElList_.size(); i++) {
+        |                         ~~^~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:358:55: warning: comparison of integer expressions of different signedness: ‘size_t’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
+    358 |             if (ElList_[i]->getData()->bufferlength() > dataSectionSize)
+        |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:430:28: warning: comparison of integer expressions of different signedness: ‘long int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    430 |         for (long i = 0; i < ElList_.size(); i++) {
+        |                          ~~^~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:442:32: warning: comparison of integer expressions of different signedness: ‘long int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    442 |             for (long i = 0; i < ElList_.size(); i++) {
+        |                              ~~^~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:453:28: warning: comparison of integer expressions of different signedness: ‘long int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    453 |         for (long i = 0; i < ElList_.size(); i++) {
+        |                          ~~^~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc: In instantiation of ‘similarity::Hnsw<dist_t>::~Hnsw() [with dist_t = int]’:
+  ./similarity_search/src/method/hnsw.cc:1304:20:   required from here
+  ./similarity_search/src/method/hnsw.cc:522:31: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<const similarity::Object*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    522 |             for (int i = 0; i < data_rearranged_.size(); i++) {
+        |                             ~~^~~~~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:528:27: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    528 |         for (int i = 0; i < ElList_.size(); i++)
+        |                         ~~^~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc: In instantiation of ‘void similarity::Hnsw<dist_t>::baseSearchAlgorithmV1Merge(similarity::KNNQuery<dist_t>*) [with dist_t = int]’:
+  ./similarity_search/src/method/hnsw.cc:1304:20:   required from here
+  ./similarity_search/src/method/hnsw.cc:1229:25: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘const long unsigned int’ [-Wsign-compare]
+   1229 |         while (currElem < min(sortedArr.size(), ef_)) {
+        |                ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:1246:43: warning: comparison of integer expressions of different signedness: ‘similarity::IdType’ {aka ‘int’} and ‘std::vector<const similarity::Object*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+   1246 |                 CHECK(curId >= 0 && curId < this->data_.size());
+        |                                     ~~~~~~^~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/logging.h:124:9: note: in definition of macro ‘CHECK’
+    124 |   if (!(condition)) {\
+        |         ^~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:1275:34: warning: comparison of integer expressions of different signedness: ‘size_t’ {aka ‘long unsigned int’} and ‘int_fast32_t’ {aka ‘long int’} [-Wsign-compare]
+   1275 |                     if (insIndex < currElem) {
+        |                         ~~~~~~~~~^~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:1283:38: warning: comparison of integer expressions of different signedness: ‘size_t’ {aka ‘long unsigned int’} and ‘int_fast32_t’ {aka ‘long int’} [-Wsign-compare]
+   1283 |                         if (insIndex < currElem) {
+        |                             ~~~~~~~~~^~~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc:1291:29: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+   1291 |             while (currElem < sortedArr.size() && queueData[currElem].used == true)
+        |                    ~~~~~~~~~^~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::Hnsw<dist_t>::NormalizeVect(float*, size_t) [with dist_t = int; size_t = long unsigned int]’:
+  ./similarity_search/src/method/hnsw.cc:1304:20:   required from here
+  ./similarity_search/include/method/hnsw.h:488:31: warning: comparison of integer expressions of different signedness: ‘int’ and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    488 |             for (int i = 0; i < qty; i++) {
+        |                             ~~^~~~~
+  ./similarity_search/include/method/hnsw.h:493:35: warning: comparison of integer expressions of different signedness: ‘int’ and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    493 |                 for (int i = 0; i < qty; i++) {
+        |                                 ~~^~~~~
+  ./similarity_search/src/method/hnsw.cc: In instantiation of ‘void similarity::Hnsw<dist_t>::LoadRegularIndexBin(std::istream&) [with dist_t = int; std::istream = std::basic_istream<char>]’:
+  ./similarity_search/src/method/hnsw.cc:1304:20:   required from here
+  ./similarity_search/src/method/hnsw.cc:985:57: warning: comparison of integer expressions of different signedness: ‘similarity::IdType’ {aka ‘int’} and ‘unsigned int’ [-Wsign-compare]
+    985 |                     CHECK_MSG(friendId >= 0 && friendId < totalElementsStored_,
+        |                                                ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/logging.h:130:9: note: in definition of macro ‘CHECK_MSG’
+    130 |   if (!(condition)) {\
+        |         ^~~~~~~~~
+  ./similarity_search/src/method/hnsw.cc: In instantiation of ‘void similarity::Hnsw<dist_t>::LoadRegularIndexText(std::istream&) [with dist_t = int; std::istream = std::basic_istream<char>]’:
+  ./similarity_search/src/method/hnsw.cc:1304:20:   required from here
+  ./similarity_search/src/method/hnsw.cc:927:57: warning: comparison of integer expressions of different signedness: ‘similarity::IdType’ {aka ‘int’} and ‘unsigned int’ [-Wsign-compare]
+    927 |                     CHECK_MSG(friendId >= 0 && friendId < totalElementsStored_,
+        |                                                ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/logging.h:130:9: note: in definition of macro ‘CHECK_MSG’
+    130 |   if (!(condition)) {\
+        |         ^~~~~~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::getNeighborsByHeuristic1(std::priority_queue<similarity::HnswNodeDistCloser<dist_t> >&, int, const similarity::Space<dist_t>*) [with dist_t = float; typename std::vector<similarity::HnswNodeDistCloser<dist_t>, std::allocator<similarity::HnswNodeDistCloser<dist_t> > >::value_type = similarity::HnswNodeDistCloser<float>]’:
+  ./similarity_search/src/method/hnsw.cc:311:62:   required from ‘void similarity::Hnsw<dist_t>::CreateIndex(const similarity::AnyParams&) [with dist_t = float]’
+  ./similarity_search/src/method/hnsw.cc:1303:20:   required from here
+  ./similarity_search/include/method/hnsw.h:86:35: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<float>, std::vector<similarity::HnswNodeDistCloser<float>, std::allocator<similarity::HnswNodeDistCloser<float> > >, std::less<similarity::HnswNodeDistCloser<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+     86 |             if (resultSet1.size() < NN) {
+        |                 ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h:97:39: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistFarther<float>, std::allocator<similarity::HnswNodeDistFarther<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+     97 |                 if (returnlist.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h:119:38: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistFarther<float>, std::allocator<similarity::HnswNodeDistFarther<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    119 |             while (returnlist.size() < NN && templist.size() > 0) {
+        |                    ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::getNeighborsByHeuristic3(std::priority_queue<similarity::HnswNodeDistCloser<dist_t> >&, int, const similarity::Space<dist_t>*, int) [with dist_t = float; typename std::vector<similarity::HnswNodeDistCloser<dist_t>, std::allocator<similarity::HnswNodeDistCloser<dist_t> > >::value_type = similarity::HnswNodeDistCloser<float>]’:
+  ./similarity_search/src/method/hnsw.cc:314:62:   required from ‘void similarity::Hnsw<dist_t>::CreateIndex(const similarity::AnyParams&) [with dist_t = float]’
+  ./similarity_search/src/method/hnsw.cc:1303:20:   required from here
+  ./similarity_search/include/method/hnsw.h:187:35: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<float>, std::vector<similarity::HnswNodeDistCloser<float>, std::allocator<similarity::HnswNodeDistCloser<float> > >, std::less<similarity::HnswNodeDistCloser<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    187 |             if (resultSet1.size() < NN) {
+        |                 ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h:199:31: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNodeDistCloser<float>, std::allocator<similarity::HnswNodeDistCloser<float> > >::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    199 |             for (int i = 0; i < inputCopy.size(); i++) {
+        |                             ~~^~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:200:45: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistCloser<float>, std::allocator<similarity::HnswNodeDistCloser<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    200 |                 if (highPriorityList.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h:247:39: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<float>, std::vector<similarity::HnswNodeDistCloser<float>, std::allocator<similarity::HnswNodeDistCloser<float> > >, std::less<similarity::HnswNodeDistCloser<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    247 |                 if (resultSet1.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h:252:39: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<float>, std::vector<similarity::HnswNodeDistCloser<float>, std::allocator<similarity::HnswNodeDistCloser<float> > >, std::less<similarity::HnswNodeDistCloser<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    252 |                 if (resultSet1.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::getNeighborsByHeuristic2(std::priority_queue<similarity::HnswNodeDistCloser<dist_t> >&, int, const similarity::Space<dist_t>*, int) [with dist_t = float; typename std::vector<similarity::HnswNodeDistCloser<dist_t>, std::allocator<similarity::HnswNodeDistCloser<dist_t> > >::value_type = similarity::HnswNodeDistCloser<float>]’:
+  ./similarity_search/src/method/hnsw.cc:591:53:   required from ‘void similarity::Hnsw<dist_t>::add(const similarity::Space<dist_t>*, similarity::HnswNode*) [with dist_t = float]’
+  ./similarity_search/src/method/hnsw.cc:1303:20:   required from here
+  ./similarity_search/include/method/hnsw.h:133:35: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<float>, std::vector<similarity::HnswNodeDistCloser<float>, std::allocator<similarity::HnswNodeDistCloser<float> > >, std::less<similarity::HnswNodeDistCloser<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    133 |             if (resultSet1.size() < NN) {
+        |                 ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h:147:39: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistFarther<float>, std::allocator<similarity::HnswNodeDistFarther<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    147 |                 if (returnlist.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::addFriendlevel(int, similarity::HnswNode*, const similarity::Space<dist_t>*, int) [with dist_t = float]’:
+  ./similarity_search/include/method/hnsw.h:521:34:   required from ‘void similarity::Hnsw<dist_t>::link(similarity::HnswNode*, similarity::HnswNode*, int, const similarity::Space<dist_t>*, int) [with dist_t = float]’
+  ./similarity_search/src/method/hnsw.cc:1303:20:   required from here
+  ./similarity_search/include/method/hnsw.h:271:47: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
+    271 |                 if (allFriends_[level].size() > maxsize) {
+        |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:276:50: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
+    276 |             } else if (allFriends_[level].size() > maxsize0) {
+        |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:285:39: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    285 |                     for (int i = 0; i < allFriends_[level].size(); i++) {
+        |                                     ~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:304:39: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    304 |                     for (int i = 1; i < allFriends_[level].size(); i++) {
+        |                                     ~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::getNeighborsByHeuristic1(std::priority_queue<similarity::HnswNodeDistCloser<dist_t> >&, int, const similarity::Space<dist_t>*) [with dist_t = int; typename std::vector<similarity::HnswNodeDistCloser<dist_t>, std::allocator<similarity::HnswNodeDistCloser<dist_t> > >::value_type = similarity::HnswNodeDistCloser<int>]’:
+  ./similarity_search/src/method/hnsw.cc:311:62:   required from ‘void similarity::Hnsw<dist_t>::CreateIndex(const similarity::AnyParams&) [with dist_t = int]’
+  ./similarity_search/src/method/hnsw.cc:1304:20:   required from here
+  ./similarity_search/include/method/hnsw.h:86:35: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<int>, std::vector<similarity::HnswNodeDistCloser<int>, std::allocator<similarity::HnswNodeDistCloser<int> > >, std::less<similarity::HnswNodeDistCloser<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+     86 |             if (resultSet1.size() < NN) {
+        |                 ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h:97:39: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistFarther<int>, std::allocator<similarity::HnswNodeDistFarther<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+     97 |                 if (returnlist.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h:119:38: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistFarther<int>, std::allocator<similarity::HnswNodeDistFarther<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    119 |             while (returnlist.size() < NN && templist.size() > 0) {
+        |                    ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::getNeighborsByHeuristic3(std::priority_queue<similarity::HnswNodeDistCloser<dist_t> >&, int, const similarity::Space<dist_t>*, int) [with dist_t = int; typename std::vector<similarity::HnswNodeDistCloser<dist_t>, std::allocator<similarity::HnswNodeDistCloser<dist_t> > >::value_type = similarity::HnswNodeDistCloser<int>]’:
+  ./similarity_search/src/method/hnsw.cc:314:62:   required from ‘void similarity::Hnsw<dist_t>::CreateIndex(const similarity::AnyParams&) [with dist_t = int]’
+  ./similarity_search/src/method/hnsw.cc:1304:20:   required from here
+  ./similarity_search/include/method/hnsw.h:187:35: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<int>, std::vector<similarity::HnswNodeDistCloser<int>, std::allocator<similarity::HnswNodeDistCloser<int> > >, std::less<similarity::HnswNodeDistCloser<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    187 |             if (resultSet1.size() < NN) {
+        |                 ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h:199:31: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNodeDistCloser<int>, std::allocator<similarity::HnswNodeDistCloser<int> > >::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    199 |             for (int i = 0; i < inputCopy.size(); i++) {
+        |                             ~~^~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:200:45: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistCloser<int>, std::allocator<similarity::HnswNodeDistCloser<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    200 |                 if (highPriorityList.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h:247:39: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<int>, std::vector<similarity::HnswNodeDistCloser<int>, std::allocator<similarity::HnswNodeDistCloser<int> > >, std::less<similarity::HnswNodeDistCloser<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    247 |                 if (resultSet1.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h:252:39: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<int>, std::vector<similarity::HnswNodeDistCloser<int>, std::allocator<similarity::HnswNodeDistCloser<int> > >, std::less<similarity::HnswNodeDistCloser<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    252 |                 if (resultSet1.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::getNeighborsByHeuristic2(std::priority_queue<similarity::HnswNodeDistCloser<dist_t> >&, int, const similarity::Space<dist_t>*, int) [with dist_t = int; typename std::vector<similarity::HnswNodeDistCloser<dist_t>, std::allocator<similarity::HnswNodeDistCloser<dist_t> > >::value_type = similarity::HnswNodeDistCloser<int>]’:
+  ./similarity_search/src/method/hnsw.cc:591:53:   required from ‘void similarity::Hnsw<dist_t>::add(const similarity::Space<dist_t>*, similarity::HnswNode*) [with dist_t = int]’
+  ./similarity_search/src/method/hnsw.cc:1304:20:   required from here
+  ./similarity_search/include/method/hnsw.h:133:35: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<int>, std::vector<similarity::HnswNodeDistCloser<int>, std::allocator<similarity::HnswNodeDistCloser<int> > >, std::less<similarity::HnswNodeDistCloser<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    133 |             if (resultSet1.size() < NN) {
+        |                 ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h:147:39: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistFarther<int>, std::allocator<similarity::HnswNodeDistFarther<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    147 |                 if (returnlist.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::addFriendlevel(int, similarity::HnswNode*, const similarity::Space<dist_t>*, int) [with dist_t = int]’:
+  ./similarity_search/include/method/hnsw.h:521:34:   required from ‘void similarity::Hnsw<dist_t>::link(similarity::HnswNode*, similarity::HnswNode*, int, const similarity::Space<dist_t>*, int) [with dist_t = int]’
+  ./similarity_search/src/method/hnsw.cc:1304:20:   required from here
+  ./similarity_search/include/method/hnsw.h:271:47: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
+    271 |                 if (allFriends_[level].size() > maxsize) {
+        |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:276:50: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
+    276 |             } else if (allFriends_[level].size() > maxsize0) {
+        |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:285:39: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    285 |                     for (int i = 0; i < allFriends_[level].size(); i++) {
+        |                                     ~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:304:39: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    304 |                     for (int i = 1; i < allFriends_[level].size(); i++) {
+        |                                     ~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/method/hnsw_distfunc_opt.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/method/hnsw_distfunc_opt.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from ./similarity_search/include/index.h:22,
+                   from ./similarity_search/include/method/hnsw.h:28,
+                   from ./similarity_search/src/method/hnsw_distfunc_opt.cc:26:
+  ./similarity_search/include/params.h: In member function ‘void similarity::AnyParamManager::copySeen(similarity::AnyParamManager&)’:
+  ./similarity_search/include/params.h:256:23: warning: loop variable ‘s’ creates a copy from type ‘const std::string’ {aka ‘const std::__cxx11::basic_string<char>’} [-Wrange-loop-construct]
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+  ./similarity_search/include/params.h:256:23: note: use reference type to prevent copying
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+        |                       &
+  In file included from ./similarity_search/include/params.h:29:
+  ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h: In function ‘float similarity::L2Sqr16Ext(const float*, const float*, size_t&, float*)’:
+  ./similarity_search/include/utils.h:54:50: note: ‘#pragma message: ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h(43) : INFO: L2Sqr16Ext: using AVX version’
+     54 | #   define INFO(exp) (FILE_LINE_LINK "INFO: " exp)
+        |                                                  ^
+  ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h:43:19: note: in expansion of macro ‘INFO’
+     43 |   #pragma message INFO("L2Sqr16Ext: using AVX version")
+        |                   ^~~~
+  ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h: In function ‘float similarity::L2SqrExt(const float*, const float*, size_t&, float*)’:
+  ./similarity_search/include/utils.h:54:50: note: ‘#pragma message: ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h(73) : INFO: L2SqrExt: using AVX version’
+     54 | #   define INFO(exp) (FILE_LINE_LINK "INFO: " exp)
+        |                                                  ^
+  ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h:73:19: note: in expansion of macro ‘INFO’
+     73 |   #pragma message INFO("L2SqrExt: using AVX version")
+        |                   ^~~~
+  ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h: In function ‘float similarity::ScalarProduct(const float*, const float*, size_t, float*)’:
+  ./similarity_search/include/utils.h:54:50: note: ‘#pragma message: ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h(126) : INFO: ScalarProduct: using AVX version’
+     54 | #   define INFO(exp) (FILE_LINE_LINK "INFO: " exp)
+        |                                                  ^
+  ./similarity_search/include/method/hnsw_distfunc_opt_impl_inline.h:126:19: note: in expansion of macro ‘INFO’
+    126 |   #pragma message INFO("ScalarProduct: using AVX version")
+        |                   ^~~~
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc: In instantiation of ‘void similarity::Hnsw<dist_t>::SearchV1Merge(similarity::KNNQuery<dist_t>*, bool) [with dist_t = float]’:
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:285:20:   required from here
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:211:25: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘const long unsigned int’ [-Wsign-compare]
+    211 |         while (currElem < min(sortedArr.size(), ef_)) {
+        |                ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:257:34: warning: comparison of integer expressions of different signedness: ‘size_t’ {aka ‘long unsigned int’} and ‘int_fast32_t’ {aka ‘long int’} [-Wsign-compare]
+    257 |                     if (insIndex < currElem) {
+        |                         ~~~~~~~~~^~~~~~~~~~
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:263:38: warning: comparison of integer expressions of different signedness: ‘size_t’ {aka ‘long unsigned int’} and ‘int_fast32_t’ {aka ‘long int’} [-Wsign-compare]
+    263 |                         if (insIndex < currElem) {
+        |                             ~~~~~~~~~^~~~~~~~~~
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:272:29: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    272 |             while (currElem < sortedArr.size() && queueData[currElem].used == true)
+        |                    ~~~~~~~~~^~~~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:276:57: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    276 |         for (int_fast32_t i = 0; i < query->GetK() && i < sortedArr.size(); ++i) {
+        |                                                       ~~^~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::Hnsw<dist_t>::NormalizeVect(float*, size_t) [with dist_t = float; size_t = long unsigned int]’:
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:285:20:   required from here
+  ./similarity_search/include/method/hnsw.h:488:31: warning: comparison of integer expressions of different signedness: ‘int’ and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    488 |             for (int i = 0; i < qty; i++) {
+        |                             ~~^~~~~
+  ./similarity_search/include/method/hnsw.h:493:35: warning: comparison of integer expressions of different signedness: ‘int’ and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    493 |                 for (int i = 0; i < qty; i++) {
+        |                                 ~~^~~~~
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc: In instantiation of ‘void similarity::Hnsw<dist_t>::SearchV1Merge(similarity::KNNQuery<dist_t>*, bool) [with dist_t = int]’:
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:286:20:   required from here
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:211:25: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘const long unsigned int’ [-Wsign-compare]
+    211 |         while (currElem < min(sortedArr.size(), ef_)) {
+        |                ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:257:34: warning: comparison of integer expressions of different signedness: ‘size_t’ {aka ‘long unsigned int’} and ‘int_fast32_t’ {aka ‘long int’} [-Wsign-compare]
+    257 |                     if (insIndex < currElem) {
+        |                         ~~~~~~~~~^~~~~~~~~~
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:263:38: warning: comparison of integer expressions of different signedness: ‘size_t’ {aka ‘long unsigned int’} and ‘int_fast32_t’ {aka ‘long int’} [-Wsign-compare]
+    263 |                         if (insIndex < currElem) {
+        |                             ~~~~~~~~~^~~~~~~~~~
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:272:29: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    272 |             while (currElem < sortedArr.size() && queueData[currElem].used == true)
+        |                    ~~~~~~~~~^~~~~~~~~~~~~~~~~~
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:276:57: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    276 |         for (int_fast32_t i = 0; i < query->GetK() && i < sortedArr.size(); ++i) {
+        |                                                       ~~^~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::Hnsw<dist_t>::NormalizeVect(float*, size_t) [with dist_t = int; size_t = long unsigned int]’:
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:286:20:   required from here
+  ./similarity_search/include/method/hnsw.h:488:31: warning: comparison of integer expressions of different signedness: ‘int’ and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    488 |             for (int i = 0; i < qty; i++) {
+        |                             ~~^~~~~
+  ./similarity_search/include/method/hnsw.h:493:35: warning: comparison of integer expressions of different signedness: ‘int’ and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    493 |                 for (int i = 0; i < qty; i++) {
+        |                                 ~~^~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::addFriendlevel(int, similarity::HnswNode*, const similarity::Space<dist_t>*, int) [with dist_t = float]’:
+  ./similarity_search/include/method/hnsw.h:521:34:   required from ‘void similarity::Hnsw<dist_t>::link(similarity::HnswNode*, similarity::HnswNode*, int, const similarity::Space<dist_t>*, int) [with dist_t = float]’
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:285:20:   required from here
+  ./similarity_search/include/method/hnsw.h:271:47: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
+    271 |                 if (allFriends_[level].size() > maxsize) {
+        |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:276:50: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
+    276 |             } else if (allFriends_[level].size() > maxsize0) {
+        |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:285:39: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    285 |                     for (int i = 0; i < allFriends_[level].size(); i++) {
+        |                                     ~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:304:39: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    304 |                     for (int i = 1; i < allFriends_[level].size(); i++) {
+        |                                     ~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::addFriendlevel(int, similarity::HnswNode*, const similarity::Space<dist_t>*, int) [with dist_t = int]’:
+  ./similarity_search/include/method/hnsw.h:521:34:   required from ‘void similarity::Hnsw<dist_t>::link(similarity::HnswNode*, similarity::HnswNode*, int, const similarity::Space<dist_t>*, int) [with dist_t = int]’
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:286:20:   required from here
+  ./similarity_search/include/method/hnsw.h:271:47: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
+    271 |                 if (allFriends_[level].size() > maxsize) {
+        |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:276:50: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
+    276 |             } else if (allFriends_[level].size() > maxsize0) {
+        |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:285:39: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    285 |                     for (int i = 0; i < allFriends_[level].size(); i++) {
+        |                                     ~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:304:39: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNode*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    304 |                     for (int i = 1; i < allFriends_[level].size(); i++) {
+        |                                     ~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::getNeighborsByHeuristic1(std::priority_queue<similarity::HnswNodeDistCloser<dist_t> >&, int, const similarity::Space<dist_t>*) [with dist_t = float; typename std::vector<similarity::HnswNodeDistCloser<dist_t>, std::allocator<similarity::HnswNodeDistCloser<dist_t> > >::value_type = similarity::HnswNodeDistCloser<float>]’:
+  ./similarity_search/include/method/hnsw.h:290:55:   required from ‘void similarity::HnswNode::addFriendlevel(int, similarity::HnswNode*, const similarity::Space<dist_t>*, int) [with dist_t = float]’
+  ./similarity_search/include/method/hnsw.h:521:34:   required from ‘void similarity::Hnsw<dist_t>::link(similarity::HnswNode*, similarity::HnswNode*, int, const similarity::Space<dist_t>*, int) [with dist_t = float]’
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:285:20:   required from here
+  ./similarity_search/include/method/hnsw.h:86:35: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<float>, std::vector<similarity::HnswNodeDistCloser<float>, std::allocator<similarity::HnswNodeDistCloser<float> > >, std::less<similarity::HnswNodeDistCloser<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+     86 |             if (resultSet1.size() < NN) {
+        |                 ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h:97:39: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistFarther<float>, std::allocator<similarity::HnswNodeDistFarther<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+     97 |                 if (returnlist.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h:119:38: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistFarther<float>, std::allocator<similarity::HnswNodeDistFarther<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    119 |             while (returnlist.size() < NN && templist.size() > 0) {
+        |                    ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::getNeighborsByHeuristic2(std::priority_queue<similarity::HnswNodeDistCloser<dist_t> >&, int, const similarity::Space<dist_t>*, int) [with dist_t = float; typename std::vector<similarity::HnswNodeDistCloser<dist_t>, std::allocator<similarity::HnswNodeDistCloser<dist_t> > >::value_type = similarity::HnswNodeDistCloser<float>]’:
+  ./similarity_search/include/method/hnsw.h:292:55:   required from ‘void similarity::HnswNode::addFriendlevel(int, similarity::HnswNode*, const similarity::Space<dist_t>*, int) [with dist_t = float]’
+  ./similarity_search/include/method/hnsw.h:521:34:   required from ‘void similarity::Hnsw<dist_t>::link(similarity::HnswNode*, similarity::HnswNode*, int, const similarity::Space<dist_t>*, int) [with dist_t = float]’
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:285:20:   required from here
+  ./similarity_search/include/method/hnsw.h:133:35: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<float>, std::vector<similarity::HnswNodeDistCloser<float>, std::allocator<similarity::HnswNodeDistCloser<float> > >, std::less<similarity::HnswNodeDistCloser<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    133 |             if (resultSet1.size() < NN) {
+        |                 ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h:147:39: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistFarther<float>, std::allocator<similarity::HnswNodeDistFarther<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    147 |                 if (returnlist.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::getNeighborsByHeuristic3(std::priority_queue<similarity::HnswNodeDistCloser<dist_t> >&, int, const similarity::Space<dist_t>*, int) [with dist_t = float; typename std::vector<similarity::HnswNodeDistCloser<dist_t>, std::allocator<similarity::HnswNodeDistCloser<dist_t> > >::value_type = similarity::HnswNodeDistCloser<float>]’:
+  ./similarity_search/include/method/hnsw.h:294:55:   required from ‘void similarity::HnswNode::addFriendlevel(int, similarity::HnswNode*, const similarity::Space<dist_t>*, int) [with dist_t = float]’
+  ./similarity_search/include/method/hnsw.h:521:34:   required from ‘void similarity::Hnsw<dist_t>::link(similarity::HnswNode*, similarity::HnswNode*, int, const similarity::Space<dist_t>*, int) [with dist_t = float]’
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:285:20:   required from here
+  ./similarity_search/include/method/hnsw.h:187:35: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<float>, std::vector<similarity::HnswNodeDistCloser<float>, std::allocator<similarity::HnswNodeDistCloser<float> > >, std::less<similarity::HnswNodeDistCloser<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    187 |             if (resultSet1.size() < NN) {
+        |                 ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h:199:31: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNodeDistCloser<float>, std::allocator<similarity::HnswNodeDistCloser<float> > >::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    199 |             for (int i = 0; i < inputCopy.size(); i++) {
+        |                             ~~^~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:200:45: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistCloser<float>, std::allocator<similarity::HnswNodeDistCloser<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    200 |                 if (highPriorityList.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h:247:39: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<float>, std::vector<similarity::HnswNodeDistCloser<float>, std::allocator<similarity::HnswNodeDistCloser<float> > >, std::less<similarity::HnswNodeDistCloser<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    247 |                 if (resultSet1.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h:252:39: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<float>, std::vector<similarity::HnswNodeDistCloser<float>, std::allocator<similarity::HnswNodeDistCloser<float> > >, std::less<similarity::HnswNodeDistCloser<float> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    252 |                 if (resultSet1.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::getNeighborsByHeuristic1(std::priority_queue<similarity::HnswNodeDistCloser<dist_t> >&, int, const similarity::Space<dist_t>*) [with dist_t = int; typename std::vector<similarity::HnswNodeDistCloser<dist_t>, std::allocator<similarity::HnswNodeDistCloser<dist_t> > >::value_type = similarity::HnswNodeDistCloser<int>]’:
+  ./similarity_search/include/method/hnsw.h:290:55:   required from ‘void similarity::HnswNode::addFriendlevel(int, similarity::HnswNode*, const similarity::Space<dist_t>*, int) [with dist_t = int]’
+  ./similarity_search/include/method/hnsw.h:521:34:   required from ‘void similarity::Hnsw<dist_t>::link(similarity::HnswNode*, similarity::HnswNode*, int, const similarity::Space<dist_t>*, int) [with dist_t = int]’
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:286:20:   required from here
+  ./similarity_search/include/method/hnsw.h:86:35: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<int>, std::vector<similarity::HnswNodeDistCloser<int>, std::allocator<similarity::HnswNodeDistCloser<int> > >, std::less<similarity::HnswNodeDistCloser<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+     86 |             if (resultSet1.size() < NN) {
+        |                 ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h:97:39: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistFarther<int>, std::allocator<similarity::HnswNodeDistFarther<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+     97 |                 if (returnlist.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h:119:38: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistFarther<int>, std::allocator<similarity::HnswNodeDistFarther<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    119 |             while (returnlist.size() < NN && templist.size() > 0) {
+        |                    ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::getNeighborsByHeuristic2(std::priority_queue<similarity::HnswNodeDistCloser<dist_t> >&, int, const similarity::Space<dist_t>*, int) [with dist_t = int; typename std::vector<similarity::HnswNodeDistCloser<dist_t>, std::allocator<similarity::HnswNodeDistCloser<dist_t> > >::value_type = similarity::HnswNodeDistCloser<int>]’:
+  ./similarity_search/include/method/hnsw.h:292:55:   required from ‘void similarity::HnswNode::addFriendlevel(int, similarity::HnswNode*, const similarity::Space<dist_t>*, int) [with dist_t = int]’
+  ./similarity_search/include/method/hnsw.h:521:34:   required from ‘void similarity::Hnsw<dist_t>::link(similarity::HnswNode*, similarity::HnswNode*, int, const similarity::Space<dist_t>*, int) [with dist_t = int]’
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:286:20:   required from here
+  ./similarity_search/include/method/hnsw.h:133:35: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<int>, std::vector<similarity::HnswNodeDistCloser<int>, std::allocator<similarity::HnswNodeDistCloser<int> > >, std::less<similarity::HnswNodeDistCloser<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    133 |             if (resultSet1.size() < NN) {
+        |                 ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h:147:39: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistFarther<int>, std::allocator<similarity::HnswNodeDistFarther<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    147 |                 if (returnlist.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h: In instantiation of ‘void similarity::HnswNode::getNeighborsByHeuristic3(std::priority_queue<similarity::HnswNodeDistCloser<dist_t> >&, int, const similarity::Space<dist_t>*, int) [with dist_t = int; typename std::vector<similarity::HnswNodeDistCloser<dist_t>, std::allocator<similarity::HnswNodeDistCloser<dist_t> > >::value_type = similarity::HnswNodeDistCloser<int>]’:
+  ./similarity_search/include/method/hnsw.h:294:55:   required from ‘void similarity::HnswNode::addFriendlevel(int, similarity::HnswNode*, const similarity::Space<dist_t>*, int) [with dist_t = int]’
+  ./similarity_search/include/method/hnsw.h:521:34:   required from ‘void similarity::Hnsw<dist_t>::link(similarity::HnswNode*, similarity::HnswNode*, int, const similarity::Space<dist_t>*, int) [with dist_t = int]’
+  ./similarity_search/src/method/hnsw_distfunc_opt.cc:286:20:   required from here
+  ./similarity_search/include/method/hnsw.h:187:35: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<int>, std::vector<similarity::HnswNodeDistCloser<int>, std::allocator<similarity::HnswNodeDistCloser<int> > >, std::less<similarity::HnswNodeDistCloser<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    187 |             if (resultSet1.size() < NN) {
+        |                 ~~~~~~~~~~~~~~~~~~^~~~
+  ./similarity_search/include/method/hnsw.h:199:31: warning: comparison of integer expressions of different signedness: ‘int’ and ‘std::vector<similarity::HnswNodeDistCloser<int>, std::allocator<similarity::HnswNodeDistCloser<int> > >::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    199 |             for (int i = 0; i < inputCopy.size(); i++) {
+        |                             ~~^~~~~~~~~~~~~~~~~~
+  ./similarity_search/include/method/hnsw.h:200:45: warning: comparison of integer expressions of different signedness: ‘std::vector<similarity::HnswNodeDistCloser<int>, std::allocator<similarity::HnswNodeDistCloser<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    200 |                 if (highPriorityList.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h:247:39: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<int>, std::vector<similarity::HnswNodeDistCloser<int>, std::allocator<similarity::HnswNodeDistCloser<int> > >, std::less<similarity::HnswNodeDistCloser<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    247 |                 if (resultSet1.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  ./similarity_search/include/method/hnsw.h:252:39: warning: comparison of integer expressions of different signedness: ‘std::priority_queue<similarity::HnswNodeDistCloser<int>, std::vector<similarity::HnswNodeDistCloser<int>, std::allocator<similarity::HnswNodeDistCloser<int> > >, std::less<similarity::HnswNodeDistCloser<int> > >::size_type’ {aka ‘long unsigned int’} and ‘const int’ [-Wsign-compare]
+    252 |                 if (resultSet1.size() >= NN)
+        |                     ~~~~~~~~~~~~~~~~~~^~~~~
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/method/pivot_neighb_invindx.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/method/pivot_neighb_invindx.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from ./similarity_search/include/index.h:22,
+                   from ./similarity_search/include/method/pivot_neighb_invindx.h:21,
+                   from ./similarity_search/src/method/pivot_neighb_invindx.cc:29:
+  ./similarity_search/include/params.h: In member function ‘void similarity::AnyParamManager::copySeen(similarity::AnyParamManager&)’:
+  ./similarity_search/include/params.h:256:23: warning: loop variable ‘s’ creates a copy from type ‘const std::string’ {aka ‘const std::__cxx11::basic_string<char>’} [-Wrange-loop-construct]
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+  ./similarity_search/include/params.h:256:23: note: use reference type to prevent copying
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+        |                       &
+  In file included from ./similarity_search/include/object.h:31,
+                   from ./similarity_search/include/space.h:29,
+                   from ./similarity_search/src/method/pivot_neighb_invindx.cc:25:
+  ./similarity_search/src/method/pivot_neighb_invindx.cc: In instantiation of ‘void similarity::PivotNeighbInvertedIndex<dist_t>::LoadIndex(const std::string&) [with dist_t = float; std::string = std::__cxx11::basic_string<char>]’:
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:792:16:   required from here
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:446:31: warning: comparison of integer expressions of different signedness: ‘__gnu_cxx::__alloc_traits<std::allocator<int>, int>::value_type’ {aka ‘int’} and ‘std::vector<const similarity::Object*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    446 |       CHECK_MSG(pivot_pos_[i] < this->data_.size(),
+  ./similarity_search/include/logging.h:130:9: note: in definition of macro ‘CHECK_MSG’
+    130 |   if (!(condition)) {\
+        |         ^~~~~~~~~
+  ./similarity_search/src/method/pivot_neighb_invindx.cc: In instantiation of ‘void similarity::PivotNeighbInvertedIndex<dist_t>::LoadIndex(const std::string&) [with dist_t = int; std::string = std::__cxx11::basic_string<char>]’:
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:793:16:   required from here
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:446:31: warning: comparison of integer expressions of different signedness: ‘__gnu_cxx::__alloc_traits<std::allocator<int>, int>::value_type’ {aka ‘int’} and ‘std::vector<const similarity::Object*>::size_type’ {aka ‘long unsigned int’} [-Wsign-compare]
+    446 |       CHECK_MSG(pivot_pos_[i] < this->data_.size(),
+  ./similarity_search/include/logging.h:130:9: note: in definition of macro ‘CHECK_MSG’
+    130 |   if (!(condition)) {\
+        |         ^~~~~~~~~
+  ./similarity_search/src/method/pivot_neighb_invindx.cc: In instantiation of ‘void similarity::PivotNeighbInvertedIndex<dist_t>::GenSearch(QueryType*, size_t) const [with QueryType = similarity::RangeQuery<float>; dist_t = float; size_t = long unsigned int]’:
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:784:12:   required from ‘void similarity::PivotNeighbInvertedIndex<dist_t>::Search(similarity::RangeQuery<dist_t>*, similarity::IdType) const [with dist_t = float; similarity::IdType = int]’
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:792:16:   required from here
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:674:37: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘const size_t’ {aka ‘const long unsigned int’} [-Wsign-compare]
+    674 |         while (postListQueue.size() >= min_times_) {
+        |                ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:695:47: warning: comparison of integer expressions of different signedness: ‘const __gnu_cxx::__alloc_traits<std::allocator<unsigned int>, unsigned int>::value_type’ {aka ‘const unsigned int’} and ‘similarity::IdType’ {aka ‘int’} [-Wsign-compare]
+    695 |             while (pos < pl.size() && pl[pos] <= -minDocIdNeg) pos++;
+  ./similarity_search/src/method/pivot_neighb_invindx.cc: In instantiation of ‘void similarity::PivotNeighbInvertedIndex<dist_t>::GenSearch(QueryType*, size_t) const [with QueryType = similarity::KNNQuery<float>; dist_t = float; size_t = long unsigned int]’:
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:789:12:   required from ‘void similarity::PivotNeighbInvertedIndex<dist_t>::Search(similarity::KNNQuery<dist_t>*, similarity::IdType) const [with dist_t = float; similarity::IdType = int]’
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:792:16:   required from here
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:674:37: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘const size_t’ {aka ‘const long unsigned int’} [-Wsign-compare]
+    674 |         while (postListQueue.size() >= min_times_) {
+        |                ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:695:47: warning: comparison of integer expressions of different signedness: ‘const __gnu_cxx::__alloc_traits<std::allocator<unsigned int>, unsigned int>::value_type’ {aka ‘const unsigned int’} and ‘similarity::IdType’ {aka ‘int’} [-Wsign-compare]
+    695 |             while (pos < pl.size() && pl[pos] <= -minDocIdNeg) pos++;
+  ./similarity_search/src/method/pivot_neighb_invindx.cc: In instantiation of ‘void similarity::PivotNeighbInvertedIndex<dist_t>::GenSearch(QueryType*, size_t) const [with QueryType = similarity::RangeQuery<int>; dist_t = int; size_t = long unsigned int]’:
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:784:12:   required from ‘void similarity::PivotNeighbInvertedIndex<dist_t>::Search(similarity::RangeQuery<dist_t>*, similarity::IdType) const [with dist_t = int; similarity::IdType = int]’
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:793:16:   required from here
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:674:37: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘const size_t’ {aka ‘const long unsigned int’} [-Wsign-compare]
+    674 |         while (postListQueue.size() >= min_times_) {
+        |                ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:695:47: warning: comparison of integer expressions of different signedness: ‘const __gnu_cxx::__alloc_traits<std::allocator<unsigned int>, unsigned int>::value_type’ {aka ‘const unsigned int’} and ‘similarity::IdType’ {aka ‘int’} [-Wsign-compare]
+    695 |             while (pos < pl.size() && pl[pos] <= -minDocIdNeg) pos++;
+  ./similarity_search/src/method/pivot_neighb_invindx.cc: In instantiation of ‘void similarity::PivotNeighbInvertedIndex<dist_t>::GenSearch(QueryType*, size_t) const [with QueryType = similarity::KNNQuery<int>; dist_t = int; size_t = long unsigned int]’:
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:789:12:   required from ‘void similarity::PivotNeighbInvertedIndex<dist_t>::Search(similarity::KNNQuery<dist_t>*, similarity::IdType) const [with dist_t = int; similarity::IdType = int]’
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:793:16:   required from here
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:674:37: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘const size_t’ {aka ‘const long unsigned int’} [-Wsign-compare]
+    674 |         while (postListQueue.size() >= min_times_) {
+        |                ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~
+  ./similarity_search/src/method/pivot_neighb_invindx.cc:695:47: warning: comparison of integer expressions of different signedness: ‘const __gnu_cxx::__alloc_traits<std::allocator<unsigned int>, unsigned int>::value_type’ {aka ‘const unsigned int’} and ‘similarity::IdType’ {aka ‘int’} [-Wsign-compare]
+    695 |             while (pos < pl.size() && pl[pos] <= -minDocIdNeg) pos++;
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/method/seqsearch.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/method/seqsearch.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from ./similarity_search/include/index.h:22,
+                   from ./similarity_search/include/method/seqsearch.h:20,
+                   from ./similarity_search/src/method/seqsearch.cc:21:
+  ./similarity_search/include/params.h: In member function ‘void similarity::AnyParamManager::copySeen(similarity::AnyParamManager&)’:
+  ./similarity_search/include/params.h:256:23: warning: loop variable ‘s’ creates a copy from type ‘const std::string’ {aka ‘const std::__cxx11::basic_string<char>’} [-Wrange-loop-construct]
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+  ./similarity_search/include/params.h:256:23: note: use reference type to prevent copying
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+        |                       &
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/method/simple_inverted_index.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/method/simple_inverted_index.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from ./similarity_search/include/index.h:22,
+                   from ./similarity_search/include/method/simple_inverted_index.h:23,
+                   from ./similarity_search/src/method/simple_inverted_index.cc:20:
+  ./similarity_search/include/params.h: In member function ‘void similarity::AnyParamManager::copySeen(similarity::AnyParamManager&)’:
+  ./similarity_search/include/params.h:256:23: warning: loop variable ‘s’ creates a copy from type ‘const std::string’ {aka ‘const std::__cxx11::basic_string<char>’} [-Wrange-loop-construct]
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+  ./similarity_search/include/params.h:256:23: note: use reference type to prevent copying
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+        |                       &
+  ./similarity_search/src/method/simple_inverted_index.cc: In instantiation of ‘void similarity::SimplInvIndex<dist_t>::Search(similarity::KNNQuery<dist_t>*, similarity::IdType) const [with dist_t = float; similarity::IdType = int]’:
+  ./similarity_search/src/method/simple_inverted_index.cc:245:16:   required from here
+  ./similarity_search/src/method/simple_inverted_index.cc:116:28: warning: comparison of integer expressions of different signedness: ‘int_fast32_t’ {aka ‘long int’} and ‘size_t’ {aka ‘long unsigned int’} [-Wsign-compare]
+    116 |     if (tmpResQueue.size() < K || tmpResQueue.top_key() == negAccum)
+        |         ~~~~~~~~~~~~~~~~~~~^~~
+  In file included from /usr/include/x86_64-linux-gnu/c++/13/bits/c++allocator.h:33,
+                   from /usr/include/c++/13/bits/allocator.h:46,
+                   from /usr/include/c++/13/bits/alloc_traits.h:39,
+                   from /usr/include/c++/13/ext/alloc_traits.h:34,
+                   from /usr/include/c++/13/bits/hashtable_policy.h:39,
+                   from /usr/include/c++/13/bits/hashtable.h:35,
+                   from /usr/include/c++/13/bits/unordered_map.h:33,
+                   from /usr/include/c++/13/unordered_map:41,
+                   from ./similarity_search/src/method/simple_inverted_index.cc:15:
+  In member function ‘void std::__new_allocator<_Tp>::deallocate(_Tp*, size_type) [with _Tp = std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> >]’,
+      inlined from ‘static void std::allocator_traits<std::allocator<_Tp1> >::deallocate(allocator_type&, pointer, size_type) [with _Tp = std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> >]’ at /usr/include/c++/13/bits/alloc_traits.h:517:23,
+      inlined from ‘void std::_Vector_base<_Tp, _Alloc>::_M_deallocate(pointer, std::size_t) [with _Tp = std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> >; _Alloc = std::allocator<std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> > >]’ at /usr/include/c++/13/bits/stl_vector.h:390:19,
+      inlined from ‘std::_Vector_base<_Tp, _Alloc>::~_Vector_base() [with _Tp = std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> >; _Alloc = std::allocator<std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> > >]’ at /usr/include/c++/13/bits/stl_vector.h:369:15,
+      inlined from ‘std::vector<_Tp, _Alloc>::~vector() [with _Tp = std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> >; _Alloc = std::allocator<std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> > >]’ at /usr/include/c++/13/bits/stl_vector.h:738:7,
+      inlined from ‘void similarity::SimplInvIndex<dist_t>::Search(similarity::KNNQuery<dist_t>*, similarity::IdType) const [with dist_t = float]’ at ./similarity_search/src/method/simple_inverted_index.cc:140:1:
+  /usr/include/c++/13/bits/new_allocator.h:172:33: warning: ‘void operator delete(void*, std::size_t)’ called on pointer ‘<unknown>’ with nonzero offset [1, 9223372036854775800] [-Wfree-nonheap-object]
+    172 |         _GLIBCXX_OPERATOR_DELETE(_GLIBCXX_SIZED_DEALLOC(__p, __n));
+        |                                 ^
+  In member function ‘_Tp* std::__new_allocator<_Tp>::allocate(size_type, const void*) [with _Tp = std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> >]’,
+      inlined from ‘static _Tp* std::allocator_traits<std::allocator<_Tp1> >::allocate(allocator_type&, size_type) [with _Tp = std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> >]’ at /usr/include/c++/13/bits/alloc_traits.h:482:28,
+      inlined from ‘std::_Vector_base<_Tp, _Alloc>::pointer std::_Vector_base<_Tp, _Alloc>::_M_allocate(std::size_t) [with _Tp = std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> >; _Alloc = std::allocator<std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> > >]’ at /usr/include/c++/13/bits/stl_vector.h:381:33,
+      inlined from ‘void std::_Vector_base<_Tp, _Alloc>::_M_create_storage(std::size_t) [with _Tp = std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> >; _Alloc = std::allocator<std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> > >]’ at /usr/include/c++/13/bits/stl_vector.h:398:44,
+      inlined from ‘std::_Vector_base<_Tp, _Alloc>::_Vector_base(std::size_t, const allocator_type&) [with _Tp = std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> >; _Alloc = std::allocator<std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> > >]’ at /usr/include/c++/13/bits/stl_vector.h:335:26,
+      inlined from ‘std::vector<_Tp, _Alloc>::vector(size_type, const allocator_type&) [with _Tp = std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> >; _Alloc = std::allocator<std::unique_ptr<similarity::SimplInvIndex<float>::PostListQueryState, std::default_delete<similarity::SimplInvIndex<float>::PostListQueryState> > >]’ at /usr/include/c++/13/bits/stl_vector.h:557:47,
+      inlined from ‘void similarity::SimplInvIndex<dist_t>::Search(similarity::KNNQuery<dist_t>*, similarity::IdType) const [with dist_t = float]’ at ./similarity_search/src/method/simple_inverted_index.cc:43:47:
+  /usr/include/c++/13/bits/new_allocator.h:151:55: note: returned from ‘void* operator new(std::size_t)’
+    151 |         return static_cast<_Tp*>(_GLIBCXX_OPERATOR_NEW(__n * sizeof(_Tp)));
+        |                                                       ^
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/method/small_world_rand.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/method/small_world_rand.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from ./similarity_search/include/index.h:22,
+                   from ./similarity_search/include/method/small_world_rand.h:18,
+                   from ./similarity_search/src/method/small_world_rand.cc:31:
+  ./similarity_search/include/params.h: In member function ‘void similarity::AnyParamManager::copySeen(similarity::AnyParamManager&)’:
+  ./similarity_search/include/params.h:256:23: warning: loop variable ‘s’ creates a copy from type ‘const std::string’ {aka ‘const std::__cxx11::basic_string<char>’} [-Wrange-loop-construct]
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+  ./similarity_search/include/params.h:256:23: note: use reference type to prevent copying
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+        |                       &
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/method/vptree.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/method/vptree.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from ./similarity_search/include/searchoracle.h:26,
+                   from ./similarity_search/src/method/vptree.cc:31:
+  ./similarity_search/include/params.h: In member function ‘void similarity::AnyParamManager::copySeen(similarity::AnyParamManager&)’:
+  ./similarity_search/include/params.h:256:23: warning: loop variable ‘s’ creates a copy from type ‘const std::string’ {aka ‘const std::__cxx11::basic_string<char>’} [-Wrange-loop-construct]
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+  ./similarity_search/include/params.h:256:23: note: use reference type to prevent copying
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+        |                       &
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/params.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/params.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from ./similarity_search/src/params.cc:22:
+  ./similarity_search/include/params.h: In member function ‘void similarity::AnyParamManager::copySeen(similarity::AnyParamManager&)’:
+  ./similarity_search/include/params.h:256:23: warning: loop variable ‘s’ creates a copy from type ‘const std::string’ {aka ‘const std::__cxx11::basic_string<char>’} [-Wrange-loop-construct]
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+  ./similarity_search/include/params.h:256:23: note: use reference type to prevent copying
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+        |                       &
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/params_cmdline.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/params_cmdline.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from ./similarity_search/include/params_cmdline.h:30,
+                   from ./similarity_search/src/params_cmdline.cc:22:
+  ./similarity_search/include/params.h: In member function ‘void similarity::AnyParamManager::copySeen(similarity::AnyParamManager&)’:
+  ./similarity_search/include/params.h:256:23: warning: loop variable ‘s’ creates a copy from type ‘const std::string’ {aka ‘const std::__cxx11::basic_string<char>’} [-Wrange-loop-construct]
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+  ./similarity_search/include/params.h:256:23: note: use reference type to prevent copying
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+        |                       &
+  ./similarity_search/src/params_cmdline.cc: In function ‘void similarity::ParseCommandLine(int, char**, bool&, std::string&, std::string&, std::string&, std::string&, std::string&, std::shared_ptr<AnyParams>&, unsigned int&, bool&, std::string&, unsigned int&, std::string&, std::string&, std::string&, float&, bool&, unsigned int&, unsigned int&, std::vector<unsigned int>&, float&, std::string&, std::string&, std::shared_ptr<AnyParams>&, std::vector<std::shared_ptr<AnyParams> >&)’:
+  ./similarity_search/src/params_cmdline.cc:163:20: warning: loop variable ‘s’ creates a copy from type ‘const std::__cxx11::basic_string<char>’ [-Wrange-loop-construct]
+    163 |     for(const auto s: vQueryTimeParamStr) {
+        |                    ^
+  ./similarity_search/src/params_cmdline.cc:163:20: note: use reference type to prevent copying
+    163 |     for(const auto s: vQueryTimeParamStr) {
+        |                    ^
+        |                    &
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/query.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/query.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/rangequery.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/rangequery.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/searchoracle.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/searchoracle.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from ./similarity_search/include/searchoracle.h:26,
+                   from ./similarity_search/src/searchoracle.cc:15:
+  ./similarity_search/include/params.h: In member function ‘void similarity::AnyParamManager::copySeen(similarity::AnyParamManager&)’:
+  ./similarity_search/include/params.h:256:23: warning: loop variable ‘s’ creates a copy from type ‘const std::string’ {aka ‘const std::__cxx11::basic_string<char>’} [-Wrange-loop-construct]
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+  ./similarity_search/include/params.h:256:23: note: use reference type to prevent copying
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+        |                       &
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_ab_diverg.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_ab_diverg.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_bregman.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_bregman.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_dummy.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_dummy.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_js.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_js.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_l2sqr_sift.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_l2sqr_sift.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_lp.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_lp.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_renyi_diverg.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_renyi_diverg.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_scalar.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_scalar.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_sparse_dense_fusion.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_sparse_dense_fusion.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_sparse_jaccard.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_sparse_jaccard.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_sparse_lp.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_sparse_lp.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_sparse_scalar_bin_fast.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_sparse_scalar_bin_fast.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_sparse_scalar_fast.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_sparse_scalar_fast.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_sparse_vector.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_sparse_vector.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_sparse_vector_inter.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_sparse_vector_inter.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_string.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_string.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_vector.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_vector.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/space/space_word_embed.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/space/space_word_embed.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c ./similarity_search/src/utils.cc -o build/temp.linux-x86_64-cpython-311/similarity_search/src/utils.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  x86_64-linux-gnu-g++ -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -g -fwrapv -O2 -fPIC -I./similarity_search/include -Itensorflow -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include -I/home/mathu/projects/hospital/venv/lib/python3.11/site-packages/numpy/core/include -I/home/mathu/projects/hospital/venv/include -I/usr/include/python3.11 -c nmslib.cc -o build/temp.linux-x86_64-cpython-311/nmslib.o -O3 -march=native -fopenmp -DVERSION_INFO=\"2.1.1\" -std=c++14 -fvisibility=hidden
+  In file included from /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/attr.h:13,
+                   from /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:45,
+                   from nmslib.cc:16:
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/cast.h: In function ‘std::string pybind11::detail::error_string()’:
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/cast.h:446:36: error: invalid use of incomplete type ‘PyFrameObject’ {aka ‘struct _frame’}
+    446 |                 "  " + handle(frame->f_code->co_filename).cast<std::string>() +
+        |                                    ^~
+  In file included from /usr/include/python3.11/Python.h:42,
+                   from /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/detail/common.h:122,
+                   from /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pytypes.h:12,
+                   from /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/cast.h:13:
+  /usr/include/python3.11/pytypedefs.h:22:16: note: forward declaration of ‘PyFrameObject’ {aka ‘struct _frame’}
+     22 | typedef struct _frame PyFrameObject;
+        |                ^~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/cast.h:446:75: error: expected primary-expression before ‘>’ token
+    446 |                 "  " + handle(frame->f_code->co_filename).cast<std::string>() +
+        |                                                                           ^
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/cast.h:446:77: error: expected primary-expression before ‘)’ token
+    446 |                 "  " + handle(frame->f_code->co_filename).cast<std::string>() +
+        |                                                                             ^
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/cast.h:448:29: error: invalid use of incomplete type ‘PyFrameObject’ {aka ‘struct _frame’}
+    448 |                 handle(frame->f_code->co_name).cast<std::string>() + "\n";
+        |                             ^~
+  /usr/include/python3.11/pytypedefs.h:22:16: note: forward declaration of ‘PyFrameObject’ {aka ‘struct _frame’}
+     22 | typedef struct _frame PyFrameObject;
+        |                ^~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/cast.h:448:64: error: expected primary-expression before ‘>’ token
+    448 |                 handle(frame->f_code->co_name).cast<std::string>() + "\n";
+        |                                                                ^
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/cast.h:448:66: error: expected primary-expression before ‘)’ token
+    448 |                 handle(frame->f_code->co_name).cast<std::string>() + "\n";
+        |                                                                  ^
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/cast.h:449:26: error: invalid use of incomplete type ‘PyFrameObject’ {aka ‘struct _frame’}
+    449 |             frame = frame->f_back;
+        |                          ^~
+  /usr/include/python3.11/pytypedefs.h:22:16: note: forward declaration of ‘PyFrameObject’ {aka ‘struct _frame’}
+     22 | typedef struct _frame PyFrameObject;
+        |                ^~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/attr.h: At global scope:
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/attr.h:199:10: error: ‘uint16_t’ in namespace ‘std’ does not name a type; did you mean ‘wint_t’?
+    199 |     std::uint16_t nargs;
+        |          ^~~~~~~~
+        |          wint_t
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/attr.h:202:10: error: ‘uint16_t’ in namespace ‘std’ does not name a type; did you mean ‘wint_t’?
+    202 |     std::uint16_t nargs_kw_only = 0;
+        |          ^~~~~~~~
+        |          wint_t
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/attr.h:205:10: error: ‘uint16_t’ in namespace ‘std’ does not name a type; did you mean ‘wint_t’?
+    205 |     std::uint16_t nargs_pos_only = 0;
+        |          ^~~~~~~~
+        |          wint_t
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/attr.h: In constructor ‘pybind11::detail::function_call::function_call(const pybind11::detail::function_record&, pybind11::handle)’:
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/attr.h:310:20: error: ‘const struct pybind11::detail::function_record’ has no member named ‘nargs’; did you mean ‘args’?
+    310 |     args.reserve(f.nargs);
+        |                    ^~~~~
+        |                    args
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/attr.h:311:28: error: ‘const struct pybind11::detail::function_record’ has no member named ‘nargs’; did you mean ‘args’?
+    311 |     args_convert.reserve(f.nargs);
+        |                            ^~~~~
+        |                            args
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/attr.h: In function ‘void pybind11::detail::process_kw_only_arg(const pybind11::arg&, function_record*)’:
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/attr.h:382:10: error: ‘struct pybind11::detail::function_record’ has no member named ‘nargs_kw_only’
+    382 |     ++r->nargs_kw_only;
+        |          ^~~~~~~~~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/attr.h: In static member function ‘static void pybind11::detail::process_attribute<pybind11::pos_only>::init(const pybind11::pos_only&, pybind11::detail::function_record*)’:
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/attr.h:439:12: error: ‘struct pybind11::detail::function_record’ has no member named ‘nargs_pos_only’
+    439 |         r->nargs_pos_only = static_cast<std::uint16_t>(r->args.size());
+        |            ^~~~~~~~~~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/attr.h:439:46: error: ‘uint16_t’ in namespace ‘std’ does not name a type; did you mean ‘wint_t’?
+    439 |         r->nargs_pos_only = static_cast<std::uint16_t>(r->args.size());
+        |                                              ^~~~~~~~
+        |                                              wint_t
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h: In member function ‘void pybind11::cpp_function::initialize_generic(pybind11::detail::function_record*, const char*, const std::type_info* const*, pybind11::size_t)’:
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:270:26: error: ‘struct pybind11::detail::function_record’ has no member named ‘nargs_kw_only’
+    270 |                 if (rec->nargs_kw_only > 0 && arg_index + rec->nargs_kw_only == args)
+        |                          ^~~~~~~~~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:270:64: error: ‘struct pybind11::detail::function_record’ has no member named ‘nargs_kw_only’
+    270 |                 if (rec->nargs_kw_only > 0 && arg_index + rec->nargs_kw_only == args)
+        |                                                                ^~~~~~~~~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:288:26: error: ‘struct pybind11::detail::function_record’ has no member named ‘nargs_pos_only’
+    288 |                 if (rec->nargs_pos_only > 0 && (arg_index + 1) == rec->nargs_pos_only)
+        |                          ^~~~~~~~~~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:288:72: error: ‘struct pybind11::detail::function_record’ has no member named ‘nargs_pos_only’
+    288 |                 if (rec->nargs_pos_only > 0 && (arg_index + 1) == rec->nargs_pos_only)
+        |                                                                        ^~~~~~~~~~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:330:14: error: ‘struct pybind11::detail::function_record’ has no member named ‘nargs’; did you mean ‘args’?
+    330 |         rec->nargs = (std::uint16_t) args;
+        |              ^~~~~
+        |              args
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:330:28: error: ‘uint16_t’ is not a member of ‘std’; did you mean ‘wint_t’?
+    330 |         rec->nargs = (std::uint16_t) args;
+        |                            ^~~~~~~~
+        |                            wint_t
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h: In static member function ‘static PyObject* pybind11::cpp_function::dispatcher(PyObject*, PyObject*, PyObject*)’:
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:554:40: error: ‘const struct pybind11::detail::function_record’ has no member named ‘nargs’; did you mean ‘args’?
+    554 |                 size_t num_args = func.nargs;    // Number of positional arguments that we need
+        |                                        ^~~~~
+        |                                        args
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:557:51: error: ‘const struct pybind11::detail::function_record’ has no member named ‘nargs_kw_only’
+    557 |                 size_t pos_args = num_args - func.nargs_kw_only;
+        |                                                   ^~~~~~~~~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:607:40: error: ‘const struct pybind11::detail::function_record’ has no member named ‘nargs_pos_only’
+    607 |                 if (args_copied < func.nargs_pos_only) {
+        |                                        ^~~~~~~~~~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:608:47: error: ‘const struct pybind11::detail::function_record’ has no member named ‘nargs_pos_only’
+    608 |                     for (; args_copied < func.nargs_pos_only; ++args_copied) {
+        |                                               ^~~~~~~~~~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:622:44: error: ‘const struct pybind11::detail::function_record’ has no member named ‘nargs_pos_only’
+    622 |                     if (args_copied < func.nargs_pos_only)
+        |                                            ^~~~~~~~~~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:710:53: error: ‘const struct pybind11::detail::function_record’ has no member named ‘nargs’; did you mean ‘args’?
+    710 |                     second_pass_convert.resize(func.nargs, false);
+        |                                                     ^~~~~
+        |                                                     args
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h: In function ‘pybind11::function pybind11::detail::get_type_override(const void*, const type_info*, const char*)’:
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:2218:49: error: ‘PyThreadState’ {aka ‘struct _ts’} has no member named ‘frame’; did you mean ‘cframe’?
+   2218 |     PyFrameObject *frame = PyThreadState_Get()->frame;
+        |                                                 ^~~~~
+        |                                                 cframe
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:2219:41: error: invalid use of incomplete type ‘PyFrameObject’ {aka ‘struct _frame’}
+   2219 |     if (frame && (std::string) str(frame->f_code->co_name) == name &&
+        |                                         ^~
+  /usr/include/python3.11/pytypedefs.h:22:16: note: forward declaration of ‘PyFrameObject’ {aka ‘struct _frame’}
+     22 | typedef struct _frame PyFrameObject;
+        |                ^~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:2220:14: error: invalid use of incomplete type ‘PyFrameObject’ {aka ‘struct _frame’}
+   2220 |         frame->f_code->co_argcount > 0) {
+        |              ^~
+  /usr/include/python3.11/pytypedefs.h:22:16: note: forward declaration of ‘PyFrameObject’ {aka ‘struct _frame’}
+     22 | typedef struct _frame PyFrameObject;
+        |                ^~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:2223:18: error: invalid use of incomplete type ‘PyFrameObject’ {aka ‘struct _frame’}
+   2223 |             frame->f_locals, PyTuple_GET_ITEM(frame->f_code->co_varnames, 0));
+        |                  ^~
+  /usr/include/python3.11/pytypedefs.h:22:16: note: forward declaration of ‘PyFrameObject’ {aka ‘struct _frame’}
+     22 | typedef struct _frame PyFrameObject;
+        |                ^~~~~~
+  In file included from /usr/include/python3.11/Python.h:38:
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:2223:52: error: invalid use of incomplete type ‘PyFrameObject’ {aka ‘struct _frame’}
+   2223 |             frame->f_locals, PyTuple_GET_ITEM(frame->f_code->co_varnames, 0));
+        |                                                    ^~
+  /usr/include/python3.11/pyport.h:24:38: note: in definition of macro ‘_Py_CAST’
+     24 | #define _Py_CAST(type, expr) ((type)(expr))
+        |                                      ^~~~
+  /usr/include/python3.11/cpython/tupleobject.h:30:38: note: in expansion of macro ‘_PyTuple_CAST’
+     30 | #define PyTuple_GET_ITEM(op, index) (_PyTuple_CAST(op)->ob_item[index])
+        |                                      ^~~~~~~~~~~~~
+  /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/.eggs/pybind11-2.6.1-py3.11.egg/pybind11/include/pybind11/pybind11.h:2223:30: note: in expansion of macro ‘PyTuple_GET_ITEM’
+   2223 |             frame->f_locals, PyTuple_GET_ITEM(frame->f_code->co_varnames, 0));
+        |                              ^~~~~~~~~~~~~~~~
+  /usr/include/python3.11/pytypedefs.h:22:16: note: forward declaration of ‘PyFrameObject’ {aka ‘struct _frame’}
+     22 | typedef struct _frame PyFrameObject;
+        |                ^~~~~~
+  In file included from ./similarity_search/include/index.h:22,
+                   from nmslib.cc:28:
+  ./similarity_search/include/params.h: In member function ‘void similarity::AnyParamManager::copySeen(similarity::AnyParamManager&)’:
+  ./similarity_search/include/params.h:256:23: warning: loop variable ‘s’ creates a copy from type ‘const std::string’ {aka ‘const std::__cxx11::basic_string<char>’} [-Wrange-loop-construct]
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+  ./similarity_search/include/params.h:256:23: note: use reference type to prevent copying
+    256 |     for (const string s: seen) other.seen.insert(s);
+        |                       ^
+        |                       &
+  error: command '/usr/bin/x86_64-linux-gnu-g++' failed with exit code 1
+  error: subprocess-exited-with-error
+  
+  × python setup.py bdist_wheel did not run successfully.
+  │ exit code: 1
+  ╰─> See above for output.
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+  full command: /home/mathu/projects/hospital/venv/bin/python3.11 -u -c '
+  exec(compile('"'"''"'"''"'"'
+  # This is <pip-setuptools-caller> -- a caller that pip uses to run setup.py
+  #
+  # - It imports setuptools before invoking setup.py, to enable projects that directly
+  #   import from `distutils.core` to work with newer packaging standards.
+  # - It provides a clear error message when setuptools is not installed.
+  # - It sets `sys.argv[0]` to the underlying `setup.py`, when invoking `setup.py` so
+  #   setuptools doesn'"'"'t think the script is `-c`. This avoids the following warning:
+  #     manifest_maker: standard file '"'"'-c'"'"' not found".
+  # - It generates a shim setup.py, for handling setup.cfg-only projects.
+  import os, sys, tokenize, traceback
+  
+  try:
+      import setuptools
+  except ImportError:
+      print(
+          "ERROR: Can not execute `setup.py` since setuptools failed to import in "
+          "the build environment with exception:",
+          file=sys.stderr,
+      )
+      traceback.print_exc()
+      sys.exit(1)
+  
+  __file__ = %r
+  sys.argv[0] = __file__
+  
+  if os.path.exists(__file__):
+      filename = __file__
+      with tokenize.open(__file__) as f:
+          setup_py_code = f.read()
+  else:
+      filename = "<auto-generated setuptools caller>"
+      setup_py_code = "from setuptools import setup; setup()"
+  
+  exec(compile(setup_py_code, filename, "exec"))
+  '"'"''"'"''"'"' % ('"'"'/tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/setup.py'"'"',), "<pip-setuptools-caller>", "exec"))' bdist_wheel -d /tmp/pip-wheel-p03fqu5k
+  cwd: /tmp/pip-install-yxkp72fn/nmslib_8aa89993e2504120aab9097c48357db7/
+  Building wheel for nmslib (setup.py): finished with status 'error'
+  ERROR: Failed building wheel for nmslib
+  Running setup.py clean for nmslib
+  Running command python setup.py clean
+  Dependence list: ['pybind11<2.6.2', 'psutil', "numpy>=1.10.0,<1.17 ; python_version=='2.7'", "numpy>=1.10.0 ; python_version>='3.5'"]
+  /home/mathu/projects/hospital/venv/lib/python3.11/site-packages/setuptools/dist.py:599: SetuptoolsDeprecationWarning: Invalid dash-separated key 'description-file' in 'metadata' (setup.cfg), please use the underscore name 'description_file' instead.
+  !!
+
+          ********************************************************************************
+          Usage of dash-separated 'description-file' will not be supported in future
+          versions. Please use the underscore name 'description_file' instead.
+
+          By 2026-Mar-03, you need to update your project and remove deprecated calls
+          or your builds will no longer be supported.
+
+          See https://setuptools.pypa.io/en/latest/userguide/declarative_config.html for details.
+          ********************************************************************************
+
+  !!
+    opt = self._enforce_underscore(opt, section)
+  /home/mathu/projects/hospital/venv/lib/python3.11/site-packages/setuptools/__init__.py:92: _DeprecatedInstaller: setuptools.installer and fetch_build_eggs are deprecated.
+  !!
+
+          ********************************************************************************
+          Requirements should be satisfied by a PEP 517 installer.
+          If you are using pip, you can try `pip install --use-pep517`.
+
+          By 2025-Oct-31, you need to update your project and remove deprecated calls
+          or your builds will no longer be supported.
+          ********************************************************************************
+
+  !!
+    dist.fetch_build_eggs(dist.setup_requires)
+  /home/mathu/projects/hospital/venv/lib/python3.11/site-packages/setuptools/_distutils/dist.py:289: UserWarning: Unknown distribution option: 'test_suite'
+    warnings.warn(msg)
+  /home/mathu/projects/hospital/venv/lib/python3.11/site-packages/setuptools/dist.py:599: SetuptoolsDeprecationWarning: Invalid dash-separated key 'description-file' in 'metadata' (setup.cfg), please use the underscore name 'description_file' instead.
+  !!
+
+          ********************************************************************************
+          Usage of dash-separated 'description-file' will not be supported in future
+          versions. Please use the underscore name 'description_file' instead.
+          (Affected: nmslib).
+
+          By 2026-Mar-03, you need to update your project and remove deprecated calls
+          or your builds will no longer be supported.
+
+          See https://setuptools.pypa.io/en/latest/userguide/declarative_config.html for details.
+          ********************************************************************************
+
+  !!
+    opt = self._enforce_underscore(opt, section)
+  running clean
+  removing 'build/temp.linux-x86_64-cpython-311' (and everything under it)
+  'build/lib.linux-x86_64-cpython-311' does not exist -- can't clean it
+  'build/bdist.linux-x86_64' does not exist -- can't clean it
+  'build/scripts-3.11' does not exist -- can't clean it
+  removing 'build'
+Failed to build nmslib
+ERROR: Failed to build installable wheels for some pyproject.toml based projects (nmslib)

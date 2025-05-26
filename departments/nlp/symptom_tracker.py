@@ -10,6 +10,7 @@ from departments.nlp.knowledge_base_io import load_knowledge_base
 from departments.nlp.kb_updater import KnowledgeBaseUpdater
 from departments.nlp.config import UTS_API_KEY, UTS_BASE_URL
 from departments.nlp.nlp_pipeline import get_nlp
+from departments.nlp.nlp_utils import preprocess_text, deduplicate
 import requests
 import time
 
@@ -24,7 +25,7 @@ class SymptomTracker:
         self.uts_base_url = UTS_BASE_URL
         self.common_symptoms: Dict[str, Dict[str, Dict]] = {}
         self.synonyms: Dict[str, List[str]] = {}
-        
+
         # Initialize MongoDB with indexes
         try:
             client = MongoClient(mongo_uri)
@@ -65,22 +66,21 @@ class SymptomTracker:
                 description = doc.get('description')
                 umls_cui = doc.get('umls_cui')
                 semantic_type = doc.get('semantic_type', 'Unknown')
-                if symptom.lower() in ['diabetes', 'hypertension']:  # Skip conditions, not symptoms
+                if not all([category, symptom, description]) or not isinstance(category, str) or not isinstance(symptom, str) or not isinstance(description, str):
+                    logger.warning(f"Skipping invalid symptom document: {doc}")
                     continue
-                if category and symptom and description and isinstance(category, str) and isinstance(symptom, str) and isinstance(description, str):
-                    if category not in self.common_symptoms:
-                        self.common_symptoms[category] = {}
-                    if symptom not in self.common_symptoms[category]:
-                        self.common_symptoms[category][symptom] = {
-                            'description': description,
-                            'umls_cui': umls_cui,
-                            'semantic_type': semantic_type
-                        }
-                    else:
-                        logger.warning(f"Duplicate symptom '{symptom}' in category '{category}' skipped")
+                if category not in self.common_symptoms:
+                    self.common_symptoms[category] = {}
+                if symptom not in self.common_symptoms[category]:
+                    self.common_symptoms[category][symptom] = {
+                        'description': description,
+                        'umls_cui': umls_cui,
+                        'semantic_type': semantic_type
+                    }
+                else:
+                    logger.warning(f"Duplicate symptom '{symptom}' in category '{category}' skipped")
             if not self.common_symptoms:
-                logger.warning("No symptoms loaded from MongoDB. Initializing with UMLS seed data.")
-                self._initialize_symptoms_from_umls()
+                logger.warning("No symptoms loaded from MongoDB. Initializing empty symptom set.")
             else:
                 logger.info(f"Loaded {sum(len(symptoms) for symptoms in self.common_symptoms.values())} symptoms from MongoDB across {len(self.common_symptoms)} categories.")
             client.close()
@@ -118,25 +118,6 @@ class SymptomTracker:
             self.nlp = None
         logger.debug(f"NLP attribute set to: {self.nlp}")
 
-    def _initialize_symptoms_from_umls(self):
-        """Initialize symptoms collection with a seed set from UMLS."""
-        if not self.collection:
-            logger.error("MongoDB collection not initialized. Cannot seed symptoms.")
-            return
-        # Seed with common symptoms (curated list to avoid excessive API calls)
-        seed_symptoms = [
-            'headache', 'fever', 'cough', 'nausea', 'chest pain', 'shortness of breath',
-            'jaundice', 'chills', 'vomiting', 'loss of appetite', 'fatigue', 'abdominal pain',
-            'diarrhea', 'rash', 'joint pain', 'back pain', 'dizziness', 'photophobia'
-        ]
-        for symptom in seed_symptoms:
-            cui, semantic_type = self._get_umls_cui(symptom)
-            if cui:
-                category = self._infer_category(symptom, '')
-                description = f"UMLS-derived: {symptom}"
-                self.add_symptom(category, symptom, description, cui, semantic_type)
-        logger.info(f"Seeded {len(seed_symptoms)} symptoms from UMLS into MongoDB.")
-
     def _load_json_fallback(self):
         """Load symptoms from JSON fallback if MongoDB fails."""
         json_path = os.path.join(os.path.dirname(__file__), "knowledge_base", "symptoms.json")
@@ -154,26 +135,25 @@ class SymptomTracker:
                             continue
                         valid_symptoms[category] = {}
                         for symptom, info in symptoms.items():
-                            if symptom.lower() in ['diabetes', 'hypertension']:
-                                continue
-                            if isinstance(symptom, str) and isinstance(info, dict) and 'description' in info and symptom and info['description']:
-                                valid_symptoms[category][symptom] = {
-                                    'description': info['description'],
-                                    'umls_cui': info.get('umls_cui'),
-                                    'semantic_type': info.get('semantic_type', 'Unknown')
-                                }
-                            else:
+                            if not isinstance(info, dict) or 'description' not in info or not symptom or not info['description']:
                                 logger.warning(f"Skipping invalid symptom {symptom} in {category}: {info}")
+                                continue
+                            valid_symptoms[category][symptom] = {
+                                'description': info['description'],
+                                'umls_cui': info.get('umls_cui'),
+                                'semantic_type': info.get('semantic_type', 'Unknown')
+                            }
                     self.common_symptoms = valid_symptoms
                     logger.info(f"Loaded {sum(len(symptoms) for symptoms in self.common_symptoms.values())} symptoms from {json_path}.")
         except FileNotFoundError:
-            logger.error(f"Symptom JSON not found at {json_path}. Using empty symptoms.")
+            logger.error(f"Symptom JSON not found at {json_path}. Using empty symptom set.")
             self.common_symptoms = {}
         except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in {json_path}: {str(e)}. Using empty symptoms.")
+            logger.error(f"Invalid JSON in {json_path}: {str(e)}. Using empty symptom set.")
             self.common_symptoms = {}
 
     def _save_json_fallback(self, json_path: str, data: dict):
+        """Save symptoms to JSON fallback."""
         try:
             os.makedirs(os.path.dirname(json_path), exist_ok=True)
             with open(json_path, 'w') as f:
@@ -183,6 +163,10 @@ class SymptomTracker:
             logger.error(f"Failed to create {json_path}: {str(e)}")
 
     def _get_uts_ticket(self, retries: int = 3, delay: float = 1.0) -> str:
+        """Retrieve a single-use ticket for UTS API."""
+        if self.uts_api_key == 'mock_api_key':
+            logger.error("UTS_API_KEY is not set or is using mock key. Please configure a valid API key.")
+            return ''
         for attempt in range(retries):
             try:
                 ticket_url = f"{self.uts_base_url}/tickets"
@@ -197,7 +181,9 @@ class SymptomTracker:
         return ''
 
     def _get_umls_cui(self, symptom: str) -> Tuple[Optional[str], Optional[str]]:
-        symptom_lower = symptom.lower()
+        """Retrieve UMLS CUI and semantic type for a symptom with caching."""
+        symptom_clean = preprocess_text(symptom)
+        symptom_lower = symptom_clean.lower()
         try:
             client = MongoClient(self.mongo_uri)
             db = client[self.db_name]
@@ -214,7 +200,6 @@ class SymptomTracker:
             ticket = self._get_uts_ticket()
             if not ticket:
                 return None, 'Unknown'
-            # Search UMLS for exact match
             search_url = f"{self.uts_base_url}/search/current"
             params = {'string': symptom_lower, 'ticket': ticket, 'searchType': 'exact', 'sabs': 'SNOMEDCT_US'}
             response = requests.get(search_url, params=params, timeout=5)
@@ -227,31 +212,12 @@ class SymptomTracker:
                 concept_response.raise_for_status()
                 concept_data = concept_response.json()
                 semantic_type = concept_data['result'].get('semanticTypes', [{}])[0].get('name', 'Unknown')
-                # Fetch synonyms
-                synonyms = []
-                try:
-                    xref_url = f"{self.uts_base_url}/crosswalk/current/source/SNOMEDCT_US/{cui}"
-                    xref_response = requests.get(xref_url, params={'ticket': ticket}, timeout=5)
-                    xref_response.raise_for_status()
-                    xref_data = xref_response.json()
-                    for result in xref_data.get('result', []):
-                        if result.get('sourceName') == 'MSH':  # MeSH for synonyms
-                            synonym_cui = result.get('ui')
-                            synonym_url = f"{self.uts_base_url}/content/current/CUI/{synonym_cui}"
-                            synonym_response = requests.get(synonym_url, params={'ticket': ticket}, timeout=5)
-                            synonym_response.raise_for_status()
-                            synonym_data = synonym_response.json()
-                            synonyms.extend(synonym_data['result'].get('synonyms', []))
-                except Exception as e:
-                    logger.warning(f"Failed to fetch synonyms for '{symptom_lower}': {str(e)}")
-                # Cache result
                 try:
                     cache.update_one(
                         {'symptom': symptom_lower},
                         {'$set': {
                             'cui': cui,
-                            'semantic_type': semantic_type,
-                            'synonyms': synonyms
+                            'semantic_type': semantic_type
                         }},
                         upsert=True
                     )
@@ -260,17 +226,15 @@ class SymptomTracker:
                     logger.error(f"Failed to cache UMLS data: {str(e)}")
                 finally:
                     client.close()
-                # Update synonyms in knowledge base
-                if synonyms:
-                    self.synonyms[symptom_lower] = synonyms
-                    self.kb_updater.update_knowledge_base(symptom_lower, self._infer_category(symptom_lower, ''), synonyms, '')
                 return cui, semantic_type
+            logger.warning(f"No UMLS CUI found for '{symptom_lower}'. Marking for review.")
             return None, 'Unknown'
         except Exception as e:
             logger.error(f"UMLS CUI retrieval failed for '{symptom_lower}': {str(e)}")
             return None, 'Unknown'
 
     def add_symptom(self, category: str, symptom: str, description: str, umls_cui: Optional[str] = None, semantic_type: Optional[str] = 'Unknown'):
+        """Add a symptom to MongoDB and in-memory store."""
         if not self.collection:
             logger.error("MongoDB collection not initialized. Cannot add symptom.")
             return
@@ -299,6 +263,7 @@ class SymptomTracker:
             logger.error(f"Error adding symptom to MongoDB: {str(e)}")
 
     def remove_symptom(self, category: str, symptom: str):
+        """Remove a symptom from MongoDB and in-memory store."""
         if not self.collection:
             logger.error("MongoDB collection not initialized. Cannot remove symptom.")
             return
@@ -314,15 +279,15 @@ class SymptomTracker:
             logger.error(f"Error removing symptom from MongoDB: {str(e)}")
 
     def _update_symptoms_json(self):
+        """Update JSON fallback with current symptoms."""
         json_path = os.path.join(os.path.dirname(__file__), "knowledge_base", "symptoms.json")
         try:
-            with open(json_path, 'w') as f:
-                json.dump(self.common_symptoms, f, indent=2)
-            logger.info(f"Updated {json_path} with current symptoms.")
+            self._save_json_fallback(json_path, self.common_symptoms)
         except Exception as e:
             logger.error(f"Failed to update {json_path}: {str(e)}")
 
     def update_knowledge_base(self, note_text: str, expected_symptoms: List[str], extracted_symptoms: List[Dict], chief_complaint: str) -> None:
+        """Update knowledge base with missing symptoms."""
         extracted_desc = {s['description'].lower() for s in extracted_symptoms}
         missing_symptoms = [s.lower() for s in expected_symptoms if s.lower() not in extracted_desc]
         if not missing_symptoms:
@@ -334,7 +299,7 @@ class SymptomTracker:
             if self.kb_updater.is_new_symptom(symptom):
                 category = self._infer_category(symptom, chief_complaint)
                 cui, semantic_type = self._get_umls_cui(symptom)
-                description = f"UMLS-derived: {symptom}"
+                description = f"UMLS-derived: {symptom}" if cui else f"Pending UMLS review: {symptom}"
                 synonyms = self.synonyms.get(symptom.lower(), self.kb_updater.generate_synonyms(symptom))
                 self.kb_updater.update_knowledge_base(symptom, category, synonyms, note_text)
                 self.add_symptom(category, symptom, description, cui, semantic_type)
@@ -343,251 +308,174 @@ class SymptomTracker:
                 logger.debug(f"Symptom '{symptom}' already exists in knowledge base. Skipping update.")
 
     def _infer_category(self, symptom: str, chief_complaint: str) -> str:
-        symptom_lower = symptom.lower()
-        # Extended category inference for HMIS
-        if any(kw in symptom_lower for kw in ['nasal', 'sinus', 'facial', 'congestion', 'discharge', 'cough', 'wheezing']):
-            return "respiratory"
-        if any(kw in symptom_lower for kw in ['headache', 'dizziness', 'photophobia', 'seizure', 'numbness']):
+        """Infer symptom category from MongoDB mapping or chief complaint."""
+        symptom_clean = preprocess_text(symptom)
+        symptom_lower = symptom_clean.lower()
+        try:
+            client = MongoClient(self.mongo_uri)
+            db = client[self.db_name]
+            category_mapping = db.get_collection('category_mappings')
+            mapping = category_mapping.find_one({'symptom': symptom_lower})
+            if mapping and 'category' in mapping:
+                logger.debug(f"Inferred category '{mapping['category']}' for symptom '{symptom_lower}' from MongoDB")
+                client.close()
+                return mapping['category']
+        except Exception as e:
+            logger.error(f"Error accessing category mappings: {str(e)}")
+
+        # Fallback to chief complaint-based inference
+        chief_clean = preprocess_text(chief_complaint)
+        chief_lower = chief_clean.lower()
+        if 'headache' in chief_lower or 'neurological' in chief_lower:
             return "neurological"
-        if any(kw in symptom_lower for kw in ['chest', 'palpitations', 'shortness of breath', 'tightness', 'edema']):
-            return "cardiovascular"
-        if any(kw in symptom_lower for kw in ['nausea', 'diarrhea', 'epigastric', 'vomiting', 'abdominal', 'jaundice']):
-            return "gastrointestinal"
-        if any(kw in symptom_lower for kw in ['joint', 'knee', 'back', 'obesity', 'movement', 'stiffness']):
-            return "musculoskeletal"
-        if any(kw in symptom_lower for kw in ['rash', 'itch', 'lesion', 'ulcer']):
-            return "dermatological"
-        if any(kw in symptom_lower for kw in ['hearing', 'vision', 'tinnitus']):
-            return "sensory"
-        if any(kw in symptom_lower for kw in ['bleeding', 'bruising', 'anemia']):
-            return "hematologic"
-        if any(kw in symptom_lower for kw in ['weight', 'thirst', 'fatigue', 'sweating']):
-            return "endocrine"
-        if any(kw in symptom_lower for kw in ['urinary', 'dysuria', 'incontinence']):
-            return "genitourinary"
-        if any(kw in symptom_lower for kw in ['mood', 'anxiety', 'depression', 'insomnia']):
-            return "psychiatric"
-        if any(kw in symptom_lower for kw in ['fever', 'chills', 'malaise']):
-            return "general"
-        if 'sinus' in chief_complaint.lower():
+        if 'sinus' in chief_lower or 'respiratory' in chief_lower:
             return "respiratory"
+        logger.warning(f"No category mapping found for '{symptom_lower}'. Defaulting to 'general'.")
         return "general"
 
     def get_symptoms_by_category(self, category: str) -> Dict[str, Dict]:
+        """Retrieve symptoms for a given category."""
         return self.common_symptoms.get(category, {})
 
     def search_symptom(self, symptom: str) -> Tuple[Optional[str], Optional[Dict]]:
+        """Search for a symptom across categories."""
+        symptom_clean = preprocess_text(symptom)
         for category, symptoms in self.common_symptoms.items():
             for s, info in symptoms.items():
-                if s.lower() == symptom.lower():
+                if preprocess_text(s).lower() == symptom_clean.lower():
                     return category, info
         return None, None
 
     def get_all_symptoms(self) -> Set[str]:
+        """Retrieve all symptom names."""
         return {symptom for category in self.common_symptoms.values() for symptom in category.keys()}
 
     def get_categories(self) -> List[str]:
+        """Retrieve all symptom categories."""
         return list(self.common_symptoms.keys())
 
+    def extract_duration(self, text: str) -> str:
+        """Placeholder for duration extraction."""
+        if '3 days' in text.lower() or 'three days' in text.lower():
+            return '3 days'
+        return 'Unknown'
+
+    def classify_severity(self, text: str) -> str:
+        """Placeholder for severity classification."""
+        if 'severe' in text.lower() or 'worse' in text.lower():
+            return 'Severe'
+        return 'Unknown'
+
+    def extract_location(self, text: str, symptom: str) -> str:
+        """Placeholder for location extraction."""
+        return 'Unknown'
+
     def process_note(self, note, chief_complaint: str, expected_symptoms: List[str] = None) -> List[Dict]:
+        """Extract symptoms from a SOAP note."""
         logger.debug(f"Processing note ID {getattr(note, 'id', 'unknown')} for symptoms with chief complaint: {chief_complaint}")
-        text = f"{note.situation or ''} {note.hpi or ''} {note.assessment or ''} {note.aggravating_factors or ''} {note.alleviating_factors or ''} {getattr(note, 'symptoms', '') or ''}".lower().strip()
+        text = f"{note.situation or ''} {note.hpi or ''} {note.assessment or ''} {note.aggravating_factors or ''} {note.alleviating_factors or ''} {getattr(note, 'symptoms', '') or ''}".strip()
         if not text:
             logger.warning("No text available for symptom extraction")
             return []
 
-        # Prepare text for processing
-        text = re.sub(r'[;:]', ' ', re.sub(r'\s+', ' ', text))
+        text_clean = preprocess_text(text)
+        text_clean = re.sub(r'[;:]', ' ', re.sub(r'\s+', ' ', text_clean)).lower()
         symptoms = []
         matched_terms = set()
-        chief_complaint_lower = chief_complaint.lower()
-        hpi_lower = (note.hpi or '').lower()
+        chief_complaint_lower = preprocess_text(chief_complaint).lower()
+        hpi_lower = preprocess_text(note.hpi or '').lower()
 
         # Match symptoms using common_symptoms and synonyms
         for category, symptom_dict in self.common_symptoms.items():
             for symptom, info in symptom_dict.items():
-                symptom_lower = symptom.lower()
-                desc_lower = info['description'].lower()
+                symptom_clean = preprocess_text(symptom).lower()
                 umls_cui = info.get('umls_cui')
                 semantic_type = info.get('semantic_type', 'Unknown')
-                synonym_list = self.synonyms.get(symptom_lower, [])
+                synonym_list = self.synonyms.get(symptom_clean, [])
                 matched = False
                 matched_term = None
-                patterns = [symptom_lower, desc_lower] + [s.lower() for s in synonym_list]
+                patterns = [symptom_clean] + [preprocess_text(s).lower() for s in synonym_list]
                 for pattern in patterns:
-                    matches = list(re.finditer(r'\b' + re.escape(pattern) + r'\b', text))
-                    for match in matches:
-                        start = match.start()
-                        prefix_text = text[max(0, start - 20):start].lower()
-                        if any(prefix_text.endswith(prefix) for prefix in ['patient complains of ', 'complains of ', 'reports ']):
-                            logger.debug(f"Skipping match '{pattern}' due to prefix in text: {prefix_text}")
-                            continue
-                        if pattern not in matched_terms:
-                            matched = True
-                            matched_term = pattern
-                            break
-                    if matched:
+                    if re.search(r'\b' + re.escape(pattern) + r'\b', text_clean):
+                        matched = True
+                        matched_term = pattern
                         break
                 if matched:
-                    clean_symptom = re.sub(r'^(patient complains of |complains of |reports )\b', '', symptom_lower, flags=re.IGNORECASE)
-                    # Enhanced duration detection
-                    duration = 'Unknown'
-                    if 'three days ago' in text or '3 days' in text:
-                        duration = '3 days'
-                    elif 'two weeks' in text or 'three weeks' in text:
-                        duration = '2-3 weeks'
-                    # Enhanced severity and context
-                    severity = 'Moderate' if 'worse' in text or 'severe' in text else 'Unknown'
-                    location = 'Unknown'
-                    if 'headache' in clean_symptom:
-                        location = 'Head'
-                    elif 'jaundice' in clean_symptom:
-                        location = 'Eyes'
-                    elif 'back' in clean_symptom:
-                        location = 'Lower back'
-                    # Capture aggravating/alleviating factors
-                    aggravating = 'Unknown'
-                    alleviating = 'Unknown'
-                    if 'nausea' in clean_symptom:
-                        aggravating = 'Fatty foods' if 'makes the nausea worse' in text else 'Unknown'
-                        alleviating = 'Tea and salt' if 'alleviates the nausea' in text else 'Unknown'
+                    clean_symptom = re.sub(r'^(patient complains of |complains of |reports )\b', '', symptom_clean, flags=re.IGNORECASE)
                     symptoms.append({
                         'description': clean_symptom,
                         'category': category,
                         'definition': info['description'],
-                        'duration': duration,
-                        'severity': severity,
-                        'location': location,
-                        'aggravating': aggravating,
-                        'alleviating': alleviating,
+                        'duration': self.extract_duration(text_clean),
+                        'severity': self.classify_severity(text_clean),
+                        'location': self.extract_location(text_clean, clean_symptom),
+                        'aggravating': 'Unknown',
+                        'alleviating': 'Unknown',
                         'umls_cui': umls_cui,
                         'semantic_type': semantic_type
                     })
                     matched_terms.add(matched_term)
                     logger.debug(f"Matched symptom: {clean_symptom} (category: {category}, term: {matched_term}, CUI: {umls_cui})")
 
-        # Handle structured symptoms field and unmapped symptoms
-        fields_to_process = [
-            (note.situation or '', 'situation'),
-            (note.hpi or '', 'hpi'),
-            (note.assessment or '', 'assessment'),
-            (getattr(note, 'symptoms', '') or '', 'symptoms')
-        ]
-        for field_text, field_name in fields_to_process:
-            if not field_text.strip():
-                continue
-            # Extract potential symptoms via NLP
-            if self.nlp:
-                try:
-                    doc = self.nlp(field_text)
-                    for ent in doc.ents:
-                        ent_text = ent.text.lower()
-                        if ent_text in matched_terms or ent_text.startswith(('patient complains of', 'complains of', 'reports')):
-                            continue
+        # NLP-based symptom extraction
+        if self.nlp:
+            try:
+                doc = self.nlp(text_clean)
+                for ent in doc.ents:
+                    ent_text = preprocess_text(ent.text).lower()
+                    if ent_text in matched_terms:
+                        continue
+                    category, info = self.search_symptom(ent_text)
+                    if not category:
                         category = self._infer_category(ent_text, chief_complaint)
                         cui, semantic_type = self._get_umls_cui(ent_text)
-                        description = f"UMLS-derived: {ent_text}"
+                        description = f"UMLS-derived: {ent_text}" if cui else f"Pending UMLS review: {ent_text}"
                         if ent_text not in self.get_all_symptoms():
                             self.add_symptom(category, ent_text, description, cui, semantic_type)
-                            logger.info(f"Added new symptom '{ent_text}' from {field_name} to category '{category}' (CUI: {cui})")
-                        symptoms.append({
-                            'description': ent_text,
-                            'category': category,
-                            'definition': description,
-                            'duration': 'Unknown',
-                            'severity': 'Unknown',
-                            'location': 'Unknown',
-                            'aggravating': 'Unknown',
-                            'alleviating': 'Unknown',
-                            'umls_cui': cui,
-                            'semantic_type': semantic_type
-                        })
-                        matched_terms.add(ent_text)
-                except Exception as e:
-                    logger.error(f"Error processing {field_name} with NLP: {str(e)}")
-
-        # Negation detection with medspacy
-        negated_symptoms = []
-        if self.nlp:
-            sentence_segmenters = ['medspacy_pyrush', 'sentencizer', 'senter']
-            active_segmenter = None
-            for seg in sentence_segmenters:
-                if seg in self.nlp.pipe_names:
-                    active_segmenter = seg
-                    break
-            for field in fields_to_process:
-                field_text, field_name = field[0], field[1]
-                if not field_text.strip():
-                    continue
-                try:
-                    if active_segmenter:
-                        with self.nlp.disable_pipes(active_segmenter):
-                            doc = self.nlp(field_text)
+                            logger.info(f"Added new symptom '{ent_text}' from NLP to category '{category}' (CUI: {cui})")
                     else:
-                        doc = self.nlp(field_text)
-                    for ent in doc.ents:
-                        if ent._.is_negated:
-                            ent_lower = ent.text.lower()
-                            # Skip negation if symptom is in chief complaint or HPI
-                            if ent_lower in chief_complaint_lower or ent_lower in hpi_lower:
-                                logger.debug(f"Skipping negation for '{ent_lower}' as it appears in chief complaint or HPI")
-                                continue
-                            negated_symptoms.append({
-                                'description': ent_lower,
-                                'category': self._infer_category(ent_lower, chief_complaint),
-                                'definition': f"Negated: {ent_lower}",
-                                'umls_cui': None,
-                                'semantic_type': 'Unknown'
-                            })
-                            logger.debug(f"Detected negated symptom: {ent_lower} in '{field_name}'")
-                except Exception as e:
-                    logger.error(f"Error processing {field_name} with NLP: {str(e)}. Falling back to regex.")
-                    negation_pattern = r"\b(no|without|denies|not)\b\s+([\w\s-]+?)(?=\.|,\s*|\s+and\b|\s+or\b|$)"
-                    field_lower = re.sub(r'[;:]', ' ', re.sub(r'\s+', ' ', field_text.lower()))
-                    matches = re.findall(negation_pattern, field_lower, re.IGNORECASE)
-                    for _, negated in matches:
-                        negated_clean = negated.strip()
-                        if negated_clean and not negated_clean.startswith(('patient complains of', 'complains of', 'reports')):
-                            if negated_clean in chief_complaint_lower or negated_clean in hpi_lower:
-                                logger.debug(f"Skipping negation for '{negated_clean}' as it appears in chief complaint or HPI")
-                                continue
-                            negated_symptoms.append({
-                                'description': negated_clean,
-                                'category': self._infer_category(negated_clean, chief_complaint),
-                                'definition': f"Negated: {negated_clean}",
-                                'umls_cui': None,
-                                'semantic_type': 'Unknown'
-                            })
-                            logger.debug(f"Detected negated symptom (regex): {negated_clean} in '{field_name}'")
-        else:
-            logger.warning("NLP pipeline unavailable. Falling back to regex negation.")
-            negation_pattern = r"\b(no|without|denies|not)\b\s+([\w\s-]+?)(?=\.|,\s*|\s+and\b|\s+or\b|$)"
-            for field in fields_to_process:
-                field_text, field_name = field[0], field[1]
-                field_lower = re.sub(r'[;:]', ' ', re.sub(r'\s+', ' ', field_text.lower()))
-                matches = re.findall(negation_pattern, field_lower, re.IGNORECASE)
-                for _, negated in matches:
-                    negated_clean = negated.strip()
-                    if negated_clean and not negated_clean.startswith(('patient complains of', 'complains of', 'reports')):
-                        if negated_clean in chief_complaint_lower or negated_clean in hpi_lower:
-                            logger.debug(f"Skipping negation for '{negated_clean}' as it appears in chief complaint or HPI")
-                            continue
-                        negated_symptoms.append({
-                            'description': negated_clean,
-                            'category': self._infer_category(negated_clean, chief_complaint),
-                            'definition': f"Negated: {negated_clean}",
-                            'umls_cui': None,
-                            'semantic_type': 'Unknown'
-                        })
-                        logger.debug(f"Detected negated symptom (regex): {negated_clean} in '{field_name}'")
+                        cui = info.get('umls_cui')
+                        semantic_type = info.get('semantic_type', 'Unknown')
+                        description = info['description']
+                    symptoms.append({
+                        'description': ent_text,
+                        'category': category,
+                        'definition': description,
+                        'duration': self.extract_duration(text_clean),
+                        'severity': self.classify_severity(text_clean),
+                        'location': self.extract_location(text_clean, ent_text),
+                        'aggravating': 'Unknown',
+                        'alleviating': 'Unknown',
+                        'umls_cui': cui,
+                        'semantic_type': semantic_type
+                    })
+                    matched_terms.add(ent_text)
+            except Exception as e:
+                logger.error(f"Error processing text with NLP: {str(e)}")
+
+        # Negation detection
+        negated_symptoms = []
+        negation_pattern = r"\b(no|without|denies|not)\b\s+([\w\s-]+?)(?=\.|,\s*|\s+and\b|\s+or\b|$)"
+        matches = re.findall(negation_pattern, text_clean, re.IGNORECASE)
+        for _, negated in matches:
+            negated_clean = preprocess_text(negated.strip())
+            if negated_clean and negated_clean not in chief_complaint_lower and negated_clean not in hpi_lower:
+                negated_symptoms.append({
+                    'description': negated_clean,
+                    'category': self._infer_category(negated_clean, chief_complaint),
+                    'definition': f"Negated: {negated_clean}",
+                    'umls_cui': None,
+                    'semantic_type': 'Unknown'
+                })
+                logger.debug(f"Detected negated symptom (regex): {negated_clean}")
 
         # Filter out negated symptoms
         valid_symptoms = []
         for s in symptoms:
-            s_desc_lower = s['description'].lower()
+            s_desc_lower = preprocess_text(s['description']).lower()
             is_negated = False
             for ns in negated_symptoms:
-                ns_lower = ns['description'].lower()
+                ns_lower = preprocess_text(ns['description']).lower()
                 if re.search(r'\b' + re.escape(ns_lower) + r'\b', s_desc_lower) or re.search(r'\b' + re.escape(s_desc_lower) + r'\b', ns_lower):
                     is_negated = True
                     logger.debug(f"Excluding negated symptom: {s['description']} (negated by: {ns['description']})")
@@ -596,14 +484,11 @@ class SymptomTracker:
                 valid_symptoms.append(s)
 
         # Deduplicate symptoms
-        unique_symptoms = []
-        seen = set()
-        for s in valid_symptoms:
-            if s['description'].lower() not in seen:
-                unique_symptoms.append(s)
-                seen.add(s['description'].lower())
+        symptom_descriptions = tuple(s['description'] for s in valid_symptoms)
+        deduped_descriptions = deduplicate(symptom_descriptions, self.synonyms)
+        unique_symptoms = [s for s in valid_symptoms if s['description'] in deduped_descriptions]
 
         logger.debug(f"Extracted symptoms: {[s['description'] for s in unique_symptoms]}, Negated: {[ns['description'] for ns in negated_symptoms]}")
         if expected_symptoms:
-            self.update_knowledge_base(text, expected_symptoms, unique_symptoms, chief_complaint)
+            self.update_knowledge_base(text_clean, expected_symptoms, unique_symptoms, chief_complaint)
         return unique_symptoms

@@ -1,18 +1,31 @@
+import os
 import torch
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# MongoDB Configuration
+import os
+
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017')
+DB_NAME = os.getenv('DB_NAME', 'clinical_db')
+KB_PREFIX = os.getenv('KB_PREFIX', 'kb_')
+
+# UTS API Configuration
+UTS_API_KEY = os.getenv('UTS_API_KEY')
+UTS_BASE_URL = os.getenv('UTS_BASE_URL', 'https://uts-ws.nlm.nih.gov/rest')
+UTS_AUTH_URL = os.getenv('UTS_AUTH_URL', 'https://utslogin.nlm.nih.gov/cas/v1/api-key')
 
 # Model and Device Configuration
-MODEL_NAME = "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract"
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+MODEL_NAME = os.getenv('MODEL_NAME', 'microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract')
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Processing Parameters
-MAX_LENGTH = 512
-BATCH_SIZE = 8
-EMBEDDING_DIM = 768
-SIMILARITY_THRESHOLD = 0.9
-CONFIDENCE_THRESHOLD = 0.85
-
-# departments/nlp/config.py
-UTS_API_KEY = "c7c9be68-bfa2-4fe6-850c-11ed2136a253"
-UTS_BASE_URL = "https://uts-ws.nlm.nih.gov/rest"
-
-
+MAX_LENGTH = int(os.getenv('MAX_LENGTH', 512))
+BATCH_SIZE = int(os.getenv('BATCH_SIZE', 8))
+EMBEDDING_DIM = int(os.getenv('EMBEDDING_DIM', 768))
+SIMILARITY_THRESHOLD = float(os.getenv('SIMILARITY_THRESHOLD', 0.9))
+CONFIDENCE_THRESHOLD = float(os.getenv('CONFIDENCE_THRESHOLD', 0.85))
+MIN_CONFIDENCE_THRESHOLD = float(os.getenv('MIN_CONFIDENCE_THRESHOLD', 0.6))

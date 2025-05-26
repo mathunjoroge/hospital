@@ -1,15 +1,29 @@
+import os
+import re
 from typing import List, Dict, Tuple, Optional
 from departments.models.medicine import SOAPNote
 from departments.models.records import Patient
 from departments.nlp.clinical_analyzer import ClinicalAnalyzer
 from departments.nlp.symptom_tracker import SymptomTracker
 from departments.nlp.nlp_utils import get_patient_info
-from departments.nlp.knowledge_base_io import load_knowledge_base
-from departments.nlp.nlp_pipeline import get_nlp
-import re
+from departments.nlp.knowledge_base_io import load_knowledge_base, invalidate_cache
 from departments.nlp.logging_setup import get_logger
+from departments.nlp.config import MIN_CONFIDENCE_THRESHOLD
+import medspacy
+nlp = medspacy.load()
 
 logger = get_logger()
+
+# Cached knowledge base
+_knowledge_base = None
+
+def get_knowledge_base(force_cache: bool = False) -> Dict:
+    """Load or return cached knowledge base."""
+    global _knowledge_base
+    if _knowledge_base is None or force_cache:
+        logger.debug("Loading knowledge base")
+        _knowledge_base = load_knowledge_base()
+    return _knowledge_base
 
 def generate_rationale(features: Dict, differentials: List[Tuple], plan: Dict) -> str:
     """Generate clinical rationale for the analysis."""
@@ -19,14 +33,21 @@ def generate_rationale(features: Dict, differentials: List[Tuple], plan: Dict) -
         dx_name = re.search(r"primary assessment: (.*?)(?:\.|$)", primary_dx, re.DOTALL)
         if dx_name:
             primary_dx = dx_name.group(1).strip()
-        symptoms = [f"{s.get('description', '')} (CUI: {s.get('umls_cui', 'None')})" 
+        symptoms = [f"{s.get('description', '')} (CUI: {s.get('umls_cui', 'None')})"
                     for s in features.get('symptoms', [])]
         rationale.append(f"Primary diagnosis: {primary_dx} based on clinical features: {', '.join(symptoms or ['none identified'])}.")
-    for diff in differentials[:2]:
+    min_confidence = float(os.getenv('MIN_CONFIDENCE_THRESHOLD', 0.6))
+    for diff in differentials[:3]:  # Include up to 3 differentials
+        if not isinstance(diff, tuple) or len(diff) != 3:
+            # Optionally log or skip invalid entries
+            continue
         dx, score, reason = diff
-        if score < 0.6:
+        if score < min_confidence and len(rationale) > 1:
             continue
         rationale.append(f"{dx} (Confidence: {score:.2f}): {reason}")
+    if not rationale and differentials:
+        dx, score, reason = differentials[0]
+        rationale.append(f"{dx} (Confidence: {score:.2f}): {reason} (Default inclusion due to limited matches)")
     if plan:
         symptomatic = plan.get('treatment', {}).get('symptomatic', [])
         definitive = plan.get('treatment', {}).get('definitive', [])
@@ -35,11 +56,20 @@ def generate_rationale(features: Dict, differentials: List[Tuple], plan: Dict) -
         if treatments:
             rationale.append(f"Treatment plan: {', '.join(treatments)} to address primary diagnosis.")
         workup = plan.get('workup', {}).get('urgent', []) + plan.get('workup', {}).get('routine', [])
-        if workup:
-            rationale.append(f"Workup: {', '.join(workup)} to confirm diagnosis.")
+        if not workup:
+            workup = ['Diagnostic evaluation pending']
+        rationale.append(f"Workup: {', '.join(workup)} to confirm diagnosis.")
     return '; '.join(rationale) or 'Based on clinical features and proposed management plan.'
 
-def generate_ai_analysis(note: SOAPNote, patient: Patient = None) -> str:
+def normalize_symptom(symptom: str, kb: Dict) -> str:
+    """Normalize symptom using synonyms from knowledge base."""
+    symptom = re.sub(r'^(patient complains of |complains of |reports )\b', '', symptom.lower().strip(), flags=re.IGNORECASE)
+    for canonical, aliases in kb.get('synonyms', {}).items():
+        if symptom in aliases or symptom == canonical:
+            return canonical
+    return symptom
+
+def generate_ai_analysis(note: SOAPNote, patient: Patient = None, force_cache: bool = False) -> str:
     """Generate a comprehensive AI clinical analysis for a SOAP note."""
     logger.debug(f"Generating analysis for note {getattr(note, 'id', 'unknown')}, situation: {note.situation}")
     if not isinstance(note, SOAPNote):
@@ -103,23 +133,40 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
         patient_profile_text = '; '.join(patient_profile) or 'Not provided'
 
         # Load knowledge base
-        kb = load_knowledge_base()
+        kb = get_knowledge_base(force_cache)
+        logger.debug(f"Knowledge base version: {kb.get('version', 'Unknown')}, last updated: {kb.get('last_updated', 'Unknown')}")
         expected_symptoms = []
         category = None
         for cat, pathways in kb.get('clinical_pathways', {}).items():
             for key, path in pathways.items():
-                if any(s.lower() in chief_complaint.lower() for s in key.split('|')):
+                if any(normalize_symptom(s, kb) in normalize_symptom(chief_complaint, kb) for s in key.split('|')):
                     expected_symptoms = path.get('required_symptoms', [])
                     category = cat
                     break
             if expected_symptoms:
                 break
 
+        # Normalize expected symptoms
+        expected_symptoms_normalized = [normalize_symptom(s, kb) for s in expected_symptoms]
+
         # Extract symptoms using SymptomTracker
         symptoms = tracker.process_note(note, chief_complaint, expected_symptoms)
+        # Enrich symptoms with metadata from kb['symptoms']
+        enriched_symptoms = []
+        for symptom in symptoms:
+            s_norm = normalize_symptom(symptom['description'], kb)
+            for cat, sym_dict in kb.get('symptoms', {}).items():
+                if s_norm in sym_dict:
+                    symptom.update({
+                        'description': sym_dict[s_norm]['description'],
+                        'umls_cui': sym_dict[s_norm].get('umls_cui', symptom.get('umls_cui', 'None')),
+                        'semantic_type': sym_dict[s_norm].get('semantic_type', symptom.get('semantic_type', 'Unknown')),
+                        'category': cat
+                    })
+                    break
+            enriched_symptoms.append(symptom)
         features = analyzer.extract_clinical_features(note, expected_symptoms=expected_symptoms)
-        # Merge SymptomTracker symptoms with analyzer features
-        features['symptoms'] = symptoms  # Override with detailed SymptomTracker output
+        features['symptoms'] = enriched_symptoms  # Use enriched symptoms
         differentials = analyzer.generate_differential_dx(features, patient)
         plan = analyzer.generate_management_plan(features, differentials)
         assessment = note.assessment or 'Not specified'
@@ -130,9 +177,10 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
         recommendation = getattr(note, 'recommendation', '').lower().strip()
         if recommendation:
             plan['workup']['urgent'].append(recommendation.capitalize())
-            if 'malaria' in recommendation:
+            symptom_text = ' '.join([s['description'].lower() for s in enriched_symptoms])
+            if 'malaria' in recommendation and any(s in symptom_text for s in ['fever', 'chills', 'jaundice']):
                 differentials.insert(0, ('Malaria', 0.85, 'Supported by fever, chills, jaundice, and clinician recommendation'))
-            elif 'hepatitis' in recommendation:
+            elif 'hepatitis' in recommendation and 'jaundice' in symptom_text:
                 differentials.append(('Hepatitis', 0.75, 'Supported by jaundice and clinician recommendation'))
 
         # Symptom output with full metadata
@@ -149,53 +197,44 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
             symptom_text.append(f"{desc} (CUI: {cui}, Semantic Type: {sem_type}), Severity: {severity}, Duration: {duration}, Location: {location}, Aggravating: {aggravating}, Alleviating: {alleviating}")
         symptoms_output = '\n• '.join(symptom_text) or 'None identified'
 
-        # Negation detection using SymptomTracker’s negated symptoms
-        negated_terms = set()
-        for field in [note.situation or '', note.hpi or '', note.medical_history or '', 
-                      note.assessment or '', note.additional_notes or '', 
-                      note.aggravating_factors or '', note.alleviating_factors or '']:
-            field_lower = re.sub(r'[;:]', ' ', re.sub(r'\s+', ' ', field.lower()))
-            negation_pattern = r"\b(no|denies|without|not)\b\s+([\w\s-]+?)(?=\.|,\s*|\s+and\b|\s+or\b|\s+no\b|\s+without\b|\s+denies\b|\s+not\b|$)"
-            for match in re.finditer(negation_pattern, field_lower, re.IGNORECASE):
-                term = match.group(2).strip()
-                if term in chief_complaint.lower() or term in (note.hpi or '').lower():
-                    continue  # Skip chief complaint/HPI terms
-                if term in tracker.get_all_symptoms():
-                    negated_terms.add(term)
-        negated_terms.add('chronic illness') if 'no chronic illness' in (note.medical_history or '').lower() else None
+        # Negated symptoms from SymptomTracker
+        negated_terms = set(s['description'] for s in enriched_symptoms if s.get('definition', '').startswith('Negated:'))
+        if 'no chronic illness' in (note.medical_history or '').lower():
+            negated_terms.add('chronic illness')
         negated_output = '; '.join(sorted(negated_terms)) or 'None reported'
 
         # Adjust features if symptoms don’t match expected (fallback)
-        if expected_symptoms and not any(s['description'].lower() in [e.lower() for e in expected_symptoms] 
-                                       for s in features.get('symptoms', [])):
-            logger.warning("Extracted symptoms do not match expected symptoms. Using knowledge base fallback.")
-            if category and category in kb['clinical_pathways']:
-                path = next((p for k, p in kb['clinical_pathways'][category].items() 
-                            if any(s.lower() in chief_complaint.lower() for s in k.split('|'))), None)
-                if path:
-                    # Supplement, don’t overwrite, symptoms
-                    existing_symptoms = {s['description'].lower() for s in features['symptoms']}
-                    for s in path.get('required_symptoms', []):
-                        if s.lower() not in existing_symptoms:
-                            features['symptoms'].append({
-                                'description': s,
-                                'severity': 'Moderate',
-                                'duration': 'Unknown',
-                                'location': 'Unknown',
-                                'category': category,
-                                'umls_cui': next((t['umls_cui'] for t in kb['medical_terms'] 
-                                                 if t['term'].lower() == s.lower()), None),
-                                'semantic_type': next((t['semantic_type'] for t in kb['medical_terms'] 
-                                                      if t['term'].lower() == s.lower()), 'Unknown')
-                            })
-                    differentials.extend([(dx, 0.7 - 0.1*i, f"Supported by {', '.join(path.get('required_symptoms', []))}")
-                                        for i, dx in enumerate(path.get('differentials', []))])
-                    plan['workup'].update(path.get('workup', {'urgent': [], 'routine': []}))
-                    plan['treatment'].update(path.get('management', {'symptomatic': [], 'definitive': [], 'lifestyle': []}))
-                    plan['follow_up'] = path.get('follow_up', ['Follow-up in 2 weeks'])
-                    plan['references'] = path.get('references', [])
-                    if path.get('differentials', []):
-                        assessment = f"Likely {path['differentials'][0].lower()} (pending workup)"
+        if expected_symptoms_normalized:
+            extracted_symptoms_normalized = [normalize_symptom(s['description'], kb) for s in features.get('symptoms', [])]
+            missing_symptoms = [s for s in expected_symptoms_normalized if s not in extracted_symptoms_normalized]
+            if missing_symptoms:
+                logger.warning(f"Extracted symptoms do not match expected symptoms: {missing_symptoms}. Using knowledge base fallback.")
+                if category and category in kb['clinical_pathways']:
+                    path = next((p for k, p in kb['clinical_pathways'][category].items()
+                                if any(normalize_symptom(s, kb) in normalize_symptom(chief_complaint, kb) for s in k.split('|'))), None)
+                    if path:
+                        existing_symptoms = {normalize_symptom(s['description'], kb) for s in features['symptoms']}
+                        for s in path.get('required_symptoms', []):
+                            s_normalized = normalize_symptom(s, kb)
+                            if s_normalized not in existing_symptoms:
+                                sym_data = next((sym_dict[s_normalized] for cat, sym_dict in kb.get('symptoms', {}).items() if s_normalized in sym_dict), None)
+                                features['symptoms'].append({
+                                    'description': s_normalized,
+                                    'severity': 'Moderate',
+                                    'duration': 'Unknown',
+                                    'location': 'Unknown',
+                                    'category': category,
+                                    'umls_cui': sym_data.get('umls_cui', None) if sym_data else None,
+                                    'semantic_type': sym_data.get('semantic_type', 'Unknown') if sym_data else 'Unknown'
+                                })
+                        differentials.extend([(dx, 0.7 - 0.1*i, f"Supported by {', '.join(path.get('required_symptoms', []))}")
+                                            for i, dx in enumerate(path.get('differentials', []))])
+                        plan['workup'].update(path.get('workup', {'urgent': [], 'routine': []}))
+                        plan['treatment'].update(path.get('management', {'symptomatic': [], 'definitive': [], 'lifestyle': []}))
+                        plan['follow_up'] = path.get('follow_up', ['Follow-up in 2 weeks'])
+                        plan['references'] = path.get('references', [])
+                        if path.get('differentials', []):
+                            assessment = f"Likely {path['differentials'][0].lower()} (pending workup)"
 
         # Differential diagnosis output
         differential_text = []
@@ -207,11 +246,11 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
             differential_text.append(f"{dx} (Confidence: {score:.2f}): {reason} ({likelihood})")
         differential_output = '\n• '.join(differential_text) or 'Undetermined: Insufficient data'
 
-        # High-risk conditions
-        high_risk_conditions = {
+        # High-risk conditions from knowledge base
+        high_risk_conditions = kb.get('high_risk_conditions', {
             'temporal arteritis', 'atrial fibrillation', 'subarachnoid hemorrhage',
             'myocardial infarction', 'pulmonary embolism', 'aortic dissection'
-        }
+        })
         high_risk = any(dx.lower() in high_risk_conditions for dx, _, _ in differentials if isinstance(dx, str))
         disclaimer = "High-risk conditions detected; urgent review recommended." if high_risk else "This AI-generated analysis requires clinical correlation."
 
@@ -221,7 +260,7 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
             for key, path in pathways.items():
                 if not isinstance(path, dict):
                     continue
-                if any(s.lower() in chief_complaint.lower() for s in key.split('|')):
+                if any(normalize_symptom(s, kb) in normalize_symptom(chief_complaint, kb) for s in key.split('|')):
                     refs = path.get('references', [])
                     if isinstance(refs, list):
                         references.update(refs)
@@ -258,22 +297,26 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
 [CLINICAL RATIONALE]
 {generate_rationale(features, differentials, plan)}
 [RECOMMENDED WORKUP]
-• Urgent: {'; '.join(sorted(plan['workup']['urgent'])) or 'None'}
-• Routine: {'; '.join(sorted(plan['workup']['routine'])) or 'None'}
+• Urgent: {'; '.join(sorted(set(plan['workup']['urgent']))) or 'None'}
+• Routine: {'; '.join(sorted(set(plan['workup']['routine']))) or 'None'}
 [TREATMENT OPTIONS]
-• Symptomatic: {'; '.join(sorted(plan['treatment']['symptomatic'])) or 'None'}
-• Definitive: {'; '.join(sorted(plan['treatment']['definitive'])) or 'Pending diagnosis'}
-• Lifestyle: {'; '.join(sorted(plan['treatment'].get('lifestyle', []))) or 'None'}
+• Symptomatic: {'; '.join(sorted(set(plan['treatment']['symptomatic']))) or 'None'}
+• Definitive: {'; '.join(sorted(set(plan['treatment']['definitive']))) or 'Pending diagnosis'}
+• Lifestyle: {'; '.join(sorted(set(plan['treatment'].get('lifestyle', [])))) or 'None'}
 [FOLLOW-UP]
 {follow_up}
 [REFERENCES]
 • {references_output}
+[KNOWLEDGE BASE]
+Version: {kb.get('version', 'Unknown')}, Last Updated: {kb.get('last_updated', 'Unknown')}
 DISCLAIMER: {disclaimer}
 """
         logger.debug(f"Analysis output for note {getattr(note, 'id', 'unknown')}")
         return analysis_output.strip()
     except Exception as e:
         logger.error(f"Analysis failed for note {getattr(note, 'id', 'unknown')}: {str(e)}", exc_info=True)
+        # Invalidate cache in case of data issues
+        invalidate_cache()
         partial_output = {
             'patient_profile': patient_profile_text or 'Sex: Unknown; Age: Unknown',
             'chief_complaint': chief_complaint or 'Unknown',
@@ -282,13 +325,15 @@ DISCLAIMER: {disclaimer}
             'diagnosis': assessment or 'Not specified',
             'differentials': differential_output or 'Undetermined: Insufficient data',
             'rationale': 'Analysis failed due to processing error',
-            'workup_urgent': '; '.join(sorted(plan['workup']['urgent'])) or 'None',
-            'workup_routine': '; '.join(sorted(plan['workup']['routine'])) or 'None',
-            'treatment_symptomatic': '; '.join(sorted(plan['treatment']['symptomatic'])) or 'None',
-            'treatment_definitive': '; '.join(sorted(plan['treatment']['definitive'])) or 'Pending diagnosis',
-            'treatment_lifestyle': '; '.join(sorted(plan['treatment'].get('lifestyle', []))) or 'None',
+            'workup_urgent': '; '.join(sorted(set(plan['workup']['urgent']))) or 'None',
+            'workup_routine': '; '.join(sorted(set(plan['workup']['routine']))) or 'None',
+            'treatment_symptomatic': '; '.join(sorted(set(plan['treatment']['symptomatic']))) or 'None',
+            'treatment_definitive': '; '.join(sorted(set(plan['treatment']['definitive']))) or 'Pending diagnosis',
+            'treatment_lifestyle': '; '.join(sorted(set(plan['treatment'].get('lifestyle', [])))) or 'None',
             'follow_up': follow_up or 'As needed',
             'references': references_output or 'None available',
+            'kb_version': kb.get('version', 'Unknown') if kb else 'Unknown',
+            'kb_updated': kb.get('last_updated', 'Unknown') if kb else 'Unknown',
             'disclaimer': 'This AI-generated analysis requires clinical correlation.'
         }
         return f"""
@@ -318,5 +363,7 @@ DISCLAIMER: {disclaimer}
 {partial_output['follow_up']}
 [REFERENCES]
 • {partial_output['references']}
+[KNOWLEDGE BASE]
+Version: {partial_output['kb_version']}, Last Updated: {partial_output['kb_updated']}
 DISCLAIMER: {partial_output['disclaimer']}
 """.strip()
