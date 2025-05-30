@@ -5,73 +5,190 @@ from medspacy.context import ConText
 from scispacy.linking import EntityLinker
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
-import requests
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from psycopg2.pool import SimpleConnectionPool
 from departments.nlp.logging_setup import get_logger
 from departments.nlp.knowledge_base_io import load_knowledge_base, invalidate_cache
+from dotenv import load_dotenv
+import os
+import time
+import pickle
+from cachetools import LRUCache
+import re
+
+# Load environment variables explicitly
+load_dotenv()
+
+# Import config after loading .env
 from config import (
     MONGO_URI,
     DB_NAME,
     KB_PREFIX,
-    UTS_API_KEY,
-    UTS_BASE_URL,
-    UTS_AUTH_URL
+    SYMPTOMS_COLLECTION,
+    POSTGRES_HOST,
+    POSTGRES_PORT,
+    POSTGRES_DB,
+    POSTGRES_USER,
+    POSTGRES_PASSWORD,
+    CACHE_DIR
 )
 
 logger = get_logger()
 _nlp_pipeline = None
+_cui_cache = LRUCache(maxsize=10000)  # Thread-safe cache
+_cache_file = os.path.join(CACHE_DIR or 'data_cache', "cui_cache.pkl")
+_sci_ner = spacy.load("en_core_sci_scibert")
 
+# Load STOP_TERMS from knowledge base
+knowledge_base = load_knowledge_base()
+STOP_TERMS = knowledge_base.get('medical_stop_words', set())
+logger.info(f"Loaded {len(STOP_TERMS)} stop terms from knowledge base")
 
-def get_umls_service_ticket():
+# Initialize PostgreSQL connection pool
+try:
+    pool = SimpleConnectionPool(
+        minconn=1,
+        maxconn=10,
+        host=POSTGRES_HOST,
+        port=POSTGRES_PORT,
+        dbname=POSTGRES_DB,
+        user=POSTGRES_USER,
+        password=POSTGRES_PASSWORD,
+        cursor_factory=RealDictCursor
+    )
+    logger.info("Initialized PostgreSQL connection pool")
+except Exception as e:
+    logger.error(f"Failed to initialize PostgreSQL connection pool: {e}")
+    pool = None
+
+def load_cui_cache():
+    global _cui_cache
+    if os.path.exists(_cache_file):
+        try:
+            with open(_cache_file, 'rb') as f:
+                cached = pickle.load(f)
+                _cui_cache.update(cached)
+            logger.info(f"Loaded CUI cache with {len(_cui_cache)} entries from {_cache_file}")
+        except Exception as e:
+            logger.warning(f"Failed to load CUI cache: {e}")
+
+def save_cui_cache():
     try:
-        # Step 1: Get TGT
-        response = requests.post(UTS_AUTH_URL, data={'apikey': UTS_API_KEY})
-        if response.status_code != 201:
-            raise Exception(f"Failed to get TGT from UMLS: {response.status_code}, {response.text}")
-
-        # Extract TGT URL from HTML <form action="...">
-        import re
-        match = re.search(r'action="(.+?)"', response.text)
-        if not match:
-            raise Exception("Failed to extract TGT URL from response")
-        tgt_url = match.group(1)
-
-        # Step 2: Get service ticket
-        st_response = requests.post(tgt_url, data={'service': UTS_BASE_URL})
-        if st_response.status_code != 200:
-            raise Exception(f"Failed to get Service Ticket: {st_response.status_code}, {st_response.text}")
-
-        return st_response.text.strip()
+        os.makedirs(os.path.dirname(_cache_file), exist_ok=True)
+        start_time = time.time()
+        with open(_cache_file, 'wb') as f:
+            pickle.dump(dict(_cui_cache), f)
+        logger.debug(f"Saved CUI cache to {_cache_file}, took {time.time() - start_time:.3f} seconds")
     except Exception as e:
-        logger.error(f"Error retrieving UMLS service ticket: {e}")
+        logger.warning(f"Failed to save CUI cache: {e}")
+
+def get_postgres_connection():
+    if pool is None:
+        logger.error("Connection pool not initialized")
+        return None
+    try:
+        conn = pool.getconn()
+        logger.debug("Connected to PostgreSQL database from pool")
+        return conn
+    except Exception as e:
+        logger.error(f"Failed to get connection from pool: {e}")
         return None
 
+def clean_term(term: str) -> str:
+    term = term.strip().lower()
+    term = re.sub(r'[^\w\s]', '', term)  # Remove punctuation
+    term = ' '.join(term.split())  # Normalize whitespace
+    return term
 
+def search_local_umls_cui(term: str, max_attempts=3):
+    cleaned_term = clean_term(term)
+    logger.debug(f"Starting CUI search for '{cleaned_term}'")
+    
+    # Check cache
+    if cleaned_term in _cui_cache:
+        logger.debug(f"Cache hit: {cleaned_term} -> {_cui_cache[cleaned_term]}")
+        return _cui_cache[cleaned_term]
 
-def search_umls_cui(term: str):
+    if not cleaned_term or len(cleaned_term) > 100 or cleaned_term in STOP_TERMS:
+        logger.warning(f"Skipping non-clinical or blocked term: '{cleaned_term}'")
+        _cui_cache[cleaned_term] = None
+        save_cui_cache()
+        return None
+
+    conn = get_postgres_connection()
+    if not conn:
+        logger.error(f"Cannot query UMLS for term '{cleaned_term}': No database connection")
+        return None
+
     try:
-        ticket = get_umls_service_ticket()
-        if not ticket:
-            return None
-        params = {
-            'string': term,
-            'ticket': ticket,
-            'searchType': 'exact',
-            'sabs': 'SNOMEDCT_US'
-        }
-        response = requests.get(f"{UTS_BASE_URL}/search/current", params=params)
+        cursor = conn.cursor()
+        for attempt in range(max_attempts):
+            try:
+                logger.debug(f"Executing exact match query for '{cleaned_term}'")
+                start_time = time.time()
+                query = """
+                    SELECT DISTINCT c.CUI
+                    FROM umls.MRCONSO c
+                    WHERE c.SAB = 'SNOMEDCT_US'
+                    AND LOWER(c.STR) = %s
+                    AND c.SUPPRESS = 'N'
+                    LIMIT 1
+                """
+                cursor.execute(query, (cleaned_term,))
+                result = cursor.fetchone()
+                logger.debug(f"Exact match result: {result}, took {time.time() - start_time:.3f} seconds")
+                if result and result['cui']:
+                    cui = result['cui']
+                    _cui_cache[cleaned_term] = cui
+                    save_cui_cache()
+                    return cui
 
-        if response.status_code != 200:
-            logger.warning(f"UMLS API returned status {response.status_code} for term '{term}'")
-            return None
-        data = response.json()
-        results = data.get('result', {}).get('results', [])
-        if results:
-            cui = results[0].get('ui')
-            return cui if cui and cui != 'NONE' else None
-    except Exception as e:
-        logger.warning(f"Failed to fetch UMLS CUI for '{term}': {e}")
-    return None
+                logger.debug(f"Exact match failed, trying full-text search for '{cleaned_term}'")
+                start_time = time.time()
+                tsquery = ' & '.join(cleaned_term.split()) + ':*'  # Improve full-text search precision
+                query = """
+                    SELECT DISTINCT c.CUI
+                    FROM umls.MRCONSO c
+                    WHERE c.SAB = 'SNOMEDCT_US'
+                    AND to_tsvector('english', c.STR) @@ to_tsquery('english', %s)
+                    AND c.SUPPRESS = 'N'
+                    LIMIT 1
+                """
+                cursor.execute(query, (tsquery,))
+                result = cursor.fetchone()
+                logger.debug(f"Full-text search result: {result}, took {time.time() - start_time:.3f} seconds")
+                if result and result['cui']:
+                    cui = result['cui']
+                    _cui_cache[cleaned_term] = cui
+                    save_cui_cache()
+                    return cui
 
+                logger.warning(f"No CUI found for term '{cleaned_term}'")
+                _cui_cache[cleaned_term] = None
+                save_cui_cache()
+                return None
+
+            except Exception as e:
+                logger.error(f"Attempt {attempt + 1}/{max_attempts} failed for term '{cleaned_term}': {e}")
+                if attempt == max_attempts - 1:
+                    logger.error(f"Max retries reached for term '{cleaned_term}'")
+                    return None
+                continue
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            pool.putconn(conn)
+        logger.debug(f"Returned connection for '{cleaned_term}' to pool")
+
+def extract_clinical_phrases(text):
+    doc = _sci_ner(text)
+    phrases = [clean_term(ent.text) for ent in doc.ents if len(ent.text.strip()) > 2]
+    # Filter out stop terms and limit to 3-word phrases
+    filtered_phrases = [p for p in phrases if p not in STOP_TERMS and len(p.split()) <= 3]
+    logger.debug(f"Extracted phrases from '{text}': {filtered_phrases}")
+    return list(set(filtered_phrases))
 
 def get_nlp() -> Language:
     global _nlp_pipeline
@@ -81,22 +198,31 @@ def get_nlp() -> Language:
 
     try:
         nlp = spacy.load("en_core_sci_sm", disable=["lemmatizer", "parser", "ner"])
+        logger.info("Loaded base spacy model: en_core_sci_sm")
+
         nlp.add_pipe("sentencizer", first=True)
+        logger.info("Added sentencizer to pipeline")
 
         try:
             nlp.add_pipe("medspacy_pyrush", before="sentencizer")
+            logger.info("Added medspacy_pyrush to pipeline")
         except Exception as e:
             logger.warning(f"Failed to add medspacy_pyrush: {str(e)}. Using sentencizer only.")
 
-        if "medspacy_target_matcher" not in nlp.pipe_names:
-            nlp.add_pipe("medspacy_target_matcher")
-            logger.info("Added medspacy_target_matcher to pipeline")
+        nlp.add_pipe("medspacy_target_matcher")
+        logger.info("Added medspacy_target_matcher to pipeline")
 
         try:
             client = MongoClient(MONGO_URI)
+            start_time = time.time()
             client.admin.command('ping')
+            logger.info(f"MongoDB ping took {time.time() - start_time:.3f} seconds")
             db = client[DB_NAME]
-            symptoms_collection = db[f'{KB_PREFIX}symptoms']
+            symptoms_collection = db[SYMPTOMS_COLLECTION]
+            # Create indexes
+            symptoms_collection.create_index("symptom")
+            symptoms_collection.create_index("_id")
+            logger.info("Created MongoDB indexes on symptom and _id")
 
             kb = load_knowledge_base()
             logger.debug(f"Knowledge base version: {kb.get('version', 'Unknown')}, last updated: {kb.get('last_updated', 'Unknown')}")
@@ -104,6 +230,8 @@ def get_nlp() -> Language:
             symptom_rules = []
             valid_count = 0
             invalid_count = 0
+            load_cui_cache()
+
             for doc in symptoms_collection.find():
                 if 'symptom' not in doc or not doc['symptom'] or len(doc['symptom']) < 2:
                     logger.warning(f"Skipping symptom document {doc.get('_id')}: Invalid symptom name")
@@ -112,14 +240,54 @@ def get_nlp() -> Language:
 
                 cui = doc.get('umls_cui', 'Unknown')
                 if not cui or cui == 'Unknown' or not isinstance(cui, str) or not cui.startswith('C'):
-                    logger.debug(f"Fetching UMLS CUI for symptom: {doc['symptom']}")
-                    fetched_cui = search_umls_cui(doc['symptom'])
-                    cui = fetched_cui if fetched_cui else 'Unknown'
+                    logger.debug(f"Extracting phrases from symptom: {doc['symptom']}")
+                    terms = extract_clinical_phrases(doc['symptom'])
+                    fetched_cui = None
+                    for term in terms:
+                        start_time = time.time()
+                        fetched_cui = search_local_umls_cui(term)
+                        logger.debug(f"search_local_umls_cui for '{term}' took {time.time() - start_time:.3f} seconds")
+                        if fetched_cui:
+                            start_time = time.time()
+                            symptoms_collection.update_one(
+                                {'_id': doc['_id']},
+                                {'$set': {'umls_cui': fetched_cui}},
+                                upsert=True
+                            )
+                            logger.debug(f"Updated MongoDB with CUI {fetched_cui} for symptom '{doc['symptom']}', took {time.time() - start_time:.3f} seconds")
+                            break
+                    cui = fetched_cui if fetched_cui else 'NO_CUI_' + clean_term(doc['symptom'])
+
+                semantic_type = 'Unknown'
+                conn = get_postgres_connection()
+                if conn:
+                    try:
+                        cursor = conn.cursor()
+                        start_time = time.time()
+                        query = """
+                            SELECT DISTINCT sty.TUI, sty.STY
+                            FROM umls.MRSTY sty
+                            WHERE sty.CUI = %s
+                            LIMIT 1
+                        """
+                        cursor.execute(query, (cui,))
+                        result = cursor.fetchone()
+                        logger.debug(f"Semantic type query for CUI {cui} took {time.time() - start_time:.3f} seconds")
+                        if result and result['sty']:
+                            semantic_type = result['sty']
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch semantic type for CUI {cui}: {e}")
+                    finally:
+                        if cursor:
+                            cursor.close()
+                        if conn:
+                            pool.putconn(conn)
+                        logger.debug(f"Returned connection for semantic type query")
 
                 attributes = {
                     "cui": cui,
                     "category": doc.get('category', 'Unknown'),
-                    "semantic_type": doc.get('semantic_type', 'Unknown'),
+                    "semantic_type": semantic_type,
                     "icd10": doc.get('icd10', None)
                 }
 
@@ -128,7 +296,7 @@ def get_nlp() -> Language:
 
                 symptom_rules.append(
                     TargetRule(
-                        literal=doc['symptom'].lower(),
+                        literal=clean_term(doc['symptom']),
                         category="SYMPTOM",
                         attributes=attributes
                     )
@@ -170,7 +338,7 @@ def get_nlp() -> Language:
         return nlp
 
     except Exception as e:
-        logger.error(f"Failed to initialize NLP pipeline: {str(e)}")
+        logger.error(f"Failed to initialize NLP pipeline: {e}")
         nlp = spacy.load("en_core_sci_sm", disable=["lemmatizer", "parser", "ner"])
         nlp.add_pipe("sentencizer", first=True)
         logger.warning("Using fallback spacy pipeline without parser, ner, or linker")
