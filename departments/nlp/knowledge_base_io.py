@@ -1,23 +1,24 @@
-import os
-import json
 from datetime import datetime
+import os
 from typing import Dict, Optional, Set, List
-from pathlib import Path
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, PyMongoError
+from psycopg2.extras import RealDictCursor, execute_batch
+from psycopg2.pool import SimpleConnectionPool
 from tenacity import retry, stop_after_attempt, wait_exponential
 from pydantic import BaseModel, Field, ValidationError
 from departments.nlp.logging_setup import get_logger
 from departments.nlp.knowledge_base_init import initialize_knowledge_files
-from departments.nlp.config import MONGO_URI, DB_NAME
+from departments.nlp.config import (
+    MONGO_URI, DB_NAME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
+)
 
 logger = get_logger()
 
 # Singleton cache
 _knowledge_base_cache: Optional[Dict] = None
-_cache_mtime: Optional[float] = None
 
-# Pydantic models for validation
+# Pydantic models
 class Symptom(BaseModel):
     description: str
     umls_cui: Optional[str] = None
@@ -41,7 +42,7 @@ class ClinicalPath(BaseModel):
 class KnowledgeBase(BaseModel):
     version: str = "1.1.0"
     last_updated: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    source: str = "MongoDB"
+    source: str = "PostgreSQL/MongoDB"
     symptoms: Dict[str, Dict[str, Symptom]] = {}
     medical_stop_words: Set[str] = set()
     medical_terms: List[MedicalTerm] = []
@@ -53,18 +54,38 @@ class KnowledgeBase(BaseModel):
 
 # Resource configuration
 RESOURCES = {
-    "symptoms": "symptoms.json",
-    "medical_stop_words": "medical_stop_words.json",
-    "medical_terms": "medical_terms.json",
-    "synonyms": "synonyms.json",
-    "clinical_pathways": "clinical_pathways.json",
-    "history_diagnoses": "history_diagnoses.json",
-    "diagnosis_relevance": "diagnosis_relevance.json",
-    "management_config": "management_config.json"
+    "symptoms": "postgresql",
+    "medical_stop_words": "postgresql",
+    "medical_terms": "postgresql",
+    "synonyms": "mongodb",
+    "clinical_pathways": "mongodb",
+    "history_diagnoses": "mongodb",
+    "diagnosis_relevance": "mongodb",
+    "management_config": "mongodb"
 }
 REQUIRED_CATEGORIES = {'respiratory', 'neurological', 'cardiovascular', 'gastrointestinal', 'musculoskeletal', 'infectious'}
 HIGH_RISK_CONDITIONS = {'pulmonary embolism', 'myocardial infarction', 'meningitis', 'malaria', 'dengue'}
 STRICT_VALIDATION = os.getenv('STRICT_KB_VALIDATION', 'false').lower() == 'true'
+
+# PostgreSQL connection pool
+pool = SimpleConnectionPool(
+    minconn=1, maxconn=10, host=POSTGRES_HOST, port=POSTGRES_PORT,
+    dbname=POSTGRES_DB, user=POSTGRES_USER, password=POSTGRES_PASSWORD,
+    cursor_factory=RealDictCursor
+)
+
+def get_postgres_connection():
+    """Get a PostgreSQL connection from the pool."""
+    if pool is None:
+        logger.error("Connection pool not initialized")
+        return None
+    try:
+        conn = pool.getconn()
+        logger.debug("Connected to PostgreSQL database from pool")
+        return conn
+    except Exception as e:
+        logger.error(f"Failed to get connection from pool: {e}")
+        return None
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 def connect_mongodb() -> MongoClient:
@@ -89,6 +110,65 @@ def validate_clinical_path(data: Dict, category: str, path_key: str) -> Optional
         logger.warning(f"Invalid clinical path {path_key} in {category}: {e}")
         return None
 
+def load_from_postgresql() -> Dict[str, any]:
+    """Load knowledge base from PostgreSQL."""
+    knowledge = KnowledgeBase().dict()
+    conn = get_postgres_connection()
+    if not conn:
+        logger.error("Failed to connect to PostgreSQL")
+        return knowledge
+    try:
+        cursor = conn.cursor()
+        # Load medical_stop_words
+        cursor.execute("SELECT word FROM medical_stop_words")
+        knowledge['medical_stop_words'] = {row['word'] for row in cursor.fetchall()}
+        logger.info(f"Loaded {len(knowledge['medical_stop_words'])} medical_stop_words from PostgreSQL")
+
+        # Load medical_terms
+        cursor.execute("SELECT term, category, umls_cui, semantic_type FROM medical_terms")
+        knowledge['medical_terms'] = [
+            MedicalTerm(
+                term=row['term'],
+                category=row['category'],
+                umls_cui=row['umls_cui'],
+                semantic_type=row['semantic_type'] or "Unknown"
+            ).dict() for row in cursor.fetchall()
+        ]
+        logger.info(f"Loaded {len(knowledge['medical_terms'])} medical_terms from PostgreSQL")
+
+        # Load symptoms
+        cursor.execute("SELECT symptom, category, description, umls_cui, semantic_type FROM symptoms")
+        valid_data = {}
+        for row in cursor.fetchall():
+            category = row['category']
+            symptom = row['symptom']
+            if not category or not symptom:
+                logger.warning(f"Invalid symptom: {row}")
+                continue
+            if category not in valid_data:
+                valid_data[category] = {}
+            try:
+                valid_data[category][symptom] = Symptom(
+                    description=row['description'],
+                    umls_cui=row['umls_cui'],
+                    semantic_type=row['semantic_type'] or "Unknown"
+                ).dict()
+            except ValidationError as e:
+                logger.warning(f"Invalid symptom {symptom}: {e}")
+        knowledge['symptoms'] = valid_data
+        logger.info(f"Loaded {sum(len(s) for s in valid_data.values())} symptoms from PostgreSQL")
+
+        # Load metadata
+        cursor.execute("SELECT version, last_updated FROM knowledge_base_metadata WHERE key = 'knowledge_base'")
+        metadata = cursor.fetchone()
+        if metadata:
+            knowledge['version'] = metadata['version']
+            knowledge['last_updated'] = metadata['last_updated']
+    finally:
+        cursor.close()
+        pool.putconn(conn)
+    return knowledge
+
 def load_from_mongodb() -> Dict[str, any]:
     """Load knowledge base from MongoDB."""
     knowledge = KnowledgeBase().dict()
@@ -96,35 +176,14 @@ def load_from_mongodb() -> Dict[str, any]:
         client = connect_mongodb()
         db = client[DB_NAME]
         for key in RESOURCES:
+            if RESOURCES[key] != "mongodb":
+                continue
             collection = db[key]
             data = list(collection.find())
             if not data:
                 logger.warning(f"No data in MongoDB collection {key}")
                 continue
-            if key == "symptoms":
-                valid_data = {}
-                for doc in data:
-                    category = doc.get('category')
-                    symptom = doc.get('symptom')
-                    if not category or not symptom:
-                        logger.warning(f"Invalid symptom document: {doc}")
-                        continue
-                    if category not in valid_data:
-                        valid_data[category] = {}
-                    try:
-                        valid_data[category][symptom] = Symptom(
-                            description=doc.get('description', f"UMLS-derived: {symptom}"),
-                            umls_cui=doc.get('umls_cui'),
-                            semantic_type=doc.get('semantic_type', 'Unknown')
-                        ).dict()
-                    except ValidationError as e:
-                        logger.warning(f"Invalid symptom {symptom}: {e}")
-                knowledge[key] = valid_data
-            elif key == "medical_stop_words":
-                knowledge[key] = set(doc['word'] for doc in data if 'word' in doc)
-            elif key == "medical_terms":
-                knowledge[key] = [MedicalTerm(**doc).dict() for doc in data if doc.get("term")]
-            elif key == "synonyms":
+            if key == "synonyms":
                 knowledge[key] = {doc['term']: doc['aliases'] for doc in data if 'term' in doc and isinstance(doc.get('aliases'), list)}
             elif key == "clinical_pathways":
                 valid_data = {}
@@ -144,200 +203,163 @@ def load_from_mongodb() -> Dict[str, any]:
                 knowledge[key] = valid_data
                 if REQUIRED_CATEGORIES - set(valid_data.keys()):
                     logger.warning(f"Missing required categories in clinical_pathways: {REQUIRED_CATEGORIES - set(valid_data.keys())}")
+            elif key == "diagnosis_relevance":
+                knowledge[key] = {
+                    doc['diagnosis']: {
+                        'relevance': doc.get('relevance', []),
+                        'category': doc.get('category', 'unknown')
+                    } for doc in data if 'diagnosis' in doc
+                }
             else:
                 knowledge[key] = {doc['key']: doc['value'] for doc in data if 'key' in doc and 'value' in doc}
             logger.info(f"Loaded {len(data)} entries for {key} from MongoDB")
         client.close()
-        knowledge['source'] = "MongoDB"
     except ConnectionFailure as e:
-        logger.error(f"MongoDB connection failed: {e}. Falling back to JSON.")
-        knowledge['source'] = "JSON"
-    return knowledge
-
-def load_from_json(knowledge_base_dir: Path) -> Dict[str, any]:
-    """Load knowledge base from JSON files."""
-    knowledge = KnowledgeBase().dict()
-    for key, filename in RESOURCES.items():
-        if knowledge[key] and key != 'medical_stop_words':
-            continue
-        file_path = knowledge_base_dir / filename
-        try:
-            with file_path.open('r') as f:
-                data = json.load(f)
-                if key == "symptoms":
-                    valid_data = {}
-                    for category, symptoms in data.items():
-                        if not isinstance(symptoms, dict):
-                            logger.warning(f"Invalid category {category}: {type(symptoms)}")
-                            continue
-                        valid_data[category] = {}
-                        for symptom, info in symptoms.items():
-                            try:
-                                valid_data[category][symptom] = Symptom(**info).dict()
-                            except ValidationError as e:
-                                logger.warning(f"Invalid symptom {symptom}: {e}")
-                    knowledge[key] = valid_data
-                elif key == "medical_stop_words":
-                    knowledge[key] = set(data) if isinstance(data, list) and all(isinstance(w, str) for w in data) else set()
-                elif key == "medical_terms":
-                    knowledge[key] = [MedicalTerm(**t).dict() for t in data if isinstance(t, dict) and t.get("term")]
-                elif key == "synonyms":
-                    knowledge[key] = {k: v for k, v in data.items() if isinstance(v, list) and all(isinstance(a, str) for a in v)}
-                elif key == "clinical_pathways":
-                    valid_data = {}
-                    for cat, paths in data.items():
-                        if not isinstance(paths, dict):
-                            logger.warning(f"Invalid category {cat}: {type(paths)}")
-                            continue
-                        valid_paths = {}
-                        for pkey, path in paths.items():
-                            validated_path = validate_clinical_path(path, cat, pkey)
-                            if validated_path:
-                                valid_paths[pkey] = validated_path.dict()
-                        if valid_paths:
-                            valid_data[cat] = valid_paths
-                    knowledge[key] = valid_data
-                    if REQUIRED_CATEGORIES - set(valid_data.keys()):
-                        logger.warning(f"Missing required categories in clinical_pathways: {REQUIRED_CATEGORIES - set(valid_data.keys())}")
-                elif key == "diagnosis_relevance":
-                    if isinstance(data, list):
-                        data = {
-                            item['diagnosis']: {
-                                'relevance': item.get('relevance', []),
-                                'category': item.get('category', 'unknown')
-                            } for item in data if isinstance(item, dict) and 'diagnosis' in item
-                        }
-                    knowledge[key] = {
-                        k: v for k, v in data.items()
-                        if isinstance(v, dict) and 'relevance' in v and isinstance(v['relevance'], list)
-                    }
-                else:
-                    knowledge[key] = data if isinstance(data, dict) else {}
-                logger.info(f"Loaded {len(data)} entries for {key} from JSON")
-        except FileNotFoundError:
-            logger.error(f"File not found: {file_path}. Using default data.")
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in {file_path}: {e}. Using default data.")
+        logger.error(f"MongoDB connection failed: {e}")
     return knowledge
 
 def cross_reference_umls(knowledge: Dict) -> Dict:
     """Cross-reference UMLS CUIs for synonyms."""
-    for term in knowledge['medical_terms']:
-        term_lower = term['term'].lower()
-        if term_lower in knowledge['synonyms'] and term.get('umls_cui'):
-            for synonym in knowledge['synonyms'][term_lower]:
-                if not any(t['term'].lower() == synonym.lower() and t.get('umls_cui') for t in knowledge['medical_terms']):
-                    knowledge['medical_terms'].append({
-                        'term': synonym,
-                        'category': term['category'],
-                        'umls_cui': term['umls_cui'],
-                        'semantic_type': term['semantic_type']
-                    })
-                    logger.debug(f"Added UMLS-linked synonym {synonym} for {term_lower}")
+    conn = get_postgres_connection()
+    if not conn:
+        logger.error("Failed to connect to PostgreSQL for UMLS cross-referencing")
+        return knowledge
+    try:
+        cursor = conn.cursor()
+        for term in knowledge['medical_terms']:
+            term_lower = term['term'].lower()
+            if term_lower in knowledge['synonyms'] and term.get('umls_cui'):
+                for synonym in knowledge['synonyms'][term_lower]:
+                    if not any(t['term'].lower() == synonym.lower() and t.get('umls_cui') for t in knowledge['medical_terms']):
+                        # Verify synonym in UMLS
+                        cursor.execute("""
+                            SELECT CUI FROM umls.MRCONSO
+                            WHERE LOWER(STR) = %s AND SAB = 'SNOMEDCT_US' AND SUPPRESS = 'N'
+                        """, (synonym.lower(),))
+                        result = cursor.fetchone()
+                        cui = result['cui'] if result else term['umls_cui']
+                        knowledge['medical_terms'].append({
+                            'term': synonym,
+                            'category': term['category'],
+                            'umls_cui': cui,
+                            'semantic_type': term['semantic_type']
+                        })
+                        logger.debug(f"Added UMLS-linked synonym {synonym} for {term_lower} with CUI {cui}")
+    finally:
+        cursor.close()
+        pool.putconn(conn)
     return knowledge
 
-def load_knowledge_base(knowledge_base_path: str = None, force_reload: bool = False) -> Dict:
-    """Load knowledge base from MongoDB (primary) or JSON files (fallback) with validation and UMLS metadata."""
-    global _knowledge_base_cache, _cache_mtime
-    knowledge_base_dir = Path(knowledge_base_path or os.path.join(os.path.dirname(__file__), "knowledge_base"))
-
-    # Check cache validity
+def load_knowledge_base(force_reload: bool = False) -> Dict:
+    """Load knowledge base from PostgreSQL and MongoDB."""
+    global _knowledge_base_cache
     if _knowledge_base_cache and not force_reload:
-        if knowledge_base_dir.exists():
-            try:
-                mtime = max(f.stat().st_mtime for f in knowledge_base_dir.glob("*.json"))
-                if _cache_mtime and mtime <= _cache_mtime:
-                    logger.debug("Returning cached knowledge base")
-                    return _knowledge_base_cache
-            except ValueError:
-                logger.debug("No JSON files found, using cached knowledge base")
-                return _knowledge_base_cache
+        logger.debug("Returning cached knowledge base")
+        return _knowledge_base_cache
 
     initialize_knowledge_files()
-    knowledge = load_from_mongodb()
-    if knowledge['source'] == "JSON" or not all(knowledge[key] for key in RESOURCES):
-        knowledge = load_from_json(knowledge_base_dir)
+    knowledge = load_from_postgresql()
+    mongo_data = load_from_mongodb()
+    knowledge.update({k: v for k, v in mongo_data.items() if v})  # Merge MongoDB data
     knowledge = cross_reference_umls(knowledge)
 
     try:
         _knowledge_base_cache = KnowledgeBase(**knowledge).dict()
-        if knowledge_base_dir.exists():
-            _cache_mtime = max(f.stat().st_mtime for f in knowledge_base_dir.glob("*.json"))
         logger.info("Knowledge base loaded successfully")
         return _knowledge_base_cache
     except ValidationError as e:
         logger.error(f"Knowledge base validation failed: {e}. Returning unvalidated data.")
         return knowledge
 
-def save_knowledge_base(kb: Dict, knowledge_base_path: str = None) -> bool:
-    """Save knowledge base to MongoDB (primary) and JSON files (fallback)."""
-    global _knowledge_base_cache, _cache_mtime
-    knowledge_base_dir = Path(knowledge_base_path or os.path.join(os.path.dirname(__file__), "knowledge_base"))
-    knowledge_base_dir.mkdir(exist_ok=True)
-
+def save_knowledge_base(kb: Dict) -> bool:
+    """Save knowledge base to PostgreSQL and MongoDB."""
+    global _knowledge_base_cache
     try:
         kb_validated = KnowledgeBase(**kb).dict()
     except ValidationError as e:
         logger.error(f"Invalid knowledge base data: {e}. Attempting to save unvalidated data.")
         kb_validated = kb
 
+    # Save to PostgreSQL
+    conn = get_postgres_connection()
+    if not conn:
+        logger.error("Failed to connect to PostgreSQL")
+        return False
+    try:
+        cursor = conn.cursor()
+        # Save medical_stop_words
+        cursor.execute("DELETE FROM medical_stop_words")
+        execute_batch(cursor, "INSERT INTO medical_stop_words (word) VALUES (%s)",
+                      [(word,) for word in kb_validated.get('medical_stop_words', [])])
+        logger.info(f"Saved {len(kb_validated.get('medical_stop_words', []))} medical_stop_words to PostgreSQL")
+
+        # Save medical_terms
+        cursor.execute("DELETE FROM medical_terms")
+        execute_batch(cursor, """
+            INSERT INTO medical_terms (term, category, umls_cui, semantic_type)
+            VALUES (%s, %s, %s, %s)
+        """, [(t['term'], t['category'], t['umls_cui'], t['semantic_type'])
+              for t in kb_validated.get('medical_terms', [])])
+        logger.info(f"Saved {len(kb_validated.get('medical_terms', []))} medical_terms to PostgreSQL")
+
+        # Save symptoms
+        cursor.execute("DELETE FROM symptoms")
+        execute_batch(cursor, """
+            INSERT INTO symptoms (symptom, category, description, umls_cui, semantic_type)
+            VALUES (%s, %s, %s, %s, %s)
+        """, [(s, cat, info['description'], info['umls_cui'], info['semantic_type'])
+              for cat, symptoms in kb_validated.get('symptoms', {}).items()
+              for s, info in symptoms.items()])
+        logger.info(f"Saved {sum(len(s) for s in kb_validated.get('symptoms', {}).values())} symptoms to PostgreSQL")
+
+        # Update metadata
+        cursor.execute("""
+            INSERT INTO knowledge_base_metadata (key, version, last_updated)
+            VALUES (%s, %s, %s) ON CONFLICT (key) DO UPDATE
+            SET version = EXCLUDED.version, last_updated = EXCLUDED.last_updated
+        """, ('knowledge_base', kb_validated.get('version', '1.1.0'), kb_validated.get('last_updated', datetime.now().strftime("%Y-%m-%d"))))
+        conn.commit()
+    except Exception as e:
+        logger.error(f"PostgreSQL save failed: {str(e)}")
+        conn.rollback()
+        return False
+    finally:
+        cursor.close()
+        pool.putconn(conn)
+
     # Save to MongoDB
     try:
         client = connect_mongodb()
         db = client[DB_NAME]
-        bulk_ops = {key: [] for key in RESOURCES}
         for key in RESOURCES:
+            if RESOURCES[key] != "mongodb":
+                continue
             collection = db[key]
             collection.drop()
             data = kb_validated.get(key, {})
-            if key == "symptoms":
-                for category, symptoms in data.items():
-                    for symptom, info in symptoms.items():
-                        bulk_ops[key].append({
-                            'category': category,
-                            'symptom': symptom,
-                            'description': info['description'],
-                            'umls_cui': info.get('umls_cui'),
-                            'semantic_type': info.get('semantic_type', 'Unknown')
-                        })
-            elif key == "medical_stop_words":
-                bulk_ops[key] = [{'word': word} for word in data]
-            elif key == "medical_terms":
-                bulk_ops[key] = [term for term in data]
-            elif key == "synonyms":
-                bulk_ops[key] = [{'term': term, 'aliases': aliases} for term, aliases in data.items()]
+            if key == "synonyms":
+                collection.insert_many([{'term': term, 'aliases': aliases} for term, aliases in data.items()])
             elif key == "clinical_pathways":
-                bulk_ops[key] = [{'category': category, 'paths': paths} for category, paths in data.items()]
+                collection.insert_many([{'category': category, 'paths': paths} for category, paths in data.items()])
+            elif key == "diagnosis_relevance":
+                collection.insert_many([
+                    {'diagnosis': diagnosis, 'relevance': info['relevance'], 'category': info['category']}
+                    for diagnosis, info in data.items()
+                ])
             else:
-                bulk_ops[key] = [{'key': k, 'value': v} for k, v in data.items()]
-            if bulk_ops[key]:
-                collection.insert_many(bulk_ops[key])
-            logger.info(f"Saved {len(bulk_ops[key])} entries for {key} to MongoDB")
+                collection.insert_many([{'key': k, 'value': v} for k, v in data.items()])
+            logger.info(f"Saved {len(data)} entries for {key} to MongoDB")
         client.close()
     except PyMongoError as e:
-        logger.error(f"Error saving to MongoDB: {e}. Saving to JSON only.")
-
-    # Save to JSON
-    try:
-        for key, filename in RESOURCES.items():
-            file_path = knowledge_base_dir / filename
-            data = kb_validated.get(key, {})
-            if key == "medical_stop_words":
-                data = list(data)
-            with file_path.open('w') as f:
-                json.dump(data, f, indent=2)
-            logger.info(f"Saved {key} to {file_path}")
-        _knowledge_base_cache = kb_validated
-        _cache_mtime = max(f.stat().st_mtime for f in knowledge_base_dir.glob("*.json"))
-        logger.info("Knowledge base saved to MongoDB and JSON files.")
-        return True
-    except Exception as e:
-        logger.error(f"Error saving knowledge base to JSON: {e}")
+        logger.error(f"MongoDB save failed: {str(e)}")
         return False
+
+    _knowledge_base_cache = kb_validated
+    logger.info("Knowledge base saved to PostgreSQL and MongoDB")
+    return True
 
 def invalidate_cache():
     """Invalidate the knowledge base cache."""
-    global _knowledge_base_cache, _cache_mtime
+    global _knowledge_base_cache
     _knowledge_base_cache = None
-    _cache_mtime = None
     logger.info("Knowledge base cache invalidated")
