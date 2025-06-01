@@ -52,9 +52,9 @@ class SymptomTracker:
 
         # MongoDB setup
         try:
-            client = MongoClient(mongo_uri)
-            client.admin.command('ping')
-            db = client[db_name]
+            self.client = MongoClient(mongo_uri)  # Store MongoClient as instance variable
+            self.client.admin.command('ping')
+            db = self.client[db_name]
             self.collection = db[self.collection_name]
             self.category_mapping = db[f'{KB_PREFIX}category_mappings']
             index_name = "category_1_symptom_1"
@@ -105,7 +105,6 @@ class SymptomTracker:
             else:
                 logger.info(f"Loaded {len(self.synonyms)} synonym mappings.")
 
-            client.close()
         except MongoError as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
             raise
@@ -115,6 +114,14 @@ class SymptomTracker:
 
         self.kb_updater = KnowledgeBaseUpdater(mongo_uri=mongo_uri, db_name=db_name, kb_prefix=KB_PREFIX)
         self._initialized = True
+
+    def __del__(self):
+        if hasattr(self, 'pool') and self.pool:
+            self.pool.closeall()
+            logger.debug("Closed PostgreSQL connection pool")
+        if hasattr(self, 'client') and self.client:
+            self.client.close()
+            logger.debug("Closed MongoDB client")
 
     def _get_umls_cui(self, symptom: str) -> Tuple[Optional[str], Optional[str]]:
         symptom_lower = preprocess_text(symptom).lower()
@@ -383,8 +390,3 @@ class SymptomTracker:
                 logger.debug(f"Detected negated symptom: {negated_clean}")
 
         return negated_symptoms
-
-    def __del__(self):
-        if hasattr(self, 'pool') and self.pool:
-            self.pool.closeall()
-            logger.debug("Closed PostgreSQL connection pool")
