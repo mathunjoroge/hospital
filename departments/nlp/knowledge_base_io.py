@@ -13,10 +13,29 @@ from departments.nlp.config import (
     MONGO_URI, DB_NAME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
 )
 
-logger = get_logger()
+logger = get_logger(__name__)
 
 # Singleton cache
 _knowledge_base_cache: Optional[Dict] = None
+
+# Fallback dictionary for symptoms not in UMLS
+FALLBACK_CUI_MAP = {
+    "fever": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
+    "fevers": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
+    "pyrexia": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
+    "chills": {"cui": "C0085593", "semantic_type": "Sign or Symptom"},
+    "shivering": {"cui": "C0085593", "semantic_type": "Sign or Symptom"},
+    "nausea": {"cui": "C0027497", "semantic_type": "Sign or Symptom"},
+    "queasiness": {"cui": "C0027497", "semantic_type": "Sign or Symptom"},
+    "vomiting": {"cui": "C0042963", "semantic_type": "Sign or Symptom"},
+    "loss of appetite": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
+    "anorexia": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
+    "decreased appetite": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
+    "jaundice": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
+    "jaundice in eyes": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
+    "icterus": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
+    "headache": {"cui": "C0018681", "semantic_type": "Sign or Symptom"}
+}
 
 # Pydantic models
 class Symptom(BaseModel):
@@ -35,8 +54,11 @@ class ClinicalPath(BaseModel):
     contextual_triggers: List[str] = Field(default_factory=list)
     management: Dict = Field(default_factory=lambda: {"symptomatic": ["Symptomatic relief pending"]})
     workup: Dict = Field(default_factory=lambda: {"routine": ["Diagnostic evaluation pending"]})
-    references: List[str] = Field(default_factory=lambda: ["None specified"])
-    metadata: Dict = Field(default_factory=lambda: {"source": "Unknown", "last_updated": datetime.now().strftime("%Y-%m-%d")})
+    references: List[str] = Field(default_factory=list)
+    metadata: Dict = Field(default_factory=lambda: {
+        "source": "Unknown",
+        "last_updated": datetime.now().strftime("%Y-%m-%d")
+    })
     follow_up: List[str] = Field(default_factory=lambda: ["Follow-up in 2 weeks"])
 
 class KnowledgeBase(BaseModel):
@@ -63,16 +85,26 @@ RESOURCES = {
     "diagnosis_relevance": "mongodb",
     "management_config": "mongodb"
 }
-REQUIRED_CATEGORIES = {'respiratory', 'neurological', 'cardiovascular', 'gastrointestinal', 'musculoskeletal', 'infectious'}
-HIGH_RISK_CONDITIONS = {'pulmonary embolism', 'myocardial infarction', 'meningitis', 'malaria', 'dengue'}
+REQUIRED_CATEGORIES = {
+    'respiratory', 'neurological', 'cardiovascular', 'gastrointestinal',
+    'musculoskeletal', 'infectious', 'hepatic'
+}
+HIGH_RISK_CONDITIONS = {
+    'pulmonary embolism', 'myocardial infarction', 'meningitis', 'malaria', 'dengue'
+}
 STRICT_VALIDATION = os.getenv('STRICT_KB_VALIDATION', 'false').lower() == 'true'
 
 # PostgreSQL connection pool
-pool = SimpleConnectionPool(
-    minconn=1, maxconn=10, host=POSTGRES_HOST, port=POSTGRES_PORT,
-    dbname=POSTGRES_DB, user=POSTGRES_USER, password=POSTGRES_PASSWORD,
-    cursor_factory=RealDictCursor
-)
+try:
+    pool = SimpleConnectionPool(
+        minconn=1, maxconn=10, host=POSTGRES_HOST, port=POSTGRES_PORT,
+        dbname=POSTGRES_DB, user=POSTGRES_USER, password=POSTGRES_PASSWORD,
+        cursor_factory=RealDictCursor
+    )
+    logger.info("Initialized PostgreSQL connection pool")
+except Exception as e:
+    logger.error(f"Failed to initialize database connection pool: {e}")
+    pool = None
 
 def get_postgres_connection():
     """Get a PostgreSQL connection from the pool."""
@@ -121,7 +153,7 @@ def load_from_postgresql() -> Dict[str, any]:
         cursor = conn.cursor()
         # Load medical_stop_words
         cursor.execute("SELECT word FROM medical_stop_words")
-        knowledge['medical_stop_words'] = {row['word'] for row in cursor.fetchall()}
+        knowledge['medical_stop_words'] = {row['word'].lower() for row in cursor.fetchall()}
         logger.info(f"Loaded {len(knowledge['medical_stop_words'])} medical_stop_words from PostgreSQL")
 
         # Load medical_terms
@@ -129,7 +161,7 @@ def load_from_postgresql() -> Dict[str, any]:
         knowledge['medical_terms'] = [
             MedicalTerm(
                 term=row['term'],
-                category=row['category'],
+                category=row['category'] or "unknown",
                 umls_cui=row['umls_cui'],
                 semantic_type=row['semantic_type'] or "Unknown"
             ).dict() for row in cursor.fetchall()
@@ -140,18 +172,25 @@ def load_from_postgresql() -> Dict[str, any]:
         cursor.execute("SELECT symptom, category, description, umls_cui, semantic_type FROM symptoms")
         valid_data = {}
         for row in cursor.fetchall():
-            category = row['category']
+            category = row['category'] or "general"
             symptom = row['symptom']
-            if not category or not symptom:
+            if not symptom:
                 logger.warning(f"Invalid symptom: {row}")
                 continue
             if category not in valid_data:
                 valid_data[category] = {}
             try:
+                # Apply fallback if no UMLS CUI
+                umls_cui = row['umls_cui']
+                semantic_type = row['semantic_type'] or "Unknown"
+                if not umls_cui and symptom.lower() in FALLBACK_CUI_MAP:
+                    umls_cui = FALLBACK_CUI_MAP[symptom.lower()]['cui']
+                    semantic_type = FALLBACK_CUI_MAP[symptom.lower()]['semantic_type']
+                    logger.debug(f"Applied fallback for symptom '{symptom}': CUI={umls_cui}, SemanticType={semantic_type}")
                 valid_data[category][symptom] = Symptom(
-                    description=row['description'],
-                    umls_cui=row['umls_cui'],
-                    semantic_type=row['semantic_type'] or "Unknown"
+                    description=row['description'] or f"Description for {symptom}",
+                    umls_cui=umls_cui,
+                    semantic_type=semantic_type
                 ).dict()
             except ValidationError as e:
                 logger.warning(f"Invalid symptom {symptom}: {e}")
@@ -163,7 +202,9 @@ def load_from_postgresql() -> Dict[str, any]:
         metadata = cursor.fetchone()
         if metadata:
             knowledge['version'] = metadata['version']
-            knowledge['last_updated'] = metadata['last_updated']
+            knowledge['last_updated'] = metadata['last_updated'].strftime("%Y-%m-%d %H:%M:%S") if metadata['last_updated'] else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    except Exception as e:
+        logger.error(f"Failed to load from PostgreSQL: {str(e)}")
     finally:
         cursor.close()
         pool.putconn(conn)
@@ -184,7 +225,7 @@ def load_from_mongodb() -> Dict[str, any]:
                 logger.warning(f"No data in MongoDB collection {key}")
                 continue
             if key == "synonyms":
-                knowledge[key] = {doc['term']: doc['aliases'] for doc in data if 'term' in doc and isinstance(doc.get('aliases'), list)}
+                knowledge[key] = {doc['term'].lower(): doc['aliases'] for doc in data if 'term' in doc and isinstance(doc.get('aliases'), list)}
             elif key == "clinical_pathways":
                 valid_data = {}
                 for doc in data:
@@ -205,13 +246,13 @@ def load_from_mongodb() -> Dict[str, any]:
                     logger.warning(f"Missing required categories in clinical_pathways: {REQUIRED_CATEGORIES - set(valid_data.keys())}")
             elif key == "diagnosis_relevance":
                 knowledge[key] = {
-                    doc['diagnosis']: {
+                    doc['diagnosis'].lower(): {
                         'relevance': doc.get('relevance', []),
                         'category': doc.get('category', 'unknown')
                     } for doc in data if 'diagnosis' in doc
                 }
             else:
-                knowledge[key] = {doc['key']: doc['value'] for doc in data if 'key' in doc and 'value' in doc}
+                knowledge[key] = {doc['key'].lower(): doc['value'] for doc in data if 'key' in doc and 'value' in doc}
             logger.info(f"Loaded {len(data)} entries for {key} from MongoDB")
         client.close()
     except ConnectionFailure as e:
@@ -230,21 +271,28 @@ def cross_reference_umls(knowledge: Dict) -> Dict:
             term_lower = term['term'].lower()
             if term_lower in knowledge['synonyms'] and term.get('umls_cui'):
                 for synonym in knowledge['synonyms'][term_lower]:
-                    if not any(t['term'].lower() == synonym.lower() and t.get('umls_cui') for t in knowledge['medical_terms']):
-                        # Verify synonym in UMLS
-                        cursor.execute("""
-                            SELECT CUI FROM umls.MRCONSO
-                            WHERE LOWER(STR) = %s AND SAB = 'SNOMEDCT_US' AND SUPPRESS = 'N'
-                        """, (synonym.lower(),))
-                        result = cursor.fetchone()
-                        cui = result['cui'] if result else term['umls_cui']
+                    synonym_lower = synonym.lower()
+                    if not any(t['term'].lower() == synonym_lower and t.get('umls_cui') for t in knowledge['medical_terms']):
+                        # Check fallback dictionary
+                        cui = FALLBACK_CUI_MAP.get(synonym_lower, {}).get('cui')
+                        semantic_type = FALLBACK_CUI_MAP.get(synonym_lower, {}).get('semantic_type', term['semantic_type'])
+                        if not cui:
+                            # Verify synonym in UMLS
+                            cursor.execute("""
+                                SELECT CUI FROM umls.MRCONSO
+                                WHERE LOWER(STR) = %s AND SAB = 'SNOMEDCT_US' AND SUPPRESS = 'N'
+                            """, (synonym_lower,))
+                            result = cursor.fetchone()
+                            cui = result['cui'] if result else term['umls_cui']
                         knowledge['medical_terms'].append({
                             'term': synonym,
                             'category': term['category'],
                             'umls_cui': cui,
-                            'semantic_type': term['semantic_type']
+                            'semantic_type': semantic_type
                         })
-                        logger.debug(f"Added UMLS-linked synonym {synonym} for {term_lower} with CUI {cui}")
+                        logger.debug(f"Added UMLS-linked synonym '{synonym}' for '{term_lower}' with CUI {cui}")
+    except Exception as e:
+        logger.error(f"Failed to cross-reference UMLS: {str(e)}")
     finally:
         cursor.close()
         pool.putconn(conn)
@@ -304,20 +352,30 @@ def save_knowledge_base(kb: Dict) -> bool:
 
         # Save symptoms
         cursor.execute("DELETE FROM symptoms")
-        execute_batch(cursor, """
-            INSERT INTO symptoms (symptom, category, description, umls_cui, semantic_type)
-            VALUES (%s, %s, %s, %s, %s)
-        """, [(s, cat, info['description'], info['umls_cui'], info['semantic_type'])
-              for cat, symptoms in kb_validated.get('symptoms', {}).items()
-              for s, info in symptoms.items()])
-        logger.info(f"Saved {sum(len(s) for s in kb_validated.get('symptoms', {}).values())} symptoms to PostgreSQL")
+        symptom_data = []
+        for cat, symptoms in kb_validated.get('symptoms', {}).items():
+            for s, info in symptoms.items():
+                # Apply fallback if no UMLS CUI
+                umls_cui = info.get('umls_cui')
+                semantic_type = info.get('semantic_type', 'Unknown')
+                if not umls_cui and s.lower() in FALLBACK_CUI_MAP:
+                    umls_cui = FALLBACK_CUI_MAP[s.lower()]['cui']
+                    semantic_type = FALLBACK_CUI_MAP[s.lower()]['semantic_type']
+                    logger.debug(f"Applied fallback for symptom '{s}' during save: CUI={umls_cui}, SemanticType={semantic_type}")
+                symptom_data.append((s, cat, info['description'], umls_cui, semantic_type))
+        if symptom_data:
+            execute_batch(cursor, """
+                INSERT INTO symptoms (symptom, category, description, umls_cui, semantic_type)
+                VALUES (%s, %s, %s, %s, %s)
+            """, symptom_data)
+        logger.info(f"Saved {len(symptom_data)} symptoms to PostgreSQL")
 
         # Update metadata
         cursor.execute("""
             INSERT INTO knowledge_base_metadata (key, version, last_updated)
             VALUES (%s, %s, %s) ON CONFLICT (key) DO UPDATE
             SET version = EXCLUDED.version, last_updated = EXCLUDED.last_updated
-        """, ('knowledge_base', kb_validated.get('version', '1.1.0'), kb_validated.get('last_updated', datetime.now().strftime("%Y-%m-%d"))))
+        """, ('knowledge_base', kb_validated.get('version', '1.1.0'), kb_validated.get('last_updated', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
         conn.commit()
     except Exception as e:
         logger.error(f"PostgreSQL save failed: {str(e)}")
@@ -338,16 +396,16 @@ def save_knowledge_base(kb: Dict) -> bool:
             collection.drop()
             data = kb_validated.get(key, {})
             if key == "synonyms":
-                collection.insert_many([{'term': term, 'aliases': aliases} for term, aliases in data.items()])
+                collection.insert_many([{'term': term.lower(), 'aliases': aliases} for term, aliases in data.items()])
             elif key == "clinical_pathways":
                 collection.insert_many([{'category': category, 'paths': paths} for category, paths in data.items()])
             elif key == "diagnosis_relevance":
                 collection.insert_many([
-                    {'diagnosis': diagnosis, 'relevance': info['relevance'], 'category': info['category']}
+                    {'diagnosis': diagnosis.lower(), 'relevance': info['relevance'], 'category': info['category']}
                     for diagnosis, info in data.items()
                 ])
             else:
-                collection.insert_many([{'key': k, 'value': v} for k, v in data.items()])
+                collection.insert_many([{'key': k.lower(), 'value': v} for k, v in data.items()])
             logger.info(f"Saved {len(data)} entries for {key} to MongoDB")
         client.close()
     except PyMongoError as e:

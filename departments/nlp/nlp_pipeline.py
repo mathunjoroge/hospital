@@ -1,8 +1,9 @@
 import logging
 import spacy
-from spacy.tokens import Token
+from spacy.tokens import Token, Span
 from spacy.language import Language
-from medspacy.target_matcher import TargetMatcher, TargetRule
+from medspacy.target_matcher import TargetMatcher
+from medspacy.target_matcher import TargetRule
 from medspacy.context import ConText
 from scispacy.linking import EntityLinker
 from pymongo import MongoClient, UpdateOne
@@ -18,7 +19,6 @@ import time
 import pickle
 from cachetools import LRUCache
 import re
-from spacy.tokens import Span
 from pathlib import Path
 
 # Check for GPU support
@@ -48,7 +48,27 @@ from config import (
     BATCH_SIZE
 )
 
-logger = get_logger()
+logger = get_logger(__name__)
+
+# Fallback dictionary for symptoms not in UMLS
+FALLBACK_CUI_MAP = {
+    "fever": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
+    "fevers": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
+    "pyrexia": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
+    "chills": {"cui": "C0085593", "semantic_type": "Sign or Symptom"},
+    "shivering": {"cui": "C0085593", "semantic_type": "Sign or Symptom"},
+    "nausea": {"cui": "C0027497", "semantic_type": "Sign or Symptom"},
+    "queasiness": {"cui": "C0027497", "semantic_type": "Sign or Symptom"},
+    "vomiting": {"cui": "C0042963", "semantic_type": "Sign or Symptom"},
+    "loss of appetite": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
+    "anorexia": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
+    "decreased appetite": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
+    "jaundice": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
+    "jaundice in eyes": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
+    "icterus": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
+    "headache": {"cui": "C0018681", "semantic_type": "Sign or Symptom"}
+}
+
 _nlp_pipeline = None
 _cui_cache = LRUCache(maxsize=10000)
 _phrase_cache = LRUCache(maxsize=1000)
@@ -121,8 +141,7 @@ def get_postgres_connection():
         return None
 
 def clean_term(term: str) -> str:
-    # Skip extremely long terms to prevent processing issues
-    if len(term) > 200:  
+    if len(term) > 200:
         return None
     term = term.strip().lower()
     term = re.sub(r'[^\w\s]', '', term)
@@ -133,7 +152,7 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
     start_time = time.time()
     oversized_count = 0
     cleaned_terms = []
-    
+
     for term in terms:
         cleaned = clean_term(term)
         if cleaned is None:
@@ -141,9 +160,16 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
             logger.warning(f"Skipped oversized term: {term[:50]}... (length: {len(term)})")
             continue
         cleaned_terms.append(cleaned)
-    
+
     results = {term: None for term in cleaned_terms}
-    
+
+    # Check fallback dictionary
+    for term in cleaned_terms:
+        if term in FALLBACK_CUI_MAP:
+            results[term] = FALLBACK_CUI_MAP[term]['cui']
+            _cui_cache[term] = FALLBACK_CUI_MAP[term]['cui']
+            logger.debug(f"Fallback hit: {term} -> {FALLBACK_CUI_MAP[term]['cui']}")
+
     # Cache lookup
     for term in cleaned_terms:
         if term in _cui_cache:
@@ -179,8 +205,7 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
                 cursor.execute(query, (tuple(terms_to_query),))
                 for row in cursor.fetchall():
                     term = clean_term(row['str'])
-                    # Skip if term was cleaned to None
-                    if term is not None:  
+                    if term is not None:
                         results[term] = row['cui']
                         _cui_cache[term] = row['cui']
                 logger.debug(f"Exact match query for {len(terms_to_query)} terms took {time.time() - query_start:.3f} seconds")
@@ -193,30 +218,29 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
                     tsquery_parts = []
                     current_size = 0
                     batch_oversized = 0
-                    
+
                     for t in batch_terms:
-                        # Skip terms that are too long to process
                         byte_len = len(t.encode('utf-8'))
-                        if byte_len > 1000000:  # 1MB safety margin
+                        if byte_len > 1000000:
                             batch_oversized += 1
                             oversized_count += 1
                             logger.warning(f"Skipping oversized term: {t[:50]}... ({byte_len} bytes)")
                             continue
-                            
+
                         part = f"{' & '.join(t.split())}:*"
                         part_size = len(part.encode('utf-8'))
                         if current_size + part_size + len(' | ') > max_tsquery_bytes:
                             break
                         tsquery_parts.append(part)
                         current_size += part_size + len(' | ')
-                    
+
                     if batch_oversized:
                         logger.warning(f"Skipped {batch_oversized} oversized terms in batch {i//batch_size + 1}")
-                    
+
                     if not tsquery_parts:
                         logger.warning(f"Skipping batch {i//batch_size + 1} due to tsquery size limit")
                         continue
-                    
+
                     tsquery = ' | '.join(tsquery_parts)
                     query_start = time.time()
                     query = """
@@ -225,14 +249,13 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
                         WHERE c.SAB = 'SNOMEDCT_US'
                         AND to_tsvector('english', c.STR) @@ to_tsquery('english', %s)
                         AND c.SUPPRESS = 'N'
-                        AND octet_length(c.STR) <= 1048575  -- PREVENT OVERSIZE STRINGS
+                        AND octet_length(c.STR) <= 1048575
                     """
                     try:
                         cursor.execute(query, (tsquery,))
                         for row in cursor.fetchall():
                             term = clean_term(row['str'])
-                            # Skip if term was cleaned to None
-                            if term is not None:  
+                            if term is not None:
                                 results[term] = row['cui']
                                 _cui_cache[term] = row['cui']
                         logger.debug(f"Full-text search for {len(tsquery_parts)} terms took {time.time() - query_start:.3f} seconds")
@@ -241,12 +264,12 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
                             logger.error(f"TSVector overflow despite filters: {e}")
                         else:
                             raise
-                
-                conn.commit()  # Commit after successful processing
+
+                conn.commit()
                 break
             except Exception as e:
                 logger.error(f"Attempt {attempt + 1}/{max_attempts} failed: {e}")
-                conn.rollback()  # Rollback on failure
+                conn.rollback()
                 if attempt == max_attempts - 1:
                     logger.error("Max retries reached for UMLS query")
                     return results
@@ -265,8 +288,15 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
 def get_semantic_types(cuis: list) -> dict:
     start_time = time.time()
     results = {cui: 'Unknown' for cui in cuis}
-    
-    cuis_to_query = [cui for cui in set(cuis) if cui and isinstance(cui, str) and cui.startswith('C')]
+
+    # Check fallback dictionary
+    for cui in cuis:
+        for term, data in FALLBACK_CUI_MAP.items():
+            if data['cui'] == cui:
+                results[cui] = data['semantic_type']
+                logger.debug(f"Fallback semantic type: {cui} -> {data['semantic_type']}")
+
+    cuis_to_query = [cui for cui in set(cuis) if results[cui] == 'Unknown' and cui and isinstance(cui, str) and cui.startswith('C')]
     if not cuis_to_query:
         logger.debug(f"No CUIs to query for semantic types, took {time.time() - start_time:.3f} seconds")
         return results
@@ -302,12 +332,12 @@ def extract_clinical_phrases(texts):
     start_time = time.time()
     if not isinstance(texts, list):
         texts = [texts]
-    
+
     cached_results = [(_phrase_cache[text] if text in _phrase_cache else None) for text in texts]
     if all(r is not None for r in cached_results):
         logger.debug(f"All {len(texts)} texts found in phrase cache, took {time.time() - start_time:.3f} seconds")
         return cached_results if len(texts) > 1 else cached_results[0]
-    
+
     uncached_texts = [t for t, r in zip(texts, cached_results) if r is None]
     results = cached_results[:]
     batch_size = BATCH_SIZE
@@ -316,23 +346,23 @@ def extract_clinical_phrases(texts):
         batch_start = time.time()
         docs = list(_sci_ner.pipe(batch))
         logger.debug(f"Processed {len(batch)} texts with SciBERT, took {time.time() - batch_start:.3f} seconds")
-        
+
         for j, (text, doc) in enumerate(zip(batch, docs)):
-            # Split long entities into smaller terms
             phrases = []
             for ent in doc.ents:
                 if len(ent.text.strip()) <= 2:
                     continue
-                # Split on conjunctions and punctuation
-                sub_phrases = re.split(r'\band\b|\bor\b|[,.]', ent.text)
-                for sub in sub_phrases:
-                    cleaned = clean_term(sub)
-                    if cleaned and len(cleaned) <= 50 and len(cleaned.split()) <= 3:
-                        phrases.append(cleaned)
-            filtered_phrases = [p for p in phrases if p not in STOP_TERMS][:50]  # Limit to 50 phrases
+                cleaned = clean_term(ent.text)
+                if cleaned and len(cleaned) <= 50 and len(cleaned.split()) <= 5:
+                    phrases.append(cleaned)
+                if ' and ' in ent.text:
+                    phrases.append(cleaned)  # Keep compound phrase
+                    sub_phrases = [clean_term(p) for p in ent.text.split(' and ')]
+                    phrases.extend(p for p in sub_phrases if p and len(p) <= 50 and len(p.split()) <= 5)
+            filtered_phrases = [p for p in phrases if p not in STOP_TERMS][:50]
             _phrase_cache[text] = list(set(filtered_phrases))
             results[i + j if len(texts) > 1 else 0] = _phrase_cache[text]
-    
+
     logger.info(f"extract_clinical_phrases processed {len(texts)} texts, returned {sum(len(r) for r in results if r)} terms, took {time.time() - start_time:.3f} seconds")
     return results if len(texts) > 1 else results[0]
 
@@ -344,7 +374,6 @@ def get_nlp() -> Language:
         return _nlp_pipeline
 
     try:
-        # Try loading en_core_sci_sm
         try:
             nlp = spacy.load("en_core_sci_sm", disable=["lemmatizer", "parser", "ner"])
             logger.info(f"Loaded base spaCy model: en_core_sci_sm")
@@ -353,7 +382,6 @@ def get_nlp() -> Language:
             nlp = spacy.blank("en")
             logger.info("Initialized blank English model")
 
-        # Register custom attributes for Span
         if not Span.has_extension('cui'):
             Span.set_extension('cui', default=None)
         if not Span.has_extension('category'):
@@ -363,11 +391,9 @@ def get_nlp() -> Language:
         if not Span.has_extension('icd10'):
             Span.set_extension('icd10', default=None)
 
-        # Add core components
         nlp.add_pipe("sentencizer", first=True)
         logger.info("Added sentencizer to pipeline")
 
-        # Add medspacy components
         try:
             nlp.add_pipe("medspacy_target_matcher", name="symptom_matcher")
             logger.info("Added medspacy_target_matcher to pipeline")
@@ -375,7 +401,6 @@ def get_nlp() -> Language:
             logger.error(f"Failed to add medspacy_target_matcher: {e}")
             raise
 
-        # Initialize symptom matcher
         symptom_matcher = nlp.get_pipe("symptom_matcher")
         if hasattr(symptom_matcher, 'initialize'):
             try:
@@ -385,7 +410,6 @@ def get_nlp() -> Language:
                 logger.error(f"Failed to initialize symptom_matcher: {e}")
                 raise
 
-        # Add context component
         if "medspacy_context" not in nlp.pipe_names:
             try:
                 nlp.add_pipe("medspacy_context", after="symptom_matcher")
@@ -394,7 +418,6 @@ def get_nlp() -> Language:
                 logger.error(f"Failed to add medspacy_context: {e}")
                 raise
 
-        # Add UMLS linker
         try:
             if "scispacy_linker" not in nlp.pipe_names:
                 logger.info("Initializing scispacy_linker with UMLS configuration")
@@ -408,7 +431,6 @@ def get_nlp() -> Language:
         except Exception as e:
             logger.warning(f"Failed to add scispacy_linker: {e}. Continuing without UMLS linking.")
 
-        # Load MongoDB data and build rules
         try:
             client = MongoClient(MONGO_URI)
             client.admin.command('ping')
@@ -416,12 +438,10 @@ def get_nlp() -> Language:
             db = client[DB_NAME]
             symptoms_collection = db[SYMPTOMS_COLLECTION]
 
-            # Ensure unique index
             existing_indexes = symptoms_collection.index_information()
             index_name = "symptom_1"
             if index_name not in existing_indexes:
                 try:
-                    # Clean up null symptoms
                     null_count = symptoms_collection.count_documents({"symptom": None})
                     if null_count > 1:
                         null_doc = symptoms_collection.find_one({"symptom": None})
@@ -442,17 +462,19 @@ def get_nlp() -> Language:
                 symptoms_collection.create_index("symptom", unique=True, name=index_name)
                 logger.info("Recreated unique index")
 
-            # Load knowledge base
             kb = load_knowledge_base()
             logger.debug(f"Knowledge base version: {kb.get('version', 'Unknown')}")
 
-            # Prepare symptom rules
-            symptom_rules = []
+            symptom_rules = [
+                TargetRule(literal="nausea and vomiting", category="SYMPTOM", attributes={"category": "gastrointestinal", "umls_cui": "C0027497"}),
+                TargetRule(literal="jaundice in eyes", category="SYMPTOM", attributes={"category": "hepatic", "umls_cui": "C0022346"}),
+                TargetRule(literal="fevers", category="SYMPTOM", attributes={"category": "general", "umls_cui": "C0018682"})
+            ]
+
             valid_count = 0
             invalid_count = 0
             load_cui_cache()
 
-            # Process symptoms in batches
             cursor = symptoms_collection.find().batch_size(100)
             symptom_docs = []
             for doc in cursor:
@@ -465,8 +487,7 @@ def get_nlp() -> Language:
             cursor.close()
 
             logger.info(f"Processed {valid_count} valid and {invalid_count} invalid symptom documents")
-            
-            # Add rules to matcher
+
             if symptom_rules:
                 try:
                     symptom_matcher.add(symptom_rules)
@@ -476,14 +497,13 @@ def get_nlp() -> Language:
                     raise
             else:
                 logger.warning("No valid symptom rules found in MongoDB")
-                
+
             client.close()
         except ConnectionFailure as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
             invalidate_cache()
             raise
 
-        # Check if we need to initialize tokenizer for blank model
         if hasattr(nlp, 'is_blank') and nlp.is_blank and hasattr(nlp, 'initialize'):
             try:
                 nlp.tokenizer.initialize()
@@ -541,16 +561,14 @@ def process_symptom_batch(symptom_docs, symptom_rules, valid_count, invalid_coun
             "icd10": doc.get('icd10', None)
         }
 
-        # Validate category against knowledge base
         if attributes['category'] != 'Unknown' and attributes['category'] not in kb.get('symptoms', {}):
             logger.warning(f"Invalid category for symptom '{doc['symptom']}': {attributes['category']}")
 
-        # Create rule with cleaned literal
         literal = clean_term(doc['symptom'])
         if not literal:
             invalid_count += 1
             continue
-            
+
         symptom_rules.append(
             TargetRule(
                 literal=literal,
@@ -560,7 +578,6 @@ def process_symptom_batch(symptom_docs, symptom_rules, valid_count, invalid_coun
         )
         valid_count += 1
 
-    # Update MongoDB with new CUIs
     if updates:
         try:
             symptoms_collection.bulk_write([UpdateOne(u['filter'], u['update'], upsert=True) for u in updates])

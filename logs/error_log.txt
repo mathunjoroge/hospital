@@ -38010,3 +38010,87 @@ CONTEXT:  parallel worker
 2025-06-01 16:48:42,382 - WARNING - No category mapping for 'facial pain'. Defaulting to 'general'.
 2025-06-01 16:48:42,388 - WARNING - No category mapping for 'facial pain'. Defaulting to 'general'.
 2025-06-01 16:48:42,399 - WARNING - No category mapping for 'sore throat hearing loss pulmonary no cough shortness of breath cardiovascular no chest pain palpitations neurological mild headache sinus pain no dizziness musculoskeletal no joint pain stiffness gastrointestinal no nausea diarrhea genitourinary no urinary changes endocrine no weight changes thirst hematologic no easy bruising bleeding dermatologic no rashes lesions psychiatric no mood changes ophthalmologic no vision changes primary assessment symptoms consistent acute bacterial sinusitis likely secondary to recent viral upper respiratory infection differential includes viral sinusitis allergic rhinitis systems neurological headache likely related to sinusitis endocrine stable diabetes cardiovascular stable hypertension no acute abnormalities in pulmonary musculoskeletal gi gu hematologic dermatologic psychiatric ophthalmologic systems cold air bending forward worsen facial pain warm compresses over-the-counter decongestants provide partial relief'. Defaulting to 'general'.
+2025-06-01 16:49:01,998 - WARNING - No UMLS match for 'back pain for two weeks backpain for three weeks on assessment'
+2025-06-01 16:49:07,291 - WARNING - No UMLS match for 'obese backpain made by sitting down for long pain alleviated by standing stretching'
+2025-06-01 16:49:07,291 - ERROR - Invalid knowledge base structure
+2025-06-01 16:49:07,310 - WARNING - UMLS validation failed for term 'facial pain', CUI: C0234450, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,310 - WARNING - UMLS validation failed for term 'nasal congestion', CUI: C0027424, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,311 - WARNING - UMLS validation failed for term 'purulent nasal discharge', CUI: C0242209, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,313 - WARNING - UMLS validation failed for term 'fever', CUI: C0015967, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,316 - WARNING - UMLS validation failed for term 'photophobia', CUI: C0085636, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,317 - WARNING - UMLS validation failed for term 'neck stiffness', CUI: C0029101, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,318 - WARNING - UMLS validation failed for term 'rash', CUI: C0015230, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,319 - WARNING - UMLS validation failed for term 'back pain', CUI: C0004604, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,321 - WARNING - UMLS validation failed for term 'epigastric pain', CUI: C0234451, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,322 - WARNING - UMLS validation failed for term 'fatigue', CUI: C0013144, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,323 - WARNING - UMLS validation failed for term 'nausea', CUI: C0027497, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,325 - WARNING - UMLS validation failed for term 'joint pain', CUI: C0003862, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,326 - WARNING - UMLS validation failed for term 'pain on movement', CUI: C0234452, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,329 - WARNING - UMLS validation failed for term 'rash', CUI: C0015230, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,330 - WARNING - UMLS validation failed for term 'epigastric pain', CUI: C0234451, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,331 - WARNING - UMLS validation failed for term 'nausea', CUI: C0027497, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,332 - WARNING - UMLS validation failed for term 'fatigue', CUI: C0013144, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,334 - WARNING - UMLS validation failed for term 'fever', CUI: C0015967, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,335 - WARNING - UMLS validation failed for term 'back pain', CUI: C0004604, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,336 - WARNING - UMLS validation failed for term 'joint pain', CUI: C0003862, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,337 - WARNING - UMLS validation failed for term 'pain on movement', CUI: C0234452, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,339 - WARNING - UMLS validation failed for term 'neck stiffness', CUI: C0029101, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,340 - WARNING - UMLS validation failed for term 'photophobia', CUI: C0085636, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,341 - WARNING - UMLS validation failed for term 'facial pain', CUI: C0234450, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,342 - WARNING - UMLS validation failed for term 'nasal congestion', CUI: C0027424, Semantic Type: Sign or Symptom
+2025-06-01 16:49:07,343 - WARNING - UMLS validation failed for term 'purulent nasal discharge', CUI: C0242209, Semantic Type: Sign or Symptom
+2025-06-01 16:49:30,690 - WARNING - No UMLS match for 'of headache headache three headache fevers chills'
+2025-06-01 16:49:36,309 - WARNING - No UMLS match for 'nausea vomiting loss of appetite jaundice in eyes nausea nausea'
+2025-06-01 16:49:36,309 - ERROR - Invalid knowledge base structure
+2025-06-01 16:49:36,328 - WARNING - UMLS validation failed for term 'facial pain', CUI: C0234450, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,329 - WARNING - UMLS validation failed for term 'nasal congestion', CUI: C0027424, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,330 - WARNING - UMLS validation failed for term 'purulent nasal discharge', CUI: C0242209, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,332 - WARNING - UMLS validation failed for term 'fever', CUI: C0015967, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,336 - WARNING - UMLS validation failed for term 'photophobia', CUI: C0085636, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,337 - WARNING - UMLS validation failed for term 'neck stiffness', CUI: C0029101, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,338 - WARNING - UMLS validation failed for term 'rash', CUI: C0015230, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,339 - WARNING - UMLS validation failed for term 'back pain', CUI: C0004604, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,340 - WARNING - UMLS validation failed for term 'epigastric pain', CUI: C0234451, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,341 - WARNING - UMLS validation failed for term 'fatigue', CUI: C0013144, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,343 - WARNING - UMLS validation failed for term 'nausea', CUI: C0027497, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,344 - WARNING - UMLS validation failed for term 'joint pain', CUI: C0003862, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,345 - WARNING - UMLS validation failed for term 'pain on movement', CUI: C0234452, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,349 - WARNING - UMLS validation failed for term 'rash', CUI: C0015230, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,350 - WARNING - UMLS validation failed for term 'epigastric pain', CUI: C0234451, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,351 - WARNING - UMLS validation failed for term 'nausea', CUI: C0027497, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,352 - WARNING - UMLS validation failed for term 'fatigue', CUI: C0013144, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,353 - WARNING - UMLS validation failed for term 'fever', CUI: C0015967, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,354 - WARNING - UMLS validation failed for term 'back pain', CUI: C0004604, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,355 - WARNING - UMLS validation failed for term 'joint pain', CUI: C0003862, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,357 - WARNING - UMLS validation failed for term 'pain on movement', CUI: C0234452, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,358 - WARNING - UMLS validation failed for term 'neck stiffness', CUI: C0029101, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,359 - WARNING - UMLS validation failed for term 'photophobia', CUI: C0085636, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,361 - WARNING - UMLS validation failed for term 'facial pain', CUI: C0234450, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,362 - WARNING - UMLS validation failed for term 'nasal congestion', CUI: C0027424, Semantic Type: Sign or Symptom
+2025-06-01 16:49:36,363 - WARNING - UMLS validation failed for term 'purulent nasal discharge', CUI: C0242209, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,920 - WARNING - UMLS validation failed for term 'facial pain', CUI: C0234450, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,921 - WARNING - UMLS validation failed for term 'nasal congestion', CUI: C0027424, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,923 - WARNING - UMLS validation failed for term 'purulent nasal discharge', CUI: C0242209, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,924 - WARNING - UMLS validation failed for term 'fever', CUI: C0015967, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,929 - WARNING - UMLS validation failed for term 'photophobia', CUI: C0085636, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,930 - WARNING - UMLS validation failed for term 'neck stiffness', CUI: C0029101, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,931 - WARNING - UMLS validation failed for term 'rash', CUI: C0015230, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,932 - WARNING - UMLS validation failed for term 'back pain', CUI: C0004604, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,934 - WARNING - UMLS validation failed for term 'epigastric pain', CUI: C0234451, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,935 - WARNING - UMLS validation failed for term 'fatigue', CUI: C0013144, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,937 - WARNING - UMLS validation failed for term 'nausea', CUI: C0027497, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,938 - WARNING - UMLS validation failed for term 'joint pain', CUI: C0003862, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,939 - WARNING - UMLS validation failed for term 'pain on movement', CUI: C0234452, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,943 - WARNING - UMLS validation failed for term 'rash', CUI: C0015230, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,944 - WARNING - UMLS validation failed for term 'epigastric pain', CUI: C0234451, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,945 - WARNING - UMLS validation failed for term 'nausea', CUI: C0027497, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,946 - WARNING - UMLS validation failed for term 'fatigue', CUI: C0013144, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,947 - WARNING - UMLS validation failed for term 'fever', CUI: C0015967, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,948 - WARNING - UMLS validation failed for term 'back pain', CUI: C0004604, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,949 - WARNING - UMLS validation failed for term 'joint pain', CUI: C0003862, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,951 - WARNING - UMLS validation failed for term 'pain on movement', CUI: C0234452, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,952 - WARNING - UMLS validation failed for term 'neck stiffness', CUI: C0029101, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,953 - WARNING - UMLS validation failed for term 'photophobia', CUI: C0085636, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,954 - WARNING - UMLS validation failed for term 'facial pain', CUI: C0234450, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,956 - WARNING - UMLS validation failed for term 'nasal congestion', CUI: C0027424, Semantic Type: Sign or Symptom
+2025-06-01 16:49:57,956 - WARNING - UMLS validation failed for term 'purulent nasal discharge', CUI: C0242209, Semantic Type: Sign or Symptom
