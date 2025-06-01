@@ -309,21 +309,37 @@ class ClinicalAnalyzer:
             spacy_symptoms = []
             try:
                 for ent in doc.ents:
-                    kb_ents = getattr(ent._, 'kb_ents', [])
-                    for umls_ent in kb_ents:
-                        if len(umls_ent) < 2:
-                            continue
-                        cui, score = umls_ent[0], umls_ent[1]
-                        if score < 0.7:
-                            continue
+                    # Check if EntityLinker is available and provides kb_ents
+                    if hasattr(ent._, 'kb_ents'):
+                        kb_ents = ent._.kb_ents
+                    else:
+                        kb_ents = []
+                        logger.debug(f"No kb_ents for entity '{ent.text}'. EntityLinker may not be configured.")
 
+                    # Check for umls_cui from symptom_matcher
+                    cui = ent._.umls_cui if hasattr(ent._, 'umls_cui') and ent._.umls_cui else None
+                    score = 1.0 if cui else 0.0
+
+                    # If no cui from symptom_matcher, try EntityLinker
+                    if not cui and kb_ents:
+                        for umls_ent in kb_ents:
+                            if len(umls_ent) < 2:
+                                continue
+                            cui, score = umls_ent[0], umls_ent[1]
+                            if score >= 0.7:
+                                break
+                        else:
+                            cui = None
+                            score = 0.0
+
+                    if cui and score >= 0.7:
                         concept = None
                         try:
                             if "scispacy_linker" in self.nlp.pipe_names:
                                 linker = self.nlp.get_pipe("scispacy_linker")
                                 concept = linker.kb.cui_to_entity.get(cui)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning(f"Failed to get concept for CUI '{cui}': {str(e)}")
 
                         symptom_lower = ent.text.lower()
                         category = (self.common_symptoms._infer_category(symptom_lower, features['chief_complaint'])
@@ -342,14 +358,14 @@ class ClinicalAnalyzer:
                             'semantic_type': concept.types[0] if concept and concept.types else 'unknown'
                         })
             except Exception as e:
-                logger.error(f"Failed to extract symptoms via NLP: {e}")
+                logger.error(f"Failed to extract symptoms via NLP: {str(e)}")
 
             tracker_symptoms = []
             if self.common_symptoms:
                 try:
                     tracker_symptoms = self.common_symptoms.process_note(note, features['chief_complaint'], expected_symptoms)
                 except Exception as e:
-                    logger.error(f"Failed to process note with SymptomTracker: {e}")
+                    logger.error(f"Failed to process note with SymptomTracker: {str(e)}")
 
             tracker_descriptions = {s['description'].lower() for s in tracker_symptoms}
             features['symptoms'] = tracker_symptoms + [
@@ -417,7 +433,7 @@ class ClinicalAnalyzer:
                         if isinstance(result, dict):
                             context.update(result)
                     except Exception as e:
-                        logger.error(f"Failed to extract context: {e}")
+                        logger.error(f"Failed to extract context: {str(e)}")
                         context[factor] = value.lower().strip()
 
             features['context'] = {
@@ -439,7 +455,7 @@ class ClinicalAnalyzer:
             logger.debug(f"Extracted {len(features['symptoms'])} unique symptoms")
             return features
         except Exception as e:
-            logger.error(f"Failed to extract features: {e}")
+            logger.error(f"Failed to extract features: {str(e)}")
             return base_features
         finally:
             if 'doc' in locals():
