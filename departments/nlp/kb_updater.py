@@ -11,12 +11,32 @@ from departments.nlp.logging_setup import get_logger
 from departments.nlp.knowledge_base_io import load_knowledge_base, save_knowledge_base
 from departments.nlp.nlp_utils import embed_text
 import torch
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from departments.nlp.config import (
     MONGO_URI, DB_NAME, POSTGRES_HOST, POSTGRES_PORT,
     POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
 )
 
-logger = get_logger()
+logger = get_logger(__name__)
+
+# Fallback dictionary for symptoms not in UMLS
+FALLBACK_CUI_MAP = {
+    "fever": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
+    "fevers": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
+    "pyrexia": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
+    "chills": {"cui": "C0085593", "semantic_type": "Sign or Symptom"},
+    "shivering": {"cui": "C0085593", "semantic_type": "Sign or Symptom"},
+    "nausea": {"cui": "C0027497", "semantic_type": "Sign or Symptom"},
+    "queasiness": {"cui": "C0027497", "semantic_type": "Sign or Symptom"},
+    "vomiting": {"cui": "C0042963", "semantic_type": "Sign or Symptom"},
+    "loss of appetite": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
+    "anorexia": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
+    "decreased appetite": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
+    "jaundice": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
+    "jaundice in eyes": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
+    "icterus": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
+    "headache": {"cui": "C0018681", "semantic_type": "Sign or Symptom"}
+}
 
 # Enums and Pydantic models
 class Category(str, Enum):
@@ -33,6 +53,7 @@ class Category(str, Enum):
     PSYCHIATRIC = "psychiatric"
     GENERAL = "general"
     INFECTIOUS = "infectious"
+    HEPATIC = "hepatic"
 
 class SemanticType(str, Enum):
     SIGN_OR_SYMPTOM = "Sign or Symptom"
@@ -61,7 +82,10 @@ class ClinicalPath(BaseModel):
     management: Dict = Field(default_factory=lambda: {"symptoms": [], "definitive": [], "lifestyle": []})
     follow_up: List[str] = Field(default_factory=lambda: ["Follow-up in 1-2 weeks"])
     references: List[str] = Field(default_factory=lambda: ["Clinical guidelines pending"])
-    metadata: Dict = Field(default_factory=lambda: {"source": ["Automated update"], "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+    metadata: Dict = Field(default_factory=lambda: {
+        "source": ["Automated update"],
+        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
 
 # Initialize PostgreSQL connection pool
 try:
@@ -92,10 +116,18 @@ class KnowledgeBaseUpdater:
         self.mongo_uri = mongo_uri or MONGO_URI or 'mongodb://localhost:27017'
         self.db_name = db_name or DB_NAME or 'clinical_db'
         self.kb_prefix = kb_prefix
-        self.model = None
-        self.tokenizer = None
         self.knowledge_base = load_knowledge_base()
         self.version = self.knowledge_base.get('version', '1.0.0')
+
+        # Initialize transformer model
+        try:
+            self.model = AutoModelForSeq2SeqLM.from_pretrained("t5-small")
+            self.tokenizer = AutoTokenizer.from_pretrained("t5-small")
+            logger.info("Initialized T5 model for synonym generation")
+        except Exception as e:
+            logger.warning(f"Failed to initialize T5 model: {e}")
+            self.model = None
+            self.tokenizer = None
 
         try:
             self.client = self._connect_mongodb()
@@ -137,7 +169,6 @@ class KnowledgeBaseUpdater:
 
     def _create_indexes(self):
         try:
-            # Pathways collection index
             index_name = 'category_1_key_1'
             existing_indexes = self.pathways_collection.index_information()
             if index_name in existing_indexes and not existing_indexes[index_name].get('unique'):
@@ -157,7 +188,6 @@ class KnowledgeBaseUpdater:
                 )
                 logger.info(f"Created unique index '{index_name}'")
 
-            # Diagnosis relevance collection index
             diagnosis_index_name = 'diagnosis_1'
             existing_indexes = self.diagnosis_relevance_collection.index_information()
             if diagnosis_index_name not in existing_indexes:
@@ -174,8 +204,6 @@ class KnowledgeBaseUpdater:
                     else:
                         self.diagnosis_relevance_collection.delete_many({'diagnosis': None})
                         logger.info(f"Removed all {null_count} null diagnosis documents")
-                elif null_count == 0:
-                    logger.debug("No null diagnosis documents found")
                 self.diagnosis_relevance_collection.create_index(
                     'diagnosis',
                     unique=True,
@@ -201,10 +229,7 @@ class KnowledgeBaseUpdater:
                     name=diagnosis_index_name
                 )
                 logger.info(f"Recreated unique index '{diagnosis_index_name}'")
-            else:
-                logger.debug(f"Unique index '{diagnosis_index_name}' already exists")
 
-            # History diagnoses collection index
             history_index_name = 'key_1'
             existing_indexes = self.history_diagnoses_collection.index_information()
             if history_index_name not in existing_indexes:
@@ -221,8 +246,6 @@ class KnowledgeBaseUpdater:
                     else:
                         self.history_diagnoses_collection.delete_many({'key': None})
                         logger.info(f"Removed all {null_count} null key documents")
-                elif null_count == 0:
-                    logger.debug("No null key documents found")
                 self.history_diagnoses_collection.create_index(
                     'key',
                     unique=True,
@@ -248,10 +271,7 @@ class KnowledgeBaseUpdater:
                     name=history_index_name
                 )
                 logger.info(f"Recreated unique index '{history_index_name}'")
-            else:
-                logger.debug(f"Unique index '{history_index_name}' already exists")
 
-            # Other indexes
             self.synonyms_collection.create_index('term', unique=True)
             self.management_config_collection.create_index('key', unique=True)
             self.versions_collection.create_index('version', unique=True)
@@ -306,9 +326,17 @@ class KnowledgeBaseUpdater:
         return embeddings
 
     def search_local_umls_cui(self, term: str, max_attempts: int = 3) -> Optional[Dict]:
-        """Search for UMLS CUI in the PostgreSQL database."""
+        """Search for UMLS CUI in the PostgreSQL database with fallback."""
         cleaned_term = term.strip().lower()
-        logger.debug(f"Searching PostgreSQL for CUI of '{cleaned_term}'")
+        logger.debug(f"Searching UMLS for term: {cleaned_term}")
+
+        # Check fallback dictionary
+        if cleaned_term in FALLBACK_CUI_MAP:
+            logger.debug(f"Fallback hit for '{cleaned_term}': {FALLBACK_CUI_MAP[cleaned_term]}")
+            return {
+                'cui': FALLBACK_CUI_MAP[cleaned_term]['cui'],
+                'semantic_type': FALLBACK_CUI_MAP[cleaned_term]['semantic_type']
+            }
 
         conn = get_postgres_connection()
         if not conn:
@@ -319,18 +347,22 @@ class KnowledgeBaseUpdater:
             cursor = conn.cursor()
             for attempt in range(max_attempts):
                 try:
-                    # Check cache first
-                    cursor.execute("SELECT cui, semantic_type FROM public.umls_cache WHERE term = %s", (cleaned_term,))
-                    cursor.execute("SELECT cui FROM public.umls_cache WHERE term = %s", (cleaned_term,))
+                    # Check cache
+                    cursor.execute("""
+                        SELECT cui, semantic_type FROM public.umls_cache 
+                        WHERE term = %s
+                    """, (cleaned_term,))
                     result = cursor.fetchone()
                     if result:
-                        logger.debug(f"Found cached UMLS data for '{cleaned_term}'")
-                        # If semantic_type column exists, fetch it; otherwise, set to UNKNOWN
-                        semantic_type = result.get('semantic_type') if 'semantic_type' in result else SemanticType.UNKNOWN.value
-                        return {'cui': result['cui'], 'semantic_type': semantic_type}
-                    # Query MRCONSO for exact match
+                        logger.debug(f"Cache hit for '{cleaned_term}'")
+                        return {
+                            'cui': result['cui'],
+                            'semantic_type': result.get('semantic_type', SemanticType.UNKNOWN.value)
+                        }
+
+                    # Exact match query
                     query = """
-                        SELECT DISTINCT c.CUI
+                        SELECT DISTINCT c.CUI 
                         FROM umls.MRCONSO c
                         WHERE c.SAB = 'SNOMEDCT_US'
                         AND LOWER(c.STR) = %s
@@ -342,9 +374,9 @@ class KnowledgeBaseUpdater:
                     cui = result['cui'] if result else None
 
                     if not cui:
-                        # Fallback to full-text search (use LIKE if GIN index is unavailable)
+                        # Fallback to LIKE search
                         query = """
-                            SELECT DISTINCT c.CUI
+                            SELECT DISTINCT c.CUI 
                             FROM umls.MRCONSO c
                             WHERE c.SAB = 'SNOMEDCT_US'
                             AND LOWER(c.STR) LIKE %s
@@ -356,10 +388,10 @@ class KnowledgeBaseUpdater:
                         cui = result['cui'] if result else None
 
                     if cui:
-                        # Get semantic type from MRSTY
+                        # Get semantic type
                         query = """
-                            SELECT DISTINCT sty.STY
-                            FROM umls.MRSTY sty
+                            SELECT DISTINCT sty.STY 
+                            FROM umls.MRSTY sty 
                             WHERE sty.CUI = %s
                             LIMIT 1
                         """
@@ -367,25 +399,22 @@ class KnowledgeBaseUpdater:
                         result = cursor.fetchone()
                         semantic_type = result['sty'] if result else SemanticType.UNKNOWN.value
 
-                        # Cache the result
-                        cursor.execute(
-                            """
-                            INSERT INTO public.umls_cache (term, cui, semantic_type)
+                        # Cache result
+                        cursor.execute("""
+                            INSERT INTO public.umls_cache (term, cui, semantic_type) 
                             VALUES (%s, %s, %s)
-                            ON CONFLICT (term) DO UPDATE
-                            SET cui = EXCLUDED.cui, semantic_type = EXCLUDED.semantic_type
-                            """,
-                            (cleaned_term, cui, semantic_type)
-                        )
+                            ON CONFLICT (term) 
+                            DO UPDATE SET cui = EXCLUDED.cui, semantic_type = EXCLUDED.semantic_type
+                        """, (cleaned_term, cui, semantic_type))
                         conn.commit()
-
+                        logger.debug(f"Cached UMLS for '{cleaned_term}': CUI={cui}, SemanticType={semantic_type}")
                         return {'cui': cui, 'semantic_type': semantic_type}
 
                     logger.warning(f"No CUI found for term '{cleaned_term}'")
                     return None
 
                 except Exception as e:
-                    logger.error(f"Attempt {attempt + 1}/{max_attempts} failed for term '{cleaned_term}': {str(e)}")
+                    logger.error(f"Attempt {attempt + 1}/{max_attempts} failed for '{cleaned_term}': {str(e)}")
                     if attempt == max_attempts - 1:
                         return None
                     continue
@@ -397,184 +426,26 @@ class KnowledgeBaseUpdater:
             pool.putconn(conn)
 
     def update_symptom(self, symptom: str, category: Category = Category.GENERAL, description: Optional[str] = None, synonyms: List[str] = None):
+        """Update symptom in the knowledge base."""
         try:
             symptom_data = SymptomData(
                 term=symptom,
                 category=category,
-                description=description or f"UMLS-derived: {symptom}",
+                description=description or f"Description for {symptom}",
                 synonyms=synonyms or []
             )
 
+            # Fetch UMLS or use fallback
             umls_data = self.search_local_umls_cui(symptom)
             if umls_data:
                 symptom_data.umls_metadata = UmlsMetadata(
                     cui=umls_data['cui'],
                     semantic_type=umls_data['semantic_type']
                 )
-            else:
-                logger.warning(f"No CUI found for '{symptom}' in PostgreSQL")
 
             conn = get_postgres_connection()
             if not conn:
                 logger.error("Cannot update symptom without PostgreSQL connection")
-                return
-
-            try:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO symptoms (symptom, category, description, umls_cui, semantic_type)
-                    VALUES (%s, %s, %s, %s, %s)
-                    ON CONFLICT (symptom) DO UPDATE
-                    SET category = EXCLUDED.category,
-                        description = EXCLUDED.description,
-                        umls_cui = EXCLUDED.umls_cui,
-                        semantic_type = EXCLUDED.semantic_type
-                """, (
-                    symptom_data.term,
-                    symptom_data.category.value,
-                    symptom_data.description,
-                    symptom_data.umls_metadata.cui,
-                    symptom_data.umls_metadata.semantic_type.value
-                ))
-
-                cursor.execute("""
-                    INSERT INTO knowledge_base_metadata (key, version, last_updated)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT (key) DO UPDATE
-                    SET version = EXCLUDED.version, last_updated = EXCLUDED.last_updated
-                """, ('knowledge_base', self.version, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-                conn.commit()
-                logger.info(f"Updated symptom '{symptom}' in PostgreSQL")
-            except Exception as e:
-                logger.error(f"Failed to update symptom '{symptom}' in PostgreSQL: {str(e)}")
-                conn.rollback()
-            finally:
-                cursor.close()
-                pool.putconn(conn)
-
-            if self.synonyms_collection and symptom_data.synonyms:
-                try:
-                    with self.client.start_session() as session:
-                        with session.start_transaction():
-                            self.synonyms_collection.update_one(
-                                {'term': symptom.lower()},
-                                {'$set': {'aliases': symptom_data.synonyms}},
-                                upsert=True,
-                                session=session
-                            )
-                            self.versions_collection.update_one(
-                                {'version': self.version},
-                                {
-                                    '$set': {
-                                        'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                        'updated_collections': {'synonyms': True}
-                                    }
-                                },
-                                upsert=True,
-                                session=session
-                            )
-                    logger.info(f"Updated synonyms for '{symptom}' in MongoDB")
-                except PyMongoError as e:
-                    logger.error(f"Failed to update synonyms for '{symptom}' in MongoDB: {str(e)}")
-
-            self.knowledge_base['symptoms'].setdefault(category.value, {})[symptom] = {
-                'description': symptom_data.description,
-                'umls_cui': symptom_data.umls_metadata.cui,
-                'semantic_type': symptom_data.umls_metadata.semantic_type.value
-            }
-            if symptom_data.synonyms:
-                self.knowledge_base['synonyms'][symptom.lower()] = symptom_data.synonyms
-            save_knowledge_base(self.knowledge_base)
-            logger.debug(f"Updated knowledge base with symptom '{symptom}'")
-
-        except ValidationError as e:
-            logger.error(f"Validation failed for symptom '{symptom}': {str(e)}")
-
-    def is_new_symptom(self, symptom: str) -> bool:
-        """Check if a symptom is new (not in the knowledge base)."""
-        try:
-            symptom_clean = symptom.lower().strip()
-            conn = get_postgres_connection()
-            if not conn:
-                logger.error("Cannot check symptom without PostgreSQL connection")
-                return True  # Assume new if connection fails
-
-            try:
-                cursor = conn.cursor()
-                cursor.execute("SELECT 1 FROM symptoms WHERE symptom = %s", (symptom_clean,))
-                exists = cursor.fetchone()
-                logger.debug(f"Symptom '{symptom_clean}' {'exists' if exists else 'is new'} in knowledge base")
-                return not exists
-            except Exception as e:
-                logger.error(f"Error checking if symptom '{symptom_clean}' is new: {str(e)}")
-                return True  # Assume new on error to avoid blocking
-            finally:
-                cursor.close()
-                pool.putconn(conn)
-        except Exception as e:
-            logger.error(f"Failed to check symptom '{symptom}': {str(e)}")
-            return True
-
-    def generate_synonyms(self, symptom: str) -> List[str]:
-        """Generate synonyms for a symptom."""
-        try:
-            symptom_lower = symptom.lower().strip()
-            # Check MongoDB synonyms collection
-            if self.synonyms_collection:
-                doc = self.synonyms_collection.find_one({'term': symptom_lower}, {'aliases': 1})
-                if doc and 'aliases' in doc:
-                    logger.debug(f"Found synonyms for '{symptom_lower}': {doc['aliases']}")
-                    return doc['aliases']
-
-            # Fallback to transformer model if available
-            if self.model and self.tokenizer:
-                input_text = f"Generate synonyms for the medical symptom: {symptom}"
-                inputs = self.tokenizer(input_text, return_tensors="pt", padding=True, truncation=True)
-                outputs = self.model.generate(**inputs, max_length=100, num_return_sequences=5)
-                synonyms = [
-                    self.tokenizer.decode(output, skip_special_tokens=True).strip()
-                    for output in outputs
-                ]
-                synonyms = list(set(s.strip() for s in synonyms if s.strip() and s.lower() != symptom_lower))
-                logger.debug(f"Generated synonyms for '{symptom_lower}': {synonyms}")
-                return synonyms
-
-            logger.warning(f"No synonyms generated for '{symptom_lower}' (no model available)")
-            return []
-        except Exception as e:
-            logger.error(f"Error generating synonyms for '{symptom}': {str(e)}")
-            return []
-
-    def update_knowledge_base(self, symptom: str, category: str, synonyms: List[str], note_text: str) -> None:
-        """Update the knowledge base with a new symptom."""
-        try:
-            # Validate category
-            try:
-                category_enum = Category(category.lower())
-            except ValueError:
-                logger.warning(f"Invalid category '{category}' for symptom '{symptom}'. Using 'general'.")
-                category_enum = Category.GENERAL
-
-            # Prepare symptom data
-            symptom_data = SymptomData(
-                term=symptom,
-                category=category_enum,
-                synonyms=synonyms or [],
-                description=f"Derived from note: {note_text[:50]}" if note_text else f"UMLS-derived: {symptom}"
-            )
-
-            # Fetch UMLS data
-            umls_data = self.search_local_umls_cui(symptom)
-            if umls_data:
-                symptom_data.umls_metadata = UmlsMetadata(
-                    cui=umls_data['cui'],
-                    semantic_type=umls_data['semantic_type']
-                )
-
-            # Update PostgreSQL
-            conn = get_postgres_connection()
-            if not conn:
-                logger.error("Cannot update knowledge base without PostgreSQL connection")
                 return
 
             try:
@@ -594,10 +465,185 @@ class KnowledgeBaseUpdater:
                     symptom_data.umls_metadata.cui,
                     symptom_data.umls_metadata.semantic_type.value
                 ))
+
+                cursor.execute("""
+                    INSERT INTO knowledge_base_metadata (key, version, last_updated)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (key) DO UPDATE
+                    SET version = EXCLUDED.version, last_updated = EXCLUDED.last_updated
+                """, ('knowledge_base', self.version, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
                 conn.commit()
                 logger.info(f"Updated symptom '{symptom}' in PostgreSQL")
             except Exception as e:
-                logger.error(f"Failed to update symptom '{symptom}' in PostgreSQL database: {str(e)}")
+                logger.error(f"Failed to update symptom '{symptom}': {str(e)}")
+                conn.rollback()
+            finally:
+                cursor.close()
+                pool.putconn(conn)
+
+            if self.synonyms_collection and symptom_data.synonyms:
+                try:
+                    self.synonyms_collection.update_one(
+                        {'term': symptom.lower()},
+                        {'$set': {'aliases': symptom_data.synonyms}},
+                        upsert=True
+                    )
+                    self.versions_collection.update_one(
+                        {'version': self.version},
+                        {
+                            '$set': {
+                                'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                'updated_collections': {'synonyms': True}
+                            }
+                        },
+                        upsert=True
+                    )
+                    logger.info(f"Updated synonyms for '{symptom}' in MongoDB")
+                except PyMongoError as e:
+                    logger.error(f"Failed to update synonyms for '{symptom}' in MongoDB: {str(e)}")
+
+            self.knowledge_base['symptoms'].setdefault(category.value, {})[symptom.lower()] = {
+                'description': symptom_data.description,
+                'umls_cui': symptom_data.umls_metadata.cui,
+                'semantic_type': symptom_data.umls_metadata.semantic_type.value
+            }
+            if symptom_data.synonyms:
+                self.knowledge_base['synonyms'][symptom.lower()] = symptom_data.synonyms
+            save_knowledge_base(self.knowledge_base)
+            logger.debug(f"Updated knowledge base with symptom '{symptom}'")
+
+        except ValidationError as e:
+            logger.error(f"Validation error for symptom '{symptom}': {str(e)}")
+
+    def is_new_symptom(self, symptom: str) -> bool:
+        """Check if a symptom is new or not in the knowledge base."""
+        try:
+            symptom_lower = symptom.lower().strip()
+            conn = get_postgres_connection()
+            if not conn:
+                logger.error("Cannot check symptom without PostgreSQL connection")
+                return True
+
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1 FROM symptoms WHERE symptom = %s", (symptom_lower,))
+                exists = cursor.fetchone()
+                logger.debug(f"Symptom '{symptom_lower}' {'exists' if exists else 'is new'} in knowledge base")
+                return not exists
+            except Exception as e:
+                logger.error(f"Error checking symptom '{symptom_lower}': {str(e)}")
+                return True
+            finally:
+                cursor.close()
+                pool.putconn(conn)
+        except Exception as e:
+            logger.error(f"Failed to check symptom '{symptom}': {str(e)}")
+            return True
+
+    def generate_synonyms(self, symptom: str) -> List[str]:
+        """Generate synonyms for a symptom."""
+        symptom_lower = symptom.lower().strip()
+        try:
+            # Check MongoDB for existing synonyms
+            if self.synonyms_collection:
+                doc = self.synonyms_collection.find_one({'term': symptom_lower}, {'aliases': 1})
+                if doc and 'aliases' in doc:
+                    logger.debug(f"Found synonyms for '{symptom_lower}': {doc['aliases']}")
+                    return doc['aliases']
+
+            # Fallback to transformer model
+            if self.model and self.tokenizer:
+                input_text = f"Generate synonyms for the medical symptom: {symptom_lower}"
+                inputs = self.tokenizer(input_text, return_tensors="pt", padding=True, truncation=True, max_length=512)
+                outputs = self.model.generate(
+                    inputs['input_ids'],
+                    attention_mask=inputs['attention_mask'],
+                    max_length=100,
+                    num_return_sequences=5,
+                    no_repeat_ngram_size=2,
+                    early_stopping=True
+                )
+                synonyms = [
+                    self.tokenizer.decode(output, skip_special_tokens=True).strip().lower()
+                    for output in outputs
+                ]
+                synonyms = list(set(s for s in synonyms if s and s != symptom_lower))
+                if synonyms and self.synonyms_collection:
+                    self.synonyms_collection.update_one(
+                        {'term': symptom_lower},
+                        {'$set': {'aliases': synonyms}},
+                        upsert=True
+                    )
+                    logger.debug(f"Saved synonyms for '{symptom_lower}' to MongoDB")
+                logger.info(f"Generated synonyms for '{symptom_lower}': {synonyms}")
+                return synonyms
+
+            logger.warning(f"No synonym generation available for '{symptom_lower}' (no model)")
+            return []
+        except Exception as e:
+            logger.error(f"Failed to generate synonyms for '{symptom}': {str(e)}")
+            return []
+
+    def update_knowledge_base(self, symptom: str, category: str, synonyms: List[str], note_text: str):
+        """Update knowledge base with new symptom."""
+        try:
+            # Validate category
+            try:
+                category_enum = Category(category.lower())
+            except ValueError:
+                logger.warning(f"Invalid category '{category}' for symptom '{symptom}'. Using 'general'.")
+                category_enum = Category.GENERAL
+
+            # Prepare symptom data
+            symptom_data = SymptomData(
+                term=symptom,
+                category=category_enum,
+                synonyms=synonyms or [],
+                description=f"Derived from note: {note_text[:50]}..." if note_text else f"Description for {symptom}"
+            )
+
+            # Fetch UMLS or use fallback
+            umls_data = self.search_local_umls_cui(symptom)
+            if umls_data:
+                symptom_data.umls_metadata = UmlsMetadata(
+                    cui=umls_data['cui'],
+                    semantic_type=umls_data['semantic_type']
+                )
+
+            # Update PostgreSQL
+            conn = get_postgres_connection()
+            if not conn:
+                logger.error("Cannot update symptom without PostgreSQL connection")
+                return
+
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO symptoms (symptom, category, description, umls_cui, semantic_type)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT (symptom) DO UPDATE
+                    SET category = EXCLUDED.category,
+                        description = EXCLUDED.description,
+                        umls_cui = EXCLUDED.umls_cui,
+                        semantic_type = EXCLUDED.semantic_type
+                """, (
+                    symptom_data.term.lower(),
+                    symptom_data.category.value,
+                    symptom_data.description,
+                    symptom_data.umls_metadata.cui,
+                    symptom_data.umls_metadata.semantic_type.value
+                ))
+
+                cursor.execute("""
+                    INSERT INTO knowledge_base_metadata (key, version, last_updated)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (key) DO UPDATE
+                    SET version = EXCLUDED.version, last_updated = EXCLUDED.last_updated
+                """, ('knowledge_base', self.version, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                conn.commit()
+                logger.info(f"Updated symptom '{symptom}' in PostgreSQL")
+            except Exception as e:
+                logger.error(f"Failed to update symptom '{symptom}' in database: {str(e)}")
                 conn.rollback()
             finally:
                 cursor.close()
@@ -624,12 +670,12 @@ class KnowledgeBaseUpdater:
             if symptom_data.synonyms:
                 self.knowledge_base['synonyms'][symptom.lower()] = symptom_data.synonyms
             save_knowledge_base(self.knowledge_base)
-            logger.debug(f"Updated knowledge base with symptom '{symptom}'")
+            logger.info(f"Updated knowledge base with symptom '{symptom}'")
         except Exception as e:
-            logger.error(f"Failed to update knowledge base for symptom '{symptom}': {str(e)}")
+            logger.error(f"Failed to update knowledge for '{symptom}': {str(e)}")
 
     def infer_category(self, symptom: str, context: str) -> str:
-        """Infer the category for a symptom based on context."""
+        """Infer category for a symptom based on context."""
         try:
             symptom_lower = symptom.lower().strip()
             context_lower = context.lower().strip()
@@ -642,11 +688,25 @@ class KnowledgeBaseUpdater:
                     cursor.execute("SELECT category FROM symptoms WHERE symptom = %s", (symptom_lower,))
                     result = cursor.fetchone()
                     if result:
-                        logger.debug(f"Found category '{result['category']}' for '{symptom_lower}'")
+                        logger.debug(f"Found category '{result['category']}' for symptom '{symptom_lower}'")
                         return result['category']
                 finally:
                     cursor.close()
                     pool.putconn(conn)
+
+            # Specific rules for symptoms
+            if symptom_lower in ['headache', 'migraine', 'head pain', 'cephalalgia']:
+                return Category.NEUROLOGICAL.value
+            elif symptom_lower in ['fever', 'fevers', 'pyrexia', 'chills', 'shivering']:
+                return Category.GENERAL.value
+            elif symptom_lower in ['nausea', 'queasiness', 'vomiting', 'loss of appetite', 'anorexia', 'decreased appetite']:
+                return Category.GASTROINTESTINAL.value
+            elif symptom_lower in ['jaundice', 'jaundice in eyes', 'icterus'] or 'yellowing' in context_lower:
+                return Category.HEPATIC.value
+            elif symptom_lower == 'cough' or 'wheezing' in context_lower:
+                return Category.RESPIRATORY.value
+            elif 'chest pain' in context_lower or 'palpitations' in context_lower:
+                return Category.CARDIOVASCULAR.value
 
             # Use embeddings if available
             if self.category_embeddings:
@@ -658,17 +718,10 @@ class KnowledgeBaseUpdater:
                     if similarity > max_similarity:
                         max_similarity = similarity
                         best_category = category
-                if max_similarity > 0.7:  # Threshold for confidence
+                if max_similarity > 0.7:
                     logger.debug(f"Inferred category '{best_category}' for '{symptom_lower}'")
                     return best_category
 
-            # Fallback to keyword matching
-            if symptom_lower in ['headache', 'migraine']:
-                return Category.NEUROLOGICAL.value
-            if symptom_lower == 'cough' or 'wheezing' in context_lower:
-                return Category.RESPIRATORY.value
-            if 'chest pain' in context_lower or 'palpitations' in context_lower:
-                return Category.CARDIOVASCULAR.value
             logger.debug(f"No category inferred for '{symptom_lower}'. Defaulting to 'general'")
             return Category.GENERAL.value
         except Exception as e:
@@ -681,8 +734,8 @@ class KnowledgeBaseUpdater:
 
     def __enter__(self):
         return self
-    def __exit__(self, _exc_type, _exc_val, _exc_tb):
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
         if self.client:
             self.client.close()
-            logger.debug("Closed MongoDB client")
             logger.debug("Closed MongoDB client")

@@ -72,6 +72,6 @@ def setup_logging(log_dir: str = None, debug: bool = False) -> logging.Logger:
     logger.info("Logging configuration set up successfully")
     return logger
 
-def get_logger() -> logging.Logger:
-    """Get the configured logger."""
-    return setup_logging()
+def get_logger(name=None):
+    import logging
+    return logging.getLogger(name)

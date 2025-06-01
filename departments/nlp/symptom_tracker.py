@@ -1,6 +1,5 @@
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError as MongoError
-import logging
 import re
 from typing import List, Dict, Set, Tuple, Optional
 import os
@@ -8,15 +7,15 @@ from dotenv import load_dotenv
 from spacy.language import Language
 from cachetools import Cache as LRUCache
 from psycopg2.pool import SimpleConnectionPool
-from departments.nlp.nlp_utils import preprocess_text, deduplicate
+from psycopg2.extras import RealDictCursor
+from departments.nlp.nlp_utils import preprocess_text, deduplicate, get_umls_cui
 from departments.nlp.config import FALLBACK_CFG, MONGO_URI, DB_NAME, KB_PREFIX, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
 from departments.nlp.logging_setup import get_logger
-from departments.nlp.nlp_pipeline import clean_term, search_local_umls_cui
+from departments.nlp.nlp_pipeline import clean_term
 from departments.nlp.kb_updater import KnowledgeBaseUpdater
-from departments.nlp.nlp_utils import get_umls_cui
-from departments.nlp.helper_functions import extract_aggravating_alleviating
+from departments.nlp.helper_functions import extract_aggravating_alleviating, extract_duration, classify_severity, extract_location
 
-logger = get_logger()
+logger = get_logger(__name__)
 load_dotenv()
 
 class SymptomTracker:
@@ -43,7 +42,8 @@ class SymptomTracker:
             self.pool = SimpleConnectionPool(
                 minconn=1, maxconn=10,
                 host=POSTGRES_HOST, port=POSTGRES_PORT,
-                dbname=POSTGRES_DB, user=POSTGRES_USER, password=POSTGRES_PASSWORD
+                dbname=POSTGRES_DB, user=POSTGRES_USER, password=POSTGRES_PASSWORD,
+                cursor_factory=RealDictCursor
             )
             logger.info("Initialized PostgreSQL connection pool")
         except Exception as e:
@@ -56,6 +56,7 @@ class SymptomTracker:
             client.admin.command('ping')
             db = client[db_name]
             self.collection = db[self.collection_name]
+            self.category_mapping = db[f'{KB_PREFIX}category_mappings']
             index_name = "category_1_symptom_1"
             existing_indexes = self.collection.index_information()
             if index_name not in existing_indexes:
@@ -71,14 +72,14 @@ class SymptomTracker:
 
             cursor = self.collection.find({}, {'category': 1, 'symptom': 1, 'description': 1, 'umls_cui': 1, 'semantic_type': 1}, batch_size=100)
             for doc in cursor:
-                category = doc.get('category')
-                symptom = doc.get('symptom')
-                description = doc.get('description')
-                umls_cui = doc.get('umls_cui')
-                semantic_type = doc.get('semantic_type', 'Unknown')
-                if not all([category, symptom, description]) or not isinstance(category, str) or not isinstance(symptom, str) or not isinstance(description, str):
+                if not all(key in doc and isinstance(doc[key], str) and doc[key] for key in ['category', 'symptom', 'description']):
                     logger.warning(f"Skipping invalid symptom document: {doc}")
                     continue
+                category = doc['category']
+                symptom = doc['symptom']
+                description = doc['description']
+                umls_cui = doc.get('umls_cui')
+                semantic_type = doc.get('semantic_type', 'Unknown')
                 if category not in self.common_symptoms:
                     self.common_symptoms[category] = {}
                 if symptom not in self.common_symptoms[category]:
@@ -89,6 +90,7 @@ class SymptomTracker:
                     }
                 else:
                     logger.warning(f"Duplicate symptom '{symptom}' in category '{category}' skipped")
+
             if not self.common_symptoms:
                 logger.warning("No symptoms loaded from MongoDB. Initializing empty symptom set.")
             else:
@@ -97,7 +99,7 @@ class SymptomTracker:
             synonym_collection = db[f'{KB_PREFIX}synonyms']
             for doc in synonym_collection.find({}, {'term': 1, 'aliases': 1}):
                 if 'term' in doc and 'aliases' in doc:
-                    self.synonyms[doc['term']] = doc['aliases']
+                    self.synonyms[doc['term'].lower()] = doc['aliases']
             if not self.synonyms:
                 logger.warning("No synonyms loaded from MongoDB.")
             else:
@@ -115,8 +117,12 @@ class SymptomTracker:
         self._initialized = True
 
     def _get_umls_cui(self, symptom: str) -> Tuple[Optional[str], Optional[str]]:
-        """Retrieve UMLS CUI and semantic type using UMLSLookup."""
-        return get_umls_cui(symptom)
+        symptom_lower = preprocess_text(symptom).lower()
+        if symptom_lower in self._cui_cache:
+            return self._cui_cache[symptom_lower]
+        result = get_umls_cui(symptom)
+        self._cui_cache[symptom_lower] = result
+        return result
 
     def add_symptom(self, category: str, symptom: str, description: str, umls_cui: Optional[str] = None, semantic_type: Optional[str] = 'Unknown'):
         if not self.collection:
@@ -142,8 +148,8 @@ class SymptomTracker:
                 'semantic_type': semantic_type
             }
             logger.info(f"Added symptom '{symptom}' to category '{category}' (CUI: {umls_cui}).")
-        except Exception as e:
-            logger.error(f"Error adding symptom to MongoDB: {e}")
+        except MongoError as e:
+            logger.error(f"Failed to add symptom '{symptom}' to MongoDB: {e}")
 
     def remove_symptom(self, category: str, symptom: str):
         if not self.collection:
@@ -156,8 +162,8 @@ class SymptomTracker:
                 if not self.common_symptoms[category]:
                     del self.common_symptoms[category]
                 logger.info(f"Removed symptom '{symptom}' from category '{category}'.")
-        except Exception as e:
-            logger.error(f"Error removing symptom from MongoDB: {e}")
+        except MongoError as e:
+            logger.error(f"Failed to remove symptom '{symptom}' from MongoDB: {e}")
 
     def update_knowledge_base(self, note_text: str, expected_symptoms: List[str], extracted_symptoms: List[Dict], chief_complaint: str) -> None:
         extracted_desc = {s['description'].lower() for s in extracted_symptoms}
@@ -183,18 +189,12 @@ class SymptomTracker:
         symptom_clean = preprocess_text(symptom)
         symptom_lower = symptom_clean.lower()
         try:
-            client = MongoClient(self.mongo_uri)
-            db = client[self.db_name]
-            category_mapping = db[f'{KB_PREFIX}category_mappings']
-            mapping = category_mapping.find_one({'symptom': symptom_lower}, {'category': 1})
+            mapping = self.category_mapping.find_one({'symptom': symptom_lower}, {'category': 1})
             if mapping and 'category' in mapping:
                 logger.debug(f"Inferred category '{mapping['category']}' for '{symptom_lower}'")
                 return mapping['category']
-        except Exception as e:
+        except MongoError as e:
             logger.error(f"Error accessing category mappings: {e}")
-        finally:
-            if 'client' in locals():
-                client.close()
 
         chief_clean = preprocess_text(chief_complaint)
         chief_lower = chief_clean.lower()
@@ -223,21 +223,17 @@ class SymptomTracker:
         return list(self.common_symptoms.keys())
 
     def extract_duration(self, text: str) -> str:
-        if '3 days' in text.lower() or 'three days' in text.lower():
-            return '3 days'
-        return 'Unknown'
+        return extract_duration(text) or 'Unknown'
 
     def classify_severity(self, text: str) -> str:
-        if 'severe' in text.lower() or 'worse' in text.lower():
-            return 'Severe'
-        return 'Unknown'
+        return classify_severity(text) or 'Unknown'
 
     def extract_location(self, text: str, symptom: str) -> str:
-        return 'Unknown'
+        return extract_location(text, symptom) or 'Unknown'
 
     def process_note(self, note, chief_complaint: str, expected_symptoms: List[str] = None) -> List[Dict]:
         logger.debug(f"Processing note ID {getattr(note, 'id', 'unknown')}")
-        text = f"{getattr(note, 'situation', '') or ''} {getattr(note, 'hpi', '') or ''} {getattr(note, 'assessment', '') or ''} {getattr(note, 'aggravating_factors', '') or ''} {getattr(note, 'alleviating_factors', '') or ''} {getattr(note, 'Symptoms', '') or ''}".strip()
+        text = f"{getattr(note, 'situation', '') or ''} {getattr(note, 'hpi', '') or ''} {getattr(note, 'assessment', '') or ''} {getattr(note, 'aggravating_factors', '') or ''} {getattr(note, 'alleviating_factors', '') or ''} {getattr(note, 'Symptoms', '') or getattr(note, 'symptoms', '')}".strip()
         if not text:
             logger.warning("No text available for symptom extraction")
             return []
@@ -249,7 +245,6 @@ class SymptomTracker:
         chief_complaint_lower = preprocess_text(chief_complaint).lower()
         hpi_lower = preprocess_text(getattr(note, 'hpi', '') or '').lower()
 
-        # Extract aggravating and alleviating factors
         try:
             aggravating_text = getattr(note, 'aggravating_factors', '') or ''
             alleviating_text = getattr(note, 'alleviating_factors', '') or ''
@@ -367,9 +362,8 @@ class SymptomTracker:
         return unique_symptoms
 
     def get_negated_symptoms(self, note, chief_complaint: str) -> Set[str]:
-        """Extract negated symptoms from a clinical note."""
         logger.debug(f"Extracting negated symptoms for note ID {getattr(note, 'id', 'unknown')}")
-        text = f"{getattr(note, 'situation', '') or ''} {getattr(note, 'hpi', '') or ''} {getattr(note, 'assessment', '') or ''} {getattr(note, 'aggravating_factors', '') or ''} {getattr(note, 'alleviating_factors', '') or ''} {getattr(note, 'Symptoms', '') or ''}".strip()
+        text = f"{getattr(note, 'situation', '') or ''} {getattr(note, 'hpi', '') or ''} {getattr(note, 'assessment', '') or ''} {getattr(note, 'aggravating_factors', '') or ''} {getattr(note, 'alleviating_factors', '') or ''} {getattr(note, 'Symptoms', '') or getattr(note, 'symptoms', '')}".strip()
         if not text:
             logger.warning("No text available for negated symptom extraction")
             return set()
