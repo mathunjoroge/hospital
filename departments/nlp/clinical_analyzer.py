@@ -54,10 +54,10 @@ FALLBACK_CUI_MAP = {
 
 class ClinicalAnalyzer:
     @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(5),
-    retry=retry_if_exception_type((ConnectionFailure, Exception))
-)
+        stop=stop_after_attempt(3),
+        wait=wait_fixed(5),
+        retry=retry_if_exception_type((ConnectionFailure, Exception))
+    )
     def __init__(self):
         """Initialize the ClinicalAnalyzer with necessary components."""
         self.model = model
@@ -494,7 +494,7 @@ class ClinicalAnalyzer:
             symptom_descriptions = {s.get('description', '').lower() for s in symptoms}
             symptom_cuis = {s.get('umls_cui') for s in symptoms if s.get('umls_cui')}
             history = features.get('history', '').lower()
-            additional_notes = ('additional_notes', '').lower()
+            additional_notes = features.get('additional_notes', '').lower()
             chief_complaint = features.get('chief_complaint', '').lower()
             assessment = features.get('assessment', '').lower()
             text = f"{chief_complaint} {features.get('hpi', '')} {additional_notes}".strip()
@@ -554,6 +554,7 @@ class ClinicalAnalyzer:
 
                         for diff in differentials:
                             if not isinstance(diff, str):
+                                logger.warning(f"Skipping non-string differential: {diff}")
                                 continue
                             diff_lower = diff.lower().strip()
                             if diff_lower == assessment:
@@ -588,7 +589,7 @@ class ClinicalAnalyzer:
                 if any(isinstance(alias, str) and alias.lower() in history for alias in aliases):
                     if condition.lower() != assessment and self.is_relevant_dx(condition, age, sex, '', '', features):
                         matches = sum(1 for req in self.diagnosis_relevance.get(condition.lower(), {}).get('relevance', [])
-                                    if req.lower() in symptom_descriptions)
+                                      if req.lower() in symptom_descriptions)
                         if matches >= 1:
                             tiered_dx['tier2'].append((condition, 0.7, "Historical diagnosis"))
                             dx_scores[condition.lower()] = (0.7, "Historical diagnosis")
@@ -597,6 +598,9 @@ class ClinicalAnalyzer:
             if text_embedding is not None:
                 for dx in list(dx_scores.keys()):
                     try:
+                        if not isinstance(dx, str):
+                            logger.warning(f"Skipping non-string dx in dx_scores: {dx}")
+                            continue
                         dx_embedding = embed_text(dx)
                         similarity = torch.cosine_similarity(
                             text_embedding.unsqueeze(dim=0),
@@ -656,7 +660,7 @@ class ClinicalAnalyzer:
                     path_cui = path.get('metadata', {}).get('umls_cui', '')
                     differentials_list = path.get('differentials', [])
 
-                    if not any(d.lower() in primary_dx for d in differentials_list) and \
+                    if not any(isinstance(d, str) and d.lower() in primary_dx for d in differentials_list) and \
                        not any(k in symptom_descriptions or k in primary_dx for k in key_parts) and \
                        not any(cui == path_cui for cui in symptom_cuis if cui and path_cui):
                         continue
@@ -682,7 +686,7 @@ class ClinicalAnalyzer:
             if follow_up_match:
                 plan['follow_up'] = [follow_up_match.group(1).strip()]
             else:
-                high_risk = any(dx.lower() in high_risk_conditions for dx, _, _ in differentials)
+                high_risk = any(isinstance(dx, str) and dx.lower() in high_risk_conditions for dx, _, _ in differentials)
                 plan['follow_up'] = ['Follow-up in 3-5 days'] if high_risk else ['Follow-up in 2 weeks']
 
             for section in ['workup', 'treatment']:
