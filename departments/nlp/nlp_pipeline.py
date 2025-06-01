@@ -11,6 +11,7 @@ from pymongo.errors import ConnectionFailure, OperationFailure, DuplicateKeyErro
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import SimpleConnectionPool
+from departments.models.pharmacy import Batch
 from departments.nlp.logging_setup import get_logger
 from departments.nlp.knowledge_base_io import load_knowledge_base, invalidate_cache
 from dotenv import load_dotenv
@@ -52,21 +53,21 @@ logger = get_logger(__name__)
 
 # Fallback dictionary for symptoms not in UMLS
 FALLBACK_CUI_MAP = {
-    "fever": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "fevers": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "pyrexia": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "chills": {"cui": "C0085593", "semantic_type": "Sign or Symptom"},
-    "shivering": {"cui": "C0085593", "semantic_type": "Sign or Symptom"},
-    "nausea": {"cui": "C0027497", "semantic_type": "Sign or Symptom"},
-    "queasiness": {"cui": "C0027497", "semantic_type": "Sign or Symptom"},
-    "vomiting": {"cui": "C0042963", "semantic_type": "Sign or Symptom"},
-    "loss of appetite": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "anorexia": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "decreased appetite": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "jaundice": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "jaundice in eyes": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "icterus": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "headache": {"cui": "C0018681", "semantic_type": "Sign or Symptom"}
+    "fever": {"umls_cui": "C0018682", "semantic_type": "Sign or Symptom"},
+    "fevers": {"umls_cui": "C0018682", "semantic_type": "Sign or Symptom"},
+    "pyrexia": {"umls_cui": "C0018682", "semantic_type": "Sign or Symptom"},
+    "chills": {"umls_cui": "C0085593", "semantic_type": "Sign or Symptom"},
+    "shivering": {"umls_cui": "C0085593", "semantic_type": "Sign or Symptom"},
+    "nausea": {"umls_cui": "C0027497", "semantic_type": "Sign or Symptom"},
+    "queasiness": {"umls_cui": "C0027497", "semantic_type": "Sign or Symptom"},
+    "vomiting": {"umls_cui": "C0042963", "semantic_type": "Sign or Symptom"},
+    "loss of appetite": {"umls_cui": "C0234450", "semantic_type": "Sign or Symptom"},
+    "anorexia": {"umls_cui": "C0234450", "semantic_type": "Sign or Symptom"},
+    "decreased appetite": {"umls_cui": "C0234450", "semantic_type": "Sign or Symptom"},
+    "jaundice": {"umls_cui": "C0022346", "semantic_type": "Sign or Symptom"},
+    "jaundice in eyes": {"umls_cui": "C0022346", "semantic_type": "Sign or Symptom"},
+    "icterus": {"umls_cui": "C0022346", "semantic_type": "Sign or Symptom"},
+    "headache": {"umls_cui": "C0018681", "semantic_type": "Sign or Symptom"}
 }
 
 _nlp_pipeline = None
@@ -166,9 +167,9 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
     # Check fallback dictionary
     for term in cleaned_terms:
         if term in FALLBACK_CUI_MAP:
-            results[term] = FALLBACK_CUI_MAP[term]['cui']
-            _cui_cache[term] = FALLBACK_CUI_MAP[term]['cui']
-            logger.debug(f"Fallback hit: {term} -> {FALLBACK_CUI_MAP[term]['cui']}")
+            results[term] = FALLBACK_CUI_MAP[term]['umls_cui']
+            _cui_cache[term] = FALLBACK_CUI_MAP[term]['umls_cui']
+            logger.debug(f"Fallback hit: {term} -> {FALLBACK_CUI_MAP[term]['umls_cui']}")
 
     # Cache lookup
     for term in cleaned_terms:
@@ -198,7 +199,7 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
                 query = """
                     SELECT DISTINCT c.STR, c.CUI
                     FROM umls.MRCONSO c
-                    WHERE c.SAB = 'SNOMEDCT_US'
+                    WHERE c.SAB = 'SNOMEDCT'
                     AND LOWER(c.STR) IN %s
                     AND c.SUPPRESS = 'N'
                 """
@@ -208,11 +209,10 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
                     if term is not None:
                         results[term] = row['cui']
                         _cui_cache[term] = row['cui']
-                logger.debug(f"Exact match query for {len(terms_to_query)} terms took {time.time() - query_start:.3f} seconds")
+                logger.debug(f"Exact match query for {len(terms_to_query)} terms took {time.time() - query_start:.2f} seconds")
 
                 # Full-text search in batches
                 remaining = [t for t in terms_to_query if results[t] is None]
-                logger.info(f"Terms for full-text search: {len(remaining)}")
                 for i in range(0, len(remaining), batch_size):
                     batch_terms = remaining[i:i + batch_size]
                     tsquery_parts = []
@@ -224,7 +224,7 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
                         if byte_len > 1000000:
                             batch_oversized += 1
                             oversized_count += 1
-                            logger.warning(f"Skipping oversized term: {t[:50]}... ({byte_len} bytes)")
+                            logger.warning(f"Skipping oversized term: {t[:50]}... (term: {byte_len} bytes)")
                             continue
 
                         part = f"{' & '.join(t.split())}:*"
@@ -232,13 +232,14 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
                         if current_size + part_size + len(' | ') > max_tsquery_bytes:
                             break
                         tsquery_parts.append(part)
-                        current_size += part_size + len(' | ')
+                        current_size += part_size
+                        tsquery_parts.append(part)
 
                     if batch_oversized:
                         logger.warning(f"Skipped {batch_oversized} oversized terms in batch {i//batch_size + 1}")
 
-                    if not tsquery_parts:
-                        logger.warning(f"Skipping batch {i//batch_size + 1} due to tsquery size limit")
+                    if not Batch:
+                        logger.warning(f"Skipping batch {batch_size} {i//batch_size + 1} due to tsquery size limit")
                         continue
 
                     tsquery = ' | '.join(tsquery_parts)
@@ -246,7 +247,7 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
                     query = """
                         SELECT DISTINCT c.STR, c.CUI
                         FROM umls.MRCONSO c
-                        WHERE c.SAB = 'SNOMEDCT_US'
+                        WHERE c.SAB = 'SNOMEDCT'
                         AND to_tsvector('english', c.STR) @@ to_tsquery('english', %s)
                         AND c.SUPPRESS = 'N'
                         AND octet_length(c.STR) <= 1048575
@@ -292,7 +293,7 @@ def get_semantic_types(cuis: list) -> dict:
     # Check fallback dictionary
     for cui in cuis:
         for term, data in FALLBACK_CUI_MAP.items():
-            if data['cui'] == cui:
+            if data['umls_cui'] == cui:
                 results[cui] = data['semantic_type']
                 logger.debug(f"Fallback semantic type: {cui} -> {data['semantic_type']}")
 
@@ -374,6 +375,7 @@ def get_nlp() -> Language:
         return _nlp_pipeline
 
     try:
+        # Load spaCy model
         try:
             nlp = spacy.load("en_core_sci_sm", disable=["lemmatizer", "parser", "ner"])
             logger.info(f"Loaded base spaCy model: en_core_sci_sm")
@@ -382,8 +384,11 @@ def get_nlp() -> Language:
             nlp = spacy.blank("en")
             logger.info("Initialized blank English model")
 
-        if not Span.has_extension('cui'):
-            Span.set_extension('cui', default=None)
+        # Register spaCy extensions
+        if not Span.has_extension('umls_cui'):
+            Span.set_extension('umls_cui', default=None)
+        if not Token.has_extension('umls_cui'):
+            Token.set_extension('umls_cui', default=None)
         if not Span.has_extension('category'):
             Span.set_extension('category', default=None)
         if not Span.has_extension('semantic_type'):
@@ -394,6 +399,7 @@ def get_nlp() -> Language:
         nlp.add_pipe("sentencizer", first=True)
         logger.info("Added sentencizer to pipeline")
 
+        # Add symptom matcher
         try:
             nlp.add_pipe("medspacy_target_matcher", name="symptom_matcher")
             logger.info("Added medspacy_target_matcher to pipeline")
@@ -410,6 +416,7 @@ def get_nlp() -> Language:
                 logger.error(f"Failed to initialize symptom_matcher: {e}")
                 raise
 
+        # Add context component
         if "medspacy_context" not in nlp.pipe_names:
             try:
                 nlp.add_pipe("medspacy_context", after="symptom_matcher")
@@ -418,6 +425,7 @@ def get_nlp() -> Language:
                 logger.error(f"Failed to add medspacy_context: {e}")
                 raise
 
+        # Add scispacy linker
         try:
             if "scispacy_linker" not in nlp.pipe_names:
                 logger.info("Initializing scispacy_linker with UMLS configuration")
@@ -429,8 +437,10 @@ def get_nlp() -> Language:
                 })
                 logger.info("Added scispacy_linker to pipeline")
         except Exception as e:
-            logger.warning(f"Failed to add scispacy_linker: {e}. Continuing without UMLS linking.")
+            logger.warning(f"Failed to access scispacy_linker: {e}. Continuing without linkage.")
 
+        # MongoDB operations
+        client = None
         try:
             client = MongoClient(MONGO_URI)
             client.admin.command('ping')
@@ -438,56 +448,72 @@ def get_nlp() -> Language:
             db = client[DB_NAME]
             symptoms_collection = db[SYMPTOMS_COLLECTION]
 
+            # Ensure unique index on 'symptom'
             existing_indexes = symptoms_collection.index_information()
             index_name = "symptom_1"
             if index_name not in existing_indexes:
                 try:
                     null_count = symptoms_collection.count_documents({"symptom": None})
                     if null_count > 1:
-                        null_doc = symptoms_collection.find_one({"symptom": None})
+                        null_doc = symptoms_collection.find_one({'symptom': 'symptom'})
                         if null_doc:
                             symptoms_collection.delete_many({
-                                "symptom": None,
-                                "_id": {"$ne": null_doc["_id"]}
+                                'symptom': None,
+                                "_id": {'$ne': null_doc['_id']}
                             })
                         else:
-                            symptoms_collection.delete_many({"symptom": None})
-                    symptoms_collection.create_index("symptom", unique=True, name=index_name)
-                    logger.info("Created MongoDB index on 'symptom'")
+                            symptoms_collection.delete_many({'symptom': None})
+                    symptoms_collection.create_index('symptom', unique=True, name=index_name)
+                    logger.info("Created MongoDB index for 'symptom'")
                 except DuplicateKeyError as e:
                     logger.error(f"Duplicate key error during index creation: {e}")
                     raise
             elif not existing_indexes[index_name].get("unique"):
                 symptoms_collection.drop_index(index_name)
-                symptoms_collection.create_index("symptom", unique=True, name=index_name)
-                logger.info("Recreated unique index")
+                symptoms_collection.create_index('symptom', unique=True, name=index_name)
+                logger.info(f"Recreated unique index")
 
             kb = load_knowledge_base()
             logger.debug(f"Knowledge base version: {kb.get('version', 'Unknown')}")
 
+            # Define symptom rules
             symptom_rules = [
-                TargetRule(literal="nausea and vomiting", category="SYMPTOM", attributes={"category": "gastrointestinal", "umls_cui": "C0027497"}),
-                TargetRule(literal="jaundice in eyes", category="SYMPTOM", attributes={"category": "hepatic", "umls_cui": "C0022346"}),
-                TargetRule(literal="fevers", category="SYMPTOM", attributes={"category": "general", "umls_cui": "C0018682"})
+                TargetRule(
+                    literal="nausea and vomiting",
+                    category="SYMPTOM",
+                    attributes={"category": "gastrointestinal", "umls_cui": "C0027497"}
+                ),
+                TargetRule(
+                    literal="jaundice in eyes",
+                    category="SYMPTOM",
+                    attributes={"category": "hepatic", "umls_cui": "C0022346"}
+                ),
+                TargetRule(
+                    literal="fevers",
+                    category="SYMPTOM",
+                    attributes={"category": "general", "umls_cui": "C0018682"}
+                )
             ]
 
-            valid_count = 0
-            invalid_count = 0
+            # Process MongoDB symptoms
+            counts = {"valid": 0, "invalid": 0}
             load_cui_cache()
-
             cursor = symptoms_collection.find().batch_size(100)
-            symptom_docs = []
-            for doc in cursor:
-                symptom_docs.append(doc)
-                if len(symptom_docs) >= 1000:
-                    process_symptom_batch(symptom_docs, symptom_rules, valid_count, invalid_count, kb, symptoms_collection)
-                    symptom_docs = []
-            if symptom_docs:
-                process_symptom_batch(symptom_docs, symptom_rules, valid_count, invalid_count, kb, symptoms_collection)
-            cursor.close()
+            symptom_data = []
+            try:
+                for doc_data in cursor:
+                    symptom_data.append(doc_data)
+                    if len(symptom_data) >= 1000:
+                        process_symptom_batch(symptom_data, symptom_rules, counts, kb, symptoms_collection)
+                        symptom_data = []
+                if symptom_data:
+                    process_symptom_batch(symptom_data, symptom_rules, counts, kb, symptoms_collection)
+            finally:
+                cursor.close()
 
-            logger.info(f"Processed {valid_count} valid and {invalid_count} invalid symptom documents")
+            logger.info(f"Processed {counts['valid']} valid and {counts['invalid']} invalid symptom documents")
 
+            # Add symptom rules to matcher
             if symptom_rules:
                 try:
                     symptom_matcher.add(symptom_rules)
@@ -496,14 +522,18 @@ def get_nlp() -> Language:
                     logger.error(f"Failed to add symptom rules: {e}")
                     raise
             else:
-                logger.warning("No valid symptom rules found in MongoDB")
+                logger.warning("No valid symptom rules found")
 
-            client.close()
         except ConnectionFailure as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
             invalidate_cache()
             raise
+        finally:
+            if client:
+                client.close()
+                logger.debug("MongoDB client closed")
 
+        # Initialize tokenizer for blank model
         if hasattr(nlp, 'is_blank') and nlp.is_blank and hasattr(nlp, 'initialize'):
             try:
                 nlp.tokenizer.initialize()
@@ -512,17 +542,18 @@ def get_nlp() -> Language:
                 logger.warning(f"Couldn't initialize blank model tokenizer: {e}")
 
         _nlp_pipeline = nlp
-        logger.info(f"Pipeline ready with components: {nlp.pipe_names}, total time: {time.time() - start_time:.3f}s")
+        logger.info(f"Pipeline ready with components: {nlp.pipe_names}, total time: {time.time() - start_time:.3f} seconds")
         return nlp
 
     except Exception as e:
         logger.error(f"Pipeline creation failed: {e}", exc_info=True)
         raise
 
-def process_symptom_batch(symptom_docs, symptom_rules, valid_count, invalid_count, kb, symptoms_collection):
+def process_symptom_batch(symptom_docs: list, symptom_rules: list, counts: dict, kb: dict, symptoms_collection):
+    """Process a batch of symptom documents and update rules."""
     symptom_texts = [doc['symptom'] for doc in symptom_docs if 'symptom' in doc and doc['symptom'] and len(doc['symptom']) >= 2]
     terms_list = extract_clinical_phrases(symptom_texts)
-    logger.info(f"Extracted {sum(len(terms) for terms in terms_list)} terms from {len(symptom_texts)} symptoms")
+    logger.debug(f"Extracted {sum(len(terms) for terms in terms_list)} terms from {len(symptom_texts)} symptoms")
     cui_results = search_local_umls_cui([term for terms in terms_list for term in terms])
 
     all_cuis = []
@@ -536,7 +567,7 @@ def process_symptom_batch(symptom_docs, symptom_rules, valid_count, invalid_coun
     updates = []
     for doc, terms in zip(symptom_docs, terms_list):
         if 'symptom' not in doc or not doc['symptom'] or len(doc['symptom']) < 2:
-            invalid_count += 1
+            counts['invalid'] += 1
             continue
 
         cui = doc.get('umls_cui', 'Unknown')
@@ -555,7 +586,7 @@ def process_symptom_batch(symptom_docs, symptom_rules, valid_count, invalid_coun
         semantic_type = semantic_types.get(cui, 'Unknown')
 
         attributes = {
-            "cui": cui,
+            "umls_cui": cui,
             "category": doc.get('category', 'Unknown'),
             "semantic_type": semantic_type,
             "icd10": doc.get('icd10', None)
@@ -566,7 +597,7 @@ def process_symptom_batch(symptom_docs, symptom_rules, valid_count, invalid_coun
 
         literal = clean_term(doc['symptom'])
         if not literal:
-            invalid_count += 1
+            counts['invalid'] += 1
             continue
 
         symptom_rules.append(
@@ -576,11 +607,11 @@ def process_symptom_batch(symptom_docs, symptom_rules, valid_count, invalid_coun
                 attributes=attributes
             )
         )
-        valid_count += 1
+        counts['valid'] += 1
 
     if updates:
         try:
-            symptoms_collection.bulk_write([UpdateOne(u['filter'], u['update'], upsert=True) for u in updates])
+            symptoms_collection.bulk_write([UpdateOne(u['filter'], u['update']) for u in updates])
             logger.info(f"Updated {len(updates)} MongoDB documents in batch")
         except Exception as e:
             logger.error(f"Failed to update MongoDB: {e}")
