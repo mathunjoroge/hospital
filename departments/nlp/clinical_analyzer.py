@@ -1,3 +1,4 @@
+# clinical_analyzer.py
 from typing import List, Dict, Set, Tuple, Optional
 import torch
 import re
@@ -30,27 +31,10 @@ from departments.nlp.symptom_tracker import SymptomTracker
 from departments.nlp.knowledge_base_io import load_knowledge_base
 from departments.nlp.kb_updater import KnowledgeBaseUpdater
 from departments.nlp.nlp_pipeline import clean_term
+from departments.nlp.nlp_common import FALLBACK_CUI_MAP
 
 logger = get_logger(__name__)
 load_dotenv()
-
-# Fallback dictionary for symptoms not in UMLS
-FALLBACK_CUI_MAP = {
-    "fever": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "fevers": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "pyrexia": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "chills": {"cui": "C0085593", "semantic_type": "Sign or Symptom"},
-    "shivering": {"cui": "C0085593", "semantic_type": "Sign or Symptom"},
-    "nausea": {"cui": "C0027497", "semantic_type": "Sign or Symptom"},
-    "vomiting": {"cui": "C0042963", "semantic_type": "Sign or Symptom"},
-    "loss of appetite": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "anorexia": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "decreased appetite": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "jaundice": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "jaundice in eyes": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "icterus": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "headache": {"cui": "C0018681", "semantic_type": "Sign or Symptom"}
-}
 
 class ClinicalAnalyzer:
     @retry(
@@ -231,7 +215,7 @@ class ClinicalAnalyzer:
 
         # Check fallback dictionary
         if symptom_lower in FALLBACK_CUI_MAP:
-            cui = FALLBACK_CUI_MAP[symptom_lower]['cui']
+            cui = FALLBACK_CUI_MAP[symptom_lower]['umls_cui']
             semantic_type = FALLBACK_CUI_MAP[symptom_lower]['semantic_type']
             logger.debug(f"Found fallback CUI for '{symptom_lower}': {cui}, Semantic Type: {semantic_type}")
             return cui, semantic_type

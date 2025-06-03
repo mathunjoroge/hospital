@@ -1,3 +1,4 @@
+# knowledge_base_io.py
 from datetime import datetime
 import os
 from typing import Dict, Optional, Set, List
@@ -12,30 +13,12 @@ from departments.nlp.knowledge_base_init import initialize_knowledge_files
 from departments.nlp.config import (
     MONGO_URI, DB_NAME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
 )
+from departments.nlp.nlp_common import FALLBACK_CUI_MAP  # Import from nlp_common.py
 
 logger = get_logger(__name__)
 
 # Singleton cache
 _knowledge_base_cache: Optional[Dict] = None
-
-# Fallback dictionary for symptoms not in UMLS
-FALLBACK_CUI_MAP = {
-    "fever": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "fevers": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "pyrexia": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "chills": {"cui": "C0085593", "semantic_type": "Sign or Symptom"},
-    "shivering": {"cui": "C0085593", "semantic_type": "Sign or Symptom"},
-    "nausea": {"cui": "C0027497", "semantic_type": "Sign or Symptom"},
-    "queasiness": {"cui": "C0027497", "semantic_type": "Sign or Symptom"},
-    "vomiting": {"cui": "C0042963", "semantic_type": "Sign or Symptom"},
-    "loss of appetite": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "anorexia": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "decreased appetite": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "jaundice": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "jaundice in eyes": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "icterus": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "headache": {"cui": "C0018681", "semantic_type": "Sign or Symptom"}
-}
 
 # Pydantic models
 class Symptom(BaseModel):
@@ -184,7 +167,7 @@ def load_from_postgresql() -> Dict[str, any]:
                 umls_cui = row['umls_cui']
                 semantic_type = row['semantic_type'] or "Unknown"
                 if not umls_cui and symptom.lower() in FALLBACK_CUI_MAP:
-                    umls_cui = FALLBACK_CUI_MAP[symptom.lower()]['cui']
+                    umls_cui = FALLBACK_CUI_MAP[symptom.lower()]['umls_cui']
                     semantic_type = FALLBACK_CUI_MAP[symptom.lower()]['semantic_type']
                     logger.debug(f"Applied fallback for symptom '{symptom}': CUI={umls_cui}, SemanticType={semantic_type}")
                 valid_data[category][symptom] = Symptom(
@@ -274,7 +257,7 @@ def cross_reference_umls(knowledge: Dict) -> Dict:
                     synonym_lower = synonym.lower()
                     if not any(t['term'].lower() == synonym_lower and t.get('umls_cui') for t in knowledge['medical_terms']):
                         # Check fallback dictionary
-                        cui = FALLBACK_CUI_MAP.get(synonym_lower, {}).get('cui')
+                        cui = FALLBACK_CUI_MAP.get(synonym_lower, {}).get('umls_cui')
                         semantic_type = FALLBACK_CUI_MAP.get(synonym_lower, {}).get('semantic_type', term['semantic_type'])
                         if not cui:
                             # Verify synonym in UMLS
@@ -283,7 +266,7 @@ def cross_reference_umls(knowledge: Dict) -> Dict:
                                 WHERE LOWER(STR) = %s AND SAB = 'SNOMEDCT_US' AND SUPPRESS = 'N'
                             """, (synonym_lower,))
                             result = cursor.fetchone()
-                            cui = result['cui'] if result else term['umls_cui']
+                            cui = result['CUI'] if result else term['umls_cui']
                         knowledge['medical_terms'].append({
                             'term': synonym,
                             'category': term['category'],
@@ -359,7 +342,7 @@ def save_knowledge_base(kb: Dict) -> bool:
                 umls_cui = info.get('umls_cui')
                 semantic_type = info.get('semantic_type', 'Unknown')
                 if not umls_cui and s.lower() in FALLBACK_CUI_MAP:
-                    umls_cui = FALLBACK_CUI_MAP[s.lower()]['cui']
+                    umls_cui = FALLBACK_CUI_MAP[s.lower()]['umls_cui']
                     semantic_type = FALLBACK_CUI_MAP[s.lower()]['semantic_type']
                     logger.debug(f"Applied fallback for symptom '{s}' during save: CUI={umls_cui}, SemanticType={semantic_type}")
                 symptom_data.append((s, cat, info['description'], umls_cui, semantic_type))
