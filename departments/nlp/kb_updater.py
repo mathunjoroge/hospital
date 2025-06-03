@@ -1,3 +1,4 @@
+# kb_updater.py
 from datetime import datetime
 from typing import Dict, Optional, List
 from enum import Enum
@@ -10,6 +11,7 @@ from pydantic import BaseModel, Field, ValidationError
 from departments.nlp.logging_setup import get_logger
 from departments.nlp.knowledge_base_io import load_knowledge_base, save_knowledge_base
 from departments.nlp.nlp_utils import embed_text
+from departments.nlp.nlp_common import FALLBACK_CUI_MAP  # Import from nlp_common.py
 import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from departments.nlp.config import (
@@ -18,25 +20,6 @@ from departments.nlp.config import (
 )
 
 logger = get_logger(__name__)
-
-# Fallback dictionary for symptoms not in UMLS
-FALLBACK_CUI_MAP = {
-    "fever": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "fevers": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "pyrexia": {"cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "chills": {"cui": "C0085593", "semantic_type": "Sign or Symptom"},
-    "shivering": {"cui": "C0085593", "semantic_type": "Sign or Symptom"},
-    "nausea": {"cui": "C0027497", "semantic_type": "Sign or Symptom"},
-    "queasiness": {"cui": "C0027497", "semantic_type": "Sign or Symptom"},
-    "vomiting": {"cui": "C0042963", "semantic_type": "Sign or Symptom"},
-    "loss of appetite": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "anorexia": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "decreased appetite": {"cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "jaundice": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "jaundice in eyes": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "icterus": {"cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "headache": {"cui": "C0018681", "semantic_type": "Sign or Symptom"}
-}
 
 # Enums and Pydantic models
 class Category(str, Enum):
@@ -334,7 +317,7 @@ class KnowledgeBaseUpdater:
         if cleaned_term in FALLBACK_CUI_MAP:
             logger.debug(f"Fallback hit for '{cleaned_term}': {FALLBACK_CUI_MAP[cleaned_term]}")
             return {
-                'cui': FALLBACK_CUI_MAP[cleaned_term]['cui'],
+                'cui': FALLBACK_CUI_MAP[cleaned_term]['umls_cui'],
                 'semantic_type': FALLBACK_CUI_MAP[cleaned_term]['semantic_type']
             }
 
@@ -371,7 +354,7 @@ class KnowledgeBaseUpdater:
                     """
                     cursor.execute(query, (cleaned_term,))
                     result = cursor.fetchone()
-                    cui = result['cui'] if result else None
+                    cui = result['CUI'] if result else None
 
                     if not cui:
                         # Fallback to LIKE search
@@ -385,7 +368,7 @@ class KnowledgeBaseUpdater:
                         """
                         cursor.execute(query, ('%' + cleaned_term + '%',))
                         result = cursor.fetchone()
-                        cui = result['cui'] if result else None
+                        cui = result['CUI'] if result else None
 
                     if cui:
                         # Get semantic type
@@ -397,7 +380,7 @@ class KnowledgeBaseUpdater:
                         """
                         cursor.execute(query, (cui,))
                         result = cursor.fetchone()
-                        semantic_type = result['sty'] if result else SemanticType.UNKNOWN.value
+                        semantic_type = result['STY'] if result else SemanticType.UNKNOWN.value
 
                         # Cache result
                         cursor.execute("""
