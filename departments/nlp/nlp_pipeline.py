@@ -1,3 +1,4 @@
+# /home/mathu/projects/hospital/departments/nlp/nlp_pipeline.py
 import logging
 import spacy
 from spacy.tokens import Token, Span
@@ -14,6 +15,8 @@ from psycopg2.pool import SimpleConnectionPool
 from departments.models.pharmacy import Batch
 from departments.nlp.logging_setup import get_logger
 from departments.nlp.knowledge_base_io import load_knowledge_base, invalidate_cache
+from departments.nlp.nlp_utils import preprocess_text
+from departments.nlp.nlp_common import clean_term, FALLBACK_CUI_MAP
 from dotenv import load_dotenv
 import os
 import time
@@ -50,25 +53,6 @@ from config import (
 )
 
 logger = get_logger(__name__)
-
-# Fallback dictionary for symptoms not in UMLS
-FALLBACK_CUI_MAP = {
-    "fever": {"umls_cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "fevers": {"umls_cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "pyrexia": {"umls_cui": "C0018682", "semantic_type": "Sign or Symptom"},
-    "chills": {"umls_cui": "C0085593", "semantic_type": "Sign or Symptom"},
-    "shivering": {"umls_cui": "C0085593", "semantic_type": "Sign or Symptom"},
-    "nausea": {"umls_cui": "C0027497", "semantic_type": "Sign or Symptom"},
-    "queasiness": {"umls_cui": "C0027497", "semantic_type": "Sign or Symptom"},
-    "vomiting": {"umls_cui": "C0042963", "semantic_type": "Sign or Symptom"},
-    "loss of appetite": {"umls_cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "anorexia": {"umls_cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "decreased appetite": {"umls_cui": "C0234450", "semantic_type": "Sign or Symptom"},
-    "jaundice": {"umls_cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "jaundice in eyes": {"umls_cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "icterus": {"umls_cui": "C0022346", "semantic_type": "Sign or Symptom"},
-    "headache": {"umls_cui": "C0018681", "semantic_type": "Sign or Symptom"}
-}
 
 _nlp_pipeline = None
 _cui_cache = LRUCache(maxsize=10000)
@@ -140,14 +124,6 @@ def get_postgres_connection():
     except Exception as e:
         logger.error(f"Failed to get connection from pool: {e}")
         return None
-
-def clean_term(term: str) -> str:
-    if len(term) > 200:
-        return None
-    term = term.strip().lower()
-    term = re.sub(r'[^\w\s]', '', term)
-    term = ' '.join(term.split())
-    return term
 
 def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsquery_bytes=500000):
     start_time = time.time()
@@ -233,13 +209,12 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
                             break
                         tsquery_parts.append(part)
                         current_size += part_size
-                        tsquery_parts.append(part)
 
                     if batch_oversized:
                         logger.warning(f"Skipped {batch_oversized} oversized terms in batch {i//batch_size + 1}")
 
-                    if not Batch:
-                        logger.warning(f"Skipping batch {batch_size} {i//batch_size + 1} due to tsquery size limit")
+                    if not tsquery_parts:
+                        logger.warning(f"Skipping batch {i//batch_size + 1} due to tsquery size limit")
                         continue
 
                     tsquery = ' | '.join(tsquery_parts)
@@ -366,6 +341,43 @@ def extract_clinical_phrases(texts):
 
     logger.info(f"extract_clinical_phrases processed {len(texts)} texts, returned {sum(len(r) for r in results if r)} terms, took {time.time() - start_time:.3f} seconds")
     return results if len(texts) > 1 else results[0]
+
+def extract_aggravating_alleviating(text: str, factor_type: str) -> str:
+    """Extract aggravating or alleviating factors from text."""
+    if not isinstance(text, str) or not text.strip():
+        logger.debug(f"Invalid text for {factor_type} factor extraction: {text}")
+        return "Unknown"
+    if factor_type not in ["aggravating", "alleviating"]:
+        logger.error(f"Invalid factor_type: {factor_type}")
+        return "Unknown"
+
+    text_clean = preprocess_text(text).lower()
+    text_clean = re.sub(r'[;:]', ' ', re.sub(r'\s+', ' ', text_clean)).strip()
+    if not text_clean:
+        logger.debug(f"Empty text after preprocessing for {factor_type} factor")
+        return "Unknown"
+
+    # Patterns for aggravating and alleviating factors
+    aggravating_patterns = [
+        r'\b(makes\s+worse|worsens|aggravates|triggers)\s+([\w\s-]+?)(?=\s*\.|,\s*|\s+and\b|\s+or\b|$)',
+        r'\b(worse\s+with|caused\s+by)\s+([\w\s-]+?)(?=\s*\.|,\s*|\s+and\b|\s+or\b|$)'
+    ]
+    alleviating_patterns = [
+        r'\b(alleviates|relieves|improves|better\s+with)\s+([\w\s-]+?)(?=\s*\.|,\s*|\s+and\b|\s+or\b|$)',
+        r'\b(reduced\s+by|eased\s+by)\s+([\w\s-]+?)(?=\s*\.|,\s*|\s+and\b|\s+or\b|$)'
+    ]
+
+    patterns = aggravating_patterns if factor_type == "aggravating" else alleviating_patterns
+    for pattern in patterns:
+        match = re.search(pattern, text_clean, re.IGNORECASE)
+        if match:
+            factor = match.group(2).strip()
+            factor_clean = clean_term(factor)
+            if factor_clean:
+                logger.debug(f"Extracted {factor_type} factor: '{factor_clean}'")
+                return factor_clean
+    logger.debug(f"No {factor_type} factor found in text: {text_clean[:50]}...")
+    return text_clean if text_clean else "Unknown"
 
 def get_nlp() -> Language:
     global _nlp_pipeline
