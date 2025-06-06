@@ -48,7 +48,8 @@ class SymptomTracker:
                         return category, data
             # Search MongoDB
             if self.collection is not None:
-                result = self.collection.find_one({"symptom": symptom_clean})
+                # Try both 'term' and 'symptom' for backward compatibility
+                result = self.collection.find_one({"$or": [{"term": symptom_clean}, {"symptom": symptom_clean}]})
                 if result:
                     logger.debug(f"Found symptom '{symptom}' in MongoDB, category: {result.get('category')}")
                     return result.get('category', 'Uncategorized'), {
@@ -74,7 +75,8 @@ class SymptomTracker:
         try:
             if self.collection is not None:
                 doc = {
-                    'symptom': symptom_clean,
+                    'term': symptom_clean,  # Use 'term' for unique index compatibility
+                    'symptom': symptom_clean,  # For backward compatibility
                     'category': category or 'Uncategorized',
                     'description': description or symptom_clean,
                     'cui': cui,
@@ -82,7 +84,7 @@ class SymptomTracker:
                     'timestamp': datetime.utcnow()
                 }
                 self.collection.update_one(
-                    {'symptom': symptom_clean},
+                    {'term': symptom_clean},
                     {'$set': doc},
                     upsert=True
                 )
@@ -123,8 +125,8 @@ class SymptomTracker:
         # MongoDB symptoms
         try:
             if self.collection is not None:
-                cursor = self.collection.find({}, {'symptom': 1})
-                symptoms.update(doc['symptom'].lower() for doc in cursor if 'symptom' in doc)
+                cursor = self.collection.find({}, {'term': 1})
+                symptoms.update(doc['term'].lower() for doc in cursor if 'term' in doc and doc['term'])
         except Exception as e:
             logger.error(f"Failed to retrieve symptoms from MongoDB: {e}", exc_info=True)
         logger.debug(f"Retrieved {len(symptoms)} unique symptoms")
