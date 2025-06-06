@@ -3,8 +3,7 @@ import logging
 import spacy
 from spacy.tokens import Token, Span
 from spacy.language import Language
-from medspacy.target_matcher import TargetMatcher
-from medspacy.target_matcher import TargetRule
+from medspacy.target_matcher import TargetMatcher, TargetRule
 from medspacy.context import ConText
 from scispacy.linking import EntityLinker
 from pymongo import MongoClient, UpdateOne
@@ -312,7 +311,11 @@ def extract_clinical_phrases(texts):
     cached_results = [(_phrase_cache[text] if text in _phrase_cache else None) for text in texts]
     if all(r is not None for r in cached_results):
         logger.debug(f"All {len(texts)} texts found in phrase cache, took {time.time() - start_time:.3f} seconds")
-        return cached_results if len(texts) > 1 else cached_results[0]
+        # Always return a list, never None
+        if len(texts) > 1:
+            return cached_results
+        else:
+            return cached_results[0] if cached_results[0] is not None else []
 
     uncached_texts = [t for t, r in zip(texts, cached_results) if r is None]
     results = cached_results[:]
@@ -340,7 +343,11 @@ def extract_clinical_phrases(texts):
             results[i + j if len(texts) > 1 else 0] = _phrase_cache[text]
 
     logger.info(f"extract_clinical_phrases processed {len(texts)} texts, returned {sum(len(r) for r in results if r)} terms, took {time.time() - start_time:.3f} seconds")
-    return results if len(texts) > 1 else results[0]
+    # Always return a list, never None
+    if len(texts) > 1:
+        return results
+    else:
+        return results[0] if results[0] is not None else []
 
 def extract_aggravating_alleviating(text: str, factor_type: str) -> str:
     """Extract aggravating or alleviating factors from text."""
