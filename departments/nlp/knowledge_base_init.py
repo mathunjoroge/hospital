@@ -9,7 +9,7 @@ from departments.nlp.config import (
     MONGO_URI, DB_NAME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
 )
 
-logger = get_logger()
+logger = get_logger(__name__)
 
 # PostgreSQL connection pool
 pool = SimpleConnectionPool(
@@ -135,8 +135,8 @@ default_diagnosis_relevance: List[Dict] = [
         "diagnosis": "allergic rhinitis",
         "relevance": [
             {"symptom": "nasal congestion", "weight": 0.4},
-            {"symptom": "nasal congestion", "weight": 0.3},  # Replaced "sneezing" (not in default_medical_terms)
-            {"symptom": "nasal congestion", "weight": 0.3}   # Replaced "itchy eyes" (not in default_medical_terms)
+            {"symptom": "nasal congestion", "weight": 0.3},  # Replaced "sneezing"
+            {"symptom": "nasal congestion", "weight": 0.3}   # Replaced "itchy eyes"
         ],
         "category": "respiratory"
     },
@@ -154,7 +154,7 @@ default_diagnosis_relevance: List[Dict] = [
         "relevance": [
             {"symptom": "chest pain", "weight": 0.5},
             {"symptom": "shortness of breath", "weight": 0.3},
-            {"symptom": "fatigue", "weight": 0.2}  # Replaced "sweating" (not in default_medical_terms)
+            {"symptom": "fatigue", "weight": 0.2}  # Replaced "sweating"
         ],
         "category": "cardiovascular"
     },
@@ -163,7 +163,7 @@ default_diagnosis_relevance: List[Dict] = [
         "relevance": [
             {"symptom": "shortness of breath", "weight": 0.4},
             {"symptom": "chest pain", "weight": 0.3},
-            {"symptom": "chest tightness", "weight": 0.3}  # Replaced "tachycardia" (not in default_medical_terms)
+            {"symptom": "chest tightness", "weight": 0.3}  # Replaced "tachycardia"
         ],
         "category": "cardiovascular"
     },
@@ -172,7 +172,7 @@ default_diagnosis_relevance: List[Dict] = [
         "relevance": [
             {"symptom": "epigastric pain", "weight": 0.5},
             {"symptom": "nausea", "weight": 0.3},
-            {"symptom": "epigastric pain", "weight": 0.2}  # Replaced "heartburn" (not in default_medical_terms)
+            {"symptom": "epigastric pain", "weight": 0.2}  # Replaced "heartburn"
         ],
         "category": "gastrointestinal"
     },
@@ -180,8 +180,8 @@ default_diagnosis_relevance: List[Dict] = [
         "diagnosis": "osteoarthritis",
         "relevance": [
             {"symptom": "knee pain", "weight": 0.4},
-            {"symptom": "joint pain", "weight": 0.3},  # Replaced "joint stiffness" (not in default_medical_terms)
-            {"symptom": "pain on movement", "weight": 0.3}  # Replaced "swelling" (not in default_medical_terms)
+            {"symptom": "joint pain", "weight": 0.3},  # Replaced "joint stiffness"
+            {"symptom": "pain on movement", "weight": 0.3}  # Replaced "swelling"
         ],
         "category": "musculoskeletal"
     },
@@ -189,8 +189,8 @@ default_diagnosis_relevance: List[Dict] = [
         "diagnosis": "malaria",
         "relevance": [
             {"symptom": "fever", "weight": 0.4},
-            {"symptom": "fever", "weight": 0.3},  # Replaced "chills" (not in default_medical_terms)
-            {"symptom": "fever", "weight": 0.3}   # Replaced "travel to endemic area" (not a symptom)
+            {"symptom": "fever", "weight": 0.3},  # Replaced "chills"
+            {"symptom": "fever", "weight": 0.3}   # Replaced "travel to endemic area"
         ],
         "category": "infectious"
     },
@@ -217,7 +217,7 @@ default_diagnosis_relevance: List[Dict] = [
         "relevance": [
             {"symptom": "back pain", "weight": 0.5},
             {"symptom": "pain on movement", "weight": 0.3},
-            {"symptom": "back pain", "weight": 0.2}  # Replaced "no trauma" (not a symptom)
+            {"symptom": "back pain", "weight": 0.2}  # Replaced "no trauma"
         ],
         "category": "musculoskeletal"
     },
@@ -231,6 +231,7 @@ default_diagnosis_relevance: List[Dict] = [
         "category": "cardiovascular"
     }
 ]
+
 default_clinical_pathways: Dict[str, Dict] = {
     "respiratory": {
         "facial pain|nasal congestion|purulent nasal discharge": {
@@ -252,7 +253,7 @@ default_clinical_pathways: Dict[str, Dict] = {
                 "IDSA Guidelines: https://www.idsociety.org",
                 "AAO-HNS Sinusitis Guidelines: https://www.entnet.org"
             ],
-            "metadata": {"source": ["IDSA", "AAO-HNS"], "last_updated": "2025-06-01", "umls_cui": "C0234450"}
+            "metadata": {"source": ["IDSA", "AAO-HNS"], "last_updated": datetime.now(), "umls_cui": "C0234450"}
         },
         "cough": {
             "differentials": ["Postnasal drip", "Allergic cough", "Chronic bronchitis"],
@@ -265,7 +266,7 @@ default_clinical_pathways: Dict[str, Dict] = {
             },
             "follow_up": ["Follow-up in 2 weeks"],
             "references": ["ATS Guidelines: https://www.thoracic.org"],
-            "metadata": {"source": ["ATS"], "last_updated": "2025-06-01", "umls_cui": "C0010200"}
+            "metadata": {"source": ["ATS"], "last_updated": datetime.now(), "umls_cui": "C0010200"}
         }
     },
     "neurological": {
@@ -282,7 +283,7 @@ default_clinical_pathways: Dict[str, Dict] = {
             },
             "follow_up": ["Follow-up in 3-5 days if urgent, else 1-2 weeks"],
             "references": ["AHS Guidelines: https://americanheadachesociety.org", "UpToDate: https://www.uptodate.com/contents/meningitis"],
-            "metadata": {"source": ["AHS", "UpToDate"], "last_updated": "2025-06-01", "umls_cui": "C0018681"}
+            "metadata": {"source": ["AHS", "UpToDate"], "last_updated": datetime.now(), "umls_cui": "C0018681"}
         }
     },
     "cardiovascular": {
@@ -298,7 +299,7 @@ default_clinical_pathways: Dict[str, Dict] = {
             },
             "follow_up": ["Follow-up in 3-5 days if urgent, else 1 week"],
             "references": ["ACC/AHA Guidelines: https://www.acc.org"],
-            "metadata": {"source": ["ACC/AHA"], "last_updated": "2025-06-01", "umls_cui": "C0008031"}
+            "metadata": {"source": ["ACC/AHA"], "last_updated": datetime.now(), "umls_cui": "C0008031"}
         }
     },
     "gastrointestinal": {
@@ -313,7 +314,7 @@ default_clinical_pathways: Dict[str, Dict] = {
             },
             "follow_up": ["Follow-up in 2 weeks"],
             "references": ["AGA Guidelines: https://gastro.org"],
-            "metadata": {"source": ["AGA"], "last_updated": "2025-06-01", "umls_cui": "C0234451"}
+            "metadata": {"source": ["AGA"], "last_updated": datetime.now(), "umls_cui": "C0234451"}
         }
     },
     "musculoskeletal": {
@@ -328,7 +329,7 @@ default_clinical_pathways: Dict[str, Dict] = {
             },
             "follow_up": ["Follow-up in 4 weeks"],
             "references": ["AAOS Guidelines: https://www.aaos.org", "ACR Guidelines: https://www.rheumatology.org"],
-            "metadata": {"source": ["AAOS", "ACR"], "last_updated": "2025-06-01", "umls_cui": "C0231749"}
+            "metadata": {"source": ["AAOS", "ACR"], "last_updated": datetime.now(), "umls_cui": "C0231749"}
         },
         "back pain": {
             "differentials": ["Mechanical low back pain", "Lumbar strain", "Herniated disc", "Ankylosing spondylitis"],
@@ -349,7 +350,7 @@ default_clinical_pathways: Dict[str, Dict] = {
                 "ACP Guidelines: https://www.acponline.org",
                 "UpToDate: Evaluation of low back pain"
             ],
-            "metadata": {"source": ["ACP", "UpToDate"], "last_updated": "2025-06-01", "umls_cui": "C0004604"}
+            "metadata": {"source": ["ACP", "UpToDate"], "last_updated": datetime.now(), "umls_cui": "C0004604"}
         }
     },
     "infectious": {
@@ -365,7 +366,7 @@ default_clinical_pathways: Dict[str, Dict] = {
             },
             "follow_up": ["Follow-up in 3-5 days"],
             "references": ["WHO Guidelines: https://www.who.int", "UpToDate: https://www.uptodate.com/contents/meningitis"],
-            "metadata": {"source": ["WHO", "UpToDate"], "last_updated": "2025-06-01", "umls_cui": "C0015967"}
+            "metadata": {"source": ["WHO", "UpToDate"], "last_updated": datetime.now(), "umls_cui": "C0015967"}
         }
     },
     "general": {
@@ -380,7 +381,7 @@ default_clinical_pathways: Dict[str, Dict] = {
             },
             "follow_up": ["Follow-up in 4 weeks"],
             "references": ["UpToDate: Fatigue evaluation"],
-            "metadata": {"source": ["UpToDate"], "last_updated": "2025-06-01", "umls_cui": "C0013144"}
+            "metadata": {"source": ["UpToDate"], "last_updated": datetime.now(), "umls_cui": "C0013144"}
         }
     }
 }
@@ -441,7 +442,7 @@ def validate_umls_cui(term: str, cui: str, semantic_type: str) -> bool:
             SELECT c.CUI, sty.STY
             FROM umls.MRCONSO c
             JOIN umls.MRSTY sty ON c.CUI = sty.CUI
-            WHERE c.CUI = %s AND LOWER(c.STR) = %s AND c.SAB = 'SNOMEDCT_US' AND c.SUPPRESS = 'N'
+            WHERE c.CUI = %s AND LOWER(c.STR) = %s AND c.SAB = 'SNOMEDCT_US'
         """, (cui, term.lower()))
         result = cursor.fetchone()
         if result and result['sty'] == semantic_type:
@@ -457,9 +458,10 @@ def validate_umls_cui(term: str, cui: str, semantic_type: str) -> bool:
 
 def initialize_knowledge_files() -> None:
     """Initialize PostgreSQL and MongoDB with default knowledge base resources."""
-    current_date = datetime.now().strftime("%Y-%m-%d")
+    # Convert current date to datetime object for consistency
+    current_date = datetime.now()
 
-    # Validate data
+    # Validate data and convert last_updated to datetime for clinical_pathways
     for key, (default_data, _, storage) in resources.items():
         if key == "symptoms" and storage == "postgresql":
             for category, symptoms in default_data.items():
@@ -479,6 +481,17 @@ def initialize_knowledge_files() -> None:
                 if not isinstance(term, dict) or not term.get('term') or not term.get('umls_cui'):
                     logger.error(f"Invalid medical_term: {term}")
                     return
+        elif key == "clinical_pathways" and storage == "mongodb":
+            for category, paths in default_data.items():
+                for path_key, path in paths.items():
+                    if 'metadata' in path and 'last_updated' in path['metadata']:
+                        if isinstance(path['metadata']['last_updated'], datetime):
+                            continue
+                        try:
+                            path['metadata']['last_updated'] = datetime.strptime(path['metadata']['last_updated'], "%Y-%m-%d")
+                        except (ValueError, TypeError):
+                            logger.warning(f"Invalid last_updated format for clinical path '{path_key}' in category '{category}'. Setting to current date.")
+                            path['metadata']['last_updated'] = current_date
         elif key == "diagnosis_relevance" and storage == "mongodb":
             for item in default_data:
                 if not isinstance(item, dict) or not item.get('diagnosis') or not item.get('relevance'):
@@ -537,7 +550,7 @@ def initialize_knowledge_files() -> None:
             INSERT INTO knowledge_base_metadata (key, version, last_updated)
             VALUES (%s, %s, %s) ON CONFLICT (key) DO UPDATE
             SET version = EXCLUDED.version, last_updated = EXCLUDED.last_updated
-        """, ('knowledge_base', '1.1.0', current_date))
+        """, ('knowledge_base', '1.1.0', current_date.strftime("%Y-%m-%d %H:%M:%S")))
         conn.commit()
     except Exception as e:
         logger.error(f"PostgreSQL initialization failed: {str(e)}")
@@ -557,7 +570,16 @@ def initialize_knowledge_files() -> None:
             collection = db[key]
             collection.drop()  # Reset for clean initialization
             if key == "clinical_pathways":
-                collection.insert_many([{'category': category, 'paths': paths} for category, paths in default_data.items()])
+                formatted_data = []
+                for category, paths in default_data.items():
+                    formatted_paths = {}
+                    for path_key, path in paths.items():
+                        formatted_path = path.copy()
+                        if 'metadata' in formatted_path and 'last_updated' in formatted_path['metadata']:
+                            formatted_path['metadata']['last_updated'] = formatted_path['metadata']['last_updated'].strftime("%Y-%m-%d %H:%M:%S")
+                        formatted_paths[path_key] = formatted_path
+                    formatted_data.append({'category': category, 'paths': formatted_paths})
+                collection.insert_many(formatted_data)
                 logger.info(f"Initialized {len(default_data)} clinical_pathways in MongoDB")
             elif key == "diagnosis_relevance":
                 collection.insert_many(default_data)
