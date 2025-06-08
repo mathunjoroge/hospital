@@ -1,4 +1,3 @@
-# kb_updater.py
 from datetime import datetime
 from typing import Dict, Optional, List
 from enum import Enum
@@ -67,7 +66,7 @@ class ClinicalPath(BaseModel):
     references: List[str] = Field(default_factory=lambda: ["Clinical guidelines pending"])
     metadata: Dict = Field(default_factory=lambda: {
         "source": ["Automated update"],
-        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "last_updated": datetime.now()  # Store as datetime object
     })
 
 # Initialize PostgreSQL connection pool
@@ -349,7 +348,6 @@ class KnowledgeBaseUpdater:
                         FROM umls.MRCONSO c
                         WHERE c.SAB = 'SNOMEDCT_US'
                         AND LOWER(c.STR) = %s
-                        AND c.SUPPRESS = 'N'
                         LIMIT 1
                     """
                     cursor.execute(query, (cleaned_term,))
@@ -363,7 +361,6 @@ class KnowledgeBaseUpdater:
                             FROM umls.MRCONSO c
                             WHERE c.SAB = 'SNOMEDCT_US'
                             AND LOWER(c.STR) LIKE %s
-                            AND c.SUPPRESS = 'N'
                             LIMIT 1
                         """
                         cursor.execute(query, ('%' + cleaned_term + '%',))
@@ -714,6 +711,62 @@ class KnowledgeBaseUpdater:
     def add_symptom(self, symptom: str, category: str, synonyms: List[str], note_text: str) -> None:
         """Add a symptom to the knowledge base."""
         self.update_knowledge_base(symptom, category, synonyms, note_text)
+
+    def add_clinical_path(self, category: str, path_key: str, path_data: Dict):
+        """Add or update a clinical path in the knowledge base."""
+        try:
+            # Validate category
+            try:
+                category_enum = Category(category.lower())
+            except ValueError:
+                logger.warning(f"Invalid category '{category}' for clinical path '{path_key}'. Using 'general'.")
+                category_enum = Category.GENERAL
+
+            # Validate clinical path data
+            if 'metadata' in path_data and 'last_updated' in path_data['metadata']:
+                if isinstance(path_data['metadata']['last_updated'], str):
+                    try:
+                        path_data['metadata']['last_updated'] = datetime.strptime(path_data['metadata']['last_updated'], "%Y-%m-%d %H:%M:%S")
+                    except ValueError:
+                        path_data['metadata']['last_updated'] = datetime.now()
+
+            clinical_path = ClinicalPath(**path_data)
+
+            # Update in-memory knowledge base
+            self.knowledge_base['clinical_pathways'].setdefault(category_enum.value, {})[path_key.lower()] = clinical_path.dict()
+
+            # Save to MongoDB
+            if self.pathways_collection:
+                try:
+                    # Format last_updated as string for MongoDB
+                    formatted_path = clinical_path.dict()
+                    if 'metadata' in formatted_path and 'last_updated' in formatted_path['metadata']:
+                        formatted_path['metadata']['last_updated'] = formatted_path['metadata']['last_updated'].strftime("%Y-%m-%d %H:%M:%S")
+                    self.pathways_collection.update_one(
+                        {'category': category_enum.value, 'key': path_key.lower()},
+                        {'$set': {'paths': {path_key.lower(): formatted_path}}},
+                        upsert=True
+                    )
+                    self.versions_collection.update_one(
+                        {'version': self.version},
+                        {
+                            '$set': {
+                                'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                'updated_collections': {'clinical_pathways': True}
+                            }
+                        },
+                        upsert=True
+                    )
+                    logger.info(f"Updated clinical path '{path_key}' for category '{category_enum.value}' in MongoDB")
+                except PyMongoError as e:
+                    logger.error(f"Failed to update clinical path '{path_key}' in MongoDB: {str(e)}")
+
+            save_knowledge_base(self.knowledge_base)
+            logger.info(f"Updated knowledge base with clinical path '{path_key}' in category '{category_enum.value}'")
+        except ValidationError as e:
+            logger.error(f"Validation error for clinical path '{path_key}': {str(e)}")
+        except Exception as e:
+            logger.error(f"Failed to update clinical path '{path_key}': {str(e)}")
 
     def __enter__(self):
         return self

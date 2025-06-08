@@ -1,4 +1,3 @@
-# knowledge_base_io.py
 from datetime import datetime
 import os
 from typing import Dict, Optional, Set, List
@@ -40,22 +39,25 @@ class ClinicalPath(BaseModel):
     references: List[str] = Field(default_factory=list)
     metadata: Dict = Field(default_factory=lambda: {
         "source": "Unknown",
-        "last_updated": datetime.now().strftime("%Y-%m-%d")
+        "last_updated": datetime.now()  # Store as datetime object
     })
     follow_up: List[str] = Field(default_factory=lambda: ["Follow-up in 2 weeks"])
 
 class KnowledgeBase(BaseModel):
     version: str = "1.1.0"
-    last_updated: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    last_updated: str = Field(
+        default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    )
     source: str = "PostgreSQL/MongoDB"
-    symptoms: Dict[str, Dict[str, Symptom]] = {}
-    medical_stop_words: Set[str] = set()
-    medical_terms: List[MedicalTerm] = []
-    synonyms: Dict[str, List[str]] = {}
-    clinical_pathways: Dict[str, Dict[str, ClinicalPath]] = {}
-    history_diagnoses: Dict = {}
-    diagnosis_relevance: Dict = {}
-    management_config: Dict = {}
+
+    symptoms: Dict[str, Dict[str, 'Symptom']] = Field(default_factory=dict)
+    medical_stop_words: Set[str] = Field(default_factory=set)
+    medical_terms: List['MedicalTerm'] = Field(default_factory=list)
+    synonyms: Dict[str, List[str]] = Field(default_factory=dict)
+    clinical_pathways: Dict[str, Dict[str, 'ClinicalPath']] = Field(default_factory=dict)
+    history_diagnoses: Dict = Field(default_factory=dict)
+    diagnosis_relevance: Dict = Field(default_factory=dict)
+    management_config: Dict = Field(default_factory=dict)
 
 # Resource configuration
 RESOURCES = {
@@ -219,6 +221,12 @@ def load_from_mongodb() -> Dict[str, any]:
                         continue
                     valid_paths = {}
                     for pkey, path in paths.items():
+                        # Convert last_updated string to datetime if needed
+                        if 'metadata' in path and 'last_updated' in path['metadata']:
+                            try:
+                                path['metadata']['last_updated'] = datetime.strptime(path['metadata']['last_updated'], "%Y-%m-%d")
+                            except (ValueError, TypeError):
+                                path['metadata']['last_updated'] = datetime.now()
                         validated_path = validate_clinical_path(path, category, pkey)
                         if validated_path:
                             valid_paths[pkey] = validated_path.dict()
@@ -306,7 +314,14 @@ def save_knowledge_base(kb: Dict) -> bool:
     """Save knowledge base to PostgreSQL and MongoDB."""
     global _knowledge_base_cache
     try:
-        kb_validated = KnowledgeBase(**kb).dict()
+        # Convert datetime to string for clinical_pathways before validation
+        kb_modified = kb.copy()
+        for category, paths in kb_modified.get('clinical_pathways', {}).items():
+            for pkey, path in paths.items():
+                if 'metadata' in path and 'last_updated' in path['metadata']:
+                    if isinstance(path['metadata']['last_updated'], datetime):
+                        path['metadata']['last_updated'] = path['metadata']['last_updated'].strftime("%Y-%m-%d")
+        kb_validated = KnowledgeBase(**kb_modified).dict()
     except ValidationError as e:
         logger.error(f"Invalid knowledge base data: {e}. Attempting to save unvalidated data.")
         kb_validated = kb
@@ -322,16 +337,16 @@ def save_knowledge_base(kb: Dict) -> bool:
         cursor.execute("DELETE FROM medical_stop_words")
         execute_batch(cursor, "INSERT INTO medical_stop_words (word) VALUES (%s)",
                       [(word,) for word in kb_validated.get('medical_stop_words', [])])
-        logger.info(f"Saved {len(kb_validated.get('medical_stop_words', []))} medical_stop_words to PostgreSQL")
+        logger.info(f"Inserted {len(kb_validated.get('medical_stop_words', []))} medical_stop_words into table")
 
-        # Save medical_terms
+    # Save medical_terms
         cursor.execute("DELETE FROM medical_terms")
         execute_batch(cursor, """
             INSERT INTO medical_terms (term, category, umls_cui, semantic_type)
             VALUES (%s, %s, %s, %s)
-        """, [(t['term'], t['category'], t['umls_cui'], t['semantic_type'])
+        """, [(t['term'], t['category'], t.get('umls_cui'), t.get('semantic_type'))
               for t in kb_validated.get('medical_terms', [])])
-        logger.info(f"Saved {len(kb_validated.get('medical_terms', []))} medical_terms to PostgreSQL")
+        logger.info(f"Inserted {len(kb_validated.get('medical_terms', []))} medical_terms into table")
 
         # Save symptoms
         cursor.execute("DELETE FROM symptoms")
@@ -351,7 +366,7 @@ def save_knowledge_base(kb: Dict) -> bool:
                 INSERT INTO symptoms (symptom, category, description, umls_cui, semantic_type)
                 VALUES (%s, %s, %s, %s, %s)
             """, symptom_data)
-        logger.info(f"Saved {len(symptom_data)} symptoms to PostgreSQL")
+        logger.info(f"Inserted {len(symptom_data)} symptoms into table")
 
         # Update metadata
         cursor.execute("""
@@ -381,7 +396,18 @@ def save_knowledge_base(kb: Dict) -> bool:
             if key == "synonyms":
                 collection.insert_many([{'term': term.lower(), 'aliases': aliases} for term, aliases in data.items()])
             elif key == "clinical_pathways":
-                collection.insert_many([{'category': category, 'paths': paths} for category, paths in data.items()])
+                # Format last_updated for MongoDB
+                formatted_data = []
+                for category, paths in data.items():
+                    formatted_paths = {}
+                    for pkey, path in paths.items():
+                        formatted_path = path.copy()
+                        if 'metadata' in formatted_path and 'last_updated' in formatted_path['metadata']:
+                            if isinstance(formatted_path['metadata']['last_updated'], datetime):
+                                formatted_path['metadata']['last_updated'] = formatted_path['metadata']['last_updated'].strftime("%Y-%m-%d")
+                        formatted_paths[pkey] = formatted_path
+                    formatted_data.append({'category': category, 'paths': formatted_paths})
+                collection.insert_many(formatted_data)
             elif key == "diagnosis_relevance":
                 collection.insert_many([
                     {'diagnosis': diagnosis.lower(), 'relevance': info['relevance'], 'category': info['category']}

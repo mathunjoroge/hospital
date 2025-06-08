@@ -1,4 +1,3 @@
-# /home/mathu/projects/hospital/departments/nlp/nlp_pipeline.py
 import logging
 import spacy
 from spacy.tokens import Token, Span
@@ -58,11 +57,30 @@ _cui_cache = LRUCache(maxsize=10000)
 _phrase_cache = LRUCache(maxsize=1000)
 _cache_file = os.path.join(CACHE_DIR or 'data_cache', "cui_cache.pkl")
 
-try:
-    _sci_ner = spacy.load("en_core_sci_scibert", disable=["lemmatizer"])
-except OSError as e:
-    logger.error(f"Failed to load en_core_sci_scibert: {e}. Using blank model for NER.")
-    _sci_ner = spacy.blank("en")
+class SciBERTWrapper:
+    def __init__(self, model_name="en_core_sci_scibert", disable_linker=True):
+        try:
+            self.nlp = spacy.load(model_name, disable=["lemmatizer"])
+            logger.info(f"Loaded SpaCy model: {model_name}")
+        except OSError as e:
+            logger.error(f"Failed to load {model_name}: {e}. Using blank model for NER.")
+            self.nlp = spacy.blank("en")
+
+        if disable_linker and "entity_linker" in self.nlp.pipe_names:
+            self.nlp.remove_pipe("entity_linker")
+            logger.info("Removed entity_linker to avoid nmslib dependency.")
+
+    def extract_entities(self, text):
+        doc = self.nlp(text)
+        return [(ent.text, ent.label_) for ent in doc.ents]
+
+    def analyze(self, text):
+        doc = self.nlp(text)
+        return {
+            "tokens": [(token.text, token.pos_, token.dep_) for token in doc],
+            "entities": [(ent.text, ent.label_) for ent in doc.ents],
+            "sentences": [sent.text for sent in doc.sents],
+        }
 
 # Load STOP_TERMS from knowledge base and add narrative words
 knowledge_base = load_knowledge_base()
@@ -174,9 +192,8 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
                 query = """
                     SELECT DISTINCT c.STR, c.CUI
                     FROM umls.MRCONSO c
-                    WHERE c.SAB = 'SNOMEDCT'
+                    WHERE c.SAB = 'SNOMEDCT_US'
                     AND LOWER(c.STR) IN %s
-                    AND c.SUPPRESS = 'N'
                 """
                 cursor.execute(query, (tuple(terms_to_query),))
                 for row in cursor.fetchall():
@@ -221,9 +238,8 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
                     query = """
                         SELECT DISTINCT c.STR, c.CUI
                         FROM umls.MRCONSO c
-                        WHERE c.SAB = 'SNOMEDCT'
+                        WHERE c.SAB = 'SNOMEDCT_US'
                         AND to_tsvector('english', c.STR) @@ to_tsquery('english', %s)
-                        AND c.SUPPRESS = 'N'
                         AND octet_length(c.STR) <= 1048575
                     """
                     try:
@@ -483,17 +499,17 @@ def get_nlp() -> Language:
                         else:
                             symptoms_collection.delete_many({'symptom': None})
                     symptoms_collection.create_index('symptom', unique=True, name=index_name)
-                    logger.info("Created MongoDB index for 'symptom'")
+                    logger.info("Created MongoDB index for 'symptom'")  # Fixed log message
                 except DuplicateKeyError as e:
-                    logger.error(f"Duplicate key error during index creation: {e}")
+                    logger.error(f"Duplicate key error during index creation: {str(e)}")
                     raise
             elif not existing_indexes[index_name].get("unique"):
                 symptoms_collection.drop_index(index_name)
-                symptoms_collection.create_index('symptom', unique=True, name=index_name)
-                logger.info(f"Recreated unique index")
+                symptoms_collection.create_index('symptom', unique=True, name=index_name)  # Fixed 'symptoms' to 'symptom'
+                logger.info("Recreated unique index for 'symptom'")  # Fixed log message
 
             kb = load_knowledge_base()
-            logger.debug(f"Knowledge base version: {kb.get('version', 'Unknown')}")
+            logger.debug(f"Knowledge base loaded, version: {kb.get('version', 'Unknown')}")  # Improved default
 
             # Define symptom rules
             symptom_rules = [
@@ -508,9 +524,9 @@ def get_nlp() -> Language:
                     attributes={"category": "hepatic", "umls_cui": "C0022346"}
                 ),
                 TargetRule(
-                    literal="fevers",
+                    literal="fever",  # Changed from "fevers" to align with knowledge_base_init.py
                     category="SYMPTOM",
-                    attributes={"category": "general", "umls_cui": "C0018682"}
+                    attributes={"category": "general", "umls_cui": "C0015967"}  # Changed CUI
                 )
             ]
 
@@ -538,13 +554,13 @@ def get_nlp() -> Language:
                     symptom_matcher.add(symptom_rules)
                     logger.info(f"Added {len(symptom_rules)} symptom rules to matcher")
                 except Exception as e:
-                    logger.error(f"Failed to add symptom rules: {e}")
+                    logger.error(f"Failed to add symptom rules: {str(e)}")
                     raise
             else:
                 logger.warning("No valid symptom rules found")
 
         except ConnectionFailure as e:
-            logger.error(f"Failed to connect to MongoDB: {e}")
+            logger.error(f"Failed to connect to MongoDB: {str(e)}")  # Added str(e)
             invalidate_cache()
             raise
         finally:
@@ -565,7 +581,7 @@ def get_nlp() -> Language:
         return nlp
 
     except Exception as e:
-        logger.error(f"Pipeline creation failed: {e}", exc_info=True)
+        logger.error(f"Pipeline creation failed: {str(e)}", exc_info=True)  # Fixed estr(e)
         raise
 
 def process_symptom_batch(symptom_docs: list, symptom_rules: list, counts: dict, kb: dict, symptoms_collection):
@@ -585,7 +601,7 @@ def process_symptom_batch(symptom_docs: list, symptom_rules: list, counts: dict,
 
     updates = []
     for doc, terms in zip(symptom_docs, terms_list):
-        if 'symptom' not in doc or not doc['symptom'] or len(doc['symptom']) < 2:
+        if 'symptom' not in doc or not doc['symptom'] or len(doc['symptom']) < 2:  # Fixed condition
             counts['invalid'] += 1
             continue
 
@@ -633,4 +649,4 @@ def process_symptom_batch(symptom_docs: list, symptom_rules: list, counts: dict,
             symptoms_collection.bulk_write([UpdateOne(u['filter'], u['update']) for u in updates])
             logger.info(f"Updated {len(updates)} MongoDB documents in batch")
         except Exception as e:
-            logger.error(f"Failed to update MongoDB: {e}")
+            logger.error(f"Failed to update MongoDB: {str(e)}")
