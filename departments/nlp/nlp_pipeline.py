@@ -337,16 +337,10 @@ def extract_clinical_phrases(texts):
     start_time = time.time()
     if not isinstance(texts, list):
         texts = [texts]
-
     cached_results = [(_phrase_cache[text] if text in _phrase_cache else None) for text in texts]
     if all(r is not None for r in cached_results):
         logger.debug(f"All {len(texts)} texts found in phrase cache, took {time.time() - start_time:.3f} seconds")
-        # Always return a list, never None
-        if len(texts) > 1:
-            return cached_results
-        else:
-            return cached_results[0] if cached_results[0] is not None else []
-
+        return cached_results if len(texts) > 1 else cached_results[0] or []
     uncached_texts = [t for t, r in zip(texts, cached_results) if r is None]
     results = cached_results[:]
     batch_size = BATCH_SIZE
@@ -356,9 +350,8 @@ def extract_clinical_phrases(texts):
         if _sci_ner is None:
             logger.error("SciBERT NER model (_sci_ner) not initialized")
             raise ValueError("SciBERT NER model not initialized")
-        docs = list(_sci_ner.nlp.pipe(batch))  # Use _sci_ner.nlp.pipe
+        docs = list(_sci_ner.nlp.pipe(batch))
         logger.debug(f"Processed {len(batch)} texts with SciBERT, took {time.time() - batch_start:.3f} seconds")
-
         for j, (text, doc) in enumerate(zip(batch, docs)):
             phrases = []
             for ent in doc.ents:
@@ -368,19 +361,21 @@ def extract_clinical_phrases(texts):
                 if cleaned and len(cleaned) <= 50 and len(cleaned.split()) <= 5:
                     phrases.append(cleaned)
                 if ' and ' in ent.text:
-                    phrases.append(cleaned)  # Keep compound phrase
+                    phrases.append(cleaned)
                     sub_phrases = [clean_term(p) for p in ent.text.split(' and ')]
                     phrases.extend(p for p in sub_phrases if p and len(p) <= 50 and len(p.split()) <= 5)
+            # Split long texts into sentences
+            for sent in doc.sents:
+                if len(sent.text.strip().split()) > 5:
+                    for sub_ent in sent.ents:
+                        cleaned = clean_term(sub_ent.text)
+                        if cleaned and len(cleaned) <= 50 and len(cleaned.split()) <= 5:
+                            phrases.append(cleaned)
             filtered_phrases = [p for p in phrases if p not in STOP_TERMS][:50]
             _phrase_cache[text] = list(set(filtered_phrases))
             results[i + j if len(texts) > 1 else 0] = _phrase_cache[text]
-
     logger.info(f"extract_clinical_phrases processed {len(texts)} texts, returned {sum(len(r) for r in results if r)} terms, took {time.time() - start_time:.3f} seconds")
-    # Always return a list, never None
-    if len(texts) > 1:
-        return results
-    else:
-        return results[0] if results[0] is not None else []
+    return results if len(texts) > 1 else results[0] or []
 
 def extract_aggravating_alleviating(text: str, factor_type: str) -> str:
     """Extract aggravating or alleviating factors from text."""
@@ -410,7 +405,7 @@ def extract_aggravating_alleviating(text: str, factor_type: str) -> str:
     patterns = aggravating_patterns if factor_type == "aggravating" else alleviating_patterns
     for pattern in patterns:
         try:
-            # Validate and compile the regex pattern
+            logger.debug(f"Compiling regex pattern: {pattern}")
             re.compile(pattern)
             match = re.search(pattern, text_clean, re.IGNORECASE)
             if match:
