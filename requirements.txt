@@ -104,6 +104,7 @@ reportlab==4.4.1
 requests==2.32.3
 rich==14.0.0
 rpds-py==0.25.1
+sacremoses==0.1.1
 safetensors==0.5.3
 scikit-learn==1.7.0
 scipy==1.15.3
