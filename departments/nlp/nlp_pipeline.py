@@ -23,19 +23,9 @@ from cachetools import LRUCache
 import re
 from pathlib import Path
 
-# Check for GPU support
-try:
-    import torch
-    if torch.cuda.is_available():
-        spacy.prefer_gpu()
-        logging.info("GPU support enabled for SpaCy")
-except ImportError:
-    logging.warning("PyTorch not installed; running on CPU")
-
 # Load environment variables
 load_dotenv()
 
-# Import config after loading .env
 from config import (
     MONGO_URI,
     DB_NAME,
@@ -53,22 +43,23 @@ from config import (
 logger = get_logger(__name__)
 
 _nlp_pipeline = None
+_sci_ner = None  # Initialize global _sci_ner
 _cui_cache = LRUCache(maxsize=10000)
 _phrase_cache = LRUCache(maxsize=1000)
 _cache_file = os.path.join(CACHE_DIR or 'data_cache', "cui_cache.pkl")
 
+
 class SciBERTWrapper:
-    def __init__(self, model_name="en_core_sci_scibert", disable_linker=True):
+    def __init__(self, model_name="en_core_sci_sm", disable_linker=True):
         try:
             self.nlp = spacy.load(model_name, disable=["lemmatizer"])
             logger.info(f"Loaded SpaCy model: {model_name}")
+            if disable_linker and "entity_linker" in self.nlp.pipe_names:
+                self.nlp.remove_pipe("entity_linker")
+                logger.info("Removed entity_linker to avoid nmslib dependency.")
         except OSError as e:
-            logger.error(f"Failed to load {model_name}: {e}. Using blank model for NER.")
+            logger.error(f"Failed to load spaCy model {model_name}: {e}. Using blank model.")
             self.nlp = spacy.blank("en")
-
-        if disable_linker and "entity_linker" in self.nlp.pipe_names:
-            self.nlp.remove_pipe("entity_linker")
-            logger.info("Removed entity_linker to avoid nmslib dependency.")
 
     def extract_entities(self, text):
         doc = self.nlp(text)
@@ -81,6 +72,14 @@ class SciBERTWrapper:
             "entities": [(ent.text, ent.label_) for ent in doc.ents],
             "sentences": [sent.text for sent in doc.sents],
         }
+
+# Initialize _sci_ner using en_core_sci_sm-0.5.4
+try:
+    _sci_ner = SciBERTWrapper(model_name="en_core_sci_sm", disable_linker=True)
+    logger.info("Initialized _sci_ner with en_core_sci_sm")
+except Exception as e:
+    logger.error(f"Failed to initialize _sci_ner: {e}")
+    _sci_ner = SciBERTWrapper(model_name="en", disable_linker=True)
 
 # Load STOP_TERMS from knowledge base and add narrative words
 knowledge_base = load_knowledge_base()
@@ -187,23 +186,30 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
         cursor = conn.cursor()
         for attempt in range(max_attempts):
             try:
-                # Exact match query
+                # Exact match query with date cleaning
                 query_start = time.time()
                 query = """
-                    SELECT DISTINCT c.STR, c.CUI
+                    SELECT DISTINCT
+                        CASE
+                            WHEN c.STR ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} ' THEN REGEXP_REPLACE(c.STR, '^[0-9]{4}-[0-9]{2}-[0-9]{2}\s*', '')
+                            ELSE c.STR
+                        END AS cleaned_str,
+                        c.CUI
                     FROM umls.MRCONSO c
                     WHERE c.SAB = 'SNOMEDCT_US'
                     AND LOWER(c.STR) IN %s
                 """
                 cursor.execute(query, (tuple(terms_to_query),))
                 for row in cursor.fetchall():
-                    term = clean_term(row['str'])
+                    if row['cleaned_str'] != row.get('str', row['cleaned_str']):
+                        logger.warning(f"Removed date prefix from str: {row.get('str', 'unknown')} -> {row['cleaned_str']}")
+                    term = clean_term(row['cleaned_str'])
                     if term is not None:
                         results[term] = row['cui']
                         _cui_cache[term] = row['cui']
                 logger.debug(f"Exact match query for {len(terms_to_query)} terms took {time.time() - query_start:.2f} seconds")
 
-                # Full-text search in batches
+                # Full-text search with date cleaning
                 remaining = [t for t in terms_to_query if results[t] is None]
                 for i in range(0, len(remaining), batch_size):
                     batch_terms = remaining[i:i + batch_size]
@@ -236,7 +242,13 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
                     tsquery = ' | '.join(tsquery_parts)
                     query_start = time.time()
                     query = """
-                        SELECT DISTINCT c.STR, c.CUI
+                        SELECT DISTINCT
+                            CASE
+                                WHEN c.STR ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} ' THEN REGEXP_REPLACE(c.STR, '^[0-9]{4}-[0-9]{2}-[0-9]{2}\s*', '')
+                                ELSE c.STR
+                            END AS cleaned_str,
+                            c.CUI,
+                            c.STR AS original_str
                         FROM umls.MRCONSO c
                         WHERE c.SAB = 'SNOMEDCT_US'
                         AND to_tsvector('english', c.STR) @@ to_tsquery('english', %s)
@@ -245,7 +257,9 @@ def search_local_umls_cui(terms: list, max_attempts=3, batch_size=100, max_tsque
                     try:
                         cursor.execute(query, (tsquery,))
                         for row in cursor.fetchall():
-                            term = clean_term(row['str'])
+                            if row['cleaned_str'] != row['original_str']:
+                                logger.warning(f"Removed date prefix from str: {row['original_str']} -> {row['cleaned_str']}")
+                            term = clean_term(row['cleaned_str'])
                             if term is not None:
                                 results[term] = row['cui']
                                 _cui_cache[term] = row['cui']
@@ -339,7 +353,10 @@ def extract_clinical_phrases(texts):
     for i in range(0, len(uncached_texts), batch_size):
         batch = uncached_texts[i:i + batch_size]
         batch_start = time.time()
-        docs = list(_sci_ner.pipe(batch))
+        if _sci_ner is None:
+            logger.error("SciBERT NER model (_sci_ner) not initialized")
+            raise ValueError("SciBERT NER model not initialized")
+        docs = list(_sci_ner.nlp.pipe(batch))  # Use _sci_ner.nlp.pipe
         logger.debug(f"Processed {len(batch)} texts with SciBERT, took {time.time() - batch_start:.3f} seconds")
 
         for j, (text, doc) in enumerate(zip(batch, docs)):
@@ -392,13 +409,19 @@ def extract_aggravating_alleviating(text: str, factor_type: str) -> str:
 
     patterns = aggravating_patterns if factor_type == "aggravating" else alleviating_patterns
     for pattern in patterns:
-        match = re.search(pattern, text_clean, re.IGNORECASE)
-        if match:
-            factor = match.group(2).strip()
-            factor_clean = clean_term(factor)
-            if factor_clean:
-                logger.debug(f"Extracted {factor_type} factor: '{factor_clean}'")
-                return factor_clean
+        try:
+            # Validate and compile the regex pattern
+            re.compile(pattern)
+            match = re.search(pattern, text_clean, re.IGNORECASE)
+            if match:
+                factor = match.group(2).strip()
+                factor_clean = clean_term(factor)
+                if factor_clean:
+                    logger.debug(f"Extracted {factor_type} factor: '{factor_clean}'")
+                    return factor_clean
+        except re.error as e:
+            logger.error(f"Invalid regex pattern '{pattern}': {str(e)}")
+            continue
     logger.debug(f"No {factor_type} factor found in text: {text_clean[:50]}...")
     return text_clean if text_clean else "Unknown"
 
@@ -499,17 +522,17 @@ def get_nlp() -> Language:
                         else:
                             symptoms_collection.delete_many({'symptom': None})
                     symptoms_collection.create_index('symptom', unique=True, name=index_name)
-                    logger.info("Created MongoDB index for 'symptom'")  # Fixed log message
+                    logger.info("Created MongoDB index for 'symptom'")
                 except DuplicateKeyError as e:
                     logger.error(f"Duplicate key error during index creation: {str(e)}")
                     raise
             elif not existing_indexes[index_name].get("unique"):
                 symptoms_collection.drop_index(index_name)
-                symptoms_collection.create_index('symptom', unique=True, name=index_name)  # Fixed 'symptoms' to 'symptom'
-                logger.info("Recreated unique index for 'symptom'")  # Fixed log message
+                symptoms_collection.create_index('symptom', unique=True, name=index_name)
+                logger.info("Recreated unique index for 'symptom'")
 
             kb = load_knowledge_base()
-            logger.debug(f"Knowledge base loaded, version: {kb.get('version', 'Unknown')}")  # Improved default
+            logger.debug(f"Knowledge base loaded, version: {kb.get('version', 'Unknown')}")
 
             # Define symptom rules
             symptom_rules = [
@@ -524,9 +547,9 @@ def get_nlp() -> Language:
                     attributes={"category": "hepatic", "umls_cui": "C0022346"}
                 ),
                 TargetRule(
-                    literal="fever",  # Changed from "fevers" to align with knowledge_base_init.py
+                    literal="fever",
                     category="SYMPTOM",
-                    attributes={"category": "general", "umls_cui": "C0015967"}  # Changed CUI
+                    attributes={"category": "general", "umls_cui": "C0015967"}
                 )
             ]
 
@@ -560,7 +583,7 @@ def get_nlp() -> Language:
                 logger.warning("No valid symptom rules found")
 
         except ConnectionFailure as e:
-            logger.error(f"Failed to connect to MongoDB: {str(e)}")  # Added str(e)
+            logger.error(f"Failed to connect to MongoDB: {str(e)}")
             invalidate_cache()
             raise
         finally:
@@ -581,7 +604,7 @@ def get_nlp() -> Language:
         return nlp
 
     except Exception as e:
-        logger.error(f"Pipeline creation failed: {str(e)}", exc_info=True)  # Fixed estr(e)
+        logger.error(f"Pipeline creation failed: {str(e)}", exc_info=True)
         raise
 
 def process_symptom_batch(symptom_docs: list, symptom_rules: list, counts: dict, kb: dict, symptoms_collection):
@@ -601,7 +624,7 @@ def process_symptom_batch(symptom_docs: list, symptom_rules: list, counts: dict,
 
     updates = []
     for doc, terms in zip(symptom_docs, terms_list):
-        if 'symptom' not in doc or not doc['symptom'] or len(doc['symptom']) < 2:  # Fixed condition
+        if 'symptom' not in doc or not doc['symptom'] or len(doc['symptom']) < 2:
             counts['invalid'] += 1
             continue
 
