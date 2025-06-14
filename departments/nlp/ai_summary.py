@@ -30,7 +30,7 @@ def generate_rationale(features: Dict, differentials: List[Tuple], plan: Dict) -
     rationale = []
     primary_dx = features.get('assessment', '').lower()
     if primary_dx:
-        dx_name = re.search(r"primary assessment: (.*?)(?:\.|$)", primary_dx, re.DOTALL)
+        dx_name = re.search(r"primary assessment: (.*?)(?:|$)", primary_dx, re.DOTALL)
         if dx_name:
             primary_dx = dx_name.group(1).strip()
         symptoms = [f"{s.get('description', '')} (CUI: {s.get('umls_cui', 'None')})"
@@ -353,7 +353,7 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
         follow_up = 'Follow-up in 2 weeks'
         recommendation = getattr(note, 'recommendation', '')
         if recommendation:
-            follow_up_match = re.search(r'Follow-Up:\s*([^\.]+)', recommendation, re.IGNORECASE)
+            follow_up_match = re.search(r'Follow-Up:\s*(.+)', recommendation, re.IGNORECASE)
             if follow_up_match:
                 follow_up = follow_up_match.group(1).strip()
         elif category:

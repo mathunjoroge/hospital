@@ -1,5 +1,5 @@
-# clinical_analyzer.py
 from typing import List, Dict, Set, Tuple, Optional
+from datetime import datetime
 import torch
 import re
 import os
@@ -77,6 +77,22 @@ class ClinicalAnalyzer:
         self.management_config: Dict[str, str] = {}
         self.diagnosis_treatments: Dict[str, Dict] = {}
 
+        # Helper to parse date strings
+        def _parse_date(date_value):
+            if isinstance(date_value, datetime):
+                return date_value
+            if isinstance(date_value, str):
+                try:
+                    return datetime.strptime(date_value, "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    try:
+                        return datetime.strptime(date_value, "%Y-%m-%d")
+                    except ValueError:
+                        logger.warning(f"Invalid date format: {date_value}. Using current date.")
+                        return datetime.now()
+            logger.warning(f"Invalid date type: {type(date_value)}. Using current date.")
+            return datetime.now()
+
         # Load MongoDB data
         try:
             client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
@@ -106,11 +122,17 @@ class ClinicalAnalyzer:
                 for doc in db[collections['synonyms']].find({}, {'term': 1, 'aliases': 1})
                 if 'term' in doc and isinstance(doc.get('aliases'), list)
             }
-            self.clinical_pathways = {
-                doc['category'].lower(): doc['paths']
-                for doc in db[collections['clinical_pathways']].find({}, {'category': 1, 'paths': 1})
-                if 'category' in doc and 'paths' in doc
-            }
+            self.clinical_pathways = {}
+            for doc in db[collections['clinical_pathways']].find({}, {'category': 1, 'paths': 1}):
+                if 'category' in doc and 'paths' in doc:
+                    category = doc['category'].lower()
+                    self.clinical_pathways[category] = {}
+                    for path_key, path in doc['paths'].items():
+                        if 'metadata' in path and 'last_updated' in path['metadata']:
+                            last_updated = path['metadata']['last_updated']
+                            logger.debug(f"Clinical pathway '{path_key}' in '{category}': last_updated={last_updated}, type={type(last_updated)}")
+                            path['metadata']['last_updated'] = _parse_date(last_updated)
+                        self.clinical_pathways[category][path_key] = path
             self.history_diagnoses = {
                 doc['key'].lower(): doc['value']
                 for doc in db[collections['history_diagnoses']].find({}, {'key': 1, 'value': 1})
@@ -137,7 +159,16 @@ class ClinicalAnalyzer:
             self.medical_stop_words = set(kb.get('medical_stop_words', []))
             self.medical_terms = kb.get('medical_terms', [])
             self.synonyms = {k.lower(): v for k, v in kb.get('synonyms', {}).items()}
-            self.clinical_pathways = {k.lower(): v for k, v in kb.get('clinical_pathways', {}).items()}
+            self.clinical_pathways = {}
+            for category, paths in kb.get('clinical_pathways', {}).items():
+                category_lower = category.lower()
+                self.clinical_pathways[category_lower] = {}
+                for path_key, path in paths.items():
+                    if 'metadata' in path and 'last_updated' in path['metadata']:
+                        last_updated = path['metadata']['last_updated']
+                        logger.debug(f"Fallback clinical pathway '{path_key}' in '{category_lower}': last_updated={last_updated}, type={type(last_updated)}")
+                        path['metadata']['last_updated'] = _parse_date(last_updated)
+                    self.clinical_pathways[category_lower][path_key] = path
             self.history_diagnoses = {k.lower(): v for k, v in kb.get('history_diagnoses', {}).items()}
             self.diagnosis_relevance = {
                 k.lower(): {'relevance': v.get('relevance', []), 'category': v.get('category', 'unknown')}
@@ -146,6 +177,7 @@ class ClinicalAnalyzer:
             self.diagnosis_treatments = {
                 k.lower(): v for k, v in kb.get('diagnosis_treatments', {}).items()
             }
+            logger.info("Loaded fallback knowledge base data")
         except Exception as e:
             logger.error(f"Failed to load MongoDB data: {str(e)}")
             raise RuntimeError("Critical knowledge base failure") from e
@@ -197,7 +229,13 @@ class ClinicalAnalyzer:
             logger.error("No PostgreSQL connection pool available")
             return None
         try:
-            return self.pool.getconn()
+            conn = self.pool.getconn()
+            # Debug: Inspect knowledge_base_metadata
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT key, version, last_updated FROM knowledge_base_metadata")
+                for row in cursor.fetchall():
+                    logger.debug(f"knowledge_base_metadata: key={row['key']}, version={row['version']}, last_updated={row['last_updated']}, type={type(row['last_updated'])}")
+            return conn
         except Exception as e:
             logger.error(f"Failed to get PostgreSQL connection: {str(e)}")
             return None
@@ -516,7 +554,7 @@ class ClinicalAnalyzer:
             age = patient_info.get('age')
 
             if assessment:
-                dx_match = re.search(r"primary\s*diagnosis:\s*([^\.\n]+)", assessment, re.IGNORECASE)
+                dx_match = re.search(r"primary\s*diagnosis:\s*([^\n]+)", assessment, re.IGNORECASE)
                 if dx_match:
                     dx_name = dx_match.group(1).strip().lower()
                     if self.is_relevant_dx(dx_name, age, sex, '', '', features):
@@ -682,7 +720,7 @@ class ClinicalAnalyzer:
                     plan['follow_up'].extend(path.get('follow_up', []))
                     plan['references'].extend(path.get('references', []))
 
-            follow_up_match = re.search(r'Follow-up:\s*([^\.\n]+)', features.get('recommendation', ''), re.IGNORECASE)
+            follow_up_match = re.search(r'Follow-up:\s*([^\n]+)', features.get('recommendation', ''), re.IGNORECASE)
             if follow_up_match:
                 plan['follow_up'] = [follow_up_match.group(1).strip()]
             else:

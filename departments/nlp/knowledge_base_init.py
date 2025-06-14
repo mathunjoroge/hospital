@@ -86,7 +86,7 @@ if not default_medical_terms:
     logger.warning("No medical terms fetched from PostgreSQL, using fallback_medical_terms")
     default_medical_terms = fallback_medical_terms
 
-# Default symptoms (unchanged)
+# Default symptoms
 default_symptoms: Dict[str, Dict[str, Dict]] = {
     "cardiovascular": {
         "chest pain": {"description": "UMLS-derived: chest pain", "semantic_type": "Sign or Symptom", "umls_cui": "C0008031"},
@@ -113,7 +113,7 @@ default_symptoms: Dict[str, Dict[str, Dict]] = {
     },
     "musculoskeletal": {
         "back pain": {"description": "UMLS-derived: back pain", "semantic_type": "Sign or Symptom", "umls_cui": "C0004604"},
-        "joint pain": {"description": "UMLS-derived: joint pain", "semantic_type": "Sign or Symptom", "umls_cui": "C0003862"},
+        "joint pain": {"description": "UMLS-derived: joint pain", "semantic_type": "Sign or Symptom", "umls_cuisport": "C0003862"},
         "knee pain": {"description": "UMLS-derived: knee pain", "semantic_type": "Sign or Symptom", "umls_cui": "C0231749"},
         "pain on movement": {"description": "UMLS-derived: pain on movement", "semantic_type": "Sign or Symptom", "umls_cui": "C0234452"},
     },
@@ -130,7 +130,7 @@ default_symptoms: Dict[str, Dict[str, Dict]] = {
     }
 }
 
-# Default synonyms (unchanged)
+# Default synonyms
 default_synonyms: Dict[str, List[str]] = {
     "facial pain": ["sinus pain", "sinus pressure", "facial pressure"],
     "nasal congestion": ["stuffy nose", "blocked nose", "nasal obstruction"],
@@ -152,7 +152,7 @@ default_synonyms: Dict[str, List[str]] = {
     "pain on movement": ["motion-induced pain", "movement pain", "activity-related pain"]
 }
 
-# Default diagnosis relevance (unchanged)
+# Default diagnosis relevance
 default_diagnosis_relevance: List[Dict] = [
     {
         "diagnosis": "acute bacterial sinusitis",
@@ -168,10 +168,7 @@ default_diagnosis_relevance: List[Dict] = [
     # ... (rest of diagnosis_relevance unchanged)
 ]
 
-# Default clinical pathways (unchanged)
-from datetime import datetime
-from typing import Dict
-
+# Default clinical pathways
 default_clinical_pathways: Dict[str, Dict] = {
     "respiratory": {
         "facial pain|nasal congestion|purulent nasal discharge": {
@@ -262,7 +259,7 @@ default_history_diagnoses: Dict[str, Dict] = {
     # ... (rest unchanged)
 }
 
-# Default management config (unchanged)
+# Default management config
 default_management_config: Dict = {
     "follow_up_default": "Follow-up in 2 weeks",
     "follow_up_urgent": "Follow-up in 3-5 days or sooner if symptoms worsen",
@@ -333,13 +330,17 @@ def initialize_knowledge_files() -> None:
             for category, paths in default_data.items():
                 for path_key, path in paths.items():
                     if 'metadata' in path and 'last_updated' in path['metadata']:
-                        if isinstance(path['metadata']['last_updated'], datetime):
+                        last_updated = path['metadata']['last_updated']
+                        if isinstance(last_updated, datetime):
                             continue
                         try:
-                            path['metadata']['last_updated'] = datetime.strptime(path['metadata']['last_updated'], "%Y-%m-%d")
+                            path['metadata']['last_updated'] = datetime.strptime(last_updated, "%Y-%m-%d %H:%M:%S")
                         except (ValueError, TypeError):
-                            logger.warning(f"Invalid last_updated format for clinical path '{path_key}' in category '{category}'. Setting to current date.")
-                            path['metadata']['last_updated'] = current_date
+                            try:
+                                path['metadata']['last_updated'] = datetime.strptime(last_updated, "%Y-%m-%d")
+                            except (ValueError, TypeError):
+                                logger.warning(f"Invalid last_updated format for clinical path '{path_key}' in category '{category}'. Setting to current date.")
+                                path['metadata']['last_updated'] = current_date
         elif key == "diagnosis_relevance" and storage == "mongodb":
             for item in default_data:
                 if not isinstance(item, dict) or not item.get('diagnosis') or not item.get('relevance'):
@@ -366,6 +367,11 @@ def initialize_knowledge_files() -> None:
         return
     try:
         cursor = conn.cursor()
+        # Debug logging for existing data
+        cursor.execute("SELECT key, version, last_updated FROM knowledge_base_metadata")
+        for row in cursor.fetchall():
+            logger.debug(f"knowledge_base_metadata: key={row['key']}, version={row['version']}, last_updated={row['last_updated']}, type={type(row['last_updated'])}")
+
         cursor.execute("SELECT COUNT(*) AS count FROM medical_stop_words")
         if cursor.fetchone()['count'] == 0:
             execute_batch(cursor, "INSERT INTO medical_stop_words (word) VALUES (%s) ON CONFLICT DO NOTHING",
@@ -407,7 +413,7 @@ def initialize_knowledge_files() -> None:
     try:
         client = MongoClient(MONGO_URI)
         client.admin.command('ping')
-        db = client.get_database(DB_NAME)  # Use get_database for safety
+        db = client.get_database(DB_NAME)
         for key, (default_data, _, storage) in resources.items():
             if storage != "mongodb":
                 continue
@@ -420,6 +426,17 @@ def initialize_knowledge_files() -> None:
                     for path_key, path in paths.items():
                         formatted_path = path.copy()
                         if 'metadata' in formatted_path and 'last_updated' in formatted_path['metadata']:
+                            last_updated = formatted_path['metadata']['last_updated']
+                            logger.debug(f"Processing clinical path '{path_key}' in category '{category}': last_updated={last_updated}, type={type(last_updated)}")
+                            if isinstance(last_updated, str):
+                                try:
+                                    formatted_path['metadata']['last_updated'] = datetime.strptime(last_updated, "%Y-%m-%d %H:%M:%S")
+                                except ValueError:
+                                    try:
+                                        formatted_path['metadata']['last_updated'] = datetime.strptime(last_updated, "%Y-%m-%d")
+                                    except ValueError:
+                                        logger.warning(f"Invalid last_updated format in clinical path '{path_key}' in category '{category}': {last_updated}. Using current date.")
+                                        formatted_path['metadata']['last_updated'] = current_date
                             formatted_path['metadata']['last_updated'] = formatted_path['metadata']['last_updated'].strftime("%Y-%m-%d %H:%M:%S")
                         formatted_paths[path_key] = formatted_path
                     formatted_data.append({'category': category, 'paths': formatted_paths})

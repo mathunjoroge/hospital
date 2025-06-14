@@ -104,13 +104,13 @@ def extract_aggravating_alleviating(text: str, factor: str) -> str:
 
     if factor == "aggravating":
         patterns = [
-            r'(?:(aggravat|worse|exacerbat|trigger)\s+(?:by|with|on|after|during)\s+[\w\s,-]+?)(?=\.|,|\s*(?:and|or|$))',
-            r'(?:worsen(?:s|ed|ing)?\s+(?:by|with|on|after|during)\s+[\w\s,-]+?)(?=\.|,|\s*(?:and|or|$))',
+            r'(?:(aggravat|worse|exacerbat|trigger)\s+(?:by|with|on|after|during)\s+[\w\s,-]+?)(?=|,|\s*(?:and|or|$))',
+            r'(?:worsen(?:s|ed|ing)?\s+(?:by|with|on|after|during)\s+[\w\s,-]+?)(?=|,|\s*(?:and|or|$))',
         ]
     else:
         patterns = [
-            r'(?:(alleviat|better|improv|reliev)\s+(?:by|with|after|during)\s+[\w\s,-]+?)(?=\.|,|\s*(?:and|or|$))',
-            r'(?:relief\s+(?:from|by|with|after|during)\s+[\w\s,-]+?)(?=\.|,|\s*(?:and|or|$))',
+            r'(?:(alleviat|better|improv|reliev)\s+(?:by|with|after|during)\s+[\w\s,-]+?)(?=|,|\s*(?:and|or|$))',
+            r'(?:relief\s+(?:from|by|with|after|during)\s+[\w\s,-]+?)(?=|,|\s*(?:and|or|$))',
         ]
 
     for pattern in patterns:
