@@ -394,12 +394,12 @@ def extract_aggravating_alleviating(text: str, factor_type: str) -> str:
 
     # Patterns for aggravating and alleviating factors
     aggravating_patterns = [
-        r'\b(makes\s+worse|worsens|aggravates|triggers)\s+([\w\s-]+?)(?=\s*\.|,\s*|\s+and\b|\s+or\b|$)',
-        r'\b(worse\s+with|caused\s+by)\s+([\w\s-]+?)(?=\s*\.|,\s*|\s+and\b|\s+or\b|$)'
+        r'\b(makes\s+worse|worsens|aggravates|triggers)\s+([\w\s-]+?)(?=\s*|,\s*|\s+and\b|\s+or\b|$)',
+        r'\b(worse\s+with|caused\s+by)\s+([\w\s-]+?)(?=\s*|,\s*|\s+and\b|\s+or\b|$)'
     ]
     alleviating_patterns = [
-        r'\b(alleviates|relieves|improves|better\s+with)\s+([\w\s-]+?)(?=\s*\.|,\s*|\s+and\b|\s+or\b|$)',
-        r'\b(reduced\s+by|eased\s+by)\s+([\w\s-]+?)(?=\s*\.|,\s*|\s+and\b|\s+or\b|$)'
+        r'\b(alleviates|relieves|improves|better\s+with)\s+([\w\s-]+?)(?=\s*|,\s*|\s+and\b|\s+or\b|$)',
+        r'\b(reduced\s+by|eased\s+by)\s+([\w\s-]+?)(?=\s*|,\s*|\s+and\b|\s+or\b|$)'
     ]
 
     patterns = aggravating_patterns if factor_type == "aggravating" else alleviating_patterns

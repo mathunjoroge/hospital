@@ -187,7 +187,14 @@ def load_from_postgresql() -> Dict[str, any]:
         metadata = cursor.fetchone()
         if metadata:
             knowledge['version'] = metadata['version']
-            knowledge['last_updated'] = metadata['last_updated'].strftime("%Y-%m-%d %H:%M:%S") if metadata['last_updated'] else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Fix: handle both datetime and string for last_updated
+            if metadata['last_updated']:
+                if isinstance(metadata['last_updated'], str):
+                    knowledge['last_updated'] = metadata['last_updated']
+                else:
+                    knowledge['last_updated'] = metadata['last_updated'].strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                knowledge['last_updated'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     except Exception as e:
         logger.error(f"Failed to load from PostgreSQL: {str(e)}")
     finally:

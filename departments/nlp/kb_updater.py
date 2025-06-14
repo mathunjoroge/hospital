@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, ValidationError
 from departments.nlp.logging_setup import get_logger
 from departments.nlp.knowledge_base_io import load_knowledge_base, save_knowledge_base
 from departments.nlp.nlp_utils import embed_text
-from departments.nlp.nlp_common import FALLBACK_CUI_MAP  # Import from nlp_common.py
+from departments.nlp.nlp_common import FALLBACK_CUI_MAP
 import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from departments.nlp.config import (
@@ -66,7 +66,7 @@ class ClinicalPath(BaseModel):
     references: List[str] = Field(default_factory=lambda: ["Clinical guidelines pending"])
     metadata: Dict = Field(default_factory=lambda: {
         "source": ["Automated update"],
-        "last_updated": datetime.now()  # Store as datetime object
+        "last_updated": datetime.now()
     })
 
 # Initialize PostgreSQL connection pool
@@ -88,10 +88,42 @@ def get_postgres_connection():
     try:
         conn = pool.getconn()
         logger.debug("Connected to PostgreSQL database from pool")
+        # Debug: Inspect knowledge_base_metadata
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT key, version, last_updated FROM knowledge_base_metadata")
+            for row in cursor.fetchall():
+                logger.debug(f"knowledge_base_metadata: key={row['key']}, version={row['version']}, last_updated={row['last_updated']}, type={type(row['last_updated'])}")
+            # Check column type
+            cursor.execute("""
+                SELECT data_type 
+                FROM information_schema.columns 
+                WHERE table_name = 'knowledge_base_metadata' AND column_name = 'last_updated'
+            """)
+            result = cursor.fetchone()
+            if result:
+                logger.debug(f"knowledge_base_metadata.last_updated column type: {result['data_type']}")
+            else:
+                logger.warning("Could not determine last_updated column type")
         return conn
     except Exception as e:
         logger.error(f"Failed to get connection from pool: {str(e)}")
         return None
+
+def _parse_date(date_value):
+    """Parse date strings or return datetime objects."""
+    if isinstance(date_value, datetime):
+        return date_value
+    if isinstance(date_value, str):
+        try:
+            return datetime.strptime(date_value, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            try:
+                return datetime.strptime(date_value, "%Y-%m-%d")
+            except ValueError:
+                logger.warning(f"Invalid date format: {date_value}. Using current date.")
+                return datetime.now()
+    logger.warning(f"Invalid date type: {type(date_value)}. Using current date.")
+    return datetime.now()
 
 class KnowledgeBaseUpdater:
     def __init__(self, mongo_uri: str = None, db_name: str = None, kb_prefix: str = 'kb_'):
@@ -115,7 +147,7 @@ class KnowledgeBaseUpdater:
             self.client = self._connect_mongodb()
             self.db = self.client[self.db_name]
             self.synonyms_collection = self.db[f'{self.kb_prefix}synonyms']
-            self.pathways_collection = self.db[f'{self.kb_prefix}clinical_paths']
+            self.pathways_collection = self.db[f'{self.kb_prefix}clinical_pathways']  # Fixed collection name
             self.diagnosis_relevance_collection = self.db[f'{self.kb_prefix}diagnosis_relevance']
             self.history_diagnoses_collection = self.db[f'{self.kb_prefix}history_diagnoses']
             self.management_config_collection = self.db[f'{self.kb_prefix}management_config']
@@ -153,16 +185,11 @@ class KnowledgeBaseUpdater:
         try:
             index_name = 'category_1_key_1'
             existing_indexes = self.pathways_collection.index_information()
+            logger.debug(f"Existing indexes for pathways_collection: {list(existing_indexes.keys())}")
             if index_name in existing_indexes and not existing_indexes[index_name].get('unique'):
                 logger.warning(f"Index {index_name} is not unique, dropping and recreating...")
                 self.pathways_collection.drop_index(index_name)
-                self.pathways_collection.create_index(
-                    [('category', 1), ('key', 1)],
-                    unique=True,
-                    name=index_name
-                )
-                logger.info(f"Recreated unique index '{index_name}'")
-            elif index_name not in existing_indexes:
+            if index_name not in existing_indexes or not existing_indexes[index_name].get('unique'):
                 self.pathways_collection.create_index(
                     [('category', 1), ('key', 1)],
                     unique=True,
@@ -172,7 +199,9 @@ class KnowledgeBaseUpdater:
 
             diagnosis_index_name = 'diagnosis_1'
             existing_indexes = self.diagnosis_relevance_collection.index_information()
-            if diagnosis_index_name not in existing_indexes:
+            if diagnosis_index_name not in existing_indexes or not existing_indexes[diagnosis_index_name].get('unique'):
+                if diagnosis_index_name in existing_indexes:
+                    self.diagnosis_relevance_collection.drop_index(diagnosis_index_name)
                 null_count = self.diagnosis_relevance_collection.count_documents({'diagnosis': None})
                 if null_count > 1:
                     logger.warning(f"Found {null_count} documents with null diagnosis. Keeping one, removing others.")
@@ -192,29 +221,12 @@ class KnowledgeBaseUpdater:
                     name=diagnosis_index_name
                 )
                 logger.info(f"Created unique index '{diagnosis_index_name}'")
-            elif not existing_indexes[diagnosis_index_name].get('unique'):
-                logger.warning(f"Index {diagnosis_index_name} is not unique, dropping and recreating...")
-                self.diagnosis_relevance_collection.drop_index(diagnosis_index_name)
-                null_count = self.diagnosis_relevance_collection.count_documents({'diagnosis': None})
-                if null_count > 1:
-                    logger.warning(f"Found {null_count} documents with null diagnosis. Keeping one, removing others.")
-                    null_doc = self.diagnosis_relevance_collection.find_one({'diagnosis': None})
-                    if null_doc:
-                        self.diagnosis_relevance_collection.delete_many({
-                            'diagnosis': None,
-                            '_id': {'$ne': null_doc['_id']}
-                        })
-                        logger.info(f"Removed {null_count - 1} duplicate null diagnosis documents")
-                self.diagnosis_relevance_collection.create_index(
-                    'diagnosis',
-                    unique=True,
-                    name=diagnosis_index_name
-                )
-                logger.info(f"Recreated unique index '{diagnosis_index_name}'")
 
             history_index_name = 'key_1'
             existing_indexes = self.history_diagnoses_collection.index_information()
-            if history_index_name not in existing_indexes:
+            if history_index_name not in existing_indexes or not existing_indexes[history_index_name].get('unique'):
+                if history_index_name in existing_indexes:
+                    self.history_diagnoses_collection.drop_index(history_index_name)
                 null_count = self.history_diagnoses_collection.count_documents({'key': None})
                 if null_count > 1:
                     logger.warning(f"Found {null_count} documents with null key. Keeping one, removing others.")
@@ -234,33 +246,13 @@ class KnowledgeBaseUpdater:
                     name=history_index_name
                 )
                 logger.info(f"Created unique index '{history_index_name}'")
-            elif not existing_indexes[history_index_name].get('unique'):
-                logger.warning(f"Index {history_index_name} is not unique, dropping and recreating...")
-                self.history_diagnoses_collection.drop_index(history_index_name)
-                null_count = self.history_diagnoses_collection.count_documents({'key': None})
-                if null_count > 1:
-                    logger.warning(f"Found {null_count} documents with null key. Keeping one, removing others.")
-                    null_doc = self.history_diagnoses_collection.find_one({'key': None})
-                    if null_doc:
-                        self.history_diagnoses_collection.delete_many({
-                            'key': None,
-                            '_id': {'$ne': null_doc['_id']}
-                        })
-                        logger.info(f"Removed {null_count - 1} duplicate null key documents")
-                self.history_diagnoses_collection.create_index(
-                    'key',
-                    unique=True,
-                    name=history_index_name
-                )
-                logger.info(f"Recreated unique index '{history_index_name}'")
 
             self.synonyms_collection.create_index('term', unique=True)
             self.management_config_collection.create_index('key', unique=True)
             self.versions_collection.create_index('version', unique=True)
             logger.debug("MongoDB indexes created")
         except DuplicateKeyError as e:
-            logger.error(f"Duplicate key error during index creation: {str(e)}")
-            raise
+            logger.warning(f"Duplicate key error during index creation, skipping: {str(e)}")
         except PyMongoError as e:
             logger.error(f"Failed to create MongoDB indexes: {str(e)}")
             raise
@@ -446,12 +438,15 @@ class KnowledgeBaseUpdater:
                     symptom_data.umls_metadata.semantic_type.value
                 ))
 
+                # Ensure datetime for last_updated
+                current_time = datetime.now()
+                logger.debug(f"Updating knowledge_base_metadata with last_updated={current_time}, type={type(current_time)}")
                 cursor.execute("""
                     INSERT INTO knowledge_base_metadata (key, version, last_updated)
                     VALUES (%s, %s, %s)
                     ON CONFLICT (key) DO UPDATE
                     SET version = EXCLUDED.version, last_updated = EXCLUDED.last_updated
-                """, ('knowledge_base', self.version, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                """, ('knowledge_base', self.version, current_time.strftime("%Y-%m-%d %H:%M:%S")))
                 conn.commit()
                 logger.info(f"Updated symptom '{symptom}' in PostgreSQL")
             except Exception as e:
@@ -468,11 +463,13 @@ class KnowledgeBaseUpdater:
                         {'$set': {'aliases': symptom_data.synonyms}},
                         upsert=True
                     )
+                    current_time = datetime.now()
+                    logger.debug(f"Updating versions_collection with last_updated={current_time}, type={type(current_time)}")
                     self.versions_collection.update_one(
                         {'version': self.version},
                         {
                             '$set': {
-                                'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                'last_updated': current_time.strftime("%Y-%m-%d %H:%M:%S"),
                                 'updated_collections': {'synonyms': True}
                             }
                         },
@@ -614,12 +611,15 @@ class KnowledgeBaseUpdater:
                     symptom_data.umls_metadata.semantic_type.value
                 ))
 
+                # Ensure datetime for last_updated
+                current_time = datetime.now()
+                logger.debug(f"Updating knowledge_base_metadata with last_updated={current_time}, type={type(current_time)}")
                 cursor.execute("""
                     INSERT INTO knowledge_base_metadata (key, version, last_updated)
                     VALUES (%s, %s, %s)
                     ON CONFLICT (key) DO UPDATE
                     SET version = EXCLUDED.version, last_updated = EXCLUDED.last_updated
-                """, ('knowledge_base', self.version, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                """, ('knowledge_base', self.version, current_time.strftime("%Y-%m-%d %H:%M:%S")))
                 conn.commit()
                 logger.info(f"Updated symptom '{symptom}' in PostgreSQL")
             except Exception as e:
@@ -722,14 +722,13 @@ class KnowledgeBaseUpdater:
                 logger.warning(f"Invalid category '{category}' for clinical path '{path_key}'. Using 'general'.")
                 category_enum = Category.GENERAL
 
-            # Validate clinical path data
+            # Parse last_updated in path_data
             if 'metadata' in path_data and 'last_updated' in path_data['metadata']:
-                if isinstance(path_data['metadata']['last_updated'], str):
-                    try:
-                        path_data['metadata']['last_updated'] = datetime.strptime(path_data['metadata']['last_updated'], "%Y-%m-%d %H:%M:%S")
-                    except ValueError:
-                        path_data['metadata']['last_updated'] = datetime.now()
+                last_updated = path_data['metadata']['last_updated']
+                logger.debug(f"Clinical path '{path_key}' in '{category}': input last_updated={last_updated}, type={type(last_updated)}")
+                path_data['metadata']['last_updated'] = _parse_date(last_updated)
 
+            # Validate clinical path data
             clinical_path = ClinicalPath(**path_data)
 
             # Update in-memory knowledge base
@@ -741,17 +740,21 @@ class KnowledgeBaseUpdater:
                     # Format last_updated as string for MongoDB
                     formatted_path = clinical_path.dict()
                     if 'metadata' in formatted_path and 'last_updated' in formatted_path['metadata']:
-                        formatted_path['metadata']['last_updated'] = formatted_path['metadata']['last_updated'].strftime("%Y-%m-%d %H:%M:%S")
+                        last_updated = formatted_path['metadata']['last_updated']
+                        logger.debug(f"Formatting clinical path '{path_key}' last_updated={last_updated}, type={type(last_updated)} for MongoDB")
+                        formatted_path['metadata']['last_updated'] = last_updated.strftime("%Y-%m-%d %H:%M:%S")
                     self.pathways_collection.update_one(
                         {'category': category_enum.value, 'key': path_key.lower()},
                         {'$set': {'paths': {path_key.lower(): formatted_path}}},
                         upsert=True
                     )
+                    current_time = datetime.now()
+                    logger.debug(f"Updating versions_collection with last_updated={current_time}, type={type(current_time)}")
                     self.versions_collection.update_one(
                         {'version': self.version},
                         {
                             '$set': {
-                                'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                'last_updated': current_time.strftime("%Y-%m-%d %H:%M:%S"),
                                 'updated_collections': {'clinical_pathways': True}
                             }
                         },
