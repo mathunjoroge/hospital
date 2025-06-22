@@ -12,6 +12,7 @@ from psycopg2.pool import SimpleConnectionPool
 from psycopg2.extras import RealDictCursor
 import spacy
 import medspacy
+import numpy as np
 from medspacy.target_matcher import TargetRule
 from scispacy.linking import EntityLinker
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
@@ -634,16 +635,23 @@ class ClinicalAnalyzer:
                             logger.debug(f"Added historical diagnosis '{condition}'")
 
             if text_embedding is not None:
+                # Ensure text_embedding is a torch.Tensor
+                if isinstance(text_embedding, np.ndarray):
+                    text_embedding = torch.from_numpy(text_embedding)
                 for dx in list(dx_scores.keys()):
                     try:
                         if not isinstance(dx, str):
                             logger.warning(f"Skipping non-string dx in dx_scores: {dx}")
                             continue
                         dx_embedding = embed_text(dx)
+                        # Ensure dx_embedding is a torch.Tensor
+                        if isinstance(dx_embedding, np.ndarray):
+                            dx_embedding = torch.from_numpy(dx_embedding)
                         similarity = torch.cosine_similarity(
                             text_embedding.unsqueeze(dim=0),
                             dx_embedding.unsqueeze(dim=0),
-                            dim=1).item()
+                            dim=1
+                        ).item()
                         if similarity < SIMILARITY_THRESHOLD:
                             continue
                         logger.debug(f"Similarity score for '{dx}': {similarity}")
