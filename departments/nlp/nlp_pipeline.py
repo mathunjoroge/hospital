@@ -15,6 +15,7 @@ from departments.nlp.logging_setup import get_logger
 from departments.nlp.knowledge_base_io import load_knowledge_base, invalidate_cache
 from departments.nlp.nlp_utils import preprocess_text,  FALLBACK_CUI_MAP
 from departments.nlp.nlp_common import clean_term
+from departments.nlp.nlp_utils import search_local_umls_cui
 from dotenv import load_dotenv
 import os
 import time
@@ -660,6 +661,7 @@ def process_symptom_batch(symptom_docs: list, symptom_rules: list, counts: dict,
     symptom_texts = [doc['symptom'] for doc in symptom_docs if 'symptom' in doc and doc['symptom'] and len(doc['symptom']) >= 2]
     terms_list = extract_clinical_phrases(symptom_texts)
     logger.debug(f"Extracted {sum(len(terms) for terms in terms_list)} terms from {len(symptom_texts)} symptoms")
+    # Call search_local_umls_cui with STOP_TERMS
     cui_results = search_local_umls_cui([term for terms in terms_list for term in terms])
 
     all_cuis = []

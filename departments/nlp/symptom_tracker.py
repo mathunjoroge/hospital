@@ -7,10 +7,11 @@ import numpy as np
 from datetime import datetime
 
 from departments.nlp.nlp_utils import preprocess_text, deduplicate, get_umls_cui, get_negated_symptoms
-from departments.nlp.nlp_pipeline import  extract_aggravating_alleviating, extract_clinical_phrases, get_semantic_types, get_nlp, search_local_umls_cui
+from departments.nlp.nlp_pipeline import extract_aggravating_alleviating, extract_clinical_phrases, get_semantic_types, get_nlp, search_local_umls_cui
 from departments.nlp.knowledge_base_io import load_knowledge_base
 from departments.nlp.nlp_common import clean_term, FALLBACK_CUI_MAP
 from departments.nlp.logging_setup import get_logger
+from departments.nlp.nlp_utils import search_local_umls_cui
 from departments.nlp.config import MONGO_URI, DB_NAME, SYMPTOMS_COLLECTION
 
 logger = get_logger(__name__)
@@ -97,6 +98,7 @@ class SymptomTracker:
         except Exception as e:
             logger.error(f"Failed to add symptom '{symptom_clean}' to MongoDB: {e}", exc_info=True)
 
+    from departments.nlp.nlp_utils import get_umls_cui
     def _get_umls_cui(self, symptom: str) -> Tuple[Optional[str], Optional[str]]:
         """Retrieve UMLS CUI and semantic type for a symptom."""
         return get_umls_cui(symptom)
@@ -136,15 +138,17 @@ class SymptomTracker:
         return symptoms
 
     def extract_duration(self, text: str, symptom: str) -> str:
+        """Extract duration of a symptom from text."""
         if not text or not symptom:
             return 'Unknown'
         symptom_clean = clean_term(preprocess_text(symptom)).lower()
+        # Compile patterns with re.escape to handle special characters and support hyphenated durations
         patterns = [
-            rf'\b{symptom_clean}\s*(?:started|for)\s*(\d+\s*(?:day|week|month|year)s?\s*(?:ago)?)',
-            rf'(\d+\s*(?:day|week|month|year)s?)\s*(?:of|with)\s*{symptom_clean}'
+            re.compile(rf'\b{re.escape(symptom_clean)}\s*(?:started|for)\s*(\d+\s*-?(?:day|week|month|year)s?\s*(?:ago)?)', re.IGNORECASE),
+            re.compile(rf'(\d+\s*-?(?:day|week|month|year)s?)\s*(?:of|with)\s*{re.escape(symptom_clean)}', re.IGNORECASE)
         ]
         for pattern in patterns:
-            match = re.search(pattern, text.lower(), re.IGNORECASE)
+            match = pattern.search(text.lower())
             if match:
                 logger.debug(f"Extracted duration for '{symptom_clean}': {match.group(1)}")
                 return match.group(1).capitalize()
@@ -169,12 +173,14 @@ class SymptomTracker:
         """Extract symptom location from text."""
         if not text or not symptom:
             return 'Unknown'
-        location_pattern = r'\b(in|on|of|at)\s+(\w+\s*(?:\w+\s*){0,2})\b'
+        # Compile pattern to support hyphenated locations and improve performance
+        location_pattern = re.compile(r'\b(in|on|of|at)\s+([\w-]+\s*(?:[\w-]+\s*){0,2})\b', re.IGNORECASE)
         symptom_clean = clean_term(preprocess_text(symptom)).lower()
         text_clean = clean_term(preprocess_text(text)).lower()
-        matches = re.findall(location_pattern, text_clean, re.IGNORECASE)
+        matches = location_pattern.findall(text_clean)
         for prep, location in matches:
-            if symptom_clean in text_clean and location in text_clean:
+            # Use regex to ensure exact word match for location
+            if symptom_clean in text_clean and re.search(r'\b' + re.escape(location) + r'\b', text_clean):
                 logger.debug(f"Extracted location for '{symptom_clean}': {location}")
                 return location.capitalize()
         return 'Unknown'
