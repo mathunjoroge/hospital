@@ -211,6 +211,7 @@ def deduplicate(items: List[str], synonyms: Optional[Dict[str, List[str]]] = Non
     if not isinstance(items, (list, tuple)):
         logger.error(f"Invalid items type: {type(items)}")
         return []
+    medical_terms = []
     if synonyms is None:
         try:
             kb = load_knowledge_base()
@@ -237,7 +238,11 @@ def deduplicate(items: List[str], synonyms: Optional[Dict[str, List[str]]] = Non
                 continue
             if item.lower() in [a.lower() for a in aliases if isinstance(a, str)]:
                 canonical = key
-                cui = next((t['umls_cui'] for t in medical_terms if t['term'].lower() == key.lower()), None)
+                # Ensure medical_terms is a list of dicts with 'term' and 'umls_cui'
+                cui = next(
+                    (t['umls_cui'] for t in medical_terms if isinstance(t, dict) and t.get('term', '').lower() == key.lower()),
+                    None
+                )
                 break
         canonical_key = (canonical.lower(), cui) if cui else canonical.lower()
         if canonical_key not in seen:
