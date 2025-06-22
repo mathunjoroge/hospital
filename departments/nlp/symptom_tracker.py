@@ -3,10 +3,11 @@ from typing import List, Dict, Tuple, Optional, Set
 import medspacy
 from pymongo import MongoClient
 import torch
+import numpy as np
 from datetime import datetime
 
-from departments.nlp.nlp_utils import preprocess_text, deduplicate, get_umls_cui
-from departments.nlp.nlp_pipeline import clean_term, extract_aggravating_alleviating, FALLBACK_CUI_MAP
+from departments.nlp.nlp_utils import preprocess_text, deduplicate, get_umls_cui, get_negated_symptoms
+from departments.nlp.nlp_pipeline import clean_term, extract_aggravating_alleviating, FALLBACK_CUI_MAP, extract_clinical_phrases, get_semantic_types, get_nlp, search_local_umls_cui
 from departments.nlp.knowledge_base_io import load_knowledge_base
 from departments.nlp.logging_setup import get_logger
 from departments.nlp.config import MONGO_URI, DB_NAME, SYMPTOMS_COLLECTION
@@ -21,10 +22,14 @@ class SymptomTracker:
         self.collection_name = symptom_collection
         self.client = None
         self.collection = None
-        self.nlp = medspacy.load()
+        self.nlp = get_nlp()  # Use get_nlp from nlp_pipeline.py
         self.knowledge_base = load_knowledge_base()
         self.synonyms = self.knowledge_base.get('synonyms', {})
         self.medical_terms = self.knowledge_base.get('medical_terms', [])
+        self.stop_terms = self.knowledge_base.get('medical_stop_words', set()).union({
+            'the', 'and', 'or', 'is', 'started', 'days', 'weeks', 'months', 'years', 'ago',
+            'taking', 'makes', 'alleviates', 'foods', 'fats', 'strong', 'tea', 'licking', 'salt', 'worse'
+        })
         try:
             self.client = MongoClient(mongo_uri)
             self.collection = self.client[db_name][symptom_collection]
@@ -48,7 +53,6 @@ class SymptomTracker:
                         return category, data
             # Search MongoDB
             if self.collection is not None:
-                # Try both 'term' and 'symptom' for backward compatibility
                 result = self.collection.find_one({"$or": [{"term": symptom_clean}, {"symptom": symptom_clean}]})
                 if result:
                     logger.debug(f"Found symptom '{symptom}' in MongoDB, category: {result.get('category')}")
@@ -75,8 +79,8 @@ class SymptomTracker:
         try:
             if self.collection is not None:
                 doc = {
-                    'term': symptom_clean,  # Use 'term' for unique index compatibility
-                    'symptom': symptom_clean,  # For backward compatibility
+                    'term': symptom_clean,
+                    'symptom': symptom_clean,
                     'category': category or 'Uncategorized',
                     'description': description or symptom_clean,
                     'cui': cui,
@@ -106,7 +110,7 @@ class SymptomTracker:
             for term in terms:
                 if symptom_clean == term.lower():
                     return category
-        # Fallback to context-based inference
+        # Fallback to context-based inference (without embeddings)
         if 'head' in symptom_clean or 'head' in context_clean:
             return 'Neurological'
         if 'fever' in symptom_clean or 'chills' in context_clean:
@@ -119,10 +123,8 @@ class SymptomTracker:
     def get_all_symptoms(self) -> Set[str]:
         """Retrieve all symptoms from knowledge base and MongoDB."""
         symptoms = set()
-        # Knowledge base symptoms
         for category, terms in self.knowledge_base.get('symptoms', {}).items():
             symptoms.update(term.lower() for term in terms.keys())
-        # MongoDB symptoms
         try:
             if self.collection is not None:
                 cursor = self.collection.find({}, {'term': 1})
@@ -132,20 +134,19 @@ class SymptomTracker:
         logger.debug(f"Retrieved {len(symptoms)} unique symptoms")
         return symptoms
 
-    def extract_duration(self, text: str) -> str:
-        """Extract duration from text."""
-        if not text:
+    def extract_duration(self, text: str, symptom: str) -> str:
+        if not text or not symptom:
             return 'Unknown'
+        symptom_clean = clean_term(preprocess_text(symptom)).lower()
         patterns = [
-            r'(\d+\s*(?:day|week|month|year)s?\s*(?:ago)?)',
-            r'(since\s*\w+\s*\d{4})',
-            r'(for\s*\d+\s*(?:day|week|month|year)s?)'
+            rf'\b{symptom_clean}\s*(?:started|for)\s*(\d+\s*(?:day|week|month|year)s?\s*(?:ago)?)',
+            rf'(\d+\s*(?:day|week|month|year)s?)\s*(?:of|with)\s*{symptom_clean}'
         ]
         for pattern in patterns:
             match = re.search(pattern, text.lower(), re.IGNORECASE)
             if match:
-                logger.debug(f"Extracted duration: {match.group(0)}")
-                return match.group(0).capitalize()
+                logger.debug(f"Extracted duration for '{symptom_clean}': {match.group(1)}")
+                return match.group(1).capitalize()
         return 'Unknown'
 
     def classify_severity(self, text: str) -> str:
@@ -178,7 +179,6 @@ class SymptomTracker:
         return 'Unknown'
 
     def validate_symptom_string(self, symptom: str) -> List[str]:
-        """Validate and clean symptom strings."""
         if not symptom or not isinstance(symptom, str) or len(symptom.strip()) < 2:
             logger.debug(f"Invalid symptom string: {symptom}")
             return []
@@ -186,29 +186,30 @@ class SymptomTracker:
         if not cleaned:
             logger.warning(f"Empty symptom string after cleaning: {symptom}")
             return []
-        # Split and deduplicate
-        terms = cleaned.split()
-        terms = list(dict.fromkeys(terms))  # Remove duplicates
-        # Filter out stop terms
-        stop_terms = {'of', 'and', 'the', 'with', 'patient', 'complains', 'reports', 'has', 'taking', 'makes', 'worse', 'alleviates'}
-        valid_terms = [t for t in terms if t not in stop_terms]
-        # Group multi-word symptoms
+
+        # Use extract_clinical_phrases instead of noun_chunks
+        phrases = extract_clinical_phrases(cleaned)
         result = []
-        i = 0
-        while i < len(valid_terms):
-            matched = False
-            for j in range(3, 0, -1):  # Try 3, 2, 1 word combinations
-                if i + j <= len(valid_terms):
-                    phrase = ' '.join(valid_terms[i:i+j]).lower()
-                    if phrase in self.get_all_symptoms() or phrase in FALLBACK_CUI_MAP:
-                        result.append(phrase)
-                        i += j
-                        matched = True
-                        logger.debug(f"Matched multi-word symptom: {phrase}")
-                        break
-            if not matched:
-                result.append(valid_terms[i])
-                i += 1
+        stop_terms = {'of', 'and', 'the', 'with', 'patient', 'complains', 'reports', 'has', 'taking', 'makes', 'worse', 'alleviates'}
+
+        # Filter phrases
+        for phrase in phrases:
+            if phrase in self.get_all_symptoms() or phrase in FALLBACK_CUI_MAP:
+                result.append(phrase)
+                logger.debug(f"Matched phrase: {phrase}")
+            elif not any(term in stop_terms for term in phrase.split()):
+                result.append(phrase)
+
+        # Fallback to single tokens for unmatched terms
+        doc = self.nlp(cleaned)
+        for token in doc:
+            token_text = token.text.lower()
+            if token_text not in stop_terms and token_text not in ' '.join(result):
+                result.append(token_text)
+
+        # Deduplicate while preserving order
+        seen = set()
+        result = [x for x in result if not (x in seen or seen.add(x))]
         logger.debug(f"Validated symptom string '{symptom}' -> {result}")
         return result
 
@@ -230,9 +231,6 @@ class SymptomTracker:
                 logger.debug(f"Added missing symptom '{symptom}' to knowledge base")
 
     def get_negated_symptoms(self, note, chief_complaint: str) -> Set[str]:
-        """Extract negated symptoms from note."""
-        logger.debug(f"Extracting negated symptoms for note ID {getattr(note, 'id', 'unknown')}")
-        # Construct text from note attributes, including medical_history
         attributes = [
             str(getattr(note, 'situation', '') or ''),
             str(getattr(note, 'hpi', '') or ''),
@@ -246,25 +244,32 @@ class SymptomTracker:
         if not text:
             logger.warning("No text available for negated symptom extraction")
             return set()
-
-        text_clean = preprocess_text(text).lower()
-        text_clean = re.sub(r'[;:]', ' ', re.sub(r'\s+', ' ', text_clean))
-        chief_complaint_lower = preprocess_text(chief_complaint).lower()
-        hpi_lower = preprocess_text(getattr(note, 'hpi', '') or '').lower()
-
+        
+        doc = self.nlp(text)
         negated_symptoms = set()
-        negation_pattern = r'\b(no|without|denies|not)\b\s+([\w\s-]+?)(?=\s*\.|,\s*|\s+and\b|\s+or\b|$)'
-        matches = re.findall(negation_pattern, text_clean, re.IGNORECASE)
-        for _, negated in matches:
-            negated_clean = preprocess_text(negated.strip()).lower()
-            if negated_clean and negated_clean not in chief_complaint_lower and negated_clean not in hpi_lower:
-                negated_symptoms.add(negated_clean)
-                logger.debug(f"Detected negated symptom: '{negated_clean}'")
+        for ent in doc.ents:
+            if ent._.is_negated:
+                negated_clean = clean_term(preprocess_text(ent.text)).lower()
+                if negated_clean and negated_clean not in chief_complaint.lower():
+                    negated_symptoms.add(negated_clean)
+                    logger.debug(f"Detected negated symptom: '{negated_clean}'")
         return negated_symptoms
 
     def process_note(self, note, chief_complaint: str, expected_symptoms: List[str] = None) -> List[Dict]:
         """Process a clinical note to extract symptoms."""
         logger.debug(f"Processing note ID {getattr(note, 'id', 'unknown')}")
+        start_time = datetime.utcnow()
+
+        # Input validation
+        if expected_symptoms is None:
+            expected_symptoms = []
+        if not isinstance(chief_complaint, str):
+            chief_complaint = ""
+            logger.warning("Invalid chief_complaint: setting to empty string")
+        if not isinstance(expected_symptoms, list):
+            expected_symptoms = []
+            logger.warning("Invalid expected_symptoms: setting to empty list")
+
         # Safely construct text from note attributes
         attributes = [
             str(getattr(note, 'situation', '') or ''),
@@ -279,120 +284,144 @@ class SymptomTracker:
             logger.warning("No text available for symptom extraction")
             return []
 
-        # Enhanced preprocessing
-        text_clean = preprocess_text(text)
-        if not text_clean:
-            logger.warning("Text is empty after preprocessing")
-            return []
-        # Validate and clean symptom strings
-        symptom_terms = self.validate_symptom_string(text_clean)
-        text_clean = ' '.join(symptom_terms).lower()
-        text_clean = re.sub(r'[;:]', ' ', re.sub(r'\s+', ' ', text_clean)).lower()
-        logger.debug(f"Cleaned text: {text_clean[:100]}...")
-
-        symptoms = []
-        matched_terms = set()
-        chief_complaint_lower = preprocess_text(chief_complaint).lower()
-        hpi_lower = preprocess_text(getattr(note, 'hpi', '') or '').lower()
-
         try:
-            aggravating_text = getattr(note, 'aggravating_factors', '') or ''
-            alleviating_text = getattr(note, 'alleviating_factors', '') or ''
-            aggravating_result = extract_aggravating_alleviating(aggravating_text, 'aggravating')
-            alleviating_result = extract_aggravating_alleviating(alleviating_text, 'alleviating')
-            aggravating = aggravating_result.lower().strip() if isinstance(aggravating_result, str) else aggravating_text.lower().strip()
-            alleviating = alleviating_result.lower().strip() if isinstance(alleviating_result, str) else alleviating_text.lower().strip()
-            logger.debug(f"Extracted aggravating: {aggravating[:50]}..., alleviating: {alleviating[:50]}...")
+            # Initialize symptom_terms
+            symptom_terms = []
+
+            # Extract phrases using validate_symptom_string and extract_clinical_phrases
+            text_clean = preprocess_text(text)
+            if not text_clean:
+                logger.warning("Text is empty after preprocessing")
+                return []
+
+            # Use validate_symptom_string for initial extraction
+            symptom_terms = self.validate_symptom_string(text_clean)
+
+            # Enhance with extract_clinical_phrases for multi-word phrases
+            extracted_phrases = extract_clinical_phrases([text, chief_complaint] if chief_complaint.strip() else [text])
+            note_phrases = extracted_phrases[0] if extracted_phrases else []
+            cc_phrases = extracted_phrases[1] if len(extracted_phrases) > 1 and chief_complaint.strip() else []
+            symptom_terms.extend(note_phrases + cc_phrases)
+
+            # Add expected symptoms
+            symptom_terms.extend(clean_term(preprocess_text(s)) for s in expected_symptoms if isinstance(s, str) and clean_term(preprocess_text(s)))
+
+            # Remove duplicates
+            symptom_terms = list(set(t for t in symptom_terms if t))
+
+            # Filter out non-symptom terms (negated and stop terms)
+            non_symptom_terms = get_negated_symptoms(text, self.nlp)
+            non_symptom_terms = {clean_term(t) for t in non_symptom_terms if clean_term(t)}
+            non_symptom_terms.update(self.stop_terms)
+            symptom_terms = [t for t in symptom_terms if t and t not in non_symptom_terms]
+            logger.debug(f"Extracted {len(symptom_terms)} symptom terms after filtering: {symptom_terms[:50]}...")
+
+            if not symptom_terms:
+                logger.info(f"No valid symptoms found in note, took {(datetime.utcnow() - start_time).total_seconds():.3f} seconds")
+                return []
+
+            # Map symptoms to UMLS CUIs
+            cui_results = search_local_umls_cui(symptom_terms)
+            valid_cuis = [cui for cui in cui_results.values() if cui and isinstance(cui, str) and cui.startswith('C')]
+            semantic_types = get_semantic_types(valid_cuis) if valid_cuis else {}
+
+            symptoms = []
+            matched_terms = set()
+            for symptom_term in symptom_terms:
+                symptom_clean = preprocess_text(symptom_term).lower()
+                if not symptom_clean or symptom_clean in matched_terms:
+                    continue
+
+                # Search for symptom in knowledge base or MongoDB
+                category, info = self.search_symptom(symptom_clean)
+                if not category:
+                    category = self._infer_category(symptom_clean, chief_complaint)
+                    cui, semantic_type = self._get_umls_cui(symptom_clean)
+                    description = f"UMLS-derived: {symptom_clean}" if cui else f"Pending UMLS review: {symptom_clean}"
+                    self.add_symptom(category, symptom_clean, description, cui, semantic_type)
+                else:
+                    cui = info.get('umls_cui')
+                    semantic_type = info.get('semantic_type', 'Unknown')
+                    description = info['description']
+
+                # Extract additional attributes
+                aggravating = extract_aggravating_alleviating(getattr(note, 'aggravating_factors', '') or '', 'aggravating')
+                alleviating = extract_aggravating_alleviating(getattr(note, 'alleviating_factors', '') or '', 'alleviating')
+
+                symptoms.append({
+                    'description': symptom_clean,
+                    'category': category,
+                    'definition': description,
+                    'duration': self.extract_duration(text_clean, symptom_clean),
+                    'severity': self.classify_severity(text_clean),
+                    'location': self.extract_location(text_clean, symptom_clean),
+                    'aggravating': aggravating.lower().strip() if isinstance(aggravating, str) else 'Unknown',
+                    'alleviating': alleviating.lower().strip() if isinstance(alleviating, str) else 'Unknown',
+                    'umls_cui': cui,
+                    'semantic_type': semantic_type
+                })
+                matched_terms.add(symptom_clean)
+
+                # Handle synonyms
+                synonym_list = self.synonyms.get(symptom_clean, [])
+                for synonym in synonym_list:
+                    if re.search(r'\b' + re.escape(preprocess_text(synonym).lower()) + r'\b', text_clean):
+                        matched_terms.add(synonym.lower())
+
+            # NLP-based extraction for additional entities
+            if self.nlp:
+                try:
+                    doc = self.nlp(text_clean)
+                    for ent in doc.ents:
+                        ent_text = preprocess_text(ent.text).lower()
+                        if ent_text in matched_terms:
+                            continue
+                        category, info = self.search_symptom(ent_text)
+                        if not category:
+                            category = self._infer_category(ent_text, chief_complaint)
+                            cui, semantic_type = self._get_umls_cui(ent_text)
+                            description = f"UMLS-derived: {ent_text}" if cui else f"Pending UMLS review: {ent_text}"
+                            self.add_symptom(category, ent_text, description, cui, semantic_type)
+                        else:
+                            cui = info.get('umls_cui', '')
+                            semantic_type = info.get('semantic_type', 'Unknown')
+                            description = info['description']
+                        symptoms.append({
+                            'description': ent_text,
+                            'category': category,
+                            'definition': description,
+                            'duration': self.extract_duration(text_clean, ent_text),
+                            'severity': self.classify_severity(text_clean),
+                            'location': self.extract_location(text_clean, ent_text),
+                            'aggravating': aggravating.lower().strip() if isinstance(aggravating, str) else 'Unknown',
+                            'alleviating': alleviating.lower().strip() if isinstance(alleviating, str) else 'Unknown',
+                            'umls_cui': cui,
+                            'semantic_type': semantic_type
+                        })
+                        matched_terms.add(ent_text)
+                        logger.debug(f"NLP extracted symptom: {ent_text} (CUI: {cui})")
+                except Exception as e:
+                    logger.error(f"Error processing text with NLP: {e}", exc_info=True)
+
+            # Filter out negated symptoms
+            negated_symptoms = self.get_negated_symptoms(note, chief_complaint)
+            valid_symptoms = [
+                s for s in symptoms
+                if not any(preprocess_text(negated).lower() in preprocess_text(s['description']).lower() for negated in negated_symptoms)
+            ]
+
+            # Deduplicate symptoms
+            symptom_descriptions = tuple(s['description'] for s in valid_symptoms)
+            deduped_descriptions = deduplicate(symptom_descriptions, self.synonyms)
+            unique_symptoms = [s for s in valid_symptoms if s['description'] in deduped_descriptions]
+
+            # Update knowledge base with expected symptoms
+            if expected_symptoms:
+                self.update_knowledge_base(unique_symptoms, expected_symptoms, unique_symptoms, chief_complaint)
+
+            logger.info(f"Processed note, extracted {len(unique_symptoms)} symptoms, took {(datetime.utcnow() - start_time).total_seconds():.3f} seconds")
+            return unique_symptoms
+
         except Exception as e:
-            logger.error(f"Error extracting aggravating/alleviating factors: {e}", exc_info=True)
-            aggravating = 'Unknown'
-            alleviating = 'Unknown'
-
-        # Process each validated symptom term
-        for symptom_term in symptom_terms:
-            symptom_clean = preprocess_text(symptom_term).lower()
-            if not symptom_clean:
-                continue
-            category, info = self.search_symptom(symptom_clean)
-            if not category:
-                category = self._infer_category(symptom_clean, chief_complaint)
-                cui, semantic_type = self._get_umls_cui(symptom_clean)
-                description = f"UMLS-derived: {symptom_clean}" if cui else f"Pending UMLS review: {symptom_clean}"
-                self.add_symptom(category, symptom_clean, description, cui, semantic_type)
-            else:
-                cui = info.get('umls_cui')
-                semantic_type = info.get('semantic_type', 'Unknown')
-                description = info['description']
-            symptoms.append({
-                'description': symptom_clean,
-                'category': category,
-                'definition': description,
-                'duration': self.extract_duration(text_clean),
-                'severity': self.classify_severity(text_clean),
-                'location': self.extract_location(text_clean, symptom_clean),
-                'aggravating': aggravating,
-                'alleviating': alleviating,
-                'umls_cui': cui,
-                'semantic_type': semantic_type
-            })
-            matched_terms.add(symptom_clean)
-            # Handle synonyms
-            synonym_list = self.synonyms.get(symptom_clean, [])
-            for synonym in synonym_list:
-                if re.search(r'\b' + re.escape(preprocess_text(synonym).lower()) + r'\b', text_clean):
-                    matched_terms.add(synonym.lower())
-
-        # NLP-based extraction
-        if self.nlp:
-            try:
-                doc = self.nlp(text_clean)
-                for ent in doc.ents:
-                    ent_text = preprocess_text(ent.text).lower()
-                    if ent_text in matched_terms:
-                        continue
-                    category, info = self.search_symptom(ent_text)
-                    if not category:
-                        category = self._infer_category(ent_text, chief_complaint)
-                        cui, semantic_type = self._get_umls_cui(ent_text)
-                        description = f"UMLS-derived: {ent_text}" if cui else f"Pending UMLS review: {ent_text}"
-                        self.add_symptom(category, ent_text, description, cui, semantic_type)
-                    else:
-                        cui, semantic_type = info.get('umls_cui', ''), info.get('semantic_type', 'Unknown')
-                        description = info['description']
-                    symptoms.append({
-                        'description': ent_text,
-                        'category': category,
-                        'definition': description,
-                        'duration': self.extract_duration(text_clean),
-                        'severity': self.classify_severity(text_clean),
-                        'location': self.extract_location(text_clean, ent_text),
-                        'aggravating': aggravating,
-                        'alleviating': alleviating,
-                        'umls_cui': cui,
-                        'semantic_type': semantic_type
-                    })
-                    matched_terms.add(ent_text)
-                    logger.debug(f"NLP extracted symptom: {ent_text} (CUI: {cui})")
-            except Exception as e:
-                logger.error(f"Error processing text with NLP: {e}", exc_info=True)
-
-        # Negated symptoms
-        negated_symptoms = self.get_negated_symptoms(note, chief_complaint)
-        valid_symptoms = []
-        for s in symptoms:
-            s_desc_lower = preprocess_text(s['description']).lower()
-            is_negated = any(preprocess_text(negated).lower() in s_desc_lower for negated in negated_symptoms)
-            if not is_negated:
-                valid_symptoms.append(s)
-            else:
-                logger.debug(f"Excluding negated symptom: '{s['description']}'")
-
-        # Deduplicate symptoms
-        symptom_descriptions = tuple(s['description'] for s in valid_symptoms)
-        deduped_descriptions = deduplicate(symptom_descriptions, self.synonyms)
-        unique_symptoms = [s for s in valid_symptoms if s['description'] in deduped_descriptions]
-
-        logger.debug(f"Extracted symptoms: {[s['description'] for s in unique_symptoms]}")
-        if expected_symptoms:
-            self.update_knowledge_base(unique_symptoms, expected_symptoms, unique_symptoms, chief_complaint)
-        return unique_symptoms
+            logger.error(f"Error processing note: {e}", exc_info=True)
+            return []
