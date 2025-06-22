@@ -7,8 +7,9 @@ import numpy as np
 from datetime import datetime
 
 from departments.nlp.nlp_utils import preprocess_text, deduplicate, get_umls_cui, get_negated_symptoms
-from departments.nlp.nlp_pipeline import clean_term, extract_aggravating_alleviating, FALLBACK_CUI_MAP, extract_clinical_phrases, get_semantic_types, get_nlp, search_local_umls_cui
+from departments.nlp.nlp_pipeline import  extract_aggravating_alleviating, extract_clinical_phrases, get_semantic_types, get_nlp, search_local_umls_cui
 from departments.nlp.knowledge_base_io import load_knowledge_base
+from departments.nlp.nlp_common import clean_term, FALLBACK_CUI_MAP
 from departments.nlp.logging_setup import get_logger
 from departments.nlp.config import MONGO_URI, DB_NAME, SYMPTOMS_COLLECTION
 

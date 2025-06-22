@@ -96,15 +96,33 @@ FALLBACK_CUI_MAP = {
 _cui_cache = {}
 
 def clean_term(term: str) -> str:
-    """Clean a medical term for processing."""
-    if not isinstance(term, str) or len(term) > 200:
-        logger.warning(f"Invalid term for cleaning: term={term}, type={type(term)}")
+    """Clean a medical term for processing.
+
+    - Strips leading/trailing whitespace.
+    - Converts to lowercase.
+    - Removes non-alphanumeric characters except whitespace.
+    - Collapses multiple spaces to a single space.
+    - Returns an empty string if input is not a string or is too long.
+    """
+    if not isinstance(term, str):
+        logger.warning(f"Invalid term for cleaning (not a string): term={term}, type={type(term)}")
         return ""
-    term = term.strip().lower()
-    term = re.sub(r'[^\w\s]', '', term)
-    term = ' '.join(term.split())
-    logger.debug(f"Cleaned term: {term}")
-    return term
+    term = term.strip()
+    if not term:
+        logger.warning("Empty term after stripping whitespace.")
+        return ""
+    if len(term) > 200:
+        logger.warning(f"Invalid term for cleaning (too long): term={term[:50]}..., length={len(term)}")
+        return ""
+    try:
+        term = term.lower()
+        term = re.sub(r'[^\w\s]', '', term)
+        term = ' '.join(term.split())
+        logger.debug(f"Cleaned term: {term}")
+        return term
+    except Exception as e:
+        logger.error(f"Error cleaning term '{term}': {e}")
+        return ""
 
 @retry(
     stop=stop_after_attempt(3),

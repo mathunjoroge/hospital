@@ -13,7 +13,8 @@ from psycopg2.pool import SimpleConnectionPool
 from departments.models.pharmacy import Batch
 from departments.nlp.logging_setup import get_logger
 from departments.nlp.knowledge_base_io import load_knowledge_base, invalidate_cache
-from departments.nlp.nlp_utils import preprocess_text, clean_term, FALLBACK_CUI_MAP
+from departments.nlp.nlp_utils import preprocess_text,  FALLBACK_CUI_MAP
+from departments.nlp.nlp_common import clean_term
 from dotenv import load_dotenv
 import os
 import time
