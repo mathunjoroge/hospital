@@ -273,10 +273,19 @@ def get_patient_info(patient_id: str) -> Dict[str, any]:
         logger.error(f"Unexpected error retrieving patient info for {patient_id}: {e}")
         return {"sex": "Unknown", "age": None}
 
-def search_local_umls_cui(terms: List[str], max_attempts=3, batch_size=100, max_tsquery_bytes=500000) -> Dict[str, Optional[str]]:
+def search_local_umls_cui(
+    terms: List[str],
+    max_attempts: int = 3,
+    batch_size: int = 100,
+    max_tsquery_bytes: int = 500000,
+    stop_terms: Optional[Set[str]] = None
+) -> Dict[str, Optional[str]]:
     start_time = time.time()
     oversized_count = 0
     cleaned_terms = []
+
+    if stop_terms is None:
+        stop_terms = _load_stop_words()
 
     for term in terms:
         cleaned = clean_term(term)
@@ -287,7 +296,6 @@ def search_local_umls_cui(terms: List[str], max_attempts=3, batch_size=100, max_
         cleaned_terms.append(cleaned)
 
     results = {term: None for term in cleaned_terms}
-    stop_terms = _load_stop_words()
 
     # Check fallback dictionary
     for term in cleaned_terms:

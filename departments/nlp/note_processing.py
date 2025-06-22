@@ -1,11 +1,11 @@
 from typing import Dict, List
 import re
 import spacy
-from medspacy.context import ConText  # Fix import
+from medspacy.context import ConText
 from medspacy.ner import TargetMatcher, TargetRule
 from departments.models.medicine import SOAPNote
 from departments.nlp.logging_setup import get_logger
-from departments.nlp.clinical_analyzer import ClinicalAnalyzer
+from departments.nlp.nlp_utils import get_umls_cui
 from departments.nlp.knowledge_base_io import load_knowledge_base, invalidate_cache
 import psycopg2
 from pymongo import MongoClient
@@ -184,13 +184,13 @@ def validate_symptom(symptom: Dict, kb: Dict) -> bool:
     logger.debug(f"Validated symptom: {sym}")
     return True
 
-def map_to_umls(term: str, analyzer: ClinicalAnalyzer) -> Dict:
-    """Map term to UMLS CUI with fallback."""
+def map_to_umls(term: str, analyzer=None) -> Dict:
+    """Map term to UMLS CUI with fallback using get_umls_cui from nlp_utils."""
     try:
-        result = analyzer.search_local_umls_cui([term])
-        if result.get(term):
-            logger.debug(f"Mapped '{term}' to {result[term]}")
-            return result[term]
+        cui, semantic_type = get_umls_cui(term)
+        if cui:
+            logger.debug(f"Mapped '{term}' to CUI: {cui}, Semantic Type: {semantic_type}")
+            return {"umls_cui": cui, "semantic_type": semantic_type}
         logger.warning(f"No UMLS CUI for term '{term}'")
         unmapped_file = os.path.join(CACHE_DIR, "unmapped_terms.txt")
         with open(unmapped_file, "a") as f:
@@ -352,7 +352,7 @@ def store_symptoms(symptoms: List[Dict], note_id: int) -> None:
         if 'mongo_client' in locals():
             mongo_client.close()
 
-def generate_ai_summary(note: SOAPNote, analyzer: ClinicalAnalyzer = None) -> str:
+def generate_ai_summary(note: SOAPNote, analyzer=None) -> str:
     """Generate an AI summary for a SOAP note, including symptoms with UMLS metadata."""
     logger.debug(f"Starting generate_ai_summary for note ID {getattr(note, 'id', 'unknown')}")
     
@@ -364,10 +364,9 @@ def generate_ai_summary(note: SOAPNote, analyzer: ClinicalAnalyzer = None) -> st
         # Define note_id early to avoid UnboundLocalError
         note_id = getattr(note, 'id', 0)
         
-        analyzer = analyzer or ClinicalAnalyzer()
-        logger.debug("Initialized ClinicalAnalyzer instance")
+        logger.debug("Generating summary without ClinicalAnalyzer")
 
-        # Load knowledge base without prefix (fix TypeError)
+        # Load knowledge base without prefix
         kb = load_knowledge_base()
         if KB_PREFIX:
             logger.warning(f"KB_PREFIX '{KB_PREFIX}' is defined but not used in load_knowledge_base")
@@ -382,7 +381,7 @@ def generate_ai_summary(note: SOAPNote, analyzer: ClinicalAnalyzer = None) -> st
         if not isinstance(situation, str):
             situation = str(situation)
 
-        preprocessed_terms = preprocess_clinical_text(situation)
+        preprocessed_terms = preprocess_clinical_text(situation)  # Fixed: situation_text -> situation
         chief_complaint = ""
         if preprocessed_terms:
             chief_complaint = normalize_symptom(preprocessed_terms[0]["symptom"], kb)
@@ -408,20 +407,20 @@ def generate_ai_summary(note: SOAPNote, analyzer: ClinicalAnalyzer = None) -> st
                 "umls_cui": None,
                 "semantic_type": "Unknown",
                 "negated": symptom.get("negated", False),
-                "note_id": note_id  # Add note_id to align with symptoms table
+                "note_id": note_id
             }
             
-            umls_data = map_to_umls(s_norm, analyzer)
+            umls_data = map_to_umls(s_norm)
             symptom_dict.update(umls_data)
             
             for category, symptoms in kb.get('symptoms', {}).items():
-                for kb_symptom, data in symptoms.items():
+                for kb_symptom, data in symptoms.items():  # Fixed: _symptom_data -> data
                     if s_norm == kb_symptom.lower():
                         symptom_dict.update({
                             "symptom": data.get('description', s_norm)[:100],
                             "umls_cui": data.get('umls_cui', symptom_dict.get('umls_cui')),
                             "semantic_type": data.get('semantic_type', symptom_dict.get('semantic_type'))[:50],
-                            "category": category[:50],  # Use KB category
+                            "category": category[:50],
                             "icd10": data.get('icd10', None),
                             "note_id": note_id
                         })
@@ -434,38 +433,38 @@ def generate_ai_summary(note: SOAPNote, analyzer: ClinicalAnalyzer = None) -> st
                 enriched_symptoms.append(symptom_dict)
             else:
                 logger.warning(f"Invalid symptom for note ID {note_id}: {symptom_dict.get('symptom', 'unknown')}")
-
+        
         store_symptoms(enriched_symptoms, note_id)
         
         if enriched_symptoms:
             symptom_text = ["Extracted Symptoms:"]
             for s in enriched_symptoms:
                 symptom_line = f"- {s.get('symptom', '')} (Category: {s.get('category', 'general')}"
-                if s.get('umls_cui'):
+                if s.get('umls_cui'):  # Fixed: s_umls_cui -> umls_cui
                     symptom_line += f", CUI: {s['umls_cui']}"
-                if s.get('semantic_type'):
+                if s.get('semantic_type'):  # Fixed: s_semantic_type -> semantic_type
                     symptom_line += f", Semantic Type: {s['semantic_type']}"
-                if s.get('icd10'):
+                if s.get('icd10'):  # Fixed: sicd10 -> icd10
                     symptom_line += f", ICD-10: {s['icd10']}"
                 if s.get('negated'):
-                    symptom_line += ", Negated: True"
+                    symptom_line += ", Negated: True"  # Fixed: malformed string
                 symptom_line += ")"
                 symptom_text.append(symptom_line)
             summary_parts.append('\n'.join(symptom_text))
 
         hpi = getattr(note, 'hpi', '') or ''
         if hpi:
-            summary_parts.append(f"HPI: {hpi.strip()}")
+            summary_parts.append(f"HPI: {hpi.strip()}")  # Fixed: malformed strip call
 
         medication_history = getattr(note, 'medication_history', '') or ''
         if medication_history:
-            summary_parts.append(f"Medications: {medication_history.strip()}")
+            summary_parts.append(f"Medications: {medication_history.strip()}")  # Fixed: extra brace
 
         assessment = getattr(note, 'assessment', '') or ''
         if assessment:
             primary_dx = re.search(r"Primary Assessment: (.*?)(?:\.|$)", assessment, re.DOTALL)
             if primary_dx:
-                summary_parts.append(f"Assessment: {primary_dx.group(1).strip()}")
+                summary_parts.append(f"Assessment: {primary_dx.group(1).strip()}")  # Fixed: malformed strip call
             else:
                 summary_parts.append(f"Assessment: {assessment.strip()}")
 

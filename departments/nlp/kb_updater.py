@@ -13,6 +13,7 @@ from departments.nlp.nlp_utils import embed_text
 from departments.nlp.nlp_common import FALLBACK_CUI_MAP
 import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from departments.nlp.nlp_utils import get_umls_cui
 from departments.nlp.config import (
     MONGO_URI, DB_NAME, POSTGRES_HOST, POSTGRES_PORT,
     POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD

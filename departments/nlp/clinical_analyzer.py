@@ -260,11 +260,13 @@ class ClinicalAnalyzer:
             return cui, semantic_type
 
         # Use KnowledgeBaseUpdater's UMLS search
-        if self.kb_updater:
+        if self.kb_updater and hasattr(self.kb_updater, "search_local_umls_cui"):
             result = self.kb_updater.search_local_umls_cui(symptom_lower)
             if result:
                 logger.debug(f"Found UMLS CUI for '{symptom_lower}': {result['cui']}, Semantic Type: {result['semantic_type']}")
                 return result['cui'], result['semantic_type']
+        else:
+            logger.warning("kb_updater is not initialized or missing 'search_local_umls_cui'.")
 
         logger.warning(f"No UMLS match for '{symptom_lower}'")
         return None, 'Unknown'
@@ -399,8 +401,13 @@ class ClinicalAnalyzer:
             potential_symptoms = getattr(note, 'Symptoms', getattr(note, 'symptoms', []))
             if not isinstance(potential_symptoms, list):
                 potential_symptoms = [potential_symptoms] if potential_symptoms else []
+            # Only use fallback if the above is empty and avoid splitting full sentences
             if not potential_symptoms:
-                potential_symptoms = [s.strip() for s in text.split(',') if s.strip() and len(s.strip()) > 2]
+                # Try to extract only likely symptom phrases (words, not sentences)
+                potential_symptoms = [
+                    s.strip() for s in re.split(r'[,\n;]', text)
+                    if s.strip() and len(s.strip().split()) <= 4  # Only short phrases
+                ]
 
             for symptom in potential_symptoms:
                 symptom_lower = symptom.lower().strip()
