@@ -113,7 +113,7 @@ default_symptoms: Dict[str, Dict[str, Dict]] = {
     },
     "musculoskeletal": {
         "back pain": {"description": "UMLS-derived: back pain", "semantic_type": "Sign or Symptom", "umls_cui": "C0004604"},
-        "joint pain": {"description": "UMLS-derived: joint pain", "semantic_type": "Sign or Symptom", "umls_cuisport": "C0003862"},
+        "joint pain": {"description": "UMLS-derived: joint pain", "semantic_type": "Sign or Symptom", "umls_cui": "C0003862"},
         "knee pain": {"description": "UMLS-derived: knee pain", "semantic_type": "Sign or Symptom", "umls_cui": "C0231749"},
         "pain on movement": {"description": "UMLS-derived: pain on movement", "semantic_type": "Sign or Symptom", "umls_cui": "C0234452"},
     },
