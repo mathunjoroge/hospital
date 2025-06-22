@@ -3,7 +3,7 @@ import spacy
 from spacy.tokens import Token, Span
 from spacy.language import Language
 from medspacy.target_matcher import TargetMatcher, TargetRule
-from medspacy.context import ConText
+from medspacy.context import ConText, ConTextRule
 from scispacy.linking import EntityLinker
 from pymongo import MongoClient, UpdateOne
 from pymongo.errors import ConnectionFailure, OperationFailure, DuplicateKeyError
@@ -13,8 +13,7 @@ from psycopg2.pool import SimpleConnectionPool
 from departments.models.pharmacy import Batch
 from departments.nlp.logging_setup import get_logger
 from departments.nlp.knowledge_base_io import load_knowledge_base, invalidate_cache
-from departments.nlp.nlp_utils import preprocess_text
-from departments.nlp.nlp_common import clean_term, FALLBACK_CUI_MAP
+from departments.nlp.nlp_utils import preprocess_text, clean_term, FALLBACK_CUI_MAP
 from dotenv import load_dotenv
 import os
 import time
@@ -43,11 +42,10 @@ from config import (
 logger = get_logger(__name__)
 
 _nlp_pipeline = None
-_sci_ner = None  # Initialize global _sci_ner
+_sci_ner = None
 _cui_cache = LRUCache(maxsize=10000)
 _phrase_cache = LRUCache(maxsize=1000)
 _cache_file = os.path.join(CACHE_DIR or 'data_cache', "cui_cache.pkl")
-
 
 class SciBERTWrapper:
     def __init__(self, model_name="en_core_sci_sm", disable_linker=True):
@@ -73,7 +71,7 @@ class SciBERTWrapper:
             "sentences": [sent.text for sent in doc.sents],
         }
 
-# Initialize _sci_ner using en_core_sci_sm-0.5.4
+# Initialize _sci_ner
 try:
     _sci_ner = SciBERTWrapper(model_name="en_core_sci_sm", disable_linker=True)
     logger.info("Initialized _sci_ner with en_core_sci_sm")
@@ -85,8 +83,8 @@ except Exception as e:
 knowledge_base = load_knowledge_base()
 STOP_TERMS = knowledge_base.get('medical_stop_words', set())
 STOP_TERMS.update({
-    'the', 'and', 'or', 'is', 'started', 'days', 'taking', 'makes', 'alleviates',
-    'foods', 'fats', 'strong', 'tea', 'licking', 'salt', 'worse'
+    'the', 'and', 'or', 'is', 'started', 'days', 'weeks', 'months', 'years', 'ago',
+    'taking', 'makes', 'alleviates', 'foods', 'fats', 'strong', 'tea', 'licking', 'salt', 'worse'
 })
 logger.info(f"Loaded {len(STOP_TERMS)} stop terms from knowledge base")
 
@@ -354,31 +352,35 @@ def extract_clinical_phrases(texts):
         logger.debug(f"Processed {len(batch)} texts with SciBERT, took {time.time() - batch_start:.3f} seconds")
         for j, (text, doc) in enumerate(zip(batch, docs)):
             phrases = []
+            # Extract noun chunks for multi-word phrases
+            for chunk in doc.noun_chunks:
+                cleaned = clean_term(chunk.text)
+                if cleaned and len(cleaned) <= 50 and len(cleaned.split()) <= 5 and cleaned not in STOP_TERMS:
+                    phrases.append(cleaned)
+            # Extract entities
             for ent in doc.ents:
                 if len(ent.text.strip()) <= 2:
                     continue
                 cleaned = clean_term(ent.text)
-                if cleaned and len(cleaned) <= 50 and len(cleaned.split()) <= 5:
+                if cleaned and len(cleaned) <= 50 and len(cleaned.split()) <= 5 and cleaned not in STOP_TERMS:
                     phrases.append(cleaned)
                 if ' and ' in ent.text:
-                    phrases.append(cleaned)
                     sub_phrases = [clean_term(p) for p in ent.text.split(' and ')]
-                    phrases.extend(p for p in sub_phrases if p and len(p) <= 50 and len(p.split()) <= 5)
+                    phrases.extend(p for p in sub_phrases if p and len(p) <= 50 and len(p.split()) <= 5 and p not in STOP_TERMS)
             # Split long texts into sentences
             for sent in doc.sents:
                 if len(sent.text.strip().split()) > 5:
                     for sub_ent in sent.ents:
                         cleaned = clean_term(sub_ent.text)
-                        if cleaned and len(cleaned) <= 50 and len(cleaned.split()) <= 5:
+                        if cleaned and len(cleaned) <= 50 and len(cleaned.split()) <= 5 and cleaned not in STOP_TERMS:
                             phrases.append(cleaned)
-            filtered_phrases = [p for p in phrases if p not in STOP_TERMS][:50]
-            _phrase_cache[text] = list(set(filtered_phrases))
-            results[i + j if len(texts) > 1 else 0] = _phrase_cache[text]
+            filtered_phrases = list(set(phrases))[:50]
+            _phrase_cache[text] = filtered_phrases
+            results[i + j if len(texts) > 1 else 0] = filtered_phrases
     logger.info(f"extract_clinical_phrases processed {len(texts)} texts, returned {sum(len(r) for r in results if r)} terms, took {time.time() - start_time:.3f} seconds")
     return results if len(texts) > 1 else results[0] or []
 
 def extract_aggravating_alleviating(text: str, factor_type: str) -> str:
-    """Extract aggravating or alleviating factors from text."""
     if not isinstance(text, str) or not text.strip():
         logger.debug(f"Invalid text for {factor_type} factor extraction: {text}")
         return "Unknown"
@@ -392,7 +394,6 @@ def extract_aggravating_alleviating(text: str, factor_type: str) -> str:
         logger.debug(f"Empty text after preprocessing for {factor_type} factor")
         return "Unknown"
 
-    # Patterns for aggravating and alleviating factors
     aggravating_patterns = [
         r'\b(makes\s+worse|worsens|aggravates|triggers)\s+([\w\s-]+?)(?=\s*|,\s*|\s+and\b|\s+or\b|$)',
         r'\b(worse\s+with|caused\s+by)\s+([\w\s-]+?)(?=\s*|,\s*|\s+and\b|\s+or\b|$)'
@@ -418,7 +419,7 @@ def extract_aggravating_alleviating(text: str, factor_type: str) -> str:
             logger.error(f"Invalid regex pattern '{pattern}': {str(e)}")
             continue
     logger.debug(f"No {factor_type} factor found in text: {text_clean[:50]}...")
-    return text_clean if text_clean else "Unknown"
+    return "Unknown"
 
 def get_nlp() -> Language:
     global _nlp_pipeline
@@ -469,11 +470,38 @@ def get_nlp() -> Language:
                 logger.error(f"Failed to initialize symptom_matcher: {e}")
                 raise
 
-        # Add context component
+        # Add context component with enhanced negation rules
         if "medspacy_context" not in nlp.pipe_names:
             try:
+                context = ConText(nlp, rules="default")
+                context.add([
+                    ConTextRule(
+                        literal="no|without|denies|not",
+                        category="NEGATED",
+                        pattern=r"\b(no|without|denies|not)\b",
+                        direction="FORWARD"
+                    ),
+                    ConTextRule(
+                        literal="absence of",
+                        category="NEGATED",
+                        pattern=r"\b(absence\s+of)\b",
+                        direction="FORWARD"
+                    ),
+                    ConTextRule(
+                        literal="negative for",
+                        category="NEGATED",
+                        pattern=r"\b(negative\s+for)\b",
+                        direction="FORWARD"
+                    ),
+                    ConTextRule(
+                        literal="no evidence of",
+                        category="NEGATED",
+                        pattern=r"\b(no\s+evidence\s+of)\b",
+                        direction="FORWARD"
+                    )
+                ])
                 nlp.add_pipe("medspacy_context", after="symptom_matcher")
-                logger.info("Added medspacy_context to pipeline")
+                logger.info("Added medspacy_context with custom negation rules")
             except Exception as e:
                 logger.error(f"Failed to add medspacy_context: {e}")
                 raise
@@ -529,22 +557,47 @@ def get_nlp() -> Language:
             kb = load_knowledge_base()
             logger.debug(f"Knowledge base loaded, version: {kb.get('version', 'Unknown')}")
 
-            # Define symptom rules
+            # Define enhanced symptom rules
             symptom_rules = [
                 TargetRule(
                     literal="nausea and vomiting",
                     category="SYMPTOM",
-                    attributes={"category": "gastrointestinal", "umls_cui": "C0027497"}
+                    attributes={"category": "gastrointestinal", "umls_cui": "C0027497", "semantic_type": "Sign or Symptom"}
                 ),
                 TargetRule(
-                    literal="jaundice in eyes",
+                    literal="loss of appetite",
                     category="SYMPTOM",
-                    attributes={"category": "hepatic", "umls_cui": "C0022346"}
+                    attributes={"category": "gastrointestinal", "umls_cui": "C0234450", "semantic_type": "Sign or Symptom"}
+                ),
+                TargetRule(
+                    literal="jaundice",
+                    category="SYMPTOM",
+                    attributes={"category": "hepatic", "umls_cui": "C0022346", "semantic_type": "Sign or Symptom"}
                 ),
                 TargetRule(
                     literal="fever",
                     category="SYMPTOM",
-                    attributes={"category": "general", "umls_cui": "C0015967"}
+                    attributes={"category": "systemic", "umls_cui": "C0015967", "semantic_type": "Sign or Symptom"}
+                ),
+                TargetRule(
+                    literal="chills",
+                    category="SYMPTOM",
+                    attributes={"category": "systemic", "umls_cui": "C0085593", "semantic_type": "Sign or Symptom"}
+                ),
+                TargetRule(
+                    literal="headache",
+                    category="SYMPTOM",
+                    attributes={"category": "neurological", "umls_cui": "C0018681", "semantic_type": "Sign or Symptom"}
+                ),
+                TargetRule(
+                    literal="fatigue",
+                    category="SYMPTOM",
+                    attributes={"category": "systemic", "umls_cui": "C0015672", "semantic_type": "Sign or Symptom"}
+                ),
+                TargetRule(
+                    literal="abdominal pain",
+                    category="SYMPTOM",
+                    attributes={"category": "gastrointestinal", "umls_cui": "C0000737", "semantic_type": "Sign or Symptom"}
                 )
             ]
 
@@ -603,7 +656,6 @@ def get_nlp() -> Language:
         raise
 
 def process_symptom_batch(symptom_docs: list, symptom_rules: list, counts: dict, kb: dict, symptoms_collection):
-    """Process a batch of symptom documents and update rules."""
     symptom_texts = [doc['symptom'] for doc in symptom_docs if 'symptom' in doc and doc['symptom'] and len(doc['symptom']) >= 2]
     terms_list = extract_clinical_phrases(symptom_texts)
     logger.debug(f"Extracted {sum(len(terms) for terms in terms_list)} terms from {len(symptom_texts)} symptoms")
