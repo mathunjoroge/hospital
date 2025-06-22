@@ -1,4 +1,3 @@
-# /home/mathu/projects/hospital/departments/nlp/nlp_common.py
 import re
 import os
 import json
@@ -39,6 +38,17 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize PostgreSQL connection pool: {e}")
     raise
+
+# Expanded stop words for filtering non-clinical terms
+STOP_WORDS = {
+    'the', 'and', 'or', 'is', 'started', 'days', 'weeks', 'months', 'years', 'ago',
+    'taking', 'makes', 'alleviates', 'foods', 'fats', 'strong', 'tea', 'licking', 'salt', 'worse',
+    'patient', 'presents', 'reports', 'complains', 'assessment', 'by', 'on', 'for', 'with',
+    'two', 'three', '10', 'obese', 'made', 'sitting', 'down', 'long', 'alleviated', 'standing',
+    'stretching', 'ob', 'fe', 'systems', 'ophthalmologic', 'gi', 'gu', 'endocrine', 'cardiovascular',
+    'pulmonary', 'mood', 'primary', 'differential', 'consistent', 'worsen', 'decongestants', 'acute',
+    'viral', 'no', 'not', 'none', 'never'  # Basic negation words
+}
 
 # Expanded fallback map for symptoms with UMLS CUIs and semantic types
 FALLBACK_CUI_MAP = {
@@ -89,11 +99,22 @@ FALLBACK_CUI_MAP = {
     "neck stiffness": {"umls_cui": "C0029100", "semantic_type": "Sign or Symptom"},
     "epigastric pain": {"umls_cui": "C0234453", "semantic_type": "Sign or Symptom"},
     "pain on movement": {"umls_cui": "C0234454", "semantic_type": "Sign or Symptom"},
-    "heart palpitations": {"umls_cui": "C0030252", "semantic_type": "Sign or Symptom"}
+    "heart palpitations": {"umls_cui": "C0030252", "semantic_type": "Sign or Symptom"},
+    "sinusitis": {"umls_cui": "C0037195", "semantic_type": "Disease or Syndrome"},
+    "diabetes": {"umls_cui": "C0011849", "semantic_type": "Disease or Syndrome"}
 }
 
-# In-memory cache for CUIs
-_cui_cache = {}
+# In-memory cache for CUIs with versioning
+CUI_CACHE_VERSION = "1.0"
+_cui_cache = {"version": CUI_CACHE_VERSION, "data": {}}
+
+def is_negated_term(term: str) -> bool:
+    """Detect if a term contains negation words."""
+    if not term or not isinstance(term, str):
+        return False
+    term_lower = term.lower()
+    negation_words = {'no', 'not', 'none', 'never', 'without', 'denies', 'negative'}
+    return any(word in term_lower.split() for word in negation_words)
 
 def clean_term(term: str) -> str:
     """Clean a medical term for processing.
@@ -102,22 +123,27 @@ def clean_term(term: str) -> str:
     - Converts to lowercase.
     - Removes non-alphanumeric characters except whitespace.
     - Collapses multiple spaces to a single space.
-    - Returns an empty string if input is not a string or is too long.
+    - Filters out stop words and negated terms.
+    - Returns an empty string if input is invalid, too long, or negated.
     """
     if not isinstance(term, str):
         logger.warning(f"Invalid term for cleaning (not a string): term={term}, type={type(term)}")
         return ""
     term = term.strip()
     if not term:
-        logger.warning("Empty term after stripping whitespace.")
+        logger.warning(f"Empty term after stripping whitespace: original='{term}'")
         return ""
-    if len(term) > 200:
+    if len(term) > 100:  # Align with SymptomTracker's limit
         logger.warning(f"Invalid term for cleaning (too long): term={term[:50]}..., length={len(term)}")
         return ""
     try:
         term = term.lower()
         term = re.sub(r'[^\w\s]', '', term)
         term = ' '.join(term.split())
+        # Check for stop words or negation
+        if term in STOP_WORDS or is_negated_term(term):
+            logger.debug(f"Filtered term as stop word or negated: {term}")
+            return ""
         logger.debug(f"Cleaned term: {term}")
         return term
     except Exception as e:
@@ -212,6 +238,9 @@ def load_fallback_map():
                         if 'umls_cui' not in entry or 'semantic_type' not in entry:
                             logger.warning(f"Skipping invalid entry in cache for '{symptom}': missing required fields")
                             continue
+                        if not isinstance(entry['umls_cui'], str) or not entry['umls_cui'].startswith('C'):
+                            logger.warning(f"Skipping invalid CUI in cache for '{symptom}': {entry['umls_cui']}")
+                            continue
                         FALLBACK_CUI_MAP[symptom] = entry
                     logger.info(f"Loaded {len(FALLBACK_CUI_MAP)} entries from {cache_file}")
             except json.JSONDecodeError:
@@ -241,6 +270,7 @@ def save_cui_cache():
 
 def load_cui_cache():
     """Load the CUI cache from a file in CACHE_DIR."""
+    global _cui_cache
     if not CACHE_DIR:
         logger.error("CACHE_DIR not configured, skipping cui cache load")
         return
@@ -253,8 +283,11 @@ def load_cui_cache():
                     if not isinstance(data, dict):
                         logger.error(f"Invalid data in {cache_file}: expected dict, got {type(data)}")
                         return
-                    _cui_cache.update(data)
-                    logger.info(f"Loaded {len(_cui_cache)} entries from {cache_file}")
+                    if data.get("version") != CUI_CACHE_VERSION:
+                        logger.warning(f"Cache version mismatch: expected {CUI_CACHE_VERSION}, got {data.get('version')}. Clearing cache.")
+                        return
+                    _cui_cache = data
+                    logger.info(f"Loaded {len(_cui_cache['data'])} entries from {cache_file}")
             except json.JSONDecodeError:
                 logger.error(f"Invalid JSON format in {cache_file}")
         else:
@@ -278,30 +311,33 @@ def get_cui_from_db(terms: List[str], max_attempts: int = 3, max_tsquery_bytes: 
     results = {term: None for term in terms}
     terms_to_query = []
     oversized_count = 0
+    cache_hits = 0
 
     # Validate and clean terms
     for term in terms:
         cleaned_term = clean_term(term)
         if not cleaned_term:
-            logger.warning(f"Skipping invalid term: {term}")
+            logger.debug(f"Skipping invalid term: {term}")
             continue
-        if cleaned_term in _cui_cache:
-            logger.debug(f"Cache hit for '{cleaned_term}': CUI={_cui_cache[cleaned_term]}")
+        if cleaned_term in _cui_cache["data"]:
+            cache_hits += 1
+            logger.debug(f"Cache hit for '{cleaned_term}': CUI={_cui_cache['data'][cleaned_term]}")
             results[term] = {
-                "umls_cui": _cui_cache[cleaned_term],
+                "umls_cui": _cui_cache["data"][cleaned_term],
                 "semantic_type": FALLBACK_CUI_MAP.get(cleaned_term, {}).get('semantic_type', 'Unknown')
             }
         elif cleaned_term in FALLBACK_CUI_MAP:
+            cache_hits += 1
             logger.debug(f"Fallback hit for '{cleaned_term}': {FALLBACK_CUI_MAP[cleaned_term]}")
             results[term] = FALLBACK_CUI_MAP[cleaned_term]
-            _cui_cache[cleaned_term] = FALLBACK_CUI_MAP[cleaned_term]['umls_cui']
-            logger.debug(f"Added to cache: {cleaned_term}, CUI={_cui_cache[cleaned_term]}")
+            _cui_cache["data"][cleaned_term] = FALLBACK_CUI_MAP[cleaned_term]['umls_cui']
+            logger.debug(f"Added to cache: {cleaned_term}, CUI={_cui_cache['data'][cleaned_term]}")
         else:
             terms_to_query.append(cleaned_term)
             logger.debug(f"Queueing term for DB query: {cleaned_term}")
 
     if not terms_to_query:
-        logger.info("All terms resolved via cache or fallback")
+        logger.info(f"All terms resolved via cache or fallback (hits: {cache_hits})")
         save_cui_cache()
         return results
 
@@ -328,14 +364,16 @@ def get_cui_from_db(terms: List[str], max_attempts: int = 3, max_tsquery_bytes: 
             query_start = time.time()
             for attempt in range(max_attempts):
                 try:
-                    # Exact match query
+                    # Exact match query with optimized conditions
                     query = sql.SQL("""
                         SELECT DISTINCT c.STR, c.CUI, s.STY
                         FROM umls.MRCONSO c
                         LEFT JOIN umls.MRSTY s ON c.CUI = s.CUI
-                        WHERE c.SAB = 'SNOMEDCT'
+                        WHERE c.SAB IN ('SNOMEDCT', 'ICD10CM')
                         AND c.SUPPRESS = 'N'
+                        AND c.TTY IN ('PT', 'SY')
                         AND LOWER(c.STR) IN %s
+                        AND octet_length(c.STR) <= 100
                     """)
                     cursor.execute(query, (tuple(batch_terms),))
                     for row in cursor.fetchall():
@@ -345,7 +383,7 @@ def get_cui_from_db(terms: List[str], max_attempts: int = 3, max_tsquery_bytes: 
                                 "umls_cui": row[1],
                                 "semantic_type": row[2] or FALLBACK_CUI_MAP.get(term, {}).get('semantic_type', 'Unknown')
                             }
-                            _cui_cache[term] = row[1]
+                            _cui_cache["data"][term] = row[1]
                             if term not in FALLBACK_CUI_MAP:
                                 FALLBACK_CUI_MAP[term] = results[term]
                                 logger.debug(f"Updated FALLBACK_CUI_MAP with {term}: {results[term]}")
@@ -359,7 +397,7 @@ def get_cui_from_db(terms: List[str], max_attempts: int = 3, max_tsquery_bytes: 
                         continue
 
             # Full-text search for remaining terms
-            remaining = [t for t in batch_terms if results[t] is None]
+            remaining = [t for t in batch_terms if results.get(t) is None]
             if not remaining:
                 continue
             tsquery_parts = []
@@ -368,9 +406,16 @@ def get_cui_from_db(terms: List[str], max_attempts: int = 3, max_tsquery_bytes: 
             for t in remaining:
                 byte_len = len(t.encode('utf-8'))
                 if byte_len > max_tsquery_bytes:
+                    # Attempt to split oversized term
+                    sub_terms = t.split()
+                    for sub_term in sub_terms:
+                        sub_cleaned = clean_term(sub_term)
+                        if sub_cleaned and len(sub_cleaned.encode('utf-8')) <= max_tsquery_bytes:
+                            tsquery_parts.append(f"{sub_cleaned}:*")
+                            current_size += len(sub_cleaned.encode('utf-8'))
                     batch_oversized += 1
                     oversized_count += 1
-                    logger.warning(f"Skipping oversized term: {t[:50]}... ({byte_len} bytes)")
+                    logger.warning(f"Split oversized term: {t[:50]}... ({byte_len} bytes)")
                     continue
                 part = ' & '.join(t.split())
                 part += ':*'
@@ -381,7 +426,7 @@ def get_cui_from_db(terms: List[str], max_attempts: int = 3, max_tsquery_bytes: 
                 current_size += part_size
 
             if batch_oversized:
-                logger.warning(f"Skipped {batch_oversized} oversized terms for batch {i//BATCH_SIZE + 1}")
+                logger.warning(f"Processed {batch_oversized} oversized terms for batch {i//BATCH_SIZE + 1}")
             if not tsquery_parts:
                 logger.warning(f"Skipping batch {i//BATCH_SIZE + 1} due to tsquery size limit")
                 continue
@@ -394,10 +439,11 @@ def get_cui_from_db(terms: List[str], max_attempts: int = 3, max_tsquery_bytes: 
                         SELECT DISTINCT c.STR, c.CUI, s.STY
                         FROM umls.MRCONSO c
                         LEFT JOIN umls.MRSTY s ON c.CUI = s.CUI
-                        WHERE c.SAB = 'SNOMEDCT'
+                        WHERE c.SAB IN ('SNOMEDCT', 'ICD10CM')
                         AND to_tsvector('english', c.STR) @@ to_tsquery('english', %s)
                         AND c.SUPPRESS = 'N'
-                        AND octet_length(c.STR) <= 1048575
+                        AND c.TTY IN ('PT', 'SY')
+                        AND octet_length(c.STR) <= 100
                     """)
                     cursor.execute(query, (tsquery,))
                     for row in cursor.fetchall():
@@ -407,7 +453,7 @@ def get_cui_from_db(terms: List[str], max_attempts: int = 3, max_tsquery_bytes: 
                                 'umls_cui': row[1],
                                 "semantic_type": row[2] or FALLBACK_CUI_MAP.get(term, {}).get('semantic_type', 'Unknown')
                             }
-                            _cui_cache[term] = row[1]
+                            _cui_cache["data"][term] = row[1]
                             if term not in FALLBACK_CUI_MAP:
                                 FALLBACK_CUI_MAP[term] = results[term]
                                 logger.debug(f"Updated FALLBACK_CUI_MAP with {term}: {results[term]}")
@@ -438,9 +484,7 @@ def get_cui_from_db(terms: List[str], max_attempts: int = 3, max_tsquery_bytes: 
         save_cui_cache()
     except Exception as e:
         logger.error(f"Failed to save CUI cache after query: {e}")
-    if oversized_count:
-        logger.warning(f"Skipped {oversized_count} oversized terms during processing")
-    logger.info(f"get_cui_from_db processed {len(terms)} terms in {time.time() - start_time:.2f} seconds")
+    logger.info(f"get_cui_from_db processed {len(terms)} terms in {time.time() - start_time:.2f} seconds, cache hits: {cache_hits}")
     return results
 
 # Initialize fallback map and cache at module load
@@ -454,7 +498,7 @@ except Exception as e:
 
 # Example usage
 if __name__ == "__main__":
-    test_terms = ["fever", "headache", "back pain", "cough", "", "dizziness"]
+    test_terms = ["fever", "headache", "back pain", "cough", "", "dizziness", "no cough", "sinusitis", "diabetes"]
     results = get_cui_from_db(test_terms)
     for term, result in results.items():
         if result:
