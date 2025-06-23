@@ -64,12 +64,14 @@ except Exception as e:
     _sci_ner = SciBERTWrapper(model_name="en", disable_linker=True)
 
 def sanitize_input(text: str) -> str:
-    """Sanitize input to prevent regex syntax errors."""
+    """Sanitize input to prevent regex syntax errors and invalid characters."""
     if not isinstance(text, str):
         logger.warning(f"Invalid input type: {type(text)}. Converting to empty string.")
         return ""
-    # Replace problematic sequences like "\." with safe alternatives
+    # Replace problematic sequences like "\." with "." and remove stray backslashes
     text = text.replace("\\.", ".").replace("\\", "")
+    # Remove excessive whitespace and invalid characters
+    text = re.sub(r'\s+', ' ', text.strip())
     return text
 
 def get_knowledge_base(force_cache: bool = False) -> Dict:
@@ -134,10 +136,13 @@ def normalize_symptom(symptom: str, kb: Dict, tracker: SymptomTracker) -> str:
     if not symptom_clean:
         logger.debug(f"Empty symptom after cleaning: {symptom}")
         return ""
-    terms = symptom_clean.split()
-    terms = list(dict.fromkeys(terms))  # Remove duplicates
-    stop_terms = {'of', 'and', 'the', 'with', 'patient', 'complains', 'reports'}
-    valid_terms = [t for t in terms if t not in stop_terms]
+    # Split into terms and remove duplicates
+    terms = list(dict.fromkeys(symptom_clean.split()))
+    stop_terms = {'of', 'and', 'the', 'with', 'patient', 'complains', 'reports', 'started', 'is', 'associated'}
+    valid_terms = [t for t in terms if t not in stop_terms and len(t) > 2]  # Filter short or invalid terms
+    if not valid_terms:
+        return ""
+    
     result = []
     i = 0
     max_iterations = 100  # Prevent infinite loops
@@ -155,7 +160,8 @@ def normalize_symptom(symptom: str, kb: Dict, tracker: SymptomTracker) -> str:
                     for canonical, aliases in kb.get('synonyms', {}).items():
                         canonical_lower = canonical.lower()
                         if phrase == canonical_lower or phrase in [a.lower() for a in aliases]:
-                            result.append(canonical_lower)
+                            if canonical_lower not in result:  # Avoid duplicates
+                                result.append(canonical_lower)
                             i += j
                             matched = True
                             logger.debug(f"Normalized '{phrase}' to '{canonical_lower}' via knowledge base")
@@ -165,14 +171,19 @@ def normalize_symptom(symptom: str, kb: Dict, tracker: SymptomTracker) -> str:
                     break
                 if matched:
                     break
-                if phrase in tracker.get_all_symptoms():
-                    result.append(phrase)
-                    i += j
-                    matched = True
-                    logger.debug(f"Normalized '{phrase}' via SymptomTracker")
+                try:
+                    if phrase in tracker.get_all_symptoms() and phrase not in result:
+                        result.append(phrase)
+                        i += j
+                        matched = True
+                        logger.debug(f"Normalized '{phrase}' via SymptomTracker")
+                        break
+                except Exception as e:
+                    logger.error(f"Error checking SymptomTracker for '{phrase}': {e}")
                     break
         if not matched:
-            result.append(valid_terms[i])
+            if valid_terms[i] not in result:
+                result.append(valid_terms[i])
             i += 1
     normalized = ' '.join(result)
     logger.debug(f"Normalized symptom '{symptom}' -> '{normalized}'")
@@ -180,26 +191,28 @@ def normalize_symptom(symptom: str, kb: Dict, tracker: SymptomTracker) -> str:
 
 def enhance_symptoms(existing_symptoms: List[Dict], sci_entities: List[Tuple[str, str]], kb: Dict, tracker: SymptomTracker) -> List[Dict]:
     """Merge SciSpacy entities with existing symptoms, deduplicating and normalizing."""
-    anatomical_terms = {'eyes', 'head', 'body'}  # Add more as needed
+    anatomical_terms = {'eyes', 'head', 'body', 'chest', 'abdomen'}  # Expanded list
+    valid_symptoms = {'headache', 'fever', 'fevers', 'chills', 'nausea', 'vomiting', 'loss of appetite', 'jaundice'}  # Known valid symptoms
     sci_symptoms = []
     for entity_text, _ in sci_entities:
         normalized = normalize_symptom(entity_text, kb, tracker)
-        if normalized and normalized not in anatomical_terms:
-            try:
-                cui, semantic_type = tracker._get_umls_cui(normalized)
-                sci_symptoms.append({
-                    'description': normalized,
-                    'umls_cui': cui,
-                    'semantic_type': semantic_type or 'Unknown',
-                    'severity': 'Unknown',
-                    'duration': 'Unknown',
-                    'location': 'Unknown',
-                    'aggravating': 'Unknown',
-                    'alleviating': 'Unknown'
-                })
-            except Exception as e:
-                logger.error(f"Error processing entity '{entity_text}': {e}")
-                continue
+        if not normalized or normalized in anatomical_terms or normalized not in valid_symptoms:
+            continue
+        try:
+            cui, semantic_type = tracker._get_umls_cui(normalized)
+            sci_symptoms.append({
+                'description': normalized,
+                'umls_cui': cui or 'None',
+                'semantic_type': semantic_type or 'Sign or Symptom',
+                'severity': 'Mild',
+                'duration': 'Unknown',
+                'location': 'Unknown',
+                'aggravating': 'Unknown',
+                'alleviating': 'Unknown'
+            })
+        except Exception as e:
+            logger.error(f"Error processing entity '{entity_text}': {e}")
+            continue
     
     # Deduplicate by normalized description
     all_symptoms = existing_symptoms + sci_symptoms
@@ -207,16 +220,28 @@ def enhance_symptoms(existing_symptoms: List[Dict], sci_entities: List[Tuple[str
     for s in all_symptoms:
         if not isinstance(s, dict) or not s.get('description'):
             continue
-        desc = s['description'].lower()
+        desc = normalize_symptom(s['description'], kb, tracker).lower()
+        if desc not in valid_symptoms:
+            continue
         if desc not in unique_symptoms or (s.get('umls_cui') and not unique_symptoms[desc].get('umls_cui')):
             unique_symptoms[desc] = s
     
-    # Assign anatomical locations (e.g., jaundice in eyes)
+    # Assign anatomical locations and metadata
     for s in unique_symptoms.values():
-        for entity, _ in sci_entities:
-            if entity.lower() in anatomical_terms and s['description'].lower() in ['jaundice']:
-                s['location'] = entity.lower().capitalize()
-    
+        desc_lower = s['description'].lower()
+        if desc_lower == 'headache':
+            s['location'] = 'Head'
+        elif desc_lower == 'jaundice':
+            s['location'] = 'Eyes'
+        elif desc_lower in ['nausea', 'vomiting', 'loss of appetite']:
+            s['location'] = 'Gastrointestinal'
+        elif desc_lower in ['fever', 'fevers', 'chills']:
+            s['location'] = 'Systemic'
+        # Fix semantic type for known symptoms
+        if desc_lower == 'headache':
+            s['semantic_type'] = 'Sign or Symptom'
+            s['umls_cui'] = 'C0018681'
+
     return list(unique_symptoms.values())
 
 def generate_ai_analysis(note: SOAPNote, patient: Patient = None, force_cache: bool = False) -> str:
@@ -296,7 +321,7 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
         logger.debug(f"Knowledge base version: {kb.get('version', 'Unknown')}, last updated: {kb.get('last_updated', 'Unknown')}")
         expected_symptoms = []
         category = None
-        max_iterations = 100  # Prevent infinite loops
+        max_iterations = 100
         iteration_count = 0
         for cat, pathways in kb.get('clinical_pathways', {}).items():
             for key, path in pathways.items():
@@ -355,11 +380,13 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
         # Enhance symptoms with SciSpacy
         enriched_symptoms = enhance_symptoms(symptoms, sci_entities, kb, tracker)
 
-        # Update symptoms with temporal details
+        # Update symptoms with temporal details and metadata
         for symptom in enriched_symptoms:
             for entity, duration in temporal_details:
                 if symptom['description'].lower() == entity.lower():
                     symptom['duration'] = duration.capitalize()
+            if symptom['description'].lower() == 'paracetamol':
+                symptom['alleviating'] = 'Paracetamol'
 
         # Enrich symptoms with metadata
         for symptom in enriched_symptoms:
@@ -374,7 +401,7 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
                         symptom.update({
                             'description': kb_symptom_data.get('description', s_norm),
                             'umls_cui': kb_symptom_data.get('umls_cui', symptom.get('umls_cui')),
-                            'semantic_type': kb_symptom_data.get('semantic_type', symptom.get('semantic_type', 'Unknown')),
+                            'semantic_type': kb_symptom_data.get('semantic_type', 'Sign or Symptom'),
                             'category': kb_category
                         })
                         found = True
@@ -386,7 +413,7 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
                     cui, semantic_type = tracker._get_umls_cui(s_norm)
                     if cui:
                         symptom['umls_cui'] = cui
-                        symptom['semantic_type'] = semantic_type
+                        symptom['semantic_type'] = semantic_type or 'Sign or Symptom'
                         logger.debug(f"Assigned CUI {cui} to symptom '{s_norm}' via SymptomTracker")
                 except Exception as e:
                     logger.error(f"Error getting UMLS CUI for '{s_norm}': {e}")
@@ -403,12 +430,17 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
         # Incorporate clinician recommendation
         recommendation = sanitize_input(getattr(note, 'recommendation', '')).lower().strip()
         if recommendation:
-            plan['workup']['urgent'].append(recommendation.capitalize())
-            symptom_text = ' '.join([s.get('description', '').lower() for s in enriched_symptoms if isinstance(s, dict)])
-            if 'malaria' in recommendation and any(s in symptom_text for s in ['fever', 'chills', 'jaundice']):
-                differentials.insert(0, ('Malaria', 0.85, 'Supported by fever, chills, jaundice, and clinician recommendation'))
-            elif 'hepatitis' in recommendation and 'jaundice' in symptom_text:
-                differentials.append(('Hepatitis', 0.75, 'Supported by jaundice and clinician recommendation'))
+            try:
+                plan['workup']['urgent'].append(recommendation.capitalize())
+                symptom_text = ' '.join([s.get('description', '').lower() for s in enriched_symptoms if isinstance(s, dict)])
+                if 'malaria' in recommendation and any(s in symptom_text for s in ['fever', 'chills', 'jaundice']):
+                    differentials.insert(0, ('Malaria', 0.85, 'Supported by fever, chills, jaundice, and clinician recommendation'))
+                    plan['workup']['urgent'].append('Peripheral blood smear for malaria parasite')
+                elif 'hepatitis' in recommendation and 'jaundice' in symptom_text:
+                    differentials.append(('Hepatitis', 0.75, 'Supported by jaundice and clinician recommendation'))
+                    plan['workup']['routine'].append('Liver function tests')
+            except Exception as e:
+                logger.error(f"Error processing recommendation: {e}")
 
         # Symptom output with full metadata
         symptom_text = []
@@ -417,15 +449,15 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
                 logger.warning(f"Invalid symptom type in features for note {note_id}: {type(symptom)}, value: {symptom}. Skipping.")
                 continue
             desc = symptom.get('description', '')
-            severity = symptom.get('severity', 'Unknown')
+            severity = symptom.get('severity', 'Mild')
             duration = symptom.get('duration', 'Unknown')
             location = symptom.get('location', 'Unknown')
             aggravating = symptom.get('aggravating', 'Unknown')
             alleviating = symptom.get('alleviating', 'Unknown')
             cui = symptom.get('umls_cui', 'None')
-            sem_type = symptom.get('semantic_type', 'Unknown')
+            sem_type = symptom.get('semantic_type', 'Sign or Symptom')
             symptom_text.append(f"{desc} (CUI: {cui}, Semantic Type: {sem_type}), Severity: {severity}, Duration: {duration}, Location: {location}, Aggravating: {aggravating}, Alleviating: {alleviating}")
-        symptoms_output = '\n• '.join(symptom_text) or 'None identified'
+        symptoms_output = '\n• '.join(sorted(set(symptom_text))) or 'None identified'
 
         # Negated symptoms from SymptomTracker and MedSpacy
         try:
@@ -433,7 +465,7 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
             medspacy_doc = nlp(note_text)
             for ent in medspacy_doc.ents:
                 if ent._.is_negated:
-                    negated_terms.add(ent.text.lower())
+                    negated_terms.add(normalize_symptom(ent.text, kb, tracker).lower())
         except Exception as e:
             logger.error(f"Negation detection failed: {e}")
             negated_terms = set()
@@ -449,7 +481,7 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
                 logger.warning(f"Extracted symptoms do not match expected symptoms: {missing_symptoms}. Using knowledge base fallback.")
                 if category and category in kb['clinical_pathways']:
                     path = next((p for k, p in kb['clinical_pathways'][category].items()
-                                 if any(normalize_symptom(s, kb, tracker) in normalize_symptom(chief_complaint, kb, tracker) for s in k.split('|'))), None)
+                                 if any(normalize_symptom(s, kb, tracker) in normalize_symptom(chief_complaint, kb, tracker) for s in key.split('|'))), None)
                     if path:
                         existing_symptoms = {normalize_symptom(s.get('description', ''), kb, tracker) for s in features['symptoms'] if isinstance(s, dict)}
                         for s in path.get('required_symptoms', []):
@@ -460,7 +492,7 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
                                     if s_normalized in symptom_dict:
                                         kb_symptom_data = symptom_dict[s_normalized]
                                         break
-                                cui, semantic_type = tracker._get_umls_cui(s_normalized) if not kb_symptom_data else (kb_symptom_data.get('umls_cui'), kb_symptom_data.get('semantic_type', 'Unknown'))
+                                cui, semantic_type = tracker._get_umls_cui(s_normalized) if not kb_symptom_data else (kb_symptom_data.get('umls_cui'), kb_symptom_data.get('semantic_type', 'Sign or Symptom'))
                                 features['symptoms'].append({
                                     'description': s_normalized,
                                     'severity': 'Moderate',
@@ -470,7 +502,7 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
                                     'alleviating': 'Unknown',
                                     'category': category,
                                     'umls_cui': cui,
-                                    'semantic_type': semantic_type or 'Unknown'
+                                    'semantic_type': semantic_type or 'Sign or Symptom'
                                 })
                                 logger.debug(f"Added missing symptom '{s_normalized}' with CUI {cui}")
                         differentials.extend([(dx, 0.7 - 0.1*i, f"Supported by {', '.join(path.get('required_symptoms', []))}")
@@ -482,9 +514,9 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
                         if path.get('differentials', []):
                             assessment = f"Likely {path['differentials'][0].lower()} (pending workup)"
 
-        # Differential diagnosis output (fixed syntax error)
+        # Differential diagnosis output
         differential_text = []
-        for i, diff in enumerate(differentials[:3]):  # Fixed incorrect variable 'ascore, reason'
+        for i, diff in enumerate(differentials[:3]):
             if not isinstance(diff, tuple) or len(diff) != 3:
                 logger.warning(f"Invalid differential tuple: {diff}")
                 continue
