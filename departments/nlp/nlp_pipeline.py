@@ -30,7 +30,7 @@ load_dotenv()
 from config import (
     MONGO_URI,
     DB_NAME,
-    KB_PREFIX,
+
     SYMPTOMS_COLLECTION,
     POSTGRES_HOST,
     POSTGRES_PORT,
