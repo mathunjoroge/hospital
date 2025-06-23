@@ -7,7 +7,7 @@ from departments.nlp.symptom_tracker import SymptomTracker
 from departments.nlp.nlp_utils import get_patient_info, preprocess_text
 from departments.nlp.knowledge_base_io import load_knowledge_base, invalidate_cache
 from departments.nlp.logging_setup import get_logger
-from departments.nlp.config import MIN_CONFIDENCE_THRESHOLD, MONGO_URI, DB_NAME, KB_PREFIX, SYMPTOMS_COLLECTION
+from departments.nlp.config import MIN_CONFIDENCE_THRESHOLD, MONGO_URI, DB_NAME,  SYMPTOMS_COLLECTION
 from departments.nlp.nlp_pipeline import clean_term
 import medspacy
 
