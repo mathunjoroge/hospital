@@ -1,26 +1,23 @@
 import re
-import spacy
 from typing import List, Dict, Tuple, Set, Optional
 from departments.models.medicine import SOAPNote
 from departments.models.records import Patient
 from departments.nlp.clinical_analyzer import ClinicalAnalyzer
 from departments.nlp.symptom_tracker import SymptomTracker
-from departments.nlp.nlp_utils import get_patient_info, preprocess_text
-from departments.nlp.knowledge_base_io import load_knowledge_base, invalidate_cache
+from departments.nlp.nlp_utils import get_patient_info, preprocess_text, parse_date
+from departments.nlp.knowledge_base_io import load_knowledge_base, invalidate_cache, REQUIRED_CATEGORIES
 from departments.nlp.logging_setup import get_logger
-from departments.nlp.config import MIN_CONFIDENCE_THRESHOLD, MONGO_URI, DB_NAME, SYMPTOMS_COLLECTION
+from departments.nlp.config import MIN_CONFIDENCE_THRESHOLD, MONGO_URI, DB_NAME, SYMPTOMS_COLLECTION, KB_PREFIX
 from departments.nlp.nlp_pipeline import clean_term
 import medspacy
+import spacy
 from spacy.tokens import Doc
 
-# Initialize MedSpacy and logger
 nlp = medspacy.load()
 logger = get_logger(__name__)
 
-# Cached knowledge base
 _knowledge_base: Optional[Dict] = None
 
-# SciSpacy NER wrapper
 class SciBERTWrapper:
     def __init__(self, model_name: str = "en_core_sci_sm", disable_linker: bool = True):
         try:
@@ -30,49 +27,57 @@ class SciBERTWrapper:
                 self.nlp.remove_pipe("entity_linker")
                 logger.info("Removed entity_linker to avoid nmslib dependency.")
         except OSError as e:
-            logger.error(f"Failed to load spaCy model {model_name}: {e}. Using blank model.")
+            logger.warning(f"Failed to load spaCy model {model_name}: {e}. Falling back to blank model.")
             self.nlp = spacy.blank("en")
+            logger.info("Using blank spaCy model as fallback.")
 
     def extract_entities(self, text: str) -> List[Tuple[str, str]]:
-        if not isinstance(text, str):
-            logger.error(f"Invalid text type: {type(text)}")
+        if not isinstance(text, str) or not text.strip():
+            logger.warning(f"Invalid text for entity extraction: {text}")
             return []
-        doc = self.nlp(text)
-        return [(ent.text, ent.label_) for ent in doc.ents]
+        try:
+            doc = self.nlp(text)
+            return [(ent.text, ent.label_) for ent in doc.ents]
+        except Exception as e:
+            logger.error(f"Entity extraction failed: {e}")
+            return []
 
     def extract_temporal_details(self, doc: Doc) -> List[Tuple[str, str]]:
-        """Extract temporal relationships for entities."""
-        temporal = []
-        for ent in doc.ents:
-            if ent.label_ == "ENTITY":
-                for token in ent.sent:
-                    if token.dep_ in ["tmod", "npadvmod"] or token.text.lower() in ["since", "for", "started", "began"]:
-                        temporal.append((ent.text, token.text + ' ' + ' '.join([t.text for t in token.children if t.dep_ in ["nummod", "advmod"]])))
-        return temporal
+        if not isinstance(doc, Doc):
+            logger.warning("Invalid doc for temporal extraction")
+            return []
+        try:
+            temporal = []
+            for ent in doc.ents:
+                if ent.label_ == "ENTITY":
+                    for token in ent.sent:
+                        if token.dep_ in ["tmod", "npadvmod"] or token.text.lower() in ["since", "for", "started", "began"]:
+                            temporal.append((ent.text, token.text + ' ' + ' '.join([t.text for t in token.children if t.dep_ in ["nummod", "advmod"]])))
+            return temporal
+        except Exception as e:
+            logger.error(f"Temporal extraction failed: {e}")
+            return []
 
-# Initialize SciSpacy
 try:
     _sci_ner = SciBERTWrapper(model_name="en_core_sci_sm", disable_linker=True)
     logger.info("Initialized _sci_ner with en_core_sci_sm")
 except Exception as e:
-    logger.error(f"Failed to initialize _sci_ner: {e}")
+    logger.warning(f"Failed to initialize _sci_ner: {e}. Using blank model.")
     _sci_ner = SciBERTWrapper(model_name="en", disable_linker=True)
 
 def sanitize_input(text: Optional[str]) -> str:
-    """Sanitize input to prevent regex syntax errors."""
     if not isinstance(text, str):
         logger.warning(f"Invalid input type: {type(text)}. Converting to empty string.")
         return ""
     try:
         text = text.replace("\\.", ".").replace("\\", "").replace("\n", " ")
         text = re.sub(r'\s+', ' ', text.strip(), flags=re.UNICODE)
-        return text
+        return text[:1000]  # Limit length
     except re.error as e:
         logger.error(f"Regex error in sanitize_input: {e}")
         return ""
 
 def get_knowledge_base(force_cache: bool = False) -> Dict:
-    """Load or return cached knowledge base."""
     global _knowledge_base
     if _knowledge_base is None or force_cache:
         logger.debug("Loading knowledge base")
@@ -80,7 +85,6 @@ def get_knowledge_base(force_cache: bool = False) -> Dict:
     return _knowledge_base
 
 def generate_rationale(features: Dict, differentials: List[Tuple], plan: Dict) -> str:
-    """Generate clinical rationale for the analysis."""
     rationale = []
     primary_dx = sanitize_input(features.get('assessment', '')).lower()
     if primary_dx:
@@ -115,129 +119,78 @@ def generate_rationale(features: Dict, differentials: List[Tuple], plan: Dict) -
         rationale.append(f"Workup: {', '.join(workup or ['Diagnostic evaluation pending'])} to confirm diagnosis.")
     return '; '.join(rationale) or 'Based on clinical features and proposed management plan.'
 
-def normalize_symptom(symptom: Optional[str], kb: Dict, tracker: SymptomTracker) -> str:
-    """Normalize symptom using synonyms from knowledge base and SymptomTracker."""
-    symptom = sanitize_input(symptom)
-    if not symptom or len(symptom) < 3:
-        return ""
-    try:
-        symptom_clean = clean_term(preprocess_text(symptom)).lower()
-    except Exception as e:
-        logger.error(f"Error cleaning symptom '{symptom}': {e}")
-        return ""
-    if not symptom_clean:
-        logger.debug(f"Empty symptom after cleaning: {symptom}")
-        return ""
-    terms = list(dict.fromkeys(symptom_clean.split()))
-    stop_terms = {'of', 'and', 'the', 'with', 'patient', 'complains', 'reports', 'started', 'is', 'associated', 'has', 'in'}
-    valid_terms = [t for t in terms if t not in stop_terms and len(t) > 2]
-    if not valid_terms:
-        return ""
-
-    result = []
-    i = 0
-    max_iterations = 100
-    iteration_count = 0
-    while i < len(valid_terms):
-        iteration_count += 1
-        if iteration_count > max_iterations:
-            logger.error(f"Max iterations reached in normalize_symptom for '{symptom}'")
-            break
-        matched = False
-        for j in range(3, 0, -1):
-            if i + j <= len(valid_terms):
-                phrase = ' '.join(valid_terms[i:i+j]).lower()
-                try:
-                    for canonical, aliases in kb.get('synonyms', {}).items():
-                        canonical_lower = canonical.lower()
-                        if phrase == canonical_lower or phrase in [a.lower() for a in aliases]:
-                            if canonical_lower not in result:
-                                result.append(canonical_lower)
-                            i += j
-                            matched = True
-                            logger.debug(f"Normalized '{phrase}' to '{canonical_lower}' via knowledge base")
-                            break
-                    if matched:
-                        break
-                    if phrase in tracker.get_all_symptoms() and phrase not in result:
-                        result.append(phrase)
-                        i += j
-                        matched = True
-                        logger.debug(f"Normalized '{phrase}' via SymptomTracker")
-                        break
-                except Exception as e:
-                    logger.error(f"Error processing phrase '{phrase}': {e}")
-                    break
-        if not matched:
-            if valid_terms[i] not in result:
-                result.append(valid_terms[i])
-            i += 1
-    normalized = ' '.join(result)
-    if len(normalized) > 50:
-        logger.debug(f"Skipping long normalized symptom: {normalized}")
-        return ""
-    logger.debug(f"Normalized symptom '{symptom}' -> '{normalized}'")
-    return normalized
-
 def enhance_symptoms(existing_symptoms: List[Dict], sci_entities: List[Tuple[str, str]], kb: Dict, tracker: SymptomTracker) -> List[Dict]:
-    """Merge SciSpacy entities with existing symptoms, deduplicating and normalizing."""
-    anatomical_terms = {'eyes', 'head', 'body', 'chest', 'abdomen'}
-    valid_symptoms = {'headache', 'fever', 'fevers', 'chills', 'nausea', 'vomiting', 'loss of appetite', 'jaundice', 'pain in head', 'feeling of sickness'}
-    symptom_mappings = {'pain in head': 'headache', 'feeling of sickness': 'nausea'}
-    
+    # Ensure anatomical_terms is a set of strings only (no dicts)
+    anatomical_terms = set(
+        t if isinstance(t, str) else t.get('term', '')
+        for t in kb.get('medical_terms', [])
+        if isinstance(t, str) or (isinstance(t, dict) and 'term' in t)
+    ).union({'eyes', 'head', 'body', 'chest', 'abdomen'})
     sci_symptoms = []
     for entity_text, _ in sci_entities:
-        normalized = normalize_symptom(entity_text, kb, tracker)
-        if not normalized or normalized in anatomical_terms or normalized not in valid_symptoms:
+        normalized = tracker.validate_symptom_string(entity_text)
+        if not normalized:
             continue
-        normalized = symptom_mappings.get(normalized, normalized)
-        try:
-            cui, semantic_type = tracker._get_umls_cui(normalized)
-            sci_symptoms.append({
-                'description': normalized,
-                'umls_cui': cui or 'None',
-                'semantic_type': semantic_type or 'Sign or Symptom',
-                'severity': 'Mild',
-                'duration': 'Unknown',
-                'location': 'Unknown',
-                'aggravating': 'Unknown',
-                'alleviating': 'None'
-            })
-        except Exception as e:
-            logger.error(f"Error processing entity '{entity_text}': {e}")
-            continue
-    
+        for term in normalized:
+            if term in anatomical_terms:
+                continue
+            try:
+                cui, semantic_type = tracker._get_umls_cui(term)
+                for cat, symps in kb.get('symptoms', {}).items():
+                    if term.lower() in symps:
+                        sci_symptoms.append({
+                            'description': term,
+                            'umls_cui': cui or symps[term.lower()].get('umls_cui', 'None'),
+                            'semantic_type': semantic_type or symps[term.lower()].get('semantic_type', 'Sign or Symptom'),
+                            'severity': 'Mild',
+                            'duration': 'Unknown',
+                            'location': 'Unknown',
+                            'aggravating': 'Unknown',
+                            'alleviating': 'None',
+                            'category': cat
+                        })
+                        break
+                else:
+                    sci_symptoms.append({
+                        'description': term,
+                        'umls_cui': cui or 'None',
+                        'semantic_type': semantic_type or 'Sign or Symptom',
+                        'severity': 'Mild',
+                        'duration': 'Unknown',
+                        'location': 'Unknown',
+                        'aggravating': 'Unknown',
+                        'alleviating': 'None',
+                        'category': tracker._infer_category(term, '')
+                    })
+            except Exception as e:
+                logger.error(f"Error processing entity '{entity_text}': {e}")
+                continue
+
     all_symptoms = existing_symptoms + sci_symptoms
     unique_symptoms = {}
     for s in all_symptoms:
         if not isinstance(s, dict) or not s.get('description'):
             continue
-        desc = normalize_symptom(s.get('description', ''), kb, tracker).lower()
-        desc = symptom_mappings.get(desc, desc)
-        if desc not in valid_symptoms:
+        desc = tracker.validate_symptom_string(s.get('description'))[0] if tracker.validate_symptom_string(s.get('description')) else ''
+        if not desc:
             continue
         if desc not in unique_symptoms or (s.get('umls_cui') and unique_symptoms[desc].get('umls_cui') == 'None'):
             unique_symptoms[desc] = s
             unique_symptoms[desc]['description'] = desc
-    
-    for s in unique_symptoms.values():
-        desc_lower = s['description'].lower()
-        s['semantic_type'] = 'Sign or Symptom'
-        if desc_lower == 'headache':
-            s.update({'location': 'Head', 'umls_cui': 'C0018681'})
-        elif desc_lower == 'jaundice':
-            s.update({'location': 'Eyes', 'umls_cui': 'C0022346'})
-        elif desc_lower in ['nausea', 'vomiting', 'loss of appetite']:
-            s.update({'location': 'Gastrointestinal',
-                      'umls_cui': {'nausea': 'C0027497', 'vomiting': 'C0042963', 'loss of appetite': 'C0234450'}[desc_lower]})
-        elif desc_lower in ['fever', 'fevers', 'chills']:
-            s.update({'location': 'Systemic',
-                      'umls_cui': {'fever': 'C0018682', 'fevers': 'C0018682', 'chills': 'C0085593'}[desc_lower]})
-    
+            if desc.lower() in kb.get('symptoms', {}).get(s.get('category', 'uncategorized'), {}):
+                kb_data = kb['symptoms'][s.get('category', 'uncategorized')][desc.lower()]
+                unique_symptoms[desc].update({
+                    'umls_cui': kb_data.get('umls_cui', s.get('umls_cui', 'None')),
+                    'semantic_type': kb_data.get('semantic_type', s.get('semantic_type', 'Sign or Symptom'))
+                })
     return sorted(unique_symptoms.values(), key=lambda x: x.get('description', ''))
 
-def generate_ai_analysis(note: SOAPNote, patient: Optional[Patient] = None, force_cache: bool = False) -> str:
-    """Generate a comprehensive AI clinical analysis for a SOAP note."""
+def generate_ai_analysis(
+    note: SOAPNote,
+    patient: Optional[Patient] = None,
+    force_cache: bool = False,
+    symptom_collection: Optional[str] = None
+) -> str:
     note_id = getattr(note, 'id', 'unknown')
     logger.debug(f"Generating analysis for note {note_id}, situation: {getattr(note, 'situation', 'Unknown')}")
     if not isinstance(note, SOAPNote):
@@ -291,16 +244,27 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
 
     try:
         analyzer = ClinicalAnalyzer()
-        tracker = SymptomTracker(mongo_uri=MONGO_URI, db_name=DB_NAME, symptom_collection=SYMPTOMS_COLLECTION)
+        tracker = SymptomTracker(
+            mongo_uri=MONGO_URI,
+            db_name=DB_NAME,
+            symptom_collection=symptom_collection if symptom_collection is not None else KB_PREFIX + SYMPTOMS_COLLECTION
+        )
         situation = sanitize_input(getattr(note, 'situation', '')).lower().strip()
         chief_complaint = situation or 'Unknown'
+        if len(chief_complaint) > 1000:
+            chief_complaint = chief_complaint[:1000]
+            logger.warning(f"Truncated chief_complaint to 1000 characters for note {note_id}")
+
         patient_id = getattr(patient, 'patient_id', None) if patient else None
         patient_info = {"sex": "Unknown", "age": None}
         if patient_id:
-            patient_info = get_patient_info(patient_id) or patient_info
-            logger.debug(f"Patient ID: {patient_id}, Patient Info: {patient_info}")
-            if patient_info["sex"] == "Unknown":
-                logger.warning(f"Patient info not found for patient_id: {patient_id}.")
+            try:
+                patient_info = get_patient_info(patient_id) or patient_info
+                logger.debug(f"Patient ID: {patient_id}, Patient Info: {patient_info}")
+                if patient_info["sex"] == "Unknown":
+                    logger.warning(f"Patient info not found for patient_id: {patient_id}.")
+            except Exception as e:
+                logger.error(f"Error fetching patient info for {patient_id}: {e}")
 
         patient_profile = []
         if patient_info["sex"] != "Unknown":
@@ -310,21 +274,19 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
         patient_profile_text = '; '.join(patient_profile) or 'Not provided'
 
         kb = get_knowledge_base(force_cache)
-        logger.debug(f"Knowledge base version: {kb.get('version', 'Unknown')}, last updated: {kb.get('last_updated', 'Unknown')}")
+        kb_version = kb.get('version', 'Unknown')
+        kb_updated = parse_date(kb.get('last_updated', 'Unknown')).strftime("%Y-%m-%d %H:%M:%S") if kb.get('last_updated') else 'Unknown'
+        logger.debug(f"Knowledge base version: {kb_version}, last updated: {kb_updated}")
+
         expected_symptoms = []
         category = None
-        max_iterations = 100
-        iteration_count = 0
         for cat, pathways in kb.get('clinical_pathways', {}).items():
-            if not isinstance(pathways, dict):
+            if cat not in REQUIRED_CATEGORIES:
+                logger.warning(f"Invalid category in clinical_pathways: {cat}")
                 continue
             for key, path in pathways.items():
-                iteration_count += 1
-                if iteration_count > max_iterations:
-                    logger.error("Max iterations reached in clinical pathways loop")
-                    break
                 try:
-                    if any(normalize_symptom(s, kb, tracker) in normalize_symptom(chief_complaint, kb, tracker) for s in key.split('|')):
+                    if any(tracker.validate_symptom_string(s)[0] in tracker.validate_symptom_string(chief_complaint) for s in key.split('|') if tracker.validate_symptom_string(s)):
                         expected_symptoms = path.get('required_symptoms', []) or []
                         category = cat
                         break
@@ -334,7 +296,7 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
             if expected_symptoms:
                 break
 
-        expected_symptoms_normalized = [normalize_symptom(s, kb, tracker) for s in expected_symptoms if normalize_symptom(s, kb, tracker)]
+        expected_symptoms_normalized = [tracker.validate_symptom_string(s)[0] for s in expected_symptoms if tracker.validate_symptom_string(s)]
 
         hpi = sanitize_input(getattr(note, 'hpi', ''))
         meds = sanitize_input(getattr(note, 'medication_history', ''))
@@ -348,7 +310,7 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
             temporal_details = _sci_ner.extract_temporal_details(doc)
             logger.debug(f"Temporal details: {temporal_details}")
         except Exception as e:
-            logger.error(f"SciSpacy processing failed: {e}")
+            logger.warning(f"SciSpacy processing failed: {e}. Skipping entity extraction.")
             sci_entities = []
             temporal_details = []
 
@@ -369,32 +331,6 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
                     symptom['duration'] = duration.capitalize()
             if symptom.get('description', '').lower() == 'headache' and 'paracetamol' in meds.lower():
                 symptom['alleviating'] = 'Paracetamol'
-
-        for symptom in enriched_symptoms:
-            if not isinstance(symptom, dict) or not symptom.get('description'):
-                logger.warning(f"Invalid symptom in note {note_id}: {symptom}")
-                continue
-            s_norm = normalize_symptom(symptom.get('description', ''), kb, tracker)
-            for kb_category, symptom_dict in kb.get('symptoms', {}).items():
-                if not isinstance(symptom_dict, dict):
-                    continue
-                for kb_symptom_name, kb_symptom_data in symptom_dict.items():
-                    if s_norm.lower() == kb_symptom_name.lower():
-                        symptom.update({
-                            'description': kb_symptom_data.get('description', s_norm),
-                            'umls_cui': kb_symptom_data.get('umls_cui', symptom.get('umls_cui', 'None')),
-                            'semantic_type': kb_symptom_data.get('semantic_type', 'Sign or Symptom'),
-                            'category': kb_category
-                        })
-                        break
-            if symptom.get('umls_cui') == 'None':
-                try:
-                    cui, semantic_type = tracker._get_umls_cui(s_norm)
-                    if cui:
-                        symptom.update({'umls_cui': cui, 'semantic_type': semantic_type or 'Sign or Symptom'})
-                        logger.debug(f"Assigned CUI {cui} to symptom '{s_norm}' via SymptomTracker")
-                except Exception as e:
-                    logger.error(f"Error getting UMLS CUI for '{s_norm}': {e}")
 
         features = analyzer.extract_clinical_features(note, expected_symptoms=expected_symptoms) or {'symptoms': [], 'assessment': ''}
         logger.debug(f"Features from ClinicalAnalyzer for note {note_id}: {features}")
@@ -449,31 +385,25 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
 
         negated_terms: Set[str] = set()
         try:
-            negated_terms.update(tracker.get_negated_symptoms(note, chief_complaint) or [])
-            medspacy_doc = nlp(note_text)
-            for ent in medspacy_doc.ents:
-                if ent._.is_negated:
-                    normalized = normalize_symptom(ent.text, kb, tracker).lower()
-                    if normalized:
-                        negated_terms.add(normalized)
+            negated_terms.update(tracker.extract_negated_symptoms(note, chief_complaint) or [])
+            if 'no chronic illness' in sanitize_input(getattr(note, 'medical_history', '') or '').lower():
+                negated_terms.add('chronic illness')
         except Exception as e:
             logger.error(f"Negation detection failed: {e}")
-        if 'no chronic illness' in sanitize_input(getattr(note, 'medical_history', '') or '').lower():
-            negated_terms.add('chronic illness')
         negated_output = '; '.join(sorted(negated_terms)) or 'None reported'
 
         if expected_symptoms_normalized:
-            extracted_symptoms = [normalize_symptom(s.get('description', ''), kb, tracker) for s in features.get('symptoms', []) if isinstance(s, dict)]
+            extracted_symptoms = [tracker.validate_symptom_string(s.get('description', ''))[0] for s in features.get('symptoms', []) if isinstance(s, dict) and tracker.validate_symptom_string(s.get('description', ''))]
             missing_symptoms = [s for s in expected_symptoms_normalized if s and s not in extracted_symptoms]
             if missing_symptoms:
                 logger.warning(f"Missing expected symptoms: {missing_symptoms}")
                 if category and category in kb.get('clinical_pathways', {}):
                     path = next((p for k, p in kb['clinical_pathways'][category].items()
-                                 if any(normalize_symptom(s, kb, tracker) in normalize_symptom(chief_complaint, kb, tracker) for s in k.split('|'))), None)
+                                 if any(tracker.validate_symptom_string(s)[0] in tracker.validate_symptom_string(chief_complaint) for s in k.split('|') if tracker.validate_symptom_string(s))), None)
                     if path:
-                        existing_symptoms = {normalize_symptom(s.get('description', ''), kb, tracker) for s in features['symptoms'] if isinstance(s, dict)}
+                        existing_symptoms = {tracker.validate_symptom_string(s.get('description', ''))[0] for s in features['symptoms'] if isinstance(s, dict) and tracker.validate_symptom_string(s.get('description', ''))}
                         for s in path.get('required_symptoms', []) or []:
-                            s_norm = normalize_symptom(s, kb, tracker)
+                            s_norm = tracker.validate_symptom_string(s)[0] if tracker.validate_symptom_string(s) else ''
                             if s_norm and s_norm not in existing_symptoms:
                                 kb_symptom_data = None
                                 for kb_cat, symptom_dict in kb.get('symptoms', {}).items():
@@ -518,20 +448,12 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
         disclaimer = "High-risk conditions detected; urgent review recommended." if high_risk else "This AI-generated analysis requires clinical correlation."
 
         references = set()
-        max_iterations = 100
-        iteration_count = 0
         for cat, pathways in kb.get('clinical_pathways', {}).items():
-            if not isinstance(pathways, dict):
+            if cat not in REQUIRED_CATEGORIES:
                 continue
             for key, path in pathways.items():
-                iteration_count += 1
-                if iteration_count > max_iterations:
-                    logger.error("Max iterations reached in references loop")
-                    break
-                if not isinstance(path, dict):
-                    continue
                 try:
-                    if any(normalize_symptom(s, kb, tracker) in normalize_symptom(chief_complaint, kb, tracker) for s in key.split('|')):
+                    if any(tracker.validate_symptom_string(s)[0] in tracker.validate_symptom_string(chief_complaint) for s in key.split('|') if tracker.validate_symptom_string(s)):
                         refs = path.get('references', []) or []
                         if isinstance(refs, list):
                             references.update(r for r in refs if any(dx.lower() in r.lower() for dx, _, _ in differentials if isinstance(dx, str)))
@@ -555,6 +477,8 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
         if 'paracetamol' in meds.lower():
             plan.setdefault('treatment', {}).setdefault('symptomatic', []).append('Continue paracetamol 1000 mg for headache as needed')
 
+# ...existing code...
+
         analysis_output = f"""
 [=== AI CLINICAL ANALYSIS ===]
 [PATIENT INFO]
@@ -572,18 +496,18 @@ DISCLAIMER: This AI-generated analysis requires clinical correlation.
 [CLINICAL RATIONALE]
 {generate_rationale(features, differentials, plan)}
 [RECOMMENDED WORKUP]
-• Urgent: {'; '.join(sorted(set(plan.get('workup', {}).get('urgent', [])))) or 'None'}
-• Routine: {'; '.join(sorted(set(plan.get('workup', {}).get('routine', [])))) or 'None'}
+• Urgent: {'; '.join(sorted(str(u) for u in plan.get('workup', {}).get('urgent', []) if isinstance(u, str))) or 'None'}
+• Routine: {'; '.join(sorted(str(r) for r in plan.get('workup', {}).get('routine', []) if isinstance(r, str))) or 'None'}
 [TREATMENT OPTIONS]
-• Symptomatic: {'; '.join(sorted(set(plan.get('treatment', {}).get('symptomatic', [])))) or 'None'}
-• Definitive: {'; '.join(sorted(set(plan.get('treatment', {}).get('definitive', [])))) or 'Pending diagnosis'}
-• Lifestyle: {'; '.join(sorted(set(plan.get('treatment', {}).get('lifestyle', [])))) or 'None'}
+• Symptomatic: {'; '.join(sorted(str(s) for s in plan.get('treatment', {}).get('symptomatic', []) if isinstance(s, str))) or 'None'}
+• Definitive: {'; '.join(sorted(str(d) for d in plan.get('treatment', {}).get('definitive', []) if isinstance(d, str))) or 'Pending diagnosis'}
+• Lifestyle: {'; '.join(sorted(str(l) for l in plan.get('treatment', {}).get('lifestyle', []) if isinstance(l, str))) or 'None'}
 [FOLLOW-UP]
 {follow_up}
 [REFERENCES]
 • {references_output}
 [KNOWLEDGE BASE]
-Version: {kb.get('version', 'Unknown')}, Last Updated: {kb.get('last_updated', 'Unknown')}
+Version: {kb_version}, Last Updated: {kb_updated}
 DISCLAIMER: {disclaimer}
 """
         logger.debug(f"Analysis output for note {note_id}")
@@ -599,15 +523,15 @@ DISCLAIMER: {disclaimer}
             'diagnosis': assessment or 'Undetermined',
             'differentials': differential_output,
             'rationale': f'Analysis failed due to processing error: {str(e)}',
-            'workup_urgent': '; '.join(sorted(set(plan.get('workup', {}).get('urgent', [])))) or 'None',
-            'workup_routine': '; '.join(sorted(set(plan.get('workup', {}).get('routine', [])))) or 'None',
-            'treatment_symptomatic': '; '.join(sorted(set(plan.get('treatment', {}).get('symptomatic', [])))) or 'None',
-            'treatment_definitive': '; '.join(sorted(set(plan.get('treatment', {}).get('definitive', [])))) or 'Pending diagnosis',
-            'treatment_lifestyle': '; '.join(sorted(set(plan.get('treatment', {}).get('lifestyle', [])))) or 'None',
+            'workup_urgent': '; '.join(sorted(str(u) for u in plan.get('workup', {}).get('urgent', []) if isinstance(u, str))) or 'None',
+            'workup_routine': '; '.join(sorted(str(r) for r in plan.get('workup', {}).get('routine', []) if isinstance(r, str))) or 'None',
+            'treatment_symptomatic': '; '.join(sorted(str(s) for s in plan.get('treatment', {}).get('symptomatic', []) if isinstance(s, str))) or 'None',
+            'treatment_definitive': '; '.join(sorted(str(d) for d in plan.get('treatment', {}).get('definitive', []) if isinstance(d, str))) or 'Pending diagnosis',
+            'treatment_lifestyle': '; '.join(sorted(str(l) for l in plan.get('treatment', {}).get('lifestyle', []) if isinstance(l, str))) or 'None',
             'follow_up': follow_up,
             'references': references_output,
-            'kb_version': kb.get('version', 'Unknown') or 'Unknown',
-            'kb_updated': kb.get('last_updated', 'Unknown') or 'Unknown',
+            'kb_version': kb_version,
+            'kb_updated': kb_updated,
             'disclaimer': 'This AI-generated analysis requires clinical correlation.'
         }
         return f"""

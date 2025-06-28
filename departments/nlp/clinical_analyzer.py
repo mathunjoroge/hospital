@@ -8,22 +8,17 @@ import json
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
-from psycopg2.pool import SimpleConnectionPool
-from psycopg2.extras import RealDictCursor
 import spacy
-import medspacy
 import numpy as np
-from medspacy.target_matcher import TargetRule
-from scispacy.linking import EntityLinker
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 from departments.models.medicine import SOAPNote
 from departments.models.records import Patient
 from departments.nlp.logging_setup import get_logger
-from departments.nlp.nlp_pipeline import get_nlp
+from departments.nlp.note_processing import initialize_nlp
+from departments.nlp.nlp_pipeline import get_postgres_connection, search_local_umls_cui, get_semantic_types
 from departments.nlp.config import (
     SIMILARITY_THRESHOLD, CONFIDENCE_THRESHOLD, EMBEDDING_DIM,
-    MONGO_URI, DB_NAME, KB_PREFIX, SYMPTOMS_COLLECTION,
-    POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
+    MONGO_URI, DB_NAME, KB_PREFIX, SYMPTOMS_COLLECTION
 )
 from departments.nlp.nlp_utils import embed_text, preprocess_text, deduplicate, get_patient_info
 from departments.nlp.helper_functions import extract_duration, classify_severity, extract_location, extract_aggravating_alleviating
@@ -31,8 +26,7 @@ from departments.nlp.models.transformer_model import model, tokenizer
 from departments.nlp.symptom_tracker import SymptomTracker
 from departments.nlp.knowledge_base_io import load_knowledge_base
 from departments.nlp.kb_updater import KnowledgeBaseUpdater
-from departments.nlp.nlp_pipeline import clean_term
-from departments.nlp.nlp_common import FALLBACK_CUI_MAP
+from departments.nlp.nlp_common import clean_term, FALLBACK_CUI_MAP
 
 logger = get_logger(__name__)
 load_dotenv()
@@ -47,22 +41,16 @@ class ClinicalAnalyzer:
         """Initialize the ClinicalAnalyzer with necessary components."""
         self.model = model
         self.tokenizer = tokenizer
-        # Initialize PostgreSQL connection pool
+
+        # Initialize NLP pipeline
         try:
-            self.pool = SimpleConnectionPool(
-                minconn=1,
-                maxconn=10,
-                host=POSTGRES_HOST,
-                port=POSTGRES_PORT,
-                dbname=POSTGRES_DB,
-                user=POSTGRES_USER,
-                password=POSTGRES_PASSWORD,
-                cursor_factory=RealDictCursor
-            )
-            logger.info("Successfully initialized PostgreSQL connection pool")
+            self.nlp = initialize_nlp()
+            logger.info("Successfully initialized NLP pipeline")
         except Exception as e:
-            logger.error(f"Failed to initialize PostgreSQL connection pool: {str(e)}")
-            self.pool = None
+            logger.critical(f"Failed to initialize NLP pipeline: {str(e)}")
+            self.nlp = spacy.blank("en")
+            self.nlp.add_pipe("sentencizer")
+            logger.warning("Using fallback NLP pipeline with English sentencizer")
 
         mongo_uri = MONGO_URI
         db_name = DB_NAME or 'clinical_db'
@@ -96,7 +84,13 @@ class ClinicalAnalyzer:
 
         # Load MongoDB data
         try:
-            client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
+            client = MongoClient(
+                mongo_uri,
+                serverSelectionTimeoutMS=5000,
+                connectTimeoutMS=10000,
+                socketTimeoutMS=10000
+                
+            )
             client.admin.command('ping')
             db = client[db_name]
             collections = {
@@ -110,34 +104,38 @@ class ClinicalAnalyzer:
                 'diagnosis_treatments': f'{kb_prefix}diagnosis_treatments'
             }
 
-            # Load data with projection
+            # Load data with validation
             self.medical_stop_words = {
                 doc['word'].lower() for doc in db[collections['medical_stop_words']].find({}, {'word': 1})
-                if 'word' in doc
+                if isinstance(doc.get('word'), str)
             }
-            self.medical_terms = list(db[collections['medical_terms']].find(
-                {}, {'term': 1, 'category': 1, 'umls_cui': 1, 'semantic_type': 1}
-            ))
+            self.medical_terms = [
+                doc for doc in db[collections['medical_terms']].find({}, {'term': 1, 'category': 1, 'umls_cui': 1, 'semantic_type': 1})
+                if isinstance(doc.get('term'), str) and isinstance(doc.get('category'), str)
+            ]
             self.synonyms = {
                 doc['term'].lower(): doc['aliases']
                 for doc in db[collections['synonyms']].find({}, {'term': 1, 'aliases': 1})
-                if 'term' in doc and isinstance(doc.get('aliases'), list)
+                if isinstance(doc.get('term'), str) and isinstance(doc.get('aliases'), list)
             }
             self.clinical_pathways = {}
             for doc in db[collections['clinical_pathways']].find({}, {'category': 1, 'paths': 1}):
-                if 'category' in doc and 'paths' in doc:
-                    category = doc['category'].lower()
-                    self.clinical_pathways[category] = {}
-                    for path_key, path in doc['paths'].items():
-                        if 'metadata' in path and 'last_updated' in path['metadata']:
-                            last_updated = path['metadata']['last_updated']
-                            logger.debug(f"Clinical pathway '{path_key}' in '{category}': last_updated={last_updated}, type={type(last_updated)}")
-                            path['metadata']['last_updated'] = _parse_date(last_updated)
-                        self.clinical_pathways[category][path_key] = path
+                if not (isinstance(doc.get('category'), str) and isinstance(doc.get('paths'), dict)):
+                    logger.warning(f"Skipping invalid clinical_pathways document: {doc}")
+                    continue
+                category = doc['category'].lower()
+                self.clinical_pathways[category] = {}
+                for path_key, path in doc['paths'].items():
+                    if not isinstance(path, dict) or 'metadata' not in path:
+                        logger.warning(f"Skipping invalid path '{path_key}' in category '{category}'")
+                        continue
+                    if 'last_updated' in path['metadata']:
+                        path['metadata']['last_updated'] = _parse_date(path['metadata']['last_updated'])
+                    self.clinical_pathways[category][path_key] = path
             self.history_diagnoses = {
                 doc['key'].lower(): doc['value']
                 for doc in db[collections['history_diagnoses']].find({}, {'key': 1, 'value': 1})
-                if 'key' in doc and 'value' in doc
+                if isinstance(doc.get('key'), str) and isinstance(doc.get('value'), list)
             }
             self.diagnosis_relevance = {
                 doc['diagnosis'].lower(): {
@@ -145,30 +143,37 @@ class ClinicalAnalyzer:
                     'category': doc.get('category', 'unknown')
                 }
                 for doc in db[collections['diagnosis_relevance']].find({}, {'diagnosis': 1, 'relevance': 1, 'category': 1})
-                if 'diagnosis' in doc
+                if isinstance(doc.get('diagnosis'), str)
             }
             self.diagnosis_treatments = {
                 doc['diagnosis'].lower(): doc['treatments']
                 for doc in db[collections['diagnosis_treatments']].find({}, {'diagnosis': 1, 'treatments': 1})
-                if 'diagnosis' in doc and 'treatments' in doc
+                if isinstance(doc.get('diagnosis'), str) and isinstance(doc.get('treatments'), dict)
             }
             client.close()
             logger.info("Successfully loaded MongoDB data")
         except ConnectionFailure as e:
             logger.error(f"Failed to connect to MongoDB: {str(e)}")
             kb = load_knowledge_base()
+            if not isinstance(kb, dict):
+                logger.error("Invalid knowledge base structure")
+                raise RuntimeError("Critical knowledge base failure")
             self.medical_stop_words = set(kb.get('medical_stop_words', []))
             self.medical_terms = kb.get('medical_terms', [])
             self.synonyms = {k.lower(): v for k, v in kb.get('synonyms', {}).items()}
             self.clinical_pathways = {}
             for category, paths in kb.get('clinical_pathways', {}).items():
+                if not isinstance(category, str) or not isinstance(paths, dict):
+                    logger.warning(f"Skipping invalid clinical_pathways category: {category}")
+                    continue
                 category_lower = category.lower()
                 self.clinical_pathways[category_lower] = {}
                 for path_key, path in paths.items():
-                    if 'metadata' in path and 'last_updated' in path['metadata']:
-                        last_updated = path['metadata']['last_updated']
-                        logger.debug(f"Fallback clinical pathway '{path_key}' in '{category_lower}': last_updated={last_updated}, type={type(last_updated)}")
-                        path['metadata']['last_updated'] = _parse_date(last_updated)
+                    if not isinstance(path, dict) or 'metadata' not in path:
+                        logger.warning(f"Skipping invalid path '{path_key}' in category '{category_lower}'")
+                        continue
+                    if 'last_updated' in path['metadata']:
+                        path['metadata']['last_updated'] = _parse_date(path['metadata']['last_updated'])
                     self.clinical_pathways[category_lower][path_key] = path
             self.history_diagnoses = {k.lower(): v for k, v in kb.get('history_diagnoses', {}).items()}
             self.diagnosis_relevance = {
@@ -191,15 +196,27 @@ class ClinicalAnalyzer:
             logger.error(f"Failed to initialize KnowledgeBaseUpdater: {str(e)}")
             self.kb_updater = None
 
-        # Initialize NLP pipeline
+        # Initialize SymptomTracker with retry
         try:
-            self.nlp = get_nlp()
-            logger.info("Successfully initialized NLP pipeline")
+            @retry(
+                stop=stop_after_attempt(3),
+                wait=wait_fixed(5),
+                retry=retry_if_exception_type(Exception)
+            )
+            def init_symptom_tracker():
+                tracker = SymptomTracker(
+                    mongo_uri=mongo_uri,
+                    db_name=db_name,
+                    symptom_collection=SYMPTOMS_COLLECTION
+                )
+                if not tracker.get_all_symptoms():
+                    logger.warning("No symptoms loaded into SymptomTracker")
+                return tracker
+            self.common_symptoms = init_symptom_tracker()
+            logger.info("Successfully initialized SymptomTracker")
         except Exception as e:
-            logger.critical(f"Failed to initialize NLP pipeline: {str(e)}")
-            self.nlp = spacy.blank("en")
-            self.nlp.add_pipe("sentencizer")
-            logger.warning("Using fallback NLP pipeline with English sentencizer")
+            logger.error(f"Failed to initialize SymptomTracker: {str(e)}")
+            self.common_symptoms = None
 
         # Build diagnoses list
         self.diagnoses_list: Set[str] = set()
@@ -209,67 +226,7 @@ class ClinicalAnalyzer:
                 if isinstance(differentials, list):
                     self.diagnoses_list.update(d.lower() for d in differentials if isinstance(d, str))
 
-        # Initialize symptom tracker
-        try:
-            self.common_symptoms = SymptomTracker(
-                mongo_uri=mongo_uri,
-                db_name=db_name,
-                symptom_collection=SYMPTOMS_COLLECTION
-            )
-            if not self.common_symptoms.get_all_symptoms():
-                logger.warning("No symptoms loaded into SymptomTracker")
-        except Exception as e:
-            logger.error(f"Failed to initialize SymptomTracker: {str(e)}")
-            self.common_symptoms = None
-
         logger.info("Successfully initialized ClinicalAnalyzer")
-
-    def _get_postgres_connection(self):
-        """Get a PostgreSQL connection from the pool."""
-        if not self.pool:
-            logger.error("No PostgreSQL connection pool available")
-            return None
-        try:
-            conn = self.pool.getconn()
-            # Debug: Inspect knowledge_base_metadata
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT key, version, last_updated FROM knowledge_base_metadata")
-                for row in cursor.fetchall():
-                    logger.debug(f"knowledge_base_metadata: key={row['key']}, version={row['version']}, last_updated={row['last_updated']}, type={type(row['last_updated'])}")
-            return conn
-        except Exception as e:
-            logger.error(f"Failed to get PostgreSQL connection: {str(e)}")
-            return None
-
-    def _put_postgres_connection(self, conn):
-        """Return a connection to the pool."""
-        if conn and self.pool:
-            self.pool.putconn(conn)
-
-    def _get_umls_cui(self, symptom: str) -> Tuple[Optional[str], Optional[str]]:
-        """Map a term to a UMLS CUI using the local database or fallback dictionary."""
-        symptom_lower = preprocess_text(symptom).lower()
-        if not symptom_lower:
-            return None, 'Unknown'
-
-        # Check fallback dictionary
-        if symptom_lower in FALLBACK_CUI_MAP:
-            cui = FALLBACK_CUI_MAP[symptom_lower]['umls_cui']
-            semantic_type = FALLBACK_CUI_MAP[symptom_lower]['semantic_type']
-            logger.debug(f"Found fallback CUI for '{symptom_lower}': {cui}, Semantic Type: {semantic_type}")
-            return cui, semantic_type
-
-        # Use KnowledgeBaseUpdater's UMLS search
-        if self.kb_updater and hasattr(self.kb_updater, "search_local_umls_cui"):
-            result = self.kb_updater.search_local_umls_cui(symptom_lower)
-            if result:
-                logger.debug(f"Found UMLS CUI for '{symptom_lower}': {result['cui']}, Semantic Type: {result['semantic_type']}")
-                return result['cui'], result['semantic_type']
-        else:
-            logger.warning("kb_updater is not initialized or missing 'search_local_umls_cui'.")
-
-        logger.warning(f"No UMLS match for '{symptom_lower}'")
-        return None, 'Unknown'
 
     def extract_clinical_features(self, note: SOAPNote, expected_symptoms: Optional[List[str]] = None) -> Dict:
         """Extract clinical features from a SOAP note."""
@@ -297,15 +254,15 @@ class ClinicalAnalyzer:
             gc.collect()
 
             features = {
-                'chief_complaint': (getattr(note, 'situation', '') or '').lower().strip() or 'unknown',
-                'hpi': (getattr(note, 'hpi', '') or '').lower().strip(),
-                'history': (getattr(note, 'medical_history', '') or '').lower().strip(),
-                'medications': (getattr(note, 'medication_history', '') or '').lower().strip(),
-                'assessment': (getattr(note, 'assessment', '') or '').lower().strip(),
-                'recommendation': (getattr(note, 'recommendation', '') or '').strip(),
-                'additional_notes': (getattr(note, 'additional_notes', '') or '').lower().strip(),
-                'aggravating_factors': (getattr(note, 'aggravating_factors', '') or '').lower().strip(),
-                'alleviating_factors': (getattr(note, 'alleviating_factors', '') or '').lower().strip(),
+                'chief_complaint': clean_term(getattr(note, 'situation', '') or '') or 'unknown',
+                'hpi': clean_term(getattr(note, 'hpi', '') or ''),
+                'history': clean_term(getattr(note, 'medical_history', '') or ''),
+                'medications': clean_term(getattr(note, 'medication_history', '') or ''),
+                'assessment': clean_term(getattr(note, 'assessment', '') or ''),
+                'recommendation': clean_term(getattr(note, 'recommendation', '') or ''),
+                'additional_notes': clean_term(getattr(note, 'additional_notes', '') or ''),
+                'aggravating_factors': clean_term(getattr(note, 'aggravating_factors', '') or ''),
+                'alleviating_factors': clean_term(getattr(note, 'alleviating_factors', '') or ''),
                 'symptoms': []
             }
 
@@ -334,53 +291,40 @@ class ClinicalAnalyzer:
             spacy_symptoms = []
             try:
                 for ent in doc.ents:
-                    # Check if EntityLinker is available and provides kb_ents
-                    if hasattr(ent._, 'kb_ents'):
-                        kb_ents = ent._.kb_ents
-                    else:
-                        kb_ents = []
-                        logger.debug(f"No kb_ents for entity '{ent.text}'. EntityLinker may not be configured.")
-
-                    # Check for umls_cui from symptom_matcher
+                    if ent.label_ != "SYMPTOM":  # From TargetMatcher
+                        continue
+                    symptom_lower = clean_term(ent.text)
+                    if not symptom_lower:
+                        continue
                     cui = ent._.umls_cui if hasattr(ent._, 'umls_cui') and ent._.umls_cui else None
                     score = 1.0 if cui else 0.0
 
-                    # If no cui from symptom_matcher, try EntityLinker
-                    if not cui and kb_ents:
-                        for umls_ent in kb_ents:
-                            if len(umls_ent) < 2:
-                                continue
-                            cui, score = umls_ent[0], umls_ent[1]
-                            if score >= 0.7:
-                                break
+                    if not cui:
+                        result = search_local_umls_cui([symptom_lower])
+                        cui = result.get(symptom_lower)
+                        if cui:
+                            semantic_types = get_semantic_types([cui])
+                            semantic_type = semantic_types.get(cui, 'Unknown')
+                            if isinstance(semantic_type, list):
+                                semantic_type = semantic_type[0] if semantic_type else 'Unknown'
                         else:
-                            cui = None
-                            score = 0.0
+                            semantic_type = 'Unknown'
 
                     if cui and score >= 0.7:
-                        concept = None
-                        try:
-                            if "scispacy_linker" in self.nlp.pipe_names:
-                                linker = self.nlp.get_pipe("scispacy_linker")
-                                concept = linker.kb.cui_to_entity.get(cui)
-                        except Exception as e:
-                            logger.warning(f"Failed to get concept for CUI '{cui}': {str(e)}")
-
-                        symptom_lower = ent.text.lower()
                         category = (self.common_symptoms._infer_category(symptom_lower, features['chief_complaint'])
                                     if self.common_symptoms else
                                     (self.kb_updater.infer_category(symptom_lower, text) if self.kb_updater else 'unknown'))
                         spacy_symptoms.append({
                             'description': symptom_lower,
                             'category': category,
-                            'definition': getattr(concept, 'canonical_name', symptom_lower) if concept else symptom_lower,
+                            'definition': symptom_lower,
                             'duration': extract_duration(text) or 'unknown',
                             'severity': classify_severity(text) or 'unknown',
                             'location': extract_location(text, symptom_lower) or 'unknown',
                             'aggravating': features['aggravating_factors'],
                             'alleviating': features['alleviating_factors'],
                             'umls_cui': cui,
-                            'semantic_type': concept.types[0] if concept and concept.types else 'unknown'
+                            'semantic_type': semantic_type
                         })
             except Exception as e:
                 logger.error(f"Failed to extract symptoms via NLP: {str(e)}")
@@ -401,23 +345,30 @@ class ClinicalAnalyzer:
             potential_symptoms = getattr(note, 'Symptoms', getattr(note, 'symptoms', []))
             if not isinstance(potential_symptoms, list):
                 potential_symptoms = [potential_symptoms] if potential_symptoms else []
-            # Only use fallback if the above is empty and avoid splitting full sentences
             if not potential_symptoms:
-                # Try to extract only likely symptom phrases (words, not sentences)
                 potential_symptoms = [
                     s.strip() for s in re.split(r'[,\n;]', text)
-                    if s.strip() and len(s.strip().split()) <= 4  # Only short phrases
+                    if s.strip() and len(s.strip().split()) <= 4 and
+                    re.search(rf'\b({"|".join(map(re.escape, FALLBACK_CUI_MAP.keys()))})\b', s.strip(), re.IGNORECASE)
                 ]
 
             for symptom in potential_symptoms:
-                symptom_lower = symptom.lower().strip()
+                symptom_lower = clean_term(symptom)
                 if not symptom_lower:
                     continue
                 if self.kb_updater and self.kb_updater.is_new_symptom(symptom_lower):
-                    category = self.kb_updater.infer_category(symptom_lower, text)
+                    category = self.kb_updater.infer_category(symptom_lower, text) if self.kb_updater else 'unknown'
                     synonyms = self.kb_updater.generate_synonyms(symptom_lower) if self.kb_updater else []
-                    cui, semantic_type = self._get_umls_cui(symptom_lower)
+                    result = search_local_umls_cui([symptom_lower])
+                    cui = result.get(symptom_lower)
+                    semantic_type = get_semantic_types([cui]).get(cui, 'Unknown') if cui else 'Unknown'
+                    if isinstance(semantic_type, list):
+                        semantic_type = semantic_type[0] if semantic_type else 'Unknown'
                     self.kb_updater.add_symptom(symptom_lower, category, synonyms, text)
+                    if cui and symptom_lower not in FALLBACK_CUI_MAP:
+                        FALLBACK_CUI_MAP[symptom_lower] = {'umls_cui': cui, 'semantic_type': semantic_type}
+                        from departments.nlp.nlp_common import save_fallback_map
+                        save_fallback_map()
                     features['symptoms'].append({
                         'description': symptom_lower,
                         'category': category,
@@ -434,9 +385,15 @@ class ClinicalAnalyzer:
 
             if not features['symptoms'] and expected_symptoms:
                 for symptom in expected_symptoms:
-                    symptom_lower = symptom.lower().strip()
+                    symptom_lower = clean_term(symptom)
+                    if not symptom_lower:
+                        continue
                     if any(pattern.lower() in text.lower() for pattern in [symptom_lower] + self.synonyms.get(symptom_lower, [])):
-                        cui, semantic_type = self._get_umls_cui(symptom_lower)
+                        result = search_local_umls_cui([symptom_lower])
+                        cui = result.get(symptom_lower)
+                        semantic_type = get_semantic_types([cui]).get(cui, 'Unknown') if cui else 'Unknown'
+                        if isinstance(semantic_type, list):
+                            semantic_type = semantic_type[0] if semantic_type else 'Unknown'
                         category = (self.common_symptoms._infer_category(symptom_lower, features['chief_complaint'])
                                     if self.common_symptoms else
                                     (self.kb_updater.infer_category(symptom_lower, text) if self.kb_updater else 'unknown'))
@@ -456,7 +413,7 @@ class ClinicalAnalyzer:
             context = {}
             for factor in ['aggravating', 'alleviating']:
                 field = f"{factor}_factors"
-                value = getattr(note, field, '')
+                value = features[field]
                 if value:
                     try:
                         result = extract_aggravating_alleviating(value, factor)
@@ -464,7 +421,7 @@ class ClinicalAnalyzer:
                             context.update(result)
                     except Exception as e:
                         logger.error(f"Failed to extract context: {str(e)}")
-                        context[factor] = value.lower().strip()
+                        context[factor] = value
 
             features['context'] = {
                 'aggravating': context.get('aggravating', ''),
@@ -476,7 +433,7 @@ class ClinicalAnalyzer:
             seen = set()
             unique_symptoms = []
             for s in features['symptoms']:
-                norm_desc = preprocess_text(s.get('description')).lower()
+                norm_desc = clean_term(s.get('description'))
                 if norm_desc and norm_desc not in seen:
                     seen.add(norm_desc)
                     unique_symptoms.append(s)
@@ -759,12 +716,6 @@ class ClinicalAnalyzer:
                 'references': []
             }
 
-    def __del__(self):
-        """Clean up resources."""
-        if hasattr(self, 'pool') and self.pool:
-            self.pool.closeall()
-            logger.debug("Closed PostgreSQL connection pool")
-
 def parse_conditional_workup(workup: str, symptoms: List[Dict]) -> str:
     """Parse conditional workup instructions."""
     if not isinstance(workup, str):
@@ -775,8 +726,8 @@ def parse_conditional_workup(workup: str, symptoms: List[Dict]) -> str:
     try:
         condition = workup.lower().split('if')[1].strip()
         for symptom in symptoms:
-            desc = symptom.get('description', '').lower()
-            category = symptom.get('category', '').lower()
+            desc = clean_term(symptom.get('description', ''))
+            category = clean_term(symptom.get('category', ''))
             cui = symptom.get('umls_cui')
             if condition in desc or condition in category or (cui and condition.lower() in cui.lower()):
                 return workup.split('if')[0].strip()
