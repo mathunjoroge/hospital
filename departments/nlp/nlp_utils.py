@@ -220,6 +220,9 @@ def parse_date(date_str):
         return datetime.now()
 
 def get_patient_info(patient_id: str) -> Dict[str, any]:
+    if not isinstance(patient_id, str) or not patient_id.strip():
+        logger.warning(f"Invalid patient_id: {patient_id}")
+        return {"sex": "Unknown", "age": None}
     try:
         patient = Patient.query.filter_by(patient_id=patient_id).first()
         if not patient:
@@ -228,16 +231,18 @@ def get_patient_info(patient_id: str) -> Dict[str, any]:
         sex = patient.sex or "Unknown"
         dob = patient.date_of_birth
         age = None
-        if dob:
+        if dob and isinstance(dob, date):
             today = date.today()
             age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-        logger.debug(f"Retrieved patient info: sex={sex}, age={age}")
+        else:
+            logger.warning(f"Invalid or missing date_of_birth for patient_id: {patient_id}")
+        logger.debug(f"Retrieved patient info: patient_id={patient_id}, sex={sex}, age={age}")
         return {"sex": sex, "age": age}
     except SQLAlchemyError as e:
-        logger.error(f"SQLAlchemy error retrieving patient info for {patient_id}: {e}")
+        logger.error(f"SQLAlchemy error retrieving patient info for {patient_id}: {str(e)}", exc_info=True)
         return {"sex": "Unknown", "age": None}
     except Exception as e:
-        logger.error(f"Unexpected error retrieving patient info for {patient_id}: {e}")
+        logger.error(f"Unexpected error retrieving patient info for {patient_id}: {str(e)}", exc_info=True)
         return {"sex": "Unknown", "age": None}
 
 def get_umls_cui(symptom: str) -> Tuple[Optional[str], Optional[str]]:
