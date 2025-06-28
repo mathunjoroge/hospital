@@ -34,7 +34,6 @@ class SymptomTracker:
                 mongo_uri,
                 connectTimeoutMS=10000,
                 socketTimeoutMS=10000
-                
             )
             self.collection = self.client[db_name][self.collection_name]
             logger.info(f"Connected to MongoDB: {db_name}.{self.collection_name}")
@@ -326,8 +325,8 @@ class SymptomTracker:
             symptom_terms.extend(synonym_phrases)
 
             symptom_terms = list(set(t for t in symptom_terms if t and len(t) <= 100))
-            non_symptom_terms = self.extract_negated_symptoms(note, chief_complaint)
-            non_symptom_terms.update(self.stop_terms)
+            non_symptom_terms = self.extract_negated_symptoms(note, chief_complaint)  # Already a set
+            non_symptom_terms.update(self.stop_terms)  # Update with stop_terms (set)
             symptom_terms = [t for t in symptom_terms if t and t not in non_symptom_terms]
             logger.debug(f"Extracted {len(symptom_terms)} symptom terms after filtering: {symptom_terms[:50]}...")
 
