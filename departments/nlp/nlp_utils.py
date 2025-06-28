@@ -38,11 +38,13 @@ def embed_text(text: str) -> np.ndarray:
     if _scibert_model is None or _scibert_tokenizer is None:
         try:
             from transformers import AutoTokenizer, AutoModel
-            required_version = '>=4.0.0,<5.0.0'
-            installed_version = pkg_resources.get_distribution('transformers').version
-            if not pkg_resources.parse_version(installed_version) in pkg_resources.parse_version(required_version):
-                logger.error(f"transformers version {installed_version} does not match required {required_version}")
-                raise ImportError(f"Incompatible transformers version")
+            # Check if transformers is installed
+            try:
+                pkg_resources.get_distribution('transformers')
+                logger.debug("transformers is installed")
+            except pkg_resources.DistributionNotFound:
+                logger.error("transformers not installed")
+                raise ImportError("transformers is required")
             # Check cache directory permissions
             cache_dir = os.getenv('HF_HOME', os.path.expanduser('~/.cache/huggingface/hub'))
             if not os.access(cache_dir, os.W_OK):
@@ -92,11 +94,13 @@ def batch_embed_texts(texts: List[str], batch_size: int = BATCH_SIZE) -> np.ndar
     if _scibert_model is None or _scibert_tokenizer is None:
         try:
             from transformers import AutoTokenizer, AutoModel
-            required_version = '>=4.0.0,<5.0.0'
-            installed_version = pkg_resources.get_distribution('transformers').version
-            if not pkg_resources.parse_version(installed_version) in pkg_resources.parse_version(required_version):
-                logger.error(f"transformers version {installed_version} does not match required {required_version}")
-                raise ImportError(f"Incompatible transformers version")
+            # Check if transformers is installed
+            try:
+                pkg_resources.get_distribution('transformers')
+                logger.debug("transformers is installed")
+            except pkg_resources.DistributionNotFound:
+                logger.error("transformers not installed")
+                raise ImportError("transformers is required")
             # Check cache directory permissions
             cache_dir = os.getenv('HF_HOME', os.path.expanduser('~/.cache/huggingface/hub'))
             if not os.access(cache_dir, os.W_OK):
@@ -203,6 +207,7 @@ def deduplicate(items: List[str], synonyms: Optional[Dict[str, List[str]]] = Non
             result.append(item)
     logger.debug(f"Deduplicated {len(items)} items to {len(result)} items")
     return result
+
 def parse_date(date_str):
     try:
         return datetime.fromisoformat(date_str)
@@ -245,8 +250,8 @@ def get_umls_cui(symptom: str) -> Tuple[Optional[str], Optional[str]]:
         return cui, semantic_type
 
     # Query UMLS and semantic types
-    try: 
-        from departments.nlp.nlp_pipeline import search_local_umls_cui, get_semantic_types    
+    try:
+        from departments.nlp.nlp_pipeline import search_local_umls_cui, get_semantic_types
         result = search_local_umls_cui([symptom_lower])
         cui = result.get(symptom_lower)
         if cui:
