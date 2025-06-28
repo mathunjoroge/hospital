@@ -3,51 +3,22 @@ import os
 import json
 import time
 from typing import Dict, List, Optional
-import psycopg2
-from psycopg2 import sql, pool
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 from departments.nlp.logging_setup import get_logger
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 from config import (
-    POSTGRES_HOST,
-    POSTGRES_PORT,
-    POSTGRES_DB,
-    POSTGRES_USER,
-    POSTGRES_PASSWORD,
     CACHE_DIR,
-    BATCH_SIZE,
     MONGO_URI,
     DB_NAME,
     SYMPTOMS_COLLECTION
 )
 
 logger = get_logger(__name__)
-
-# Initialize PostgreSQL connection pool
-try:
-    db_pool = psycopg2.pool.SimpleConnectionPool(
-        1, 20,
-        host=POSTGRES_HOST,
-        database=POSTGRES_DB,
-        user=POSTGRES_USER,
-        password=POSTGRES_PASSWORD,
-        port=POSTGRES_PORT
-    )
-    logger.debug("PostgreSQL connection pool initialized")
-except Exception as e:
-    logger.error(f"Failed to initialize PostgreSQL connection pool: {e}")
-    raise
-
-# Expanded stop words for filtering non-clinical terms
-STOP_WORDS = {
+STOP_TERMS = {
+    # your stop terms here
     'the', 'and', 'or', 'is', 'started', 'days', 'weeks', 'months', 'years', 'ago',
-    'taking', 'makes', 'alleviates', 'foods', 'fats', 'strong', 'tea', 'licking', 'salt', 'worse',
-    'patient', 'presents', 'reports', 'complains', 'assessment', 'by', 'on', 'for', 'with',
-    'two', 'three', '10', 'obese', 'made', 'sitting', 'down', 'long', 'alleviated', 'standing',
-    'stretching', 'ob', 'fe', 'systems', 'ophthalmologic', 'gi', 'gu', 'endocrine', 'cardiovascular',
-    'pulmonary', 'mood', 'primary', 'differential', 'consistent', 'worsen', 'decongestants', 'acute',
-    'viral', 'no', 'not', 'none', 'never'  # Basic negation words
+    'taking', 'makes', 'alleviates', 'foods', 'fats', 'strong', 'tea', 'licking', 'salt', 'worse'
 }
 
 # Expanded fallback map for symptoms with UMLS CUIs and semantic types
@@ -104,17 +75,13 @@ FALLBACK_CUI_MAP = {
     "diabetes": {"umls_cui": "C0011849", "semantic_type": "Disease or Syndrome"}
 }
 
-# In-memory cache for CUIs with versioning
-CUI_CACHE_VERSION = "1.0"
-_cui_cache = {"version": CUI_CACHE_VERSION, "data": {}}
-
 def is_negated_term(term: str) -> bool:
     """Detect if a term contains negation words."""
     if not term or not isinstance(term, str):
         return False
-    term_lower = term.lower()
     negation_words = {'no', 'not', 'none', 'never', 'without', 'denies', 'negative'}
-    return any(word in term_lower.split() for word in negation_words)
+    term_words = term.lower().split()
+    return any(word in negation_words for word in term_words)
 
 def clean_term(term: str) -> str:
     """Clean a medical term for processing.
@@ -137,15 +104,15 @@ def clean_term(term: str) -> str:
         logger.warning(f"Invalid term for cleaning (too long): term={term[:50]}..., length={len(term)}")
         return ""
     try:
-        term = term.lower()
-        term = re.sub(r'[^\w\s]', '', term)
-        term = ' '.join(term.split())
+        term_lower = term.lower()
+        term_clean = re.sub(r'[^\w\s]', '', term_lower)
+        term_clean = ' '.join(term_clean.split())
         # Check for stop words or negation
-        if term in STOP_WORDS or is_negated_term(term):
-            logger.debug(f"Filtered term as stop word or negated: {term}")
+        if term_clean in STOP_TERMS or is_negated_term(term_clean):
+            logger.debug(f"Filtered term as stop word or negated: {term_clean}")
             return ""
-        logger.debug(f"Cleaned term: {term}")
-        return term
+        logger.debug(f"Cleaned term: {term_clean}")
+        return term_clean
     except Exception as e:
         logger.error(f"Error cleaning term '{term}': {e}")
         return ""
@@ -159,7 +126,13 @@ def initialize_fallback_map():
     """Populate FALLBACK_CUI_MAP from SYMPTOMS_COLLECTION."""
     global FALLBACK_CUI_MAP
     try:
-        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        client = MongoClient(
+            MONGO_URI,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=10000,
+           
+        )
         client.admin.command('ping')
         db = client[DB_NAME]
         collection = db[SYMPTOMS_COLLECTION]
@@ -228,23 +201,21 @@ def load_fallback_map():
     cache_file = os.path.join(CACHE_DIR, "fallback_map.json")
     try:
         if os.path.exists(cache_file):
-            try:
-                with open(cache_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    if not isinstance(data, dict):
-                        logger.error(f"Invalid format in {cache_file}: expected dict, got {type(data)}")
-                        return
-                    for symptom, entry in data.items():
-                        if 'umls_cui' not in entry or 'semantic_type' not in entry:
-                            logger.warning(f"Skipping invalid entry in cache for '{symptom}': missing required fields")
-                            continue
-                        if not isinstance(entry['umls_cui'], str) or not entry['umls_cui'].startswith('C'):
-                            logger.warning(f"Skipping invalid CUI in cache for '{symptom}': {entry['umls_cui']}")
-                            continue
+            with open(cache_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if not isinstance(data, dict):
+                    logger.error(f"Invalid format in {cache_file}: expected dict, got {type(data)}")
+                    return
+                for symptom, entry in data.items():
+                    if 'umls_cui' not in entry or 'semantic_type' not in entry:
+                        logger.warning(f"Skipping invalid entry in cache for '{symptom}': missing required fields")
+                        continue
+                    if not isinstance(entry['umls_cui'], str) or not entry['umls_cui'].startswith('C'):
+                        logger.warning(f"Skipping invalid CUI in cache for '{symptom}': {entry['umls_cui']}")
+                        continue
+                    if symptom not in FALLBACK_CUI_MAP:  # Preserve static entries
                         FALLBACK_CUI_MAP[symptom] = entry
-                    logger.info(f"Loaded {len(FALLBACK_CUI_MAP)} entries from {cache_file}")
-            except json.JSONDecodeError:
-                logger.error(f"Invalid JSON format in {cache_file}")
+                logger.info(f"Loaded {len(FALLBACK_CUI_MAP)} entries from {cache_file}")
         else:
             logger.warning(f"Cache file {cache_file} does not exist")
     except OSError as e:
@@ -252,246 +223,10 @@ def load_fallback_map():
     except Exception as e:
         logger.error(f"Failed to load fallback map from {cache_file}: {e}")
 
-def save_cui_cache():
-    """Save the CUI cache to a file in CACHE_DIR."""
-    if not CACHE_DIR:
-        logger.error("CACHE_DIR not configured, skipping cui cache save")
-        return
-    try:
-        os.makedirs(CACHE_DIR, exist_ok=True)
-        cache_file = os.path.join(CACHE_DIR, "cui_cache.json")
-        with open(cache_file, "w", encoding="utf-8") as f:
-            json.dump(_cui_cache, f, indent=2)
-        logger.debug(f"Successfully saved CUI cache to {cache_file}")
-    except OSError as e:
-        logger.error(f"Failed to save CUI cache due to file error: {e}")
-    except Exception as e:
-        logger.error(f"Failed to save CUI cache to {cache_file}: {e}")
-
-def load_cui_cache():
-    """Load the CUI cache from a file in CACHE_DIR."""
-    global _cui_cache
-    if not CACHE_DIR:
-        logger.error("CACHE_DIR not configured, skipping cui cache load")
-        return
-    cache_file = os.path.join(CACHE_DIR, "cui_cache.json")
-    try:
-        if os.path.exists(cache_file):
-            try:
-                with open(cache_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    if not isinstance(data, dict):
-                        logger.error(f"Invalid data in {cache_file}: expected dict, got {type(data)}")
-                        return
-                    if data.get("version") != CUI_CACHE_VERSION:
-                        logger.warning(f"Cache version mismatch: expected {CUI_CACHE_VERSION}, got {data.get('version')}. Clearing cache.")
-                        return
-                    _cui_cache = data
-                    logger.info(f"Loaded {len(_cui_cache['data'])} entries from {cache_file}")
-            except json.JSONDecodeError:
-                logger.error(f"Invalid JSON format in {cache_file}")
-        else:
-            logger.warning(f"Cache file {cache_file} does not exist")
-    except OSError as e:
-        logger.error(f"Failed to load CUI cache due to file error: {e}")
-    except Exception as e:
-        logger.error(f"Failed to load CUI cache from {cache_file}: {e}")
-
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(2),
-    retry=retry_if_exception_type(psycopg2.OperationalError)
-)
-def get_cui_from_db(terms: List[str], max_attempts: int = 3, max_tsquery_bytes: int = 1000000) -> Dict[str, Optional[Dict[str, str]]]:
-    """
-    Query the umls.MRCONSO table for CUIs of a list of terms, with exact match and full-text search.
-    Joins with umls.MRSTY for semantic types if available. Falls back to FALLBACK_CUI_MAP if no match is found.
-    """
-    start_time = time.time()
-    results = {term: None for term in terms}
-    terms_to_query = []
-    oversized_count = 0
-    cache_hits = 0
-
-    # Validate and clean terms
-    for term in terms:
-        cleaned_term = clean_term(term)
-        if not cleaned_term:
-            logger.debug(f"Skipping invalid term: {term}")
-            continue
-        if cleaned_term in _cui_cache["data"]:
-            cache_hits += 1
-            logger.debug(f"Cache hit for '{cleaned_term}': CUI={_cui_cache['data'][cleaned_term]}")
-            results[term] = {
-                "umls_cui": _cui_cache["data"][cleaned_term],
-                "semantic_type": FALLBACK_CUI_MAP.get(cleaned_term, {}).get('semantic_type', 'Unknown')
-            }
-        elif cleaned_term in FALLBACK_CUI_MAP:
-            cache_hits += 1
-            logger.debug(f"Fallback hit for '{cleaned_term}': {FALLBACK_CUI_MAP[cleaned_term]}")
-            results[term] = FALLBACK_CUI_MAP[cleaned_term]
-            _cui_cache["data"][cleaned_term] = FALLBACK_CUI_MAP[cleaned_term]['umls_cui']
-            logger.debug(f"Added to cache: {cleaned_term}, CUI={_cui_cache['data'][cleaned_term]}")
-        else:
-            terms_to_query.append(cleaned_term)
-            logger.debug(f"Queueing term for DB query: {cleaned_term}")
-
-    if not terms_to_query:
-        logger.info(f"All terms resolved via cache or fallback (hits: {cache_hits})")
-        save_cui_cache()
-        return results
-
-    # Database connection
-    conn = None
-    cursor = None
-    try:
-        for conn_attempt in range(max_attempts):
-            try:
-                conn = db_pool.getconn()
-                logger.debug("Acquired PostgreSQL connection from pool")
-                cursor = conn.cursor()
-                break
-            except psycopg2.OperationalError as e:
-                logger.error(f"Connection attempt {conn_attempt + 1}/{max_attempts} failed: {e}")
-                if conn_attempt == max_attempts - 1:
-                    logger.error("Failed to acquire database connection after retries")
-                    return results
-                time.sleep(1)
-
-        # Batch exact-match queries
-        for i in range(0, len(terms_to_query), BATCH_SIZE):
-            batch_terms = terms_to_query[i:i + BATCH_SIZE]
-            query_start = time.time()
-            for attempt in range(max_attempts):
-                try:
-                    # Exact match query with optimized conditions
-                    query = sql.SQL("""
-                        SELECT DISTINCT c.STR, c.CUI, s.STY
-                        FROM umls.MRCONSO c
-                        LEFT JOIN umls.MRSTY s ON c.CUI = s.CUI
-                        WHERE c.SAB IN ('SNOMEDCT', 'ICD10CM')
-                        AND c.SUPPRESS = 'N'
-                        AND c.TTY IN ('PT', 'SY')
-                        AND LOWER(c.STR) IN %s
-                        AND octet_length(c.STR) <= 100
-                    """)
-                    cursor.execute(query, (tuple(batch_terms),))
-                    for row in cursor.fetchall():
-                        term = clean_term(row[0])
-                        if term:
-                            results[term] = {
-                                "umls_cui": row[1],
-                                "semantic_type": row[2] or FALLBACK_CUI_MAP.get(term, {}).get('semantic_type', 'Unknown')
-                            }
-                            _cui_cache["data"][term] = row[1]
-                            if term not in FALLBACK_CUI_MAP:
-                                FALLBACK_CUI_MAP[term] = results[term]
-                                logger.debug(f"Updated FALLBACK_CUI_MAP with {term}: {results[term]}")
-                    logger.debug(f"Exact match query for batch {i//BATCH_SIZE + 1} ({len(batch_terms)}) took {time.time() - query_start:.2f} seconds")
-                    break
-                except Exception as e:
-                    logger.error(f"Exact match attempt {attempt + 1}/{max_attempts} for batch {i//BATCH_SIZE + 1} failed: {str(e)}")
-                    conn.rollback()
-                    if attempt == max_attempts - 1:
-                        logger.error("Max retries reached for exact match query")
-                        continue
-
-            # Full-text search for remaining terms
-            remaining = [t for t in batch_terms if results.get(t) is None]
-            if not remaining:
-                continue
-            tsquery_parts = []
-            current_size = 0
-            batch_oversized = 0
-            for t in remaining:
-                byte_len = len(t.encode('utf-8'))
-                if byte_len > max_tsquery_bytes:
-                    # Attempt to split oversized term
-                    sub_terms = t.split()
-                    for sub_term in sub_terms:
-                        sub_cleaned = clean_term(sub_term)
-                        if sub_cleaned and len(sub_cleaned.encode('utf-8')) <= max_tsquery_bytes:
-                            tsquery_parts.append(f"{sub_cleaned}:*")
-                            current_size += len(sub_cleaned.encode('utf-8'))
-                    batch_oversized += 1
-                    oversized_count += 1
-                    logger.warning(f"Split oversized term: {t[:50]}... ({byte_len} bytes)")
-                    continue
-                part = ' & '.join(t.split())
-                part += ':*'
-                part_size = len(part.encode('utf-8'))
-                if current_size + part_size + len(' | ') > max_tsquery_bytes:
-                    break
-                tsquery_parts.append(part)
-                current_size += part_size
-
-            if batch_oversized:
-                logger.warning(f"Processed {batch_oversized} oversized terms for batch {i//BATCH_SIZE + 1}")
-            if not tsquery_parts:
-                logger.warning(f"Skipping batch {i//BATCH_SIZE + 1} due to tsquery size limit")
-                continue
-
-            tsquery = ' | '.join(tsquery_parts)
-            query_start = time.time()
-            for attempt in range(max_attempts):
-                try:
-                    query = sql.SQL("""
-                        SELECT DISTINCT c.STR, c.CUI, s.STY
-                        FROM umls.MRCONSO c
-                        LEFT JOIN umls.MRSTY s ON c.CUI = s.CUI
-                        WHERE c.SAB IN ('SNOMEDCT', 'ICD10CM')
-                        AND to_tsvector('english', c.STR) @@ to_tsquery('english', %s)
-                        AND c.SUPPRESS = 'N'
-                        AND c.TTY IN ('PT', 'SY')
-                        AND octet_length(c.STR) <= 100
-                    """)
-                    cursor.execute(query, (tsquery,))
-                    for row in cursor.fetchall():
-                        term = clean_term(row[0])
-                        if term:
-                            results[term] = {
-                                'umls_cui': row[1],
-                                "semantic_type": row[2] or FALLBACK_CUI_MAP.get(term, {}).get('semantic_type', 'Unknown')
-                            }
-                            _cui_cache["data"][term] = row[1]
-                            if term not in FALLBACK_CUI_MAP:
-                                FALLBACK_CUI_MAP[term] = results[term]
-                                logger.debug(f"Updated FALLBACK_CUI_MAP with {term}: {results[term]}")
-                    logger.debug(f"Full-text search for {len(tsquery_parts)} terms in batch {i//BATCH_SIZE + 1} took {time.time() - query_start:.2f} seconds")
-                    break
-                except Exception as e:
-                    if "string is too long for tsvector" in str(e):
-                        logger.warning(f"TSVector overflow in batch {i//BATCH_SIZE + 1}: {str(e)}")
-                        break
-                    logger.error(f"Full-text search attempt {attempt + 1}/{max_attempts} for batch {i//BATCH_SIZE + 1} failed: {str(e)}")
-                    conn.rollback()
-                    if attempt == max_attempts - 1:
-                        logger.error("Max retries reached for full-text search")
-                        continue
-
-            conn.commit()
-            save_fallback_map()
-
-    except Exception as e:
-        logger.error(f"Failed to process terms in get_cui_from_db: {e}")
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            db_pool.putconn(conn)
-            logger.debug("Returned PostgreSQL connection to pool")
-    try:
-        save_cui_cache()
-    except Exception as e:
-        logger.error(f"Failed to save CUI cache after query: {e}")
-    logger.info(f"get_cui_from_db processed {len(terms)} terms in {time.time() - start_time:.2f} seconds, cache hits: {cache_hits}")
-    return results
-
-# Initialize fallback map and cache at module load
+# Initialize fallback map at module load
 try:
     load_fallback_map()
     initialize_fallback_map()
-    load_cui_cache()
 except Exception as e:
     logger.error(f"Failed to initialize module: {e}")
     raise
@@ -499,11 +234,12 @@ except Exception as e:
 # Example usage
 if __name__ == "__main__":
     test_terms = ["fever", "headache", "back pain", "cough", "", "dizziness", "no cough", "sinusitis", "diabetes"]
-    results = get_cui_from_db(test_terms)
-    for term, result in results.items():
-        if result:
-            logger.info(f"Term: {term}, CUI: {result['umls_cui']}, Semantic Type: {result['semantic_type']}")
-            print(f"Term: {term}, CUI: {result['umls_cui']}, Semantic Type: {result['semantic_type']}")
+    from departments.nlp.nlp_pipeline import search_local_umls_cui
+    results = search_local_umls_cui(test_terms)
+    for term, cui in results.items():
+        if cui:
+            logger.info(f"Term: {term}, CUI: {cui}")
+            print(f"Term: {term}, CUI: {cui}")
         else:
             logger.warning(f"Term: {term}, No CUI found")
             print(f"Term: {term}, No CUI found")
