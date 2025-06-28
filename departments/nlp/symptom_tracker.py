@@ -37,6 +37,7 @@ class SymptomTracker:
             )
             self.collection = self.client[db_name][self.collection_name]
             logger.info(f"Connected to MongoDB: {db_name}.{self.collection_name}")
+            logger.debug("SymptomTracker initialized with process_note method")
         except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {e}", exc_info=True)
             self.collection = None
@@ -275,7 +276,7 @@ class SymptomTracker:
                 category = self._infer_category(symptom, chief_complaint)
                 cui, semantic_type = self._get_umls_cui(symptom)
                 description = f"UMLS-derived: {symptom}" if cui else f"Pending UMLS review: {symptom}"
-                self.add_symptom(category, symptom, description, cui, semantic_type)
+                self.add_symptom(category, symptom, description, cui, semantic_type or 'Unknown')
                 logger.debug(f"Added missing symptom '{symptom}' to knowledge base")
 
     def process_note(self, note, chief_complaint: str, expected_symptoms: List[str] = None) -> List[Dict]:
@@ -325,8 +326,8 @@ class SymptomTracker:
             symptom_terms.extend(synonym_phrases)
 
             symptom_terms = list(set(t for t in symptom_terms if t and len(t) <= 100))
-            non_symptom_terms = self.extract_negated_symptoms(note, chief_complaint)  # Already a set
-            non_symptom_terms.update(self.stop_terms)  # Update with stop_terms (set)
+            non_symptom_terms = set(self.extract_negated_symptoms(note, chief_complaint))
+            non_symptom_terms.update(self.stop_terms)
             symptom_terms = [t for t in symptom_terms if t and t not in non_symptom_terms]
             logger.debug(f"Extracted {len(symptom_terms)} symptom terms after filtering: {symptom_terms[:50]}...")
 
@@ -346,6 +347,9 @@ class SymptomTracker:
                     continue
 
                 category, info = self.search_symptom(symptom_clean)
+                cui = None
+                semantic_type = 'Unknown'
+                description = symptom_clean
                 if not category:
                     category = self._infer_category(symptom_clean, chief_complaint)
                     cui, semantic_type = self._get_umls_cui(symptom_clean)
@@ -379,6 +383,9 @@ class SymptomTracker:
                 if ent_text in matched_terms or len(ent_text) > 100:
                     continue
                 category, info = self.search_symptom(ent_text)
+                cui = None
+                semantic_type = 'Unknown'
+                description = ent_text
                 if not category:
                     category = self._infer_category(ent_text, chief_complaint)
                     cui, semantic_type = self._get_umls_cui(ent_text)

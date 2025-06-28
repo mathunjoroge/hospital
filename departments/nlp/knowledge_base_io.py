@@ -57,11 +57,32 @@ class HistoryDiagnosis(BaseModel):
 class DiagnosisTreatment(BaseModel):
     treatments: Dict = Field(default_factory=lambda: {"symptomatic": [], "definitive": [], "lifestyle": []})
 
+from pydantic import root_validator
+
 class ManagementConfig(BaseModel):
     follow_up_default: str = "Follow-up in 2 weeks"
     follow_up_urgent: str = "Follow-up in 3-5 days or sooner if symptoms worsen"
     urgent_threshold: float = 0.9
     min_symptom_match: float = 0.7
+
+    @root_validator(pre=True)
+    def handle_scalar_or_dict(cls, values):
+        # If a float or int is passed, treat it as urgent_threshold
+        if isinstance(values, (float, int)):
+            return {
+                "urgent_threshold": float(values)
+            }
+        # If a single key with a float value is passed, use that as urgent_threshold
+        if isinstance(values, dict) and len(values) == 1:
+            key, val = next(iter(values.items()))
+            if isinstance(val, (float, int)) and key in {"urgent_threshold", "min_symptom_match"}:
+                return {
+                    "follow_up_default": "Follow-up in 2 weeks",
+                    "follow_up_urgent": "Follow-up in 3-5 days or sooner if symptoms worsen",
+                    "urgent_threshold": float(val) if key == "urgent_threshold" else 0.9,
+                    "min_symptom_match": float(val) if key == "min_symptom_match" else 0.7,
+                }
+        return values
 
 class Version(BaseModel):
     version: str = "1.1.0"

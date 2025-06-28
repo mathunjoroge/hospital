@@ -133,45 +133,36 @@ class KnowledgeBaseUpdater:
     def _load_category_embeddings(self) -> Dict[str, torch.Tensor]:
         categories = list(REQUIRED_CATEGORIES) + ['unknown']
         embeddings = {}
-        conn = get_postgres_connection(readonly=False)
-        if not conn:
-            logger.error("Cannot load category embeddings without PostgreSQL connection")
-            return embeddings
-
-        cursor = None
         try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS category_embeddings (
-                    category TEXT PRIMARY KEY,
-                    embedding FLOAT[] NOT NULL
-                )
-            """)
-            conn.commit()
+            with get_postgres_connection(readonly=False) as cursor:
+                if not cursor:
+                    logger.error("Cannot load category embeddings without PostgreSQL cursor")
+                    return embeddings
 
-            cursor.execute("SELECT category, embedding FROM category_embeddings")
-            for row in cursor.fetchall():
-                embeddings[row['category']] = torch.tensor(row['embedding'])
-                logger.debug(f"Loaded embedding for category '{row['category']}'")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS category_embeddings (
+                        category TEXT PRIMARY KEY,
+                        embedding FLOAT[] NOT NULL
+                    )
+                """)
 
-            missing_cats = set(categories) - set(embeddings.keys())
-            if missing_cats:
-                for cat in missing_cats:
-                    embeddings[cat] = embed_text(cat)
-                    cursor.execute("""
-                        INSERT INTO category_embeddings (category, embedding)
-                        VALUES (%s, %s)
-                        ON CONFLICT (category) DO UPDATE SET embedding = EXCLUDED.embedding
-                    """, (cat, embeddings[cat].tolist()))
-                conn.commit()
-                logger.debug(f"Computed and saved embeddings for {len(missing_cats)} categories")
+                cursor.execute("SELECT category, embedding FROM category_embeddings")
+                for row in cursor.fetchall():
+                    embeddings[row['category']] = torch.tensor(row['embedding'])
+                    logger.debug(f"Loaded embedding for category '{row['category']}'")
+
+                missing_cats = set(categories) - set(embeddings.keys())
+                if missing_cats:
+                    for cat in missing_cats:
+                        embeddings[cat] = embed_text(cat)
+                        cursor.execute("""
+                            INSERT INTO category_embeddings (category, embedding)
+                            VALUES (%s, %s)
+                            ON CONFLICT (category) DO UPDATE SET embedding = EXCLUDED.embedding
+                        """, (cat, embeddings[cat].tolist()))
+                    logger.debug(f"Computed and saved embeddings for {len(missing_cats)} categories")
         except Exception as e:
-            logger.error(f"Failed to load/save category embeddings: {str(e)}")
-            conn.rollback()
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+            logger.error(f"Failed to load/save category embeddings: {str(e)}", exc_info=True)
         return embeddings
 
     def search_local_umls_cui(self, term: str, max_attempts: int = 3) -> Optional[Dict]:
@@ -187,92 +178,85 @@ class KnowledgeBaseUpdater:
                 'semantic_type': FALLBACK_CUI_MAP[cleaned_term]['semantic_type']
             }
 
-        conn = get_postgres_connection()
-        if not conn:
-            logger.error(f"No PostgreSQL connection for '{cleaned_term}'")
-            return None
-
-        cursor = None
         try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            for attempt in range(max_attempts):
-                try:
-                    # Check cache
-                    cursor.execute("""
-                        SELECT cui, semantic_type FROM public.umls_cache 
-                        WHERE term = %s
-                    """, (cleaned_term,))
-                    result = cursor.fetchone()
-                    if result:
-                        logger.debug(f"Cache hit for '{cleaned_term}'")
-                        return {
-                            'cui': result['cui'],
-                            'semantic_type': result.get('semantic_type', SemanticType.UNKNOWN.value)
-                        }
+            with get_postgres_connection() as cursor:
+                if not cursor:
+                    logger.error(f"No PostgreSQL cursor for '{cleaned_term}'")
+                    return None
 
-                    # Exact match query
-                    query = """
-                        SELECT DISTINCT c.CUI 
-                        FROM umls.MRCONSO c
-                        WHERE c.SAB = 'SNOMEDCT_US'
-                        AND LOWER(c.STR) = %s
-                        LIMIT 1
-                    """
-                    cursor.execute(query, (cleaned_term,))
-                    result = cursor.fetchone()
-                    cui = result['CUI'] if result else None
+                for attempt in range(max_attempts):
+                    try:
+                        # Check cache
+                        cursor.execute("""
+                            SELECT cui, semantic_type FROM public.umls_cache 
+                            WHERE term = %s
+                        """, (cleaned_term,))
+                        result = cursor.fetchone()
+                        if result:
+                            logger.debug(f"Cache hit for '{cleaned_term}'")
+                            return {
+                                'cui': result['cui'],
+                                'semantic_type': result.get('semantic_type', SemanticType.UNKNOWN.value)
+                            }
 
-                    if not cui:
-                        # Fallback to LIKE search
+                        # Exact match query
                         query = """
                             SELECT DISTINCT c.CUI 
                             FROM umls.MRCONSO c
                             WHERE c.SAB = 'SNOMEDCT_US'
-                            AND LOWER(c.STR) LIKE %s
+                            AND LOWER(c.STR) = %s
                             LIMIT 1
                         """
-                        cursor.execute(query, ('%' + cleaned_term + '%',))
+                        cursor.execute(query, (cleaned_term,))
                         result = cursor.fetchone()
                         cui = result['CUI'] if result else None
 
-                    if cui:
-                        # Get semantic type
-                        query = """
-                            SELECT DISTINCT sty.STY 
-                            FROM umls.MRSTY sty 
-                            WHERE sty.CUI = %s
-                            LIMIT 1
-                        """
-                        cursor.execute(query, (cui,))
-                        result = cursor.fetchone()
-                        semantic_type = result['STY'].lower() if result else SemanticType.UNKNOWN.value
+                        if not cui:
+                            # Fallback to LIKE search
+                            query = """
+                                SELECT DISTINCT c.CUI 
+                                FROM umls.MRCONSO c
+                                WHERE c.SAB = 'SNOMEDCT_US'
+                                AND LOWER(c.STR) LIKE %s
+                                LIMIT 1
+                            """
+                            cursor.execute(query, ('%' + cleaned_term + '%',))
+                            result = cursor.fetchone()
+                            cui = result['CUI'] if result else None
 
-                        # Cache result
-                        cursor.execute("""
-                            INSERT INTO public.umls_cache (term, cui, semantic_type) 
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (term) 
-                            DO UPDATE SET cui = EXCLUDED.cui, semantic_type = EXCLUDED.semantic_type
-                        """, (cleaned_term, cui, semantic_type))
-                        conn.commit()
-                        logger.debug(f"Cached UMLS for '{cleaned_term}': CUI={cui}, SemanticType={semantic_type}")
-                        return {'cui': cui, 'semantic_type': semantic_type}
+                        if cui:
+                            # Get semantic type
+                            query = """
+                                SELECT DISTINCT sty.STY 
+                                FROM umls.MRSTY sty 
+                                WHERE sty.CUI = %s
+                                LIMIT 1
+                            """
+                            cursor.execute(query, (cui,))
+                            result = cursor.fetchone()
+                            semantic_type = result['STY'].lower() if result else SemanticType.UNKNOWN.value
 
-                    logger.warning(f"No CUI found for term '{cleaned_term}'")
-                    return None
+                            # Cache result
+                            cursor.execute("""
+                                INSERT INTO public.umls_cache (term, cui, semantic_type) 
+                                VALUES (%s, %s, %s)
+                                ON CONFLICT (term) 
+                                DO UPDATE SET cui = EXCLUDED.cui, semantic_type = EXCLUDED.semantic_type
+                            """, (cleaned_term, cui, semantic_type))
+                            logger.debug(f"Cached UMLS for '{cleaned_term}': CUI={cui}, SemanticType={semantic_type}")
+                            return {'cui': cui, 'semantic_type': semantic_type}
 
-                except Exception as e:
-                    logger.error(f"Attempt {attempt + 1}/{max_attempts} failed for '{cleaned_term}': {str(e)}")
-                    if attempt == max_attempts - 1:
+                        logger.warning(f"No CUI found for term '{cleaned_term}'")
                         return None
-                    continue
+
+                    except Exception as e:
+                        logger.error(f"Attempt {attempt + 1}/{max_attempts} failed for '{cleaned_term}': {str(e)}")
+                        if attempt == max_attempts - 1:
+                            return None
+                        continue
         except Exception as e:
             logger.error(f"Failed to execute query for '{cleaned_term}': {str(e)}")
             return None
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
 
     def update_symptom(self, symptom: str, category: str, synonyms: List[str], note_text: str) -> None:
         """Update or add a symptom to the knowledge base."""
@@ -313,43 +297,37 @@ class KnowledgeBaseUpdater:
                 )
 
             # Update PostgreSQL
-            conn = get_postgres_connection(readonly=False)
-            if not conn:
-                logger.error("Cannot update symptom without PostgreSQL connection")
-                return
-
             try:
-                cursor = conn.cursor(cursor_factory=RealDictCursor)
-                cursor.execute("""
-                    INSERT INTO symptoms (symptom, category, description, umls_cui, semantic_type)
-                    VALUES (%s, %s, %s, %s, %s)
-                    ON CONFLICT (symptom) DO UPDATE
-                    SET category = EXCLUDED.category,
-                        description = EXCLUDED.description,
-                        umls_cui = EXCLUDED.umls_cui,
-                        semantic_type = EXCLUDED.semantic_type
-                """, (
-                    symptom_data.term.lower(),
-                    symptom_data.category.value,
-                    symptom_data.description,
-                    symptom_data.umls_metadata.cui,
-                    symptom_data.umls_metadata.semantic_type.value
-                ))
+                with get_postgres_connection(readonly=False) as cursor:
+                    if not cursor:
+                        logger.error("Cannot update symptom without PostgreSQL cursor")
+                        return
 
-                cursor.execute("""
-                    INSERT INTO knowledge_base_metadata (key, version, last_updated)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT (key) DO UPDATE
-                    SET version = EXCLUDED.version, last_updated = EXCLUDED.last_updated
-                """, ('knowledge_base', self.version, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-                conn.commit()
-                logger.info(f"Updated symptom '{symptom}' in PostgreSQL")
+                    cursor.execute("""
+                        INSERT INTO symptoms (symptom, category, description, umls_cui, semantic_type)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (symptom) DO UPDATE
+                        SET category = EXCLUDED.category,
+                            description = EXCLUDED.description,
+                            umls_cui = EXCLUDED.umls_cui,
+                            semantic_type = EXCLUDED.semantic_type
+                    """, (
+                        symptom_data.term.lower(),
+                        symptom_data.category.value,
+                        symptom_data.description,
+                        symptom_data.umls_metadata.cui,
+                        symptom_data.umls_metadata.semantic_type.value
+                    ))
+
+                    cursor.execute("""
+                        INSERT INTO knowledge_base_metadata (key, version, last_updated)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (key) DO UPDATE
+                        SET version = EXCLUDED.version, last_updated = EXCLUDED.last_updated
+                    """, ('knowledge_base', self.version, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                    logger.info(f"Updated symptom '{symptom}' in PostgreSQL")
             except Exception as e:
                 logger.error(f"Failed to update symptom '{symptom}' in database: {str(e)}")
-                conn.rollback()
-            finally:
-                cursor.close()
-                conn.close()
 
             # Update MongoDB synonyms
             if self.synonyms_collection and symptom_data.synonyms:
@@ -392,23 +370,15 @@ class KnowledgeBaseUpdater:
         """Check if a symptom is new in the knowledge base."""
         try:
             symptom_lower = symptom.lower().strip()
-            conn = get_postgres_connection()
-            if not conn:
-                logger.error("Cannot check symptom without PostgreSQL connection")
-                return True
+            with get_postgres_connection() as cursor:
+                if not cursor:
+                    logger.error("Cannot check symptom without PostgreSQL cursor")
+                    return True
 
-            try:
-                cursor = conn.cursor(cursor_factory=RealDictCursor)
                 cursor.execute("SELECT 1 FROM symptoms WHERE symptom = %s", (symptom_lower,))
                 exists = cursor.fetchone()
                 logger.debug(f"Symptom '{symptom_lower}' {'exists' if exists else 'is new'} in knowledge base")
                 return not exists
-            except Exception as e:
-                logger.error(f"Error checking symptom '{symptom_lower}': {str(e)}")
-                return True
-            finally:
-                cursor.close()
-                conn.close()
         except Exception as e:
             logger.error(f"Failed to check symptom '{symptom}': {str(e)}")
             return True
@@ -476,18 +446,13 @@ class KnowledgeBaseUpdater:
             context_lower = context.lower().strip()
 
             # Check PostgreSQL
-            conn = get_postgres_connection()
-            if conn:
-                try:
-                    cursor = conn.cursor(cursor_factory=RealDictCursor)
+            with get_postgres_connection() as cursor:
+                if cursor:
                     cursor.execute("SELECT category FROM symptoms WHERE symptom = %s", (symptom_lower,))
                     result = cursor.fetchone()
                     if result and result['category'] in REQUIRED_CATEGORIES:
                         logger.debug(f"Found category '{result['category']}' for symptom '{symptom_lower}'")
                         return result['category']
-                finally:
-                    cursor.close()
-                    conn.close()
 
             # Specific rules for symptoms
             if symptom_lower in ['headache', 'migraine', 'head pain', 'cephalalgia']:
@@ -544,18 +509,13 @@ class KnowledgeBaseUpdater:
             clinical_path = ClinicalPath(**path_data)
 
             # Validate required_symptoms
-            conn = get_postgres_connection()
-            if conn:
-                try:
-                    cursor = conn.cursor(cursor_factory=RealDictCursor)
+            with get_postgres_connection() as cursor:
+                if cursor:
                     for symptom in clinical_path.required_symptoms:
                         cursor.execute("SELECT 1 FROM symptoms WHERE symptom = %s", (symptom.lower(),))
                         if not cursor.fetchone():
                             logger.warning(f"Required symptom '{symptom}' not found in symptoms table")
                             return
-                finally:
-                    cursor.close()
-                    conn.close()
 
             # Update in-memory knowledge base
             self.knowledge_base['clinical_pathways'].setdefault(category_enum.value, {})[path_key.lower()] = clinical_path.dict()

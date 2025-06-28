@@ -6,15 +6,12 @@ import torch
 from functools import lru_cache
 from datetime import date, datetime
 import logging
-import pkg_resources
 import os
 from sqlalchemy.exc import SQLAlchemyError
 from spacy.language import Language
 
 from departments.nlp.logging_setup import get_logger
-
-from departments.nlp.nlp_common import FALLBACK_CUI_MAP
-from departments.nlp.nlp_common import STOP_TERMS
+from departments.nlp.nlp_common import FALLBACK_CUI_MAP, STOP_TERMS
 from departments.models.records import Patient
 from departments.nlp.config import EMBEDDING_DIM, MAX_LENGTH, BATCH_SIZE, DEVICE
 
@@ -38,13 +35,6 @@ def embed_text(text: str) -> np.ndarray:
     if _scibert_model is None or _scibert_tokenizer is None:
         try:
             from transformers import AutoTokenizer, AutoModel
-            # Check if transformers is installed
-            try:
-                pkg_resources.get_distribution('transformers')
-                logger.debug("transformers is installed")
-            except pkg_resources.DistributionNotFound:
-                logger.error("transformers not installed")
-                raise ImportError("transformers is required")
             # Check cache directory permissions
             cache_dir = os.getenv('HF_HOME', os.path.expanduser('~/.cache/huggingface/hub'))
             if not os.access(cache_dir, os.W_OK):
@@ -94,13 +84,6 @@ def batch_embed_texts(texts: List[str], batch_size: int = BATCH_SIZE) -> np.ndar
     if _scibert_model is None or _scibert_tokenizer is None:
         try:
             from transformers import AutoTokenizer, AutoModel
-            # Check if transformers is installed
-            try:
-                pkg_resources.get_distribution('transformers')
-                logger.debug("transformers is installed")
-            except pkg_resources.DistributionNotFound:
-                logger.error("transformers not installed")
-                raise ImportError("transformers is required")
             # Check cache directory permissions
             cache_dir = os.getenv('HF_HOME', os.path.expanduser('~/.cache/huggingface/hub'))
             if not os.access(cache_dir, os.W_OK):
@@ -162,51 +145,73 @@ def preprocess_text(text: str, stop_words: Optional[Set[str]] = None) -> str:
     logger.debug(f"Preprocessed text: {text[:100]}...")
     return text
 
-def deduplicate(items: List[str], synonyms: Optional[Dict[str, List[str]]] = None) -> List[str]:
+def deduplicate(
+    items: List[str],
+    synonyms: Optional[Dict[str, List[str]]] = None,
+    medical_terms: Optional[List[Dict]] = None
+) -> List[str]:
     if not isinstance(items, (list, tuple)):
         logger.error(f"Invalid items type: {type(items)}")
         return []
-    if synonyms is None:
+
+    # Always ensure medical_terms is initialized before any use
+    kb = None
+    if synonyms is None or medical_terms is None:
         try:
             from departments.nlp.knowledge_base_io import load_knowledge_base
             kb = load_knowledge_base()
-            synonyms = kb.get('synonyms', {})
-            medical_terms = kb.get('medical_terms', [])
         except Exception as e:
-            logger.error(f"Failed to load synonyms: {e}")
-            synonyms = {}
-            medical_terms = []
+            logger.error(f"Failed to load knowledge base: {e}")
+            kb = {}
+
+    if synonyms is None:
+        synonyms = kb.get('synonyms', {}) if kb else {}
     if not isinstance(synonyms, dict):
         logger.error(f"synonyms is not a dict: {type(synonyms)}")
-        return list(items)
+        return list(set(items))
 
-    # Convert synonyms to a lookup dictionary for efficiency
-    synonym_map = {}
-    for key, aliases in synonyms.items():
-        if not isinstance(aliases, list):
-            logger.error(f"aliases for key {key} is not a list: {type(aliases)}")
-            continue
-        for alias in aliases:
-            if isinstance(alias, str):
-                synonym_map[alias.lower()] = key
-    # Map medical terms to CUIs
-    cui_map = {t['term'].lower(): t['umls_cui'] for t in medical_terms if isinstance(t, dict) and 'term' in t and 'umls_cui' in t}
+    if medical_terms is None:
+        medical_terms = kb.get('medical_terms', []) if kb else []
+    if not isinstance(medical_terms, list):
+        logger.error(f"medical_terms is not a list: {type(medical_terms)}")
+        medical_terms = []
 
-    seen = set()
-    result = []
-    for item in items:
-        if not isinstance(item, str):
-            logger.warning(f"Non-string item in deduplicate: {item}")
-            continue
-        item_lower = item.lower()
-        canonical = synonym_map.get(item_lower, item_lower)
-        cui = cui_map.get(canonical)
-        canonical_key = (canonical, cui) if cui else canonical
-        if canonical_key not in seen:
-            seen.add(canonical_key)
-            result.append(item)
-    logger.debug(f"Deduplicated {len(items)} items to {len(result)} items")
-    return result
+    try:
+        # Convert synonyms to a lookup dictionary for efficiency
+        synonym_map = {}
+        for key, aliases in synonyms.items():
+            if not isinstance(aliases, list):
+                logger.error(f"aliases for key {key} is not a list: {type(aliases)}")
+                continue
+            for alias in aliases:
+                if isinstance(alias, str):
+                    synonym_map[alias.lower()] = key
+
+        # Map medical terms to CUIs
+        cui_map = {
+            t['term'].lower(): t['umls_cui']
+            for t in medical_terms
+            if isinstance(t, dict) and 'term' in t and 'umls_cui' in t
+        }
+
+        seen = set()
+        result = []
+        for item in items:
+            if not isinstance(item, str):
+                logger.warning(f"Non-string item in deduplicate: {item}")
+                continue
+            item_lower = item.lower()
+            canonical = synonym_map.get(item_lower, item_lower)
+            cui = cui_map.get(canonical)
+            canonical_key = (canonical, cui) if cui else canonical
+            if canonical_key not in seen:
+                seen.add(canonical_key)
+                result.append(item)
+        logger.debug(f"Deduplicated {len(items)} items to {len(result)} items")
+        return result
+    except Exception as e:
+        logger.error(f"Error deduplicating items: {e}", exc_info=True)
+        return list(set(items))  # Fallback to simple deduplication
 
 def parse_date(date_str):
     try:
