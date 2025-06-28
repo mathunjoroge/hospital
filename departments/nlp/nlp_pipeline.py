@@ -83,7 +83,7 @@ except Exception as e:
     logger.error(f"Failed to initialize _sci_ner: {e}")
     _sci_ner = SciBERTWrapper(model_name="en", disable_linker=True)
 
-# Initialize PostgreSQL connection pool
+# Initialize PostgreSQL connection pool with validation
 try:
     pool = SimpleConnectionPool(
         minconn=5,
@@ -96,7 +96,14 @@ try:
         cursor_factory=RealDictCursor,
         connect_timeout=10
     )
-    logger.info("Initialized PostgreSQL connection pool")
+    # Test the pool to ensure it's functional
+    conn = pool.getconn()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute("SELECT 1")
+    result = cursor.fetchone()
+    cursor.close()
+    pool.putconn(conn)
+    logger.info(f"Initialized PostgreSQL connection pool successfully: {pool}")
 except Exception as e:
     logger.error(f"Failed to initialize PostgreSQL connection pool: {e}")
     pool = None
@@ -106,23 +113,31 @@ def get_postgres_connection(readonly=True):
     if pool is None:
         logger.error("Connection pool not initialized. Check PostgreSQL configuration.")
         yield None
-    else:
-        conn = None
-        cursor = None
-        try:
-            conn = pool.getconn()
-            conn.set_session(autocommit=False, readonly=readonly)
-            cursor = conn.cursor()
-            logger.debug(f"Connected to PostgreSQL database from pool (readonly={readonly})")
-            yield cursor
-        except Exception as e:
-            logger.error(f"Failed to get connection or cursor from pool: {e}")
+        return
+    conn = None
+    cursor = None
+    try:
+        conn = pool.getconn()
+        if not hasattr(conn, 'cursor'):
+            logger.error(f"Invalid connection object: {type(conn)}")
             yield None
-        finally:
-            if cursor:
+            return
+        conn.set_session(autocommit=False, readonly=readonly)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        logger.debug(f"Connected to PostgreSQL database from pool (readonly={readonly}), cursor type: {type(cursor)}")
+        yield cursor
+    except Exception as e:
+        logger.error(f"Failed to get connection or cursor from pool: {e}")
+        yield None
+    finally:
+        if cursor:
+            try:
                 cursor.close()
                 logger.debug("Closed PostgreSQL cursor")
-            if conn:
+            except Exception as e:
+                logger.error(f"Failed to close cursor: {e}")
+        if conn:
+            try:
                 if not readonly:
                     try:
                         conn.commit()
@@ -131,6 +146,8 @@ def get_postgres_connection(readonly=True):
                         conn.rollback()
                 pool.putconn(conn)
                 logger.debug("Returned PostgreSQL connection to pool")
+            except Exception as e:
+                logger.error(f"Failed to return connection to pool: {e}")
 
 def load_cui_cache():
     global _cui_cache
@@ -564,7 +581,7 @@ def get_nlp(max_attempts=3) -> Language:
 
     for attempt in range(1, max_attempts + 1):
         try:
-            # Check if required packages are installed (no version checks)
+            # Check if required packages are installed
             required_packages = ['spacy', 'medspacy', 'scispacy']
             for pkg in required_packages:
                 try:
