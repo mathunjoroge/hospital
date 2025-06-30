@@ -10,7 +10,7 @@ from scispacy.linking import EntityLinker
 from pymongo import MongoClient, UpdateOne
 from pymongo.errors import ConnectionFailure, DuplicateKeyError
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, execute_batch
 from psycopg2.pool import SimpleConnectionPool
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -108,12 +108,15 @@ except Exception as e:
     logger.error(f"Failed to initialize PostgreSQL connection pool: {e}")
     pool = None
 
+from contextlib import contextmanager
+
 @contextmanager
-def get_postgres_connection(readonly=True):
+def get_postgres_connection(readonly=False):
     if pool is None:
         logger.error("Connection pool not initialized. Check PostgreSQL configuration.")
         yield None
         return
+
     conn = None
     cursor = None
     try:
@@ -122,32 +125,37 @@ def get_postgres_connection(readonly=True):
             logger.error(f"Invalid connection object: {type(conn)}")
             yield None
             return
+
         conn.set_session(autocommit=False, readonly=readonly)
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        logger.debug(f"Connected to PostgreSQL database from pool (readonly={readonly}), cursor type: {type(cursor)}")
-        yield cursor
+        logger.debug(f"Connected to PostgreSQL database from pool (readonly={readonly})")
+
+        try:
+            yield cursor
+        finally:
+            if cursor:
+                try:
+                    cursor.close()
+                    logger.debug("Closed PostgreSQL cursor")
+                except Exception as e:
+                    logger.error(f"Failed to close cursor: {e}")
+            if conn:
+                try:
+                    if not readonly:
+                        try:
+                            conn.commit()
+                        except Exception as e:
+                            logger.error(f"Failed to commit transaction: {e}")
+                            conn.rollback()
+                    pool.putconn(conn)
+                    logger.debug("Returned PostgreSQL connection to pool")
+                except Exception as e:
+                    logger.error(f"Failed to return connection to pool: {e}")
+
     except Exception as e:
-        logger.error(f"Failed to get connection or cursor from pool: {e}")
-        yield None
-    finally:
-        if cursor:
-            try:
-                cursor.close()
-                logger.debug("Closed PostgreSQL cursor")
-            except Exception as e:
-                logger.error(f"Failed to close cursor: {e}")
-        if conn:
-            try:
-                if not readonly:
-                    try:
-                        conn.commit()
-                    except Exception as e:
-                        logger.error(f"Failed to commit transaction: {e}")
-                        conn.rollback()
-                pool.putconn(conn)
-                logger.debug("Returned PostgreSQL connection to pool")
-            except Exception as e:
-                logger.error(f"Failed to return connection to pool: {e}")
+        logger.exception("Unexpected error in get_postgres_connection")
+        raise  # Re-raise to ensure visibility in calling code
+
 
 def load_cui_cache():
     global _cui_cache
