@@ -155,17 +155,68 @@ def prepare_note_for_nlp(soap_note: Dict) -> str:
     ]
     return ' '.join(filter(None, fields)).strip()
 
-def update_ai_analysis(note_id: int, analysis: Dict):
-    """Updates the AI analysis field in the database"""
+# NEW: Add function to generate AI summaries
+# Update the generate_summary function
+def generate_summary(text: str, max_sentences: int = 3) -> str:
+    """Generate extractive summary using available SpaCy models"""
+    if not text:
+        return ""
+    
+    try:
+        # Try to use the clinical model if available
+        try:
+            nlp = spacy.load("en_core_sci_sm")
+            logger.info("Using en_core_sci_sm model for summarization")
+        except OSError:
+            # Fallback to English model
+            logger.warning("en_core_sci_sm not available, using en_core_web_sm")
+            nlp = spacy.load("en_core_web_sm")
+        
+        doc = nlp(text)
+        
+        # Score sentences by clinical relevance
+        sentence_scores = []
+        for i, sent in enumerate(doc.sents):
+            score = 0
+            # Prioritize sentences with clinical terms
+            for token in sent:
+                if token.text.lower() in ClinicalNER().clinical_terms:  # Use our clinical terms list
+                    score += 2
+            # Prioritize sentences with verbs (actions)
+            score += len([token for token in sent if token.pos_ in ["VERB", "AUX"]])
+            # Prioritize beginning of document
+            score += 1 - (i / max(len(list(doc.sents)), 1))
+            sentence_scores.append((sent, score))
+        
+        # Sort by score and select top sentences
+        sorted_sentences = sorted(sentence_scores, key=lambda x: x[1], reverse=True)
+        top_sentences = [str(sent[0]) for sent in sorted_sentences[:max_sentences]]
+        
+        return " ".join(top_sentences)
+    except Exception as e:
+        logger.error(f"Summary generation failed: {e}")
+        # Robust fallback: return key sentences from start/middle/end
+        sentences = text.split('.')
+        if len(sentences) > 3:
+            return ". ".join([
+                sentences[0].strip(),
+                sentences[len(sentences)//2].strip(),
+                sentences[-2].strip()
+            ]) + "."
+        return text[:200] + "..." if len(text) > 200 else text
+
+# UPDATED: Modified to handle summary
+def update_ai_analysis(note_id: int, analysis: Dict, summary: str):
+    """Updates the AI analysis and summary fields in the database"""
     try:
         with get_sqlite_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "UPDATE soap_notes SET ai_analysis = ? WHERE id = ?",
-                (json.dumps(analysis), note_id)
+                "UPDATE soap_notes SET ai_analysis = ?, ai_notes = ? WHERE id = ?",
+                (json.dumps(analysis), summary, note_id)
             )
             conn.commit()
-            logger.info(f"Updated AI analysis for note ID {note_id}")
+            logger.info(f"Updated AI analysis and summary for note ID {note_id}")
     except sqlite3.Error as e:
         logger.error(f"Error updating AI analysis: {e}")
 
@@ -434,6 +485,7 @@ class DiseasePredictor:
             reverse=True
         )[:5]
     
+    # UPDATED: Added summary generation and database update
     def process_soap_note(self, note: Dict) -> Dict:
         """Full processing pipeline for a SOAP note"""
         # 1. Prepare text
@@ -441,10 +493,13 @@ class DiseasePredictor:
         if not text:
             return {"error": "No valid text in note"}
         
-        # 2. Extract keywords and CUIs
+        # 2. Generate AI summary
+        summary = generate_summary(text)
+        
+        # 3. Extract keywords and CUIs
         expected_keywords, reference_cuis = self.ner.extract_keywords_and_cuis(note)
         
-        # 3. Extract entities
+        # 4. Extract entities
         entities = self.ner.extract_entities(text)
         terms = set()
         for ent, _, _ in entities:
@@ -458,15 +513,15 @@ class DiseasePredictor:
         
         terms.update([kw.lower() for kw in expected_keywords])
         
-        # 4. Map terms to CUIs
+        # 5. Map terms to CUIs
         symptom_cuis_map = {}
         for term in terms:
             symptom_cuis_map[term] = self.umls_mapper.map_term_to_cui(term)
         
-        # 5. Predict diseases
+        # 6. Predict diseases
         top_diseases = self.predict_from_text(text)
         
-        # 6. Prepare results
+        # 7. Prepare results
         result = {
             "note_id": note['id'],
             "patient_id": note['patient_id'],
@@ -474,11 +529,12 @@ class DiseasePredictor:
             "keywords": expected_keywords,
             "cuis": reference_cuis,
             "entities": entities,
+            "summary": summary,  # NEW: Add summary to results
             "processed_at": datetime.utcnow().isoformat()
         }
         
-        # 7. Save to database
-        update_ai_analysis(note['id'], result)
+        # 8. Save to database
+        update_ai_analysis(note['id'], result, summary)  # UPDATED: Pass summary
         
         return result
 
@@ -518,6 +574,7 @@ class PredictionResponse(BaseModel):
     diseases: List[DiseasePrediction]
     processing_time: float
 
+# UPDATED: Added summary field
 class NoteProcessingResponse(BaseModel):
     note_id: int
     patient_id: str
@@ -525,6 +582,7 @@ class NoteProcessingResponse(BaseModel):
     keywords: List[str]
     cuis: List[str]
     entities: List[EntityDetail]  # Now uses the fixed EntityDetail model
+    summary: str  # NEW: Summary field
     processing_time: float
 
 @app.post("/predict", response_model=PredictionResponse)
@@ -571,6 +629,7 @@ async def process_note(request: ProcessNoteRequest):
         keywords=result["keywords"],
         cuis=result["cuis"],
         entities=formatted_entities,
+        summary=result["summary"],  # NEW: Include summary
         processing_time=time.time() - start_time
     )
 
@@ -703,6 +762,7 @@ class HIMSCLI:
         
         console.print(table)
     
+    # UPDATED: Added summary display
     def _process_notes(self, note_id, process_all, limit):
         """Process SOAP notes"""
         processor = DiseasePredictor()
@@ -717,6 +777,10 @@ class HIMSCLI:
                 console.print(Panel("Processing Results", style="bold cyan"))
                 console.print(f"Note ID: {result['note_id']}")
                 console.print(f"Patient ID: {result['patient_id']}")
+                
+                # NEW: Display summary
+                console.print(Panel("AI Summary", style="bold yellow"))
+                console.print(result['summary'] + "\n")
                 
                 if result['diseases']:
                     disease_table = Table(title="Predicted Diseases")
