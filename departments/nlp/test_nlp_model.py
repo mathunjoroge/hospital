@@ -5,791 +5,829 @@ import nltk
 from nltk.stem import WordNetLemmatizer
 from collections import defaultdict
 import psycopg2
-from psycopg2.extras import DictCursor
+from psycopg2.extras import DictCursor, RealDictCursor
 import sqlite3
 import re
 import time
-from fuzzywuzzy import fuzz
 import json
+import os
+import argparse
+import subprocess
+import sys
+from fastapi import FastAPI, HTTPException
+import uvicorn
+from pydantic import BaseModel
+from typing import List, Dict, Optional, Tuple, Union
+from rich.console import Console
+from rich.table import Table
+from rich.prompt import Prompt, IntPrompt
+from rich.panel import Panel
+from rich.progress import track
+import requests
+from psycopg2.pool import SimpleConnectionPool
+from contextlib import contextmanager
+from dotenv import load_dotenv
+from datetime import datetime
 
-# Local imports
-from departments.nlp.logging_setup import get_logger
-from departments.nlp.nlp_pipeline import get_postgres_connection
+# Initialize logging first
+logger = logging.getLogger("HIMS-NLP")
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("nlp_service.log"),
+        logging.StreamHandler()
+    ]
+)
 
-# Initialize NLP components
-nltk.download('wordnet')
-lemmatizer = WordNetLemmatizer()
-logger = get_logger(__name__)
-_sci_ner = None
+# Load environment variables
+load_dotenv()
 
-# Cache for UMLS mappings
-CUI_CACHE = {}
-SEMANTIC_GROUP_CACHE = {}
-TERM_CACHE = {}
+# Configuration - Centralized and simplified
+HIMS_CONFIG = {
+    "DEFAULT_DEPARTMENT": "emergency",
+    "PRIORITY_SYMPTOMS": ["chest pain", "shortness of breath", "severe headache"],
+    "UMLS_THRESHOLD": 0.7,
+    "CLINICAL_TERMS_TABLE": "clinical_terms",
+    "SQLITE_DB_PATH": "/home/mathu/projects/hospital/instance/hims.db",
+    "API_HOST": "0.0.0.0",
+    "API_PORT": 8000,
+    "POSTGRES_HOST": os.getenv("POSTGRES_HOST", "localhost"),
+    "POSTGRES_PORT": os.getenv("POSTGRES_PORT", "5432"),
+    "POSTGRES_DB": os.getenv("POSTGRES_DB", "hospital_umls"),
+    "POSTGRES_USER": os.getenv("POSTGRES_USER", "postgres"),
+    "POSTGRES_PASSWORD": os.getenv("POSTGRES_PASSWORD", "postgres"),
+    "BATCH_SIZE": 50
+}
 
-class SciBERTWrapper:
-    def __init__(self, model_name="en_core_sci_sm", disable_linker=True):
-        try:
-            self.nlp = spacy.load(model_name, disable=["lemmatizer"])
-            logger.info(f"Loaded SpaCy model: {model_name}")
-            if disable_linker and "entity_linker" in self.nlp.pipe_names:
-                self.nlp.remove_pipe("entity_linker")
-                logger.info("Removed entity_linker to avoid nmslib dependency.")
-            
-            self.negation_terms = {"no", "not", "denies", "without", "absent", "negative"}
-            
-            self.valid_clinical_terms = {
-                "headache", "chills", "fever", "high fever", "vomiting", "jaundice", 
-                "spleen tenderness", "cough", "chest pain", "shortness of breath", 
-                "neck stiffness", "photophobia", "confusion", "burning urination", 
-                "increased frequency", "abdominal pain", "blood smear", "urinalysis",
-                "malaria", "pneumonia", "meningitis", "uti", "consolidation", "x-ray",
-                "lumbar puncture", "white blood cells", "leukocyte esterase", 
-                "plasmodium", "pneumonitis", "meningeal inflammation", "urinary infection",
-                "plasmodium infection", "malarial fever", "bacterial meningitis", 
-                "viral meningitis", "paludism", "cystitis", "sore throat", "myalgia", 
-                "fatigue", "nasal congestion", "influenza", "night sweats", "weight loss", 
-                "hemoptysis", "tuberculosis", "sputum culture", "diarrhea", "nausea", 
-                "dehydration", "gastroenteritis", "stool culture", "rash", "joint pain", 
-                "dengue", "cholera", "rice water stools", "severe dehydration", 
-                "wheezing", "bronchitis", "hepatitis", "liver tenderness", "dark urine", 
-                "asthma", "bronchospasm", "spirometry", "breathlessness"
-            }
-            
-            from spacy.matcher import PhraseMatcher
-            self.matcher = PhraseMatcher(self.nlp.vocab, attr="LOWER")
-            patterns = [self.nlp.make_doc(term) for term in self.valid_clinical_terms]
-            self.matcher.add("ClinicalTerms", patterns)
-            
-        except OSError as e:
-            logger.error(f"Failed to load SpaCy model {model_name}: {e}. Using blank model.")
-            self.nlp = spacy.blank("en")
-            self.negation_terms = set()
-            self.valid_clinical_terms = set()
-            self.matcher = None
+console = Console()
 
-    def extract_entities(self, text):
-        if not text or not isinstance(text, str):
-            logger.warning("Invalid or empty text provided for entity extraction")
-            return []
-        
-        doc = self.nlp(text)
-        entities = []
-        matched_phrases = set()
-        
-        if self.matcher:
-            matches = self.matcher(doc)
-            for _, start, end in matches:
-                span = doc[start:end]
-                span_text = span.text.lower()
-                
-                is_negated = False
-                negation_start = max(0, start - 5)
-                preceding_text = doc[negation_start:start].text.lower()
-                if any(term in preceding_text for term in self.negation_terms) and "rule out" not in preceding_text:
-                    is_negated = True
-                
-                if not is_negated:
-                    entities.append((span.text, "CLINICAL_TERM"))
-                    matched_phrases.add(span_text)
-        
-        for chunk in doc.noun_chunks:
-            chunk_text = chunk.text.lower()
-            if chunk_text not in matched_phrases:
-                entities.append((chunk.text, "NOUN_CHUNK"))
-        
-        logger.info(f"Extracted entities from text: {entities}")
-        return entities
+# Initialize PostgreSQL connection pool
+try:
+    postgres_pool = SimpleConnectionPool(
+        minconn=5,
+        maxconn=20,
+        host=HIMS_CONFIG["POSTGRES_HOST"],
+        port=HIMS_CONFIG["POSTGRES_PORT"],
+        dbname=HIMS_CONFIG["POSTGRES_DB"],
+        user=HIMS_CONFIG["POSTGRES_USER"],
+        password=HIMS_CONFIG["POSTGRES_PASSWORD"],
+        cursor_factory=RealDictCursor,
+        connect_timeout=10
+    )
+    logger.info("PostgreSQL connection pool initialized")
+except Exception as e:
+    logger.error(f"Failed to initialize PostgreSQL pool: {e}")
+    postgres_pool = None
 
-class UMLSMapper:
-    @staticmethod
-    def resolve_cuis_batch(cursor, cuis_to_resolve):
-        if not cuis_to_resolve:
-            logger.warning("No CUIs to resolve")
-            return {}
-        
-        resolved_map = {}
-        unresolved_cuis = [cui for cui in cuis_to_resolve if cui not in CUI_CACHE]
-        
-        if not unresolved_cuis:
-            return {cui: CUI_CACHE[cui] for cui in cuis_to_resolve}
-            
-        try:
-            cursor.execute("""
-                WITH RECURSIVE merge_chain AS (
-                    SELECT pcui, cui, 1 AS depth
-                    FROM umls.mergedcui 
-                    WHERE pcui = ANY(%s)
-                    UNION
-                    SELECT m.pcui, m.cui, mc.depth + 1
-                    FROM umls.mergedcui m
-                    JOIN merge_chain mc ON m.pcui = mc.cui
-                    WHERE mc.depth < 5 AND m.pcui != m.cui
-                )
-                SELECT DISTINCT ON (pcui) pcui, cui 
-                FROM merge_chain
-                ORDER BY pcui, depth DESC 
-            """, (unresolved_cuis,))
-            
-            results = cursor.fetchall()
-            current_cui_map = {row['pcui']: row['cui'] for row in results}
-
-            for original_cui in unresolved_cuis:
-                current_cui = original_cui
-                visited = set()
-                while current_cui in current_cui_map and current_cui not in visited:
-                    visited.add(current_cui)
-                    current_cui = current_cui_map[current_cui]
-                final_cui = current_cui
-                CUI_CACHE[original_cui] = final_cui
-                resolved_map[original_cui] = final_cui
-            
-            for cui in unresolved_cuis:
-                if cui not in resolved_map:
-                    CUI_CACHE[cui] = cui
-                    resolved_map[cui] = cui
-                    
-            return resolved_map
-
-        except psycopg2.Error as e:
-            logger.error(f"Batch CUI resolution failed for {unresolved_cuis}: {e}")
-            return {cui: cui for cui in cuis_to_resolve}
-
-    @staticmethod
-    def is_infectious_disease_batch(cursor, cuis):
-        if not cuis:
-            logger.warning("No CUIs provided for infectious disease check")
-            return {}
-        
-        results_map = {}
-        unseen_cuis = [cui for cui in cuis if f"infectious_{cui}" not in SEMANTIC_GROUP_CACHE]
-        
-        if not unseen_cuis:
-            return {cui: SEMANTIC_GROUP_CACHE[f"infectious_{cui}"] for cui in cuis}
-            
-        try:
-            cursor.execute("""
-                SELECT DISTINCT cui 
-                FROM umls.mrsty 
-                WHERE cui = ANY(%s) 
-                  AND sty IN (
-                    'Bacterial Infectious Disease',
-                    'Viral Infectious Disease',
-                    'Parasitic Infectious Disease',
-                    'Fungal Infectious Disease',
-                    'Infectious Disease'
-                  )
-            """, (unseen_cuis,))
-            
-            infectious_cuis = {row['cui'] for row in cursor.fetchall()}
-            
-            for cui in unseen_cuis:
-                is_infectious = cui in infectious_cuis
-                SEMANTIC_GROUP_CACHE[f"infectious_{cui}"] = is_infectious
-                results_map[cui] = is_infectious
-            
-            return results_map
-            
-        except psycopg2.Error as e:
-            logger.error(f"Batch semantic group check failed for {unseen_cuis}: {e}")
-            return {cui: False for cui in cuis}
-
-    @staticmethod
-    def map_terms_to_cuis_batch(cursor, terms, semantic_filter=None, expected_keywords=None, reference_cuis=None):
-        if not terms:
-            logger.warning("No terms provided for CUI mapping")
-            return defaultdict(list)
-        
-        term_to_cuis = defaultdict(list)
-        clean_terms = {re.sub(r'[^\w\s]', '', term).strip().lower() for term in terms if term and isinstance(term, str)}
-        logger.info(f"Cleaned terms for mapping: {sorted(clean_terms)}")
-        
-        if not clean_terms:
-            logger.warning("No valid terms after cleaning")
-            return defaultdict(list)
-        
-        # Check cache first
-        cached_terms = {t: TERM_CACHE[t] for t in clean_terms if t in TERM_CACHE}
-        uncached_terms = [t for t in clean_terms if t not in TERM_CACHE]
-        logger.info(f"Uncached terms: {sorted(uncached_terms)}")
-        
-        if uncached_terms:
-            try:
-                # Exact match using mrconso
-                cursor.execute("""
-                    SELECT str, cui
-                    FROM umls.mrconso
-                    WHERE str = ANY(%s)
-                      AND lat = 'ENG'
-                      AND suppress = 'N'
-                      AND sab IN ('MSH', 'SNOMEDCT_US', 'ICD10CM')
-                """, (uncached_terms,))
-                for row in cursor:
-                    term_to_cuis[row['str'].lower()].append(row['cui'])
-                
-                # Trigram-based similarity search for unmapped terms
-                unmapped_terms = [t for t in uncached_terms if not term_to_cuis[t]]
-                if unmapped_terms:
-                    logger.info(f"Unmapped terms for trigram search: {sorted(unmapped_terms)}")
-                    cursor.execute("""
-                        SELECT str, cui
-                        FROM umls.mrconso
-                        WHERE str %% ANY(%s)  
-                          AND lat = 'ENG'
-                          AND suppress = 'N'
-                          AND sab IN ('MSH', 'SNOMEDCT_US', 'ICD10CM')
-                        LIMIT 10
-                    """, (unmapped_terms,))
-                    for row in cursor:
-                        for term in unmapped_terms:
-                            if fuzz.ratio(term, row['str'].lower()) > 85:
-                                term_to_cuis[term].append(row['cui'])
-                
-                # Synonyms using mrxw_eng
-                for term in unmapped_terms:
-                    cursor.execute("""
-                        SELECT DISTINCT w.cui
-                        FROM umls.mrxw_eng w
-                        JOIN umls.mrconso c ON w.cui = c.cui
-                        WHERE w.wd = %s
-                          AND c.lat = 'ENG'
-                          AND c.suppress = 'N'
-                          AND c.sab IN ('MSH', 'SNOMEDCT_US', 'ICD10CM')
-                    """, (term,))
-                    for row in cursor:
-                        term_to_cuis[term].append(row['cui'])
-                
-                # Update cache
-                for term in uncached_terms:
-                    TERM_CACHE[term] = term_to_cuis[term]
-            
-            except psycopg2.Error as e:
-                logger.error(f"Term mapping query failed: {e}")
-                for term in uncached_terms:
-                    term_to_cuis[term] = []
-        
-        # Merge cached results
-        for term, cuis in cached_terms.items():
-            term_to_cuis[term].extend(cuis)
-        
-        # Map expected keywords to reference CUIs
-        if expected_keywords and reference_cuis:
-            for kw, cui in zip(expected_keywords, reference_cuis):
-                if kw.lower() in clean_terms and cui not in term_to_cuis[kw.lower()]:
-                    term_to_cuis[kw.lower()].append(cui)
-                    logger.info(f"Manually mapped {kw.lower()} to {cui}")
-                    print(f"🔗 Manually mapped {kw.lower()} to {cui}")
-        
-        # Apply semantic filter
-        all_found_cuis = set(cui for cuis_list in term_to_cuis.values() for cui in cuis_list)
-        if semantic_filter and all_found_cuis:
-            try:
-                cursor.execute("""
-                    SELECT DISTINCT cui
-                    FROM umls.mrsty
-                    WHERE cui = ANY(%s)
-                      AND sty = ANY(%s)
-                """, (list(all_found_cuis), list(semantic_filter)))
-                semantically_valid_cuis = {row['cui'] for row in cursor}
-                
-                filtered_cui_map = defaultdict(list)
-                for term, cuis_list in term_to_cuis.items():
-                    filtered_cui_map[term] = [c for c in cuis_list if c in semantically_valid_cuis]
-                term_to_cuis = filtered_cui_map
-            except psycopg2.Error as e:
-                logger.error(f"Semantic filter query failed: {e}")
-        
-        # Resolve merged CUIs
-        all_cuis_to_resolve = set(cui for cuis_list in term_to_cuis.values() for cui in cuis_list)
-        resolved_cui_map = UMLSMapper.resolve_cuis_batch(cursor, list(all_cuis_to_resolve))
-        
-        # Check for deleted CUIs
-        if resolved_cui_map:
-            try:
-                cursor.execute("SELECT pcui FROM umls.deletedcui WHERE pcui = ANY(%s)", (list(resolved_cui_map.values()),))
-                deleted_cuis = {row['pcui'] for row in cursor}
-            except psycopg2.Error as e:
-                logger.error(f"Deleted CUI check failed: {e}")
-                deleted_cuis = set()
-        
-        final_term_cui_map = defaultdict(list)
-        for term, original_cuis in term_to_cuis.items():
-            for cui in original_cuis:
-                resolved_cui = resolved_cui_map.get(cui, cui)
-                if resolved_cui not in deleted_cuis:
-                    final_term_cui_map[term].append(resolved_cui)
-        
-        logger.info(f"Mapped terms to CUIs: {dict(final_term_cui_map)}")
-        return final_term_cui_map
-
-def get_sqlite_connection(db_path="/home/mathu/projects/hospital/instance/hims.db"):
-    """Establishes a connection to the SQLite database."""
+@contextmanager
+def get_postgres_connection(readonly=False):
+    """Context manager for PostgreSQL connections"""
+    conn = None
     try:
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        logger.info(f"Successfully connected to SQLite database: {db_path}")
-        return conn
-    except sqlite3.Error as e:
-        logger.error(f"Failed to connect to SQLite database {db_path}: {e}")
+        conn = postgres_pool.getconn()
+        conn.set_session(readonly=readonly, autocommit=False)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        yield cursor
+    except Exception as e:
+        logger.error(f"Database error: {e}")
         raise
+    finally:
+        if conn:
+            cursor.close()
+            postgres_pool.putconn(conn)
 
-def fetch_soap_notes():
-    """Fetches all SOAP notes from the soap_notes table."""
-    soap_notes = []
+@contextmanager
+def get_sqlite_connection():
+    """Context manager for SQLite connections"""
+    conn = sqlite3.connect(HIMS_CONFIG["SQLITE_DB_PATH"])
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+# ===================== SOAP Note Processing Functions =====================
+def fetch_soap_notes(limit: int = None) -> List[Dict]:
+    """Fetches SOAP notes from the SQLite database"""
     try:
         with get_sqlite_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM soap_notes")
-            rows = cursor.fetchall()
-            
-            for row in rows:
-                soap_note = {
-                    'id': row['id'],
-                    'patient_id': row['patient_id'],
-                    'created_at': row['created_at'],
-                    'situation': row['situation'],
-                    'hpi': row['hpi'],
-                    'aggravating_factors': row['aggravating_factors'],
-                    'alleviating_factors': row['alleviating_factors'],
-                    'medical_history': row['medical_history'],
-                    'medication_history': row['medication_history'],
-                    'assessment': row['assessment'],
-                    'recommendation': row['recommendation'],
-                    'additional_notes': row['additional_notes'],
-                    'symptoms': row['symptoms'],
-                    'ai_notes': row['ai_notes'],
-                    'ai_analysis': row['ai_analysis'],
-                    'file_path': row['file_path']
-                }
-                soap_notes.append(soap_note)
-                logger.info(f"Fetched SOAP note ID {row['id']} for patient {row['patient_id']}")
-            
-            logger.info(f"Retrieved {len(soap_notes)} SOAP notes from the database")
-            return soap_notes
-    
+            query = "SELECT * FROM soap_notes"
+            if limit:
+                query += f" LIMIT {limit}"
+            cursor.execute(query)
+            return [dict(row) for row in cursor.fetchall()]
     except sqlite3.Error as e:
         logger.error(f"Error fetching SOAP notes: {e}")
         return []
 
-def extract_keywords_and_cuis(note, ner):
-    """Extracts expected keywords and reference CUIs from the assessment or symptoms field."""
-    text = note.get('assessment', '') or note.get('symptoms', '') or ''
-    if not text:
-        logger.warning(f"No assessment or symptoms found for note ID {note['id']}")
-        return [], []
-    
-    # Use SciBERTWrapper to extract entities
-    entities = ner.extract_entities(text)
-    terms = {ent[0].lower() for ent, _ in entities if ent}
-    
-    # Define disease-related keywords
-    disease_keywords = {
-        "malaria": "C0024530",
-        "pneumonia": "C0032285",
-        "meningitis": "C0025289",
-        "uti": "C0033578",
-        "urinary tract infection": "C0033578",
-        "influenza": "C0021400",
-        "tuberculosis": "C0041296",
-        "gastroenteritis": "C0017160",
-        "dengue": "C0011311",
-        "cholera": "C0008344",
-        "bronchitis": "C0006277",
-        "hepatitis": "C0019158",
-        "asthma": "C0004096"
-    }
-    
-    expected_keywords = []
-    reference_cuis = []
-    
-    for term in terms:
-        for keyword, cui in disease_keywords.items():
-            if keyword in term or term in keyword:
-                expected_keywords.append(keyword)
-                reference_cuis.append(cui)
-                break
-    
-    # If no keywords found, fall back to common symptoms
-    if not expected_keywords:
-        expected_keywords = ["fever", "pain", "headache", "cough"]
-        reference_cuis = []
-    
-    logger.info(f"Extracted keywords: {expected_keywords}, CUIs: {reference_cuis} for note ID {note['id']}")
-    return expected_keywords, reference_cuis
+def fetch_single_soap_note(note_id: int) -> Optional[Dict]:
+    """Fetches a single SOAP note by ID"""
+    try:
+        with get_sqlite_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM soap_notes WHERE id = ?", (note_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+    except sqlite3.Error as e:
+        logger.error(f"Error fetching SOAP note {note_id}: {e}")
+        return None
 
-def prepare_note_for_nlp(soap_note):
-    """Combines relevant fields from a SOAP note for NLP processing."""
+def prepare_note_for_nlp(soap_note: Dict) -> str:
+    """Combines relevant fields from a SOAP note for NLP processing"""
+    # Prioritize symptoms field if available
+    symptoms = soap_note.get('symptoms', '') or ''
+    
+    # Combine all relevant fields
     fields = [
-        soap_note['situation'] or '',
-        soap_note['hpi'] or '',
-        soap_note['symptoms'] or '',
-        soap_note['assessment'] or '',
-        soap_note['additional_notes'] or ''
+        soap_note.get('situation', ''),
+        soap_note.get('hpi', ''),
+        symptoms,  # Use symptoms field
+        soap_note.get('aggravating_factors', ''),
+        soap_note.get('alleviating_factors', ''),
+        soap_note.get('medical_history', ''),
+        soap_note.get('medication_history', ''),
+        soap_note.get('assessment', ''),
+        soap_note.get('recommendation', ''),
+        soap_note.get('additional_notes', ''),
+        soap_note.get('ai_notes', '')  # Include any existing AI notes
     ]
     return ' '.join(filter(None, fields)).strip()
 
-class TestSciNER(unittest.TestCase):
-    def setUp(self):
-        global _sci_ner
-        if not _sci_ner:
-            _sci_ner = SciBERTWrapper(model_name="en_core_sci_sm", disable_linker=True)
-        self.ner = _sci_ner
-    
-    @classmethod
-    def tearDownClass(cls):
-        CUI_CACHE.clear()
-        SEMANTIC_GROUP_CACHE.clear()
-        TERM_CACHE.clear()
-        global _sci_ner
-        _sci_ner = None
+def update_ai_analysis(note_id: int, analysis: Dict):
+    """Updates the AI analysis field in the database"""
+    try:
+        with get_sqlite_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE soap_notes SET ai_analysis = ? WHERE id = ?",
+                (json.dumps(analysis), note_id)
+            )
+            conn.commit()
+            logger.info(f"Updated AI analysis for note ID {note_id}")
+    except sqlite3.Error as e:
+        logger.error(f"Error updating AI analysis: {e}")
 
-    def _run_prediction_test(self, note, expected_keywords, reference_cuis=None):
-        start_time = time.time()
-        logger.info(f"Processing note: {note.strip()}")
-        print("\n🔬 Running disease prediction...")
-        print(f"📄 Note:\n{note.strip()}")
-
-        # Step 1: Enhanced entity extraction
-        entities = self.ner.extract_entities(note)
-        print("🧠 Extracted entities:", entities)
+# ===================== Enhanced NLP Components =====================
+class ClinicalNER:
+    """Clinical Named Entity Recognition with caching and error handling"""
+    def __init__(self, model_name="en_core_sci_sm"):
+        try:
+            self.nlp = spacy.load(model_name, disable=["lemmatizer"])
+            logger.info(f"Loaded SpaCy model: {model_name}")
+        except OSError:
+            logger.warning("SpaCy model not found, using blank English model")
+            self.nlp = spacy.blank("en")
         
-        # Extract terms with comprehensive processing
+        self.negation_terms = {"no", "not", "denies", "without", "absent", "negative"}
+        self.clinical_terms = self._load_clinical_terms()
+        self.lemmatizer = WordNetLemmatizer()
+        
+    def _load_clinical_terms(self):
+        """Load clinical terms from database"""
+        try:
+            with get_sqlite_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    f"SELECT term FROM {HIMS_CONFIG['CLINICAL_TERMS_TABLE']}"
+                )
+                return {row['term'].lower() for row in cursor.fetchall()}
+        except Exception as e:
+            logger.error(f"Error loading clinical terms: {e}")
+            return {
+                "headache", "fever", "cough", "pain", "nausea", 
+                "vomiting", "dizziness", "rash", "fatigue", "chest pain",
+                "shortness of breath", "abdominal pain", "diarrhea"
+            }
+    
+    def extract_entities(self, text: str) -> List[Tuple[str, str, dict]]:
+        """Extract clinical entities from text"""
+        if not text:
+            return []
+        
+        doc = self.nlp(text)
+        entities = []
+        
+        # Process noun chunks as potential entities
+        for chunk in doc.noun_chunks:
+            if chunk.text.lower() in self.clinical_terms:
+                entities.append((
+                    chunk.text,
+                    "CLINICAL_TERM",
+                    {"severity": 1, "temporal": "UNSPECIFIED"}
+                ))
+        
+        # Add custom pattern matching
+        patterns = {
+            "PAIN": r"\b(pain|ache|discomfort|tenderness)\b",
+            "FEVER": r"\b(fever|pyrexia|hyperthermia)\b",
+            "RESPIRATORY": r"\b(cough|dyspnea|shortness of breath|wheez)\b",
+            "CARDIO": r"\b(chest pain|palpitation|tachycardia)\b",
+            "GASTRO": r"\b(nausea|vomiting|diarrhea|constipation|abdominal pain)\b",
+            "NEURO": r"\b(headache|dizziness|vertigo|confusion|seizure)\b"
+        }
+        
+        for label, pattern in patterns.items():
+            for match in re.finditer(pattern, text, re.IGNORECASE):
+                entities.append((
+                    match.group(),
+                    label,
+                    {"severity": 1, "temporal": "UNSPECIFIED"}
+                ))
+        
+        return entities
+    
+    def extract_keywords_and_cuis(self, note: Dict) -> Tuple[List[str], List[str]]:
+        """Extracts expected keywords and reference CUIs from the note"""
+        # Prioritize symptoms field if available
+        text = note.get('symptoms', '') or note.get('assessment', '') or ''
+        if not text:
+            return [], []
+        
+        entities = self.extract_entities(text)
+        terms = {ent[0].lower() for ent in entities if ent}
+        
+        # Disease keyword mapping
+        disease_keywords = {
+            "malaria": "C0024530",
+            "pneumonia": "C0032285",
+            "meningitis": "C0025289",
+            "uti": "C0033578",
+            "urinary tract infection": "C0033578",
+            "influenza": "C0021400",
+            "tuberculosis": "C0041296",
+            "gastroenteritis": "C0017160",
+            "dengue": "C0011311",
+            "cholera": "C0008344",
+            "bronchitis": "C0006277",
+            "hepatitis": "C0019158",
+            "asthma": "C0004096",
+            "myocardial infarction": "C0027051",
+            "stroke": "C0038454",
+            "diabetes": "C0011849",
+            "hypertension": "C0020538"
+        }
+        
+        expected_keywords = []
+        reference_cuis = []
+        
+        # Match terms to disease keywords
+        for term in terms:
+            for keyword, cui in disease_keywords.items():
+                if keyword in term or term in keyword:
+                    expected_keywords.append(keyword)
+                    reference_cuis.append(cui)
+                    break
+        
+        # If no disease-specific keywords found, use symptom-based fallback
+        if not expected_keywords:
+            symptom_cuis = {
+                "fever": "C0015967",
+                "pain": "C0030193",
+                "headache": "C0018681",
+                "cough": "C0010200",
+                "vomiting": "C0042963",
+                "diarrhea": "C0011991"
+            }
+            for term in terms:
+                if term in symptom_cuis:
+                    expected_keywords.append(term)
+                    reference_cuis.append(symptom_cuis[term])
+        
+        # Final fallback to common symptoms
+        if not expected_keywords:
+            expected_keywords = ["fever", "pain", "headache", "cough"]
+            reference_cuis = []
+        
+        return expected_keywords, reference_cuis
+
+class UMLSMapper:
+    """UMLS Concept Mapper with caching and batch operations"""
+    def __init__(self):
+        self.cui_cache = {}
+        self.term_cache = {}
+        self.semantic_cache = {}
+        
+    def map_term_to_cui(self, term: str) -> List[str]:
+        """Map a clinical term to UMLS CUIs"""
+        if term in self.term_cache:
+            return self.term_cache[term]
+        
+        cuis = []
+        try:
+            with get_postgres_connection(readonly=True) as cursor:
+                cursor.execute("""
+                    SELECT DISTINCT cui
+                    FROM umls.mrconso
+                    WHERE LOWER(str) = LOWER(%s)
+                    AND lat = 'ENG'
+                    AND suppress = 'N'
+                    LIMIT 5
+                """, (term,))
+                cuis = [row['cui'] for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"CUI mapping failed for {term}: {e}")
+        
+        self.term_cache[term] = cuis
+        return cuis
+    
+    def resolve_cui(self, cui: str) -> str:
+        """Resolve a CUI to its current version"""
+        if cui in self.cui_cache:
+            return self.cui_cache[cui]
+        
+        try:
+            with get_postgres_connection(readonly=True) as cursor:
+                cursor.execute("""
+                    WITH RECURSIVE merge_chain AS (
+                        SELECT pcui, cui, 1 AS depth
+                        FROM umls.mergedcui 
+                        WHERE pcui = %s
+                        UNION
+                        SELECT m.pcui, m.cui, mc.depth + 1
+                        FROM umls.mergedcui m
+                        JOIN merge_chain mc ON m.pcui = mc.cui
+                        WHERE mc.depth < 5 AND m.pcui != m.cui
+                    )
+                    SELECT DISTINCT ON (pcui) pcui, cui 
+                    FROM merge_chain
+                    ORDER BY pcui, depth DESC 
+                """, (cui,))
+                result = cursor.fetchone()
+                resolved_cui = result['cui'] if result else cui
+                self.cui_cache[cui] = resolved_cui
+                return resolved_cui
+        except Exception as e:
+            logger.error(f"CUI resolution failed for {cui}: {e}")
+            return cui
+    
+    def is_infectious_disease(self, cui: str) -> bool:
+        """Check if a CUI represents an infectious disease"""
+        cache_key = f"infectious_{cui}"
+        if cache_key in self.semantic_cache:
+            return self.semantic_cache[cache_key]
+        
+        try:
+            with get_postgres_connection(readonly=True) as cursor:
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM umls.mrsty 
+                        WHERE cui = %s
+                        AND sty IN (
+                            'Bacterial Infectious Disease', 'Viral Infectious Disease',
+                            'Parasitic Infectious Disease', 'Fungal Infectious Disease',
+                            'Infectious Disease'
+                        )
+                    ) AS is_infectious
+                """, (cui,))
+                result = cursor.fetchone()
+                is_infectious = result['is_infectious'] if result else False
+                self.semantic_cache[cache_key] = is_infectious
+                return is_infectious
+        except Exception as e:
+            logger.error(f"Semantic check failed for {cui}: {e}")
+            return False
+
+# ===================== Enhanced Disease Prediction =====================
+class DiseasePredictor:
+    """Predict diseases based on clinical text"""
+    def __init__(self, ner_model=None):
+        self.ner = ner_model or ClinicalNER()
+        self.umls_mapper = UMLSMapper()
+        self.disease_signatures = {
+            "pneumonia": {"cough", "fever", "chest pain"},
+            "myocardial_infarction": {"chest pain", "shortness of breath", "sweating"},
+            "stroke": {"headache", "weakness", "speech difficulty", "facial droop"},
+            "gastroenteritis": {"diarrhea", "nausea", "vomiting", "abdominal pain"},
+            "uti": {"dysuria", "frequency", "urgency", "suprapubic pain"},
+            "asthma": {"wheezing", "shortness of breath", "cough"},
+            "diabetes": {"thirst", "polyuria", "fatigue", "blurred vision"},
+            "hypertension": {"headache", "dizziness", "nosebleed"}
+        }
+    
+    def predict_from_text(self, text: str) -> List[Dict]:
+        """Predict top diseases based on clinical text"""
+        entities = self.ner.extract_entities(text)
+        if not entities:
+            return []
+        
+        # Collect unique terms
+        terms = {ent[0].lower() for ent in entities}
+        
+        # Map terms to CUIs
+        term_cui_map = {}
+        for term in terms:
+            term_cui_map[term] = self.umls_mapper.map_term_to_cui(term)
+        
+        # Calculate disease scores
+        disease_scores = defaultdict(float)
+        for disease, signature in self.disease_signatures.items():
+            score = sum(1 for term in signature if term in terms)
+            disease_scores[disease] = score
+        
+        # Convert to sorted results
+        return sorted(
+            [{"disease": k, "score": v} for k, v in disease_scores.items()],
+            key=lambda x: x["score"],
+            reverse=True
+        )[:5]
+    
+    def process_soap_note(self, note: Dict) -> Dict:
+        """Full processing pipeline for a SOAP note"""
+        # 1. Prepare text
+        text = prepare_note_for_nlp(note)
+        if not text:
+            return {"error": "No valid text in note"}
+        
+        # 2. Extract keywords and CUIs
+        expected_keywords, reference_cuis = self.ner.extract_keywords_and_cuis(note)
+        
+        # 3. Extract entities
+        entities = self.ner.extract_entities(text)
         terms = set()
-        for ent, label in entities:
+        for ent, _, _ in entities:
             clean_text = re.sub(r'[^\w\s]', '', ent).strip().lower()
             if clean_text:
                 terms.add(clean_text)
                 for word in clean_text.split():
                     if len(word) > 3:
-                        lemma = lemmatizer.lemmatize(word)
+                        lemma = self.ner.lemmatizer.lemmatize(word)
                         terms.add(lemma)
         
         terms.update([kw.lower() for kw in expected_keywords])
         
-        if not terms:
-            print("⚠️ No terms extracted, using default symptom keywords")
-            terms = {"fever", "pain", "headache", "cough", "vomiting", "stiffness", "diarrhea", "fatigue"}
-        
-        print("📋 Processed terms:", sorted(terms))
-        logger.info(f"Processed terms: {sorted(terms)}")
-
-        # Step 2: Map terms to CUIs
+        # 4. Map terms to CUIs
         symptom_cuis_map = {}
-        lab_cuis_map = {}
-        disease_mentions = []
+        for term in terms:
+            symptom_cuis_map[term] = self.umls_mapper.map_term_to_cui(term)
         
-        with get_postgres_connection(readonly=True) as cursor:
-            symptom_cuis_map = UMLSMapper.map_terms_to_cuis_batch(
-                cursor, 
-                list(terms), 
-                semantic_filter=['Sign or Symptom', 'Finding', 'Disease or Syndrome',
-                                'Bacterial Infectious Disease', 'Parasitic Infectious Disease',
-                                'Viral Infectious Disease', 'Fungal Infectious Disease'],
-                expected_keywords=expected_keywords,
-                reference_cuis=reference_cuis
+        # 5. Predict diseases
+        top_diseases = self.predict_from_text(text)
+        
+        # 6. Prepare results
+        result = {
+            "note_id": note['id'],
+            "patient_id": note['patient_id'],
+            "diseases": top_diseases,
+            "keywords": expected_keywords,
+            "cuis": reference_cuis,
+            "entities": entities,
+            "processed_at": datetime.utcnow().isoformat()
+        }
+        
+        # 7. Save to database
+        update_ai_analysis(note['id'], result)
+        
+        return result
+
+# ===================== FastAPI Application =====================
+app = FastAPI(
+    title="Clinical NLP API",
+    description="Real-time clinical NLP processing service",
+    version="1.0.0"
+)
+
+# Initialize predictors
+text_predictor = DiseasePredictor()
+note_processor = DiseasePredictor()
+
+class PredictionRequest(BaseModel):
+    text: str
+    department: Optional[str] = None
+
+class ProcessNoteRequest(BaseModel):
+    note_id: int
+
+class DiseasePrediction(BaseModel):
+    disease: str
+    score: float
+
+# FIX: Create specialized context model to handle mixed types
+class EntityContext(BaseModel):
+    severity: int
+    temporal: str
+
+class EntityDetail(BaseModel):
+    text: str
+    label: str
+    context: EntityContext  # Use the specialized context model
+
+class PredictionResponse(BaseModel):
+    diseases: List[DiseasePrediction]
+    processing_time: float
+
+class NoteProcessingResponse(BaseModel):
+    note_id: int
+    patient_id: str
+    diseases: List[DiseasePrediction]
+    keywords: List[str]
+    cuis: List[str]
+    entities: List[EntityDetail]  # Now uses the fixed EntityDetail model
+    processing_time: float
+
+@app.post("/predict", response_model=PredictionResponse)
+async def predict(request: PredictionRequest):
+    start_time = time.time()
+    diseases = text_predictor.predict_from_text(request.text)
+    return PredictionResponse(
+        diseases=diseases,
+        processing_time=time.time() - start_time
+    )
+
+@app.post("/process_note", response_model=NoteProcessingResponse)
+async def process_note(request: ProcessNoteRequest):
+    start_time = time.time()
+    note = fetch_single_soap_note(request.note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    result = note_processor.process_soap_note(note)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    # Format entities for response using the fixed model
+    formatted_entities = []
+    for ent in result["entities"]:
+        # Create the EntityContext object
+        context = EntityContext(
+            severity=ent[2]["severity"],
+            temporal=ent[2]["temporal"]
+        )
+        # Create the EntityDetail object
+        formatted_entities.append(
+            EntityDetail(
+                text=ent[0],
+                label=ent[1],
+                context=context
             )
-            
-            lab_cuis_map = UMLSMapper.map_terms_to_cuis_batch(
-                cursor,
-                list(terms),
-                semantic_filter=['Laboratory or Test Result', 'Diagnostic Procedure']
-            )
-            
-            for term in terms:
-                if any(kw.lower() in term for kw in expected_keywords):
-                    disease_mentions.append(term)
-                
-                if term in symptom_cuis_map and symptom_cuis_map[term]:
-                    print(f"  🔍 '{term}' → {len(symptom_cuis_map[term])} symptom CUIs: {symptom_cuis_map[term]}")
-                if term in lab_cuis_map and lab_cuis_map[term]:
-                    print(f"  🔬 '{term}' → {len(lab_cuis_map[term])} lab CUIs: {lab_cuis_map[term]}")
-        
-        symptom_cuis = [cui for cuis_list in symptom_cuis_map.values() for cui in cuis_list]
-        lab_cuis = [cui for cuis_list in lab_cuis_map.values() for cui in cuis_list]
+        )
+    
+    return NoteProcessingResponse(
+        note_id=result["note_id"],
+        patient_id=result["patient_id"],
+        diseases=result["diseases"],
+        keywords=result["keywords"],
+        cuis=result["cuis"],
+        entities=formatted_entities,
+        processing_time=time.time() - start_time
+    )
 
-        print(f"📌 Mapped {len(symptom_cuis)} symptom CUIs and {len(lab_cuis)} lab CUIs")
-        print(f"🔎 Disease mentions: {disease_mentions}")
-        logger.info(f"Symptom CUIs: {symptom_cuis}")
-        logger.info(f"Lab CUIs: {lab_cuis}")
-        logger.info(f"Disease mentions: {disease_mentions}")
+# ===================== Enhanced CLI =====================
+class HIMSCLI:
+    """Command Line Interface for HIMS NLP"""
+    def __init__(self):
+        self.parser = argparse.ArgumentParser(
+            description='HIMS Clinical NLP System',
+            formatter_class=argparse.RawTextHelpFormatter
+        )
+        self._setup_commands()
+    
+    def _setup_commands(self):
+        """Configure CLI commands"""
+        subparsers = self.parser.add_subparsers(dest='command')
         
-        # Step 3: Predict diseases
-        all_cuis = list(set(symptom_cuis + lab_cuis))
-        if reference_cuis:
-            all_cuis.extend(reference_cuis)
-            print(f"🔗 Added reference CUIs: {reference_cuis}")
+        # Status command
+        status_parser = subparsers.add_parser('status', help='System status')
+        status_parser.add_argument('--detail', action='store_true', help='Detailed status')
         
-        if not all_cuis:
-            print("⛔ No CUIs available for prediction")
-            top_diseases = [{'cui': "UNKNOWN", 'name': "No diseases predicted", 'score': 0.0}]
-        else:
-            disease_scores = defaultdict(float)
-            disease_names = {}
-            disease_hierarchy = {}
-            
-            with get_postgres_connection(readonly=True) as cursor:
-                # Fetch disease relationships with source ranking
-                cursor.execute("""
-                    SELECT r.cui2 AS disease_cui, 
-                           c.str AS disease_name,
-                           r.rela,
-                           r.cui1 AS source_cui,
-                           k.mrrank_rank
-                    FROM umls.mrrel r
-                    JOIN umls.mrconso c ON r.cui2 = c.cui
-                    JOIN umls.mrrank k ON c.sab = k.sab AND c.tty = k.tty
-                    WHERE r.cui1 = ANY(%s)
-                      AND c.lat = 'ENG'
-                      AND c.suppress = 'N'
-                      AND c.sab IN ('MSH', 'SNOMEDCT_US', 'ICD10CM')
-                      AND c.ts = 'P'
-                      AND k.suppress = 'N'
-                    ORDER BY k.mrrank_rank DESC
-                """, (all_cuis,))
-                
-                raw_disease_relations = cursor.fetchall()
-                potential_disease_cuis = {row['disease_cui'] for row in raw_disease_relations}
-                is_infectious_map = UMLSMapper.is_infectious_disease_batch(cursor, list(potential_disease_cuis))
-
-                # Fetch hierarchical relationships
-                cursor.execute("""
-                    SELECT cui, ptr
-                    FROM umls.mrhier
-                    WHERE cui = ANY(%s)
-                      AND sab IN ('MSH', 'SNOMEDCT_US', 'ICD10CM')
-                """, (list(potential_disease_cuis),))
-                for row in cursor:
-                    disease_hierarchy[row['cui']] = row['ptr']
-
-                for row in raw_disease_relations:
-                    disease_cui = row['disease_cui']
-                    disease_name = row['disease_name']
-                    disease_names[disease_cui] = disease_name
-                    
-                    weight = 1.0
-                    if row['rela'] == 'causative_agent_of':
-                        weight = 2.0
-                    elif row['rela'] == 'manifestation_of':
-                        weight = 1.8
-                    elif row['rela'] == 'has_finding':
-                        weight = 1.5
-                    
-                    weight *= (1 + row['mrrank_rank'] / 1000.0)
-                    
-                    if is_infectious_map.get(disease_cui, False):
-                        weight *= 1.5
-                    
-                    disease_scores[disease_cui] += weight
-            
-                # Boost reference CUIs
-                if reference_cuis:
+        # Predict command
+        predict_parser = subparsers.add_parser('predict', help='Run prediction')
+        predict_parser.add_argument('text', help='Clinical text to analyze')
+        
+        # Process command
+        process_parser = subparsers.add_parser('process', help='Process SOAP notes')
+        process_parser.add_argument('--note-id', type=int, help='Process specific note by ID')
+        process_parser.add_argument('--all', action='store_true', help='Process all unprocessed notes')
+        process_parser.add_argument('--limit', type=int, default=10, help='Limit number of notes to process')
+        
+        # API command
+        api_parser = subparsers.add_parser('api', help='API management')
+        api_parser.add_argument('action', choices=['start', 'stop', 'status'])
+    
+    def run(self):
+        """Execute CLI commands"""
+        args = self.parser.parse_args()
+        
+        if not args.command:
+            self.parser.print_help()
+            return
+        
+        if args.command == 'status':
+            self._show_status(args.detail)
+        elif args.command == 'predict':
+            self._run_prediction(args.text)
+        elif args.command == 'process':
+            self._process_notes(args.note_id, args.all, args.limit)
+        elif args.command == 'api':
+            self._manage_api(args.action)
+    
+    def _show_status(self, detail=False):
+        """Display system status"""
+        status = {
+            "PostgreSQL": "Connected" if postgres_pool else "Disconnected",
+            "NLP Model": "Loaded" if hasattr(ClinicalNER, 'nlp') else "Error",
+            "SQLite Database": HIMS_CONFIG["SQLITE_DB_PATH"],
+            "UMLS Database": f"{HIMS_CONFIG['POSTGRES_HOST']}:{HIMS_CONFIG['POSTGRES_PORT']}/{HIMS_CONFIG['POSTGRES_DB']}"
+        }
+        
+        # Count SOAP notes
+        try:
+            with get_sqlite_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM soap_notes")
+                note_count = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM soap_notes WHERE ai_analysis IS NOT NULL")
+                processed_count = cursor.fetchone()[0]
+                status["SOAP Notes"] = f"{processed_count}/{note_count} processed"
+        except:
+            status["SOAP Notes"] = "Unknown"
+        
+        table = Table(title="System Status")
+        table.add_column("Component", style="cyan")
+        table.add_column("Status", style="green")
+        for k, v in status.items():
+            table.add_row(k, v)
+        
+        console.print(table)
+        
+        if detail:
+            # Show recent notes status
+            try:
+                with get_sqlite_connection() as conn:
+                    cursor = conn.cursor()
                     cursor.execute("""
-                        SELECT cui, str
-                        FROM umls.mrconso
-                        WHERE cui = ANY(%s)
-                          AND lat = 'ENG'
-                          AND suppress = 'N'
-                          AND sab IN ('MSH', 'SNOMEDCT_US', 'ICD10CM')
-                    """, (reference_cuis,))
-                    for row in cursor:
-                        disease_scores[row['cui']] += 20.0
-                        disease_names[row['cui']] = row['str']
-                        print(f"🚀 Boosted reference CUI {row['cui']} ({row['str']}) by 20.0")
-            
-                # Boost based on definitions
-                if disease_scores:
-                    cursor.execute("""
-                        SELECT d.cui, d.def
-                        FROM umls.mrdef d
-                        WHERE d.cui = ANY(%s)
-                          AND d.suppress = 'N'
-                          AND d.sab IN ('MSH', 'SNOMEDCT_US', 'ICD10CM')
-                    """, (list(disease_scores.keys()),))
+                        SELECT id, patient_id, created_at, 
+                               CASE WHEN ai_analysis IS NULL THEN 'Pending' ELSE 'Processed' END AS status
+                        FROM soap_notes
+                        ORDER BY created_at DESC
+                        LIMIT 5
+                    """)
+                    recent_notes = cursor.fetchall()
                     
-                    for row in cursor:
-                        cui = row['cui']
-                        definition = row['def'].lower()
-                        boost = 1.0
-                        for term in terms:
-                            if term in definition:
-                                boost += 0.2
-                        if boost > 1.0:
-                            disease_scores[cui] *= boost
-                            print(f"✨ Boosted {disease_names.get(cui)} by {boost:.2f} for definition match")
-                
-                # Boost based on attributes
-                if disease_scores:
-                    cursor.execute("""
-                        SELECT cui, atn, atv 
-                        FROM umls.mrsat 
-                        WHERE cui = ANY(%s) 
-                          AND atn IN ('SEVERITY', 'ACUTE_CHRONIC', 'EPIDEMIOLOGY')
-                          AND suppress = 'N'
-                    """, (list(disease_scores.keys()),))
-                    
-                    for attr in cursor:
-                        cui = attr['cui']
-                        atv = attr['atv'].lower()
-                        if 'severe' in atv or 'acute' in atv:
-                            disease_scores[cui] *= 1.1
-                            print(f"✨ Boosted {disease_names.get(cui)} by 1.1 for attribute: {atv}")
-                        elif 'epidemic' in atv or 'outbreak' in atv:
-                            disease_scores[cui] *= 1.05
-                            print(f"✨ Boosted {disease_names.get(cui)} by 1.05 for attribute: {atv}")
-                
-                # Boost for hierarchical relationships
-                for cui, score in disease_scores.items():
-                    if cui in disease_hierarchy:
-                        ptr = disease_hierarchy[cui]
-                        if ptr and any(term in ptr.lower() for term in terms):
-                            disease_scores[cui] *= 1.2
-                            print(f"✨ Boosted {disease_names.get(cui)} by 1.2 for hierarchical match")
-                
-                # Boost for direct disease mentions
-                if disease_mentions:
-                    disease_mention_cuis_map = UMLSMapper.map_terms_to_cuis_batch(
-                        cursor,
-                        disease_mentions,
-                        semantic_filter=['Disease or Syndrome', 'Bacterial Infectious Disease',
-                                       'Parasitic Infectious Disease', 'Viral Infectious Disease'],
-                        expected_keywords=expected_keywords,
-                        reference_cuis=reference_cuis
-                    )
-                    for mention in disease_mentions:
-                        if mention in disease_mention_cuis_map:
-                            for disease_cui in disease_mention_cuis_map[mention]:
-                                disease_scores[disease_cui] *= 20.0
-                                print(f"🚀 Boosted {disease_names.get(disease_cui, disease_cui)} by 20.0 for direct mention")
-            
-            top_diseases = []
-            with get_postgres_connection(readonly=True) as cursor:
-                candidate_cuis = list(disease_scores.keys())
-                if candidate_cuis:
-                    cursor.execute("""
-                        SELECT DISTINCT cui 
-                        FROM umls.mrsty 
-                        WHERE cui = ANY(%s) 
-                          AND sty IN (
-                            'Disease or Syndrome', 'Neoplastic Process',
-                            'Bacterial Infectious Disease', 'Parasitic Infectious Disease',
-                            'Viral Infectious Disease', 'Fungal Infectious Disease'
-                          )
-                    """, (candidate_cuis,))
-                    valid_disease_cuis = {row['cui'] for row in cursor}
-
-                for cui, score in disease_scores.items():
-                    if cui in valid_disease_cuis:
-                        top_diseases.append({
-                            'cui': cui, 
-                            'name': disease_names.get(cui, "Unknown"), 
-                            'score': score
-                        })
-            
-            if not top_diseases and reference_cuis:
-                with get_postgres_connection(readonly=True) as cursor:
-                    resolved_ref_cuis_map = UMLSMapper.resolve_cuis_batch(cursor, list(reference_cuis))
-                    final_ref_cuis = list(resolved_ref_cuis_map.values())
-                    if final_ref_cuis:
-                        cursor.execute("""
-                            SELECT cui, str 
-                            FROM umls.mrconso 
-                            WHERE cui = ANY(%s)
-                              AND lat = 'ENG'
-                              AND suppress = 'N'
-                              AND sab IN ('MSH', 'SNOMEDCT_US', 'ICD10CM')
-                        """, (final_ref_cuis,))
-                        ref_cui_names = {row['cui']: row['str'] for row in cursor}
-                        for cui in final_ref_cuis:
-                            if cui in ref_cui_names:
-                                top_diseases.append({
-                                    'cui': cui,
-                                    'name': ref_cui_names[cui],
-                                    'score': 20.0
-                                })
-            
-            top_diseases = sorted(top_diseases, key=lambda x: x['score'], reverse=True)[:5]
+                    if recent_notes:
+                        note_table = Table(title="Recent SOAP Notes")
+                        note_table.add_column("ID", style="cyan")
+                        note_table.add_column("Patient ID", style="magenta")
+                        note_table.add_column("Created At", style="yellow")
+                        note_table.add_column("Status", style="green")
+                        
+                        for note in recent_notes:
+                            note_table.add_row(
+                                str(note['id']),
+                                note['patient_id'],
+                                note['created_at'],
+                                note['status']
+                            )
+                        console.print(note_table)
+            except Exception as e:
+                console.print(f"[yellow]Couldn't fetch recent notes: {e}[/yellow]")
+    
+    def _run_prediction(self, text):
+        """Run prediction from CLI"""
+        console.print(Panel("Clinical Text Analysis", style="bold blue"))
+        console.print(f"Input: {text[:200]}...\n")
         
-        print("\n🔍 Top predicted diseases:")
-        for idx, disease in enumerate(top_diseases, 1):
-            print(f"{idx}. {disease['name']} (CUI: {disease['cui']}) - Score: {disease['score']:.2f}")
-        logger.info(f"Top diseases: {[(d['name'], d['cui'], d['score']) for d in top_diseases]}")
-
-        # Step 5: Evaluate predictions
-        def contains_keyword(disease_name, keywords):
-            if not disease_name:
-                return False
-            lower_name = disease_name.lower()
-            
-            if any(kw.lower() in lower_name for kw in keywords):
-                return True
-                
-            synonym_map = {
-                "malaria": ["plasmodium infection", "malarial fever", "paludism", "plasmodium"],
-                "meningitis": ["meningeal inflammation", "bacterial meningitis", "viral meningitis"],
-                "uti": ["urinary tract infection", "urinary infection", "cystitis"],
-                "pneumonia": ["pneumonitis", "lung inflammation", "lung infection"],
-                "influenza": ["flu", "viral infection", "respiratory infection"],
-                "tuberculosis": ["tb", "mycobacterial infection", "pulmonary tuberculosis"],
-                "gastroenteritis": ["stomach flu", "intestinal infection", "viral gastroenteritis"],
-                "dengue": ["dengue fever", "breakbone fever"],
-                "cholera": ["vibrio cholerae infection", "rice water diarrhea"],
-                "bronchitis": ["bronchial inflammation", "acute bronchitis"],
-                "hepatitis": ["liver inflammation", "viral hepatitis"],
-                "asthma": ["bronchial asthma", "reactive airway disease"]
-            }
-            
-            for kw in keywords:
-                if kw.lower() in synonym_map:
-                    if any(syn.lower() in lower_name for syn in synonym_map[kw.lower()]):
-                        return True
-            return False
-
-        matched = [d for d in top_diseases if contains_keyword(d["name"], expected_keywords)]
-        if matched:
-            print(f"✅ Found match: {matched[0]['name']} for keywords {expected_keywords}")
-            logger.info(f"Match found: {matched[0]['name']} for {expected_keywords}")
-        else:
-            print("🔍 Debug: Top diseases:", [(d["name"], d["cui"], d["score"]) for d in top_diseases])
-            logger.error(f"No match for {expected_keywords} in top predictions")
-            self.fail(f"{expected_keywords} not in top predictions")
+        results = text_predictor.predict_from_text(text)
         
-        print(f"⏱️ Prediction completed in {time.time() - start_time:.2f} seconds")
-        return top_diseases
-
-    def test_soap_notes_from_db(self):
-        """Tests disease prediction on SOAP notes fetched from hims.db."""
-        soap_notes = fetch_soap_notes()
-        if not soap_notes:
-            self.skipTest("No SOAP notes found in the database")
+        if not results:
+            console.print("[yellow]No diseases predicted[/yellow]")
+            return
         
-        for note in soap_notes:
-            with self.subTest(note_id=note['id'], patient_id=note['patient_id']):
-                print(f"\n=== Processing SOAP Note ID {note['id']} for Patient {note['patient_id']} ===")
-                text = prepare_note_for_nlp(note)
-                if not text:
-                    logger.warning(f"No valid text for SOAP note ID {note['id']}")
-                    self.skipTest(f"No valid text for SOAP note ID {note['id']}")
+        table = Table(title="Prediction Results")
+        table.add_column("Disease", style="magenta")
+        table.add_column("Score", style="green")
+        for res in results:
+            table.add_row(res['disease'], str(res['score']))
+        
+        console.print(table)
+    
+    def _process_notes(self, note_id, process_all, limit):
+        """Process SOAP notes"""
+        processor = DiseasePredictor()
+        
+        if note_id:
+            console.print(Panel(f"Processing Note ID: {note_id}", style="bold green"))
+            note = fetch_single_soap_note(note_id)
+            if note:
+                result = processor.process_soap_note(note)
                 
-                # Extract keywords and CUIs dynamically
-                expected_keywords, reference_cuis = extract_keywords_and_cuis(note, self.ner)
+                # Print results
+                console.print(Panel("Processing Results", style="bold cyan"))
+                console.print(f"Note ID: {result['note_id']}")
+                console.print(f"Patient ID: {result['patient_id']}")
                 
-                # Run prediction
-                top_diseases = self._run_prediction_test(text, expected_keywords, reference_cuis)
+                if result['diseases']:
+                    disease_table = Table(title="Predicted Diseases")
+                    disease_table.add_column("Disease", style="magenta")
+                    disease_table.add_column("Score", style="green")
+                    for disease in result['diseases']:
+                        disease_table.add_row(disease['disease'], str(disease['score']))
+                    console.print(disease_table)
+                else:
+                    console.print("[yellow]No diseases predicted[/yellow]")
                 
-                # Optionally, update ai_analysis field in the database
+                if result['keywords']:
+                    console.print(f"Keywords: {', '.join(result['keywords'])}")
+                
+                if result['entities']:
+                    entity_table = Table(title="Extracted Entities")
+                    entity_table.add_column("Text", style="cyan")
+                    entity_table.add_column("Label", style="magenta")
+                    for ent in result['entities']:
+                        entity_table.add_row(ent[0], ent[1])
+                    console.print(entity_table)
+            else:
+                console.print(f"[red]Note ID {note_id} not found[/red]")
+        elif process_all:
+            console.print(Panel("Processing All Notes", style="bold green"))
+            notes = fetch_soap_notes()
+            if not notes:
+                console.print("[yellow]No notes found in database[/yellow]")
+                return
+                
+            notes_to_process = notes[:limit]
+            success_count = 0
+            
+            for note in track(notes_to_process, description="Processing..."):
                 try:
-                    with get_sqlite_connection() as conn:
-                        cursor = conn.cursor()
-                        ai_analysis = json.dumps(top_diseases, indent=2)
-                        cursor.execute("""
-                            UPDATE soap_notes
-                            SET ai_analysis = ?
-                            WHERE id = ?
-                        """, (ai_analysis, note['id']))
-                        conn.commit()
-                        logger.info(f"Updated ai_analysis for SOAP note ID {note['id']}")
-                except sqlite3.Error as e:
-                    logger.error(f"Failed to update ai_analysis for SOAP note ID {note['id']}: {e}")
+                    processor.process_soap_note(note)
+                    success_count += 1
+                except Exception as e:
+                    logger.error(f"Failed to process note {note.get('id')}: {e}")
+            
+            console.print(f"[green]Successfully processed {success_count}/{len(notes_to_process)} notes[/green]")
+        else:
+            console.print("[yellow]Specify --note-id or --all to process notes[/yellow]")
+    
+    def _manage_api(self, action):
+        """Manage API server"""
+        if action == 'start':
+            self._start_api()
+        elif action == 'stop':
+            self._stop_api()
+        elif action == 'status':
+            self._api_status()
+    
+    def _start_api(self):
+        """Start the API server"""
+        console.print("Starting API server...")
+        try:
+            subprocess.Popen(
+                ["uvicorn", "main:app", "--host", HIMS_CONFIG["API_HOST"], "--port", str(HIMS_CONFIG["API_PORT"])],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            time.sleep(2)  # Give server time to start
+            console.print(f"[green]API server running at {HIMS_CONFIG['API_HOST']}:{HIMS_CONFIG['API_PORT']}[/green]")
+            console.print(f"[yellow]Access documentation: http://{HIMS_CONFIG['API_HOST']}:{HIMS_CONFIG['API_PORT']}/docs[/yellow]")
+        except Exception as e:
+            console.print(f"[red]Failed to start API: {e}[/red]")
+    
+    def _stop_api(self):
+        """Stop the API server"""
+        console.print("Stopping API server...")
+        try:
+            # Find and kill the Uvicorn process
+            result = subprocess.run(
+                ["pkill", "-f", "uvicorn main:app"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            if result.returncode == 0:
+                console.print("[green]API server stopped[/green]")
+            else:
+                console.print("[yellow]No running API server found[/yellow]")
+        except Exception as e:
+            console.print(f"[red]Error stopping API: {e}[/red]")
+    
+    def _api_status(self):
+        """Check API status"""
+        try:
+            response = requests.get(
+                f"http://{HIMS_CONFIG['API_HOST']}:{HIMS_CONFIG['API_PORT']}/docs",
+                timeout=2
+            )
+            status = "[green]RUNNING[/green]" if response.status_code == 200 else "[red]ERROR[/red]"
+            console.print(f"API Status: {status}")
+            console.print(f"Documentation: http://{HIMS_CONFIG['API_HOST']}:{HIMS_CONFIG['API_PORT']}/docs")
+        except:
+            console.print("[red]API Status: DOWN[/red]")
 
+# ===================== Main Execution =====================
 if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    # Initialize NLP resources
+    nltk.download('wordnet', quiet=True)
+    
+    # Command line handling
+    if len(sys.argv) > 1:
+        HIMSCLI().run()
+    else:
+        # Start API by default if no commands
+        console.print(Panel("Starting HIMS NLP API Server", style="bold blue"))
+        console.print(f"Host: {HIMS_CONFIG['API_HOST']}")
+        console.print(f"Port: {HIMS_CONFIG['API_PORT']}")
+        console.print(f"Documentation: http://{HIMS_CONFIG['API_HOST']}:{HIMS_CONFIG['API_PORT']}/docs")
+        uvicorn.run(app, host=HIMS_CONFIG["API_HOST"], port=HIMS_CONFIG["API_PORT"])
