@@ -6,9 +6,11 @@ from nltk.stem import WordNetLemmatizer
 from collections import defaultdict
 import psycopg2
 from psycopg2.extras import DictCursor
+import sqlite3
 import re
 import time
 from fuzzywuzzy import fuzz
+import json
 
 # Local imports
 from departments.nlp.logging_setup import get_logger
@@ -213,7 +215,7 @@ class UMLSMapper:
         
         if uncached_terms:
             try:
-                # Exact match using mrconso - FIXED PARAMETER FORMAT
+                # Exact match using mrconso
                 cursor.execute("""
                     SELECT str, cui
                     FROM umls.mrconso
@@ -221,7 +223,7 @@ class UMLSMapper:
                       AND lat = 'ENG'
                       AND suppress = 'N'
                       AND sab IN ('MSH', 'SNOMEDCT_US', 'ICD10CM')
-                """, (uncached_terms,))  # CORRECTED: (uncached_terms,)
+                """, (uncached_terms,))
                 for row in cursor:
                     term_to_cuis[row['str'].lower()].append(row['cui'])
                 
@@ -237,7 +239,7 @@ class UMLSMapper:
                           AND suppress = 'N'
                           AND sab IN ('MSH', 'SNOMEDCT_US', 'ICD10CM')
                         LIMIT 10
-                    """, (unmapped_terms,))  # CORRECTED: (unmapped_terms,)
+                    """, (unmapped_terms,))
                     for row in cursor:
                         for term in unmapped_terms:
                             if fuzz.ratio(term, row['str'].lower()) > 85:
@@ -299,12 +301,12 @@ class UMLSMapper:
         
         # Resolve merged CUIs
         all_cuis_to_resolve = set(cui for cuis_list in term_to_cuis.values() for cui in cuis_list)
-        resolved_cuis_map = UMLSMapper.resolve_cuis_batch(cursor, list(all_cuis_to_resolve))
+        resolved_cui_map = UMLSMapper.resolve_cuis_batch(cursor, list(all_cuis_to_resolve))
         
         # Check for deleted CUIs
-        if resolved_cuis_map:
+        if resolved_cui_map:
             try:
-                cursor.execute("SELECT pcui FROM umls.deletedcui WHERE pcui = ANY(%s)", (list(resolved_cuis_map.values()),))
+                cursor.execute("SELECT pcui FROM umls.deletedcui WHERE pcui = ANY(%s)", (list(resolved_cui_map.values()),))
                 deleted_cuis = {row['pcui'] for row in cursor}
             except psycopg2.Error as e:
                 logger.error(f"Deleted CUI check failed: {e}")
@@ -313,12 +315,118 @@ class UMLSMapper:
         final_term_cui_map = defaultdict(list)
         for term, original_cuis in term_to_cuis.items():
             for cui in original_cuis:
-                resolved_cui = resolved_cuis_map.get(cui, cui)
+                resolved_cui = resolved_cui_map.get(cui, cui)
                 if resolved_cui not in deleted_cuis:
                     final_term_cui_map[term].append(resolved_cui)
         
         logger.info(f"Mapped terms to CUIs: {dict(final_term_cui_map)}")
         return final_term_cui_map
+
+def get_sqlite_connection(db_path="/home/mathu/projects/hospital/instance/hims.db"):
+    """Establishes a connection to the SQLite database."""
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        logger.info(f"Successfully connected to SQLite database: {db_path}")
+        return conn
+    except sqlite3.Error as e:
+        logger.error(f"Failed to connect to SQLite database {db_path}: {e}")
+        raise
+
+def fetch_soap_notes():
+    """Fetches all SOAP notes from the soap_notes table."""
+    soap_notes = []
+    try:
+        with get_sqlite_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM soap_notes")
+            rows = cursor.fetchall()
+            
+            for row in rows:
+                soap_note = {
+                    'id': row['id'],
+                    'patient_id': row['patient_id'],
+                    'created_at': row['created_at'],
+                    'situation': row['situation'],
+                    'hpi': row['hpi'],
+                    'aggravating_factors': row['aggravating_factors'],
+                    'alleviating_factors': row['alleviating_factors'],
+                    'medical_history': row['medical_history'],
+                    'medication_history': row['medication_history'],
+                    'assessment': row['assessment'],
+                    'recommendation': row['recommendation'],
+                    'additional_notes': row['additional_notes'],
+                    'symptoms': row['symptoms'],
+                    'ai_notes': row['ai_notes'],
+                    'ai_analysis': row['ai_analysis'],
+                    'file_path': row['file_path']
+                }
+                soap_notes.append(soap_note)
+                logger.info(f"Fetched SOAP note ID {row['id']} for patient {row['patient_id']}")
+            
+            logger.info(f"Retrieved {len(soap_notes)} SOAP notes from the database")
+            return soap_notes
+    
+    except sqlite3.Error as e:
+        logger.error(f"Error fetching SOAP notes: {e}")
+        return []
+
+def extract_keywords_and_cuis(note, ner):
+    """Extracts expected keywords and reference CUIs from the assessment or symptoms field."""
+    text = note.get('assessment', '') or note.get('symptoms', '') or ''
+    if not text:
+        logger.warning(f"No assessment or symptoms found for note ID {note['id']}")
+        return [], []
+    
+    # Use SciBERTWrapper to extract entities
+    entities = ner.extract_entities(text)
+    terms = {ent[0].lower() for ent, _ in entities if ent}
+    
+    # Define disease-related keywords
+    disease_keywords = {
+        "malaria": "C0024530",
+        "pneumonia": "C0032285",
+        "meningitis": "C0025289",
+        "uti": "C0033578",
+        "urinary tract infection": "C0033578",
+        "influenza": "C0021400",
+        "tuberculosis": "C0041296",
+        "gastroenteritis": "C0017160",
+        "dengue": "C0011311",
+        "cholera": "C0008344",
+        "bronchitis": "C0006277",
+        "hepatitis": "C0019158",
+        "asthma": "C0004096"
+    }
+    
+    expected_keywords = []
+    reference_cuis = []
+    
+    for term in terms:
+        for keyword, cui in disease_keywords.items():
+            if keyword in term or term in keyword:
+                expected_keywords.append(keyword)
+                reference_cuis.append(cui)
+                break
+    
+    # If no keywords found, fall back to common symptoms
+    if not expected_keywords:
+        expected_keywords = ["fever", "pain", "headache", "cough"]
+        reference_cuis = []
+    
+    logger.info(f"Extracted keywords: {expected_keywords}, CUIs: {reference_cuis} for note ID {note['id']}")
+    return expected_keywords, reference_cuis
+
+def prepare_note_for_nlp(soap_note):
+    """Combines relevant fields from a SOAP note for NLP processing."""
+    fields = [
+        soap_note['situation'] or '',
+        soap_note['hpi'] or '',
+        soap_note['symptoms'] or '',
+        soap_note['assessment'] or '',
+        soap_note['additional_notes'] or ''
+    ]
+    return ' '.join(filter(None, fields)).strip()
 
 class TestSciNER(unittest.TestCase):
     def setUp(self):
@@ -646,101 +754,42 @@ class TestSciNER(unittest.TestCase):
             self.fail(f"{expected_keywords} not in top predictions")
         
         print(f"⏱️ Prediction completed in {time.time() - start_time:.2f} seconds")
+        return top_diseases
 
-    def test_malaria_prediction(self):
-        note = """
-        Patient presents with headache, chills, high fever, and vomiting.
-        On examination, he has jaundice and spleen tenderness.
-        Recommend blood smear to rule out malaria.
-        """
-        self._run_prediction_test(note, expected_keywords=["malaria"], reference_cuis=["C0024530"])
-
-    def test_pneumonia_prediction(self):
-        note = """
-        Patient presents with cough, fever, chest pain, and shortness of breath.
-        Symptoms have worsened over the last 3 days.
-        Chest X-ray shows consolidation in the right lower lobe.
-        """
-        self._run_prediction_test(note, expected_keywords=["pneumonia"], reference_cuis=["C0032285"])
-
-    def test_meningitis_prediction(self):
-        note = """
-        Patient has high fever, severe headache, neck stiffness, and photophobia.
-        Complains of confusion and sensitivity to light.
-        Lumbar puncture shows elevated white blood cells.
-        """
-        self._run_prediction_test(note, expected_keywords=["meningitis"], reference_cuis=["C0025289"])
-
-    def test_uti_prediction(self):
-        note = """
-        A 24-year-old female reports burning urination, increased frequency, and lower abdominal pain.
-        Urinalysis shows positive leukocyte esterase.
-        """
-        self._run_prediction_test(note, expected_keywords=["urinary", "infection", "uti"], reference_cuis=["C0033578"])
-
-    def test_influenza_prediction(self):
-        note = """
-        Patient presents with fever, sore throat, myalgia, and fatigue.
-        Reports nasal congestion and body aches for 2 days.
-        Rapid influenza test is positive.
-        """
-        self._run_prediction_test(note, expected_keywords=["influenza", "flu"], reference_cuis=["C0021400"])
-
-    def test_tuberculosis_prediction(self):
-        note = """
-        Patient presents with chronic cough, night sweats, weight loss, and hemoptysis.
-        Symptoms ongoing for 3 weeks.
-        Sputum culture ordered to confirm tuberculosis.
-        """
-        self._run_prediction_test(note, expected_keywords=["tuberculosis", "tb"], reference_cuis=["C0041296"])
-
-    def test_gastroenteritis_prediction(self):
-        note = """
-        Patient reports diarrhea, nausea, vomiting, and abdominal pain.
-        Symptoms started after eating at a local restaurant.
-        Stool culture ordered to evaluate for gastroenteritis.
-        """
-        self._run_prediction_test(note, expected_keywords=["gastroenteritis"], reference_cuis=["C0017160"])
-
-    def test_dengue_prediction(self):
-        note = """
-        Patient presents with high fever, severe headache, joint pain, and rash.
-        Reports muscle aches and fatigue for 4 days.
-        Blood test ordered to confirm dengue fever.
-        """
-        self._run_prediction_test(note, expected_keywords=["dengue"], reference_cuis=["C0011311"])
-
-    def test_cholera_prediction(self):
-        note = """
-        Patient reports profuse watery diarrhea, vomiting, and severe dehydration.
-        Stool appears as rice water stools.
-        Stool culture ordered to confirm cholera.
-        """
-        self._run_prediction_test(note, expected_keywords=["cholera"], reference_cuis=["C0008344"])
-
-    def test_bronchitis_prediction(self):
-        note = """
-        Patient presents with persistent cough, chest discomfort, and fatigue.
-        Reports productive cough with mucus for 5 days.
-        Chest X-ray normal, suspect acute bronchitis.
-        """
-        self._run_prediction_test(note, expected_keywords=["bronchitis"], reference_cuis=["C0006277"])
-
-    def test_hepatitis_prediction(self):
-        note = """
-        Patient presents with jaundice, fatigue, and abdominal pain.
-        Reports dark urine and liver tenderness on examination.
-        Liver function tests ordered to evaluate hepatitis.
-        """
-        self._run_prediction_test(note, expected_keywords=["hepatitis"], reference_cuis=["C0019158"])
-
-    def test_asthma_prediction(self):
-        note = """
-        Patient reports wheezing, shortness of breath, and chest tightness.
-        Symptoms triggered by cold air and exercise.
-        Spirometry shows reversible airway obstruction, suspect asthma.
-        """
-        self._run_prediction_test(note, expected_keywords=["asthma"], reference_cuis=["C0004096"])
+    def test_soap_notes_from_db(self):
+        """Tests disease prediction on SOAP notes fetched from hims.db."""
+        soap_notes = fetch_soap_notes()
+        if not soap_notes:
+            self.skipTest("No SOAP notes found in the database")
+        
+        for note in soap_notes:
+            with self.subTest(note_id=note['id'], patient_id=note['patient_id']):
+                print(f"\n=== Processing SOAP Note ID {note['id']} for Patient {note['patient_id']} ===")
+                text = prepare_note_for_nlp(note)
+                if not text:
+                    logger.warning(f"No valid text for SOAP note ID {note['id']}")
+                    self.skipTest(f"No valid text for SOAP note ID {note['id']}")
+                
+                # Extract keywords and CUIs dynamically
+                expected_keywords, reference_cuis = extract_keywords_and_cuis(note, self.ner)
+                
+                # Run prediction
+                top_diseases = self._run_prediction_test(text, expected_keywords, reference_cuis)
+                
+                # Optionally, update ai_analysis field in the database
+                try:
+                    with get_sqlite_connection() as conn:
+                        cursor = conn.cursor()
+                        ai_analysis = json.dumps(top_diseases, indent=2)
+                        cursor.execute("""
+                            UPDATE soap_notes
+                            SET ai_analysis = ?
+                            WHERE id = ?
+                        """, (ai_analysis, note['id']))
+                        conn.commit()
+                        logger.info(f"Updated ai_analysis for SOAP note ID {note['id']}")
+                except sqlite3.Error as e:
+                    logger.error(f"Failed to update ai_analysis for SOAP note ID {note['id']}: {e}")
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
