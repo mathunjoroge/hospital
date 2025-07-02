@@ -10,7 +10,7 @@ import json
 import os
 import argparse
 import pickle
-from fastapi import FastAPI, HTTPException, Response, requests
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Tuple
 from rich.console import Console
@@ -24,9 +24,13 @@ import uvicorn
 import multiprocessing
 import unittest
 from fastapi.testclient import TestClient
-import signal
 import sys
 import html
+import psycopg2
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
+import requests
 
 # Initialize logging
 logging.basicConfig(
@@ -50,10 +54,17 @@ HIMS_CONFIG = {
     "SQLITE_DB_PATH": "/home/mathu/projects/hospital/instance/hims.db",
     "API_HOST": "0.0.0.0",
     "API_PORT": 8000,
-    "BATCH_SIZE": 50
+    "BATCH_SIZE": 50,
+    "UMLS_DB_URL": "postgresql://postgres:postgres@localhost:5432/hospital_umls",
+    "TRUSTED_SOURCES": ['MSH', 'SNOMEDCT_US', 'ICD10CM', 'ICD9CM', 'LNC'],
+    "UMLS_LANGUAGE": 'ENG'
 }
 
 console = Console()
+
+# UMLS Database Setup
+umls_engine = create_engine(HIMS_CONFIG["UMLS_DB_URL"])
+UMLSSession = sessionmaker(bind=umls_engine)
 
 # Mock database setup for testing
 def setup_test_database():
@@ -131,8 +142,7 @@ def setup_test_database():
     cursor.execute("INSERT INTO symptoms (name, cui) VALUES (?, ?)", ("cough", "C0010200"))
     cursor.execute("INSERT INTO diseases (name) VALUES (?)", ("pneumonia",))
     cursor.execute("INSERT INTO disease_keywords (disease_id, keyword, cui) VALUES (?, ?, ?)", (1, "pneumonia", "C0032285"))
-    cursor.execute("INSERT INTO disease_management_plans (disease_id, plan) VALUES (?, ?)", (1, "Antibiotics, oxygen therapy"))
-    
+    cursor.execute("INSERT INTO disease_management_plans (disease_id, plan) VALUES (?, ?)", (1, "Antibiotics, oxygen therapy"))    
     conn.commit()
     return conn
 
@@ -149,7 +159,174 @@ def get_sqlite_connection():
     finally:
         conn.close()
 
-# HTML Response Generator
+# UMLS Mapper
+class UMLSMapper:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(UMLSMapper, cls).__new__(cls)
+            cls._instance.cache_file = ":memory:"
+            cls._instance.cui_cache = {}
+            cls._instance.term_cache = {}
+            cls._instance.semantic_cache = {}
+            cls._instance._cache_modified = False
+            cls._instance._load_cache()
+            common_terms = [
+                "headache", "fever", "chills", "nausea", "vomiting",
+                "loss of appetite", "jaundice", "malaria", "gastroenteritis",
+                "viral hepatitis"
+            ]
+            cls._instance.map_terms_to_cuis(common_terms)
+        return cls._instance
+    
+    def _load_cache(self):
+        pass  # In-memory cache for testing
+    
+    def save_cache(self):
+        pass  # No persistent cache in test mode
+    
+    def map_term_to_cui(self, term: str) -> List[str]:
+        term = term.lower()
+        if term in self.term_cache:
+            return self.term_cache[term]
+        
+        cuis = []  # Mock CUIs for testing
+        self.term_cache[term] = cuis
+        return cuis
+    
+    def map_terms_to_cuis(self, terms: List[str]) -> Dict[str, List[str]]:
+        start_time = time.time()
+        terms = [t.lower() for t in terms]
+        results = {t: [] for t in terms}  # Mock results for testing
+        logger.debug(f"UMLS mapping took {time.time() - start_time:.3f} seconds")
+        return results
+    
+    def resolve_cui(self, cui: str) -> str:
+        return cui  # Mock for testing
+    
+    def is_infectious_disease(self, cui: str) -> bool:
+        return False  # Mock for testing
+
+# Disease-Symptom Mapper
+class DiseaseSymptomMapper:
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(DiseaseSymptomMapper, cls).__new__(cls)
+            cls._instance.cache = {}
+        return cls._instance
+    
+    def get_disease_symptoms(self, disease_cui: str) -> List[Dict]:
+        """Get symptoms associated with a disease CUI from UMLS"""
+        if disease_cui in self.cache:
+            return self.cache[disease_cui]
+            
+        try:
+            session = UMLSSession()
+            # Get symptoms through UMLS relationships
+            symptoms = session.execute(text("""
+                SELECT DISTINCT c2.str AS symptom_name, c2.cui AS symptom_cui
+                FROM umls.mrrel r
+                JOIN umls.mrconso c1 ON r.cui1 = c1.cui
+                JOIN umls.mrconso c2 ON r.cui2 = c2.cui
+                WHERE r.cui1 = :disease_cui
+                    AND r.rela IN ('manifestation_of', 'has_finding', 'has_sign_or_symptom')
+                    AND c1.lat = :language AND c1.suppress = 'N'
+                    AND c2.lat = :language AND c2.suppress = 'N'
+                    AND c1.sab IN :trusted_sources
+                    AND c2.sab IN :trusted_sources
+            """), {
+                'disease_cui': disease_cui,
+                'language': HIMS_CONFIG["UMLS_LANGUAGE"],
+                'trusted_sources': tuple(HIMS_CONFIG["TRUSTED_SOURCES"])
+            }).fetchall()
+            
+            session.close()
+            
+            # Cache results
+            symptom_list = [{'name': row.symptom_name, 'cui': row.symptom_cui} 
+                           for row in symptoms]
+            self.cache[disease_cui] = symptom_list
+            return symptom_list
+            
+        except Exception as e:
+            logger.error(f"Error fetching symptoms for disease CUI {disease_cui}: {e}")
+            return []
+    
+    def get_symptom_diseases(self, symptom_cui: str) -> List[Dict]:
+        """Get diseases associated with a symptom CUI from UMLS"""
+        try:
+            session = UMLSSession()
+            # Get diseases through UMLS relationships
+            diseases = session.execute(text("""
+                SELECT DISTINCT c1.str AS disease_name, c1.cui AS disease_cui
+                FROM umls.mrrel r
+                JOIN umls.mrconso c1 ON r.cui1 = c1.cui
+                JOIN umls.mrconso c2 ON r.cui2 = c2.cui
+                WHERE r.cui2 = :symptom_cui
+                    AND r.rela IN ('manifestation_of', 'has_finding', 'has_sign_or_symptom')
+                    AND c1.lat = :language AND c1.suppress = 'N'
+                    AND c2.lat = :language AND c2.suppress = 'N'
+                    AND c1.sab IN :trusted_sources
+                    AND c2.sab IN :trusted_sources
+            """), {
+                'symptom_cui': symptom_cui,
+                'language': HIMS_CONFIG["UMLS_LANGUAGE"],
+                'trusted_sources': tuple(HIMS_CONFIG["TRUSTED_SOURCES"])
+            }).fetchall()
+            
+            session.close()
+            
+            return [{'name': row.disease_name, 'cui': row.disease_cui} 
+                   for row in diseases]
+            
+        except Exception as e:
+            logger.error(f"Error fetching diseases for symptom CUI {symptom_cui}: {e}")
+            return []
+    
+    def build_disease_signatures(self) -> Dict[str, set]:
+        """Build disease signatures using UMLS relationships"""
+        disease_signatures = defaultdict(set)
+        umls_mapper = UMLSMapper()
+        
+        try:
+            # Get all diseases from application database
+            with get_sqlite_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, name FROM diseases")
+                diseases = cursor.fetchall()
+                
+                for disease_id, disease_name in diseases:
+                    # Get CUI for disease
+                    disease_cui = None
+                    cursor.execute("""
+                        SELECT dk.cui 
+                        FROM disease_keywords dk
+                        WHERE dk.disease_id = ?
+                        LIMIT 1
+                    """, (disease_id,))
+                    if row := cursor.fetchone():
+                        disease_cui = row['cui']
+                    
+                    # If no CUI in app DB, try UMLS mapping
+                    if not disease_cui:
+                        disease_cuis = umls_mapper.map_term_to_cui(disease_name)
+                        disease_cui = disease_cuis[0] if disease_cuis else None
+                    
+                    if disease_cui:
+                        # Get symptoms from UMLS
+                        symptoms = self.get_disease_symptoms(disease_cui)
+                        for symptom in symptoms:
+                            disease_signatures[disease_name].add(symptom['name'].lower())
+        
+            return disease_signatures
+        
+        except Exception as e:
+            logger.error(f"Error building disease signatures: {e}")
+            return DiseasePredictor._load_disease_signatures_static()
+
 # HTML Response Generator
 def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
     """
@@ -164,55 +341,12 @@ def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
     """
     if status_code == 404:
         return f"""
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Note Not Found</title>
-            <style>
-                body {{ 
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    margin: 0;
-                    padding: 20px;
-                    background-color: #f8f9fa;
-                    color: #343a40;
-                }}
-                .container {{ 
-                    max-width: 800px;
-                    margin: 40px auto;
-                    background: white;
-                    padding: 30px;
-                    border-radius: 10px;
-                    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-                    text-align: center;
-                }}
-                h1 {{ 
-                    color: #d32f2f;
-                    border-bottom: 2px solid #ffcdd2;
-                    padding-bottom: 15px;
-                }}
-                p {{
-                    font-size: 18px;
-                    color: #555;
-                    line-height: 1.6;
-                }}
-                .error-icon {{
-                    font-size: 48px;
-                    color: #d32f2f;
-                    margin-bottom: 20px;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="error-icon">❌</div>
-                <h1>Error: Note Not Found</h1>
-                <p>{html.escape(data.get('detail', 'The requested note was not found in the database.'))}</p>
-            </div>
-        </body>
-        </html>
-        """
+    <div class="container">
+        <div class="error-icon">❌</div>
+        <h5>Error: Note Not Found</h5>
+        <p>{html.escape(data.get('detail', 'The requested note was not found in the database.'))}</p>
+    </div>
+"""
 
     # Success case: format the data into HTML
     note_id = html.escape(str(data.get("note_id", "Unknown")))
@@ -232,7 +366,7 @@ def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
     if primary_diagnosis:
         primary_diagnosis_html = f"""
         <div class="section diagnosis">
-            <h2>Primary Diagnosis</h2>
+            <h5>Primary Diagnosis</h5>
             <div class="info-card">
                 <strong>Disease:</strong> {html.escape(primary_diagnosis.get("disease", "N/A"))}
                 <span class="badge badge-success">Score: {primary_diagnosis.get("score", "N/A")}</span>
@@ -242,7 +376,7 @@ def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
     else:
         primary_diagnosis_html = """
         <div class="section">
-            <h2>Primary Diagnosis</h2>
+            <h5>Primary Diagnosis</h5>
             <p>No primary diagnosis identified</p>
         </div>
         """
@@ -255,7 +389,7 @@ def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
         )
         differential_diagnoses_html = f"""
         <div class="section diagnosis">
-            <h2>Differential Diagnoses</h2>
+            <h5>Differential Diagnoses</h5>
             <table>
                 <thead>
                     <tr><th>Disease</th><th>Score</th></tr>
@@ -269,16 +403,57 @@ def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
 
     entities_html = ""
     if entities:
-        entity_items = "".join(
-            f'<div class="entity"><strong>{html.escape(entity[0])}</strong> '
-            f'<span class="badge badge-primary">{html.escape(entity[1])}</span>'
-            f'<div><small>Severity: {entity[2]["severity"]}, Temporal: {html.escape(entity[2]["temporal"])}</small></div></div>'
-            for entity in entities
-        )
+        entity_items = ""
+        for entity in entities:
+            text, label, context = entity
+            diseases = context.get("associated_diseases", [])
+            disease_symptom_map = context.get("disease_symptom_map", {})
+            disease_list = ""
+            
+            if diseases:
+                # Group diseases by their base name (without parenthetical qualifiers)
+                disease_groups = defaultdict(list)
+                for disease in diseases:
+                    base_name = re.sub(r'\(.*?\)', '', disease).strip()
+                    disease_groups[base_name].append(disease)
+                
+                # Create disease list with symptom details
+                disease_items = []
+                for base_name, variants in disease_groups.items():
+                    # Get all symptoms associated with these disease variants
+                    all_symptoms = set()
+                    for variant in variants:
+                        if variant in disease_symptom_map:
+                            all_symptoms.update(disease_symptom_map[variant])
+                    
+                    # Format symptoms list
+                    symptom_list = ", ".join(sorted(all_symptoms)[:3])  # Show up to 3 symptoms
+                    if len(all_symptoms) > 3:
+                        symptom_list += ", ..."
+                    
+                    # Use the first variant as representative name
+                    disease_items.append(f"{html.escape(variants[0])}: {html.escape(symptom_list)}")
+                
+                disease_list = "<div class='diseases'><strong>Associated Diseases:</strong><ul><li>" + \
+                               "</li><li>".join(disease_items) + "</li></ul></div>"
+            
+            entity_items += f"""
+            <div class="entity">
+                <div class="entity-header">
+                    <strong>{html.escape(text)}</strong>
+                    <span class="badge badge-primary">{html.escape(label)}</span>
+                </div>
+                <div class="entity-details">
+                    <div><small>Severity: {context["severity"]}, Temporal: {html.escape(context["temporal"])}</small></div>
+                    {disease_list}
+                </div>
+            </div>
+            """
+        
         entities_html = f"""
         <div class="section entities">
-            <h2>Entities</h2>
-            <div>
+            <h5>Entities</h5>
+            <div class="entity-container">
                 {entity_items}
             </div>
         </div>
@@ -292,196 +467,54 @@ def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
         )
         management_plans_html = f"""
         <div class="section management">
-            <h2>Management Plans</h2>
+            <h5>Management Plans</h5>
             {plans_html}
         </div>
         """
 
     # Generate the complete HTML
     html_content = f"""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Clinical Note Analysis - Note ID {note_id}</title>
-        <style>
-            body {{
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                margin: 0;
-                padding: 20px;
-                background-color: #f8f9fa;
-                color: #343a40;
-            }}
-            .container {{
-                max-width: 1000px;
-                margin: 0 auto;
-                background: white;
-                padding: 30px;
-                border-radius: 10px;
-                box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            }}
-            h1 {{
-                color: #0d6efd;
-                border-bottom: 2px solid #e9ecef;
-                padding-bottom: 15px;
-                margin-bottom: 25px;
-            }}
-            h2 {{
-                color: #495057;
-                margin-top: 25px;
-                margin-bottom: 15px;
-                font-size: 1.4rem;
-            }}
-            .section {{
-                margin-bottom: 30px;
-                padding: 20px;
-                border-radius: 8px;
-                background-color: #f8f9fa;
-                border-left: 4px solid #0d6efd;
-            }}
-            .summary {{
-                background-color: #e7f5ff;
-                border-left-color: #0d6efd;
-            }}
-            .diagnosis {{
-                background-color: #e6fcf5;
-                border-left-color: #20c997;
-            }}
-            .management {{
-                background-color: #fff3bf;
-                border-left-color: #ffd43b;
-            }}
-            .entities {{
-                background-color: #ffe8e8;
-                border-left-color: #fa5252;
-            }}
-            .info-grid {{
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-                gap: 15px;
-                margin-bottom: 20px;
-            }}
-            .info-card {{
-                background: white;
-                padding: 15px;
-                border-radius: 8px;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            }}
-            table {{
-                width: 100%;
-                border-collapse: collapse;
-                margin: 15px 0;
-                background: white;
-                border-radius: 8px;
-                overflow: hidden;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            }}
-            th, td {{
-                padding: 12px 15px;
-                text-align: left;
-                border-bottom: 1px solid #e9ecef;
-            }}
-            th {{
-                background-color: #f1f3f5;
-                font-weight: 600;
-            }}
-            tr:hover {{
-                background-color: #f8f9fa;
-            }}
-            ul {{
-                list-style-type: none;
-                padding: 0;
-                margin: 0;
-            }}
-            li {{
-                padding: 8px 12px;
-                margin-bottom: 8px;
-                background: white;
-                border-radius: 6px;
-                display: inline-block;
-                margin-right: 10px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            }}
-            .entity {{
-                padding: 10px;
-                margin-bottom: 10px;
-                border-radius: 6px;
-                background: white;
-            }}
-            .management-plan {{
-                padding: 15px;
-                margin-bottom: 15px;
-                border-radius: 8px;
-                background: white;
-                border-left: 4px solid #ffd43b;
-            }}
-            .badge {{
-                display: inline-block;
-                padding: 3px 8px;
-                border-radius: 12px;
-                font-size: 0.8em;
-                font-weight: 500;
-                margin-left: 8px;
-            }}
-            .badge-primary {{
-                background-color: #d0ebff;
-                color: #1971c2;
-            }}
-            .badge-success {{
-                background-color: #d3f9d8;
-                color: #2f9e44;
-            }}
-            .badge-warning {{
-                background-color: #fff3bf;
-                color: #e67700;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Clinical Note Analysis - Note ID {note_id}</h1>
-            
-            <div class="info-grid">
-                <div class="info-card">
-                    <strong>Patient ID:</strong> {patient_id}
-                </div>
-                <div class="info-card">
-                    <strong>Processed At:</strong> {processed_at}
-                </div>
-                <div class="info-card">
-                    <strong>Processing Time:</strong> {processing_time:.3f} seconds
-                </div>
+    <div class="container">
+        <h5>Clinical Note Analysis - Note ID {note_id}</h5>
+        
+        <div class="info-grid">
+            <div class="info-card">
+                <strong>Patient ID:</strong> {patient_id}
             </div>
-
-            {primary_diagnosis_html}
-            {differential_diagnoses_html}
-
-            <div class="section">
-                <h2>Keywords</h2>
-                <ul>
-                    {"".join(f'<li>{keyword}</li>' for keyword in keywords)}
-                </ul>
+            <div class="info-card">
+                <strong>Processed At:</strong> {processed_at}
             </div>
-
-            <div class="section">
-                <h2>CUIs</h2>
-                <ul>
-                    {"".join(f'<li>{cui}</li>' for cui in cuis)}
-                </ul>
-            </div>
-
-            {entities_html}
-            {management_plans_html}
-
-            <div class="section summary">
-                <h2>Summary</h2>
-                <p>{summary}</p>
+            <div class="info-card">
+                <strong>Processing Time:</strong> {processing_time:.3f} seconds
             </div>
         </div>
-    </body>
-    </html>
-    """
+
+        {primary_diagnosis_html}
+        {differential_diagnoses_html}
+
+        <div class="section">
+            <h5>Keywords</h5>
+            <ul>
+                {"".join(f'<li>{keyword}</li>' for keyword in keywords)}
+            </ul>
+        </div>
+
+        <div class="section">
+            <h5>CUIs</h5>
+            <ul>
+                {"".join(f'<li>{cui}</li>' for cui in cuis)}
+            </ul>
+        </div>
+
+        {entities_html}
+        {management_plans_html}
+
+        <div class="section summary">
+            <h5>Summary</h5>
+            <p>{summary}</p>
+        </div>
+    </div>
+"""
     return html_content
 
 # SOAP Note Processing Functions
@@ -525,49 +558,114 @@ def prepare_note_for_nlp(soap_note: Dict) -> str:
     ]
     return ' '.join(f for f in fields if f).strip()
 
-def generate_summary(text: str, max_sentences: int = 3, doc=None) -> str:
+def generate_summary(text: str, max_sentences: int = 4, doc=None) -> str:
     start_time = time.time()
     if not doc:
         doc = DiseasePredictor.nlp(text)
-    sentence_scores = []
-    seen_sentences = set()
+    
+    # Enhanced clinical term recognition
     clinical_terms = DiseasePredictor.clinical_terms
+    temporal_pattern = re.compile(r"\b(\d+\s*(day|days|week|weeks|month|months|year|years)\s*(ago)?)\b", re.IGNORECASE)
     
-    for i, sent in enumerate(doc.sents):
-        sent_text = str(sent).strip()
-        if sent_text in seen_sentences:
-            continue
-        seen_sentences.add(sent_text)
-        score = sum(3 for token in sent if token.text.lower() in clinical_terms)
-        score += len([token for token in sent if token.pos_ in ["VERB", "AUX"]])
-        score += 1 - (i / max(len(list(doc.sents)), 1))
-        sentence_scores.append((sent_text, score))
+    # Extract key information
+    symptoms = []
+    temporal_info = []
+    aggravating_factors = defaultdict(list)
+    alleviating_factors = defaultdict(list)
+    medications = []
+    findings = []
     
-    sorted_sentences = sorted(sentence_scores, key=lambda x: x[1], reverse=True)
-    top_sentences = []
-    seen_content = set()
-    for sent_text, _ in sorted_sentences:
-        if not any(sent_text.lower() in seen or seen in sent_text.lower() for seen in seen_content):
-            top_sentences.append(sent_text)
-            seen_content.add(sent_text.lower())
-        if len(top_sentences) >= max_sentences:
-            break
+    for sent in doc.sents:
+        sent_text = sent.text.strip()
+        
+        # Extract temporal information
+        if not temporal_info:
+            match = temporal_pattern.search(sent_text)
+            if match:
+                temporal_info.append(f"started {match.group(0)}")
+        
+        # Extract symptoms with context
+        for term in clinical_terms:
+            if term in sent_text.lower():
+                if term not in symptoms:
+                    symptoms.append(term)
+                
+                # Extract modifying phrases
+                if "makes" in sent_text or "worsen" in sent_text:
+                    aggravating_factors[term].append(sent_text.split(term)[-1].split(".")[0].strip())
+                elif "alleviates" in sent_text or "relieves" in sent_text or "better" in sent_text:
+                    alleviating_factors[term].append(sent_text.split(term)[-1].split(".")[0].strip())
+        
+        # Extract medications
+        if "mg" in sent_text or "take" in sent_text or "medication" in sent_text:
+            medications.append(sent_text)
+        
+        # Extract findings
+        if "found" in sent_text or "show" in sent_text or "reveal" in sent_text or "report" in sent_text:
+            findings.append(sent_text)
     
-    summary = " ".join(top_sentences)
-    missing_symptoms = [symptom for symptom in clinical_terms if symptom in text.lower() and symptom not in summary.lower()]
+    # Construct natural summary
+    summary_parts = []
+    
+    # Patient presentation
+    if symptoms:
+        symptoms_str = ", ".join(symptoms[:-1]) + " and " + symptoms[-1] if len(symptoms) > 1 else symptoms[0]
+        presentation = f"The patient presents with {symptoms_str}"
+        if temporal_info:
+            presentation += f" that {temporal_info[0]}"
+        summary_parts.append(presentation + ".")
+    
+    # Symptom modifiers
+    for symptom, factors in aggravating_factors.items():
+        if factors:
+            summary_parts.append(f"{symptom.capitalize()} is aggravated by {factors[0]}.")
+    
+    for symptom, factors in alleviating_factors.items():
+        if factors:
+            summary_parts.append(f"{symptom.capitalize()} is alleviated by {factors[0]}.")
+    
+    # Medical history and medications
+    if medications:
+        meds_str = ". ".join(medications[:2])  # Take max 2 medication mentions
+        summary_parts.append(meds_str)
+    
+    # Clinical findings
+    if findings:
+        findings_str = ". ".join(findings[:2])  # Take max 2 findings
+        summary_parts.append(findings_str)
+    
+    # Ensure we don't exceed max sentences
+    summary = " ".join(summary_parts[:max_sentences])
+    
+    # Add missing critical symptoms not captured in sentences
+    missing_symptoms = [symptom for symptom in symptoms if symptom not in summary.lower()]
     if missing_symptoms:
-        summary += f" Additional symptoms include {', '.join(missing_symptoms)}."
+        if len(missing_symptoms) > 1:
+            missing_str = ", ".join(missing_symptoms[:-1]) + " and " + missing_symptoms[-1]
+        else:
+            missing_str = missing_symptoms[0]
+        summary += f" Additional symptoms include {missing_str}."
+    
+    # Final cleanup
+    summary = re.sub(r"\s+", " ", summary)  # Remove extra spaces
+    summary = re.sub(r"\.+", ".", summary)  # Remove multiple periods
+    summary = summary.strip()
+    
+    # Capitalize first letter
+    if summary and summary[0].islower():
+        summary = summary[0].upper() + summary[1:]
     
     logger.debug(f"Summary generation took {time.time() - start_time:.3f} seconds")
     return summary if summary else text[:200] + "..."
 
-def update_ai_analysis(note_id: int, analysis: Dict, summary: str) -> bool:
+def update_ai_analysis(note_id: int, ai_analysis_html: str, summary: str) -> bool:
     """
     Update AI analysis and summary for a specific note in the soap_notes table.
+    Stores HTML content in ai_analysis column.
     
     Args:
         note_id (int): The ID of the note to update
-        analysis (Dict): The AI analysis data to store
+        ai_analysis_html (str): The HTML content to store
         summary (str): The summary text to store
     
     Returns:
@@ -584,7 +682,7 @@ def update_ai_analysis(note_id: int, analysis: Dict, summary: str) -> bool:
             cursor.execute("PRAGMA synchronous = NORMAL")
             cursor.execute(
                 "UPDATE soap_notes SET ai_analysis = ?, ai_notes = ? WHERE id = ?",
-                (json.dumps(analysis, ensure_ascii=False), summary, note_id)
+                (ai_analysis_html, summary, note_id)
             )
             conn.commit()
             logger.info(f"Updated AI analysis and summary for note ID {note_id}")
@@ -622,6 +720,7 @@ class ClinicalNER:
         self.lemmatizer = WordNetLemmatizer()
         self.patterns = self._load_patterns()
         self.compiled_patterns = [(label, re.compile(pattern, re.IGNORECASE)) for label, pattern in self.patterns]
+        self.symptom_mapper = DiseaseSymptomMapper()
     
     def _load_patterns(self):
         try:
@@ -671,8 +770,7 @@ class ClinicalNER:
                         context["temporal"] = temp_text.lower()
                         break
                 entities.append((term, "CLINICAL_TERM", context))
-                seen_entities.add(term)
-        
+                seen_entities.add(term)        
         for label, pattern in self.compiled_patterns:
             for match in pattern.finditer(text):
                 match_text = match.group().lower()
@@ -683,9 +781,48 @@ class ClinicalNER:
                             context["temporal"] = temp_text.lower()
                             break
                     entities.append((match.group(), label, context))
-                    seen_entities.add(match_text)
-        
+                    seen_entities.add(match_text)        
         logger.debug(f"Entity extraction took {time.time() - start_time:.3f} seconds")
+        
+        # First pass: collect all symptom-disease relationships
+        symptom_disease_map = defaultdict(set)
+        disease_symptom_count = defaultdict(int)
+        disease_symptom_map = defaultdict(set)  # Maps disease to set of symptoms
+        
+        for i, (entity_text, entity_label, context) in enumerate(entities):
+            if entity_label in ["CLINICAL_TERM"] + [label for label, _ in self.compiled_patterns]:
+                try:
+                    with get_sqlite_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                            SELECT cui FROM symptoms WHERE name = ?
+                        """, (entity_text.lower(),))
+                        if row := cursor.fetchone():
+                            symptom_cui = row['cui']
+                            diseases = self.symptom_mapper.get_symptom_diseases(symptom_cui)
+                            if diseases:
+                                for disease in diseases:
+                                    disease_name = disease['name']
+                                    symptom_disease_map[entity_text.lower()].add(disease_name)
+                                    disease_symptom_count[disease_name] += 1
+                                    disease_symptom_map[disease_name].add(entity_text.lower())
+                except Exception as e:
+                    logger.error(f"Error looking up symptom: {entity_text}: {e}")
+        
+        # Second pass: filter diseases based on symptom count
+        for i, (entity_text, entity_label, context) in enumerate(entities):
+            if entity_label in ["CLINICAL_TERM"] + [label for label, _ in self.compiled_patterns]:
+                diseases = symptom_disease_map.get(entity_text.lower(), set())
+                # Filter to diseases with at least 2 matching symptoms
+                filtered_diseases = [
+                    d for d in diseases 
+                    if disease_symptom_count.get(d, 0) >= 2
+                ]
+                if filtered_diseases:
+                    context["associated_diseases"] = filtered_diseases
+                    context["disease_symptom_map"] = disease_symptom_map
+                    entities[i] = (entity_text, entity_label, context)
+        
         return entities
     
     def extract_keywords_and_cuis(self, note: Dict) -> Tuple[List[str], List[str]]:
@@ -755,54 +892,6 @@ class ClinicalNER:
         logger.debug(f"Keyword and CUI extraction took {time.time() - start_time:.3f} seconds")
         return list(set(expected_keywords)), list(set(reference_cuis))
 
-class UMLSMapper:
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(UMLSMapper, cls).__new__(cls)
-            cls._instance.cache_file = ":memory:"
-            cls._instance.cui_cache = {}
-            cls._instance.term_cache = {}
-            cls._instance.semantic_cache = {}
-            cls._instance._cache_modified = False
-            cls._instance._load_cache()
-            common_terms = [
-                "headache", "fever", "chills", "nausea", "vomiting",
-                "loss of appetite", "jaundice", "malaria", "gastroenteritis",
-                "viral hepatitis"
-            ]
-            cls._instance.map_terms_to_cuis(common_terms)
-        return cls._instance
-    
-    def _load_cache(self):
-        pass  # In-memory cache for testing
-    
-    def save_cache(self):
-        pass  # No persistent cache in test mode
-    
-    def map_term_to_cui(self, term: str) -> List[str]:
-        term = term.lower()
-        if term in self.term_cache:
-            return self.term_cache[term]
-        
-        cuis = []  # Mock CUIs for testing
-        self.term_cache[term] = cuis
-        return cuis
-    
-    def map_terms_to_cuis(self, terms: List[str]) -> Dict[str, List[str]]:
-        start_time = time.time()
-        terms = [t.lower() for t in terms]
-        results = {t: [] for t in terms}  # Mock results for testing
-        logger.debug(f"UMLS mapping took {time.time() - start_time:.3f} seconds")
-        return results
-    
-    def resolve_cui(self, cui: str) -> str:
-        return cui  # Mock for testing
-    
-    def is_infectious_disease(self, cui: str) -> bool:
-        return False  # Mock for testing
-
 class DiseasePredictor:
     nlp = None
     clinical_terms = None
@@ -827,77 +916,64 @@ class DiseasePredictor:
         if cls.clinical_terms is None:
             cls.clinical_terms = ClinicalNER._load_clinical_terms()
         if cls.disease_signatures is None:
-            cls.disease_signatures = cls._load_disease_signatures_static()
+            mapper = DiseaseSymptomMapper()
+            cls.disease_signatures = mapper.build_disease_signatures()
+            logger.info(f"Loaded {len(cls.disease_signatures)} disease signatures from UMLS")
         if cls.disease_keywords is None or cls.symptom_cuis is None or cls.management_plans is None:
             cls.disease_keywords, cls.symptom_cuis, cls.management_plans = cls._load_keyword_cui_plans()
         cls._initialized = True
 
     @staticmethod
-    def _load_disease_signatures_static():
-        try:
-            with get_sqlite_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT d.name, s.name as symptom
-                    FROM diseases d
-                    JOIN disease_symptoms ds ON d.id = ds.disease_id
-                    JOIN symptoms s ON ds.symptom_id = s.id
-                """)
-                signatures = defaultdict(set)
-                for row in cursor.fetchall():
-                    signatures[row['name']].add(row['symptom'])
-                return signatures
-        except Exception as e:
-            logger.error(f"Error loading disease signatures: {e}")
-            return {
-                "pneumonia": {"cough", "fever", "chest pain"},
-                "myocardial_infarction": {"chest pain", "shortness of breath", "sweating"},
-                "stroke": {"headache", "weakness", "speech difficulty", "facial droop"},
-                "gastroenteritis": {"diarrhea", "nausea", "vomiting", "abdominal pain"},
-                "uti": {"dysuria", "frequency", "urgency", "suprapubic pain"},
-                "asthma": {"wheezing", "shortness of breath", "cough"},
-                "diabetes": {"thirst", "polyuria", "fatigue", "blurred vision"},
-                "hypertension": {"headache", "dizziness", "nosebleed"},
-                "musculoskeletal_back_pain": {"back pain"},
-                "malaria": {"fever", "chills", "headache", "nausea", "vomiting", "loss of appetite", "jaundice"},
-                "viral_hepatitis": {"jaundice", "nausea", "vomiting", "loss of appetite", "fatigue"},
-                "dengue": {"fever", "headache", "nausea", "vomiting", "fatigue"},
-                "typhoid": {"fever", "headache", "abdominal pain", "loss of appetite"}
-            }
-
-    @staticmethod
     def _load_keyword_cui_plans():
+        """Load keywords, CUIs, and management plans from databases"""
         try:
+            # Load from application database
             with get_sqlite_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT dk.keyword, dk.cui
-                    FROM disease_keywords dk
-                    JOIN diseases d ON dk.disease_id = d.id
-                """)
-                disease_keywords = {row['keyword'].lower(): row['cui'] for row in cursor.fetchall()}
                 
+                # Load disease keywords
+                cursor.execute("""
+                    SELECT d.name, dk.keyword, dk.cui
+                    FROM diseases d
+                    JOIN disease_keywords dk ON d.id = dk.disease_id
+                """)
+                disease_keywords = {}
+                for row in cursor.fetchall():
+                    disease_keywords[row['keyword'].lower()] = row['cui']
+                
+                # Load symptoms
                 cursor.execute("SELECT name, cui FROM symptoms")
                 symptom_cuis = {row['name'].lower(): row['cui'] for row in cursor.fetchall()}
                 
+                # Load management plans
                 cursor.execute("""
                     SELECT d.name, dmp.plan
                     FROM disease_management_plans dmp
                     JOIN diseases d ON dmp.disease_id = d.id
                 """)
                 management_plans = {row['name'].lower(): row['plan'] for row in cursor.fetchall()}
-                
-                return disease_keywords, symptom_cuis, management_plans
+            
+            return disease_keywords, symptom_cuis, management_plans
+        
         except Exception as e:
-            logger.error(f"Error loading keywords, CUIs, and plans: {e}")
+            logger.error(f"Error loading keywords/CUIs/plans: {e}")
+            # Fallback to static data
             return {
                 "pneumonia": "C0032285",
-                "malaria": "C0024530"
+                "lung infection": "C0032285",
+                "malaria": "C0024530",
+                "fever": "C0015967",
+                "cough": "C0010200",
+                "chest pain": "C0008031"
             }, {
                 "fever": "C0015967",
-                "cough": "C0010200"
+                "cough": "C0010200",
+                "headache": "C0018681",
+                "nausea": "C0027497",
+                "vomiting": "C0042963"
             }, {
-                "pneumonia": "Antibiotics, oxygen therapy"
+                "pneumonia": "Antibiotics, oxygen therapy, rest",
+                "malaria": "Antimalarial medication, hydration"
             }
 
     def __init__(self, ner_model=None):
@@ -915,9 +991,10 @@ class DiseasePredictor:
         terms = {ent[0].lower() for ent in entities}
         disease_scores = defaultdict(float)
         
+        # Only consider diseases with at least 2 matching symptoms
         for disease, signature in self.disease_signatures.items():
             matches = len(terms.intersection(signature))
-            if matches > 0:
+            if matches >= 2:  # Filter condition
                 disease_scores[disease] = matches
         
         sorted_diseases = sorted(
@@ -998,7 +1075,6 @@ class DiseasePredictor:
             logger.error(f"Error fetching management plans: {e}")
         logger.debug(f"Management plans retrieval took {time.time() - t:.3f} seconds")
         
-        t = time.time()
         result = {
             "note_id": note["id"],
             "patient_id": note["patient_id"],
@@ -1013,8 +1089,6 @@ class DiseasePredictor:
             "processing_time": time.time() - start_time
         }
         
-        update_ai_analysis(note["id"], result, summary)
-        logger.debug(f"Database update took {time.time() - t:.3f} seconds")
         logger.info(f"Total processing time for note ID {note['id']}: {result['processing_time']:.3f} seconds")
         return result
 
@@ -1085,8 +1159,12 @@ async def process_note(request: ProcessNoteRequest):
             media_type="text/html"
         )
     
+    # Generate HTML and update database
+    html_content = generate_html_response(result, 200)
+    update_ai_analysis(note["id"], html_content, result['summary'])
+    
     return Response(
-        content=generate_html_response(result, 200),
+        content=html_content,
         status_code=200,
         media_type="text/html"
     )
@@ -1290,8 +1368,20 @@ class HIMSCLI:
                     entity_table.add_column("Text", style="cyan")
                     entity_table.add_column("Label", style="magenta")
                     entity_table.add_column("Temporal", style="yellow")
+                    entity_table.add_column("Associated Diseases", style="green")
                     for ent in result['entities']:
-                        entity_table.add_row(ent[0], ent[1], ent[2]["temporal"])
+                        diseases = ent[2].get("associated_diseases", [])
+                        disease_symptom_map = ent[2].get("disease_symptom_map", {})
+                        disease_details = []
+                        for disease in diseases:
+                            symptoms = disease_symptom_map.get(disease, set())
+                            disease_details.append(f"{disease}: {', '.join(sorted(symptoms)[:3])}")
+                        entity_table.add_row(
+                            ent[0], 
+                            ent[1], 
+                            ent[2]["temporal"], 
+                            "\n".join(disease_details) if disease_details else "None"
+                        )
                     console.print(entity_table)
             else:
                 console.print(f"[red]Note ID {note_id} not found[/red]")
@@ -1307,7 +1397,9 @@ class HIMSCLI:
             
             for note in track(notes_to_process, description="Processing..."):
                 try:
-                    processor.process_soap_note(note)
+                    result = processor.process_soap_note(note)
+                    html_content = generate_html_response(result, 200)
+                    update_ai_analysis(note["id"], html_content, result['summary'])
                     success_count += 1
                 except Exception as e:
                     logger.error(f"Failed to process note {note.get('id')}: {e}")

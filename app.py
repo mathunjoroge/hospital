@@ -5,7 +5,6 @@ from flask_mail import Mail
 from flask_socketio import SocketIO
 from flask_apscheduler import APScheduler
 from werkzeug.security import check_password_hash
-from departments.nlp.batch_processing import update_all_ai_notes
 from datetime import datetime
 import os
 import logging
@@ -44,29 +43,6 @@ scheduler.init_app(app)
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-# Scheduler task for AI notes
-def scheduled_update_ai_notes():
-    """Scheduled task to update missing AI notes in SOAPNote entries."""
-    with app.app_context():
-        try:
-            logger.info("Starting scheduled update of missing AI notes.")
-            update_all_ai_notes()
-            logger.info("Completed scheduled update of missing AI notes.")
-        except Exception as e:
-            logger.error(f"Error in scheduled_update_ai_notes: {e}", exc_info=True)
-            db.session.rollback()
-            db.session.add(Log(level='ERROR', message=f"Scheduled AI notes update error: {e}", source='scheduler'))
-            db.session.commit()
-
-# Add scheduler job (daily at 2 AM)
-scheduler.add_job(
-    id='update_ai_notes',
-    func=scheduled_update_ai_notes,
-    trigger='cron',
-    hour=2,
-    minute=0
-)
 
 # Jinja filters
 @app.template_filter('parse_iso')
@@ -186,16 +162,6 @@ if __name__ == '__main__':
 
     with app.app_context():
         db.create_all()  # Ensure tables exist
-        # Run initial AI notes update
-        try:
-            logger.info("Running initial AI notes update on startup.")
-            update_all_ai_notes()
-            logger.info("Completed initial AI notes update.")
-        except Exception as e:
-            logger.error(f"Error in initial AI notes update: {e}", exc_info=True)
-            db.session.rollback()
-            db.session.add(Log(level='ERROR', message=f"Startup AI notes update error: {e}", source='startup'))
-            db.session.commit()
 
     scheduler.start()  # Start APScheduler
     socketio.run(app, debug=True)

@@ -50,38 +50,20 @@
                     {% endif %}
 
                     <!-- AI-Generated Analysis -->
-                    {% if soap_notes.ai_analysis %}
-                    <div class="mt-3 p-3 border-start border-4 border-info bg-light rounded">
-                        <h6 class="text-info">🧠 AI Clinical Analysis</h6>
-                        <div class="ai-analysis-content">
-                            {% for line in soap_notes.ai_analysis.split('\n') %}
-                                {% if line.startswith('===') %}
-                                    <h6 class="text-center fw-bold my-2" align="left">{{ line }}</h6>
-                                {% elif line.startswith('[') and line.endswith(']') %}
-                                    <h6 class="fw-bold text-primary">{{ line.replace('[', '').replace(']', '') }}</h6>
-                                {% elif line.strip() == '' %}
-                                    <!-- Skip empty lines -->
-                                {% elif line.startswith('■') or line.startswith('▲') or line.startswith('●') %}
-                                    <p class="mb-1">
-                                        <span class="badge 
-                                            {% if line.startswith('■') %}bg-danger
-                                            {% elif line.startswith('▲') %}bg-warning text-dark
-                                            {% else %}bg-success{% endif %} me-2">
-                                            {{ line[0] }}
-                                        </span>
-                                        {{ line[2:] }}
-                                    </p>
-                                {% else %}
-                                    <p class="mb-1">{{ line }}</p>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="mt-3 p-3 border-start border-4 border-warning bg-light rounded">
-                        <p class="text-muted">No AI analysis available. Click "Reprocess Note" to generate.</p>
-                    </div>
-                    {% endif %}
+<!-- AI-Generated Analysis -->
+{% if soap_notes.ai_analysis %}
+<div class="mt-3 p-3 border-start border-4 border-info bg-light rounded">
+    <h6 class="text-info">🧠 AI Clinical Analysis</h6>
+    <div class="ai-analysis-content">
+        {{ soap_notes.ai_analysis | safe }}
+    </div>
+</div>
+{% else %}
+<div class="mt-3 p-3 border-start border-4 border-warning bg-light rounded">
+    <p class="text-muted">No AI analysis available. Click "Reprocess Note" to generate.</p>
+</div>
+{% endif %}
+
 
                     <!-- Attachments -->
                     {% if soap_notes.file_path %}

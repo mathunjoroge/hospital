@@ -2,12 +2,7 @@
 from flask import render_template, redirect, url_for, request, flash, jsonify
 from typing import Optional, List, Dict, Any
 import psycopg2
-from departments.nlp.note_processing import generate_ai_summary
-from departments.nlp.ai_summary import generate_ai_analysis
-from departments.nlp.batch_processing import update_single_soap_note
-from departments.nlp.clinical_analyzer import ClinicalAnalyzer
-from departments.nlp.batch_processing import update_single_soap_note
-from departments.nlp.kb_updater import KnowledgeBaseUpdater
+
 from psycopg2.extras import RealDictCursor
 from flask import current_app
 from flask_login import login_required, current_user
@@ -98,42 +93,12 @@ def submit_soap_notes(patient_id):
             ai_analysis=None  # Save as NULL
         )
 
-        # Extract clinical features and update knowledge base
-        try:
-            analyzer = ClinicalAnalyzer()
-            new_soap_note.symptoms = symptoms  # Temporarily set for extraction
-            features = analyzer.extract_clinical_features(new_soap_note)
-            extracted_symptoms = features.get('symptoms', [])
-            if extracted_symptoms:
-                symptom_descriptions = [s['description'] for s in extracted_symptoms]
-                logger.info(f"Extracted symptoms for SOAP note ID {new_soap_note.id}: {symptom_descriptions}")
-                # Update symptoms if none provided
-                if not symptom_list:
-                    new_soap_note.symptoms = json.dumps(symptom_descriptions)
-                elif set(symptom_list).issubset(set(symptom_descriptions)):
-                    logger.debug("All provided symptoms validated by ClinicalAnalyzer")
-                else:
-                    # Add extracted symptoms not in input
-                    new_symptoms = list(set(symptom_descriptions) | set(symptom_list))
-                    new_soap_note.symptoms = json.dumps(new_symptoms)
-                    logger.info(f"Updated symptoms with extracted: {new_symptoms}")
-            else:
-                logger.debug(f"No symptoms extracted for SOAP note ID {new_soap_note.id}")
-        except Exception as e:
-            logger.error(f"Error extracting clinical features for SOAP note ID {new_soap_note.id}: {str(e)}")
-            # Continue without failing note creation
+
 
         db.session.add(new_soap_note)
         db.session.commit()
 
-        # Trigger AI update asynchronously
-        try:
-            logger.info(f"Triggering AI update for SOAP note ID {new_soap_note.id}")
-            update_single_soap_note(new_soap_note.id)
-            flash('SOAP notes submitted and AI analysis queued.', 'success')
-        except Exception as e:
-            logger.error(f"Error updating AI notes for SOAP note ID {new_soap_note.id}: {str(e)}")
-            flash('SOAP notes submitted, but AI analysis may be delayed.', 'warning')
+
 
         imaging_keywords = ["ct", "mri", "x-ray", "ultrasound", "pet", "scan"]
         words = recommendation.lower().split()
@@ -196,12 +161,7 @@ def reprocess_note(note_id):
     if current_user.role not in ['medicine', 'admin']:
         flash('You do not have permission to perform this action.', 'error')
         return redirect(url_for('medicine.index'))
-    try:
-        update_single_soap_note(note_id)
-        flash('SOAP note reprocessed successfully.', 'success')
-    except Exception as e:
-        logger.error(f"Error reprocessing note {note_id}: {str(e)}")
-        flash('Error reprocessing note.', 'error')
+
     return redirect(url_for('medicine.notes', patient_id=SOAPNote.query.get(note_id).patient_id))
 
 @bp.route('/notes/<int:note_id>/update_kb', methods=['POST'])
@@ -217,21 +177,7 @@ def update_knowledge_base(note_id):
     if not symptom or not category:
         flash('Symptom and category are required.', 'error')
         return redirect(url_for('medicine.notes', patient_id=SOAPNote.query.get(note_id).patient_id))
-    try:
-        kb_updater = KnowledgeBaseUpdater()
-        if kb_updater.is_new_symptom(symptom.lower()):
-            synonyms = kb_updater.generate_synonyms(symptom)
-            success = kb_updater.update_knowledge_base(symptom, category, synonyms, context)
-            if success:
-                flash(f"Knowledge base updated with new symptom: {symptom}.", 'success')
-            else:
-                flash('Symptom already exists in knowledge base.', 'info')
-        else:
-            flash('Symptom already exists in knowledge base.', 'info')
-    except Exception as e:
-        logger.error(f"Error updating knowledge base for symptom {symptom}: {str(e)}")
-        flash('Error updating knowledge base.', 'error')
-    return redirect(url_for('medicine.notes', patient_id=SOAPNote.query.get(note_id).patient_id))
+
 
 @bp.route('/update_missing_ai_summaries', methods=['POST'])
 @login_required
@@ -261,13 +207,7 @@ Assessment: {note.assessment}
 Recommendation: {note.recommendation}
 Additional Notes: {note.additional_notes or 'None'}
 """
-            try:
-                ai_summary = generate_ai_summary(note_text)
-                note.ai_notes = ai_summary
-                updated_count += 1
-            except Exception as e:
-                logger.error(f"Failed to generate summary for SOAP note {note.id}: {e}")
-                note.ai_notes = 'Summary generation failed'
+
 
         db.session.commit()
         flash(f'Updated {updated_count} SOAP notes with AI summaries.', 'success')
