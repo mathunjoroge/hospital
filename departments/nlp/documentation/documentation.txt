@@ -1,0 +1,243 @@
+HIMS Clinical NLP System DocumentationOverviewThe HIMS Clinical NLP System is a Python-based application for processing clinical SOAP notes using natural language processing (NLP). It extracts clinical entities, predicts potential diseases, maps terms to UMLS CUIs, and generates HTML reports for analysis. The system supports both a command-line interface (CLI) and a FastAPI-based web API, with features like rate limiting, connection pooling, and parallel processing for scalability.Key Features:Extracts clinical entities (symptoms, diseases) from text using spaCy and custom regex patterns.
+Maps terms to UMLS CUIs for standardized medical terminology.
+Predicts primary and differential diagnoses based on disease signatures.
+Generates HTML reports with analysis results.
+Supports batch processing of SOAP notes with parallel execution.
+Includes robust error handling, logging, and testing.
+
+Folder Structure:
+
+/hims_nlp
+├── src/
+│   ├── __init__.py
+│   ├── config.py           # Configuration management
+│   ├── database.py         # Database connections and queries
+│   ├── nlp.py             # NLP processing (UMLS, NER, disease prediction)
+│   ├── api.py             # FastAPI web server and endpoints
+│   ├── cli.py             # Command-line interface
+│   ├── utils.py           # Utility functions (HTML generation, note preparation)
+├── tests/
+│   ├── __init__.py
+│   ├── tests.py           # Unit tests
+├── resources/
+│   ├── __init__.py
+│   ├── priority_symptoms.py
+│   ├── common_terms.py
+│   ├── default_patterns.py
+│   ├── default_clinical_terms.py
+│   ├── default_disease_keywords.py
+│   ├── common_fallbacks.py
+├── requirements.txt        # Python dependencies
+├── main.py                # Application entry point
+├── documentation.txt      # This file
+├── nlp_service.log        # Log file (generated at runtime)
+
+PrerequisitesPython: Version 3.8 or higher
+Dependencies: Listed in requirements.txt
+Databases:SQLite database for SOAP notes (default: /home/mathu/projects/hospital/instance/hims.db)
+PostgreSQL database for UMLS (default: postgresql://postgres:postgres@localhost:5432/hospital_umls)
+
+SpaCy Model: en_core_sci_sm (install with python -m spacy download en_core_sci_sm)
+NLTK Data: WordNet (downloaded automatically at runtime)
+
+Setup InstructionsClone the Repository (if applicable):bash
+
+git clone <repository-url>
+cd hims_nlp
+
+Install Dependencies:
+Create a virtual environment and install required packages:bash
+
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python -m spacy download en_core_sci_sm
+
+Set Up Environment Variables:
+Create a .env file in the project root with the following variables:plaintext
+
+SQLITE_DB_PATH=/path/to/hims.db
+UMLS_DB_URL=postgresql://user:password@localhost:5432/hospital_umls
+API_HOST=0.0.0.0
+API_PORT=8000
+UMLS_THRESHOLD=0.7
+BATCH_SIZE=50
+TRUSTED_SOURCES=MSH,SNOMEDCT_US,ICD10CM,ICD9CM,LNC
+UMLS_LANGUAGE=ENG
+MAX_WORKERS=4
+RATE_LIMIT=10/minute
+DEFAULT_DEPARTMENT=emergency
+
+Adjust paths and values as needed.
+Database Setup:SQLite: Ensure the SQLite database exists at SQLITE_DB_PATH with the schema defined in src/database.py (see setup_test_database for reference).
+PostgreSQL: Set up a UMLS database with tables umls.mrconso and umls.mrrel. Ensure connection details match UMLS_DB_URL.
+
+Verify Resources:
+Ensure the resources/ directory contains the required files (priority_symptoms.py, common_terms.py, etc.). These provide fallback data and configurations. If missing, create mock versions or update imports.
+
+UsageRunning the ApplicationStart the API Server:bash
+
+python main.py
+
+The server runs on http://<API_HOST>:<API_PORT> (default: http://0.0.0.0:8000). Access the API documentation at /docs.
+Use the CLI:
+Run CLI commands for system status, prediction, or note processing:bash
+
+python main.py <command> [options]
+
+Available commands:status [--detail]: Display system status (add --detail for recent notes).
+predict <text>: Predict diseases from clinical text.
+process [--note-id <id> | --all [--limit <n>] | --latest] [--parallel]: Process SOAP notes.
+test: Run unit tests.
+
+Examples:bash
+
+python main.py status --detail
+python main.py predict "Patient has fever and cough"
+python main.py process --note-id 1
+python main.py process --all --limit 10 --parallel
+python main.py test
+
+API EndpointsPOST /predict:Description: Predicts diseases from clinical text.
+Request Body:json
+
+{
+  "text": "Patient has fever and cough",
+  "department": "emergency"  // optional
+}
+
+Response:json
+
+{
+  "primary_diagnosis": {"disease": "pneumonia", "score": 2.0},
+  "differential_diagnoses": [{"disease": "bronchitis", "score": 1.5}],
+  "processing_time": 0.123
+}
+
+Rate Limit: Configurable (default: 10 requests/minute per user).
+
+POST /process_note:Description: Processes a SOAP note by ID, returning an HTML report.
+Request Body:json
+
+{
+  "note_id": 1
+}
+
+Response: HTML content with analysis (primary diagnosis, entities, summary, etc.).
+Status Codes:200: Success
+404: Note not found
+400: Invalid note content
+
+Rate Limit: Same as /predict.
+
+Example CLI UsageCheck System Status:bash
+
+python main.py status
+
+Output: Table showing NLP model status, database connections, and note counts.
+Predict Diseases:bash
+
+python main.py predict "Patient presents with fever and cough for 3 days"
+
+Output: Tables with primary and differential diagnoses.
+Process a Single Note:bash
+
+python main.py process --note-id 1
+
+Output: Confirmation of processing and HTML report stored in the database.
+Process All Notes in Parallel:bash
+
+python main.py process --all --limit 10 --parallel
+
+Output: Progress bar and summary of processed notes.
+
+Module Descriptionssrc/config.py:Manages environment variable loading and validation.
+Provides AppConfig class and get_config() function for accessing settings.
+
+src/database.py:Handles SQLite and PostgreSQL (UMLS) database connections.
+Includes functions for fetching SOAP notes (fetch_soap_notes, fetch_single_soap_note) and updating AI analysis (update_ai_analysis).
+Provides setup_test_database for creating an in-memory test database.
+
+src/nlp.py:Core NLP logic with classes:UMLSMapper: Maps terms to UMLS CUIs with caching.
+DiseaseSymptomMapper: Maps diseases to symptoms using UMLS relationships.
+ClinicalNER: Extracts clinical entities (symptoms, temporal information) using spaCy and regex.
+DiseasePredictor: Predicts diseases and processes SOAP notes.
+
+Initializes shared resources (spaCy model, clinical terms, disease signatures).
+
+src/api.py:Defines FastAPI application with /predict and /process_note endpoints.
+Includes rate limiting, dependency injection, and global error handling.
+
+src/cli.py:Implements HIMSCLI class for command-line interaction.
+Supports commands for status checks, predictions, note processing, and testing.
+
+src/utils.py:Utility functions for HTML report generation (generate_html_response, etc.) and note preparation (prepare_note_for_nlp, generate_summary).
+
+tests/tests.py:Unit tests for API endpoints and core functionality.
+Tests server status, prediction, note processing, and rate limiting.
+
+resources/:Contains static data files for fallback terms, patterns, and management plans.
+Files: priority_symptoms.py, common_terms.py, default_patterns.py, default_clinical_terms.py, default_disease_keywords.py, common_fallbacks.py.
+
+TestingRun the test suite to verify functionality:bash
+
+python main.py test
+
+Tests Included:test_server_is_running: Verifies the API server is accessible.
+test_predict_endpoint: Tests disease prediction with valid input.
+test_predict_empty_text: Tests prediction with empty input.
+test_process_note_endpoint: Tests note processing with mocked database.
+test_process_note_not_found: Tests handling of invalid note IDs.
+test_rate_limit: Verifies rate limiting on the /predict endpoint.
+
+Test Setup:Uses an in-memory SQLite database (setup_test_database).
+Mocks database connections for isolated testing.
+Starts a temporary server process for API tests.
+
+TroubleshootingSpaCy Model Not Found:Ensure en_core_sci_sm is installed: python -m spacy download en_core_sci_sm.
+Check for OSError in logs (nlp_service.log).
+
+Database Connection Issues:Verify .env file has correct SQLITE_DB_PATH and UMLS_DB_URL.
+Ensure PostgreSQL server is running and accessible.
+Check logs for connection errors and retry failures.
+
+Rate Limit Exceeded:Response code 429 indicates too many requests. Adjust RATE_LIMIT in .env or wait.
+Use X-User-ID header to differentiate users.
+
+UMLS Mapping Fails:The UMLSMapper.map_term_to_cui method is a mock. Implement actual UMLS database queries if available.
+Ensure TRUSTED_SOURCES and UMLS_LANGUAGE are correctly configured.
+
+Missing Resources:If resources/ files are missing, create mock versions or update imports to use fallback data in common_fallbacks.py.
+
+Performance Issues:Increase MAX_WORKERS in .env for parallel processing.
+Adjust BATCH_SIZE for UMLS queries to balance performance and memory usage.
+
+Extending the SystemAdd New Endpoints:Modify src/api.py to add new FastAPI routes.
+Use Depends(get_disease_predictor) for injecting DiseasePredictor.
+
+Enhance NLP:Update ClinicalNER in src/nlp.py to add new entity types or patterns.
+Implement real UMLS queries in UMLSMapper.map_term_to_cui.
+
+Improve HTML Reports:Replace string-based HTML in src/utils.py with Jinja2 templates for better maintainability.
+Add CSS styling to HTML output.
+
+Database Schema Changes:Update src/database.py and setup_test_database to reflect new schema.
+Ensure test database mirrors production schema.
+
+Add New CLI Commands:Extend HIMSCLI._setup_commands in src/cli.py to add new subcommands.
+
+LoggingLogs are written to nlp_service.log and the console.
+Log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL.
+Key logs include:Database connection errors
+UMLS query performance
+Note processing times
+API request handling
+
+NotesThe system assumes a SQLite database for SOAP notes and a PostgreSQL database for UMLS. Modify src/database.py if using different databases.
+The UMLSMapper uses a mock implementation. Replace with actual UMLS queries for production use.
+Ensure sufficient memory for parallel processing (MAX_WORKERS) and UMLS batch queries (BATCH_SIZE).
+The HTML output is string-based for simplicity. Consider using a template engine like Jinja2 for complex reports.
+
+ContactFor issues or contributions, contact the project maintainer or open an issue on the repository (if applicable).
+
+

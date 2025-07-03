@@ -1,0 +1,54 @@
+/hims_nlp
+├── src/                          # Core application modules
+│   ├── __init__.py               # Makes src a Python package
+│   ├── config.py                 # Loads and validates environment variables
+│   ├── database.py               # Manages SQLite and PostgreSQL (UMLS) connections and queries
+│   ├── nlp.py                    # Handles NLP processing (UMLS mapping, NER, disease prediction)
+│   ├── api.py                    # FastAPI server with /predict and /process_note endpoints
+│   ├── cli.py                    # Command-line interface for system status, prediction, and note processing
+│   ├── utils.py                  # Utility functions for HTML generation and note preparation
+├── tests/                        # Test-related code
+│   ├── __init__.py               # Makes tests a Python package
+│   ├── tests.py                  # Unit tests for API endpoints and core functionality
+├── resources/                    # Static data files for fallback terms and configurations
+│   ├── __init__.py               # Makes resources a Python package
+│   ├── priority_symptoms.py      # Priority symptom definitions
+│   ├── common_terms.py           # Common clinical terms
+│   ├── default_patterns.py       # Default regex patterns for NER
+│   ├── default_clinical_terms.py # Default clinical term set
+│   ├── default_disease_keywords.py # Default disease keywords and CUIs
+│   ├── common_fallbacks.py       # Fallback data for keywords, CUIs, and management plans
+├── requirements.txt              # Lists Python dependencies
+├── main.py                       # Entry point for running API server or CLI
+├── documentation.txt             # Detailed user guide (setup, usage, troubleshooting)
+├── nlp_service.log               # Runtime log file (generated)
+File Descriptionssrc/config.py: Defines AppConfig class and get_config() to load/validate environment variables (e.g., database paths, API settings).
+src/database.py: Manages database connections (get_sqlite_connection, UMLSSession), fetches SOAP notes (fetch_soap_notes, fetch_single_soap_note), updates AI analysis (update_ai_analysis), and sets up test database (setup_test_database).
+src/nlp.py: Contains NLP logic:UMLSMapper: Maps terms to UMLS CUIs with caching.
+DiseaseSymptomMapper: Maps diseases to symptoms using UMLS.
+ClinicalNER: Extracts clinical entities (symptoms, temporal info) via spaCy and regex.
+DiseasePredictor: Predicts diseases and processes SOAP notes.
+
+src/api.py: Defines FastAPI app with /predict (disease prediction) and /process_note (SOAP note processing) endpoints, including rate limiting and error handling.
+src/cli.py: Implements HIMSCLI for CLI commands: status (system info), predict (disease prediction), process (note processing), and test (run tests).
+src/utils.py: Provides utility functions:generate_html_response: Generates HTML reports for note analysis.
+prepare_note_for_nlp: Prepares SOAP notes for processing.
+generate_summary: Summarizes clinical text.
+
+tests/tests.py: Unit tests for API endpoints (server status, prediction, note processing, rate limiting) using an in-memory SQLite database.
+main.py: Entry point to run the API server (python main.py) or CLI commands (python main.py <command>).
+requirements.txt: Lists dependencies (e.g., fastapi, spacy, sqlalchemy, nltk, rich, bleach, slowapi, tenacity, requests).
+documentation.txt: Detailed guide for setup, usage, testing, and extending the system.
+nlp_service.log: Logs runtime info (DEBUG, INFO, ERROR, etc.) for debugging and monitoring.
+
+Folder Descriptionssrc/: Core application code, organized by functionality (configuration, database, NLP, API, CLI, utilities).
+tests/: Test suite for validating system functionality.
+resources/: Static data for fallback terms, patterns, and management plans used when database queries fail.
+
+Usage NotesRun API: python main.py
+Run CLI: python main.py [status|predict|process|test] [options]
+Install Dependencies: pip install -r requirements.txt and python -m spacy download en_core_sci_sm
+Environment Variables: Set in .env (see documentation.txt for details).
+UMLS: UMLSMapper.map_term_to_cui is a mock; implement real UMLS queries for production.
+
+
