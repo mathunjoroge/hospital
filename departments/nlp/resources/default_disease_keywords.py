@@ -1,25 +1,147 @@
 # default_disease_keywords.py
 
 DEFAULT_DISEASE_KEYWORDS = {
+    # Infectious Diseases
     "malaria": "C0024530",
+    "falciparum malaria": "C0343428",
+    "vivax malaria": "C0343429",
     "pneumonia": "C0032285",
+    "community acquired pneumonia": "C0876973",
+    "bacterial pneumonia": "C0004626",
     "meningitis": "C0025289",
+    "bacterial meningitis": "C0085437",
+    "viral meningitis": "C0085438",
     "uti": "C0033578",
     "urinary tract infection": "C0033578",
+    "cystitis": "C0010674",
+    "pyelonephritis": "C0034219",
     "influenza": "C0021400",
+    "flu": "C0021400",
     "tuberculosis": "C0041296",
+    "pulmonary tuberculosis": "C0038293",
     "gastroenteritis": "C0017160",
+    "infectious diarrhea": "C0011991",
     "dengue": "C0011311",
+    "dengue fever": "C0011311",
     "cholera": "C0008344",
     "bronchitis": "C0006277",
+    "acute bronchitis": "C0006278",
     "hepatitis": "C0019158",
     "viral hepatitis": "C0019158",
+    "hepatitis B": "C0019196",
+    "hepatitis C": "C0019202",
+    "typhoid": "C0041466",
+    "typhoid fever": "C0041466",
+    "covid-19": "C5203670",
+    "coronavirus disease": "C5203670",
+    "ebola": "C0949083",
+    "measles": "C0024299",
+    "mumps": "C0026764",
+    "rubella": "C0035799",
+    "zika virus infection": "C4321343",
+    
+    # Respiratory / Cardiovascular
     "asthma": "C0004096",
+    "acute asthma exacerbation": "C0152023",
+    "copd": "C0024117",
+    "chronic obstructive pulmonary disease": "C0024117",
     "myocardial infarction": "C0027051",
+    "heart attack": "C0027051",
+    "unstable angina": "C0002962",
+    "congestive heart failure": "C0018801",
+    "heart failure": "C0018801",
     "stroke": "C0038454",
-    "diabetes": "C0011849",
+    "ischemic stroke": "C0333041",
+    "hemorrhagic stroke": "C0333042",
     "hypertension": "C0020538",
+    "high blood pressure": "C0020538",
+    "hypotension": "C0020649",
+
+    # Endocrine
+    "diabetes": "C0011849",
+    "type 1 diabetes": "C0011854",
+    "type 2 diabetes": "C0011860",
+    "diabetic ketoacidosis": "C0011864",
+    "hypoglycemia": "C0020615",
+    "hyperglycemia": "C0020456",
+
+    # Gastrointestinal
+    "abdominal pain": "C0000737",
+    "appendicitis": "C0003615",
+    "peptic ulcer disease": "C0030842",
+    "pancreatitis": "C0030286",
+    "liver cirrhosis": "C0023895",
+    "hepatomegaly": "C0019199",
+    "jaundice": "C0022346",
+
+    # Renal / Urological
+    "kidney stones": "C0022658",
+    "renal colic": "C0264782",
+    "acute kidney injury": "C1963138",
+    "chronic kidney disease": "C1561643",
+    "hematuria": "C0018965",
+    "urinary retention": "C0042029",
+
+    # Neurology
+    "epilepsy": "C0014544",
+    "seizure": "C0036572",
+    "migraine": "C0149931",
+    "tension headache": "C0085136",
+    "delirium": "C0011206",
+    "dementia": "C0011265",
+    "parkinson's disease": "C0030567",
+
+    # Musculoskeletal
     "back pain": "C0004604",
     "musculoskeletal back pain": "C0026857",
-    "typhoid": "C0041466"
+    "sciatica": "C0036459",
+    "arthritis": "C0003862",
+    "osteoarthritis": "C0029408",
+    "rheumatoid arthritis": "C0003873",
+    "gout": "C0018099",
+
+    # Obstetrics / Gynecology
+    "pregnancy": "C0032961",
+    "ectopic pregnancy": "C0013302",
+    "preeclampsia": "C0032952",
+    "postpartum hemorrhage": "C0151827",
+    "miscarriage": "C0232971",
+    "menorrhagia": "C0025325",
+
+    # Psychiatry / Behavioral
+    "depression": "C0011581",
+    "anxiety": "C0003467",
+    "suicidal ideation": "C0345126",
+    "schizophrenia": "C0036341",
+    "psychosis": "C0033975",
+    "bipolar disorder": "C0005586",
+    "insomnia": "C0021311",
+
+    # Dermatology / ENT
+    "urticaria": "C0042210",
+    "eczema": "C0013595",
+    "psoriasis": "C0033860",
+    "cellulitis": "C0007642",
+    "otitis media": "C0029883",
+    "sinusitis": "C0037199",
+    "tonsillitis": "C0040425",
+    "pharyngitis": "C0031350",
+
+    # Oncology
+    "cancer": "C0006826",
+    "breast cancer": "C0006142",
+    "lung cancer": "C0024121",
+    "prostate cancer": "C0033578",
+    "leukemia": "C0023418",
+    "lymphoma": "C0024299",
+
+    # Toxicology / Emergency
+    "snake bite": "C0027947",
+    "poisoning": "C0032227",
+    "drug overdose": "C0013227",
+    "sepsis": "C0036690",
+    "anaphylaxis": "C0002736",
+    "burns": "C0006370",
+    "head injury": "C0018671",
+    "drowning": "C0013173"
 }

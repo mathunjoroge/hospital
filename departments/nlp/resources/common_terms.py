@@ -2,49 +2,72 @@
 
 common_terms = [
     # General symptoms
-    "headache", "fever", "chills", "nausea", "vomiting", "fatigue", "dizziness",
-    "loss of appetite", "weight loss", "night sweats", "body aches", "weakness",
+    "fever", "high temperature", "low-grade fever", "chills", "rigors", "night sweats",
+    "malaise", "fatigue", "tiredness", "weakness", "body aches", "myalgia",
+    "headache", "severe headache", "pressure in head", "dizziness", "lightheadedness",
+    "loss of appetite", "anorexia", "weight loss", "weight gain",
 
     # Gastrointestinal
-    "abdominal pain", "diarrhea", "constipation", "bloating", "indigestion",
-    "gas", "acid reflux", "jaundice", "malaria", "gastroenteritis",
-    "viral hepatitis", "hepatitis A", "hepatitis B", "hepatitis C",
+    "abdominal pain", "stomachache", "bloating", "cramps", "indigestion", "dyspepsia",
+    "nausea", "vomiting", "dry heaves", "diarrhea", "loose stool", "constipation",
+    "gas", "flatulence", "acid reflux", "heartburn", "jaundice", "yellowing of eyes",
+    "hepatitis", "viral hepatitis", "hepatitis A", "hepatitis B", "hepatitis C",
+    "malaria", "gastroenteritis", "food poisoning", "bloody stool", "melena", "hematemesis",
 
     # Respiratory
-    "cough", "sore throat", "shortness of breath", "chest pain",
-    "runny nose", "nasal congestion", "wheezing", "difficulty breathing",
-    "asthma", "bronchitis", "pneumonia", "tuberculosis",
+    "cough", "dry cough", "productive cough", "phlegm", "sputum", "shortness of breath",
+    "difficulty breathing", "dyspnea", "chest pain", "chest tightness", "sore throat",
+    "hoarseness", "runny nose", "nasal congestion", "blocked nose", "wheezing", "stridor",
+    "asthma", "bronchitis", "pneumonia", "tuberculosis", "TB", "COVID-19", "flu", "influenza",
 
     # Neurological
-    "seizure", "confusion", "slurred speech", "numbness", "tingling",
-    "vision changes", "double vision", "syncope", "migraine", "drowsiness",
+    "headache", "migraine", "seizure", "convulsion", "fits", "drowsiness", "lethargy",
+    "slurred speech", "numbness", "tingling", "pins and needles", "confusion",
+    "loss of consciousness", "fainting", "blackout", "syncope", "double vision",
+    "vision changes", "blurred vision", "photophobia", "neck stiffness", "stiff neck",
 
     # Cardiovascular
-    "palpitations", "high blood pressure", "low blood pressure",
-    "swollen legs", "fainting", "cyanosis", "cold extremities",
+    "palpitations", "racing heart", "irregular heartbeat", "high blood pressure",
+    "hypertension", "low blood pressure", "hypotension", "fainting", "chest pressure",
+    "cyanosis", "blue lips", "cold extremities", "swollen legs", "edema", "orthopnea",
+    "paroxysmal nocturnal dyspnea", "leg cramps", "claudication",
 
     # Genitourinary
-    "frequent urination", "painful urination", "blood in urine",
-    "vaginal discharge", "penile discharge", "erectile dysfunction",
-    "missed period", "heavy periods", "pregnancy", "urinary retention",
+    "frequent urination", "increased urination", "painful urination", "burning urination",
+    "dysuria", "urinary urgency", "urinary frequency", "blood in urine", "hematuria",
+    "urinary retention", "incontinence", "nocturia", "vaginal discharge", "penile discharge",
+    "erectile dysfunction", "missed period", "amenorrhea", "heavy periods", "menorrhagia",
+    "spotting", "painful periods", "dysmenorrhea", "pregnancy", "UTI", "bladder infection",
 
     # Musculoskeletal
-    "joint pain", "muscle pain", "back pain", "neck stiffness",
-    "swelling", "limb weakness", "limited movement",
+    "joint pain", "muscle pain", "myalgia", "arthralgia", "swelling", "joint swelling",
+    "back pain", "lower back pain", "neck pain", "neck stiffness", "limb pain",
+    "limb weakness", "limited movement", "stiff joints", "cramps", "spasms",
 
-    # Skin
-    "rash", "itching", "hives", "blisters", "dry skin", "wounds",
-    "skin discoloration", "bruising", "burns",
+    # Skin and Dermatological
+    "rash", "itching", "pruritus", "hives", "urticaria", "blisters", "pimples", "boils",
+    "dry skin", "scaling", "eczema", "psoriasis", "acne", "wounds", "cuts", "abrasions",
+    "skin discoloration", "bruising", "burns", "skin ulcers", "lumps", "nodules",
 
     # Mental health
-    "anxiety", "depression", "insomnia", "hallucinations", "paranoia",
-    "mood swings", "suicidal thoughts",
+    "anxiety", "nervousness", "depression", "low mood", "insomnia", "lack of sleep",
+    "hallucinations", "seeing things", "hearing voices", "paranoia", "mood swings",
+    "irritability", "agitation", "memory loss", "confusion", "suicidal thoughts",
+    "self-harm", "panic attacks",
 
     # Infectious diseases
-    "typhoid", "HIV", "COVID-19", "influenza", "dengue", "meningitis",
-    "UTI", "STI", "parasitic infection", "bacterial infection",
+    "typhoid", "HIV", "AIDS", "COVID-19", "coronavirus", "influenza", "flu",
+    "dengue", "yellow fever", "zika", "meningitis", "rabies", "parasitic infection",
+    "bacterial infection", "viral infection", "fungal infection", "STI", "sexually transmitted infection",
 
-    # Pediatric/reproductive
-    "ear pain", "crying baby", "delayed milestones", "breast pain",
-    "nipple discharge", "labor pain", "fetal movement"
+    # Pediatric / Reproductive / OB-GYN
+    "ear pain", "otitis", "crying baby", "irritability in baby", "delayed milestones",
+    "difficulty breastfeeding", "breast pain", "nipple discharge", "labor pain",
+    "contractions", "vaginal bleeding", "fetal movement", "reduced fetal movement",
+    "morning sickness", "prenatal cramps", "pelvic pain", "stillbirth", "miscarriage",
+
+    # Emergency/Trauma
+    "head injury", "bleeding", "uncontrolled bleeding", "severe allergic reaction",
+    "anaphylaxis", "fracture", "broken bone", "burns on face", "trauma", "shock",
+    "difficulty breathing", "loss of consciousness", "sudden vision loss", "stroke symptoms"
 ]

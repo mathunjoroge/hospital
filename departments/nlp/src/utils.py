@@ -189,7 +189,7 @@ def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
         if sentence and sentence not in seen:
             unique_sentences.append(sentence)
             seen.add(sentence)
-    summary = ". ".join(unique_sentences[:3]) + ('.' if unique_sentences else '')
+    summary = ". ".join(unique_sentences[:4]) + ('.' if unique_sentences else '')
 
     return f"""
     <div class="container">
@@ -280,8 +280,8 @@ def humanize_list(items: List[str]) -> str:
         return f"{items[0]} and {items[1]}"
     return ", ".join(items[:-1]) + f", and {items[-1]}"
 
-def generate_summary(text: str, max_sentences: int = 4, doc=None) -> str:
-    """Generate a concise clinical summary with improved symptom-context extraction."""
+def generate_summary(text: str, soap_note: Dict, max_sentences: int = 6, doc=None) -> str:
+    """Generate a concise and natural clinical summary, incorporating key SOAP note fields."""
     if not text:
         return ""
     
@@ -291,67 +291,58 @@ def generate_summary(text: str, max_sentences: int = 4, doc=None) -> str:
     
     clinical_terms = DiseasePredictor.clinical_terms
     temporal_pattern = re.compile(
-        r"\b(\d+\s*(?:day|days|week|weeks|month|months|year|years)\s*(?:ago)?)\b",
+        r"\b(\d+\s*(day|days|week|weeks|month|months|year|years)\s*(ago)?)\b", 
         re.IGNORECASE
-    )
+)
     
+    # Initialize components
     symptoms = set()
     temporal_info = ""
-    aggravating_factors = defaultdict(list)
-    alleviating_factors = defaultdict(list)
+    aggravating_factors = []
+    alleviating_factors = []
     medications = []
     findings = []
     recommendations = []
-    medical_history = set()
+    medical_history = []
     
-    # Improved sentence boundary detection
-    sentences = [sent.text.strip() for sent in doc.sents]
-    if not sentences:
-        sentences = [text]
-
-    # Process each sentence separately
-    for sent in sentences:
-        sent_lower = sent.lower()
+    # Directly use structured fields from SOAP note
+    if soap_note.get('aggravating_factors'):
+        aggravating_factors.append(soap_note['aggravating_factors'])
+    if soap_note.get('alleviating_factors'):
+        alleviating_factors.append(soap_note['alleviating_factors'])
+    if soap_note.get('medication_history'):
+        medications.append(soap_note['medication_history'])
+    if soap_note.get('medical_history'):
+        medical_history.append(soap_note['medical_history'])
+    if soap_note.get('recommendation'):
+        recommendations.append(soap_note['recommendation'])
+    
+    # Process each sentence
+    text_lower = text.lower()
+    for sent in doc.sents:
+        sent_text = sent.text.strip()
+        sent_lower = sent_text.lower()
         
-        # 1. Temporal information extraction
+        # Temporal information
         if not temporal_info:
-            match = temporal_pattern.search(sent)
+            match = temporal_pattern.search(sent_text)
             if match:
                 temporal_info = match.group(0)
         
-        # 2. Symptom extraction with context
+        # Symptoms
         for term in clinical_terms:
             if term in sent_lower and term != 'malaria':
                 symptoms.add(term)
-                
-                # Improved pattern matching for factors
-                if re.search(r"\bmakes\b.*\bworse\b", sent_lower) or "aggravate" in sent_lower:
-                    aggravating_factors[term].append(sent)
-                elif re.search(r"\balleviates\b|\brelieves\b|\bbetter\b", sent_lower):
-                    alleviating_factors[term].append(sent)
         
-        # 3. Medical history extraction
-        if re.search(r"\bno\s+chronic\s+illness", sent_lower):
-            medical_history.add("No chronic illnesses reported")
-        
-        # 4. Medication extraction with improved pattern
-        if re.search(r"\b\d+\s*mg\b|\btakes?\b|\bmedication\b", sent_lower):
-            if "the headache is associated" not in sent_lower:
-                medications.append(sent)
-        
-        # 5. Findings extraction
-        if re.search(r"\bjaundice\b|\bfound\b|\bshow\b|\breveal\b", sent_lower):
-            findings.append(sent)
-        
-        # 6. Recommendations extraction
-        if re.search(r"\brecommends?\b|\bsuggests?\b|\bsmear\b", sent_lower):
-            recommendations.append(sent)
+        # Findings (e.g., jaundice)
+        if soap_note.get('assessment') and "jaundice" in sent_lower:
+            findings.append("jaundice")
     
-    # Build summary with priority ordering
+    # Build summary with prioritized components
     summary_parts = []
     seen = set()
     
-    # Presentation (symptoms + temporal)
+    # 1. Presentation (symptoms + temporal)
     if symptoms:
         symptoms_str = humanize_list(sorted(symptoms))
         presentation = f"The patient presents with {symptoms_str}"
@@ -360,55 +351,58 @@ def generate_summary(text: str, max_sentences: int = 4, doc=None) -> str:
         summary_parts.append(presentation + ".")
         seen.add(presentation)
     
-    # Medical history
-    for history in medical_history:
-        if history not in seen:
-            summary_parts.append(history + ".")
-            seen.add(history)
+    # 2. Aggravating factors
+    for factor in aggravating_factors:
+        if factor and "Aggravating factors" not in seen:
+            summary_parts.append(f"Aggravating factors: {factor}.")
+            seen.add("Aggravating factors")
     
-    # Findings
-    for finding in findings[:2]:
-        if finding not in seen:
-            summary_parts.append("Notable finding: " + finding + ".")
+    # 3. Alleviating factors
+    for factor in alleviating_factors:
+        if factor and "Alleviating factors" not in seen:
+            summary_parts.append(f"Alleviating factors: {factor}.")
+            seen.add("Alleviating factors")
+    
+    # 4. Medical history
+    for history in medical_history:
+        if history and "Medical history" not in seen:
+            summary_parts.append(f"Medical history: {history}.")
+            seen.add("Medical history")
+    
+    # 5. Medication history
+    for med in medications:
+        if med and "Medication history" not in seen:
+            summary_parts.append(f"Medication history: {med}.")
+            seen.add("Medication history")
+    
+    # 6. Findings
+    for finding in findings:
+        if finding and finding not in seen:
+            summary_parts.append(f"Notable findings include {finding}.")
             seen.add(finding)
     
-    # Aggravating factors
-    for symptom, factors in aggravating_factors.items():
-        if factors and symptom not in seen:
-            summary_parts.append(f"{symptom.capitalize()} aggravated by: " + factors[0] + ".")
-            seen.add(symptom)
-    
-    # Alleviating factors
-    for symptom, factors in alleviating_factors.items():
-        if factors and symptom not in seen:
-            summary_parts.append(f"{symptom.capitalize()} alleviated by: " + factors[0] + ".")
-            seen.add(symptom)
-    
-    # Medications
-    for med in medications[:1]:
-        if med not in seen:
-            summary_parts.append("Medication: " + med + ".")
-            seen.add(med)
-    
-    # Recommendations
-    for rec in recommendations[:1]:
-        if rec not in seen:
-            summary_parts.append("Clinician recommends: " + rec + ".")
+    # 7. Recommendations
+    for rec in recommendations:
+        if rec and rec not in seen:
+            summary_parts.append(f"The clinician recommends {rec}.")
             seen.add(rec)
     
-    # Final summary processing
+    # Limit to max_sentences and clean up
     summary = " ".join(summary_parts[:max_sentences])
     summary = re.sub(r"\s+", " ", summary).strip()
-    summary = re.sub(r"\.+", ".", summary)
+    summary = re.sub(r"\.+", ".", summary).strip()
     
-    # Fallback if no meaningful summary generated
-    if not summary:
-        sentences = [s for s in re.split(r'(?<=[.!?])\s+', text) if s]
-        summary = ". ".join(sentences[:2]) + ("." if sentences else "")
-    
-    # Ensure proper capitalization
     if summary and summary[0].islower():
         summary = summary[0].upper() + summary[1:]
     
     logger.debug(f"Summary generation took {time.time() - start_time:.3f} seconds")
-    return summary or text[:200] + "..."
+    logger.debug(f"Symptoms: {symptoms}")
+    logger.debug(f"Aggravating factors: {aggravating_factors}")
+    logger.debug(f"Alleviating factors: {alleviating_factors}")
+    logger.debug(f"Medical history: {medical_history}")
+    logger.debug(f"Medication history: {medications}")
+    logger.debug(f"Findings: {findings}")
+    logger.debug(f"Recommendations: {recommendations}")
+    logger.debug(f"Generated summary: {summary}")
+    
+    return summary if summary else text[:200] + "..."
