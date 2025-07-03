@@ -31,7 +31,17 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
 import requests
-
+from resources.priority_symptoms import PRIORITY_SYMPTOMS
+from resources.common_terms import common_terms
+import sqlite3
+from resources.default_patterns import DEFAULT_PATTERNS
+from resources.default_clinical_terms import DEFAULT_CLINICAL_TERMS
+from resources.default_disease_keywords import DEFAULT_DISEASE_KEYWORDS
+from resources.common_fallbacks import (
+    fallback_disease_keywords,
+    fallback_symptom_cuis,
+    fallback_management_plans
+)
 # Initialize logging
 logging.basicConfig(
     level=logging.INFO,
@@ -49,7 +59,7 @@ load_dotenv()
 # Configuration
 HIMS_CONFIG = {
     "DEFAULT_DEPARTMENT": "emergency",
-    "PRIORITY_SYMPTOMS": ["chest pain", "shortness of breath", "severe headache"],
+    "PRIORITY_SYMPTOMS": PRIORITY_SYMPTOMS,
     "UMLS_THRESHOLD": 0.7,
     "SQLITE_DB_PATH": "/home/mathu/projects/hospital/instance/hims.db",
     "API_HOST": "0.0.0.0",
@@ -61,11 +71,9 @@ HIMS_CONFIG = {
 }
 
 console = Console()
-
 # UMLS Database Setup
 umls_engine = create_engine(HIMS_CONFIG["UMLS_DB_URL"])
 UMLSSession = sessionmaker(bind=umls_engine)
-
 # Mock database setup for testing
 def setup_test_database():
     """Set up an in-memory SQLite database for testing."""
@@ -171,12 +179,7 @@ class UMLSMapper:
             cls._instance.term_cache = {}
             cls._instance.semantic_cache = {}
             cls._instance._cache_modified = False
-            cls._instance._load_cache()
-            common_terms = [
-                "headache", "fever", "chills", "nausea", "vomiting",
-                "loss of appetite", "jaundice", "malaria", "gastroenteritis",
-                "viral hepatitis"
-            ]
+            cls._instance._load_cache()            
             cls._instance.map_terms_to_cuis(common_terms)
         return cls._instance
     
@@ -289,8 +292,7 @@ class DiseaseSymptomMapper:
     def build_disease_signatures(self) -> Dict[str, set]:
         """Build disease signatures using UMLS relationships"""
         disease_signatures = defaultdict(set)
-        umls_mapper = UMLSMapper()
-        
+        umls_mapper = UMLSMapper()        
         try:
             # Get all diseases from application database
             with get_sqlite_connection() as conn:
@@ -400,7 +402,6 @@ def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
             </table>
         </div>
         """
-
     entities_html = ""
     if entities:
         entity_items = ""
@@ -458,7 +459,6 @@ def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
             </div>
         </div>
         """
-
     management_plans_html = ""
     if management_plans:
         plans_html = "".join(
@@ -471,7 +471,6 @@ def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
             {plans_html}
         </div>
         """
-
     # Generate the complete HTML
     html_content = f"""
     <div class="container">
@@ -491,7 +490,6 @@ def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
 
         {primary_diagnosis_html}
         {differential_diagnoses_html}
-
         <div class="section">
             <h5>Keywords</h5>
             <ul>
@@ -557,7 +555,6 @@ def prepare_note_for_nlp(soap_note: Dict) -> str:
         soap_note.get('ai_notes', '')
     ]
     return ' '.join(f for f in fields if f).strip()
-
 def generate_summary(text: str, max_sentences: int = 4, doc=None) -> str:
     start_time = time.time()
     if not doc:
@@ -690,7 +687,6 @@ def update_ai_analysis(note_id: int, ai_analysis_html: str, summary: str) -> boo
     except sqlite3.Error as e:
         logger.error(f"Error updating AI analysis for note ID {note_id}: {e}")
         return False
-
 # Enhanced NLP Components
 class ClinicalNER:
     @classmethod
@@ -702,17 +698,17 @@ class ClinicalNER:
     def _load_clinical_terms():
         try:
             with get_sqlite_connection() as conn:
+                conn.row_factory = sqlite3.Row  # ensure dict-style row access
                 cursor = conn.cursor()
-                cursor.execute("SELECT name FROM symptoms UNION SELECT keyword FROM disease_keywords")
+                cursor.execute("""
+                    SELECT name FROM symptoms
+                    UNION
+                    SELECT keyword FROM disease_keywords
+                """)
                 return {row['name'].lower() for row in cursor.fetchall()}
         except Exception as e:
             logger.error(f"Error loading clinical terms: {e}")
-            return {
-                "headache", "fever", "cough", "pain", "nausea", 
-                "vomiting", "dizziness", "rash", "fatigue", "chest pain",
-                "shortness of breath", "abdominal pain", "diarrhea", "back pain",
-                "chills", "loss of appetite", "jaundice"
-            }
+            return DEFAULT_CLINICAL_TERMS
 
     def __init__(self):
         self.nlp = DiseasePredictor.nlp
@@ -725,31 +721,19 @@ class ClinicalNER:
     def _load_patterns(self):
         try:
             with get_sqlite_connection() as conn:
+                conn.row_factory = sqlite3.Row  # Ensure dict-like access to row data
                 cursor = conn.cursor()
                 cursor.execute("SELECT label, pattern FROM patterns")
                 return [(row['label'], row['pattern']) for row in cursor.fetchall()]
         except Exception as e:
             logger.error(f"Error loading patterns: {e}")
-            return [
-                ("PAIN", r"\b(pain|ache|discomfort|tenderness)\b"),
-                ("FEVER", r"\b(fever|pyrexia|hyperthermia)\b"),
-                ("RESPIRATORY", r"\b(cough|dyspnea|shortness of breath|wheez)\b"),
-                ("CARDIO", r"\b(chest pain|palpitation|tachycardia)\b"),
-                ("GASTRO", r"\b(nausea|vomiting|diarrhea|constipation|abdominal pain)\b"),
-                ("NEURO", r"\b(headache|dizziness|vertigo|confusion|seizure)\b"),
-                ("BACK_PAIN", r"\b(back pain|backpain|lumbago)\b"),
-                ("CHILLS", r"\b(chills|shivering)\b"),
-                ("APPETITE_LOSS", r"\b(loss of appetite|anorexia)\b"),
-                ("JAUNDICE", r"\b(jaundice|yellowing)\b")
-            ]
-    
+            return DEFAULT_PATTERNS    
     def extract_entities(self, text: str, doc=None) -> List[Tuple[str, str, dict]]:
         start_time = time.time()
         if not doc:
             doc = self.nlp(text)
         entities = []
-        seen_entities = set()
-        
+        seen_entities = set()        
         temporal_patterns = [
             (re.compile(r"\b(\d+\s*(day|days|week|weeks|month|months|year|years)\s*(ago)?)\b", re.IGNORECASE), "DURATION"),
             (re.compile(r"\b(since|for)\s*(\d+\s*(day|days|week|weeks|month|months|year|years))\b", re.IGNORECASE), "DURATION"),
@@ -782,8 +766,7 @@ class ClinicalNER:
                             break
                     entities.append((match.group(), label, context))
                     seen_entities.add(match_text)        
-        logger.debug(f"Entity extraction took {time.time() - start_time:.3f} seconds")
-        
+        logger.debug(f"Entity extraction took {time.time() - start_time:.3f} seconds")        
         # First pass: collect all symptom-disease relationships
         symptom_disease_map = defaultdict(set)
         disease_symptom_count = defaultdict(int)
@@ -856,42 +839,19 @@ class ClinicalNER:
                     expected_keywords.append(term)
                     if symptom_cuis[term]:
                         reference_cuis.append(symptom_cuis[term])
+                        #--
         except Exception as e:
             logger.error(f"Error fetching keywords from database: {e}")
-            disease_keywords = {
-                "malaria": "C0024530",
-                "pneumonia": "C0032285",
-                "meningitis": "C0025289",
-                "uti": "C0033578",
-                "urinary tract infection": "C0033578",
-                "influenza": "C0021400",
-                "tuberculosis": "C0041296",
-                "gastroenteritis": "C0017160",
-                "dengue": "C0011311",
-                "cholera": "C0008344",
-                "bronchitis": "C0006277",
-                "hepatitis": "C0019158",
-                "viral hepatitis": "C0019158",
-                "asthma": "C0004096",
-                "myocardial infarction": "C0027051",
-                "stroke": "C0038454",
-                "diabetes": "C0011849",
-                "hypertension": "C0020538",
-                "back pain": "C0004604",
-                "musculoskeletal back pain": "C0026857",
-                "typhoid": "C0041466"
-            }
+            disease_keywords = DEFAULT_DISEASE_KEYWORDS
             for term in terms:
                 for keyword, cui in disease_keywords.items():
                     if keyword in term or term in keyword:
                         if keyword not in expected_keywords:
                             expected_keywords.append(keyword)
                             reference_cuis.append(cui)
-                        break
-        
+                        break        
         logger.debug(f"Keyword and CUI extraction took {time.time() - start_time:.3f} seconds")
         return list(set(expected_keywords)), list(set(reference_cuis))
-
 class DiseasePredictor:
     nlp = None
     clinical_terms = None
@@ -925,56 +885,50 @@ class DiseasePredictor:
 
     @staticmethod
     def _load_keyword_cui_plans():
-        """Load keywords, CUIs, and management plans from databases"""
+        """Load keywords, CUIs, and management plans from databases."""
         try:
-            # Load from application database
             with get_sqlite_connection() as conn:
+                conn.row_factory = sqlite3.Row  # Ensure rows can be accessed as dictionaries
                 cursor = conn.cursor()
-                
+
                 # Load disease keywords
                 cursor.execute("""
                     SELECT d.name, dk.keyword, dk.cui
                     FROM diseases d
                     JOIN disease_keywords dk ON d.id = dk.disease_id
                 """)
-                disease_keywords = {}
-                for row in cursor.fetchall():
-                    disease_keywords[row['keyword'].lower()] = row['cui']
-                
-                # Load symptoms
+                disease_keywords = {
+                    row['keyword'].lower(): row['cui']
+                    for row in cursor.fetchall()
+                }
+
+                # Load symptom CUIs
                 cursor.execute("SELECT name, cui FROM symptoms")
-                symptom_cuis = {row['name'].lower(): row['cui'] for row in cursor.fetchall()}
-                
+                symptom_cuis = {
+                    row['name'].lower(): row['cui']
+                    for row in cursor.fetchall()
+                }
+
                 # Load management plans
                 cursor.execute("""
                     SELECT d.name, dmp.plan
                     FROM disease_management_plans dmp
                     JOIN diseases d ON dmp.disease_id = d.id
                 """)
-                management_plans = {row['name'].lower(): row['plan'] for row in cursor.fetchall()}
-            
+                management_plans = {
+                    row['name'].lower(): row['plan']
+                    for row in cursor.fetchall()
+                }
+
             return disease_keywords, symptom_cuis, management_plans
-        
+
         except Exception as e:
-            logger.error(f"Error loading keywords/CUIs/plans: {e}")
-            # Fallback to static data
-            return {
-                "pneumonia": "C0032285",
-                "lung infection": "C0032285",
-                "malaria": "C0024530",
-                "fever": "C0015967",
-                "cough": "C0010200",
-                "chest pain": "C0008031"
-            }, {
-                "fever": "C0015967",
-                "cough": "C0010200",
-                "headache": "C0018681",
-                "nausea": "C0027497",
-                "vomiting": "C0042963"
-            }, {
-                "pneumonia": "Antibiotics, oxygen therapy, rest",
-                "malaria": "Antimalarial medication, hydration"
-            }
+            logger.error("Failed to load data from SQLite DB, using fallback data. Error: %s", str(e))
+            return (
+                fallback_disease_keywords,
+                fallback_symptom_cuis,
+                fallback_management_plans
+            )
 
     def __init__(self, ner_model=None):
         self.ner = ner_model or ClinicalNER()
@@ -1124,7 +1078,6 @@ class EntityDetail(BaseModel):
     text: str
     label: str
     context: EntityContext
-
 class PredictionResponse(BaseModel):
     primary_diagnosis: Optional[DiseasePrediction]
     differential_diagnoses: List[DiseasePrediction]
@@ -1149,26 +1102,22 @@ async def process_note(request: ProcessNoteRequest):
             content=generate_html_response({"detail": "Note not found"}, 404),
             status_code=404,
             media_type="text/html"
-        )
-    
+        )    
     result = note_processor.process_soap_note(note)
     if "error" in result:
         return Response(
             content=generate_html_response({"detail": result["error"]}, 400),
             status_code=400,
             media_type="text/html"
-        )
-    
+        )    
     # Generate HTML and update database
     html_content = generate_html_response(result, 200)
-    update_ai_analysis(note["id"], html_content, result['summary'])
-    
+    update_ai_analysis(note["id"], html_content, result['summary'])    
     return Response(
         content=html_content,
         status_code=200,
         media_type="text/html"
     )
-
 # Function to start the server programmatically
 def start_server():
     """Start the FastAPI server in a separate process."""
@@ -1185,14 +1134,11 @@ class HIMSCLI:
         self._setup_commands()
     
     def _setup_commands(self):
-        subparsers = self.parser.add_subparsers(dest='command')
-        
+        subparsers = self.parser.add_subparsers(dest='command')        
         status_parser = subparsers.add_parser('status', help='System status')
-        status_parser.add_argument('--detail', action='store_true', help='Detailed status')
-        
+        status_parser.add_argument('--detail', action='store_true', help='Detailed status')        
         predict_parser = subparsers.add_parser('predict', help='Run prediction')
-        predict_parser.add_argument('text', help='Clinical text to analyze')
-        
+        predict_parser.add_argument('text', help='Clinical text to analyze')        
         process_parser = subparsers.add_parser('process', help='Process SOAP notes')
         process_parser.add_argument('--note-id', type=int, help='Process specific note by ID')
         process_parser.add_argument('--all', action='store_true', help='Process all unprocessed notes')
