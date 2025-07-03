@@ -468,7 +468,8 @@ class DiseasePredictor:
         logger.debug(f"spaCy processing took {time.time() - t:.3f} seconds")
         
         t = time.time()
-        summary = generate_summary(text, doc=doc)
+        # Pass the note as soap_note to generate_summary to match its required signature
+        summary = generate_summary(text, soap_note=note, doc=doc)
         logger.debug(f"Summary generation took {time.time() - t:.3f} seconds")
         
         t = time.time()
