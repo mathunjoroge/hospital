@@ -21,9 +21,9 @@ from resources.common_fallbacks import (
     fallback_disease_keywords,
     fallback_symptom_cuis,
     fallback_management_plans,
-    COMMON_SYMPTOM_DISEASE_MAP
+    COMMON_SYMPTOM_DISEASE_MAP,
+    SYMPTOM_NORMALIZATIONS
 )
-from resources.common_fallbacks import SYMPTOM_NORMALIZATIONS
 logger = logging.getLogger("HIMS-NLP")
 HIMS_CONFIG = get_config()
 
@@ -627,18 +627,42 @@ class DiseasePredictor:
 
     @staticmethod
     def _load_management_plans() -> Dict:
-        """Lazy load management plans."""
+        """Lazy load management plans and lab tests for diseases."""
         try:
             with get_sqlite_connection() as conn:
                 cursor = conn.cursor()
+                
+                # Query to fetch management plans
                 cursor.execute("""
                     SELECT d.name, dmp.plan
                     FROM disease_management_plans dmp
                     JOIN diseases d ON dmp.disease_id = d.id
                 """)
-                return {row['name'].lower(): row['plan'] for row in cursor.fetchall()}
+                management_plans = {row['name'].lower(): {'plan': row['plan']} for row in cursor.fetchall()}
+                
+                # Query to fetch lab tests
+                cursor.execute("""
+                    SELECT d.name, dl.lab_test, dl.description
+                    FROM disease_labs dl
+                    JOIN diseases d ON dl.disease_id = d.id
+                """)
+                lab_tests = cursor.fetchall()
+                
+                # Combine lab tests with management plans
+                for row in lab_tests:
+                    disease_name = row['name'].lower()
+                    if disease_name not in management_plans:
+                        management_plans[disease_name] = {'plan': '', 'lab_tests': []}
+                    if 'lab_tests' not in management_plans[disease_name]:
+                        management_plans[disease_name]['lab_tests'] = []
+                    management_plans[disease_name]['lab_tests'].append({
+                        'test': row['lab_test'],
+                        'description': row['description'] or ''
+                    })
+                
+                return management_plans
         except Exception as e:
-            logger.error(f"Failed to load management plans: {e}")
+            logger.error(f"Failed to load management plans and lab tests: {e}")
             return fallback_management_plans
 
     def __init__(self, ner_model=None):

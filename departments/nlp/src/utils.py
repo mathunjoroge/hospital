@@ -8,19 +8,73 @@ from datetime import datetime
 import pytz
 import spacy
 from textwrap import shorten
+from src.database import get_sqlite_connection
+
 from src.nlp import DiseasePredictor
 from resources.priority_symptoms import PRIORITY_SYMPTOMS
 import logging
+from resources.common_fallbacks import fallback_management_plans
 
 logger = logging.getLogger("HIMS-NLP")
 
 # Central timezone configuration
 TIME_ZONE = pytz.timezone('Africa/Nairobi')
 
+# Bootstrap styling constants
+BOOTSTRAP_CLASSES = {
+    "container": "container mt-4",
+    "card": "card shadow-sm mb-4",
+    "card_header": "card-header bg-primary text-white",
+    "badge_primary": "badge bg-primary ms-2",
+    "badge_priority": "badge bg-danger ms-2",
+    "badge_keyword": "badge bg-info text-dark",
+    "badge_cui": "badge bg-secondary",
+    "section_heading": "border-bottom pb-2",
+}
+
+def _load_management_plans() -> Dict:
+    """Lazy load management plans and lab tests for diseases."""
+    try:
+        with get_sqlite_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Query to fetch management plans
+            cursor.execute("""
+                SELECT d.name, dmp.plan
+                FROM disease_management_plans dmp
+                JOIN diseases d ON dmp.disease_id = d.id
+            """)
+            management_plans = {row['name'].lower(): {'plan': row['plan']} for row in cursor.fetchall()}
+            
+            # Query to fetch lab tests
+            cursor.execute("""
+                SELECT d.name, dl.lab_test, dl.description
+                FROM disease_labs dl
+                JOIN diseases d ON dl.disease_id = d.id
+            """)
+            lab_tests = cursor.fetchall()
+            
+            # Combine lab tests with management plans
+            for row in lab_tests:
+                disease_name = row['name'].lower()
+                if disease_name not in management_plans:
+                    management_plans[disease_name] = {'plan': '', 'lab_tests': []}
+                if 'lab_tests' not in management_plans[disease_name]:
+                    management_plans[disease_name]['lab_tests'] = []
+                management_plans[disease_name]['lab_tests'].append({
+                    'test': row['lab_test'],
+                    'description': row['description'] or ''
+                })
+            
+            return management_plans
+    except Exception as e:
+        logger.error(f"Failed to load management plans and lab tests: {e}")
+        return fallback_management_plans
+
 def generate_primary_diagnosis_html(primary_diagnosis: dict) -> str:
     """Generate HTML for primary diagnosis using Bootstrap classes."""
     if not primary_diagnosis:
-        return """
+        return f"""
         <div class="alert alert-danger" role="alert">
             <h5 class="alert-heading">Primary Diagnosis</h5>
             <p>No primary diagnosis identified</p>
@@ -31,7 +85,7 @@ def generate_primary_diagnosis_html(primary_diagnosis: dict) -> str:
     <div class="alert alert-success" role="alert">
         <h5 class="alert-heading">Primary Diagnosis</h5>
         <p><strong>Disease:</strong> {html.escape(primary_diagnosis.get('disease', 'N/A'))}</p>
-        <p><span class="badge bg-success">Score: {primary_diagnosis.get('score', 'N/A')}</span></p>
+        <p><span class="{BOOTSTRAP_CLASSES['badge_primary']}">Score: {primary_diagnosis.get('score', 'N/A')}</span></p>
     </div>
     """
 
@@ -45,8 +99,8 @@ def generate_differential_diagnoses_html(differential_diagnoses: list) -> str:
         for diag in differential_diagnoses
     )
     return f"""
-    <div class="mb-3">
-        <h5>Differential Diagnoses</h5>
+    <div class="mb-4">
+        <h5 class="{BOOTSTRAP_CLASSES['section_heading']}"><i class="bi bi-list-ul"></i> Differential Diagnoses</h5>
         <table class="table table-bordered">
             <thead class="table-light">
                 <tr><th>Disease</th><th>Score</th></tr>
@@ -96,7 +150,7 @@ def generate_entities_html(entities: list) -> str:
             <strong>Associated Diseases:</strong>
             <ul class="list-group list-group-flush">
                 {''.join(disease_items)}
-                {'<li><button class="btn btn-link btn-sm show-more-btn" data-entity="{html.escape(text)}">Show More ({more_count})</button></li>' if more_count > 0 else ''}
+                {'<li><button class="btn btn-link btn-sm show-more-btn" data-entity="{html.escape(text)}" aria-label="Show more diseases">Show More ({more_count})</button></li>' if more_count > 0 else ''}
             </ul>
         </div>
         """
@@ -105,14 +159,17 @@ def generate_entities_html(entities: list) -> str:
         entity_id = hashlib.md5(f"{text}{label}".encode()).hexdigest()[:8]
         
         entity_items.append(f"""
-        <div class="card mb-2 {'border-warning bg-warning-subtle' if is_priority else ''}">
+        <div class="{BOOTSTRAP_CLASSES['card']} {'border-warning bg-warning-subtle' if is_priority else ''}">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <div>
                     <strong>{html.escape(text)}</strong>
-                    <span class="badge bg-primary ms-2">{html.escape(label)}</span>
-                    {'<span class="badge bg-danger ms-2">Priority</span>' if is_priority else ''}
+                    <span class="{BOOTSTRAP_CLASSES['badge_primary']}">{html.escape(label)}</span>
+                    {'<span class="' + BOOTSTRAP_CLASSES['badge_priority'] + '">Priority</span>' if is_priority else ''}
                 </div>
-                <button class="btn btn-link btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#entity-{entity_id}">
+                <button class="btn btn-link btn-sm" type="button" data-bs-toggle="collapse" 
+                        data-bs-target="#entity-{entity_id}" 
+                        aria-expanded="false" 
+                        aria-controls="entity-{entity_id}">
                     Toggle Details
                 </button>
             </div>
@@ -126,8 +183,8 @@ def generate_entities_html(entities: list) -> str:
         """)
     
     return f"""
-    <div class="mb-3">
-        <h5>Entities</h5>
+    <div class="mb-4">
+        <h5 class="{BOOTSTRAP_CLASSES['section_heading']}"><i class="bi bi-list-check"></i> Entities</h5>
         <div>
             {"".join(entity_items)}
         </div>
@@ -135,19 +192,82 @@ def generate_entities_html(entities: list) -> str:
     """
 
 def generate_management_plans_html(management_plans: dict) -> str:
-    """Generate HTML for management plans using Bootstrap classes."""
+    """Generate HTML for management plans and lab tests using Bootstrap classes."""
     if not management_plans:
         return ""
     
-    plans_html = "".join(
-        f'<div class="card mb-2"><div class="card-body"><strong>{html.escape(disease)}:</strong> {html.escape(plan)}</div></div>'
-        for disease, plan in management_plans.items()
-    )
+    plans_html = []
+    for disease, data in management_plans.items():
+        # Escape disease name and plan for HTML safety
+        disease_escaped = html.escape(disease)
+        plan_escaped = html.escape(data.get('plan', 'No plan available'))
+        
+        # Generate HTML for lab tests
+        lab_tests = data.get('lab_tests', [])
+        lab_tests_html = ""
+        if lab_tests:
+            lab_test_items = "".join(
+                f'<li><strong>{html.escape(test["test"])}:</strong> {html.escape(test["description"])}</li>'
+                for test in lab_tests
+            )
+            lab_tests_html = f"""
+            <div class="mt-3">
+                <h6 class="{BOOTSTRAP_CLASSES['section_heading']}">Recommended Lab Tests</h6>
+                <ul class="list-group list-group-flush">
+                    {lab_test_items}
+                </ul>
+            </div>
+            """
+        
+        # Combine plan and lab tests in a single card
+        plans_html.append(f"""
+        <div class="{BOOTSTRAP_CLASSES['card']}">
+            <div class="{BOOTSTRAP_CLASSES['card_header']}">
+                <h5 class="mb-0">{disease_escaped}</h5>
+            </div>
+            <div class="card-body">
+                <div><strong>Management Plan:</strong> {plan_escaped}</div>
+                {lab_tests_html}
+            </div>
+        </div>
+        """)
+    
     return f"""
-    <div class="mb-3">
-        <h5>Management Plans</h5>
+    <div class="mb-4">
+        <h5 class="{BOOTSTRAP_CLASSES['section_heading']}"><i class="bi bi-prescription"></i> Management Plans and Lab Tests</h5>
         <div>
-            {plans_html}
+            {"".join(plans_html)}
+        </div>
+    </div>
+    """
+
+def generate_metadata_html(note_id: str, patient_id: str, processed_at: str, processing_time: float) -> str:
+    """Generate HTML for metadata section."""
+    return f"""
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="{BOOTSTRAP_CLASSES['card']}">
+                <div class="card-body">
+                    <h6 class="card-title text-mutedLiberty">Patient ID</h6>
+                    <p class="card-text">{patient_id}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="{BOOTSTRAP_CLASSES['card']}">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Processed At</h6>
+                    <p class="card-text">{processed_at}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="{BOOTSTRAP_CLASSES['card']}">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Processing Time</h6>
+                    <p class="card-text">{processing_time:.3f} seconds</p>
+                </div>
+            </div>
         </div>
     </div>
     """
@@ -156,11 +276,12 @@ def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
     """Generate HTML div content for the /process_note endpoint using Bootstrap classes."""
     try:
         if status_code == 404:
-            return """
-            <div class="container">
+            return f"""
+            <div class="{BOOTSTRAP_CLASSES['container']}">
                 <div class="alert alert-danger" role="alert">
-                    <h5 class="alert-heading">Error: Note Not Found</h5>
+                    <h4 class="alert-heading">Error: Note Not Found</h4>
                     <p>The requested note was not found in the database.</p>
+                    <p>Please verify the note ID or contact <a href="mailto:support@example.com">support@example.com</a>.</p>
                 </div>
             </div>
             """
@@ -175,15 +296,14 @@ def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
         summary = html.escape(data.get("summary", ""))
         management_plans = data.get("management_plans", {})
         
-        # Use created_at from SOAP note if available, otherwise current time
         created_at = data.get("created_at")
-        if created_at:
-            if isinstance(created_at, str):
-                created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-            processed_at = created_at.astimezone(TIME_ZONE).strftime("%Y-%m-%d %H:%M:%S %Z")
-        else:
-            processed_at = datetime.now(TIME_ZONE).strftime("%Y-%m-%d %H:%M:%S %Z")
-        
+        processed_at = (
+            datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            .astimezone(TIME_ZONE)
+            .strftime("%Y-%m-%d %H:%M:%S %Z")
+            if created_at
+            else datetime.now(TIME_ZONE).strftime("%Y-%m-%d %H:%M:%S %Z")
+        )
         processed_at = html.escape(processed_at)
         processing_time = data.get("processing_time", 0.0)
 
@@ -191,77 +311,84 @@ def generate_html_response(data: Dict[str, any], status_code: int = 200) -> str:
         differential_html = generate_differential_diagnoses_html(differential_diagnoses)
         entities_html = generate_entities_html(entities)
         management_html = generate_management_plans_html(management_plans)
+        metadata_html = generate_metadata_html(note_id, patient_id, processed_at, processing_time)
 
-        # Improved summary truncation
         summary = shorten(summary, width=500, placeholder="...") if summary else ""
 
         return f"""
-        <div class="container">
-            <h3 class="mb-3 text-primary">🧠 AI Clinical Analysis - Note ID {note_id}</h3>
-            
-            <div class="row row-cols-1 row-cols-md-3 g-3 mb-3">
-                <div class="col">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="card-title">Patient ID</h6>
-                            <p class="card-text">{patient_id}</p>
-                        </div>
-                    </div>
+        <div class="{BOOTSTRAP_CLASSES['container']}">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <div class="{BOOTSTRAP_CLASSES['card']}">
+                <div class="{BOOTSTRAP_CLASSES['card_header']}">
+                    <h3 class="mb-0"><i class="bi bi-clipboard-pulse"></i> AI Clinical Analysis - Note ID {note_id}</h3>
                 </div>
-                <div class="col">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="card-title">Processed At</h6>
-                            <p class="card-text">{processed_at}</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="card-title">Processing Time</h6>
-                            <p class="card-text">{processing_time:.3f} seconds</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {primary_html}
-            {differential_html}
-
-            <div class="mb-3">
-                <h5>Keywords</h5>
-                <div class="d-flex flex-wrap gap-2">
-                    {"".join(f'<span class="badge bg-secondary">{keyword}</span>' for keyword in keywords)}
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <h5>CUIs</h5>
-                <div class="d-flex flex-wrap gap-2">
-                    {"".join(f'<span class="badge bg-secondary" data-bs-toggle="tooltip" title="Unified Medical Language System CUI">{cui}</span>' for cui in cuis)}
-                </div>
-            </div>
-
-            {entities_html}
-            {management_html}
-
-            <div class="card mb-3">
                 <div class="card-body">
-                    <h5 class="card-title">Summary</h5>
-                    <p class="card-text">{summary or 'No summary available.'}</p>
+                    <div class="mb-4">
+                        <h5 class="{BOOTSTRAP_CLASSES['section_heading']}">Search Report</h5>
+                        <input type="text" class="form-control" id="reportSearch" placeholder="Search keywords, entities, or diagnoses..." onkeyup="filterReport()" aria-label="Search report content">
+                    </div>
+                    
+                    {metadata_html}
+                    {primary_html}
+                    {differential_html}
+
+                    <div class="mb-4">
+                        <h5 class="{BOOTSTRAP_CLASSES['section_heading']}"><i class="bi bi-tags"></i> Keywords</h5>
+                        <div class="d-flex flex-wrap gap-2">
+                            {"".join(f'<span class="{BOOTSTRAP_CLASSES["badge_keyword"]}">{keyword}</span>' for keyword in keywords)}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="{BOOTSTRAP_CLASSES['section_heading']}"><i class="bi bi-code"></i> CUIs</h5>
+                        <div class="d-flex flex-wrap gap-2">
+                            {"".join(f'<span class="{BOOTSTRAP_CLASSES["badge_cui"]}" data-bs-toggle="tooltip" title="Unified Medical Language System CUI">{cui}</span>' for cui in cuis)}
+                        </div>
+                    </div>
+
+                    {entities_html}
+                    {management_html}
+
+                    <div class="{BOOTSTRAP_CLASSES['card']}">
+                        <div class="card-body">
+                            <h5 class="card-title {BOOTSTRAP_CLASSES['section_heading']}"><i class="bi bi-file-text"></i> Summary</h5>
+                            <p class="card-text">{summary or 'No summary available.'}</p>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" onclick="window.print()" aria-label="Download report as PDF"><i class="bi bi-printer"></i> Download as PDF</button>
+                        <button class="btn btn-outline-secondary" onclick="copyToClipboard()" aria-label="Copy report to clipboard">Copy Report</button>
+                    </div>
                 </div>
             </div>
-
-            <button class="btn btn-primary" onclick="window.print()">Download as PDF</button>
         </div>
+        <script>
+            function filterReport() {{
+                const input = document.getElementById('reportSearch').value.toLowerCase();
+                const cards = document.querySelectorAll('.card, .alert, .badge');
+                cards.forEach(card => {{
+                    const text = card.innerText.toLowerCase();
+                    card.style.display = text.includes(input) ? '' : 'none';
+                }});
+            }}
+            function copyToClipboard() {{
+                const content = document.querySelector('.{BOOTSTRAP_CLASSES['container'].split()[0]}').innerText;
+                navigator.clipboard.writeText(content).then(() => {{
+                    alert('Report copied to clipboard!');
+                }});
+            }}
+        </script>
         """
     except Exception as e:
         logger.error(f"HTML generation error: {e}")
-        return """
-        <div class="alert alert-danger" role="alert">
-            <h5 class="alert-heading">Error Generating Report</h5>
-            <p>An unexpected error occurred while generating the report.</p>
+        return f"""
+        <div class="{BOOTSTRAP_CLASSES['container']}">
+            <div class="alert alert-danger" role="alert">
+                <h4 class="alert-heading">Error Generating Report</h4>
+                <p>An unexpected error occurred: {html.escape(str(e))}</p>
+                <p>Please try again or contact <a href="mailto:support@example.com">support@example.com</a>.</p>
+            </div>
         </div>
         """
 
@@ -292,8 +419,9 @@ def humanize_list(items: List[str]) -> str:
         return f"{items[0]} and {items[1]}"
     return ", ".join(items[:-1]) + f", and {items[-1]}"
 
-def generate_summary(text: str, soap_note: Dict, max_sentences: int = 6, doc=None) -> str:
+def generate_summary(text: str, soap_note: Dict, max_sentences: int = 4, include_fields: List[str] = None, doc=None) -> str:
     """Generate a concise and natural clinical summary, incorporating key SOAP note fields."""
+    include_fields = include_fields or ['symptoms', 'findings', 'recommendations']
     if not text:
         return ""
     
@@ -301,123 +429,58 @@ def generate_summary(text: str, soap_note: Dict, max_sentences: int = 6, doc=Non
     if not doc:
         doc = DiseasePredictor.nlp(text)
     
-    clinical_terms = DiseasePredictor.clinical_terms
+    symptoms = set()
+    findings = []
+    recommendations = []
+    temporal_info = ""
     temporal_pattern = re.compile(
         r"\b(\d+\s*(day|days|week|weeks|month|months|year|years)\s*(ago)?)\b", 
         re.IGNORECASE
     )
     
-    # Initialize components
-    symptoms = set()
-    temporal_info = ""
-    aggravating_factors = []
-    alleviating_factors = []
-    medications = []
-    findings = []
-    recommendations = []
-    medical_history = []
-    
-    # Directly use structured fields from SOAP note
-    if soap_note.get('aggravating_factors'):
-        aggravating_factors.append(soap_note['aggravating_factors'])
-    if soap_note.get('alleviating_factors'):
-        alleviating_factors.append(soap_note['alleviating_factors'])
-    if soap_note.get('medication_history'):
-        medications.append(soap_note['medication_history'])
-    if soap_note.get('medical_history'):
-        medical_history.append(soap_note['medical_history'])
-    if soap_note.get('recommendation'):
-        recommendations.append(soap_note['recommendation'])
-    
-    # Process each sentence
     text_lower = text.lower()
     for sent in doc.sents:
         sent_text = sent.text.strip()
-        sent_lower = sent_text.lower()
-        
-        # Temporal information
-        if not temporal_info:
-            match = temporal_pattern.search(sent_text)
-            if match:
-                temporal_info = match.group(0)
-        
-      
-        for term in clinical_terms:
-            if term in sent_lower:
-                symptoms.add(term)
-        
-        # Extract findings from assessment field if present
-        if soap_note.get('assessment'):
-            assessment_text = soap_note['assessment'].lower()
-            # Extract any clinical terms found in the assessment as findings
-            for term in clinical_terms:
-                if term in assessment_text and term not in symptoms:
-                    findings.append(term)
-   
-    summary_parts = []
-    seen = set()
+        match = temporal_pattern.search(sent_text)
+        if match and not temporal_info:
+            temporal_info = match.group(0)
+        if 'symptoms' in include_fields:
+            for term in DiseasePredictor.clinical_terms:
+                if term in sent_text.lower():
+                    symptoms.add(term)
     
-    # 1. Presentation (symptoms + temporal)
-    if symptoms:
+    if 'findings' in include_fields and soap_note.get('assessment'):
+        for term in DiseasePredictor.clinical_terms:
+            if term in soap_note['assessment'].lower():
+                findings.append(term)
+    
+    if 'recommendations' in include_fields and soap_note.get('recommendation'):
+        recommendations.append(soap_note['recommendation'])
+    
+    summary_parts = []
+    if symptoms and 'symptoms' in include_fields:
         symptoms_str = humanize_list(sorted(symptoms))
         presentation = f"The patient presents with {symptoms_str}"
         if temporal_info:
             presentation += f", starting {temporal_info}"
         summary_parts.append(presentation + ".")
-        seen.add(presentation)
     
-    # 2. Aggravating factors
-    for factor in aggravating_factors:
-        if factor and "Aggravating factors" not in seen:
-            summary_parts.append(f"Aggravating factors: {factor}.")
-            seen.add("Aggravating factors")
-    
-    # 3. Alleviating factors
-    for factor in alleviating_factors:
-        if factor and "Alleviating factors" not in seen:
-            summary_parts.append(f"Alleviating factors: {factor}.")
-            seen.add("Alleviating factors")
-    
-    # 4. Medical history
-    for history in medical_history:
-        if history and "Medical history" not in seen:
-            summary_parts.append(f"Medical history: {history}.")
-            seen.add("Medical history")
-    
-    # 5. Medication history
-    for med in medications:
-        if med and "Medication history" not in seen:
-            summary_parts.append(f"Medication history: {med}.")
-            seen.add("Medication history")
-    
-    # 6. Findings
     for finding in findings:
-        if finding and finding not in seen:
-            summary_parts.append(f"Notable findings include {finding}.")
-            seen.add(finding)
+        if 'findings' in include_fields:
+            summary_parts.append(f"Findings include {finding}.")
     
-    # 7. Recommendations
     for rec in recommendations:
-        if rec and rec not in seen:
-            summary_parts.append(f"The clinician recommends {rec}.")
-            seen.add(rec)
+        if 'recommendations' in include_fields:
+            summary_parts.append(f"Recommended: {rec}.")
     
-    # Limit to max_sentences and clean up
-    summary = " ".join(summary_parts[:max_sentences])
-    summary = re.sub(r"\s+", " ", summary).strip()
-    summary = re.sub(r"\.+", ".", summary).strip()
+    summary = " ".join(summary_parts[:max_sentences]).strip()
+    summary = re.sub(r"\s+", " ", summary)
+    summary = re.sub(r"\.+", ".", summary)
     
     if summary and summary[0].islower():
         summary = summary[0].upper() + summary[1:]
     
     logger.debug(f"Summary generation took {time.time() - start_time:.3f} seconds")
-    logger.debug(f"Symptoms: {symptoms}")
-    logger.debug(f"Aggravating factors: {aggravating_factors}")
-    logger.debug(f"Alleviating factors: {alleviating_factors}")
-    logger.debug(f"Medical history: {medical_history}")
-    logger.debug(f"Medication history: {medications}")
-    logger.debug(f"Findings: {findings}")
-    logger.debug(f"Recommendations: {recommendations}")
     logger.debug(f"Generated summary: {summary}")
     
-    return summary if summary else text[:200] + "..."
+    return summary if summary else text[:150] + "..."
