@@ -21,7 +21,7 @@ from departments.models.records import PatientWaitingList, Patient
 from departments.models.medicine import (
     SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, 
     RequestedImage, UnmatchedImagingRequest, TheatreProcedure, TheatreList, 
-    Ward, AdmittedPatient, WardBedHistory, WardRoom, Bed, WardRound
+    Ward, AdmittedPatient, WardBedHistory, WardRoom, Bed, WardRound,Disease, DiseaseManagementPlan
 )
 from departments.forms import AdmitPatientForm
 import logging
@@ -1346,7 +1346,7 @@ def ward_rounds():
     return render_template('medicine/ward_rounds.html', admitted_patients=admitted_patients)
 
 
-# ✅ Add a New Ward Round Entry
+
 @bp.route('/ward-rounds/add', methods=['POST'])
 @login_required
 def add_ward_round():
@@ -1377,3 +1377,61 @@ def add_ward_round():
         db.session.rollback()
         flash(f"Error: {str(e)}", "danger")
         return redirect(url_for('medicine.view_ward_rounds', admission_id=admission_id))     
+        #diseases
+@bp.route('/diseases')
+@login_required
+def list_diseases():
+    diseases = Disease.query.all()
+    return render_template('medicine/diseases/index.html', diseases=diseases)
+
+@bp.route('/diseases/<int:disease_id>')
+@login_required
+def view_disease(disease_id):
+    disease = Disease.query.get_or_404(disease_id)
+    return render_template('medicine/diseases/view_disease.html', disease=disease)
+
+@bp.route('/diseases/add', methods=['GET', 'POST'])
+@login_required
+def add_disease():
+    if request.method == 'POST':
+        name = request.form['name'].strip()
+        cui = request.form['cui'].strip()
+        description = request.form['description'].strip()
+        management_plan_text = request.form['management_plan'].strip()
+
+        new_disease = Disease(name=name, cui=cui, description=description)
+        db.session.add(new_disease)
+        db.session.flush()  # Get ID before final commit
+
+        plan = DiseaseManagementPlan(disease_id=new_disease.id, plan=management_plan_text)
+        db.session.add(plan)
+
+        db.session.commit()
+        return redirect(url_for('medicine.list_diseases'))
+
+    return render_template('medicine/diseases/add_disease.html')
+
+@bp.route('/diseases/edit/<int:disease_id>', methods=['GET', 'POST'])  # <-- Fixed here
+@login_required
+def edit_disease(disease_id):
+    disease = Disease.query.get_or_404(disease_id)
+    plan = disease.management_plan
+
+    if request.method == 'POST':
+        disease.name = request.form['name'].strip()
+        disease.cui = request.form['cui'].strip()
+        disease.description = request.form['description'].strip()
+        plan.plan = request.form['management_plan'].strip()
+
+        db.session.commit()
+        return redirect(url_for('medicine.list_diseases'))
+
+    return render_template('medicine/diseases/edit_disease.html', disease=disease, plan=plan)
+
+@bp.route('/diseases/delete/<int:disease_id>')
+@login_required
+def delete_disease(disease_id):
+    disease = Disease.query.get_or_404(disease_id)
+    db.session.delete(disease)
+    db.session.commit()
+    return redirect(url_for('medicine.list_diseases'))

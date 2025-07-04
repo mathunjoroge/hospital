@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ disease.name }}{% endblock %}
+{% block content %}
+<h2>{{ disease.name }}</h2>
+
+<h4>Description</h4>
+<p>{{ disease.description }}</p>
+
+<h4>Management Plan</h4>
+<p>{{ disease.management_plan.plan | replace('\n', '<br>') | safe }}</p>
+
+<h4>Symptoms</h4>
+<ul>
+    {% for symptom in disease.symptoms %}
+    <li>{{ symptom.name }}</li>
+    {% else %}
+    <li>No symptoms linked.</li>
+    {% endfor %}
+</ul>
+
+<h4>Keywords</h4>
+<ul>
+    {% for keyword in disease.keywords %}
+    <li>{{ keyword.keyword }}</li>
+    {% else %}
+    <li>No keywords added.</li>
+    {% endfor %}
+</ul>
+
+<a href="{{ url_for('medicine.edit_disease', disease_id=disease.id) }}" class="btn btn-warning me-2">Edit</a>
+<a href="{{ url_for('medicine.list_diseases') }}" class="btn btn-secondary">Back to List</a>
+{% endblock %}
