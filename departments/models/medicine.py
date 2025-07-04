@@ -313,6 +313,8 @@ class WardRound(db.Model):
 
     # Relationship
     doctor = db.relationship("User", backref="ward_rounds")    
+
+
 class Disease(db.Model):
     __tablename__ = 'diseases'
     id = db.Column(db.Integer, primary_key=True)
@@ -323,6 +325,10 @@ class Disease(db.Model):
     keywords = db.relationship('DiseaseKeyword', backref='disease', lazy=True)
     symptoms = db.relationship('Symptom', secondary='disease_symptoms', back_populates='diseases')
     management_plan = db.relationship('DiseaseManagementPlan', backref='disease', uselist=False, lazy=True)
+    
+    # New relationship for lab tests
+    lab_tests = db.relationship('DiseaseLab', backref='disease', lazy=True)
+
 
 class Symptom(db.Model):
     __tablename__ = 'symptoms'
@@ -333,6 +339,7 @@ class Symptom(db.Model):
 
     diseases = db.relationship('Disease', secondary='disease_symptoms', back_populates='symptoms')
 
+
 class DiseaseKeyword(db.Model):
     __tablename__ = 'disease_keywords'
     id = db.Column(db.Integer, primary_key=True)
@@ -340,16 +347,29 @@ class DiseaseKeyword(db.Model):
     keyword = db.Column(db.String(255), nullable=False)
     cui = db.Column(db.String(50))
 
+
 class DiseaseManagementPlan(db.Model):
     __tablename__ = 'disease_management_plans'
     id = db.Column(db.Integer, primary_key=True)
     disease_id = db.Column(db.Integer, db.ForeignKey('diseases.id'), nullable=False)
     plan = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class DiseaseSymptom(db.Model):
     __tablename__ = 'disease_symptoms'
     disease_id = db.Column(db.Integer, db.ForeignKey('diseases.id'), primary_key=True)
-    symptom_id = db.Column(db.Integer, db.ForeignKey('symptoms.id'), primary_key=True)    
+    symptom_id = db.Column(db.Integer, db.ForeignKey('symptoms.id'), primary_key=True)
+
+
+# New Model: DiseaseLab
+class DiseaseLab(db.Model):
+    __tablename__ = 'disease_labs'
+    id = db.Column(db.Integer, primary_key=True)
+    disease_id = db.Column(db.Integer, db.ForeignKey('diseases.id'), nullable=False)
+    lab_test = db.Column(db.Text, nullable=False)
+    description = db.Column(db.Text)
+
+    # Relationship back to Disease handled via backref
 
   

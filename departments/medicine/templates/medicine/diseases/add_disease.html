@@ -15,11 +15,51 @@
         <label for="description" class="form-label">Description</label>
         <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
     </div>
+
+    <h4>Lab Tests (Optional)</h4>
+    <div id="lab-tests-container">
+        <!-- Initial Lab Test Field -->
+        <div class="lab-test-group mb-3 border p-3 rounded bg-light">
+            <div class="mb-2">
+                <label class="form-label">Test Name</label>
+                <input type="text" class="form-control" name="lab_test_name">
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" name="lab_test_description" rows="2"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <button type="button" class="btn btn-outline-primary btn-sm mb-3" onclick="addNewLabTest()">+ Add Another Lab Test</button>
+
     <div class="mb-3">
         <label for="management_plan" class="form-label">Management Plan</label>
         <textarea class="form-control" id="management_plan" name="management_plan" rows="6" required></textarea>
     </div>
+
     <button type="submit" class="btn btn-success">Save Disease</button>
     <a href="{{ url_for('medicine.list_diseases') }}" class="btn btn-secondary">Cancel</a>
 </form>
+
+<script>
+function addNewLabTest() {
+    const container = document.getElementById('lab-tests-container');
+    const group = document.createElement('div');
+    group.className = 'lab-test-group mb-3 border p-3 rounded bg-light';
+
+    group.innerHTML = `
+        <div class="mb-2">
+            <label class="form-label">Test Name</label>
+            <input type="text" class="form-control" name="lab_test_name">
+        </div>
+        <div class="mb-2">
+            <label class="form-label">Description</label>
+            <textarea class="form-control" name="lab_test_description" rows="2"></textarea>
+        </div>
+    `;
+
+    container.appendChild(group);
+}
+</script>
 {% endblock %}

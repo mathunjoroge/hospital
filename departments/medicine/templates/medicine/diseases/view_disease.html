@@ -27,6 +27,21 @@
     {% endfor %}
 </ul>
 
+<!-- New: Lab Tests Section -->
+<h4>Recommended Lab Tests</h4>
+{% if disease.lab_tests %}
+<ul>
+    {% for test in disease.lab_tests %}
+    <li>
+        <strong>{{ test.lab_test }}</strong><br>
+        <small>{{ test.description or 'No description provided.' }}</small>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>No lab tests defined for this disease.</p>
+{% endif %}
+
 <a href="{{ url_for('medicine.edit_disease', disease_id=disease.id) }}" class="btn btn-warning me-2">Edit</a>
 <a href="{{ url_for('medicine.list_diseases') }}" class="btn btn-secondary">Back to List</a>
 {% endblock %}
