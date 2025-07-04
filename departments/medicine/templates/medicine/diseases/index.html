@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Clinical Disease Database</h1>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for disease in diseases %}
+        <tr>
+            <td>{{ disease.id }}</td>
+            <td><a href="{{ url_for('medicine.view_disease', disease_id=disease.id) }}">{{ disease.name }}</a></td>
+            <td>{{ disease.description[:50] }}...</td>
+            <td>
+                <a href="{{ url_for('medicine.edit_disease', disease_id=disease.id) }}" class="btn btn-sm btn-primary">Edit</a>
+                <a href="{{ url_for('medicine.delete_disease', disease_id=disease.id) }}" class="btn btn-sm btn-danger">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

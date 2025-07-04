@@ -313,5 +313,43 @@ class WardRound(db.Model):
 
     # Relationship
     doctor = db.relationship("User", backref="ward_rounds")    
+class Disease(db.Model):
+    __tablename__ = 'diseases'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    cui = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text)
+
+    keywords = db.relationship('DiseaseKeyword', backref='disease', lazy=True)
+    symptoms = db.relationship('Symptom', secondary='disease_symptoms', back_populates='diseases')
+    management_plan = db.relationship('DiseaseManagementPlan', backref='disease', uselist=False, lazy=True)
+
+class Symptom(db.Model):
+    __tablename__ = 'symptoms'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    cui = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text)
+
+    diseases = db.relationship('Disease', secondary='disease_symptoms', back_populates='symptoms')
+
+class DiseaseKeyword(db.Model):
+    __tablename__ = 'disease_keywords'
+    id = db.Column(db.Integer, primary_key=True)
+    disease_id = db.Column(db.Integer, db.ForeignKey('diseases.id'), nullable=False)
+    keyword = db.Column(db.String(255), nullable=False)
+    cui = db.Column(db.String(50))
+
+class DiseaseManagementPlan(db.Model):
+    __tablename__ = 'disease_management_plans'
+    id = db.Column(db.Integer, primary_key=True)
+    disease_id = db.Column(db.Integer, db.ForeignKey('diseases.id'), nullable=False)
+    plan = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+class DiseaseSymptom(db.Model):
+    __tablename__ = 'disease_symptoms'
+    disease_id = db.Column(db.Integer, db.ForeignKey('diseases.id'), primary_key=True)
+    symptom_id = db.Column(db.Integer, db.ForeignKey('symptoms.id'), primary_key=True)    
 
   

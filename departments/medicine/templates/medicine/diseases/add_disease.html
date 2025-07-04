@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Add Disease - Clinical KB{% endblock %}
+{% block content %}
+<h2>Add New Disease</h2>
+<form method="POST">
+    <div class="mb-3">
+        <label for="name" class="form-label">Disease Name</label>
+        <input type="text" class="form-control" id="name" name="name" required>
+    </div>
+    <div class="mb-3">
+        <label for="cui" class="form-label">UMLS CUI</label>
+        <input type="text" class="form-control" id="cui" name="cui" required>
+    </div>
+    <div class="mb-3">
+        <label for="description" class="form-label">Description</label>
+        <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+    </div>
+    <div class="mb-3">
+        <label for="management_plan" class="form-label">Management Plan</label>
+        <textarea class="form-control" id="management_plan" name="management_plan" rows="6" required></textarea>
+    </div>
+    <button type="submit" class="btn btn-success">Save Disease</button>
+    <a href="{{ url_for('medicine.list_diseases') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

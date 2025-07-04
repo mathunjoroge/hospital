@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ disease.name }}{% endblock %}
+{% block content %}
+<h2>Edit Disease: {{ disease.name }}</h2>
+<form method="POST">
+    <div class="mb-3">
+        <label for="name" class="form-label">Disease Name</label>
+        <input type="text" class="form-control" id="name" name="name" value="{{ disease.name }}" required>
+    </div>
+    <div class="mb-3">
+        <label for="cui" class="form-label">UMLS CUI</label>
+        <input type="text" class="form-control" id="cui" name="cui" value="{{ disease.cui }}" required>
+    </div>
+    <div class="mb-3">
+        <label for="description" class="form-label">Description</label>
+        <textarea class="form-control" id="description" name="description" rows="3">{{ disease.description }}</textarea>
+    </div>
+    <div class="mb-3">
+        <label for="management_plan" class="form-label">Management Plan</label>
+        <textarea class="form-control" id="management_plan" name="management_plan" rows="6">{{ plan.plan }}</textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Update Disease</button>
+    <a href="{{ url_for('medicine.list_diseases') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}
