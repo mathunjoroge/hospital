@@ -15,11 +15,57 @@
         <label for="description" class="form-label">Description</label>
         <textarea class="form-control" id="description" name="description" rows="3">{{ disease.description }}</textarea>
     </div>
+
+    <h4>Lab Tests</h4>
+    <div id="lab-tests-container">
+        {% if lab_tests %}
+            {% for test in lab_tests %}
+            <div class="lab-test-group mb-3 border p-3 rounded bg-light">
+                <input type="hidden" name="lab_test_id" value="{{ test.id }}">
+                <div class="mb-2">
+                    <label class="form-label">Test Name</label>
+                    <input type="text" class="form-control" name="lab_test_name" value="{{ test.lab_test }}" required>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" name="lab_test_description" rows="2">{{ test.description }}</textarea>
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Template for new lab test -->
+        <div class="lab-test-group mb-3 border p-3 rounded bg-light" id="new-lab-test-template" style="display:none;">
+            <input type="hidden" name="lab_test_id" value="new">
+            <div class="mb-2">
+                <label class="form-label">Test Name</label>
+                <input type="text" class="form-control" name="lab_test_name">
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" name="lab_test_description" rows="2"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <button type="button" class="btn btn-outline-primary btn-sm mb-3" onclick="addNewLabTest()">+ Add Another Lab Test</button>
+
     <div class="mb-3">
         <label for="management_plan" class="form-label">Management Plan</label>
         <textarea class="form-control" id="management_plan" name="management_plan" rows="6">{{ plan.plan }}</textarea>
     </div>
+
     <button type="submit" class="btn btn-primary">Update Disease</button>
     <a href="{{ url_for('medicine.list_diseases') }}" class="btn btn-secondary">Cancel</a>
 </form>
+
+<script>
+function addNewLabTest() {
+    const container = document.getElementById('lab-tests-container');
+    const template = document.getElementById('new-lab-test-template');
+    const clone = template.cloneNode(true);
+    clone.style.display = 'block';
+    container.appendChild(clone);
+}
+</script>
 {% endblock %}

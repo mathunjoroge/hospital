@@ -1,21 +1,44 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Clinical Disease Database</h1>
+
+<!-- Optional: Show total count and current page -->
+<div class="mb-3">
+    Showing page {{ diseases.page }} of {{ diseases.pages }}
+    (Total: {{ diseases.total }} diseases)
+</div>
+
 <table class="table table-striped">
     <thead>
         <tr>
             <th>ID</th>
             <th>Name</th>
             <th>Description</th>
+            <th>Lab Tests</th>
+            <th>Management Plan</th>
             <th>Actions</th>
         </tr>
     </thead>
     <tbody>
-        {% for disease in diseases %}
+        {% for disease in diseases.items %}
         <tr>
             <td>{{ disease.id }}</td>
             <td><a href="{{ url_for('medicine.view_disease', disease_id=disease.id) }}">{{ disease.name }}</a></td>
             <td>{{ disease.description[:50] }}...</td>
+            <td>
+                {% if disease.lab_tests|length > 0 %}
+                    {{ disease.lab_tests|length }} lab test(s)
+                {% else %}
+                    None
+                {% endif %}
+            </td>
+            <td>
+                {% if disease.management_plan %}
+                    <span class="badge bg-success">Available</span>
+                {% else %}
+                    <span class="badge bg-danger">Missing</span>
+                {% endif %}
+            </td>
             <td>
                 <a href="{{ url_for('medicine.edit_disease', disease_id=disease.id) }}" class="btn btn-sm btn-primary">Edit</a>
                 <a href="{{ url_for('medicine.delete_disease', disease_id=disease.id) }}" class="btn btn-sm btn-danger">Delete</a>
@@ -24,4 +47,46 @@
         {% endfor %}
     </tbody>
 </table>
+
+<!-- Pagination Controls -->
+<nav aria-label="Disease List Pagination">
+    <ul class="pagination justify-content-center">
+        {% if diseases.has_prev %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('medicine.list_diseases', page=diseases.prev_num) }}">Previous</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">Previous</span>
+        </li>
+        {% endif %}
+
+        {% for p in diseases.iter_pages() %}
+            {% if p %}
+                {% if diseases.page == p %}
+                <li class="page-item active" aria-current="page">
+                    <span class="page-link">{{ p }}</span>
+                </li>
+                {% else %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('medicine.list_diseases', page=p) }}">{{ p }}</a>
+                </li>
+                {% endif %}
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+        {% endfor %}
+
+        {% if diseases.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('medicine.list_diseases', page=diseases.next_num) }}">Next</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">Next</span>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+
 {% endblock %}

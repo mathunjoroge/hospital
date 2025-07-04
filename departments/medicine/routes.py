@@ -21,15 +21,13 @@ from departments.models.records import PatientWaitingList, Patient
 from departments.models.medicine import (
     SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, 
     RequestedImage, UnmatchedImagingRequest, TheatreProcedure, TheatreList, 
-    Ward, AdmittedPatient, WardBedHistory, WardRoom, Bed, WardRound,Disease, DiseaseManagementPlan
+    Ward, AdmittedPatient, WardBedHistory, WardRoom, Bed, WardRound,Disease, DiseaseManagementPlan, DiseaseLab
 )
 from departments.forms import AdmitPatientForm
 import logging
 import json
 from departments.nlp.logging_setup import get_logger
 logger = get_logger()
-
-
 
 socketio = SocketIO()
 prescription_id = str(uuid.uuid4())
@@ -1378,17 +1376,19 @@ def add_ward_round():
         flash(f"Error: {str(e)}", "danger")
         return redirect(url_for('medicine.view_ward_rounds', admission_id=admission_id))     
         #diseases
-@bp.route('/diseases')
+@bp.route('/diseases/')
 @login_required
 def list_diseases():
-    diseases = Disease.query.all()
-    return render_template('medicine/diseases/index.html', diseases=diseases)
-
+    page = request.args.get('page', default=1, type=int)
+    per_page = 10
+    diseases = Disease.query.paginate(page=page, per_page=per_page, error_out=False)
+    return render_template('medicine/diseases/index.html', diseases=diseases)        
 @bp.route('/diseases/<int:disease_id>')
 @login_required
 def view_disease(disease_id):
     disease = Disease.query.get_or_404(disease_id)
     return render_template('medicine/diseases/view_disease.html', disease=disease)
+
 
 @bp.route('/diseases/add', methods=['GET', 'POST'])
 @login_required
@@ -1399,23 +1399,48 @@ def add_disease():
         description = request.form['description'].strip()
         management_plan_text = request.form['management_plan'].strip()
 
+        # Step 1: Create and save the disease
         new_disease = Disease(name=name, cui=cui, description=description)
         db.session.add(new_disease)
         db.session.flush()  # Get ID before final commit
 
+        # Step 2: Save the management plan
         plan = DiseaseManagementPlan(disease_id=new_disease.id, plan=management_plan_text)
         db.session.add(plan)
 
+        # Step 3: Handle lab tests
+        lab_test_names = request.form.getlist('lab_test_name')
+        lab_test_descriptions = request.form.getlist('lab_test_description')
+
+        for idx, test_name in enumerate(lab_test_names):
+            test_name = test_name.strip()
+            if not test_name:
+                continue  # Skip empty entries
+
+            test_desc = lab_test_descriptions[idx].strip() if idx < len(lab_test_descriptions) else ''
+
+            lab_test = DiseaseLab(
+                disease_id=new_disease.id,
+                lab_test=test_name,
+                description=test_desc
+            )
+            db.session.add(lab_test)
+
+        # Step 4: Commit all changes
         db.session.commit()
+
         return redirect(url_for('medicine.list_diseases'))
 
     return render_template('medicine/diseases/add_disease.html')
 
-@bp.route('/diseases/edit/<int:disease_id>', methods=['GET', 'POST'])  # <-- Fixed here
+@bp.route('/diseases/edit/<int:disease_id>', methods=['GET', 'POST'])  
 @login_required
 def edit_disease(disease_id):
     disease = Disease.query.get_or_404(disease_id)
     plan = disease.management_plan
+
+    # Fetch existing lab tests
+    lab_tests = disease.lab_tests
 
     if request.method == 'POST':
         disease.name = request.form['name'].strip()
@@ -1423,10 +1448,44 @@ def edit_disease(disease_id):
         disease.description = request.form['description'].strip()
         plan.plan = request.form['management_plan'].strip()
 
-        db.session.commit()
-        return redirect(url_for('medicine.list_diseases'))
+        # Handle lab tests
+        lab_test_ids = request.form.getlist('lab_test_id')
+        lab_test_names = request.form.getlist('lab_test_name')
+        lab_test_descriptions = request.form.getlist('lab_test_description')
 
-    return render_template('medicine/diseases/edit_disease.html', disease=disease, plan=plan)
+        existing_lab_test_ids = [t.id for t in lab_tests]
+
+        for idx, test_id in enumerate(lab_test_ids):
+            name = lab_test_names[idx]
+            desc = lab_test_descriptions[idx]
+
+            if test_id == 'new':
+                # Add new lab test
+                new_test = DiseaseLab(
+                    disease_id=disease.id,
+                    lab_test=name,
+                    description=desc
+                )
+                db.session.add(new_test)
+            else:
+                # Update existing lab test
+                test = DiseaseLab.query.get(int(test_id))
+                if test:
+                    test.lab_test = name
+                    test.description = desc
+
+        # Detect deleted tests
+        submitted_ids = set(int(i) for i in lab_test_ids if i != 'new')
+        for test in lab_tests:
+            if test.id not in submitted_ids:
+                db.session.delete(test)
+
+        db.session.commit()
+        flash('Disease and lab tests updated successfully.', 'success')
+        return redirect(url_for('medicine.edit_disease', disease_id=disease.id))
+
+    return render_template('medicine/diseases/edit_disease.html', disease=disease, plan=plan, lab_tests=lab_tests)
+
 
 @bp.route('/diseases/delete/<int:disease_id>')
 @login_required
