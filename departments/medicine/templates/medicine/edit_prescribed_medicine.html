@@ -1,6 +1,7 @@
 <div class="container mt-5">
     <h2 class="mb-4 text-center">Edit Prescribed Medicine</h2>
     <form method="POST" action="{{ url_for('medicine.edit_prescribed_medicine', medicine_id=prescribed_medicine.id) }}">
+         <input type="hidden" name="prescription_id" value="{{ prescription_id }}">
         <!-- Drug Name (Generic and Brand) -->
         <div class="mb-3">
             <label for="drug_name" class="form-label fw-bold">Drug:</label>

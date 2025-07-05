@@ -83,7 +83,6 @@ class LabTest(db.Model):
 
 
 
-# RequestedLab Model
 class RequestedLab(db.Model):
     __tablename__ = 'requested_labs'
     
@@ -91,10 +90,13 @@ class RequestedLab(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.patient_id'), nullable=False)
     lab_test_id = db.Column(db.Integer, db.ForeignKey('labtests.id'), nullable=False)
     date_requested = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.Integer, default=0)    
+    status = db.Column(db.Integer, default=0)
+    receipt_number = db.Column(db.String(255), nullable=True)  # Billing integration
+    description = db.Column(db.Text, nullable=True)            # New column
+    result_id = db.Column(db.String(255), nullable=True)       # New column
+
     patient = db.relationship('Patient', backref=db.backref('requested_labs', lazy=True))
     lab_test = db.relationship('LabTest', backref=db.backref('requested_labs', lazy=True))
-    receipt_number = db.Column(db.String(255), nullable=True)  # Added for billing integration
 
     def __repr__(self):
         return f'<RequestedLab {self.lab_test_id} for Patient {self.patient_id}>'

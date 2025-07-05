@@ -1,8 +1,7 @@
 # departments/nlp/soap_notes.py
-from flask import render_template, redirect, url_for, request, flash, jsonify
+from flask import render_template, redirect, url_for, request, flash, jsonify,session
 from typing import Optional, List, Dict, Any
 import psycopg2
-
 from psycopg2.extras import RealDictCursor
 from flask import current_app
 from flask_login import login_required, current_user
@@ -162,71 +161,6 @@ def reprocess_note(note_id):
 
     return redirect(url_for('medicine.notes', patient_id=SOAPNote.query.get(note_id).patient_id))
 
-@bp.route('/notes/<int:note_id>/update_kb', methods=['POST'])
-@login_required
-def update_knowledge_base(note_id):
-    if current_user.role not in ['medicine', 'admin']:
-        flash('You do not have permission to perform this action.', 'error')
-        return redirect(url_for('medicine.index'))
-    from flask import request
-    symptom = request.form.get('symptom')
-    category = request.form.get('category')
-    context = request.form.get('context', '')
-    if not symptom or not category:
-        flash('Symptom and category are required.', 'error')
-        return redirect(url_for('medicine.notes', patient_id=SOAPNote.query.get(note_id).patient_id))
-
-
-@bp.route('/update_missing_ai_summaries', methods=['POST'])
-@login_required
-def update_missing_ai_summaries():
-    """Manually update SOAP notes with missing AI summaries."""
-    if current_user.role not in ['admin']:
-        flash('Only admins can update AI summaries.', 'error')
-        return redirect(url_for('home'))
-
-    try:
-        # Find SOAP notes where ai_notes is null
-        soap_notes = SOAPNote.query.filter(SOAPNote.ai_notes.is_(None)).all()
-        if not soap_notes:
-            flash('No SOAP notes found with missing AI summaries.', 'info')
-            return redirect(url_for('home'))
-
-        updated_count = 0
-        for note in soap_notes:
-            note_text = f"""
-Chief Complaint: {note.situation}
-HPI: {note.hpi}
-Aggravating Factors: {note.aggravating_factors or 'None'}
-Alleviating Factors: {note.alleviating_factors or 'None'}
-Medical History: {note.medical_history or 'None'}
-Medication History: {note.medication_history or 'None'}
-Assessment: {note.assessment}
-Recommendation: {note.recommendation}
-Additional Notes: {note.additional_notes or 'None'}
-"""
-
-
-        db.session.commit()
-        flash(f'Updated {updated_count} SOAP notes with AI summaries.', 'success')
-        return redirect(url_for('home'))
-
-    except Exception as e:
-        flash(f'Error updating AI summaries: {e}', 'error')
-        db.session.rollback()
-        logger.error(f"Error in update_missing_ai_summaries: {e}")
-        return redirect(url_for('home'))
-
-@bp.route('/check_missing_ai_summaries', methods=['GET'])
-@login_required
-def check_missing_ai_summaries():
-    """Display count of SOAP notes with missing AI summaries."""
-    if current_user.role not in ['admin']:
-        flash('Only admins can view this page.', 'error')
-        return redirect(url_for('home'))
-
-    count = SOAPNote.query.filter(SOAPNote.ai_notes.is_(None)).count()
-    return render_template('missing_ai_summaries.html', count=count)
 
 # Display the medicine waiting list
 @bp.route('/')
@@ -359,30 +293,28 @@ def submit_prescription(patient_id):
         db.session.rollback()  # Rollback changes in case of error
         print(f"Debug: Error in medicine.submit_prescription: {e}")  # Debugging
         return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
-# Handle lab test requests
 @bp.route('/request_lab_tests/<patient_id>', methods=['GET', 'POST'])
 @login_required
 def request_lab_tests(patient_id):
     """Handles lab test requests."""
     if current_user.role not in ['medicine', 'admin']:
         flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
+        return redirect(url_for('login'))
 
     try:
-        # Fetch the patient from the waiting list
+        # Fetch patient from waiting list
         patient_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).options(
             joinedload(PatientWaitingList.patient)
         ).first()
         if not patient_entry or not patient_entry.patient:
             flash(f'Patient with ID {patient_id} not found in the waiting list!', 'error')
-            return redirect(url_for('medicine.index'))  # Redirect to index if patient not found
+            return redirect(url_for('medicine.index'))
         patient = patient_entry.patient
 
-        # Fetch available lab tests for dropdowns
+        # Fetch available lab tests
         lab_tests = LabTest.query.all()
 
         if request.method == 'POST':
-            # Extract form data
             lab_test_ids = request.form.getlist('lab_tests[]')
             if not lab_test_ids:
                 flash('No lab tests selected!', 'error')
@@ -392,11 +324,32 @@ def request_lab_tests(patient_id):
                     lab_tests=lab_tests
                 )
 
-            # Save requested lab tests to the database
+            # Parse descriptions from form
+            descriptions = {}
+            for key, value in request.form.items():
+                if key.startswith('descriptions['):
+                    lab_id = key.split('[')[1].split(']')[0]
+                    descriptions[lab_id] = value.strip() if value else ''
+
             for lab_test_id in lab_test_ids:
+                description = descriptions.get(str(lab_test_id), '').strip()
+
+                # Check 500-character limit
+                if len(description) > 500:
+                    flash(f'Description for lab test ID {lab_test_id} exceeds 500 characters.', 'error')
+                    return render_template(
+                        'medicine/request_lab_tests.html',
+                        patient=patient,
+                        lab_tests=lab_tests
+                    )
+
+                result_id = str(uuid.uuid4())
+
                 new_lab_request = RequestedLab(
                     patient_id=patient_id,
-                    lab_test_id=lab_test_id
+                    lab_test_id=lab_test_id,
+                    result_id=result_id,
+                    description=description or None
                 )
                 db.session.add(new_lab_request)
 
@@ -404,7 +357,7 @@ def request_lab_tests(patient_id):
             flash('Lab tests requested successfully!', 'success')
             return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
 
-        # Render the lab test request form on GET request
+        # GET request: render form
         return render_template(
             'medicine/request_lab_tests.html',
             patient=patient,
@@ -412,10 +365,11 @@ def request_lab_tests(patient_id):
         )
 
     except Exception as e:
-        flash(f'Error requesting lab tests: {e}', 'error')
-        db.session.rollback()  # Rollback changes in case of error
-        print(f"Debug: Error in medicine.request_lab_tests: {e}")  # Debugging
+        db.session.rollback()
+        logger.error(f"Error in medicine.request_lab_tests: {e}", exc_info=True)
+        flash(f'An error occurred: {e}', 'error')
         return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
+
 
 
 @bp.route('/request_imaging/<patient_id>', methods=['GET', 'POST'])
@@ -424,7 +378,7 @@ def request_imaging(patient_id):
     """Handles imaging requests."""
     if current_user.role not in ['medicine', 'admin']:
         flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
+        return redirect(url_for('login'))
 
     try:
         # Fetch patient from waiting list
@@ -522,7 +476,6 @@ def request_imaging(patient_id):
         logger.error(error_msg, exc_info=True)
         flash(f'An error occurred: {e}', 'error')
         return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
-# # Handle drug prescription requests
 @bp.route('/prescribe_drugs/<patient_id>', methods=['GET', 'POST'])
 @login_required
 def prescribe_drugs(patient_id):
@@ -533,47 +486,31 @@ def prescribe_drugs(patient_id):
         return redirect(url_for('home'))
 
     try:
-        # ✅ Ensure patient_id is treated as a STRING
         patient_id = str(patient_id).strip()
-        print(f"Debug: Checking for patient_id={patient_id}")  # Debugging log
+        logger.debug(f"Checking patient_id={patient_id}")
 
-        # ✅ Check if the patient is admitted
-        admitted_patient = AdmittedPatient.query.filter(
-            AdmittedPatient.patient_id == patient_id,
-            AdmittedPatient.discharged_on.is_(None)  # Ensure still admitted
-        ).first()
+        # Check if patient is admitted or in waiting list
+        admitted_patient = AdmittedPatient.query.filter_by(patient_id=patient_id, discharged_on=None).first()
+        waiting_patient = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
 
-        # ✅ Check if the patient is in the waiting list
-        waiting_patient = PatientWaitingList.query.filter(
-            PatientWaitingList.patient_id == patient_id
-        ).first()
-
-        # ✅ Ensure the patient exists in at least one of the tables
         if not admitted_patient and not waiting_patient:
-            flash(f'Patient with ID {patient_id} is neither admitted nor in the waiting list!', 'error')
-            print(f"Debug: No record found for patient_id={patient_id} in AdmittedPatient or PatientWaitingList.")
+            flash(f'Patient with ID {patient_id} is neither admitted nor in the waiting list.', 'error')
             return redirect(url_for('medicine.index'))
+            
 
-        # ✅ Fetch patient details from the `Patient` table
-        patient = Patient.query.filter(Patient.patient_id == patient_id).first()
+        patient = Patient.query.filter_by(patient_id=patient_id).first()
         if not patient:
             flash(f'Patient with ID {patient_id} not found in the system!', 'error')
-            print(f"Debug: Patient with ID {patient_id} not found in `patients` table.")
             return redirect(url_for('medicine.index'))
 
-        print(f"Debug: Found patient - {patient.name} (ID: {patient.patient_id})")  # Debugging log
-
-        # ✅ Maintain `prescription_id` in session
+        # Create new prescription session if missing
         if 'prescription_id' not in session:
-            session['prescription_id'] = str(uuid4())  # Generate a unique ID
-        
-        prescription_id = session.get('prescription_id')
+            session['prescription_id'] = str(uuid.uuid4())
+        prescription_id = session['prescription_id']
 
-        # ✅ Fetch available drugs
         drugs = Medicine.query.all()
 
         if request.method == 'POST':
-            # ✅ Extract form data
             drugs_selected = request.form.getlist('drugs[]')
             dosage_form = request.form.get('dosage_form')
             strength = request.form.get('strength')
@@ -581,7 +518,6 @@ def prescribe_drugs(patient_id):
             custom_frequency = request.form.get('custom_frequency')
             num_days = request.form.get('num_days')
 
-            # ✅ Validate required fields
             if not all([drugs_selected, dosage_form, strength, frequency, num_days]):
                 flash('All fields are required for prescribing drugs!', 'error')
                 return render_template(
@@ -591,45 +527,30 @@ def prescribe_drugs(patient_id):
                     prescription_id=prescription_id
                 )
 
-            # ✅ Save prescribed medicines to the database
             for drug_id in drugs_selected:
-                prescribed_medicine = PrescribedMedicine(
-                    patient_id=patient_id,
+                prescribed = PrescribedMedicine(
+                    patient_id=patient.patient_id,
                     medicine_id=drug_id,
                     dosage=dosage_form,
-                    strength=strength.strip(),  # Trim whitespace
+                    strength=strength.strip(),
                     frequency=custom_frequency.strip() if frequency == "Other" else frequency,
                     prescription_id=prescription_id,
-                    num_days=int(num_days)  # Ensure num_days is an integer
+                    num_days=int(num_days)
                 )
-                db.session.add(prescribed_medicine)
+                db.session.add(prescribed)
 
             try:
                 db.session.commit()
                 flash('Prescription submitted successfully!', 'success')
             except Exception as e:
                 db.session.rollback()
+                logger.error(f"Database commit failed: {e}")
                 flash(f'Database error: {e}', 'error')
-                print(f"Debug: Database error in medicine.prescribe_drugs: {e}")
                 return redirect(url_for('medicine.prescribe_drugs', patient_id=patient_id))
 
-            # ✅ Fetch prescribed medicines for the current `prescription_id`
-            prescribed_medicines = PrescribedMedicine.query.filter_by(
-                prescription_id=prescription_id
-            ).all()
-
-            return render_template(
-                'medicine/prescribe_drugs.html',
-                patient=patient,
-                drugs=drugs,
-                prescribed_medicines=prescribed_medicines,
-                prescription_id=prescription_id
-            )
-
-        # ✅ Fetch prescribed medicines for the current `prescription_id` (if any)
         prescribed_medicines = PrescribedMedicine.query.filter_by(
             prescription_id=prescription_id
-        ).all() if prescription_id else []
+        ).all()
 
         return render_template(
             'medicine/prescribe_drugs.html',
@@ -640,14 +561,15 @@ def prescribe_drugs(patient_id):
         )
 
     except Exception as e:
+        db.session.rollback()
+        logger.exception("Unexpected error in prescribe_drugs")
         flash(f'Error prescribing drugs: {e}', 'error')
-        db.session.rollback()  # Rollback changes in case of error
-        print(f"Debug: Error in medicine.prescribe_drugs: {e}")  # Debugging
         return redirect(url_for('medicine.index'))
 
-    
-#edit precribed medicine
-# 
+
+# ===========================================
+# Edit Prescribed Medicine
+# ===========================================
 @bp.route('/edit_prescribed_medicine/<medicine_id>', methods=['GET', 'POST'])
 @login_required
 def edit_prescribed_medicine(medicine_id):
@@ -657,43 +579,47 @@ def edit_prescribed_medicine(medicine_id):
         return redirect(url_for('home'))
 
     try:
-        # Fetch the prescribed medicine by ID
-        prescribed_medicine = PrescribedMedicine.query.get_or_404(medicine_id)
+        prescription_id = request.form.get('prescription_id')
+        prescribed_medicine = PrescribedMedicine.query.get(medicine_id)
+        if not prescribed_medicine:
+            flash('Prescribed medicine not found.', 'error')
+            return redirect(url_for('medicine.index'))
 
         if request.method == 'POST':
-            # Extract updated form data
             dosage_form = request.form.get('dosage_form')
+            custom_dosage = request.form.get('custom_dosage')
             strength = request.form.get('strength')
             frequency = request.form.get('frequency')
             custom_frequency = request.form.get('custom_frequency')
             num_days = request.form.get('num_days')
 
-            # Validation
             if not all([dosage_form, strength, frequency, num_days]):
                 flash('All fields are required!', 'error')
-                return redirect(url_for('medicine.edit_prescribed_medicine', medicine_id=medicine_id))
+                return redirect(url_for('medicine.edit_prescribed_medicine', medicine_id=medicine_id, prescription_id=prescription_id))
 
-            # Update the prescribed medicine
-            prescribed_medicine.dosage = dosage_form
+            prescribed_medicine.dosage = custom_dosage.strip() if dosage_form == "Other" else dosage_form
             prescribed_medicine.strength = strength.strip()
-            prescribed_medicine.frequency = frequency if frequency != "OTHER" else custom_frequency.strip()
+            prescribed_medicine.frequency = custom_frequency.strip() if frequency == "Other" else frequency
             prescribed_medicine.num_days = int(num_days)
 
             db.session.commit()
             flash('Prescribed medicine updated successfully!', 'success')
             return redirect(url_for('medicine.prescribe_drugs', patient_id=prescribed_medicine.patient_id))
 
-        # Pre-fill the form with existing data on GET request
         return render_template(
             'medicine/edit_prescribed_medicine.html',
             prescribed_medicine=prescribed_medicine
         )
 
     except Exception as e:
+        logger.exception("Error editing prescribed medicine")
         flash(f'Error editing prescribed medicine: {e}', 'error')
-        print(f"Debug: Error in medicine.edit_prescribed_medicine: {e}")
-        return redirect(url_for('medicine.prescribe_drugs', patient_id=prescribed_medicine.patient_id))  
-#delete prescribed medicine 
+        return redirect(url_for('medicine.index'))
+
+
+# ===========================================
+# Delete Prescribed Medicine
+# ===========================================
 @bp.route('/delete_prescribed_medicine/<medicine_id>', methods=['POST'])
 @login_required
 def delete_prescribed_medicine(medicine_id):
@@ -702,21 +628,46 @@ def delete_prescribed_medicine(medicine_id):
         flash('You do not have permission to access this page.', 'error')
         return redirect(url_for('home'))
 
-    try:
-        # Fetch the prescribed medicine by ID
-        prescribed_medicine = PrescribedMedicine.query.get_or_404(medicine_id)
+    prescription_id = request.args.get('prescription_id')
 
-        # Delete the prescribed medicine
+    try:
+        prescribed_medicine = PrescribedMedicine.query.get_or_404(medicine_id)
         db.session.delete(prescribed_medicine)
         db.session.commit()
-
         flash('Prescribed medicine deleted successfully!', 'success')
-        return redirect(url_for('medicine.prescribe_drugs', patient_id=prescribed_medicine.patient_id))
 
     except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting prescribed medicine: {e}")
         flash(f'Error deleting prescribed medicine: {e}', 'error')
-        print(f"Debug: Error in medicine.delete_prescribed_medicine: {e}")
-        return redirect(url_for('medicine.prescribe_drugs', patient_id=prescribed_medicine.patient_id)) 
+
+    return redirect(url_for('medicine.prescribe_drugs', patient_id=prescribed_medicine.patient_id, prescription_id=prescription_id))
+
+
+# ===========================================
+# Save Prescription (Finalize)
+# ===========================================
+@bp.route('/save_prescription/<prescription_id>/<patient_id>', methods=['POST'])
+@login_required
+def save_prescription(prescription_id, patient_id):
+    """Finalize the prescription and redirect to medicine home with a new prescription_id."""
+    if current_user.role not in ['medicine', 'admin']:
+        flash('You do not have permission to perform this action.', 'error')
+        return redirect(url_for('home'))
+
+    try:
+        # Optional: update DB flag to mark prescription complete
+
+        # ✅ Clear current prescription session
+        session.pop('prescription_id', None)
+
+        flash('Prescription finalized and saved successfully.', 'success')
+        return redirect(url_for('medicine.index'))
+
+    except Exception as e:
+        logger.error(f"Error finalizing prescription: {e}")
+        flash(f'Failed to finalize prescription: {e}', 'error')
+        return redirect(url_for('medicine.prescribe_drugs', patient_id=patient_id))
 
 @bp.route('/get_edit_form', methods=['GET'])
 @login_required

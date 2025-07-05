@@ -32,7 +32,7 @@ BOOTSTRAP_CLASSES = {
     "section_heading": "border-bottom pb-2",
 }
 
-def _load_management_plans() -> Dict:
+def load_management_plans() -> Dict:
     """Lazy load management plans and lab tests for diseases."""
     try:
         with get_sqlite_connection() as conn:
@@ -483,4 +483,4 @@ def generate_summary(text: str, soap_note: Dict, max_sentences: int = 4, include
     logger.debug(f"Summary generation took {time.time() - start_time:.3f} seconds")
     logger.debug(f"Generated summary: {summary}")
     
-    return summary if summary else text[:150] + "..."
+    return summary if summary else text[:200] + "..."
