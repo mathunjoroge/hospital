@@ -12,236 +12,183 @@
     <!-- Favicon -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
-    <!-- Updated Bootstrap Select -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta3/dist/css/bootstrap-select.min.css">
-    <!-- Select2 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
-    <!-- Custom CSS Fix -->
-    <style>
-      .select2-container {
-        width: 100% !important;
-      }
-    </style>
-    <!-- ✅ Load jQuery FIRST (Required for Select2) -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- ✅ Load Bootstrap and Bootstrap Select -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta3/dist/js/bootstrap-select.min.js"></script>
-    <!-- ✅ Load Select2 -->
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <!-- ✅ Initialize Select2 & Bootstrap Select -->
-    <script>
-      $(document).ready(function() {
-        // ✅ Initialize Bootstrap Select
-        $('.selectpicker').selectpicker();
-        // ✅ Initialize Select2
-        $('.select2').select2({
-          width: '100%'
-        });
-      });
-    </script>
-    <!-- Custom Styles -->
-    <style>
-      @media (max-width: 768px) {
-        .select2-container .select2-selection--single {
-          font-size: 18px;
-          /* Bigger text */
-          height: 45px !important;
-        }
-      }
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
 
-      /* Highlight Select2 field when focused */
-      .select2-container--bootstrap-5 .select2-selection--single:focus {
-        border-color: #007bff !important;
-        /* Bootstrap primary color */
-        box-shadow: 0 0 4px rgba(0, 123, 255, 0.5);
-      }
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
 
-      /* Ensure Select2 Field Has Correct Height */
-      .select2-container .select2-selection--single {
-        height: 38px !important;
-        padding: 6px 12px;
-        font-size: 16px;
-        border: 1px solid #ced4da;
-        border-radius: 5px;
-      }
+<!-- Fix Select2 Width -->
+<style>
+  .select2-container {
+    width: 100% !important;
+  }
+</style>
 
-      /* Adjust Clear (✖) Button Position */
-      .select2-container--bootstrap-5 .select2-selection__clear {
-        position: absolute;
-        right: 10px;
-        /* Move the "X" button to the right */
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 18px;
-        cursor: pointer;
-      }
+<!-- jQuery (required for Select2) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-      /* Prevent Text Overlap */
-      .select2-container--bootstrap-5 .select2-selection__rendered {
-        padding-right: 30px !important;
-        /* Space for "X" button */
-      }
-    </style>
-    <style>
-      body {
-        padding-top: 60px;
-        /* Space for navbar */
-        display: flex;
-        min-height: 100vh;
-        flex-direction: column;
-      }
+<!-- Bootstrap Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-      main {
-        flex: 1;
-      }
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-      .sidebar {
-        position: fixed;
-        top: 60px;
-        /* Align with navbar */
-        bottom: 0;
-        left: 0;
-        width: 250px;
-        background-color: black;
-        /* Black background */
-        color: white;
-        /* White text for sidebar */
-        padding: 20px;
-        transition: transform 0.3s ease-in-out;
-        z-index: 1000;
-      }
+<!-- Custom Styles -->
+<style>
+  /* ================= Layout & Structure ================= */
+  body {
+    padding-top: 60px;
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+  }
 
-      .sidebar a {
-        color: white;
-        /* White text for links */
-        text-decoration: none;
-        display: block;
-        margin-bottom: 10px;
-        padding: 10px;
-        border-radius: 5px;
-        text-align: left;
-      }
+  main {
+    flex: 1;
+  }
 
-      .sidebar a:hover {
-        background-color: #b2bec3;
-        /* Slightly darker hover effect */
-        color: white;
-        /* Keep text white on hover */
-      }
+  .sidebar {
+    position: fixed;
+    top: 60px;
+    bottom: 0;
+    left: 0;
+    width: 250px;
+    background-color: black;
+    color: white;
+    padding: 20px;
+    transition: transform 0.3s ease-in-out;
+    z-index: 1000;
+  }
 
-      .content {
-        margin-left: 250px;
-        padding: 20px;
-        transition: margin-left 0.3s ease-in-out;
-        text-align: left;
-      }
+  .content {
+    margin-left: 250px;
+    padding: 20px;
+    transition: margin-left 0.3s ease-in-out;
+    text-align: left;
+  }
 
-      .navbar-custom {
-        background-color: #2c3e50;
-        /* Soft dark slate blue for navbar */
-      }
+  @media (max-width: 768px) {
+    .sidebar {
+      transform: translateX(-100%);
+    }
 
-      @media (max-width: 768px) {
-        .sidebar {
-          transform: translateX(-100%);
-        }
+    .content {
+      margin-left: 0;
+    }
 
-        .content {
-          margin-left: 0;
-        }
+    .sidebar.active {
+      transform: translateX(0);
+    }
 
-        .sidebar.active {
-          transform: translateX(0);
-        }
-      }
+    .sidebar-toggle {
+      display: block;
+    }
+  }
 
-      .sidebar-toggle {
-        display: none;
-        position: fixed;
-        top: 4px;
-        left: 10px;
-        z-index: 1100;
-        background-color: #2c3e50;
-        /* Match navbar */
-        color: white;
-        border: none;
-        padding: 10px;
-        border-radius: 5px;
-        cursor: pointer;
-      }
+  .sidebar a {
+    color: white;
+    text-decoration: none;
+    display: block;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 5px;
+    text-align: left;
+  }
 
-      @media (max-width: 768px) {
-        .sidebar-toggle {
-          display: block;
-        }
-      }
+  .sidebar a:hover {
+    background-color: #b2bec3;
+    color: white;
+  }
 
-      .navbar-custom {
-        background: linear-gradient(90deg, #2c3e50, #4a6278);
-        /* Gradient background */
-        border-bottom: 2px solid #1a2d3e;
-        /* Subtle border */
-      }
+  .sidebar-toggle {
+    display: none;
+    position: fixed;
+    top: 4px;
+    left: 10px;
+    z-index: 1100;
+    background-color: #2c3e50;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
 
-      .navbar-brand {
-        color: #fff;
-        transition: color 0.3s ease;
-      }
+  .hide-sidebar .sidebar {
+    display: none;
+  }
 
-      .navbar-brand:hover {
-        color: #b2bec3;
-      }
+  .hide-sidebar .content {
+    margin-left: 0;
+  }
 
-      .nav-link {
-        color: #fff;
-        padding: 0.5rem 1rem;
-        transition: all 0.3s ease;
-      }
+  /* ================= Navbar ================= */
+  .navbar-custom {
+    background: linear-gradient(90deg, #2c3e50, #4a6278);
+    border-bottom: 2px solid #1a2d3e;
+  }
 
-      .nav-link:hover {
-        color: #b2bec3;
-        transform: scale(1.05);
-        /* Slight scale on hover */
-      }
+  .navbar-brand {
+    color: #fff;
+    transition: color 0.3s ease;
+  }
 
-      .navbar-text {
-        font-size: 0.9rem;
-      }
+  .navbar-brand:hover {
+    color: #b2bec3;
+  }
 
-      .badge.bg-danger {
-        transition: transform 0.3s ease;
-      }
+  .nav-link {
+    color: #fff;
+    padding: 0.5rem 1rem;
+    transition: all 0.3s ease;
+  }
 
-      .animate-badge:hover .badge {
-        transform: scale(1.2);
-        /* Badge animation on hover */
-      }
+  .nav-link:hover {
+    color: #b2bec3;
+    transform: scale(1.05);
+  }
 
-      .dropdown-menu {
-        background-color: #2c3e50;
-        border: none;
-      }
+  .navbar-text {
+    font-size: 0.9rem;
+  }
 
-      .dropdown-item {
-        color: #fff;
-      }
+  .badge.bg-danger {
+    transition: transform 0.3s ease;
+  }
 
-      .dropdown-item:hover {
-        background-color: #4a6278;
-        color: #b2bec3;
-      }
+  .animate-badge:hover .badge {
+    transform: scale(1.2);
+  }
 
-      .hide-sidebar .sidebar {
-        display: none;
-      }
+  /* ================= Dropdown Menu ================= */
+  .dropdown-menu {
+    background-color: #2c3e50;
+    border: none;
+  }
 
-      .hide-sidebar .content {
-        margin-left: 0;
-      }
-    </style>
+  .dropdown-item {
+    color: #fff;
+  }
+
+  .dropdown-item:hover {
+    background-color: #4a6278;
+    color: #b2bec3;
+  }
+
+  /* ================= Optional: Select2 Adjustments ================= */
+  .select2-container {
+    width: 100% !important;
+  }
+
+  .select2-container .select2-selection--multiple {
+    min-height: 38px;
+    box-sizing: border-box;
+  }
+
+</style>
+
   </head>
   <body class="{% if request.endpoint == 'login' %}hide-sidebar{% endif %}">
     <!-- Navbar -->
@@ -503,142 +450,168 @@
         </div>
       </div>
     </div> {% endif %}
-    <!-- Initialize Select2 -->
-    <script>
-      // Toggle sidebar on smaller screens
-      function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        sidebar.classList.toggle('active');
-        // Adjust content margin when sidebar is toggled
-        const content = document.querySelector('.content');
-        if (sidebar.classList.contains('active')) {
-          content.style.marginLeft = '250px';
-        } else {
-          content.style.marginLeft = '0';
-        }
-      }
-      $(document).ready(function() {
-        console.log("Initializing Select2...");
-        // 🔹 Select2 for Patients
-        $('#patient_id').select2({
-          theme: 'bootstrap-5',
-          placeholder: "Enter patient name or number...",
-          allowClear: true,
-          minimumInputLength: 2,
-          width: "100%",
-          ajax: {
-            url: "{{ url_for('nursing.search_patients') }}", // ✅ Patient API
-            dataType: 'json',
-            type: "GET",
-            delay: 250,
-            data: function(params) {
-              return {
-                q: params.term
-              };
-            },
-            processResults: function(data) {
-              console.log('Patients received:', data);
-              return {
-                results: data.map(patient => ({
-                  id: patient.id,
-                  text: patient.text
-                }))
-              };
-            },
-            cache: true
-          }
-        }).on('select2:open', function() {
-          console.log("Patient dropdown opened!");
-        });
-        // 🔹 Select2 for Wards
-        $('#ward_id').select2({
-          theme: 'bootstrap-5',
-          placeholder: "Search for a ward...",
-          allowClear: true,
-          width: "100%",
-          ajax: {
-            url: "{{ url_for('nursing.search_wards') }}", // ✅ Ward API
-            dataType: 'json',
-            type: "GET",
-            delay: 250,
-            processResults: function(data) {
-              console.log('Wards received:', data);
-              return {
-                results: data.map(ward => ({
-                  id: ward.id,
-                  text: ward.text
-                }))
-              };
-            },
-            cache: true
-          }
-        }).on('select2:open', function() {
-          console.log("Ward dropdown opened!");
-        });
-        console.log("Select2 initialized!");
-      });
-    </script>
-    <script>
-$(document).ready(function () {
-    $('#imaging_types').select2({
-        placeholder: "Choose imaging studies...",
-        closeOnSelect: false,
-        width: 'resolve'
-    });
-
-    function updateDescriptionFields() {
-        const selectedOptions = $('#imaging_types').val() || [];
-        const container = $('#descriptionFields').empty();
-
-        if (selectedOptions.length === 0) {
-            container.append(`
-                <div class="alert alert-info mb-0">
-                    <i class="bi bi-info-circle me-2"></i>
-                    No imaging studies selected. Descriptions will appear here when you select studies.
-                </div>
-            `);
-            return;
-        }
-
-        selectedOptions.forEach(imagingId => {
-            const imagingText = $(`#imaging_types option[value="${imagingId}"]`).text();
-
-            container.append(`
-                <div class="description-field">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h4 class="h6 mb-0">${imagingText} Details</h4>
-                    </div>
-                    <textarea class="form-control" 
-                              id="description_${imagingId}" 
-                              name="descriptions[${imagingId}]" 
-                              rows="3"
-                              placeholder="Enter specific instructions..."
-                              aria-label="Instructions for ${imagingText}"></textarea>
-                    <div class="form-text mt-2">Maximum 500 characters</div>
-                </div>
-            `);
-        });
+<script>
+  $(document).ready(function () {
+    // Sidebar toggle
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('active');
+      const content = document.querySelector('.content');
+      content.style.marginLeft = sidebar.classList.contains('active') ? '250px' : '0';
     }
 
-    updateDescriptionFields();
-    $('#imaging_types').on('change', updateDescriptionFields);
+    // ------------------ Select2 Initializations ------------------
+
+    // General select2 (fallback or generic)
+    $('.select2').select2({
+      width: '100%'
+    });
+
+    // Select2 for patient search
+    $('#patient_id').select2({
+      theme: 'bootstrap-5',
+      placeholder: "Enter patient name or number...",
+      allowClear: true,
+      minimumInputLength: 2,
+      width: "100%",
+      ajax: {
+        url: "{{ url_for('nursing.search_patients') }}",
+        dataType: 'json',
+        type: "GET",
+        delay: 250,
+        data: function (params) {
+          return { q: params.term };
+        },
+        processResults: function (data) {
+          return {
+            results: data.map(patient => ({
+              id: patient.id,
+              text: patient.text
+            }))
+          };
+        },
+        cache: true
+      }
+    });
+
+    // Select2 for ward search
+    $('#ward_id').select2({
+      theme: 'bootstrap-5',
+      placeholder: "Search for a ward...",
+      allowClear: true,
+      width: "100%",
+      ajax: {
+        url: "{{ url_for('nursing.search_wards') }}",
+        dataType: 'json',
+        type: "GET",
+        delay: 250,
+        processResults: function (data) {
+          return {
+            results: data.map(ward => ({
+              id: ward.id,
+              text: ward.text
+            }))
+          };
+        },
+        cache: true
+      }
+    });
+
+    // ------------------ Imaging Select2 and Descriptions ------------------
+
+    $('#imaging_types').select2({
+      placeholder: "Choose imaging studies...",
+      closeOnSelect: true,
+      allowClear: true,
+      width: 'resolve'
+    });
+
+    function updateImagingDescriptions() {
+      const selected = $('#imaging_types').val() || [];
+      const container = $('#descriptionFields').empty();
+
+      if (selected.length === 0) {
+        container.append(`<div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle me-2"></i>
+            No imaging studies selected. Descriptions will appear here when you select studies.
+          </div>`);
+        return;
+      }
+
+      selected.forEach(id => {
+        const text = $(`#imaging_types option[value="${id}"]`).text();
+        container.append(`<div class="description-field mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h4 class="h6 mb-0">${text} Details</h4>
+            </div>
+            <textarea class="form-control" 
+                      id="description_${id}" 
+                      name="descriptions[${id}]" 
+                      rows="3"
+                      placeholder="Enter specific instructions for ${text}..."
+                      aria-label="Instructions for ${text}"></textarea>
+            <div class="form-text mt-2">Maximum 500 characters</div>
+          </div>`);
+      });
+    }
+
+    updateImagingDescriptions();
+    $('#imaging_types').on('change', updateImagingDescriptions);
 
     $('#imagingForm').on('submit', function () {
-        $('#submitButton').prop('disabled', true)
-            .html(`<div class="spinner-border spinner-border-sm me-2" role="status"></div> Processing...`);
-    });
-});
-</script>
-<script type="text/javascript">
-  $(document).ready(function () {
-    $('#imaging_types').select2({
-        placeholder: "Choose imaging studies...",
-        allowClear: true,
-        width: 'resolve'
+      $('#submitButton').prop('disabled', true)
+        .html(`<div class="spinner-border spinner-border-sm me-2" role="status"></div> Processing...`);
     });
 
-    // rest of your code...
-});
+    // ------------------ Lab Select2 and Descriptions ------------------
+
+    $('#lab_types').select2({
+      placeholder: "Choose lab tests...",
+      closeOnSelect: true,
+      allowClear: true,
+      width: 'resolve'
+    });
+
+    function updateLabDescriptions() {
+      const selected = $('#lab_types').val() || [];
+      const container = $('#descriptionFields').empty();
+
+      if (selected.length === 0) {
+        container.append(`<div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle me-2"></i>
+            No lab tests selected. Descriptions will appear here when you select tests.
+          </div>`);
+        return;
+      }
+
+      selected.forEach(id => {
+        const text = $(`#lab_types option[value="${id}"]`).text();
+        container.append(`<div class="description-field mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h4 class="h6 mb-0">${text} Details</h4>
+            </div>
+            <textarea class="form-control" 
+                      id="description_${id}" 
+                      name="descriptions[${id}]" 
+                      rows="3"
+                      placeholder="Enter specific instructions for ${text}..."
+                      aria-label="Instructions for ${text}"></textarea>
+            <div class="form-text mt-2">Maximum 500 characters</div>
+          </div>`);
+      });
+    }
+
+    updateLabDescriptions();
+    $('#lab_types').on('change', updateLabDescriptions);
+
+    $('#labForm').on('submit', function () {
+      $('#submitButton').prop('disabled', true)
+        .html(`<div class="spinner-border spinner-border-sm me-2" role="status"></div> Processing...`);
+    });
+
+    console.log("Select2 initialized!");
+  });
 </script>
+
   </body>
 </html>

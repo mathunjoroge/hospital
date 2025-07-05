@@ -15,7 +15,7 @@
                         Imaging Type <span class="required-asterisk">*</span>
                     </label>
                  <select id="imaging_types" name="imaging_types[]" 
-        class="form-control select2" multiple="multiple" required
+        class="select2" multiple="multiple" required
         data-placeholder="Choose imaging studies..."
         style="width: 100%;">
     {% for imaging in imaging_types %}
@@ -35,7 +35,7 @@
                     <button type="submit" class="btn btn-primary btn-lg" id="submitButton">
                         <i class="bi bi-send-fill me-2"></i>Submit Request
                     </button>
-                    <a href="{{ url_for('medicine.soap_notes', patient_id=patient.id) }}" 
+                    <a href="" 
                        class="btn btn-outline-secondary btn-lg">
                         <i class="bi bi-x-circle me-2"></i>Cancel
                     </a>
@@ -43,29 +43,4 @@
             </form>
         </div>
     </div>
-
-    <!-- Patient Summary Card -->
-    <div class="card border-info mb-4">
-        <div class="card-header bg-info text-white">
-            <h3 class="h6 mb-0">Patient Summary</h3>
-        </div>
-        <div class="card-body">
-            <dl class="row mb-0">
-                <dt class="col-sm-3">Patient ID</dt>
-                <dd class="col-sm-9">{{ patient.patient_id }}</dd>
-
-                <dt class="col-sm-3">Name</dt>
-                <dd class="col-sm-9">{{ patient.name }}</dd>
-
-                <dt class="col-sm-3">Recent Notes</dt>
-                <dd class="col-sm-9 text-muted">{{ soap_notes.ai_notes|truncate(150) }}</dd>
-            </dl>
-        </div>
-    </div>
-</div>
-
-<!-- Select2 JS -->
-
-
-
 {% endblock %}
