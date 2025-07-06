@@ -1,18 +1,27 @@
 <!-- templates/pharmacy/patient_history.html -->
-<div class="patient-history-section">
+<div class="patient-history-section container my-5">
   <!-- Patient ID Form -->
   <div class="card shadow-sm mb-4">
     <div class="card-body">
-      <h5 class="card-title">
+      <h5 class="card-title fw-bold text-primary">
         <i class="fas fa-search me-2"></i>Search Patient History
       </h5>
       <form method="POST" action="{{ url_for('pharmacy.patient_history') }}">
-        <div class="row">
-          <div class="col-md-6 col-12">
-            <div class="d-flex">
-              <select id="patient_id" name="patient_id" class="form-select" style="width: 100%;" required></select>
-              <button type="submit" class="btn btn-primary ms-3">Search</button>
-            </div>
+        <!-- Add CSRF token for security -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="row g-2 align-items-center">
+          <div class="col-md-8 col-12">
+            <label for="patient_id" class="form-label visually-hidden">Select Patient</label>
+            <select id="patient_id" name="patient_id" class="form-select" required>
+              <option value="" disabled selected>Select a patient</option>
+              <!-- Populate options server-side if not using JavaScript -->
+              {% for p in patients %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4 col-12">
+            <button type="submit" class="btn btn-primary w-100">Search</button>
           </div>
         </div>
       </form>
@@ -21,33 +30,36 @@
 
   <!-- Patient History Display -->
   {% if patient %}
-    <h3 class="mb-4 text-primary"><i class="fas fa-user me-2"></i>History for {{ patient.name }} (ID: {{ patient.patient_id }})</h3>
+    <h3 class="mb-4 text-primary fw-semibold">
+      <i class="fas fa-user me-2"></i>History for {{ patient.name }} (ID: {{ patient.patient_id }})</h3>
 
     <!-- Prescribed Medicines -->
     <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <h4 class="card-title"><i class="fas fa-pills me-2"></i>Prescribed Medicines</h4>
+        <h4 class="card-title fw-bold text-secondary">
+          <i class="fas fa-pills me-2"></i>Prescribed Medicines
+        </h4>
         {% if prescribed_meds %}
           <div class="table-responsive">
             <table class="table table-striped table-hover table-bordered">
-              <thead class="bg-gradient-primary text-white">
+              <thead class="bg-primary text-white">
                 <tr>
-                  <th>Medicine</th>
-                  <th>Dosage</th>
-                  <th>Strength</th>
-                  <th>Frequency</th>
-                  <th>Days</th>
-                  <th>Status</th>
+                  <th scope="col">Medicine</th>
+                  <th scope="col">Dosage</th>
+                  <th scope="col">Strength</th>
+                  <th scope="col">Frequency</th>
+                  <th scope="col">Days</th>
+                  <th scope="col">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {% for med in prescribed_meds %}
                 <tr>
-                  <td>{{ med.generic_name }} ({{ med.brand_name }})</td>
-                  <td>{{ med.dosage }}</td>
-                  <td>{{ med.strength }}</td>
-                  <td>{{ med.frequency }}</td>
-                  <td>{{ med.num_days }}</td>
+                  <td>{{ (med.generic_name or 'N/A') }} ({{ med.brand_name or '-done' }})</td>
+                  <td>{{ med.dosage or 'N/A' }}</td>
+                  <td>{{ med.strength or 'N/A' }}</td>
+                  <td>{{ med.frequency or 'N/A' }}</td>
+                  <td>{{ med.num_days or 'N/A' }}</td>
                   <td>{{ 'Completed' if med.status == 1 else 'Pending' }}</td>
                 </tr>
                 {% endfor %}
@@ -63,27 +75,29 @@
     <!-- Dispensed Drugs -->
     <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <h4 class="card-title"><i class="fas fa-capsules me-2"></i>Dispensed Drugs</h4>
+        <h4 class="card-title fw-bold text-secondary">
+          <i class="fas fa-capsules me-2"></i>Dispensed Drugs
+        </h4>
         {% if dispensed_drugs %}
           <div class="table-responsive">
             <table class="table table-striped table-hover table-bordered">
-              <thead class="bg-gradient-primary text-white">
+              <thead class="bg-primary text-white">
                 <tr>
-                  <th>Drug</th>
-                  <th>Batch</th>
-                  <th>Quantity</th>
-                  <th>Date Dispensed</th>
-                  <th>Status</th>
+                  <th scope="col">Drug</th>
+                  <th scope="col">Batch</th>
+                  <th scope="col">Quantity</th>
+                  <th scope="col">Date Dispensed</th>
+                  <th scope="col">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {% for drug in dispensed_drugs %}
                 <tr>
-                  <td>{{ drug.generic_name }} ({{ drug.brand_name }})</td>
-                  <td>{{ drug.batch_number }}</td>
-                  <td>{{ drug.quantity_dispensed }}</td>
-                  <td>{{ drug.date_dispensed }}</td>
-                  <td>{{ drug.status }}</td>
+                  <td>{{ (drug.generic_name or 'N/A') }} ({{ drug.brand_name or 'N/A' }})</td>
+                  <td>{{ drug.batch_number or 'N/A' }}</td>
+                  <td>{{ drug.quantity_dispensed or 'N/A' }}</td>
+                  <td>{{ drug.date_dispensed or 'N/A' }}</td>
+                  <td>{{ drug.status or 'N/A' }}</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -98,22 +112,24 @@
     <!-- Requested Labs -->
     <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <h4 class="card-title"><i class="fas fa-flask me-2"></i>Requested Lab Tests</h4>
+        <h4 class="card-title fw-bold text-secondary">
+          <i class="fas fa-flask me-2"></i>Requested Lab Tests
+        </h4>
         {% if requested_labs %}
           <div class="table-responsive">
             <table class="table table-striped table-hover table-bordered">
-              <thead class="bg-gradient-primary text-white">
+              <thead class="bg-primary text-white">
                 <tr>
-                  <th>Test Name</th>
-                  <th>Date Requested</th>
-                  <th>Status</th>
+                  <th scope="col">Test Name</th>
+                  <th scope="col">Date Requested</th>
+                  <th scope="col">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {% for lab in requested_labs %}
                 <tr>
-                  <td>{{ lab.test_name }}</td>
-                  <td>{{ lab.date_requested }}</td>
+                  <td>{{ lab.test_name or 'N/A' }}</td>
+                  <td>{{ lab.date_requested or 'N/A' }}</td>
                   <td>{{ 'Completed' if lab.status == 1 else 'Pending' }}</td>
                 </tr>
                 {% endfor %}
@@ -129,7 +145,9 @@
     <!-- Lab Results -->
     <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <h4 class="card-title"><i class="fas fa-file-medical me-2"></i>Lab Results</h4>
+        <h4 class="card-title fw-bold text-secondary">
+          <i class="fas fa-file-medical me-2"></i>Lab Results
+        </h4>
         {% if lab_results %}
           {% for result_id, result_data in lab_results.items() %}
             <div class="card shadow-sm mb-3">
@@ -139,22 +157,22 @@
               <div class="card-body">
                 <div class="table-responsive">
                   <table class="table table-striped table-hover table-bordered">
-                    <thead class="bg-gradient-info text-white">
+                    <thead class="bg-info text-white">
                       <tr>
-                        <th>Parameter Name</th>
-                        <th>Normal Range</th>
-                        <th>Result</th>
-                        <th>Unit</th>
-                        <th>Status</th>
+                        <th scope="col">Parameter Name</th>
+                        <th scope="col">Normal Range</th>
+                        <th scope="col">Result</th>
+                        <th scope="col">Unit</th>
+                        <th scope="col">Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {% for item in result_data.parameters %}
                       <tr>
-                        <td>{{ item.parameter_name }}</td>
+                        <td>{{ item.parameter_name or 'N/A' }}</td>
                         <td>{{ item.normal_range_low }} - {{ item.normal_range_high }}</td>
-                        <td>{{ item.result }}</td>
-                        <td>{{ item.unit }}</td>
+                        <td>{{ item.result or 'N/A' }}</td>
+                        <td>{{ item.unit or 'N/A' }}</td>
                         <td>
                           {% if item.status == "Low" %}
                             <span class="text-warning fw-bold">Low</span>
@@ -186,22 +204,24 @@
     <!-- Requested Imaging -->
     <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <h4 class="card-title"><i class="fas fa-x-ray me-2"></i>Requested Imaging</h4>
+        <h4 class="card-title fw-bold text-secondary">
+          <i class="fas fa-x-ray me-2"></i>Requested Imaging
+        </h4>
         {% if requested_images %}
           <div class="table-responsive">
             <table class="table table-striped table-hover table-bordered">
-              <thead class="bg-gradient-primary text-white">
+              <thead class="bg-primary text-white">
                 <tr>
-                  <th>Imaging Type</th>
-                  <th>Date Requested</th>
-                  <th>Status</th>
+                  <th scope="col">Imaging Type</th>
+                  <th scope="col">Date Requested</th>
+                  <th scope="col">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {% for img in requested_images %}
                 <tr>
-                  <td>{{ img.imaging_type }}</td>
-                  <td>{{ img.date_requested }}</td>
+                  <td>{{ img.imaging_type or 'N/A' }}</td>
+                  <td>{{ img.date_requested or 'N/A' }}</td>
                   <td>{{ 'Completed' if img.status == 1 else 'Pending' }}</td>
                 </tr>
                 {% endfor %}
@@ -217,22 +237,24 @@
     <!-- Imaging Results -->
     <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <h4 class="card-title"><i class="fas fa-image me-2"></i>Imaging Results</h4>
+        <h4 class="card-title fw-bold text-secondary">
+          <i class="fas fa-image me-2"></i>Imaging Results
+        </h4>
         {% if imaging_results %}
           <div class="table-responsive">
             <table class="table table-striped table-hover table-bordered">
-              <thead class="bg-gradient-primary text-white">
+              <thead class="bg-primary text-white">
                 <tr>
-                  <th>Imaging Type</th>
-                  <th>Test Date</th>
-                  <th>Notes</th>
+                  <th scope="col">Imaging Type</th>
+                  <th scope="col">Test Date</th>
+                  <th scope="col">Notes</th>
                 </tr>
               </thead>
               <tbody>
                 {% for result in imaging_results %}
                 <tr>
-                  <td>{{ result.imaging_type }}</td>
-                  <td>{{ result.test_date }}</td>
+                  <td>{{ result.imaging_type or 'N/A' }}</td>
+                  <td>{{ result.test_date or 'N/A' }}</td>
                   <td>{{ result.result_notes or 'N/A' }}</td>
                 </tr>
                 {% endfor %}
@@ -248,27 +270,29 @@
     <!-- Vitals -->
     <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <h4 class="card-title"><i class="fas fa-heartbeat me-2"></i>Vitals</h4>
+        <h4 class="card-title fw-bold text-secondary">
+          <i class="fas fa-heartbeat me-2"></i>Vitals
+        </h4>
         {% if vitals %}
           <div class="table-responsive">
             <table class="table table-striped table-hover table-bordered">
-              <thead class="bg-gradient-primary text-white">
+              <thead class="bg-primary text-white">
                 <tr>
-                  <th>Timestamp</th>
-                  <th>Temperature (°C)</th>
-                  <th>Pulse (bpm)</th>
-                  <th>Blood Pressure (mmHg)</th>
-                  <th>Respiratory Rate (breaths/min)</th>
-                  <th>Oxygen Saturation (%)</th>
+                  <th scope="col">Timestamp</th>
+                  <th scope="col">Temperature (°C)</th>
+                  <th scope="col">Pulse (bpm)</th>
+                  <th scope="col">Blood Pressure (mmHg)</th>
+                  <th scope="col">Respiratory Rate (breaths/min)</th>
+                  <th scope="col">Oxygen Saturation (%)</th>
                 </tr>
               </thead>
               <tbody>
                 {% for vital in vitals %}
                 <tr>
-                  <td>{{ vital.timestamp }}</td>
+                  <td>{{ vital.timestamp or 'N/A' }}</td>
                   <td>{{ vital.temperature or 'N/A' }}</td>
                   <td>{{ vital.pulse or 'N/A' }}</td>
-                  <td>{{ vital.blood_pressure_systolic }}/{{ vital.blood_pressure_diastolic if vital.blood_pressure_diastolic else 'N/A' }}</td>
+                  <td>{{ (vital.blood_pressure_systolic ~ '/' ~ vital.blood_pressure_diastolic) if vital.blood_pressure_systolic and vital.blood_pressure_diastolic else 'N/A' }}</td>
                   <td>{{ vital.respiratory_rate or 'N/A' }}</td>
                   <td>{{ vital.oxygen_saturation or 'N/A' }}</td>
                 </tr>
@@ -285,7 +309,7 @@
     <!-- SOAP Notes -->
     <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <h4 class="card-title">
+        <h4 class="card-title fw-bold text-secondary">
           <i class="fas fa-sticky-note me-2"></i>SOAP Notes
         </h4>
         {% if soap_notes %}
@@ -299,15 +323,15 @@
                 </div>
                 <div class="mb-2">
                   <span class="fw-bold text-secondary">Situation:</span>
-                  <div>{{ note.situation }}</div>
+                  <div>{{ note.situation or 'N/A' }}</div>
                 </div>
                 <div class="mb-2">
                   <span class="fw-bold text-secondary">Assessment:</span>
-                  <div>{{ note.assessment }}</div>
+                  <div>{{ note.assessment or 'N/A' }}</div>
                 </div>
                 <div class="mb-2">
                   <span class="fw-bold text-secondary">Recommendation:</span>
-                  <div>{{ note.recommendation }}</div>
+                  <div>{{ note.recommendation or 'N/A' }}</div>
                 </div>
                 <div class="mb-2">
                   <span class="fw-bold text-secondary">Medical History:</span>
@@ -317,7 +341,7 @@
                   <span class="fw-bold text-secondary">AI Analysis:</span>
                   <div>
                     {% if note.ai_analysis %}
-                      {{ note.ai_analysis.replace('\\n', '<br>') | safe }}
+                      {{ note.ai_analysis.replace('\\n', '<br>') | safe }} 
                     {% else %}
                       <span class="text-muted">No AI analysis available.</span>
                     {% endif %}
@@ -336,22 +360,24 @@
     <!-- Clinic Bookings -->
     <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <h4 class="card-title"><i class="fas fa-calendar-check me-2"></i>Clinic Bookings</h4>
+        <h4 class="card-title fw-bold text-secondary">
+          <i class="fas fa-calendar-check me-2"></i>Clinic Bookings
+        </h4>
         {% if clinic_bookings %}
           <div class="table-responsive">
             <table class="table table-striped table-hover table-bordered">
-              <thead class="bg-gradient-primary text-white">
+              <thead class="bg-primary text-white">
                 <tr>
-                  <th>Clinic</th>
-                  <th>Date</th>
-                  <th>Seen</th>
+                  <th scope="col">Clinic</th>
+                  <th scope="col">Date</th>
+                  <th scope="col">Seen</th>
                 </tr>
               </thead>
               <tbody>
                 {% for booking in clinic_bookings %}
                 <tr>
-                  <td>{{ booking.clinic_name }}</td>
-                  <td>{{ booking.clinic_date }}</td>
+                  <td>{{ booking.clinic_name or 'N/A' }}</td>
+                  <td>{{ booking.clinic_date or 'N/A' }}</td>
                   <td>{{ 'Yes' if booking.seen == 1 else 'No' }}</td>
                 </tr>
                 {% endfor %}
@@ -367,26 +393,28 @@
     <!-- Admissions -->
     <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <h4 class="card-title"><i class="fas fa-procedures me-2"></i>Admissions</h4>
+        <h4 class="card-title fw-bold text-secondary">
+          <i class="fas fa-procedures me-2"></i>Admissions
+        </h4>
         {% if admissions %}
           <div class="table-responsive">
             <table class="table table-striped table-hover table-bordered">
-              <thead class="bg-gradient-primary text-white">
+              <thead class="bg-primary text-white">
                 <tr>
-                  <th>Ward</th>
-                  <th>Admitted On</th>
-                  <th>Discharged On</th>
-                  <th>Criteria</th>
-                  <th>Prescribed Drugs</th>
+                  <th scope="col">Ward</th>
+                  <th scope="col">Admitted On</th>
+                  <th scope="col">Discharged On</th>
+                  <th scope="col">Criteria</th>
+                  <th scope="col">Prescribed Drugs</th>
                 </tr>
               </thead>
               <tbody>
                 {% for admission in admissions %}
                 <tr>
-                  <td>{{ admission.ward_name }}</td>
-                  <td>{{ admission.admitted_on }}</td>
+                  <td>{{ admission.ward_name or 'N/A' }}</td>
+                  <td>{{ admission.admitted_on or 'N/A' }}</td>
                   <td>{{ admission.discharged_on or 'N/A' }}</td>
-                  <td>{{ admission.admission_criteria }}</td>
+                  <td>{{ admission.admission_criteria or 'N/A' }}</td>
                   <td>{{ admission.prescribed_drugs or 'N/A' }}</td>
                 </tr>
                 {% endfor %}
@@ -402,25 +430,27 @@
     <!-- Billing -->
     <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <h4 class="card-title"><i class="fas fa-file-invoice-dollar me-2"></i>Billing (Clinical Charges)</h4>
+        <h4 class="card-title fw-bold text-secondary">
+          <i class="fas fa-file-invoice-dollar me-2"></i>Billing (Clinical Charges)
+        </h4>
         {% if billing %}
           <div class="table-responsive">
             <table class="table table-striped table-hover table-bordered">
-              <thead class="bg-gradient-primary text-white">
+              <thead class="bg-primary text-white">
                 <tr>
-                  <th>Charge</th>
-                  <th>Total Cost</th>
-                  <th>Billed At</th>
-                  <th>Status</th>
+                  <th scope="col">Charge</th>
+                  <th scope="col">Total Cost</th>
+                  <th scope="col">Billed At</th>
+                  <th scope="col">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {% for bill in billing %}
                 <tr>
-                  <td>{{ bill.charge_name }}</td>
-                  <td>{{ bill.total_cost }}</td>
-                  <td>{{ bill.billed_at }}</td>
-                  <td>{{ bill.status }}</td>
+                  <td>{{ bill.charge_name or 'N/A' }}</td>
+                  <td>{{ bill.total_cost or 'N/A' }}</td>
+                  <td>{{ bill.billed_at or 'N/A' }}</td>
+                  <td>{{ bill.status or 'N/A' }}</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -431,6 +461,7 @@
         {% endif %}
       </div>
     </div>
-
+  {% else %}
+    <p class="text-muted text-center">Please select a patient to view their history.</p>
   {% endif %}
 </div>
