@@ -177,15 +177,48 @@
     color: #b2bec3;
   }
 
-  /* ================= Optional: Select2 Adjustments ================= */
-  .select2-container {
-    width: 100% !important;
-  }
+/* Style the select2 container */
+.select2-container--bootstrap-5 .select2-selection {
+  min-height: 45px;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #ced4da;
+  font-size: 1rem;
+}
 
-  .select2-container .select2-selection--multiple {
-    min-height: 38px;
-    box-sizing: border-box;
-  }
+/* Placeholder text color */
+.select2-container--bootstrap-5 .select2-selection__placeholder {
+  color: #6c757d;
+}
+
+/* Clear button spacing */
+.select2-container--bootstrap-5 .select2-selection__clear {
+  margin-right: 10px;
+}
+
+/* On focus */
+.select2-container--bootstrap-5.select2-container--focus .select2-selection {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Dropdown styling */
+.select2-container--bootstrap-5 .select2-results__option--highlighted {
+  background-color: #e9ecef;
+  color: #000;
+}
+
+/* Fix misaligned Select2 clear button */
+.select2-container--bootstrap-5 .select2-selection__clear {
+  margin-top: 0.4rem; /* Adjust vertically */
+  margin-right: 0.5rem;
+  position: absolute;
+  
+  top: 50%;
+  transform: translateY(-50%);
+  color: #dc3545;
+  font-size: 1.2rem;
+}
 
 </style>
 
@@ -348,8 +381,8 @@
         <i class="bi bi-hourglass-split me-2"></i> Waiting List </a>
       <a href="{{ url_for('medicine.ward_rounds') }}">
         <i class="bi bi-hospital me-2"></i> Inpatients </a>
-      <a href="">
-        <i class="bi bi-file-medical me-2"></i> Patient History </a>
+            <a href="{{ url_for('pharmacy.patient_history') }}">
+        <i class="bi bi-clock-history me-2"></i> Patient History </a>
       <a href="{{ url_for('medicine.admit_patient') }}">
         <i class="bi bi-door-open me-2"></i> admit patient </a>
       <a href="">
@@ -460,39 +493,34 @@
       content.style.marginLeft = sidebar.classList.contains('active') ? '250px' : '0';
     }
 
-    // ------------------ Select2 Initializations ------------------
-
-    // General select2 (fallback or generic)
     $('.select2').select2({
       width: '100%'
     });
 
-    // Select2 for patient search
-    $('#patient_id').select2({
-      theme: 'bootstrap-5',
-      placeholder: "Enter patient name or number...",
-      allowClear: true,
-      minimumInputLength: 2,
-      width: "100%",
-      ajax: {
-        url: "{{ url_for('nursing.search_patients') }}",
-        dataType: 'json',
-        type: "GET",
-        delay: 250,
-        data: function (params) {
-          return { q: params.term };
-        },
-        processResults: function (data) {
-          return {
-            results: data.map(patient => ({
-              id: patient.id,
-              text: patient.text
-            }))
-          };
-        },
-        cache: true
-      }
-    });
+$('#patient_id').select2({
+  theme: 'bootstrap-5',
+  placeholder: "Enter patient name or number...",
+  allowClear: false,
+  minimumInputLength: 2,
+  width: "100%",
+  ajax: {
+    url: "{{ url_for('nursing.search_patients') }}",
+    dataType: 'json',
+    delay: 250,
+    data: function (params) {
+      return { q: params.term };
+    },
+    processResults: function (data) {
+      return {
+        results: data.map(patient => ({
+          id: patient.id,
+          text: patient.text  
+        }))
+      };
+    },
+    cache: true
+  }
+});
 
     // Select2 for ward search
     $('#ward_id').select2({

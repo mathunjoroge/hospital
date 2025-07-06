@@ -1,7 +1,6 @@
 from flask import render_template, redirect, url_for, request, flash, jsonify, Response, session
 from sqlalchemy import text
 from extensions import db 
-
 import logging
 from sqlalchemy.sql import func
 from flask_login import login_required, current_user
@@ -14,7 +13,6 @@ from sqlalchemy.sql import text  # Import the text function
 from datetime import timedelta,datetime
 from flask import render_template, redirect, url_for, flash
 from flask_login import login_required, current_user
-from . import bp  # Import the blueprint
 from departments.models.pharmacy import Drug,Batch,Purchase,DispensedDrug, Expiry,DrugRequest, RequestItem # Import PatientWaitingList and Patient models
 from departments.models.billing import DrugsBill
 from sqlalchemy.orm import joinedload
