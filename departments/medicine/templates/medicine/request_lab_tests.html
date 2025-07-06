@@ -6,7 +6,8 @@
             <h2 class="mb-0 text-center">Request Lab Tests for {{ patient.name }} ({{ patient.patient_id }})</h2>
         </div>
         <div class="card-body">
-            <form method="POST" action="{{ url_for('medicine.request_lab_tests', patient_id=patient.patient_id) }}" id="labForm">
+            <form method="POST" action="{{ url_for('medicine.request_lab_tests', patient_id=patient.patient_id, dept=dept) }}" id="labForm">
+                <input type="hidden" name="dept" value="{{ dept }}">
                 <div class="mb-4">
                     <label for="lab_types" class="form-label">
                         Lab Tests <span class="required-asterisk">*</span>

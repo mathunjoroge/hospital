@@ -5,9 +5,9 @@
 
     <!-- Prescription Form -->
     <div class="container">
-        <form method="POST" action="{{ url_for('medicine.prescribe_drugs', patient_id=patient.patient_id ) }}">
-            <!-- Hidden Input for Prescription ID -->
-            <input type="hidden" name="prescription_id" value="{{ prescription_id }}">
+<form method="POST" action="{{ url_for('medicine.prescribe_drugs', patient_id=patient.patient_id, dept=dept) }}">
+    <input type="hidden" name="prescription_id" value="{{ prescription_id }}">
+    <input type="hidden" name="dept" value="{{ dept }}">
             <div class="row g-2 align-items-end">
                 <!-- Select Drugs -->
                 <div class="col">
@@ -104,12 +104,12 @@
         class="btn btn-warning btn-sm"
         data-bs-toggle="modal"
         data-bs-target="#editMedicineModal"
-        onclick="loadEditForm({{ medicine.id }}, '{{ prescription_id }}')">
+        onclick="loadEditForm({{ medicine.id }}, '{{ prescription_id }}','{{ dept }}')">
     Edit
 </button>
 
 <!-- Delete Button -->
-<form action="{{ url_for('medicine.delete_prescribed_medicine', medicine_id=medicine.id, prescription_id=prescription_id) }}" method="POST" style="display:inline;">
+<form action="{{ url_for('medicine.delete_prescribed_medicine', medicine_id=medicine.id, prescription_id=prescription_id),'{{ dept }}' }}" method="POST" style="display:inline;">
     <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this medicine?')">Delete</button>
 </form>
 
@@ -204,7 +204,7 @@
 <!-- Display Save Prescription Button Only If Medicines Exist -->
 {% if prescribed_medicines %}
 <div class="text-end mt-4">
-    <form method="POST" action="{{ url_for('medicine.save_prescription', prescription_id=prescription_id, patient_id=patient.patient_id) }}">
+    <form method="POST" action="{{ url_for('medicine.save_prescription', prescription_id=prescription_id, patient_id=patient.patient_id, dept=dept) }}">
         <button type="submit" class="btn btn-success btn-lg">Save Prescription</button>
     </form>
 </div>
@@ -256,22 +256,18 @@
         }
     }
 
-    function loadEditForm(medicineId, prescriptionId = "{{ prescription_id }}") {
-        // Fetch the edit form from the server, including the prescription ID
-        const url = `{{ url_for('medicine.get_edit_form', _external=True) }}?medicine_id=${medicineId}&prescription_id=${prescriptionId}`;
+    function loadEditForm(medicineId, prescriptionId = "{{ prescription_id }}", dept = "{{ dept }}") {
+        const url = `{{ url_for('medicine.get_edit_form', _external=True) }}?medicine_id=${medicineId}&prescription_id=${prescriptionId}&dept=${dept}`;
         fetch(url)
             .then(response => response.text())
             .then(html => {
-                // Replace modal content with fetched HTML
                 document.querySelector('#editMedicineModal .modal-body').innerHTML = html;
 
-                // Set the form action dynamically
                 const form = document.getElementById('editMedicineForm');
                 if (form) {
-                    form.action = `{{ url_for('medicine.edit_prescribed_medicine', medicine_id='') }}` + medicineId;
+                    form.action = `{{ url_for('medicine.edit_prescribed_medicine', medicine_id='') }}` + medicineId + '?dept=' + dept;
                 }
 
-                // Reinitialize Select2
                 $('.select2').select2({
                     placeholder: "Select an option",
                     allowClear: true,
@@ -281,6 +277,7 @@
             .catch(error => console.error('Error loading edit form:', error));
     }
 </script>
+
 
 </div>
 {% endblock %}

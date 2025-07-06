@@ -94,17 +94,17 @@
 
 
                 <!-- Request Lab Tests -->
-                <a href="{{ url_for('medicine.request_lab_tests', patient_id=patient.patient_id) }}" class="btn btn-outline-primary" aria-label="Request lab tests">
+                <a href="{{ url_for('medicine.request_lab_tests', patient_id=patient.patient_id, dept=2) }}" class="btn btn-outline-primary" aria-label="Request lab tests">
                     <i class="bi bi-eyedropper me-1"></i> Request Lab Tests
                 </a>
 
                 <!-- Request Imaging -->
-                <a href="{{ url_for('medicine.request_imaging', patient_id=patient.patient_id) }}" class="btn btn-outline-primary" aria-label="Request imaging">
+                <a href="{{ url_for('medicine.request_imaging', patient_id=patient.patient_id, dept=2) }}" class="btn btn-outline-primary" aria-label="Request imaging">
                     <i class="bi bi-image me-1"></i> Request Imaging
                 </a>
 
                 <!-- Prescribe Drugs -->
-                <a href="{{ url_for('medicine.prescribe_drugs', patient_id=patient.patient_id) }}" class="btn btn-outline-primary" aria-label="Prescribe drugs">
+                <a href="{{ url_for('medicine.prescribe_drugs', patient_id=patient.patient_id, dept=2) }}" class="btn btn-outline-primary" aria-label="Prescribe drugs">
                     <i class="bi bi-capsule-pill me-1"></i> Prescribe Drugs
                 </a>
 
