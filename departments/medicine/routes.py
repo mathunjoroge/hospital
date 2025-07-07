@@ -1474,14 +1474,33 @@ def patients_list():
 def drugs():
     category_id = request.args.get('category_id', type=int)
     severity = request.args.get('severity', type=str)
+    therapeutic_class = request.args.get('therapeutic_class', type=str)
+    has_black_box = request.args.get('has_black_box', type=str)
     query = OncologyDrug.query
     if category_id:
         query = query.filter_by(category_id=category_id)
     if severity in ['Low', 'Moderate', 'High']:
         query = query.join(SpecialWarning).filter(SpecialWarning.severity == severity)
+    if therapeutic_class:
+        query = query.filter_by(therapeutic_class=therapeutic_class)
+    if has_black_box == 'yes':
+        query = query.filter(OncologyDrug.black_box_warning.isnot(None))
+    elif has_black_box == 'no':
+        query = query.filter(OncologyDrug.black_box_warning.is_(None))
     drugs = query.all()
     categories = OncoDrugCategory.query.all()
-    return render_template('medicine/oncology/drugs.html', drugs=drugs, categories=categories, selected_category=category_id, selected_severity=severity)
+    therapeutic_classes = db.session.query(OncologyDrug.therapeutic_class).distinct().all()
+    therapeutic_classes = [tc[0] for tc in therapeutic_classes if tc[0]]
+    return render_template(
+        'medicine/oncology/drugs.html',
+        drugs=drugs,
+        categories=categories,
+        therapeutic_classes=therapeutic_classes,
+        selected_category=category_id,
+        selected_severity=severity,
+        selected_therapeutic_class=therapeutic_class,
+        selected_has_black_box=has_black_box
+    )
 
 @bp.route('/regimens/')
 @login_required
@@ -1496,8 +1515,6 @@ def regimens():
     regimens = query.all()
     categories = RegimenCategory.query.all()
     return render_template('medicine/oncology/regimens.html', regimens=regimens, categories=categories, selected_category=category_id, selected_status=status)
-
-
 
 @bp.route('/warnings/')
 @login_required
