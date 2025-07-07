@@ -403,7 +403,7 @@
       <a href="{{ url_for('medicine.drugs_ref') }}">
         <i class="bi bi-capsule me-2"></i> Drugs Ref </a>
       <!-- Specialized Care -->
-      <a href="">
+      <a href="{{ url_for('medicine.oncology') }}">
         <i class="bi bi-droplet me-2"></i> Oncology </a> 
         {% elif current_user.role == 'stores' %} 
         <a href="/">

@@ -1,5 +1,9 @@
 # departments/nlp/soap_notes.py
 from flask import render_template, redirect, url_for, request, flash, jsonify,session
+from flask_wtf import FlaskForm
+from wtforms import SelectField
+from wtforms.validators import DataRequired
+
 from typing import Optional, List, Dict, Any
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -20,7 +24,7 @@ from departments.models.records import PatientWaitingList, Patient
 from departments.models.medicine import (
     SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, 
     RequestedImage, UnmatchedImagingRequest, TheatreProcedure, TheatreList, 
-    Ward, AdmittedPatient, WardBedHistory, WardRoom, Bed, WardRound,Disease, DiseaseManagementPlan, DiseaseLab
+    Ward, AdmittedPatient, SpecialWarning, OncologyBooking, OncoDrugCategory, RegimenCategory, WardBedHistory, WardRoom, Bed, WardRound,Disease, DiseaseManagementPlan, DiseaseLab, OncoPatient, OncologyDrug, OncologyRegimen, OncoPrescription, OncoTreatmentRecord
 )
 from departments.forms import AdmitPatientForm
 import logging
@@ -1393,3 +1397,129 @@ def delete_disease(disease_id):
     db.session.delete(disease)
     db.session.commit()
     return redirect(url_for('medicine.list_diseases'))
+
+class PatientSearchForm(FlaskForm):
+    patient_id = SelectField('Patient', coerce=int, validators=[DataRequired(message="Please select a patient.")])
+
+    def __init__(self, *args, **kwargs):
+        super(PatientSearchForm, self).__init__(*args, **kwargs)
+        # Dynamically populate choices with all patients
+        self.patient_id.choices = [(p.id, p.name) for p in Patient.query.order_by(Patient.name).all()]
+
+@bp.route('/oncology/', methods=['GET', 'POST'])
+@login_required
+def oncology():
+    form = PatientSearchForm()
+    patients = Patient.query.all()
+    form.patient_id.choices = [(p.id, p.name) for p in patients]
+    selected_patient = None
+    onco_patient = None
+    prescriptions = []
+    treatment_records = []
+
+    if form.validate_on_submit():
+        patient_id = form.patient_id.data
+        try:
+            selected_patient = Patient.query.get_or_404(patient_id)
+            onco_patient = OncoPatient.query.filter_by(patient_id=patient_id).first()
+            if onco_patient:
+                prescriptions = OncoPrescription.query.filter_by(onco_patient_id=onco_patient.id).all()
+                treatment_records = OncoTreatmentRecord.query.filter_by(onco_patient_id=onco_patient.id).all()
+            else:
+                flash('Patient is not enrolled in oncology care.', 'warning')
+        except Exception as e:
+            flash(f'Error retrieving patient: {str(e)}', 'danger')
+
+    return render_template(
+        'medicine/oncology/index.html',
+        form=form,
+        patients=patients,
+        selected_patient=selected_patient,
+        onco_patient=onco_patient,
+        prescriptions=prescriptions,
+        treatment_records=treatment_records
+    )
+@bp.route('/oncology/add', methods=['GET', 'POST'])
+@login_required
+def add_onco_patient():
+    if request.method == 'POST':
+        patient_id = request.form.get('patient_id')
+        diagnosis = request.form.get('diagnosis')
+        cancer_type = request.form.get('cancer_type')
+        stage = request.form.get('stage')
+        diagnosis_date = request.form.get('diagnosis_date')
+
+        onco_patient = OncoPatient(
+            patient_id=patient_id,
+            diagnosis=diagnosis,
+            cancer_type=cancer_type,
+            stage=stage,
+            diagnosis_date=datetime.strptime(diagnosis_date, '%Y-%m-%d')
+        )
+        db.session.add(onco_patient)
+        db.session.commit()
+        flash('Patient enrolled in oncology care successfully.', 'success')
+        return redirect(url_for('medicine.oncology'))
+
+    patients = Patient.query.all()
+    return render_template('medicine/oncology/add_onco_patient.html', patients=patients)
+@bp.route('/patients_list/')
+@login_required
+def patients_list():
+    patients = Patient.query.all()
+    return render_template('medicine/oncology/patients_list.html', patients=patients)
+
+@bp.route('/drugs/')
+@login_required
+def drugs():
+    category_id = request.args.get('category_id', type=int)
+    severity = request.args.get('severity', type=str)
+    query = OncologyDrug.query
+    if category_id:
+        query = query.filter_by(category_id=category_id)
+    if severity in ['Low', 'Moderate', 'High']:
+        query = query.join(SpecialWarning).filter(SpecialWarning.severity == severity)
+    drugs = query.all()
+    categories = OncoDrugCategory.query.all()
+    return render_template('medicine/oncology/drugs.html', drugs=drugs, categories=categories, selected_category=category_id, selected_severity=severity)
+
+@bp.route('/regimens/')
+@login_required
+def regimens():
+    category_id = request.args.get('category_id', type=int)
+    status = request.args.get('status', type=str)
+    query = OncologyRegimen.query
+    if category_id:
+        query = query.filter_by(category_id=category_id)
+    if status in ['Active', 'Deprecated', 'Under Review']:
+        query = query.filter_by(status=status)
+    regimens = query.all()
+    categories = RegimenCategory.query.all()
+    return render_template('medicine/oncology/regimens.html', regimens=regimens, categories=categories, selected_category=category_id, selected_status=status)
+
+
+
+@bp.route('/warnings/')
+@login_required
+def warnings():
+    warning_type = request.args.get('warning_type', type=str)
+    severity = request.args.get('severity', type=str)
+    query = SpecialWarning.query
+    if warning_type in ['Warning', 'Caution', 'Incompatibility']:
+        query = query.filter_by(warning_type=warning_type)
+    if severity in ['Low', 'Moderate', 'High']:
+        query = query.filter_by(severity=severity)
+    warnings = query.all()
+    return render_template('medicine/oncology/warnings.html', warnings=warnings, selected_warning_type=warning_type, selected_severity=severity)
+@bp.route('/bookings/')
+@login_required
+def bookings():
+    status = request.args.get('status', type=str)
+    purpose = request.args.get('purpose', type=str)
+    query = OncologyBooking.query
+    if status in ['Scheduled', 'Completed', 'Cancelled']:
+        query = query.filter_by(status=status)
+    if purpose in ['Consultation', 'Chemotherapy', 'Follow-up', 'Radiation', 'Surgery']:
+        query = query.filter_by(purpose=purpose)
+    bookings = query.all()
+    return render_template('medicine/oncology/bookings.html', bookings=bookings, selected_status=status, selected_purpose=purpose)

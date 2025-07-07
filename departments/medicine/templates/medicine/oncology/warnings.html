@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+  <style>
+    .nav-pills .nav-link { color: #343a40; background-color: #f8f9fa; border-radius: 0.25rem; margin: 0.2rem; transition: all 0.3s ease; }
+    .nav-pills .nav-link:hover { color: #0056b3; background-color: #e9ecef; }
+    .nav-pills .nav-link.active { color: #ffffff; background-color: #007bff; font-weight: bold; }
+    .filter-form { margin-bottom: 1.5rem; }
+  </style>
+  <div class="mb-4">
+    <nav class="nav nav-pills flex-column flex-sm-row">
+      <a class="nav-link" href="{{ url_for('medicine.oncology') }}">Search Patient</a>
+      <a class="nav-link" href="{{ url_for('medicine.patients_list') }}">Patients List</a>
+      <a class="nav-link" href="{{ url_for('medicine.drugs') }}">Drugs</a>
+      <a class="nav-link" href="{{ url_for('medicine.regimens') }}">Regimens</a>
+      <a class="nav-link active" href="{{ url_for('medicine.warnings') }}">Warnings</a>
+    </nav>
+  </div>
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title fw-bold text-primary">Special Warnings, Cautions, and Incompatibilities</h5>
+      <form class="filter-form" method="GET">
+        <div class="row">
+          <div class="col-md-4">
+            <label for="warning_type">Filter by Warning Type</label>
+            <select name="warning_type" id="warning_type" class="form-control">
+              <option value="">All Types</option>
+              <option value="Warning" {% if selected_warning_type == 'Warning' %}selected{% endif %}>Warning</option>
+              <option value="Caution" {% if selected_warning_type == 'Caution' %}selected{% endif %}>Caution</option>
+              <option value="Incompatibility" {% if selected_warning_type == 'Incompatibility' %}selected{% endif %}>Incompatibility</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="severity">Filter by Severity</label>
+            <select name="severity" id="severity" class="form-control">
+              <option value="">All Severities</option>
+              <option value="Low" {% if selected_severity == 'Low' %}selected{% endif %}>Low</option>
+              <option value="Moderate" {% if selected_severity == 'Moderate' %}selected{% endif %}>Moderate</option>
+              <option value="High" {% if selected_severity == 'High' %}selected{% endif %}>High</option>
+            </select>
+          </div>
+          <div class="col-md-4 align-self-end">
+            <button type="submit" class="btn btn-primary">Apply Filters</button>
+          </div>
+        </div>
+      </form>
+      {% if warnings %}
+        <ul class="list-group">
+          {% for warning in warnings %}
+            <li class="list-group-item">
+              <strong>Drug: {{ warning.drug.name }}</strong><br>
+              <small>
+                Type: {{ warning.warning_type }}<br>
+                Severity: {{ warning.severity }}<br>
+                Description: {{ warning.description }}<br>
+                Created: {{ warning.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+              </small>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No warnings found.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

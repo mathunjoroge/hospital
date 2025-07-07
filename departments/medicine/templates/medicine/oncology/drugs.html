@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+  <style>
+    .nav-pills .nav-link { color: #343a40; background-color: #f8f9fa; border-radius: 0.25rem; margin: 0.2rem; transition: all 0.3s ease; }
+    .nav-pills .nav-link:hover { color: #0056b3; background-color: #e9ecef; }
+    .nav-pills .nav-link.active { color: #ffffff; background-color: #007bff; font-weight: bold; }
+    .filter-form { margin-bottom: 1.5rem; }
+  </style>
+  <div class="mb-4">
+    <nav class="nav nav-pills flex-column flex-sm-row">
+      <a class="nav-link" href="{{ url_for('medicine.oncology') }}">Search Patient</a>
+      <a class="nav-link" href="{{ url_for('medicine.patients_list') }}">Patients List</a>
+      <a class="nav-link active" href="{{ url_for('medicine.drugs') }}">Drugs</a>
+      <a class="nav-link" href="{{ url_for('medicine.regimens') }}">Regimens</a>
+      <a class="nav-link" href="{{ url_for('medicine.warnings') }}">Warnings</a>
+    </nav>
+  </div>
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title fw-bold text-primary">Oncology Drugs</h5>
+      <form class="filter-form" method="GET">
+        <div class="row">
+          <div class="col-md-4">
+            <label for="category_id">Filter by Category</label>
+            <select name="category_id" id="category_id" class="form-control">
+              <option value="">All Categories</option>
+              {% for category in categories %}
+                <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
+                  {{ category.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="severity">Filter by Warning Severity</label>
+            <select name="severity" id="severity" class="form-control">
+              <option value="">All Severities</option>
+              <option value="Low" {% if selected_severity == 'Low' %}selected{% endif %}>Low</option>
+              <option value="Moderate" {% if selected_severity == 'Moderate' %}selected{% endif %}>Moderate</option>
+              <option value="High" {% if selected_severity == 'High' %}selected{% endif %}>High</option>
+            </select>
+          </div>
+          <div class="col-md-4 align-self-end">
+            <button type="submit" class="btn btn-primary">Apply Filters</button>
+          </div>
+        </div>
+      </form>
+      {% if drugs %}
+        <ul class="list-group">
+          {% for drug in drugs %}
+            <li class="list-group-item">
+              <strong>{{ drug.name }}</strong> ({{ drug.dosage_form }}, {{ drug.strength }})<br>
+              <small>
+                Category: {{ drug.category.name if drug.category else 'N/A' }}<br>
+                Manufacturer: {{ drug.manufacturer or 'N/A' }}<br>
+                Storage: {{ drug.storage_conditions or 'N/A' }}<br>
+                Mechanism: {{ drug.mechanism_of_action or 'N/A' }}<br>
+                Side Effects: {{ drug.side_effects or 'N/A' }}<br>
+                Warnings:
+                {% for warning in drug.warnings %}
+                  {{ warning.warning_type }} ({{ warning.severity }}): {{ warning.description }}{% if not loop.last %}; {% endif %}
+                {% else %}
+                  None
+                {% endfor %}
+              </small>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No drugs found.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+  <style>
+    .nav-pills .nav-link { color: #343a40; background-color: #f8f9fa; border-radius: 0.25rem; margin: 0.2rem; transition: all 0.3s ease; }
+    .nav-pills .nav-link:hover { color: #0056b3; background-color: #e9ecef; }
+    .nav-pills .nav-link.active { color: #ffffff; background-color: #007bff; font-weight: bold; }
+    .filter-form { margin-bottom: 1.5rem; }
+  </style>
+  <div class="mb-4">
+    <nav class="nav nav-pills flex-column flex-sm-row">
+      <a class="nav-link" href="{{ url_for('medicine.oncology') }}">Search Patient</a>
+      <a class="nav-link" href="{{ url_for('medicine.patients_list') }}">Patients List</a>
+      <a class="nav-link" href="{{ url_for('medicine.drugs') }}">Drugs</a>
+      <a class="nav-link" href="{{ url_for('medicine.regimens') }}">Regimens</a>
+      <a class="nav-link" href="{{ url_for('medicine.warnings') }}">Warnings</a>
+      <a class="nav-link active" href="{{ url_for('medicine.bookings') }}">Bookings</a>
+    </nav>
+  </div>
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title fw-bold text-primary">Oncology Bookings</h5>
+      <form class="filter-form" method="GET">
+        <div class="row">
+          <div class="col-md-4">
+            <label for="status">Filter by Status</label>
+            <select name="status" id="status" class="form-control">
+              <option value="">All Statuses</option>
+              <option value="Scheduled" {% if selected_status == 'Scheduled' %}selected{% endif %}>Scheduled</option>
+              <option value="Completed" {% if selected_status == 'Completed' %}selected{% endif %}>Completed</option>
+              <option value="Cancelled" {% if selected_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="purpose">Filter by Purpose</label>
+            <select name="purpose" id="purpose" class="form-control">
+              <option value="">All Purposes</option>
+              <option value="Consultation" {% if selected_purpose == 'Consultation' %}selected{% endif %}>Consultation</option>
+              <option value="Chemotherapy" {% if selected_purpose == 'Chemotherapy' %}selected{% endif %}>Chemotherapy</option>
+              <option value="Follow-up" {% if selected_purpose == 'Follow-up' %}selected{% endif %}>Follow-up</option>
+              <option value="Radiation" {% if selected_purpose == 'Radiation' %}selected{% endif %}>Radiation</option>
+              <option value="Surgery" {% if selected_purpose == 'Surgery' %}selected{% endif %}>Surgery</option>
+            </select>
+          </div>
+          <div class="col-md-4 align-self-end">
+            <button type="submit" class="btn btn-primary">Apply Filters</button>
+          </div>
+        </div>
+      </form>
+      {% if bookings %}
+        <ul class="list-group">
+          {% for booking in bookings %}
+            <li class="list-group-item">
+              <strong>Patient: {{ booking.patient.name }} ({{ booking.patient.patient_id }})</strong><br>
+              <small>
+                Booking Date: {{ booking.booking_date.strftime('%Y-%m-%d %H:%M') }}<br>
+                Purpose: {{ booking.purpose }}<br>
+                Status: {{ booking.status }}<br>
+                Notes: {{ booking.notes or 'N/A' }}<br>
+                Created: {{ booking.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+              </small>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No bookings found.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
