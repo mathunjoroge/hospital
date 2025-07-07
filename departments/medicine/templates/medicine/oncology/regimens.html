@@ -1,74 +1,586 @@
 {% extends "base.html" %}
 {% block content %}
-  <style>
-    .nav-pills .nav-link { color: #343a40; background-color: #f8f9fa; border-radius: 0.25rem; margin: 0.2rem; transition: all 0.3s ease; }
-    .nav-pills .nav-link:hover { color: #0056b3; background-color: #e9ecef; }
-    .nav-pills .nav-link.active { color: #ffffff; background-color: #007bff; font-weight: bold; }
-    .filter-form { margin-bottom: 1.5rem; }
-  </style>
-  <div class="mb-4">
-    <nav class="nav nav-pills flex-column flex-sm-row">
-      <a class="nav-link" href="{{ url_for('medicine.oncology') }}">Search Patient</a>
-      <a class="nav-link" href="{{ url_for('medicine.patients_list') }}">Patients List</a>
-      <a class="nav-link" href="{{ url_for('medicine.drugs') }}">Drugs</a>
-      <a class="nav-link active" href="{{ url_for('medicine.regimens') }}">Regimens</a>
-      <a class="nav-link" href="{{ url_for('medicine.warnings') }}">Warnings</a>
-    </nav>
-  </div>
-  <div class="card shadow-sm">
-    <div class="card-body">
-      <h5 class="card-title fw-bold text-primary">Oncology Regimens</h5>
-      <form class="filter-form" method="GET">
-        <div class="row">
-          <div class="col-md-4">
-            <label for="category_id">Filter by Category</label>
-            <select name="category_id" id="category_id" class="form-control">
-              <option value="">All Categories</option>
-              {% for category in categories %}
-                <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
-                  {{ category.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label for="status">Filter by Status</label>
-            <select name="status" id="status" class="form-control">
-              <option value="">All Statuses</option>
-              <option value="Active" {% if selected_status == 'Active' %}selected{% endif %}>Active</option>
-              <option value="Deprecated" {% if selected_status == 'Deprecated' %}selected{% endif %}>Deprecated</option>
-              <option value="Under Review" {% if selected_status == 'Under Review' %}selected{% endif %}>Under Review</option>
-            </select>
-          </div>
-          <div class="col-md-4 align-self-end">
-            <button type="submit" class="btn btn-primary">Apply Filters</button>
-          </div>
+
+    <style>
+        :root {
+            --primary: #1a6dba;
+            --primary-light: #e6f0fa;
+            --secondary: #6c757d;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --light: #f8f9fa;
+            --dark: #343a40;
+            --border-radius: 8px;
+            --box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            --box-shadow-hover: 0 6px 16px rgba(0,0,0,0.12);
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #444;
+        }
+        
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Navigation */
+        .nav-pills {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 8px;
+            margin-bottom: 25px;
+        }
+        
+        .nav-pills .nav-link {
+            color: var(--dark);
+            border-radius: var(--border-radius);
+            padding: 10px 20px;
+            margin: 0 4px;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .nav-pills .nav-link i {
+            margin-right: 8px;
+            font-size: 1.1rem;
+        }
+        
+        .nav-pills .nav-link:hover {
+            background-color: #e6f0fa;
+            color: var(--primary);
+            transform: translateY(-2px);
+        }
+        
+        .nav-pills .nav-link.active {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 8px rgba(26, 109, 186, 0.3);
+        }
+        
+        /* Card Styling */
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            margin-bottom: 25px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--box-shadow-hover);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--primary), #0d4e8c);
+            color: white;
+            border-radius: var(--border-radius) var(--border-radius) 0 0 !important;
+            padding: 15px 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+        }
+        
+        .card-header i {
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+        
+        /* Filter Section */
+        .filter-section {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--box-shadow);
+            margin-bottom: 25px;
+        }
+        
+        .filter-title {
+            color: var(--primary);
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--primary-light);
+            display: flex;
+            align-items: center;
+        }
+        
+        .filter-title i {
+            margin-right: 10px;
+            font-size: 1.3rem;
+        }
+        
+        .form-control, .form-select {
+            border-radius: var(--border-radius);
+            border: 1px solid #ddd;
+            padding: 10px 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 0.25rem rgba(26, 109, 186, 0.15);
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 10px 20px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background: #0d5aa7;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(26, 109, 186, 0.3);
+        }
+        
+        .btn-outline-secondary {
+            border-radius: var(--border-radius);
+            padding: 10px 20px;
+        }
+        
+        /* Regimen Cards */
+        .regimen-card {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        .regimen-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--box-shadow-hover);
+        }
+        
+        .regimen-header {
+            background: var(--primary-light);
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e6ed;
+        }
+        
+        .regimen-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+        
+        .regimen-details {
+            color: var(--secondary);
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+        
+        .regimen-body {
+            padding: 20px;
+            flex-grow: 1;
+        }
+        
+        .regimen-info-item {
+            margin-bottom: 12px;
+            display: flex;
+        }
+        
+        .regimen-info-label {
+            font-weight: 600;
+            min-width: 140px;
+            color: var(--dark);
+        }
+        
+        .regimen-info-value {
+            color: var(--secondary);
+            flex-grow: 1;
+        }
+        
+        .badge-custom {
+            padding: 6px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 0.8rem;
+        }
+        
+        .badge-danger {
+            background-color: rgba(220, 53, 69, 0.15);
+            color: var(--danger);
+        }
+        
+        .badge-success {
+            background-color: rgba(40, 167, 69, 0.15);
+            color: var(--success);
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 40px 20px;
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+        
+        .no-results i {
+            font-size: 3rem;
+            color: #d1d8e0;
+            margin-bottom: 20px;
+        }
+        
+        .no-results h4 {
+            color: var(--secondary);
+            font-weight: 500;
+        }
+        
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 15px 20px;
+            box-shadow: var(--box-shadow);
+            margin-bottom: 25px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 0 15px;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .stat-label {
+            color: var(--secondary);
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-bar {
+                flex-direction: column;
+            }
+            
+            .stat-item {
+                margin-bottom: 15px;
+            }
+            
+            .stat-item:last-child {
+                margin-bottom: 0;
+            }
+            
+            .regimen-info-item {
+                flex-direction: column;
+            }
+            
+            .regimen-info-label {
+                min-width: auto;
+                margin-bottom: 4px;
+            }
+        }
+        
+        /* Modal enhancements */
+        .modal-regimen-name {
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary-light);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .modal-section {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .modal-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .modal-section-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .modal-section-title i {
+            margin-right: 10px;
+            font-size: 1.2rem;
+            color: var(--primary);
+        }
+    </style>
+
+    <div class="app-container">
+        <!-- Navigation Pills -->
+        <nav class="nav nav-pills flex-column flex-sm-row">
+            <a class="nav-link" href="{{ url_for('medicine.oncology') }}"><i class="fas fa-search"></i> Search Patient</a>
+            <a class="nav-link" href="{{ url_for('medicine.patients_list') }}"><i class="fas fa-list"></i> Patients List</a>
+            <a class="nav-link" href="{{ url_for('medicine.drugs') }}"><i class="fas fa-pills"></i> Drugs</a>
+            <a class="nav-link active" href="{{ url_for('medicine.regimens') }}"><i class="fas fa-prescription-bottle-alt"></i> Regimens</a>
+            <a class="nav-link" href="{{ url_for('medicine.warnings') }}"><i class="fas fa-exclamation-triangle"></i> Warnings</a>
+            <a class="nav-link" href="{{ url_for('medicine.bookings') }}"><i class="fas fa-calendar-alt"></i> Bookings</a>
+        </nav>
+        
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value">{{ regimen_count }}</div>
+                <div class="stat-label">Total Regimens</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ active_regimen_count }}</div>
+                <div class="stat-label">Active Regimens</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ high_severity_regimen_count }}</div>
+                <div class="stat-label">High Severity Drugs</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ new_regimen_count }}</div>
+                <div class="stat-label">New This Month</div>
+            </div>
         </div>
-      </form>
-      {% if regimens %}
-        <ul class="list-group">
-          {% for regimen in regimens %}
-            <li class="list-group-item">
-              <strong>{{ regimen.name }}</strong><br>
-              <small>
-                Category: {{ regimen.category.name if regimen.category else 'N/A' }}<br>
-                Indication: {{ regimen.primary_indication or 'N/A' }}<br>
-                Status: {{ regimen.status }}<br>
-                Cycles: {{ regimen.total_cycles }} ({{ regimen.cycle_duration_days }} days each)<br>
-                Contraindications: {{ regimen.contraindications or 'N/A' }}<br>
-                Drugs:
-                {% for assoc in regimen.drugs %}
-                  {{ assoc.drug.name }} (Dose: {{ assoc.dose or 'N/A' }}, Schedule: {{ assoc.administration_schedule or 'N/A' }}, Route: {{ assoc.administration_route or 'N/A' }}){% if not loop.last %}, {% endif %}
+        
+        <!-- Main Card -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-prescription-bottle-alt"></i> Oncology Regimens Management
+            </div>
+            <div class="card-body">
+                <!-- Filter Section -->
+                <div class="filter-section">
+                    <h5 class="filter-title"><i class="fas fa-filter"></i> Filter Regimens</h5>
+                    <form class="filter-form" method="GET">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="category_id" class="form-label">Category</label>
+                                <select name="category_id" id="category_id" class="form-select">
+                                    <option value="">All Categories</option>
+                                    {% for category in categories %}
+                                        <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
+                                            {{ category.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="status" class="form-label">Status</label>
+                                <select name="status" id="status" class="form-select">
+                                    <option value="">All Statuses</option>
+                                    <option value="Active" {% if selected_status == 'Active' %}selected{% endif %}>Active</option>
+                                    <option value="Deprecated" {% if selected_status == 'Deprecated' %}selected{% endif %}>Deprecated</option>
+                                    <option value="Under Review" {% if selected_status == 'Under Review' %}selected{% endif %}>Under Review</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <div class="d-flex w-100">
+                                    <button type="button" class="btn btn-outline-secondary me-2" id="resetFilters">
+                                        <i class="fas fa-sync-alt me-1"></i> Reset
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-filter me-1"></i> Apply Filters
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                
+                {% if regimens %}
+                    <!-- Regimen Cards Grid -->
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                        {% for regimen in regimens %}
+                            <div class="col">
+                                <div class="regimen-card">
+                                    <div class="regimen-header">
+                                        <h5 class="regimen-name">{{ regimen.name }}</h5>
+                                        <p class="regimen-details">{{ regimen.primary_indication or 'N/A' }}</p>
+                                        <div>
+                                            <span class="badge badge-custom badge-{{ 'success' if regimen.status == 'Active' else 'danger' }}">
+                                                {{ regimen.status }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="regimen-body">
+                                        <div class="regimen-info-item">
+                                            <span class="regimen-info-label">Category:</span>
+                                            <span class="regimen-info-value">{{ regimen.category.name if regimen.category else 'N/A' }}</span>
+                                        </div>
+                                        <div class="regimen-info-item">
+                                            <span class="regimen-info-label">Cycles:</span>
+                                            <span class="regimen-info-value">{{ regimen.total_cycles }} ({{ regimen.cycle_duration_days }} days each)</span>
+                                        </div>
+                                        <div class="regimen-info-item">
+                                            <span class="regimen-info-label">Drugs:</span>
+                                            <span class="regimen-info-value">
+                                                {% for assoc in regimen.drugs %}
+                                                    {{ assoc.drug.name }}{% if not loop.last %}, {% endif %}
+                                                {% else %}
+                                                    None
+                                                {% endfor %}
+                                            </span>
+                                        </div>
+                                        <div class="mt-3 d-flex justify-content-end">
+                                            <button class="btn btn-sm btn-outline-primary view-details" 
+                                                    data-regimen-id="{{ regimen.id }}"
+                                                    data-regimen-name="{{ regimen.name }}"
+                                                    data-indication="{{ regimen.primary_indication or 'N/A' }}"
+                                                    data-status="{{ regimen.status }}"
+                                                    data-category="{{ regimen.category.name if regimen.category else 'N/A' }}"
+                                                    data-total-cycles="{{ regimen.total_cycles }}"
+                                                    data-cycle-duration="{{ regimen.cycle_duration_days }}"
+                                                    data-contraindications="{{ regimen.contraindications or 'N/A' }}"
+                                                    data-drugs="{% for assoc in regimen.drugs %}{{ assoc.drug.name }} (Dose: {{ assoc.dose or 'N/A' }}, Schedule: {{ assoc.administration_schedule or 'N/A' }}, Route: {{ assoc.administration_route or 'N/A' }}){% if not loop.last %}; {% endif %}{% endfor %}">
+                                                <i class="fas fa-info-circle me-1"></i> More Details
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
                 {% else %}
-                  None
-                {% endfor %}
-              </small>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p>No regimens found.</p>
-      {% endif %}
+                    <!-- No Results -->
+                    <div class="no-results">
+                        <i class="fas fa-prescription-bottle-alt"></i>
+                        <h4>No regimens found matching your filters</h4>
+                        <p class="text-muted">Try adjusting your filter criteria or resetting the filters</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
-  </div>
+
+    <!-- Regimen Detail Modal -->
+    <div class="modal fade" id="regimenDetailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Regimen Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="regimenDetailContent">
+                    <!-- Details will be loaded here via JavaScript -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Simple animation for regimen cards on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.regimen-card');
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, 150 * index);
+            });
+            
+            // Reset filters button
+            document.getElementById('resetFilters').addEventListener('click', function() {
+                document.getElementById('category_id').value = '';
+                document.getElementById('status').value = '';
+            });
+            
+            // Regimen detail modal
+            const detailButtons = document.querySelectorAll('.view-details');
+            const modal = new bootstrap.Modal(document.getElementById('regimenDetailModal'));
+            const detailContent = document.getElementById('regimenDetailContent');
+            
+            detailButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Get all data attributes
+                    const regimenName = this.getAttribute('data-regimen-name');
+                    const indication = this.getAttribute('data-indication');
+                    const status = this.getAttribute('data-status');
+                    const category = this.getAttribute('data-category');
+                    const totalCycles = this.getAttribute('data-total-cycles');
+                    const cycleDuration = this.getAttribute('data-cycle-duration');
+                    const contraindications = this.getAttribute('data-contraindications');
+                    const drugs = this.getAttribute('data-drugs') || 'None';
+                    
+                    // Create HTML for the modal content
+                    detailContent.innerHTML = `
+                        <div class="regimen-detail">
+                            <h3 class="modal-regimen-name">${regimenName}</h3>
+                            <p class="text-muted mb-4">${indication}</p>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="modal-section">
+                                        <div class="modal-section-title">
+                                            <i class="fas fa-info-circle"></i>
+                                            <h5>Basic Information</h5>
+                                        </div>
+                                        <div class="regimen-info-item">
+                                            <span class="regimen-info-label">Category:</span>
+                                            <span class="regimen-info-value">${category}</span>
+                                        </div>
+                                        <div class="regimen-info-item">
+                                            <span class="regimen-info-label">Status:</span>
+                                            <span class="regimen-info-value">${status}</span>
+                                        </div>
+                                        <div class="regimen-info-item">
+                                            <span class="regimen-info-label">Indication:</span>
+                                            <span class="regimen-info-value">${indication}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="modal-section">
+                                        <div class="modal-section-title">
+                                            <i class="fas fa-prescription-bottle-alt"></i>
+                                            <h5>Regimen Details</h5>
+                                        </div>
+                                        <div class="regimen-info-item">
+                                            <span class="regimen-info-label">Total Cycles:</span>
+                                            <span class="regimen-info-value">${totalCycles}</span>
+                                        </div>
+                                        <div class="regimen-info-item">
+                                            <span class="regimen-info-label">Cycle Duration:</span>
+                                            <span class="regimen-info-value">${cycleDuration} days</span>
+                                        </div>
+                                        <div class="regimen-info-item">
+                                            <span class="regimen-info-label">Contraindications:</span>
+                                            <span class="regimen-info-value">${contraindications}</span>
+                                        </div>
+                                        <div class="regimen-info-item">
+                                            <span class="regimen-info-label">Drugs:</span>
+                                            <span class="regimen-info-value">${drugs.replace(';', '<br>')}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    modal.show();
+                });
+            });
+        });
+    </script>
+
 {% endblock %}
