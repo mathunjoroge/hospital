@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .nav-pills .nav-link {
+    color: #212529 !important; /* Force dark text */
+    background-color: #ffffff !important; /* Force white background */
+    border: 1px solid #dee2e6 !important; /* Border for visibility */
+    border-radius: 0.375rem !important;
+    margin: 0.2rem !important;
+    transition: all 0.3s ease;
+  }
+
+  .nav-pills .nav-link:hover {
+    color: #0056b3 !important;
+    background-color: #f1f3f5 !important;
+  }
+
+  .nav-pills .nav-link.active {
+    color: #ffffff !important;
+    background-color: #0d6efd !important;
+    font-weight: 600 !important;
+    border-color: #0d6efd !important;
+  }
+</style>
+  <div class="mb-4">
+    <nav class="nav nav-pills flex-column flex-sm-row">
+      <a class="nav-link" href="{{ url_for('medicine.oncology') }}">Search Patient</a>
+      <a class="nav-link active" href="{{ url_for('medicine.patients_list') }}">Patients List</a>
+      <a class="nav-link" href="{{ url_for('medicine.drugs') }}">Drugs</a>
+      <a class="nav-link" href="{{ url_for('medicine.regimens') }}">Regimens</a>
+      <a class="nav-link" href="{{ url_for('medicine.bookings') }}">Bookings</a>
+    </nav>
+  </div>
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title fw-bold text-primary">Patients List</h5>
+      {% if patients %}
+        <ul class="list-group">
+          {% for patient in patients %}
+            <li class="list-group-item">
+              <strong>{{ patient.name }}</strong> (ID: {{ patient.patient_id }})
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No patients found.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

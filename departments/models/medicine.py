@@ -372,6 +372,160 @@ class DiseaseLab(db.Model):
     lab_test = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text)
 
-    # Relationship back to Disease handled via backref
+class OncoPatient(db.Model):
+    """Represents a patient enrolled in oncology care."""
+    __tablename__ = 'onco_patients'
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False, index=True)  # Links to Patient model
+    diagnosis = db.Column(db.String(200), nullable=False)  # e.g., 'Breast Cancer, Stage II'
+    diagnosis_date = db.Column(db.Date, nullable=False)
+    cancer_type = db.Column(db.String(100), nullable=False)  # e.g., 'Breast', 'Lung', 'Prostate'
+    stage = db.Column(db.String(20), nullable=False)  # e.g., 'Stage I', 'Stage II'
+    date_enrolled = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    status = db.Column(db.String(20), default='Active', nullable=False)  # e.g., 'Active', 'Completed', 'Discontinued'
+
+    patient = db.relationship('Patient', backref=db.backref('oncology_records', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f"<OncoPatient {self.patient_id}: {self.diagnosis}>"
+
+class OncoDrugCategory(db.Model):
+    __tablename__ = 'onco_drug_categories'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    drugs = db.relationship('departments.models.medicine.OncologyDrug', backref='category', lazy='dynamic')
+
+    def __repr__(self):
+        return f"<OncoDrugCategory {self.name}>"
+
+class OncologyDrug(db.Model):
+    __tablename__ = 'oncology_drugs'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, index=True)
+    description = db.Column(db.Text)
+    dosage_form = db.Column(db.String(50), nullable=False)
+    strength = db.Column(db.String(50), nullable=False)
+    mechanism_of_action = db.Column(db.Text)
+    side_effects = db.Column(db.Text)
+    special_handling = db.Column(db.Text)
+    manufacturer = db.Column(db.String(100))
+    storage_conditions = db.Column(db.String(100))
+    is_active = db.Column(db.Boolean, default=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('onco_drug_categories.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    regimens = db.relationship('departments.models.medicine.RegimenDrugAssociation', backref='drug', lazy='dynamic')
+    warnings = db.relationship('departments.models.medicine.SpecialWarning', backref='drug', lazy='dynamic')
+
+    def __repr__(self):
+        return f"<OncologyDrug {self.name}>"
+
+class RegimenCategory(db.Model):
+    __tablename__ = 'regimen_categories'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    regimens = db.relationship('departments.models.medicine.OncologyRegimen', backref='category', lazy='dynamic')
+
+    def __repr__(self):
+        return f"<RegimenCategory {self.name}>"
+
+class OncologyRegimen(db.Model):
+    __tablename__ = 'oncology_regimens'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, index=True)
+    description = db.Column(db.Text)
+    cycle_duration_days = db.Column(db.Integer, nullable=False)
+    total_cycles = db.Column(db.Integer, nullable=False)
+    primary_indication = db.Column(db.String(100))
+    clinical_evidence = db.Column(db.Text)
+    status = db.Column(db.String(20), default='Active')
+    approval_status = db.Column(db.String(50))
+    contraindications = db.Column(db.Text)
+    category_id = db.Column(db.Integer, db.ForeignKey('regimen_categories.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    drugs = db.relationship('departments.models.medicine.RegimenDrugAssociation', backref='regimen', lazy='dynamic')
+
+    def __repr__(self):
+        return f"<OncologyRegimen {self.name}>"
+
+class RegimenDrugAssociation(db.Model):
+    __tablename__ = 'regimen_drug_association'
+    regimen_id = db.Column(db.Integer, db.ForeignKey('oncology_regimens.id'), primary_key=True)
+    drug_id = db.Column(db.Integer, db.ForeignKey('oncology_drugs.id'), primary_key=True)
+    dose = db.Column(db.String(50))
+    administration_schedule = db.Column(db.String(100))
+    administration_route = db.Column(db.String(50))
+    sequence = db.Column(db.Integer)
+    cycle_specific_dose = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<RegimenDrugAssociation regimen_id={self.regimen_id}, drug_id={self.drug_id}>"
+
+class SpecialWarning(db.Model):
+    __tablename__ = 'special_warnings'
+    id = db.Column(db.Integer, primary_key=True)
+    drug_id = db.Column(db.Integer, db.ForeignKey('oncology_drugs.id'), nullable=False)
+    warning_type = db.Column(db.String(20), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    severity = db.Column(db.String(20), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<SpecialWarning {self.warning_type} for drug_id={self.drug_id}>"
+
+class OncoPrescription(db.Model):
+    """Represents a prescription for an oncology patient."""
+    __tablename__ = 'onco_prescriptions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    onco_patient_id = db.Column(db.Integer, db.ForeignKey('onco_patients.id'), nullable=False, index=True)
+    regimen_id = db.Column(db.Integer, db.ForeignKey('oncology_regimens.id'), nullable=False, index=True)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=True)
+    prescribed_by = db.Column(db.String(100), nullable=False)  # Doctor's name or ID
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    onco_patient = db.relationship('OncoPatient', backref=db.backref('prescriptions', lazy='dynamic', cascade='all, delete-orphan'))
+    regimen = db.relationship('OncologyRegimen', backref=db.backref('prescriptions', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f"<OncoPrescription {self.id} for OncoPatient {self.onco_patient_id}>"
+
+class OncoTreatmentRecord(db.Model):
+    """Tracks treatment sessions or cycles for oncology patients."""
+    __tablename__ = 'onco_treatment_records'
+
+    id = db.Column(db.Integer, primary_key=True)
+    onco_patient_id = db.Column(db.Integer, db.ForeignKey('onco_patients.id'), nullable=False, index=True)
+    prescription_id = db.Column(db.Integer, db.ForeignKey('onco_prescriptions.id'), nullable=False, index=True)
+    treatment_date = db.Column(db.Date, nullable=False)
+    cycle_number = db.Column(db.Integer, nullable=False)  # e.g., Cycle 1, Cycle 2
+    administered_drugs = db.Column(db.Text, nullable=True)  # JSON or text list of drugs administered
+    notes = db.Column(db.Text, nullable=True)  # Observations or side effects
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    onco_patient = db.relationship('OncoPatient', backref=db.backref('treatment_records', lazy='dynamic', cascade='all, delete-orphan'))
+    prescription = db.relationship('OncoPrescription', backref=db.backref('treatment_records', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f"<OncoTreatmentRecord {self.id} for OncoPatient {self.onco_patient_id}>"
+class OncologyBooking(db.Model):
+    __tablename__ = 'oncology_bookings'
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
+    booking_date = db.Column(db.DateTime, nullable=False)
+    purpose = db.Column(db.String(50), nullable=False)
+    status = db.Column(db.String(20), nullable=False)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<OncologyBooking {self.purpose} for patient_id={self.patient_id}>"    
 
   

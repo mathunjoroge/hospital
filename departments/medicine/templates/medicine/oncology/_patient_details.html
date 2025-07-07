@@ -1,0 +1,21 @@
+<!-- templates/medicine/oncology/_patient_details.html -->
+<div class="card mt-4 shadow-sm">
+  <div class="card-body">
+    <h5 class="card-title">{{ patient.name }}'s Oncology Details</h5>
+
+    {% if oncology_record %}
+      <ul class="list-group list-group-flush">
+        <li class="list-group-item"><strong>Diagnosis Date:</strong> {{ oncology_record.diagnosis_date }}</li>
+        <li class="list-group-item"><strong>Cancer Type:</strong> {{ oncology_record.cancer_type }}</li>
+        <li class="list-group-item"><strong>Stage:</strong> {{ oncology_record.stage }}</li>
+        <li class="list-group-item"><strong>Histology:</strong> {{ oncology_record.histology }}</li>
+        <li class="list-group-item"><strong>Treatment Plan:</strong> {{ oncology_record.treatment_plan }}</li>
+        <li class="list-group-item"><strong>Status:</strong> 
+          <span class="badge bg-info">{{ oncology_record.status }}</span>
+        </li>
+      </ul>
+    {% else %}
+      <p class="text-muted">No oncology record found for this patient.</p>
+    {% endif %}
+  </div>
+</div>
