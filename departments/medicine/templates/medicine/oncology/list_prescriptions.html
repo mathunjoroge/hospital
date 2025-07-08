@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  {% include "medicine/oncology/includes/nav.html" %}
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h4 class="card-title fw-bold text-primary mb-4">
+        Chemotherapy Prescriptions for {{ patient.name }} (ID: {{ patient.patient_id }})
+      </h4>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% if not prescriptions %}
+        <div class="alert alert-info text-center py-4" role="alert">
+          No prescriptions found for this patient.
+          <a href="{{ url_for('medicine.new_prescription') }}" class="alert-link">Create a new prescription</a>.
+        </div>
+      {% else %}
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle mb-4">
+            <thead class="table-light">
+              <tr>
+                <th>Regimen</th>
+                <th>Start Date</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for prescription in prescriptions %}
+                <tr>
+                  <td>{{ prescription.regimen_name }}</td>
+                  <td>{{ prescription.start_date }}</td>
+                  <td>{{ prescription.notes or 'None' }}</td>
+                </tr>
+                <tr>
+                  <td colspan="3">
+                    {% if prescription.drugs %}
+                      <div class="table-responsive">
+                        <table class="table table-sm table-striped mb-0">
+                          <thead class="table-secondary">
+                            <tr>
+                              <th>Drug</th>
+                              <th>Dosage</th>
+                              <th>Calculated Dose</th>
+                              <th>Infusion Fluid</th>
+                              <th>Infusion Time</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for drug in prescription.drugs %}
+                              <tr>
+                                <td><strong>{{ drug.name }}</strong></td>
+                                <td>{{ drug.dosage or 'Not specified' }}</td>
+                                <td>{{ drug.calculated_dose or 'Not specified' }}</td>
+                                <td>{{ drug.infusion_fluid or 'Not specified' }}</td>
+                                <td>{{ drug.infusion_time or 'Not specified' }}</td>
+                              </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+                    {% else %}
+                      <p class="text-muted mb-0">No drugs listed for this regimen.</p>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+
+      <div class="d-flex justify-content-end mt-4">
+        <a href="{{ url_for('medicine.new_prescription') }}" class="btn btn-primary">
+          <i class="fas fa-plus me-1"></i> New Prescription
+        </a>
+        <a href="{{ url_for('medicine.bookings') }}" class="btn btn-outline-secondary ms-2">
+          <i class="fas fa-arrow-left me-1"></i> Back to Bookings
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -525,15 +525,31 @@ class OncoTreatmentRecord(db.Model):
 class OncologyBooking(db.Model):
     __tablename__ = 'oncology_bookings'
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
-    booking_date = db.Column(db.DateTime, nullable=False)
+    patient_id = db.Column(db.Text, db.ForeignKey('patients.patient_id'), nullable=False)
+    booking_date = db.Column(db.Date, nullable=False)
     purpose = db.Column(db.String(50), nullable=False)
     status = db.Column(db.String(20), nullable=False)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    patient = db.relationship('Patient', backref='oncology_bookings')
 
     def __repr__(self):
-        return f"<OncologyBooking {self.purpose} for patient_id={self.patient_id}>"    
+        return f"<OncologyBooking {self.purpose} for patient_id={self.patient_id}>" 
+class PrescriptionDrugDetail(db.Model):
+    __tablename__ = 'prescription_drug_details'
+    id = db.Column(db.Integer, primary_key=True)
+    prescription_id = db.Column(db.Integer, db.ForeignKey('onco_prescriptions.id'), nullable=False)
+    drug_id = db.Column(db.Integer, db.ForeignKey('oncology_drugs.id'), nullable=False)
+    dosage = db.Column(db.String(50))  # e.g., "60 mg/m²", "AUC 5"
+    calculated_dose = db.Column(db.String(50))  # e.g., "1200 mg"
+    infusion_fluid = db.Column(db.String(100))  # e.g., "Normal Saline"
+    infusion_time = db.Column(db.String(50))  # e.g., "1 hour"
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    prescription = db.relationship('OncoPrescription', backref=db.backref('drug_details', lazy='dynamic', cascade='all, delete-orphan'))
+    drug = db.relationship('OncologyDrug', backref=db.backref('prescription_details', lazy='dynamic'))
+
+    def __repr__(self):
+        return f"<PrescriptionDrugDetail prescription_id={self.prescription_id}, drug_id={self.drug_id}>"    
 
   
