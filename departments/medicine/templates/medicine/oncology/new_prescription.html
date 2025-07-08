@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="container mt-4">
+    {% include "medicine/oncology/includes/nav.html" %}
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title fw-bold text-primary">New Chemotherapy Prescription</h5>
+
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- Warning for no bookings or regimens -->
+        {% if no_bookings %}
+          <div class="alert alert-warning" role="alert">
+            No scheduled chemotherapy bookings available. <a href="{{ url_for('medicine.new_booking') }}" class="alert-link">Create a booking</a> first.
+          </div>
+        {% elif no_regimens %}
+          <div class="alert alert-warning" role="alert">
+            No regimens available. <a href="{{ url_for('medicine.regimens') }}" class="alert-link">Add a regimen</a> first.
+          </div>
+        {% endif %}
+
+        <!-- Prescription form -->
+        <form method="POST" action="{{ url_for('medicine.new_prescription') }}" {% if no_bookings or no_regimens %}class="disabled"{% endif %}>
+          <div class="mb-3">
+            <label for="booking_id" class="form-label">Chemotherapy Booking</label>
+            <select class="form-select" id="booking_id" name="booking_id" required {% if no_bookings %}disabled{% endif %}>
+              <option value="">Select a booking</option>
+              {% for booking in bookings %}
+                <option value="{{ booking.id }}" data-patient-name="{{ booking.patient_name }}" data-patient-id="{{ booking.patient_id }}" data-booking-date="{{ booking.booking_date }}">
+                  {{ booking.patient_name }} (ID: {{ booking.patient_id }}) - {{ booking.booking_date }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="patient_info" class="form-label">Patient Information</label>
+            <p id="patient_info" class="form-text">Select a booking to view patient details.</p>
+          </div>
+
+          <div class="mb-3">
+            <label for="regimen_id" class="form-label">Chemotherapy Regimen</label>
+            <select class="form-select" id="regimen_id" name="regimen_id" required {% if no_regimens %}disabled{% endif %}>
+              <option value="">Select a regimen</option>
+              {% for regimen in regimens %}
+                <option value="{{ regimen.id }}" data-drugs='{{ regimen_drugs[regimen.id] | tojson | safe }}'>
+                  {{ regimen.name }} ({{ regimen.description }})
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+
+
+          <!-- Regimen drugs input fields -->
+          <div class="mb-3">
+            <h6 class="fw-bold">Regimen Drugs</h6>
+            <div id="regimen-drugs">
+              <p class="text-muted">Select a regimen to view and edit drug details.</p>
+            </div>
+          </div>
+                    <div class="mb-3">
+            <label for="start_date" class="form-label">Start Date</label>
+            <input type="date" class="form-control" id="start_date" name="start_date" required {% if no_bookings %}disabled{% endif %}>
+          </div>
+
+          <div class="mb-3">
+            <label for="prescribed_by" class="form-label">Prescribed By</label>
+            <input type="text" class="form-control" id="prescribed_by" name="prescribed_by" placeholder="Enter doctor's name" required {% if no_bookings or no_regimens %}disabled{% endif %}>
+          </div>
+
+          <div class="mb-3">
+            <label for="notes" class="form-label">Notes</label>
+            <textarea class="form-control" id="notes" name="notes" rows="4" placeholder="Additional notes (optional)" {% if no_bookings or no_regimens %}disabled{% endif %}></textarea>
+          </div>
+
+          <div class="d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary" {% if no_bookings or no_regimens %}disabled{% endif %}>Create Prescription</button>
+            <a href="{{ url_for('medicine.bookings') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- JavaScript for dynamic booking and regimen drugs -->
+  <script>
+    document.getElementById('booking_id').addEventListener('change', function() {
+      const selectedOption = this.options[this.selectedIndex];
+      const patientInfo = document.getElementById('patient_info');
+      const startDateInput = document.getElementById('start_date');
+
+      if (selectedOption.value) {
+        const patientName = selectedOption.dataset.patientName;
+        const patientId = selectedOption.dataset.patientId;
+        const bookingDate = selectedOption.dataset.bookingDate;
+        patientInfo.innerHTML = `Patient: ${patientName} (ID: ${patientId})`;
+        startDateInput.value = bookingDate;
+      } else {
+        patientInfo.innerHTML = 'Select a booking to view patient details.';
+        startDateInput.value = '';
+      }
+    });
+
+    document.getElementById('regimen_id').addEventListener('change', function() {
+      const drugsSection = document.getElementById('regimen-drugs');
+      const selectedOption = this.options[this.selectedIndex];
+      const drugs = selectedOption.dataset.drugs ? JSON.parse(selectedOption.dataset.drugs) : [];
+
+      if (drugs.length === 0) {
+        drugsSection.innerHTML = '<p class="text-muted">No drugs associated with this regimen.</p>';
+        return;
+      }
+
+      let html = '<div class="list-group">';
+      drugs.forEach(drug => {
+        const isIV = drug.administration_route === 'IV' || drug.administration_route === 'Infusion';
+        html += `
+          <div class="list-group-item">
+            <input type="hidden" name="drug_id" value="${drug.id}">
+            <h6 class="mb-3 fw-bold">${drug.name}</h6>
+            <div class="row mb-2">
+              <div class="col-md-6">
+                <label class="form-label">Dosage (e.g., mg/m², AUC)</label>
+                <input type="text" class="form-control" name="dosage_${drug.id}" value="${drug.dose !== 'Not specified' ? drug.dose : ''}" placeholder="e.g., 60 mg/m², AUC 5" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Calculated Dose</label>
+                <input type="text" class="form-control" name="calculated_dose_${drug.id}" placeholder="e.g., 1200 mg" required>
+              </div>
+            </div>
+            <div class="row mb-2">
+              <div class="col-md-6">
+                <label class="form-label">Infusion Fluid</label>
+                <input type="text" class="form-control" name="infusion_fluid_${drug.id}" value="${drug.reconstitution_fluid !== 'Not applicable' ? drug.reconstitution_fluid : ''}" placeholder="e.g., Normal Saline" ${isIV ? '' : 'disabled'}>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Infusion Time</label>
+                <input type="text" class="form-control" name="infusion_time_${drug.id}" value="${drug.infusion_time !== 'Not applicable' ? drug.infusion_time : ''}" placeholder="e.g., 1 hour" ${isIV ? '' : 'disabled'}>
+              </div>
+            </div>
+            <p class="form-text mb-0">Route: ${drug.administration_route}, Schedule: ${drug.administration_schedule}</p>
+          </div>`;
+      });
+      html += '</div>';
+      drugsSection.innerHTML = html;
+    });
+  </script>
+{% endblock %}
