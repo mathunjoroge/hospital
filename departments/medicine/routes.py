@@ -4,7 +4,8 @@ from flask_wtf import FlaskForm
 from sqlalchemy import func
 from wtforms import SelectField
 from wtforms.validators import DataRequired
-
+from sqlalchemy import text
+import json
 from typing import Optional, List, Dict, Any
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -21,6 +22,7 @@ import bleach  # For sanitizing descriptions
 from . import bp
 import os
 from datetime import datetime
+from departments.models.laboratory import LabResult
 from departments.models.records import PatientWaitingList, Patient
 from departments.models.medicine import (
     SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, 
@@ -1469,11 +1471,6 @@ def add_onco_patient():
 
     patients = Patient.query.all()
     return render_template('medicine/oncology/add_onco_patient.html', patients=patients)
-@bp.route('/patients_list/')
-@login_required
-def patients_list():
-    patients = Patient.query.all()
-    return render_template('medicine/oncology/patients_list.html', patients=patients)
 
 @bp.route('/drugs/')
 @login_required
@@ -1875,3 +1872,161 @@ def all_prescriptions():
         'medicine/oncology/all_prescriptions.html',
         prescriptions=prescription_details
     )
+@bp.route('/lab_patients')
+def lab_patients():
+    requested_labs_query = text("""
+    SELECT 
+        rl.id AS request_id,
+        rl.date_requested,
+        rl.status,
+        lt.test_name,
+        p.name AS patient_name,
+        p.patient_id,
+        lr.result_id AS result_id
+    FROM requested_labs rl
+    JOIN labtests lt ON rl.lab_test_id = lt.id
+    JOIN patients p ON rl.patient_id = p.patient_id
+    LEFT JOIN lab_results lr ON rl.patient_id = lr.patient_id AND rl.lab_test_id = lr.lab_test_id
+    WHERE rl.status = 1 AND lr.result_id IS NOT NULL
+    ORDER BY rl.date_requested DESC
+    """)
+
+    results = db.session.execute(requested_labs_query).fetchall()
+
+    requested_labs_data = []
+    for lab in results:
+        date_requested = lab.date_requested
+        if isinstance(date_requested, str):
+            try:
+                date_requested = datetime.strptime(date_requested, '%Y-%m-%d %H:%M:%S')
+            except (ValueError, TypeError):
+                date_requested = None
+
+        requested_labs_data.append({
+            'test_name': lab.test_name,
+            'date_requested': date_requested.strftime('%Y-%m-%d %H:%M:%S') if date_requested else 'N/A',
+            'status': 'Completed',
+            'patient_name': lab.patient_name or 'N/A',
+            'patient_id': lab.patient_id,  # Now safely available
+            'result_id': lab.result_id
+        })
+
+    return render_template('medicine/lab_patients.html', requested_labs=requested_labs_data)
+
+
+@bp.route('/lab_results/<result_id>')
+def lab_results(result_id):
+    # Query lab result for the specific result_id
+    lab_results_query = text("""
+        SELECT lr.*, lt.test_name, p.name
+        FROM lab_results lr
+        JOIN labtests lt ON lr.lab_test_id = lt.id
+        JOIN patients p ON lr.patient_id = p.patient_id
+        WHERE lr.result_id = :result_id
+    """)
+    result = db.session.execute(lab_results_query, {"result_id": result_id}).fetchone()
+
+    # If no result found, return an error message
+    if not result:
+        flash(f'No lab result found for Result ID {result_id}.', 'danger')
+        return render_template('medicine/lab_results.html', lab_results={}, patient_name='N/A')
+
+    # Get patient name
+    patient_name = result.name if result.name else 'N/A'
+
+    # Process the single lab result for presentation
+    test_presentations = {}
+    test_id = result.lab_test_id
+    result_id = result.result_id
+    results_dict = {}
+    try:
+        results_dict = json.loads(result.result) if result.result else {}
+    except json.JSONDecodeError:
+        flash(f'Invalid result format for result ID {result_id}.', 'warning')
+        results_dict = {}
+
+    # Handle test_date as string or datetime
+    test_date = result.test_date
+    if isinstance(test_date, str):
+        try:
+            test_date = datetime.strptime(test_date, '%Y-%m-%d %H:%M:%S')
+        except (ValueError, TypeError):
+            test_date = None
+
+    # Fetch parameters for this lab test
+    params_query = text("""
+        SELECT * FROM labresults_templates
+        WHERE test_id = :test_id
+    """)
+    parameters = db.session.execute(params_query, {"test_id": test_id}).fetchall()
+
+    test_presentation = []
+    for param in parameters:
+        result_value = results_dict.get(str(param.id))
+        try:
+            result_value_float = float(result_value) if result_value is not None else None
+        except (ValueError, TypeError):
+            result_value_float = None
+
+        status = ("Invalid Result" if result_value_float is None else
+                  "Low" if result_value_float < param.normal_range_low else
+                  "High" if result_value_float > param.normal_range_high else
+                  "Normal")
+
+        test_presentation.append({
+            'parameter_name': param.parameter_name,
+            'normal_range_low': param.normal_range_low,
+            'normal_range_high': param.normal_range_high,
+            'unit': param.unit,
+            'result': result_value if result_value is not None else "N/A",
+            'status': status
+        })
+
+    test_presentations[result_id] = {
+        'test_name': result.test_name,
+        'test_date': test_date.strftime('%Y-%m-%d %H:%M:%S') if test_date else 'N/A',
+        'result_notes': result.result_notes or '',
+        'parameters': test_presentation
+    }
+
+    return render_template('medicine/lab_results.html', lab_results=test_presentations, patient_name=patient_name)
+@bp.route('/pending_lab_patients')
+def pending_lab_patients():
+    requested_labs_query = text("""
+ SELECT 
+        rl.id AS request_id,
+        rl.date_requested,
+        rl.status,
+        lt.test_name,
+        p.name AS patient_name,
+        p.patient_id,
+        lr.result_id AS result_id
+    FROM requested_labs rl
+    JOIN labtests lt ON rl.lab_test_id = lt.id
+    JOIN patients p ON rl.patient_id = p.patient_id
+    LEFT JOIN lab_results lr ON rl.patient_id = lr.patient_id AND rl.lab_test_id = lr.lab_test_id
+    WHERE rl.status = 0 AND lr.result_id IS  NULL
+    ORDER BY rl.date_requested DESC
+    """)
+
+    results = db.session.execute(requested_labs_query).fetchall()
+
+    requested_labs_data = []
+    for lab in results:
+        date_requested = lab.date_requested
+        if isinstance(date_requested, str):
+            try:
+                date_requested = datetime.strptime(date_requested, '%Y-%m-%d %H:%M:%S')
+            except (ValueError, TypeError):
+                date_requested = None
+
+        requested_labs_data.append({
+            'test_name': lab.test_name,
+            'date_requested': date_requested.strftime('%Y-%m-%d %H:%M:%S') if date_requested else 'N/A',
+            'status': 'not yet done',
+            'patient_name': lab.patient_name or 'N/A',
+            'patient_id': lab.patient_id,  # Now safely available
+            'result_id': lab.result_id
+        })
+
+    return render_template('medicine/pending_lab_patients.html', requested_labs=requested_labs_data)

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <!-- Back to Lab Patients -->
+    <a href="{{ url_for('medicine.lab_patients') }}" class="btn btn-primary mb-3">Back to All Lab Patients</a>
+
+    <!-- Lab Results -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h4 class="card-title fw-bold text-secondary">
+                <i class="fas fa-file-medical me-2"></i>Lab Result for {{ patient_name }}
+            </h4>
+            {% if lab_results %}
+                {% for result_id, result_data in lab_results.items() %}
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">{{ result_data.test_name }} ({{ result_data.test_date }})</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover table-bordered">
+                                    <thead class="bg-info text-white">
+                                        <tr>
+                                            <th scope="col">Parameter Name</th>
+                                            <th scope="col">Normal Range</th>
+                                            <th scope="col">Result</th>
+                                            <th scope="col">Unit</th>
+                                            <th scope="col">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in result_data.parameters %}
+                                            <tr>
+                                                <td>{{ item.parameter_name or 'N/A' }}</td>
+                                                <td>{{ item.normal_range_low }} - {{ item.normal_range_high }}</td>
+                                                <td>{{ item.result or 'N/A' }}</td>
+                                                <td>{{ item.unit or 'N/A' }}</td>
+                                                <td>
+                                                    {% if item.status == "Low" %}
+                                                        <span class="text-warning fw-bold">Low</span>
+                                                    {% elif item.status == "High" %}
+                                                        <span class="text-danger fw-bold">High</span>
+                                                    {% elif item.status == "Invalid Result" %}
+                                                        <span class="text-secondary fw-bold">Invalid Result</span>
+                                                    {% else %}
+                                                        <span class="text-success fw-bold">Normal</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% if result_data.result_notes %}
+                                <p><strong>Notes:</strong> {{ result_data.result_notes }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted text-center">No lab result found for {{ patient_name }}.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

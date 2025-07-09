@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <!-- Requested Labs -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h4 class="card-title fw-bold text-secondary">
+                <i class="fas fa-flask me-2"></i>Requested Lab Tests
+            </h4>
+            {% if requested_labs %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover table-bordered">
+                        <thead class="bg-primary text-white">
+                            <tr>
+                                <th scope="col">Patient Name</th>
+                                <th scope="col">Test Name</th>
+                                <th scope="col">Date Requested</th>
+                                <th scope="col">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lab in requested_labs %}
+                                <tr>
+                                    <td>{{ lab.patient_name or 'N/A' }}</td>
+                                    <td><a href="">{{ lab.test_name or 'N/A' }}</a></td>
+                                    <td>{{ lab.date_requested or 'N/A' }}</td>
+                                    <td>{{ lab.status }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted text-center">No lab tests requested.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
