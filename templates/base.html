@@ -388,9 +388,9 @@
       <a href="">
         <i class="bi bi-door-open me-2"></i> Discharge Patient </a>
       <!-- Lab-Related -->
-      <a href="">
+      <a href="{{ url_for('medicine.lab_patients') }}"> 
         <i class="bi bi-activity me-2"></i> Patients from Lab </a>
-      <a href="">
+       <a href="{{ url_for('medicine.pending_lab_patients') }}"> 
         <i class="bi bi-file-earmark-text me-2"></i> Pending Lab Results </a>
       <!-- Theatre and Emergency -->
       <a href="{{ url_for('medicine.get_theatre_list') }}">
