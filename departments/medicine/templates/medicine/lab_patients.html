@@ -16,6 +16,7 @@
                                 <th scope="col">Test Name</th>
                                 <th scope="col">Date Requested</th>
                                 <th scope="col">Status</th>
+                                <th scope="col">View All Results</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -25,6 +26,7 @@
                                     <td><a href="{{ url_for('medicine.lab_results', result_id=lab.result_id) }}">{{ lab.test_name or 'N/A' }}</a></td>
                                     <td>{{ lab.date_requested or 'N/A' }}</td>
                                     <td>{{ lab.status }}</td>
+                                    <td><a href="{{ url_for('medicine.patient_lab_results', patient_id=lab.patient_id) }}" class="btn btn-sm btn-info">View All Results</a></td>
                                 </tr>
                             {% endfor %}
                         </tbody>

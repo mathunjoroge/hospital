@@ -22,7 +22,7 @@ import bleach  # For sanitizing descriptions
 from . import bp
 import os
 from datetime import datetime
-from departments.models.laboratory import LabResult
+from departments.models.laboratory import LabResult,LabResultTemplate
 from departments.models.records import PatientWaitingList, Patient
 from departments.models.medicine import (
     SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, 
@@ -1872,81 +1872,17 @@ def all_prescriptions():
         'medicine/oncology/all_prescriptions.html',
         prescriptions=prescription_details
     )
-@bp.route('/lab_patients')
-def lab_patients():
-    requested_labs_query = text("""
-    SELECT 
-        rl.id AS request_id,
-        rl.date_requested,
-        rl.status,
-        lt.test_name,
-        p.name AS patient_name,
-        p.patient_id,
-        lr.result_id AS result_id
-    FROM requested_labs rl
-    JOIN labtests lt ON rl.lab_test_id = lt.id
-    JOIN patients p ON rl.patient_id = p.patient_id
-    LEFT JOIN lab_results lr ON rl.patient_id = lr.patient_id AND rl.lab_test_id = lr.lab_test_id
-    WHERE rl.status = 1 AND lr.result_id IS NOT NULL
-    ORDER BY rl.date_requested DESC
-    """)
-
-    results = db.session.execute(requested_labs_query).fetchall()
-
-    requested_labs_data = []
-    for lab in results:
-        date_requested = lab.date_requested
-        if isinstance(date_requested, str):
-            try:
-                date_requested = datetime.strptime(date_requested, '%Y-%m-%d %H:%M:%S')
-            except (ValueError, TypeError):
-                date_requested = None
-
-        requested_labs_data.append({
-            'test_name': lab.test_name,
-            'date_requested': date_requested.strftime('%Y-%m-%d %H:%M:%S') if date_requested else 'N/A',
-            'status': 'Completed',
-            'patient_name': lab.patient_name or 'N/A',
-            'patient_id': lab.patient_id,  # Now safely available
-            'result_id': lab.result_id
-        })
-
-    return render_template('medicine/lab_patients.html', requested_labs=requested_labs_data)
-
-
-@bp.route('/lab_results/<result_id>')
-def lab_results(result_id):
-    # Query lab result for the specific result_id
-    lab_results_query = text("""
-        SELECT lr.*, lt.test_name, p.name
-        FROM lab_results lr
-        JOIN labtests lt ON lr.lab_test_id = lt.id
-        JOIN patients p ON lr.patient_id = p.patient_id
-        WHERE lr.result_id = :result_id
-    """)
-    result = db.session.execute(lab_results_query, {"result_id": result_id}).fetchone()
-
-    # If no result found, return an error message
-    if not result:
-        flash(f'No lab result found for Result ID {result_id}.', 'danger')
-        return render_template('medicine/lab_results.html', lab_results={}, patient_name='N/A')
-
-    # Get patient name
-    patient_name = result.name if result.name else 'N/A'
-
-    # Process the single lab result for presentation
-    test_presentations = {}
-    test_id = result.lab_test_id
-    result_id = result.result_id
+def process_lab_result(lab_result, test_name):
+    """Helper function to process a single lab result into presentation format."""
     results_dict = {}
     try:
-        results_dict = json.loads(result.result) if result.result else {}
+        results_dict = json.loads(lab_result.result) if lab_result.result else {}
     except json.JSONDecodeError:
-        flash(f'Invalid result format for result ID {result_id}.', 'warning')
+        flash(f'Invalid result format for result ID {lab_result.result_id}.', 'warning')
         results_dict = {}
 
-    # Handle test_date as string or datetime
-    test_date = result.test_date
+    # Handle test_date
+    test_date = lab_result.test_date
     if isinstance(test_date, str):
         try:
             test_date = datetime.strptime(test_date, '%Y-%m-%d %H:%M:%S')
@@ -1954,11 +1890,7 @@ def lab_results(result_id):
             test_date = None
 
     # Fetch parameters for this lab test
-    params_query = text("""
-        SELECT * FROM labresults_templates
-        WHERE test_id = :test_id
-    """)
-    parameters = db.session.execute(params_query, {"test_id": test_id}).fetchall()
+    parameters = LabResultTemplate.query.filter_by(test_id=lab_result.lab_test_id).all()
 
     test_presentation = []
     for param in parameters:
@@ -1968,51 +1900,44 @@ def lab_results(result_id):
         except (ValueError, TypeError):
             result_value_float = None
 
-        status = ("Invalid Result" if result_value_float is None else
-                  "Low" if result_value_float < param.normal_range_low else
-                  "High" if result_value_float > param.normal_range_high else
-                  "Normal")
+        status = (
+            "Invalid Result" if result_value_float is None else
+            "Low" if result_value_float < param.normal_range_low else
+            "High" if result_value_float > param.normal_range_high else
+            "Normal"
+        )
 
         test_presentation.append({
             'parameter_name': param.parameter_name,
             'normal_range_low': param.normal_range_low,
             'normal_range_high': param.normal_range_high,
             'unit': param.unit,
-            'result': result_value if result_value is not None else "N/A",
+            'result': result_value if result_value is not None else 'N/A',
             'status': status
         })
 
-    test_presentations[result_id] = {
-        'test_name': result.test_name,
+    return {
+        'test_name': test_name,
         'test_date': test_date.strftime('%Y-%m-%d %H:%M:%S') if test_date else 'N/A',
-        'result_notes': result.result_notes or '',
+        'result_notes': lab_result.result_notes or '',
         'parameters': test_presentation
     }
 
-    return render_template('medicine/lab_results.html', lab_results=test_presentations, patient_name=patient_name)
-@bp.route('/pending_lab_patients')
-def pending_lab_patients():
-    requested_labs_query = text("""
- SELECT 
-        rl.id AS request_id,
-        rl.date_requested,
-        rl.status,
-        lt.test_name,
-        p.name AS patient_name,
-        p.patient_id,
-        lr.result_id AS result_id
-    FROM requested_labs rl
-    JOIN labtests lt ON rl.lab_test_id = lt.id
-    JOIN patients p ON rl.patient_id = p.patient_id
-    LEFT JOIN lab_results lr ON rl.patient_id = lr.patient_id AND rl.lab_test_id = lr.lab_test_id
-    WHERE rl.status = 0 AND lr.result_id IS  NULL
-    ORDER BY rl.date_requested DESC
-    """)
-
-    results = db.session.execute(requested_labs_query).fetchall()
+@bp.route('/lab_patients')
+def lab_patients():
+    # Query requested labs with status=1 and existing results
+    requested_labs = (
+        db.session.query(RequestedLab, LabTest.test_name, Patient.name, Patient.patient_id, LabResult.result_id)
+        .join(LabTest, RequestedLab.lab_test_id == LabTest.id)
+        .join(Patient, RequestedLab.patient_id == Patient.patient_id)
+        .outerjoin(LabResult, (RequestedLab.patient_id == LabResult.patient_id) & (RequestedLab.lab_test_id == LabResult.lab_test_id))
+        .filter(RequestedLab.status == 1, LabResult.result_id.isnot(None))
+        .order_by(RequestedLab.date_requested.desc())
+        .all()
+    )
 
     requested_labs_data = []
-    for lab in results:
+    for lab, test_name, patient_name, patient_id, result_id in requested_labs:
         date_requested = lab.date_requested
         if isinstance(date_requested, str):
             try:
@@ -2021,12 +1946,97 @@ def pending_lab_patients():
                 date_requested = None
 
         requested_labs_data.append({
-            'test_name': lab.test_name,
+            'test_name': test_name,
+            'date_requested': date_requested.strftime('%Y-%m-%d %H:%M:%S') if date_requested else 'N/A',
+            'status': 'Completed',
+            'patient_name': patient_name or 'N/A',
+            'patient_id': patient_id,
+            'result_id': result_id
+        })
+
+    return render_template('medicine/lab_patients.html', requested_labs=requested_labs_data)
+
+@bp.route('/lab_results/<result_id>')
+def lab_results(result_id):
+    # Query lab result for the specific result_id
+    result = (
+        db.session.query(LabResult, LabTest.test_name, Patient.name)
+        .join(LabTest, LabResult.lab_test_id == LabTest.id)
+        .join(Patient, LabResult.patient_id == Patient.patient_id)
+        .filter(LabResult.result_id == result_id)
+        .first()
+    )
+
+    # If no result found, return an error message
+    if not result:
+        flash(f'No lab result found for Result ID {result_id}.', 'danger')
+        return render_template('medicine/lab_results.html', lab_results={}, patient_name='N/A')
+
+    lab_result, test_name, patient_name = result
+    patient_name = patient_name or 'N/A'
+
+    # Process the lab result
+    test_presentations = {}
+    test_presentations[lab_result.result_id] = process_lab_result(lab_result, test_name)
+
+    return render_template('medicine/lab_results.html', lab_results=test_presentations, patient_name=patient_name)
+
+
+
+@bp.route('/pending_lab_patients')
+def pending_lab_patients():
+    # Query requested labs with status=0 and no results
+    requested_labs = (
+        db.session.query(RequestedLab, LabTest.test_name, Patient.name, Patient.patient_id, LabResult.result_id)
+        .join(LabTest, RequestedLab.lab_test_id == LabTest.id)
+        .join(Patient, RequestedLab.patient_id == Patient.patient_id)
+        .outerjoin(LabResult, (RequestedLab.patient_id == LabResult.patient_id) & (RequestedLab.lab_test_id == LabResult.lab_test_id))
+        .filter(RequestedLab.status == 0, LabResult.result_id.is_(None))
+        .order_by(RequestedLab.date_requested.desc())
+        .all()
+    )
+
+    requested_labs_data = []
+    for lab, test_name, patient_name, patient_id, result_id in requested_labs:
+        date_requested = lab.date_requested
+        if isinstance(date_requested, str):
+            try:
+                date_requested = datetime.strptime(date_requested, '%Y-%m-%d %H:%M:%S')
+            except (ValueError, TypeError):
+                date_requested = None
+
+        requested_labs_data.append({
+            'test_name': test_name,
             'date_requested': date_requested.strftime('%Y-%m-%d %H:%M:%S') if date_requested else 'N/A',
             'status': 'not yet done',
-            'patient_name': lab.patient_name or 'N/A',
-            'patient_id': lab.patient_id,  # Now safely available
-            'result_id': lab.result_id
+            'patient_name': patient_name or 'N/A',
+            'patient_id': patient_id,
+            'result_id': result_id
         })
 
     return render_template('medicine/pending_lab_patients.html', requested_labs=requested_labs_data)
+@bp.route('/patient_lab_results/<patient_id>')
+def patient_lab_results(patient_id):
+    # Query all lab results for the specific patient_id with status=1 and existing results
+    results = (
+        db.session.query(LabResult, LabTest.test_name, Patient.name)
+        .join(LabTest, LabResult.lab_test_id == LabTest.id)
+        .join(Patient, LabResult.patient_id == Patient.patient_id)
+        .join(RequestedLab, (LabResult.patient_id == RequestedLab.patient_id) & (LabResult.lab_test_id == RequestedLab.lab_test_id))
+        .filter(LabResult.patient_id == patient_id, RequestedLab.status == 1, LabResult.result_id.isnot(None))
+        .all()
+    )
+
+    # If no results found, return an error message
+    if not results:
+        flash(f'No lab results found for Patient ID {patient_id}.', 'danger')
+        return render_template('medicine/patient_lab_results.html', lab_results={}, patient_name='N/A')
+
+    # Correctly extract patient_name from the query results
+    patient_name = results[0][2] or 'N/A'
+    test_presentations = {}
+
+    for lab_result, test_name, _ in results:
+        test_presentations[lab_result.result_id] = process_lab_result(lab_result, test_name)
+
+    return render_template('medicine/patient_lab_results.html', lab_results=test_presentations, patient_name=patient_name)
