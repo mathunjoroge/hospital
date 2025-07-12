@@ -375,7 +375,6 @@ class DiseaseLab(db.Model):
 class OncoPatient(db.Model):
     """Represents a patient enrolled in oncology care."""
     __tablename__ = 'onco_patients'
-
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False, index=True)  # Links to Patient model
     diagnosis = db.Column(db.String(200), nullable=False)  # e.g., 'Breast Cancer, Stage II'
@@ -383,12 +382,23 @@ class OncoPatient(db.Model):
     cancer_type = db.Column(db.String(100), nullable=False)  # e.g., 'Breast', 'Lung', 'Prostate'
     stage = db.Column(db.String(20), nullable=False)  # e.g., 'Stage I', 'Stage II'
     date_enrolled = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    status = db.Column(db.String(20), default='Active', nullable=False)  # e.g., 'Active', 'Completed', 'Discontinued'
-
+    status = db.Column(db.String(20), default='Active', nullable=False) 
     patient = db.relationship('Patient', backref=db.backref('oncology_records', lazy='dynamic', cascade='all, delete-orphan'))
-
     def __repr__(self):
         return f"<OncoPatient {self.patient_id}: {self.diagnosis}>"
+class OncologyNote(db.Model):
+    """Represents daily oncology notes for a patient."""
+    __tablename__ = 'oncology_notes'
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.String(10), db.ForeignKey('patients.patient_id'), nullable=False, index=True)
+    note_date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    note_content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    patient = db.relationship('Patient', backref=db.backref('oncology_notes', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f"<OncologyNote for patient_id={self.patient_id} on {self.note_date}>"    
 
 class OncoDrugCategory(db.Model):
     __tablename__ = 'onco_drug_categories'
@@ -550,6 +560,91 @@ class PrescriptionDrugDetail(db.Model):
     drug = db.relationship('OncologyDrug', backref=db.backref('prescription_details', lazy='dynamic'))
 
     def __repr__(self):
-        return f"<PrescriptionDrugDetail prescription_id={self.prescription_id}, drug_id={self.drug_id}>"    
+        return f"<PrescriptionDrugDetail prescription_id={self.prescription_id}, drug_id={self.drug_id}>" 
+class CancerType(db.Model):
+    __tablename__ = 'cancer_types'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+
+    # Relationships
+    stages = db.relationship(
+        'CancerTypeStage',
+        back_populates='cancer_type',
+        cascade='all, delete-orphan',
+        lazy='joined'
+    )
+
+    def __repr__(self):
+        return f"<CancerType {self.name} ({self.code})>"
+
+    @property
+    def stage_labels(self):
+        """Return a list of readable stage labels for display."""
+        return [s.cancer_stage.label for s in self.stages]
+
+
+class CancerStage(db.Model):
+    __tablename__ = 'cancer_stages'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False)
+    label = db.Column(db.String(100), nullable=False)
+
+    # Relationships
+    types = db.relationship(
+        'CancerTypeStage',
+        back_populates='cancer_stage',
+        cascade='all, delete-orphan',
+        lazy='joined'
+    )
+
+    def __repr__(self):
+        return f"<CancerStage {self.label}>"
+
+
+class CancerTypeStage(db.Model):
+    __tablename__ = 'cancer_type_stages'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    cancer_type_id = db.Column(db.Integer, db.ForeignKey('cancer_types.id'), nullable=False)
+    cancer_stage_id = db.Column(db.Integer, db.ForeignKey('cancer_stages.id'), nullable=False)
+
+    # Relationships
+    cancer_type = db.relationship('CancerType', back_populates='stages', lazy='joined')
+    cancer_stage = db.relationship('CancerStage', back_populates='types', lazy='joined')
+
+    def __repr__(self):
+        return f"<CancerTypeStage {self.cancer_type.name} - {self.cancer_stage.label}>"
+class CancerDetail(db.Model):
+    __tablename__ = 'cancer_details'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    cancer_type_id = db.Column(db.Integer, db.ForeignKey('cancer_types.id'), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    diagnosis = db.Column(db.Text, nullable=False)
+    management = db.Column(db.Text, nullable=False)
+    risk_factors = db.Column(db.Text, nullable=True)
+    epidemiology = db.Column(db.Text, nullable=True)
+    
+    # Relationship to CancerType
+    cancer_type = db.relationship('CancerType', backref=db.backref('details', lazy=True, cascade="all, delete-orphan"))
+    
+    def __repr__(self):
+        return f'<CancerDetail {self.id} for CancerType {self.cancer_type_id}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'cancer_type_id': self.cancer_type_id,
+            'description': self.description,
+            'diagnosis': self.diagnosis,
+            'management': self.management,
+            'risk_factors': self.risk_factors,
+            'epidemiology': self.epidemiology,
+            'cancer_type_code': self.cancer_type.code if self.cancer_type else None,
+            'cancer_type_name': self.cancer_type.name if self.cancer_type else None
+        }         
 
   
