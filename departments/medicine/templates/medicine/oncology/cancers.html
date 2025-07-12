@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+  {% include "medicine/oncology/includes/nav.html" %}
+
+  <!-- Search Bar -->
+  <div class="mb-4">
+    <div class="input-group">
+      <span class="input-group-text bg-light">
+        <i class="bi bi-search"></i>
+      </span>
+      <input type="text" id="cancerSearch" class="form-control" placeholder="Search cancer types..." aria-label="Search cancer types">
+      <button class="btn btn-outline-secondary" type="button" id="clearSearch">Clear</button>
+    </div>
+  </div>
+
+  {% if cancer_types %}
+    <div class="accordion accordion-flush" id="cancerAccordion">
+      {% for cancer in cancer_types %}
+        <div class="accordion-item mb-3 shadow-sm rounded" data-cancer-name="{{ cancer.name | lower }}">
+          <h2 class="accordion-header" id="heading{{ loop.index }}">
+            <button class="accordion-button {% if loop.first %} {% else %} collapsed {% endif %} d-flex justify-content-between align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="{% if loop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ loop.index }}">
+              <span class="fs-5 fw-bold text-dark">{{ cancer.name }}</span>
+              <i class="bi bi-chevron-down accordion-icon"></i>
+            </button>
+          </h2>
+          <div id="collapse{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" aria-labelledby="heading{{ loop.index }}" data-bs-parent="#cancerAccordion">
+            <div class="accordion-body bg-light-subtle p-4">
+              {% if cancer.stages %}
+                <h5 class="fw-bold text-secondary mb-3 border-bottom pb-2">Cancer Stages</h5>
+                <ul class="list-group list-group-flush mb-4">
+                  {% for stage_rel in cancer.stages %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-0">
+                      <span>{{ stage_rel.cancer_stage.label }}</span>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p class="alert alert-warning py-2">No stages defined for this cancer type yet.</p>
+              {% endif %}
+
+              {% if cancer.details %}
+                {% for detail in cancer.details %}
+                  <div class="card mb-4 border-0 shadow-sm">
+                    <div class="card-body">
+                      {% if detail.description %}
+                        <h5 class="fw-bold text-secondary mb-2">Description</h5>
+                        <p class="card-text mb-3">{{ detail.description }}</p>
+                      {% endif %}
+
+                      {% if detail.diagnosis %}
+                        <h5 class="fw-bold text-secondary mb-2">Diagnosis</h5>
+                        <p class="card-text mb-3">{{ detail.diagnosis }}</p>
+                      {% endif %}
+
+                      {% if detail.management %}
+                        <h5 class="fw-bold text-secondary mb-2">Management</h5>
+                        <p class="card-text mb-3">{{ detail.management }}</p>
+                      {% endif %}
+
+                      {% if detail.risk_factors %}
+                        <h5 class="fw-bold text-secondary mb-2">Risk Factors</h5>
+                        <p class="card-text mb-3">{{ detail.risk_factors }}</p>
+                      {% endif %}
+
+                      {% if detail.epidemiology %}
+                        <h5 class="fw-bold text-secondary mb-2">Epidemiology</h5>
+                        <p class="card-text mb-3">{{ detail.epidemiology }}</p>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endfor %}
+              {% else %}
+                <p class="alert alert-info py-2">No detailed information available for this cancer type at the moment.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info text-center py-4">
+      <h4 class="alert-heading">No Cancer Types Available</h4>
+      <p>It looks like there's no cancer information to display right now. Please check back later!</p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Custom CSS -->
+<style>
+  .accordion-button:not(.collapsed) .accordion-icon {
+    transform: rotate(180deg);
+  }
+  .accordion-icon {
+    transition: transform 0.2s ease-in-out;
+  }
+  .accordion-item {
+    transition: all 0.2s ease-in-out;
+  }
+  .accordion-item:hover {
+    transform: translateY(-2px);
+  }
+  .accordion-item.hidden {
+    display: none;
+  }
+</style>
+
+<!-- JavaScript for Search Functionality -->
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('cancerSearch');
+    const clearButton = document.getElementById('clearSearch');
+    const accordionItems = document.querySelectorAll('.accordion-item');
+
+    searchInput.addEventListener('input', function () {
+      const searchTerm = this.value.trim().toLowerCase();
+
+      accordionItems.forEach(item => {
+        const cancerName = item.getAttribute('data-cancer-name');
+        if (searchTerm === '' || cancerName.includes(searchTerm)) {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+    });
+
+    clearButton.addEventListener('click', function () {
+      searchInput.value = '';
+      accordionItems.forEach(item => {
+        item.classList.remove('hidden');
+      });
+    });
+  });
+</script>
+{% endblock %}

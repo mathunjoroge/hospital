@@ -1,30 +1,87 @@
 {% extends "base.html" %}
-{% block content %}  
+{% block content %}
 {% include "medicine/oncology/includes/nav.html" %}
-  <!-- Search Form -->
-  <div class="card shadow-sm mb-4">
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- Search Form -->
+<div class="card shadow-sm mb-4">
     <div class="card-body">
-      <h5 class="card-title fw-bold text-primary">
-        <i class="fas fa-search me-2"></i>Search Patient
-      </h5>
-      <form method="POST" action="{{ url_for('medicine.oncology') }}">
-        {{ form.hidden_tag() }}
-        <div class="row g-2 align-items-center">
-          <div class="col-md-8 col-12">
-            <label for="patient_id" class="form-label visually-hidden">Select Patient</label>
-            <select id="patient_id" name="patient_id" class="form-select" required>
-              <option value="" disabled selected>Select a patient</option>
-              {% for p in patients %}
-                <option value="{{ p.id }}">{{ p.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-4 col-12">
-            <button type="submit" class="btn btn-primary w-100">Search</button>
-          </div>
-        </div>
-      </form>
+        <h5 class="card-title fw-bold text-primary">
+            <i class="fas fa-search me-2"></i>Search Patient
+        </h5>
+        <form method="POST" action="{{ url_for('medicine.oncology') }}">
+            {{ form.hidden_tag() }}
+            <div class="row g-2 align-items-center">
+                <div class="col-md-8 col-12">
+                    <label for="patient_id" class="form-label visually-hidden">Select Patient</label>
+                    {{ form.patient_id(class="form-select", required=True) }}
+                </div>
+                <div class="col-md-4 col-12">
+                    {{ form.submit_search(class="btn btn-primary w-100") }}
+                </div>
+            </div>
+        </form>
     </div>
-  </div>
+</div>
+
+<!-- Search Results -->
+{% if selected_patient %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title fw-bold text-primary">
+                <i class="fas fa-user me-2"></i>Patient: {{ selected_patient.name }}
+            </h5>
+            <p><strong>Patient ID:</strong> {{ selected_patient.patient_id }}</p>
+            <p><strong>Date of Birth:</strong> {{ selected_patient.date_of_birth.strftime('%Y-%m-%d') }}</p>
+            <p><strong>Contact:</strong> {{ selected_patient.contact }}</p>
+            <a href="{{ url_for('medicine.oncology_encounter', patient_id=selected_patient.patient_id) }}" class="btn btn-primary">Manage Encounter</a>
+        </div>
+    </div>
+
+    {% if bookings %}
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title fw-bold text-primary">
+                    <i class="fas fa-calendar-alt me-2"></i>Oncology Bookings
+                </h5>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Booking Date</th>
+                            <th>Purpose</th>
+                            <th>Status</th>
+                            <th>Notes</th>
+                            <th>Created At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for booking in bookings %}
+                            <tr>
+                                <td>{{ booking.booking_date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ booking.purpose }}</td>
+                                <td>{{ booking.status }}</td>
+                                <td>{{ booking.notes or 'N/A' }}</td>
+                                <td>{{ booking.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% else %}
+        <p class="text-muted">No oncology bookings found for {{ selected_patient.name }}.</p>
+    {% endif %}
+{% endif %}
 
 {% endblock %}

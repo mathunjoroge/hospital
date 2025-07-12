@@ -417,6 +417,7 @@
     <a class="nav-link" href="{{ url_for('medicine.drugs') }}"><i class="fas fa-pills"></i> Drugs</a>
     <a class="nav-link" href="{{ url_for('medicine.regimens') }}"><i class="fas fa-prescription-bottle-alt"></i> Regimens</a>
     <a class="nav-link" href="{{ url_for('medicine.warnings') }}"><i class="fas fa-exclamation-triangle"></i> Warnings</a>
+    <a class="nav-link" href="{{ url_for('medicine.cancers') }}"><i class="fas fa-exclamation-triangle"></i>cancers</a>
     <a class="nav-link" href="{{ url_for('medicine.bookings') }}"><i class="fas fa-calendar-alt"></i> Bookings</a>
     <a class="nav-link" href="{{ url_for('medicine.new_prescription') }}"><i class="fas fa-file-medical"></i> New Prescription</a>
     <a class="nav-link" href="{{ url_for('medicine.all_prescriptions') }}"><i class="fas fa-prescription"></i> All Prescriptions</a>
@@ -438,4 +439,12 @@
             }
         });
     });
+</script>
+<script>
+  $(document).ready(function() {
+    $('.date').datepicker({
+      format: 'yyyy-mm-dd',
+      autoclose: true
+    });
+  });
 </script>

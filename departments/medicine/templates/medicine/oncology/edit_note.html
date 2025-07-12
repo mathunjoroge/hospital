@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "medicine/oncology/includes/nav.html" %}
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<!-- Edit Note Form -->
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <h5 class="card-title fw-bold text-primary mb-4">
+      <i class="fas fa-note-sticky me-2"></i>Edit Oncology Note for {{ patient.name }}
+    </h5>
+    <form method="POST" action="{{ url_for('medicine.edit_note', note_id=note.id) }}">
+      {{ form.hidden_tag() }}
+      <div class="row g-3">
+        <div class="col-md-6">
+<div class="col-md-6">
+  <label class="form-label">Note Date</label>
+  {{ form.note_date(class="form-control date", required=True) }}
+</div>
+        <div class="col-12">
+          <label class="form-label">Note Content</label>
+          {{ form.note_content(class="form-control", rows=4, required=True) }}
+        </div>
+        <div class="col-12 text-end">
+          {{ form.submit_note(class="btn btn-primary") }}
+          <a href="{{ url_for('medicine.oncology_encounter', patient_id=patient.patient_id) }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

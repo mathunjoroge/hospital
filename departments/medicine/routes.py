@@ -8,6 +8,7 @@ from sqlalchemy import text
 import json
 from typing import Optional, List, Dict, Any
 import psycopg2
+from datetime import date
 from psycopg2.extras import RealDictCursor
 from flask import current_app
 from flask_login import login_required, current_user
@@ -18,8 +19,9 @@ from flask_socketio import SocketIO
 import uuid
 from uuid import uuid4
 from sqlalchemy.orm import joinedload
-import bleach  # For sanitizing descriptions
+import bleach 
 from . import bp
+from departments.forms import PatientSearchForm, OncoPatientForm, OncologyNoteForm, AdmitPatientForm
 import os
 from datetime import datetime
 from departments.models.laboratory import LabResult,LabResultTemplate
@@ -32,9 +34,9 @@ from departments.models.medicine import (
     WardBedHistory, WardRoom, Bed, WardRound,Disease, 
     DiseaseManagementPlan, DiseaseLab, OncoPatient, 
     OncologyDrug, OncologyRegimen, OncoPrescription, 
-    OncoTreatmentRecord,PrescriptionDrugDetail
+    OncoTreatmentRecord,PrescriptionDrugDetail,OncologyNote,
+    CancerType, CancerStage, CancerTypeStage, CancerDetail
 )
-from departments.forms import AdmitPatientForm
 import logging
 import json
 from departments.nlp.logging_setup import get_logger
@@ -1406,47 +1408,112 @@ def delete_disease(disease_id):
     db.session.commit()
     return redirect(url_for('medicine.list_diseases'))
 
-class PatientSearchForm(FlaskForm):
-    patient_id = SelectField('Patient', coerce=int, validators=[DataRequired(message="Please select a patient.")])
-
-    def __init__(self, *args, **kwargs):
-        super(PatientSearchForm, self).__init__(*args, **kwargs)
-        # Dynamically populate choices with all patients
-        self.patient_id.choices = [(p.id, p.name) for p in Patient.query.order_by(Patient.name).all()]
-
-@bp.route('/oncology/', methods=['GET', 'POST'])
-@login_required
+@bp.route('/oncology', methods=['GET', 'POST'])
 def oncology():
-    form = PatientSearchForm()
-    patients = Patient.query.all()
-    form.patient_id.choices = [(p.id, p.name) for p in patients]
+    search_form = PatientSearchForm()
     selected_patient = None
-    onco_patient = None
-    prescriptions = []
-    treatment_records = []
+    bookings = []
 
-    if form.validate_on_submit():
-        patient_id = form.patient_id.data
-        try:
-            selected_patient = Patient.query.get_or_404(patient_id)
-            onco_patient = OncoPatient.query.filter_by(patient_id=patient_id).first()
-            if onco_patient:
-                prescriptions = OncoPrescription.query.filter_by(onco_patient_id=onco_patient.id).all()
-                treatment_records = OncoTreatmentRecord.query.filter_by(onco_patient_id=onco_patient.id).all()
-            else:
-                flash('Patient is not enrolled in oncology care.', 'warning')
-        except Exception as e:
-            flash(f'Error retrieving patient: {str(e)}', 'danger')
+    if search_form.validate_on_submit() and search_form.submit_search.data:
+        patient_id = search_form.patient_id.data
+        selected_patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
+        bookings = OncologyBooking.query.filter_by(patient_id=selected_patient.patient_id).all()
+        
+        if not bookings:
+            flash('No oncology bookings found for this patient.', 'info')
+        
+        # Redirect to encounter route
+        return redirect(url_for('medicine.oncology_encounter', patient_id=selected_patient.patient_id))
 
     return render_template(
         'medicine/oncology/index.html',
-        form=form,
-        patients=patients,
+        form=search_form,
+        selected_patient=selected_patient,
+        bookings=bookings
+    )
+
+
+
+@bp.route('/oncology/encounter/<patient_id>', methods=['GET', 'POST'])
+def oncology_encounter(patient_id):
+    # Fetch patient
+    selected_patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
+
+    # Add age attribute based on date_of_birth
+    today = date.today()
+    dob = selected_patient.date_of_birth
+    selected_patient.age = (
+        today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+    )
+
+    # Initialize forms
+    search_form = PatientSearchForm(patient_id=selected_patient.patient_id)
+    onco_form = OncoPatientForm()
+    note_form = OncologyNoteForm()
+
+    # Fetch existing oncology record
+    onco_patient = OncoPatient.query.filter_by(patient_id=selected_patient.id).first()
+    bookings = OncologyBooking.query.filter_by(patient_id=selected_patient.patient_id).all()
+    notes = OncologyNote.query.filter_by(patient_id=selected_patient.patient_id).order_by(OncologyNote.note_date.desc()).all()
+
+    # Prepopulate the oncology form if data exists
+    if onco_patient:
+        onco_form.diagnosis.data = onco_patient.diagnosis
+        onco_form.diagnosis_date.data = onco_patient.diagnosis_date
+        onco_form.cancer_type.data = onco_patient.cancer_type
+        onco_form.stage.data = onco_patient.stage
+        onco_form.status.data = onco_patient.status
+
+    # Handle oncology form submission
+    if onco_form.validate_on_submit() and onco_form.submit_update.data:
+        if onco_patient:
+            # Update existing record
+            onco_patient.diagnosis = onco_form.diagnosis.data
+            onco_patient.diagnosis_date = onco_form.diagnosis_date.data
+            onco_patient.cancer_type = onco_form.cancer_type.data
+            onco_patient.stage = onco_form.stage.data
+            onco_patient.status = onco_form.status.data
+            flash('Oncology patient details updated successfully.', 'success')
+        else:
+            # Create new record
+            onco_patient = OncoPatient(
+                patient_id=selected_patient.id,
+                diagnosis=onco_form.diagnosis.data,
+                diagnosis_date=onco_form.diagnosis_date.data,
+                cancer_type=onco_form.cancer_type.data,
+                stage=onco_form.stage.data,
+                status=onco_form.status.data,
+                date_enrolled=datetime.utcnow()
+            )
+            db.session.add(onco_patient)
+            flash('Oncology patient details created successfully.', 'success')
+        db.session.commit()
+
+    # Handle note form submission
+    if note_form.validate_on_submit() and note_form.submit_note.data:
+        new_note = OncologyNote(
+            patient_id=selected_patient.patient_id,
+            note_date=note_form.note_date.data,
+            note_content=note_form.note_content.data
+        )
+        db.session.add(new_note)
+        db.session.commit()
+        flash('Oncology note added successfully.', 'success')
+
+    # Refresh notes after any new submission
+    notes = OncologyNote.query.filter_by(patient_id=selected_patient.patient_id).order_by(OncologyNote.note_date.desc()).all()
+
+    return render_template(
+        'medicine/oncology/encounter.html',
+        search_form=search_form,
+        onco_form=onco_form,
+        note_form=note_form,
         selected_patient=selected_patient,
         onco_patient=onco_patient,
-        prescriptions=prescriptions,
-        treatment_records=treatment_records
+        bookings=bookings,
+        notes=notes
     )
+
 @bp.route('/oncology/add', methods=['GET', 'POST'])
 @login_required
 def add_onco_patient():
@@ -1471,6 +1538,43 @@ def add_onco_patient():
 
     patients = Patient.query.all()
     return render_template('medicine/oncology/add_onco_patient.html', patients=patients)
+@bp.route('/oncology/note/<int:note_id>/edit', methods=['GET', 'POST'])
+def edit_note(note_id):
+    note = OncologyNote.query.get_or_404(note_id)
+    patient = Patient.query.filter_by(patient_id=note.patient_id).first_or_404()
+    
+    form = OncologyNoteForm()
+    if form.validate_on_submit() and form.submit_note.data:
+        note.note_date = form.note_date.data
+        note.note_content = form.note_content.data
+        db.session.commit()
+        flash('Oncology note updated successfully.', 'success')
+        return redirect(url_for('medicine.oncology_encounter', patient_id=patient.patient_id))
+    
+    if request.method == 'GET':
+        form.note_date.data = note.note_date
+        form.note_content.data = note.note_content
+    
+    return render_template(
+        'medicine/oncology/edit_note.html',
+        form=form,
+        note=note,
+        patient=patient
+    )
+@bp.route('/get_stages/<int:type_id>')
+def get_stages(type_id):
+    links = CancerTypeStage.query.filter_by(cancer_type_id=type_id).all()
+    stages = [{'id': link.cancer_stage.id, 'label': link.cancer_stage.label} for link in links]
+    return jsonify(stages)
+
+@bp.route('/oncology/note/<int:note_id>/delete', methods=['POST'])
+def delete_note(note_id):
+    note = OncologyNote.query.get_or_404(note_id)
+    patient_id = note.patient_id
+    db.session.delete(note)
+    db.session.commit()
+    flash('Oncology note deleted successfully.', 'success')
+    return redirect(url_for('medicine.oncology_encounter', patient_id=patient_id))
 
 @bp.route('/drugs/')
 @login_required
@@ -1872,6 +1976,14 @@ def all_prescriptions():
         'medicine/oncology/all_prescriptions.html',
         prescriptions=prescription_details
     )
+#cancers
+@bp.route('/cancers')
+@login_required
+def cancers():
+    # Load all cancer types and their details
+    cancer_types = CancerType.query.order_by(CancerType.name).all()
+    return render_template('medicine/oncology/cancers.html', cancer_types=cancer_types)
+
 def process_lab_result(lab_result, test_name):
     """Helper function to process a single lab result into presentation format."""
     results_dict = {}
@@ -1980,9 +2092,6 @@ def lab_results(result_id):
     test_presentations[lab_result.result_id] = process_lab_result(lab_result, test_name)
 
     return render_template('medicine/lab_results.html', lab_results=test_presentations, patient_name=patient_name)
-
-
-
 @bp.route('/pending_lab_patients')
 def pending_lab_patients():
     # Query requested labs with status=0 and no results
