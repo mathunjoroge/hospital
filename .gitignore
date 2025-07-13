@@ -11,6 +11,7 @@ __pycache__/
 # Ignore distribution/build files
 build/
 dist/
+cancer_classifier/
 *.egg-info/
 
 # Ignore logs and temp files
