@@ -20,5 +20,16 @@ DEFAULT_PATTERNS = [
     ("VISION", r"\b(blurred vision|vision loss|diplopia|photophobia|eye pain)\b"),
     ("HEARING", r"\b(hearing loss|ear pain|tinnitus|ear discharge)\b"),
     ("THROAT", r"\b(sore throat|pharyngitis|odynophagia|difficulty swallowing|hoarseness)\b"),
-    ("GENERAL", r"\b(fatigue|malaise|unwell|lethargy|tiredness|weakness|weight loss)\b")
+    ("GENERAL", r"\b(fatigue|malaise|unwell|lethargy|tiredness|weakness|weight loss)\b"),
+    ('UNEXPLAINED_WEIGHT_LOSS', r'\b(weight loss|lost \d+\s*(lbs|pounds|kg|kilograms))\b'),
+    ('PERSISTENT_FATIGUE', r'\b(fatigue|tiredness|weakness)\b'),
+    ('NIGHT_SWEATS', r'\b(night sweats|nocturnal sweating)\b'),
+    ('PERSISTENT_COUGH', r'\b(cough\s*(for|since)\s*\d+\s*(weeks|months))\b'),
+    ('PALPABLE_LUMP', r'\b(lump|mass|nodule)\b'),
+    ('ABNORMAL_BLEEDING', r'\b(abnormal bleeding|unusual bleeding|hemoptysis|hematochezia)\b')
 ]
+DEFAULT_PATTERNS.extend([
+    ('TUMOR_MARKER', r'\b(PSA|CEA|CA-125|CA 125|CA 19-9|CA 19 9|AFP)\s*[:=]?\s*(\d+\.?\d*)\s*(ng/mL|U/mL)\b'),
+    ('BLOOD_COUNT', r'\b(WBC|Hgb|PLT)\s*[:=]?\s*(\d+\.?\d*)\s*(/mm³|g/dL)\b'),
+    ('INFLAMMATORY_MARKER', r'\b(CRP|ESR)\s*[:=]?\s*(\d+\.?\d*)\s*(mg/L|mm/hr)\b'),
+])

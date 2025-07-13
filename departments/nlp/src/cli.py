@@ -9,7 +9,8 @@ from src.database import fetch_soap_notes, fetch_single_soap_note, get_sqlite_co
 from src.utils import generate_html_response
 from src.config import get_config
 import logging
-
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # 0 = all logs, 1 = info, 2 = warnings, 3 = errors only
 logger = logging.getLogger("HIMS-NLP")
 HIMS_CONFIG = get_config()
 console = Console()
