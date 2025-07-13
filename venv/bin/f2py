@@ -1,4 +1,4 @@
-#!/home/mathu/projects/hospital/scispacy-env/bin/python3.8
+#!/home/mathu/projects/hospital/venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

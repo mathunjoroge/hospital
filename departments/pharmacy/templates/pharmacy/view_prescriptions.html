@@ -1,5 +1,46 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+    /* Nav Tabs Custom Styling */
+    .nav-tabs {
+        border-bottom: 2px solid #dee2e6;
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .nav-tabs .nav-link {
+        color: #6c757d; /* muted gray */
+        background-color: #f8f9fa;
+        border: 1px solid transparent;
+        border-top-left-radius: 0.5rem;
+        border-top-right-radius: 0.5rem;
+        margin-right: 0.25rem;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease-in-out;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: #0056b3;
+        background-color: #e9ecef;
+        border-color: #dee2e6 #dee2e6 #fff;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #0d6efd;
+        background-color: #ffffff;
+        border-color: #dee2e6 #dee2e6 #ffffff;
+        font-weight: 600;
+    }
+
+    .tab-content {
+        border: 1px solid #dee2e6;
+        border-top: none;
+        padding: 1rem;
+        background-color: #ffffff;
+        border-bottom-left-radius: 0.5rem;
+        border-bottom-right-radius: 0.5rem;
+    }
+</style>
 <div class="container mt-5">
     <h2 class="mb-4 text-center">Prescriptions for {{ patient.name }} ({{ patient.patient_id }})</h2>
 
