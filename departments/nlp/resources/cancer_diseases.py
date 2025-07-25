@@ -160,27 +160,212 @@ cancer_symptoms = {
     # Specific cancer markers
     'ascites', 'bone pain', 'lymphadenopathy', 'neurological deficit'
 }
-BREAST_CANCER_TERMS = [
-    'breast lump',
-    'nipple retraction',
-    'nipple discharge',
-    'breast mass',
-    'ductal carcinoma',
-    'brca'
+CANCER_TERMS = [
+    # General cancer-related terms
+    'tumor', 'cancer', 'malignancy', 'malignant', 'benign', 'carcinoma',
+    'sarcoma', 'adenocarcinoma', 'lymphoma', 'leukemia', 'metastasis', 'metastatic',
+    'oncology', 'oncologist', 'neoplasm', 'neoplastic', 'dysplasia', 'hyperplasia',
+    'anaplasia', 'carcinogenesis', 'tumorigenesis', 'oncogenesis', 'mass', 'lesion',
+    'polyp', 'adenoma', 'in situ carcinoma', 'invasive carcinoma', 'primary tumor',
+    'secondary tumor', 'cancer stage', 'cancer grade', 'prognosis', 'relapse', 'remission',
+
+    # Breast cancer-specific terms
+    'breast lump', 'breast mass', 'nipple retraction', 'nipple discharge',
+    'ductal carcinoma', 'lobular carcinoma', 'triple negative', 'HER2 positive',
+    'ER positive', 'PR positive', 'inflammatory breast cancer', 'Paget disease of the breast',
+    'phyllodes tumor', 'angiosarcoma of the breast', 'invasive ductal carcinoma',
+    'invasive lobular carcinoma', 'DCIS', 'LCIS', 'breast cancer recurrence',
+    'axillary lymph node', 'sentinel lymph node', 'breast calcifications',
+
+    # Genetic and molecular biomarkers
+    'BRCA', 'BRCA1', 'BRCA2', 'TP53', 'EGFR', 'KRAS', 'ALK', 'BRAF',
+    'HER2', 'ER', 'PR', 'p53', 'microsatellite instability', 'mismatch repair',
+    'tumor markers', 'CEA', 'CA-125', 'CA 15-3', 'CA 19-9', 'PSA', 'AFP', 'LDH',
+    'NTRK', 'PIK3CA', 'PTEN', 'RB1', 'RAS', 'RET', 'MET', 'ROS1', 'PD-L1',
+    'MSI-H', 'TMB', 'tumor mutational burden', 'genomic profiling', 'liquid biopsy',
+    'circulating tumor DNA', 'ctDNA', 'oncogene', 'tumor suppressor gene', 'epigenetics',
+
+    # Diagnostic procedures and imaging
+    'biopsy', 'fine needle aspiration', 'core needle biopsy', 'excisional biopsy',
+    'incisional biopsy', 'PET scan', 'CT scan', 'MRI', 'ultrasound', 'mammogram',
+    'pap smear', 'colonoscopy', 'bone scan', 'tumor grading', 'tumor staging',
+    'TNM staging', 'frozen section', 'histology', 'pathology', 'cytology',
+    'endoscopy', 'bronchoscopy', 'sigmoidoscopy', 'esophagogastroduodenoscopy',
+    'digital rectal exam', 'bone marrow biopsy', 'lumbar puncture', 'flow cytometry',
+    'immunohistochemistry', 'FISH testing', 'next-generation sequencing', 'X-ray',
+    'PET-CT', 'SPECT scan', 'contrast-enhanced imaging', 'molecular imaging',
+
+    # Treatment modalities
+    'chemotherapy', 'radiation therapy', 'radiotherapy', 'brachytherapy',
+    'immunotherapy', 'targeted therapy', 'hormonal therapy', 'checkpoint inhibitor',
+    'surgery', 'lumpectomy', 'mastectomy', 'neoadjuvant therapy', 'adjuvant therapy',
+    'palliative care', 'stem cell transplant', 'bone marrow transplant',
+    'proton therapy', 'cryotherapy', 'ablation therapy', 'radiofrequency ablation',
+    'hyperthermic intraperitoneal chemotherapy', 'HIPEC', 'photodynamic therapy',
+    'monoclonal antibodies', 'CAR-T therapy', 'bispecific antibodies', 'anti-angiogenic therapy',
+    'endocrine therapy', 'parp inhibitors', 'tyrosine kinase inhibitors', 'mTOR inhibitors',
+    'palliative radiotherapy', 'stereotactic radiosurgery', 'gamma knife', 'cyberknife',
+
+    # Hematologic cancers
+    'acute lymphoblastic leukemia', 'acute myeloid leukemia', 'chronic lymphocytic leukemia',
+    'chronic myeloid leukemia', 'hodgkin lymphoma', 'non-hodgkin lymphoma', 'multiple myeloma',
+    'myelodysplastic syndrome', 'polycythemia vera', 'essential thrombocythemia',
+    'myelofibrosis', 'T-cell lymphoma', 'B-cell lymphoma', 'mantle cell lymphoma',
+    'follicular lymphoma', 'diffuse large B-cell lymphoma', 'Burkitt lymphoma',
+    'plasma cell neoplasm', 'amyloidosis', 'leukemic phase', 'blast crisis',
+
+    # Gynecological cancers
+    'cervical cancer', 'ovarian cancer', 'endometrial cancer', 'uterine cancer',
+    'vaginal cancer', 'vulvar cancer', 'fallopian tube cancer', 'gestational trophoblastic disease',
+    'choriocarcinoma', 'serous carcinoma', 'endometrioid carcinoma', 'clear cell carcinoma',
+    'mucinous carcinoma', 'CA-125', 'human papillomavirus', 'HPV', 'cervical dysplasia',
+
+    # Gastrointestinal cancers
+    'colorectal cancer', 'colon cancer', 'rectal cancer', 'gastric cancer',
+    'stomach cancer', 'pancreatic cancer', 'hepatocellular carcinoma', 'esophageal cancer',
+    'anal cancer', 'gallbladder cancer', 'cholangiocarcinoma', 'small intestine cancer',
+    'GIST', 'gastrointestinal stromal tumor', 'neuroendocrine tumor', 'carcinoid tumor',
+    'Krukenberg tumor', 'Barrett esophagus', 'H. pylori infection',
+
+    # Genitourinary cancers
+    'prostate cancer', 'PSA', 'bladder cancer', 'renal cell carcinoma', 'testicular cancer',
+    'penile cancer', 'urethral cancer', 'Wilms tumor', 'germ cell tumor', 'seminoma',
+    'non-seminomatous germ cell tumor', 'prostate-specific antigen', 'transitional cell carcinoma',
+
+    # Head and neck cancers
+    'nasopharyngeal carcinoma', 'laryngeal cancer', 'oral cancer', 'thyroid cancer',
+    'salivary gland cancer', 'oropharyngeal cancer', 'hypopharyngeal cancer',
+    'paranasal sinus cancer', 'papillary thyroid carcinoma', 'follicular thyroid carcinoma',
+    'medullary thyroid carcinoma', 'anaplastic thyroid carcinoma', 'squamous cell carcinoma of the head and neck',
+
+    # Lung and thoracic cancers
+    'lung cancer', 'small cell lung cancer', 'non-small cell lung cancer', 'mesothelioma',
+    'thymic carcinoma', 'pulmonary carcinoid', 'adenosquamous carcinoma', 'large cell carcinoma',
+    'bronchioloalveolar carcinoma', 'pleural effusion', 'pancoast tumor',
+
+    # Skin and soft tissue cancers
+    'melanoma', 'basal cell carcinoma', 'squamous cell carcinoma', 'skin cancer',
+    'Kaposi sarcoma', 'Merkel cell carcinoma', 'dermatofibrosarcoma protuberans',
+    'actinic keratosis', 'Bowen disease', 'malignant melanoma', 'lentigo maligna',
+
+    # Pediatric cancers
+    'neuroblastoma', 'retinoblastoma', 'Wilms tumor', 'medulloblastoma', 'Ewing sarcoma',
+    'osteosarcoma', 'rhabdomyosarcoma', 'hepatoblastoma', 'germ cell tumor',
+    'juvenile myelomonocytic leukemia', 'craniopharyngioma', 'pineoblastoma',
+
+    # Brain and central nervous system cancers
+    'glioblastoma', 'astrocytoma', 'oligodendroglioma', 'CNS tumor', 'brain metastases',
+    'meningioma', 'ependymoma', 'glioma', 'pituitary adenoma', 'schwannoma',
+    'neurofibroma', 'craniopharyngioma', 'medulloblastoma', 'pineal tumor', 'choroid plexus tumor',
+
+    # Metastasis and advanced disease
+    'liver metastasis', 'bone metastasis', 'brain metastasis', 'lung metastasis',
+    'peritoneal carcinomatosis', 'pleural metastasis', 'adrenal metastasis',
+    'lymph node metastasis', 'distant metastasis', 'oligometastatic disease',
+    'systemic metastasis', 'regional metastasis',
+
+    # Cancer-related symptoms
+    'unexplained weight loss', 'fatigue', 'night sweats', 'lymphadenopathy',
+    'anemia', 'bleeding', 'painful mass', 'jaundice', 'hematuria', 'hemoptysis',
+    'dyspnea', 'ascites', 'pleural effusion', 'bone pain', 'fracture', 'edema',
+    'anorexia', 'cachexia', 'paraneoplastic syndrome', 'hypercalcemia', 'pruritus',
+    'cough', 'dysphagia', 'hoarseness', 'bowel obstruction', 'urinary obstruction',
+
+    # Screening and prevention
+    'cancer screening', 'mammography', 'PSA testing', 'colonoscopy', 'fecal occult blood test',
+    'pap smear', 'HPV testing', 'low-dose CT scan', 'BRCA testing', 'genetic screening',
+    'stool DNA test', 'virtual colonoscopy', 'breast self-exam', 'clinical breast exam',
+    'skin self-exam', 'oral cancer screening', 'lung cancer screening', 'chemoprevention',
+    'prophylactic mastectomy', 'prophylactic oophorectomy', 'cancer vaccine',
+
+    # Other cancer-related terms
+    'second primary cancer', 'recurrence', 'complete remission', 'partial remission',
+    'progressive disease', 'stable disease', 'tumor burden', 'cancer survivor',
+    'palliative chemotherapy', 'clinical trial', 'precision medicine', 'cancer immunotherapy',
+    'tumor microenvironment', 'angiogenesis', 'apoptosis', 'cancer stem cell',
+    'tumor heterogeneity', 'cancer cachexia', 'oncologic emergency', 'febrile neutropenia',
+    'tumor lysis syndrome', 'superior vena cava syndrome', 'spinal cord compression'
 ]
-BREAST_CANCER_PATTERNS = [
-    ('SYMPTOM', r'\b(palpable lump|breast lump|nipple retraction|nipple discharge|breast mass)\b'),
-    ('DIAGNOSIS', r'\b(ductal carcinoma|lobular carcinoma|brca)\b')
-]
-# Breast cancer-specific keywords
-BREAST_CANCER_KEYWORDS = [
-    'breast lump',
-    'nipple retraction',
-    'nipple discharge',
-    'breast mass',
-    'ductal carcinoma',
-    'brca'
-]
+CANCER_PATTERNS = {
+    'BREAST_CANCER': [
+        ('SYMPTOM', r'\b(palpable lump|breast lump|nipple retraction|nipple discharge|breast mass|skin dimpling|breast pain|swelling in breast)\b'),
+        ('DIAGNOSIS', r'\b(ductal carcinoma|lobular carcinoma|brca|her2 positive|triple negative breast cancer|invasive carcinoma|paget disease)\b')
+    ],
+    'COLON_CANCER': [
+        ('SYMPTOM', r'\b(blood in stool|rectal bleeding|abdominal pain|change in bowel habits|unexplained weight loss|constipation|diarrhea|iron deficiency anemia)\b'),
+        ('DIAGNOSIS', r'\b(colorectal cancer|adenocarcinoma|polyps|familial adenomatous polyposis|lynch syndrome|microsatellite instability)\b')
+    ],
+    'PROSTATE_CANCER': [
+        ('SYMPTOM', r'\b(urinary hesitancy|frequent urination|nocturia|difficulty urinating|pelvic pain|blood in urine|weak urine stream)\b'),
+        ('DIAGNOSIS', r'\b(prostate cancer|adenocarcinoma of prostate|elevated psa|gleason score|bone metastasis)\b')
+    ],
+    'LUNG_CANCER': [
+        ('SYMPTOM', r'\b(persistent cough|hemoptysis|chest pain|shortness of breath|wheezing|hoarseness|recurrent pneumonia)\b'),
+        ('DIAGNOSIS', r'\b(non-small cell lung cancer|small cell lung cancer|squamous cell carcinoma|adenocarcinoma of lung|egfr mutation|alk rearrangement)\b')
+    ],
+    'OVARIAN_CANCER': [
+        ('SYMPTOM', r'\b(abdominal bloating|pelvic pain|early satiety|urinary urgency|abdominal distension|fatigue|nausea)\b'),
+        ('DIAGNOSIS', r'\b(serous carcinoma|mucinous carcinoma|endometrioid carcinoma|clear cell carcinoma|ca-125 elevation|ovarian mass|brca mutation)\b')
+    ],
+    'PANCREATIC_CANCER': [
+        ('SYMPTOM', r'\b(jaundice|weight loss|abdominal pain|back pain|dark urine|clay-colored stool|nausea|loss of appetite)\b'),
+        ('DIAGNOSIS', r'\b(pancreatic adenocarcinoma|pancreatic tumor|ca 19-9|pancreatitis history|ductal carcinoma of pancreas)\b')
+    ],
+    'LIVER_CANCER': [
+        ('SYMPTOM', r'\b(right upper quadrant pain|abdominal swelling|jaundice|fatigue|weight loss|nausea|ascites)\b'),
+        ('DIAGNOSIS', r'\b(hepatocellular carcinoma|hcc|liver mass|afp elevation|cirrhosis|hbv|hcv)\b')
+    ],
+    'LEUKEMIA': [
+        ('SYMPTOM', r'\b(fatigue|easy bruising|frequent infections|fever|bone pain|pallor|bleeding gums|night sweats)\b'),
+        ('DIAGNOSIS', r'\b(acute myeloid leukemia|chronic lymphocytic leukemia|acute lymphoblastic leukemia|cml|aml|abnormal wbc count)\b')
+    ],
+    'LYMPHOMA': [
+        ('SYMPTOM', r'\b(painless lymphadenopathy|night sweats|fever|unexplained weight loss|fatigue|itching)\b'),
+        ('DIAGNOSIS', r'\b(hodgkin lymphoma|non-hodgkin lymphoma|reed-sternberg cells|b-cell lymphoma|t-cell lymphoma)\b')
+    ],
+    'CERVICAL_CANCER': [
+        ('SYMPTOM', r'\b(postcoital bleeding|pelvic pain|foul vaginal discharge|intermenstrual bleeding|pain during sex)\b'),
+        ('DIAGNOSIS', r'\b(hpv|cervical intraepithelial neoplasia|squamous cell carcinoma of cervix|adenocarcinoma of cervix|pap smear abnormality)\b')
+    ],
+    'ESOPHAGEAL_CANCER': [
+        ('SYMPTOM', r'\b(dysphagia|odynophagia|weight loss|chest pain|hoarseness|regurgitation|heartburn)\b'),
+        ('DIAGNOSIS', r'\b(squamous cell carcinoma of esophagus|adenocarcinoma of esophagus|barrett esophagus|esophageal mass)\b')
+    ],
+    'STOMACH_CANCER': [
+        ('SYMPTOM', r'\b(abdominal pain|early satiety|nausea|vomiting|weight loss|black stools|anorexia)\b'),
+        ('DIAGNOSIS', r'\b(gastric carcinoma|adenocarcinoma of stomach|h. pylori|intestinal metaplasia|linitis plastica)\b')
+    ],
+    'KIDNEY_CANCER': [
+        ('SYMPTOM', r'\b(blood in urine|flank pain|abdominal mass|weight loss|fatigue|fever|night sweats)\b'),
+        ('DIAGNOSIS', r'\b(renal cell carcinoma|clear cell carcinoma|wilms tumor|renal mass|von hippel-lindau)\b')
+    ],
+    'BLADDER_CANCER': [
+        ('SYMPTOM', r'\b(painless hematuria|frequent urination|dysuria|urinary urgency|lower abdominal pain)\b'),
+        ('DIAGNOSIS', r'\b(transitional cell carcinoma|urothelial carcinoma|bladder mass|cytology abnormality|cystoscopy finding)\b')
+    ],
+    'THYROID_CANCER': [
+        ('SYMPTOM', r'\b(neck lump|hoarseness|difficulty swallowing|neck swelling|pain in throat|persistent cough)\b'),
+        ('DIAGNOSIS', r'\b(papillary carcinoma|follicular carcinoma|medullary thyroid cancer|anaplastic carcinoma|thyroid nodule)\b')
+    ],
+    'SKIN_CANCER': [
+        ('SYMPTOM', r'\b(changing mole|skin lesion|non-healing ulcer|itchy mole|bleeding lesion|dark spot)\b'),
+        ('DIAGNOSIS', r'\b(melanoma|basal cell carcinoma|squamous cell carcinoma|skin biopsy|dysplastic nevus)\b')
+    ],
+    'BRAIN_CANCER': [
+        ('SYMPTOM', r'\b(headache|seizures|vision changes|nausea|vomiting|personality changes|speech difficulty)\b'),
+        ('DIAGNOSIS', r'\b(glioblastoma|astrocytoma|meningioma|medulloblastoma|brain tumor|cns lesion)\b')
+    ],
+    'MULTIPLE_MYELOMA': [
+        ('SYMPTOM', r'\b(bone pain|fatigue|frequent infections|anemia|back pain|weakness)\b'),
+        ('DIAGNOSIS', r'\b(monoclonal spike|m protein|plasma cell neoplasm|bence jones protein|lytic lesions)\b')
+    ],
+    'SARCOMA': [
+        ('SYMPTOM', r'\b(painless mass|swelling|limited range of motion|bone pain|fatigue)\b'),
+        ('DIAGNOSIS', r'\b(osteosarcoma|ewing sarcoma|leiomyosarcoma|liposarcoma|soft tissue sarcoma)\b')
+    ]
+}
+
+
 
 # Breast cancer-specific keyword to CUI mappings
 BREAST_CANCER_KEYWORD_CUIS = {
@@ -246,3 +431,9 @@ CANCER_PLANS = {
         'cancer_follow_up': 'Consider breast MRI.'
     }
 }
+
+
+# ~/projects/hospital/departments/nlp/resources/cancer_diseases.py
+import os
+
+CANCER_KEYWORDS_FILE = os.path.join(os.path.dirname(__file__), "cancer_keywords.json")

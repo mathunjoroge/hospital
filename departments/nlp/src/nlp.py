@@ -3,6 +3,7 @@ import logging
 from typing import List, Dict, Optional, Tuple
 from sqlalchemy.sql import text
 import re
+import json
 import time
 from collections import defaultdict
 from functools import lru_cache
@@ -39,7 +40,15 @@ from resources.common_fallbacks import (
     COMMON_SYMPTOM_DISEASE_MAP,
     SYMPTOM_NORMALIZATIONS
 )
-from resources.cancer_diseases import cancer_symptoms,BREAST_CANCER_TERMS, CANCER_PLANS,  BREAST_CANCER_PATTERNS, BREAST_CANCER_KEYWORDS, BREAST_CANCER_KEYWORD_CUIS,BREAST_CANCER_SYMPTOMS
+from departments.nlp.resources.cancer_diseases import (
+    cancer_symptoms,
+    CANCER_TERMS,
+    CANCER_PLANS,
+    CANCER_PATTERNS,
+    BREAST_CANCER_KEYWORD_CUIS,
+    BREAST_CANCER_SYMPTOMS,
+    CANCER_KEYWORDS_FILE
+)
 from resources.clinical_markers import LAB_THRESHOLDS, CANCER_DISEASES
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -367,14 +376,14 @@ class ClinicalNER:
                     SELECT keyword FROM disease_keywords
                 """)
                 terms = {row['name'].lower() for row in cursor.fetchall()}
-                # Add breast cancer-specific terms from the new module
-                terms.update(BREAST_CANCER_TERMS)
+                # Add cancer-specific terms from the new module
+                terms.update(CANCER_TERMS)
                 logger.info(f"Loaded {len(terms)} clinical terms from database")
                 return terms
         except Exception as e:
             logger.error(f"Error loading clinical terms: {e}")
             terms = DEFAULT_CLINICAL_TERMS
-            terms.update(BREAST_CANCER_TERMS)
+            terms.update(CANCER_TERMS)
             return terms
 
     def __init__(self, umls_mapper: UMLSMapper = None):
@@ -399,20 +408,30 @@ class ClinicalNER:
     
 
     def _load_patterns(self) -> List[Tuple[str, str]]:
+        def _flatten_cancer_patterns() -> List[Tuple[str, str]]:
+            # Flatten CANCER_PATTERNS into a list of (label, pattern) tuples
+            flat = []
+            for cancer_type, pattern_list in CANCER_PATTERNS.items():
+                for label, pattern in pattern_list:
+                    # Optionally prepend cancer_type to label for clarity: f"{cancer_type}_{label}"
+                    flat.append((label, pattern))
+            return flat
+
         try:
             with get_sqlite_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT label, pattern FROM patterns")
                 patterns = [(row['label'], row['pattern']) for row in cursor.fetchall()]
-                # Add breast cancer-specific patterns from the new module
-                patterns.extend(BREAST_CANCER_PATTERNS)
+                # Extend with all cancer patterns
+                patterns.extend(_flatten_cancer_patterns())
                 logger.info(f"Loaded {len(patterns)} patterns from database")
                 return patterns
         except Exception as e:
             logger.error(f"Error loading patterns: {e}")
             patterns = DEFAULT_PATTERNS
-            patterns.extend(BREAST_CANCER_PATTERNS)
+            patterns.extend(_flatten_cancer_patterns())
             return patterns
+
     
     def extract_entities(self, text: str, doc=None) -> List[Tuple[str, str, dict]]:
         start_time = time.time()
@@ -569,7 +588,7 @@ class ClinicalNER:
                 disease_keywords = DiseasePredictor.disease_keywords
                 symptom_cuis = DiseasePredictor.symptom_cuis
                 
-                # Ensure breast cancer terms are included
+                # Ensure cancer terms are included
                 for term in terms:
                     for keyword, cui in disease_keywords.items():
                         if keyword in term or term in keyword:
@@ -577,7 +596,7 @@ class ClinicalNER:
                                 expected_keywords.append(keyword)
                                 reference_cuis.append(cui)
                             break
-                    if term in BREAST_CANCER_KEYWORDS and term not in expected_keywords:
+                    if term in CANCER_TERMS and term not in expected_keywords:
                         expected_keywords.append(term)
                         cui = self.umls_mapper.map_term_to_cui(term)
                         if cui:
@@ -643,7 +662,26 @@ class DiseasePredictor:
         logger.info("DiseasePredictor initialization complete")
 
     @staticmethod
-    def _load_disease_keywords() -> Dict:
+    def _load_disease_keywords() -> Dict[str, str]:
+        """
+        Load disease keywords and their CUIs from the database or an external JSON file.
+        Returns a dictionary mapping keywords to their CUIs.
+        """
+        def load_fallback_keywords() -> Dict[str, str]:
+            """Load cancer keywords from an external JSON file as a fallback."""
+            try:
+                if os.path.exists(CANCER_KEYWORDS_FILE):
+                    with open(CANCER_KEYWORDS_FILE, 'r') as f:
+                        keywords = json.load(f)
+                        logger.info(f"Loaded {len(keywords)} cancer keywords from {CANCER_KEYWORDS_FILE}")
+                        return {k.lower(): v for k, v in keywords.items()}
+                else:
+                    logger.warning(f"External file {CANCER_KEYWORDS_FILE} not found. Using default keywords.")
+                    return fallback_disease_keywords
+            except Exception as e:
+                logger.error(f"Failed to load keywords from {CANCER_KEYWORDS_FILE}: {e}")
+                return fallback_disease_keywords
+
         try:
             with get_sqlite_connection() as conn:
                 cursor = conn.cursor()
@@ -653,29 +691,25 @@ class DiseasePredictor:
                     JOIN disease_keywords dk ON d.id = dk.disease_id
                 """)
                 keywords = {row['keyword'].lower(): row['cui'] for row in cursor.fetchall()}
-                # Add breast cancer-specific keywords
-                keywords.update({
-                    'breast lump': 'C0234450',
-                    'nipple retraction': 'C0234451',
-                    'nipple discharge': 'C0027408',
-                    'breast mass': 'C0234450',
-                    'ductal carcinoma': 'C0007124',
-                    'brca': 'C0599878'
-                })
+                
+                # Load additional cancer keywords from external JSON file
+                try:
+                    if os.path.exists(CANCER_KEYWORDS_FILE):
+                        with open(CANCER_KEYWORDS_FILE, 'r') as f:
+                            external_keywords = json.load(f)
+                            keywords.update({k.lower(): v for k, v in external_keywords.items()})
+                            logger.info(f"Loaded {len(external_keywords)} additional cancer keywords from {CANCER_KEYWORDS_FILE}")
+                    else:
+                        logger.warning(f"External file {CANCER_KEYWORDS_FILE} not found. Skipping external keywords.")
+                except Exception as e:
+                    logger.error(f"Failed to load external keywords from {CANCER_KEYWORDS_FILE}: {e}")
+                
+                logger.info(f"Loaded {len(keywords)} total disease keywords from database and external file")
                 return keywords
         except Exception as e:
-            logger.error(f"Failed to load disease keywords: {e}")
-            keywords = fallback_disease_keywords
-            keywords.update({
-                'breast lump': 'C0234450',
-                'nipple retraction': 'C0234451',
-                'nipple discharge': 'C0027408',
-                'breast mass': 'C0234450',
-                'ductal carcinoma': 'C0007124',
-                'brca': 'C0599878'
-            })
+            logger.error(f"Failed to load disease keywords from database: {e}")
+            keywords = load_fallback_keywords()
             return keywords
-
     @staticmethod
     def _load_symptom_cuis() -> Dict:
         try:
