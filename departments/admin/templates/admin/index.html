@@ -57,102 +57,116 @@
             </div>
         </div>
     </div>
-<div class="card shadow-sm mb-4" style="background-color: #f8f9fa;">
-    <div class="container-fluid mt-5">
-        <h2 class="mb-4 text-center text-primary fw-bold"><i class="bi bi-building me-2"></i> Department Control</h2>
-    </div>
-    <div class="card-body">
-        <!-- Department Selection Dropdown -->
-        <div class="mb-4">
-            <label for="departmentSelect" class="form-label">Switch Department</label>
-            <select id="departmentSelect" class="form-select">
-                <option value="records">Records</option>
-                <option value="billing">Billing</option>
-                <option value="nursing">Nursing</option>
-                <option value="laboratory">Laboratory</option>
-                <option value="imaging">Imaging</option>
-                <option value="pharmacy">Pharmacy</option>
-                <option value="stores">Stores</option>
-                <option value="admin">Admin</option>
-            </select>
-        </div>
+
     <!-- Department Control Panel -->
-<div class="card shadow-sm mb-4" style="background-color: #f8f9fa;">
-    <div class="container-fluid mt-5">
-        <h2 class="mb-4 text-center text-primary fw-bold"><i class="bi bi-building me-2"></i> Department Control</h2>
-    </div>
-    <div class="card-body">
-        <div class="row g-4">
-            <!-- First Column -->
-            <div class="col-md-4 col-sm-6">
-                <a href="{{ url_for('records.index') }}" class="btn btn-outline-records w-100 h-100 d-flex align-items-center justify-content-center">
-                    <i class="bi bi-files me-2"></i> Records
-                </a>
-            </div>
-            <div class="col-md-4 col-sm-6">
-                <a href="{{ url_for('billing.index') }}" class="btn btn-outline-billing w-100 h-100 d-flex align-items-center justify-content-center">
-                    <i class="bi bi-cash-coin me-2"></i> Billing
-                </a>
-            </div>
-            <div class="col-md-4 col-sm-6">
-                <a href="{{ url_for('nursing.view_notes') }}" class="btn btn-outline-nursing w-100 h-100 d-flex align-items-center justify-content-center">
-                    <i class="bi bi-heart-pulse me-2"></i> Nursing
-                </a>
-            </div>
-
-            <!-- Second Column -->
-            <div class="col-md-4 col-sm-6">
-                <a href="{{ url_for('laboratory.lab_tests') }}" class="btn btn-outline-laboratory w-100 h-100 d-flex align-items-center justify-content-center">
-                    <i class="bi bi-flask me-2"></i> Laboratory
-                </a>
-            </div>
-            <div class="col-md-4 col-sm-6">
-                <a href="{{ url_for('imaging.index') }}" class="btn btn-outline-imaging w-100 h-100 d-flex align-items-center justify-content-center">
-                    <i class="bi bi-camera me-2"></i> Imaging
-                </a>
-            </div>
-            <div class="col-md-4 col-sm-6">
-                <a href="{{ url_for('pharmacy.index') }}" class="btn btn-outline-pharmacy w-100 h-100 d-flex align-items-center justify-content-center">
-                    <i class="bi bi-capsule me-2"></i> Pharmacy
-                </a>
-            </div>
-
-            <!-- Third Column -->
-            <div class="col-md-4 col-sm-6">
-                <a href="{{ url_for('stores.index') }}" class="btn btn-outline-store w-100 h-100 d-flex align-items-center justify-content-center">
-                    <i class="bi bi-box-seam me-2"></i> Store
-                </a>
-            </div>
-            <div class="col-md-4 col-sm-6">
-                <a href="{{ url_for('admin.add_user') }}" class="btn btn-outline-admin w-100 h-100 d-flex align-items-center justify-content-center">
-                    <i class="bi bi-person-plus me-2"></i> Add User
-                </a>
-            </div>
-            <div class="col-md-4 col-sm-6">
-                <a href="{{ url_for('medicine.index') }}" class="btn btn-outline-medicine w-100 h-100 d-flex align-items-center justify-content-center">
-                    <i class="bi bi-capsule-pill me-2"></i> Medicine
-                </a>
+    <div class="card shadow-sm mb-4" style="background-color: #f8f9fa;">
+        <div class="card-header">
+            <h2 class="mb-0 text-center text-primary fw-bold"><i class="bi bi-building me-2"></i> Department Control</h2>
+        </div>
+        <div class="card-body">
+            <!-- Role Switching Dropdown -->
+            <div class="dropdown mb-4">
+                <button class="btn btn-outline-primary dropdown-toggle w-100" type="button" id="switchUserDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-person-gear me-2"></i> Switch Role {% if session.switched_user %} ({{ session.switched_user|capitalize }}) {% endif %}
+                </button>
+                <ul class="dropdown-menu w-100" aria-labelledby="switchUserDropdown">
+                    <li>
+                        <form action="{{ url_for('admin.switch_user') }}" method="POST">
+                            <div class="px-3 py-2">
+                                <select class="form-select" name="role" id="switch_role" onchange="this.form.submit()">
+                                    <option value="" {% if not session.switched_user %}selected{% endif %}>Select Role</option>
+                                    <option value="records">Records</option>
+                                    <option value="billing">Billing</option>
+                                    <option value="nursing">Nursing</option>
+                                    <option value="laboratory">Laboratory</option>
+                                    <option value="imaging">Imaging</option>
+                                    <option value="pharmacy">Pharmacy</option>
+                                    <option value="medicine">Medicine</option>
+                                    <option value="stores">Stores</option>
+                                    <option value="hr">HR</option>
+                                </select>
+                            </div>
+                        </form>
+                    </li>
+                    {% if session.switched_user %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('admin.revert_user') }}">
+                            <i class="bi bi-arrow-left-circle me-2"></i> Revert to Admin
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
             </div>
 
-            <!-- Fourth Column -->
-            <div class="col-md-4 col-sm-6">
-                <a href="" class="btn btn-outline-mortuary w-100 h-100 d-flex align-items-center justify-content-center">
-                    <i class="bi bi-emoji-dizzy me-2"></i> Mortuary
-                </a>
-            </div>
-            <div class="col-md-4 col-sm-6">
-                <a href="" class="btn btn-outline-hr w-100 h-100 d-flex align-items-center justify-content-center">
-                    <i class="bi bi-people me-2"></i> Human Resource
-                </a>
-            </div>
-            <div class="col-md-4 col-sm-6">
-                <a href="" class="btn btn-outline-coming-soon w-100 h-100 d-flex align-items-center justify-content-center">
-                    <i class="bi bi-hourglass-split me-2"></i> Coming Soon
-                </a>
+            <!-- Department Buttons Grid -->
+            <div class="row g-4">
+                <div class="col-md-4 col-sm-6">
+                    <a href="{{ url_for('records.index') }}" class="btn btn-outline-records w-100 h-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-files me-2"></i> Records
+                    </a>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <a href="{{ url_for('billing.index') }}" class="btn btn-outline-billing w-100 h-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-cash-coin me-2"></i> Billing
+                    </a>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <a href="{{ url_for('nursing.view_notes') }}" class="btn btn-outline-nursing w-100 h-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-heart-pulse me-2"></i> Nursing
+                    </a>
+                </div>
+
+                <div class="col-md-4 col-sm-6">
+                    <a href="{{ url_for('laboratory.lab_tests') }}" class="btn btn-outline-laboratory w-100 h-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-flask me-2"></i> Laboratory
+                    </a>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <a href="{{ url_for('imaging.index') }}" class="btn btn-outline-imaging w-100 h-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-camera me-2"></i> Imaging
+                    </a>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <a href="{{ url_for('pharmacy.index') }}" class="btn btn-outline-pharmacy w-100 h-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-capsule me-2"></i> Pharmacy
+                    </a>
+                </div>
+
+                <div class="col-md-4 col-sm-6">
+                    <a href="{{ url_for('stores.index') }}" class="btn btn-outline-store w-100 h-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-box-seam me-2"></i> Store
+                    </a>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <a href="{{ url_for('admin.add_user') }}" class="btn btn-outline-admin w-100 h-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-person-plus me-2"></i> Add User
+                    </a>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <a href="{{ url_for('medicine.index') }}" class="btn btn-outline-medicine w-100 h-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-capsule-pill me-2"></i> Medicine
+                    </a>
+                </div>
+
+                <div class="col-md-4 col-sm-6">
+                    <a href="" class="btn btn-outline-mortuary w-100 h-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-emoji-dizzy me-2"></i> Mortuary
+                    </a>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <a href="" class="btn btn-outline-hr w-100 h-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-people me-2"></i> Human Resource
+                    </a>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <a href="" class="btn btn-outline-coming-soon w-100 h-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-hourglass-split me-2"></i> Coming Soon
+                    </a>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
     <!-- Quick Actions -->
     <div class="text-center mt-4">
@@ -294,26 +308,4 @@
         font-size: 1.1rem;
     }
 </style>
-<script>
-$(document).ready(function () {
-    // Initialize Select2 for the department dropdown
-    $('#departmentSelect').select2({
-        theme: 'bootstrap-5',
-        placeholder: "Select a department...",
-        allowClear: true,
-        width: "100%"
-    });
-
-    // Pre-select the current department
-    $('#departmentSelect').val('{{ department|default("admin") }}').trigger('change');
-
-    // Handle department selection change
-    $('#departmentSelect').on('change', function () {
-        var selectedDepartment = $(this).val();
-        if (selectedDepartment) {
-            window.location.href = "{{ url_for('admin.index') }}?department=" + selectedDepartment;
-        }
-    });
-});
-</script>
 {% endblock %}

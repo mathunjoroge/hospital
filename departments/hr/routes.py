@@ -1,7 +1,7 @@
-from flask import render_template, redirect, url_for, request, flash, make_response
+from flask import render_template, redirect, url_for, request, flash, make_response, session, send_file
 from flask_login import login_required, current_user
 from . import bp  # Import the blueprint
-from departments.models.hr import Employee, Rota, Payroll,Allowance,Deduction,Leave,CustomRule,AuditLog# Import Employee model
+from departments.models.hr import Employee, Rota, Payroll, Allowance, Deduction, Leave, CustomRule, AuditLog
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
@@ -14,19 +14,23 @@ import random
 from flask_mail import Message, Mail
 import csv
 from io import StringIO
-from flask import send_file
 import pandas as pd
-from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import io
-from departments.forms import AddAllowanceForm, AddDeductionForm, LeaveRequestForm,UpdateProfileForm # Import AddAllowanceForm and AddDeductionForm
+from departments.forms import AddAllowanceForm, AddDeductionForm, LeaveRequestForm, UpdateProfileForm
+
+# Define get_effective_role to support role switching
+def get_effective_role():
+    if current_user.is_authenticated and current_user.role == 'admin' and 'switched_user' in session:
+        return session['switched_user']
+    return current_user.role if current_user.is_authenticated else None
 
 @bp.route('/', methods=['GET'])
 @login_required
 def index():
     """HR dashboard displaying key metrics and recent changes."""
-    if current_user.role not in ['hr', 'admin']:
-        flash('Unauthorized access. HR staff only.', 'error')
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
         return redirect(url_for('home'))
 
     try:
@@ -62,8 +66,8 @@ def index():
 @login_required
 def employee_list():
     """Displays the list of all employees."""
-    if current_user.role != 'hr':
-        flash('Unauthorized access. HR staff only.', 'error')
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
         return redirect(url_for('home'))
 
     try:
@@ -80,8 +84,8 @@ def employee_list():
 @login_required
 def new_employee():
     """Registers a new employee with allowances and deductions."""
-    if current_user.role != 'hr':
-        flash('Unauthorized access. HR staff only.', 'error')
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
         return redirect(url_for('home'))
 
     try:
@@ -147,8 +151,8 @@ def new_employee():
 @login_required
 def update_employee(employee_id):
     """Updates an existing employee."""
-    if current_user.role != 'hr':
-        flash('Unauthorized access. HR staff only.', 'error')
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
         return redirect(url_for('home'))
 
     try:
@@ -189,8 +193,8 @@ def update_employee(employee_id):
 @login_required
 def delete_employee(employee_id):
     """Deletes an employee from the system."""
-    if current_user.role != 'hr':
-        flash('Unauthorized access. HR staff only.', 'error')
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
         return redirect(url_for('home'))
 
     try:
@@ -209,12 +213,13 @@ def delete_employee(employee_id):
         print(f"Debug: Error in hr.delete_employee: {e}")
         db.session.rollback()
         return redirect(url_for('hr.employee_list'))
+
 @bp.route('/rota_management', methods=['GET', 'POST'])
 @login_required
 def rota_management():
     """Manage employee shifts and schedules (rota)."""
-    if current_user.role != 'hr':
-        flash('Unauthorized access. HR staff only.', 'error')
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
         return redirect(url_for('home'))
 
     try:
@@ -312,13 +317,12 @@ def rota_management():
         db.session.rollback()
         return redirect(url_for('hr.index'))
 
-
 @bp.route('/department_reports', methods=['GET'])
 @login_required
 def department_reports():
     """Generate department-wise employee distribution reports."""
-    if current_user.role != 'hr':
-        flash('Unauthorized access. HR staff only.', 'error')
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
         return redirect(url_for('home'))
 
     try:
@@ -357,8 +361,8 @@ def department_reports():
 @login_required
 def export_department_reports():
     """Export department-wise employee distribution reports to CSV."""
-    if current_user.role != 'hr':
-        flash('Unauthorized access. HR staff only.', 'error')
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
         return redirect(url_for('home'))
 
     try:
@@ -403,8 +407,15 @@ def export_department_reports():
         flash(f'Error exporting department reports: {e}', 'error')
         print(f"Debug: Error in hr.export_department_reports: {e}")
         return redirect(url_for('hr.department_reports'))
+
 @bp.route('/payroll')
+@login_required
 def payroll_dashboard():
+    """Display payroll dashboard with search and filter options."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
+
     search_query = request.args.get('search', '')
     month_filter = request.args.get('month', '')
     department_filter = request.args.get('department', '')
@@ -421,7 +432,13 @@ def payroll_dashboard():
     return render_template('hr/dashboard.html', payrolls=payrolls)
 
 @bp.route('/generate_payroll/<month>')
+@login_required
 def generate_payroll(month):
+    """Generate payroll for a specific month."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
+
     employees = Employee.query.filter_by(is_active=True).all()
     for employee in employees:
         # Calculate gross pay (basic salary + allowances)
@@ -451,14 +468,29 @@ def generate_payroll(month):
         )
         db.session.add(payroll)
     db.session.commit()
-    return "Payroll generated successfully!"
+    flash('Payroll generated successfully!', 'success')
+    return redirect(url_for('hr.payroll_dashboard'))
+
 @bp.route('/employee_payroll/<int:employee_id>')
+@login_required
 def employee_payroll(employee_id):
+    """Display payroll details for a specific employee."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
+
     employee = Employee.query.get_or_404(employee_id)
     payrolls = Payroll.query.filter_by(employee_id=employee.id).all()
     return render_template('hr/employee_payroll.html', employee=employee, payrolls=payrolls)
+
 @bp.route('/add_deduction', methods=['GET', 'POST'])
+@login_required
 def add_deduction():
+    """Add a new deduction."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
+
     form = AddDeductionForm()
     if form.validate_on_submit():
         deduction = Deduction(
@@ -469,11 +501,17 @@ def add_deduction():
         db.session.add(deduction)
         db.session.commit()
         flash('Deduction added successfully!', 'success')
-        return redirect(url_for('payroll_dashboard'))
+        return redirect(url_for('hr.payroll_dashboard'))
     return render_template('hr/add_deduction.html', form=form)
 
 @bp.route('/add_allowance', methods=['GET', 'POST'])
+@login_required
 def add_allowance():
+    """Add a new allowance."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
+
     form = AddAllowanceForm()
     if form.validate_on_submit():
         allowance = Allowance(
@@ -484,15 +522,18 @@ def add_allowance():
         db.session.add(allowance)
         db.session.commit()
         flash('Allowance added successfully!', 'success')
-        return redirect(url_for('payroll_dashboard'))
+        return redirect(url_for('hr.payroll_dashboard'))
     return render_template('hr/add_allowance.html', form=form)
 
 @bp.route('/leave_request', methods=['GET', 'POST'])
+@login_required
 def leave_request():
+    """Submit a leave request for the current employee."""
+    # Allow all authenticated employees to submit leave requests
     form = LeaveRequestForm()
     if form.validate_on_submit():
         leave = Leave(
-            employee_id=1,  # Replace with actual employee ID
+            employee_id=current_user.id,  # Use current_user.id instead of hardcoded value
             start_date=form.start_date.data,
             end_date=form.end_date.data,
             type=form.type.data
@@ -500,17 +541,21 @@ def leave_request():
         db.session.add(leave)
         db.session.commit()
         flash('Leave request submitted successfully!', 'success')
-        return redirect(url_for('index'))
+        return redirect(url_for('hr.index'))
     return render_template('hr/leave_request.html', form=form)
 
 @bp.route('/hr/reports')
+@login_required
 def reports():
-    # Get filter parameters from the request
+    """Generate payroll reports with filters."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
+
     month = request.args.get('month')
     employee_id = request.args.get('employee_id')
     department = request.args.get('department')
 
-    # Build the query
     query = Payroll.query.join(Employee)
     if month:
         query = query.filter(Payroll.month == month)
@@ -523,17 +568,35 @@ def reports():
     return render_template('hr/reports.html', payrolls=payrolls)
 
 @bp.route('/audit_logs')
+@login_required
 def audit_logs():
+    """Display audit logs."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
+
     logs = AuditLog.query.all()
     return render_template('hr/audit_logs.html', logs=logs)
 
 @bp.route('/employee_profile/<int:employee_id>')
+@login_required
 def employee_profile(employee_id):
+    """Display employee profile."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
+
     employee = Employee.query.get_or_404(employee_id)
-    return render_template('employee_profile.html', employee=employee)
+    return render_template('hr/employee_profile.html', employee=employee)
 
 @bp.route('/update_profile/<int:employee_id>', methods=['POST'])
+@login_required
 def update_profile(employee_id):
+    """Update employee profile by HR/admin."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
+
     employee = Employee.query.get_or_404(employee_id)
     employee.name = request.form.get('name')
     employee.department = request.form.get('department')
@@ -543,24 +606,35 @@ def update_profile(employee_id):
     return redirect(url_for('hr.employee_profile', employee_id=employee.id))
 
 @bp.route('/leave_management')
+@login_required
 def leave_management():
-    # Fetch all leave requests with employee details
+    """Manage leave requests."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
+
     leaves = db.session.query(Leave, Employee).join(Employee).all()
     return render_template('hr/leave_management.html', leaves=leaves)
 
-
-
 @bp.route('/reject_leave/<int:leave_id>')
+@login_required
 def reject_leave(leave_id):
+    """Reject a leave request."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
+
     leave = Leave.query.get_or_404(leave_id)
     leave.status = 'Rejected'
     db.session.commit()
     flash('Leave request rejected successfully!', 'danger')
     return redirect(url_for('hr.leave_management'))
 
-@bp.route('/update_profile', methods=['GET', 'POST'])
+@bp.route('/update_employee_profile', methods=['GET', 'POST'])
 @login_required
 def update_employee_profile():
+    """Update profile for the logged-in employee."""
+    # Allow all authenticated employees to update their own profile
     employee = Employee.query.get_or_404(current_user.id)
     form = UpdateProfileForm()
 
@@ -571,7 +645,7 @@ def update_employee_profile():
         employee.bank_account = form.bank_account.data
         db.session.commit()
         flash('Profile updated successfully!', 'success')
-        return redirect(url_for('employee_profile'))
+        return redirect(url_for('hr.employee_profile', employee_id=employee.id))
 
     # Pre-fill the form with existing data
     form.email.data = employee.email
@@ -579,19 +653,26 @@ def update_employee_profile():
     form.bank_name.data = employee.bank_name
     form.bank_account.data = employee.bank_account
 
-    return render_template('hr/employee_profile.html', form=form)
+    return render_template('hr/employee_profile.html', form=form, employee=employee)
 
 @bp.route('/payslips')
 @login_required
 def employee_payslips():
+    """Display payslips for the logged-in employee."""
+    # Allow all authenticated employees to view their own payslips
     payrolls = Payroll.query.filter_by(employee_id=current_user.id).all()
     return render_template('hr/employee_payslips.html', payrolls=payrolls)
 
 @bp.route('/export_payroll_pdf')
+@login_required
 def export_payroll_pdf():
+    """Export payroll report as PDF."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
+
     payrolls = Payroll.query.join(Employee).all()
 
-    # Create a PDF
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
     p.drawString(100, 750, "Payroll Report")
@@ -606,10 +687,15 @@ def export_payroll_pdf():
     return send_file(buffer, as_attachment=True, download_name='payroll_report.pdf', mimetype='application/pdf')
 
 @bp.route('/export_payroll_excel')
+@login_required
 def export_payroll_excel():
+    """Export payroll report as Excel."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
+
     payrolls = Payroll.query.join(Employee).all()
 
-    # Create a DataFrame
     data = {
         'Employee': [payroll.employee.name for payroll in payrolls],
         'Month': [payroll.month for payroll in payrolls],
@@ -619,30 +705,34 @@ def export_payroll_excel():
     }
     df = pd.DataFrame(data)
 
-    # Save to Excel
     buffer = io.BytesIO()
     df.to_excel(buffer, index=False)
     buffer.seek(0)
     return send_file(buffer, as_attachment=True, download_name='payroll_report.xlsx', mimetype='application/vnd.ms-excel')
+
 def send_email(subject, recipient, body):
+    """Send an email notification."""
     msg = Message(subject, recipients=[recipient])
     msg.body = body
     Mail.send(msg)
 
 @bp.route('/approve_leave/<int:leave_id>')
+@login_required
 def approve_leave(leave_id):
+    """Approve a leave request."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
+
     leave = Leave.query.get_or_404(leave_id)
     leave.status = 'Approved'
     db.session.commit()
 
-    # Access the employee associated with the leave request
-    employee = Employee.query.get(leave.employee_id)  # Assuming `employee_id` is the foreign key in the `Leave` model
-
-    # Send notification
+    employee = Employee.query.get(leave.employee_id)
     if employee:
         send_email(
             subject='Leave Request Approved',
-            recipient=employee.email,  # Access the email through the `employee` object
+            recipient=employee.email,
             body=f'Your leave request from {leave.start_date} to {leave.end_date} has been approved.'
         )
     else:
@@ -652,46 +742,61 @@ def approve_leave(leave_id):
     return redirect(url_for('hr.leave_management'))
 
 @bp.route('/process_payroll')
+@login_required
 def process_payroll():
-    # Process payroll logic here...
+    """Process payroll and send notifications."""
+    if get_effective_role() not in ['hr', 'admin']:
+        flash('Unauthorized access. HR staff or admin only.', 'error')
+        return redirect(url_for('home'))
 
-    # Send notification
+    # Process payroll logic here (assumed to be implemented)
     employees = Employee.query.all()
     for employee in employees:
-        send_email(
-            subject='Payroll Processed',
-            recipient=employee.email,
-            body=f'Your payroll for the month has been processed. Net Pay: ${employee.payrolls[-1].net_pay}'
-        )
+        if employee.payrolls:  # Check if payroll exists
+            send_email(
+                subject='Payroll Processed',
+                recipient=employee.email,
+                body=f'Your payroll for the month has been processed. Net Pay: ${employee.payrolls[-1].net_pay}'
+            )
 
     flash('Payroll processed successfully!', 'success')
     return redirect(url_for('hr.payroll_dashboard'))
-@bp.route('/view_payslip/<int:payroll_id>')
-def view_payslip(payroll_id):
-    payroll = Payroll.query.get_or_404(payroll_id)
-    return render_template('hr/payslip.html', payroll=payroll)
-@bp.route('/download_payslip/<int:payroll_id>')
-def download_payslip(payroll_id):
-    payroll = Payroll.query.get_or_404(payroll_id)
 
-    # Create a PDF payslip
+@bp.route('/view_payslip/<int:payroll_id>')
+@login_required
+def view_payslip(payroll_id):
+    """View a specific payslip."""
+    # Allow employees to view their own payslips, HR/admins to view all
+    payroll = Payroll.query.get_or_404(payroll_id)
+    if get_effective_role() not in ['hr', 'admin'] and payroll.employee_id != current_user.id:
+        flash('Unauthorized access. You can only view your own payslips.', 'error')
+        return redirect(url_for('home'))
+    return render_template('hr/payslip.html', payroll=payroll)
+
+@bp.route('/download_payslip/<int:payroll_id>')
+@login_required
+def download_payslip(payroll_id):
+    """Download a specific payslip as PDF."""
+    # Allow employees to download their own payslips, HR/admins to download all
+    payroll = Payroll.query.get_or_404(payroll_id)
+    if get_effective_role() not in ['hr', 'admin'] and payroll.employee_id != current_user.id:
+        flash('Unauthorized access. You can only download your own payslips.', 'error')
+        return redirect(url_for('home'))
+
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     styles = getSampleStyleSheet()
     elements = []
 
-    # Company Logo
     logo_path = "static/images/logo.png"  # Adjust the path as necessary
     logo = Image(logo_path, width=1.5*inch, height=1*inch)
     elements.append(logo)
     elements.append(Spacer(1, 12))
 
-    # Payslip Header
     elements.append(Paragraph("Payslip", styles['Title']))
     elements.append(Paragraph(f"{payroll.month}", styles['Heading2']))
     elements.append(Spacer(1, 12))
 
-    # Employee Details
     employee_details = [
         ["Employee Name:", payroll.employee.name],
         ["Employee ID:", payroll.employee.employee_id],
@@ -713,7 +818,6 @@ def download_payslip(payroll_id):
     elements.append(employee_table)
     elements.append(Spacer(1, 12))
 
-    # Payroll Details
     payroll_details = [
         ["Gross Pay:", f"${payroll.gross_pay}"],
         ["Total Deductions:", f"${payroll.total_deductions}"],
@@ -733,11 +837,9 @@ def download_payslip(payroll_id):
     elements.append(payroll_table)
     elements.append(Spacer(1, 12))
 
-    # Footer
     elements.append(Paragraph("This is an official payslip generated by Your Company Name. For any discrepancies, please contact HR.", styles['BodyText']))
     elements.append(Spacer(1, 12))
 
-    # Build PDF
     doc.build(elements)
 
     buffer.seek(0)

@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 @bp.route('/')
 @login_required
 def index():
-    if current_user.role != 'pharmacy':
+    if current_user.role not in ['pharmacy', 'admin']:
         flash('You do not have permission to access this page.', 'error')
         return redirect(url_for('login'))
 
@@ -388,7 +388,7 @@ def record_purchase():
 @login_required
 def view_prescriptions(patient_id):
     """Displays all prescribed medicines for a specific patient, grouped by prescription."""
-    if current_user.role not in ['medicine', 'pharmacy']:
+    if current_user.role not in ['medicine', 'pharmacy','admin']:
         flash('You do not have permission to access this page.', 'error')
         return redirect(url_for('home'))
 
