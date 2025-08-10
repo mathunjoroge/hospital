@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, flash, redirect, url_for, request
+from flask import Blueprint, render_template, flash, redirect, url_for, request, session
 from extensions import db 
 from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
@@ -35,7 +35,58 @@ class EditUserForm(FlaskForm):
     role = SelectField('Role', choices=ROLES, validators=[DataRequired()])
     submit = SubmitField('Update User')    
 
+@bp.route('/admin/switch_user', methods=['POST'])
+@login_required
+def switch_user():
+    if current_user.role != 'admin':
+        flash('Unauthorized access.', 'danger')
+        return redirect(url_for('home'))
+
+    new_role = request.form.get('role')
+    allowed_roles = ['records', 'billing', 'nursing', 'laboratory', 'imaging', 'pharmacy', 'medicine', 'stores', 'hr', 'admin']
+
+    if new_role not in allowed_roles:
+        flash('Invalid role selected.', 'danger')
+        return redirect(url_for('home'))
+
+    session['switched_user'] = new_role
+    flash(f'Switched to {new_role} role.', 'success')
+
+    # Role-to-homepage mapping
+    role_homepages = {
+        'records': 'records.index',
+        'billing': 'billing.index',
+        'nursing': 'nursing.index',
+        'laboratory': 'laboratory.index',
+        'imaging': 'imaging.index',
+        'pharmacy': 'pharmacy.index',
+        'medicine': 'medicine.index',
+        'stores': 'stores.index',
+        'hr': 'hr.index',
+        'admin': 'admin.index'
+    }
+
+    # Redirect to the role-specific homepage
+    return redirect(url_for(role_homepages.get(new_role, 'home')))
+
+@bp.route('/admin/revert_user')
+@login_required
+def revert_user():
+    if current_user.role != 'admin':
+        flash('Unauthorized access.', 'danger')
+        return redirect(url_for('home'))
+
+    session.pop('switched_user', None)
+    flash('Reverted to admin role.', 'success')
+    return redirect(url_for('admin.index'))
+
+def get_effective_role():
+    if current_user.is_authenticated and current_user.role == 'admin' and 'switched_user' in session:
+        return session['switched_user']
+    return current_user.role if current_user.is_authenticated else None   
+
 @bp.route('/index', methods=['GET'])
+@bp.route('/', methods=['GET'])  # Add this to handle /admin directly
 @login_required
 def index():
     """Admin dashboard showing all users."""
@@ -49,19 +100,20 @@ def index():
             source='admin'
         ))
         db.session.commit()
-        return redirect(url_for('login'))
+        return redirect(url_for(f'{current_user.role}.index'))  # Redirect to role-specific index
 
     try:
+        department = request.args.get('department', 'admin')  # Get department from query parameter
         users = User.query.order_by(User.username).all()
-        logger.info(f"Admin {current_user.id} accessed dashboard")
+        logger.info(f"Admin {current_user.id} accessed dashboard with department {department}")
         db.session.add(Log(
             level='INFO',
-            message=f"Admin {current_user.username} (ID: {current_user.id}) accessed dashboard",
+            message=f"Admin {current_user.username} (ID: {current_user.id}) accessed dashboard with department {department}",
             user_id=current_user.id,
             source='admin'
         ))
         db.session.commit()
-        return render_template('admin/index.html', users=users)
+        return render_template('admin/index.html', users=users, department=department)
     except Exception as e:
         flash(f'Error loading dashboard: {e}', 'error')
         logger.error(f"Error in admin.index: {e}", exc_info=True)

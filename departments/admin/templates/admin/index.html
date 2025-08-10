@@ -294,4 +294,26 @@
         font-size: 1.1rem;
     }
 </style>
+<script>
+$(document).ready(function () {
+    // Initialize Select2 for the department dropdown
+    $('#departmentSelect').select2({
+        theme: 'bootstrap-5',
+        placeholder: "Select a department...",
+        allowClear: true,
+        width: "100%"
+    });
+
+    // Pre-select the current department
+    $('#departmentSelect').val('{{ department|default("admin") }}').trigger('change');
+
+    // Handle department selection change
+    $('#departmentSelect').on('change', function () {
+        var selectedDepartment = $(this).val();
+        if (selectedDepartment) {
+            window.location.href = "{{ url_for('admin.index') }}?department=" + selectedDepartment;
+        }
+    });
+});
+</script>
 {% endblock %}

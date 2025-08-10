@@ -25,7 +25,7 @@ from departments.forms import AddAllowanceForm, AddDeductionForm, LeaveRequestFo
 @login_required
 def index():
     """HR dashboard displaying key metrics and recent changes."""
-    if current_user.role != 'hr':
+    if current_user.role not in ['hr', 'admin']:
         flash('Unauthorized access. HR staff only.', 'error')
         return redirect(url_for('home'))
 

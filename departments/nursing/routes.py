@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @login_required
 def index():
     """Display the nursing waiting list."""
-    if current_user.role not in ['nursing', 'admin']:
+    if current_user.role not in ['medicine', 'admin']: 
         flash('You do not have permission to access this page.', 'error')
         return redirect(url_for('login'))  # Redirect to billing.index if role is invalid
 
@@ -133,7 +133,7 @@ def vitals(patient_id):
 @login_required
 def view_notes():
     """View all nursing notes for patients."""
-    if current_user.role not in ['nursing', 'admin']:
+    if current_user.role not in ['medicine', 'admin']: 
         flash('Unauthorized access. Nursing staff only.', 'error')
         logger.warning(f"Unauthorized access attempt to /nursing/view_notes by user {current_user.id}")
         db.session.add(Log(
