@@ -12,216 +12,206 @@
     <!-- Favicon -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <!-- Bootstrap CSS -->
-<!-- Bootstrap CSS -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <!-- Fix Select2 Width -->
+    <style>
+      .select2-container {
+        width: 100% !important;
+      }
+    </style>
+    <!-- jQuery (required for Select2) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <!-- Custom Styles -->
+    <style>
+      /* ================= Layout & Structure ================= */
+      body {
+        padding-top: 60px;
+        display: flex;
+        min-height: 100vh;
+        flex-direction: column;
+      }
 
-<!-- Select2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+      main {
+        flex: 1;
+      }
 
-<!-- Fix Select2 Width -->
-<style>
-  .select2-container {
-    width: 100% !important;
-  }
-</style>
+      .sidebar {
+        position: fixed;
+        top: 60px;
+        bottom: 0;
+        left: 0;
+        width: 250px;
+        background-color: black;
+        color: white;
+        padding: 20px;
+        transition: transform 0.3s ease-in-out;
+        z-index: 1000;
+      }
 
-<!-- jQuery (required for Select2) -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+      .content {
+        margin-left: 250px;
+        padding: 20px;
+        transition: margin-left 0.3s ease-in-out;
+        text-align: left;
+      }
 
-<!-- Bootstrap Bundle -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+      @media (max-width: 768px) {
+        .sidebar {
+          transform: translateX(-100%);
+        }
 
-<!-- Select2 JS -->
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+        .content {
+          margin-left: 0;
+        }
 
-<!-- Custom Styles -->
-<style>
-  /* ================= Layout & Structure ================= */
-  body {
-    padding-top: 60px;
-    display: flex;
-    min-height: 100vh;
-    flex-direction: column;
-  }
+        .sidebar.active {
+          transform: translateX(0);
+        }
 
-  main {
-    flex: 1;
-  }
+        .sidebar-toggle {
+          display: block;
+        }
+      }
 
-  .sidebar {
-    position: fixed;
-    top: 60px;
-    bottom: 0;
-    left: 0;
-    width: 250px;
-    background-color: black;
-    color: white;
-    padding: 20px;
-    transition: transform 0.3s ease-in-out;
-    z-index: 1000;
-  }
+      .sidebar a {
+        color: white;
+        text-decoration: none;
+        display: block;
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 5px;
+        text-align: left;
+      }
 
-  .content {
-    margin-left: 250px;
-    padding: 20px;
-    transition: margin-left 0.3s ease-in-out;
-    text-align: left;
-  }
+      .sidebar a:hover {
+        background-color: #b2bec3;
+        color: white;
+      }
 
-  @media (max-width: 768px) {
-    .sidebar {
-      transform: translateX(-100%);
-    }
+      .sidebar-toggle {
+        display: none;
+        position: fixed;
+        top: 4px;
+        left: 10px;
+        z-index: 1100;
+        background-color: #2c3e50;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 5px;
+        cursor: pointer;
+      }
 
-    .content {
-      margin-left: 0;
-    }
+      .hide-sidebar .sidebar {
+        display: none;
+      }
 
-    .sidebar.active {
-      transform: translateX(0);
-    }
+      .hide-sidebar .content {
+        margin-left: 0;
+      }
 
-    .sidebar-toggle {
-      display: block;
-    }
-  }
+      /* ================= Navbar ================= */
+      .navbar-custom {
+        background: linear-gradient(90deg, #2c3e50, #4a6278);
+        border-bottom: 2px solid #1a2d3e;
+      }
 
-  .sidebar a {
-    color: white;
-    text-decoration: none;
-    display: block;
-    margin-bottom: 10px;
-    padding: 10px;
-    border-radius: 5px;
-    text-align: left;
-  }
+      .navbar-brand {
+        color: #fff;
+        transition: color 0.3s ease;
+      }
 
-  .sidebar a:hover {
-    background-color: #b2bec3;
-    color: white;
-  }
+      .navbar-brand:hover {
+        color: #b2bec3;
+      }
 
-  .sidebar-toggle {
-    display: none;
-    position: fixed;
-    top: 4px;
-    left: 10px;
-    z-index: 1100;
-    background-color: #2c3e50;
-    color: white;
-    border: none;
-    padding: 10px;
-    border-radius: 5px;
-    cursor: pointer;
-  }
+      .nav-link {
+        color: #fff;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+      }
 
-  .hide-sidebar .sidebar {
-    display: none;
-  }
+      .nav-link:hover {
+        color: #b2bec3;
+        transform: scale(1.05);
+      }
 
-  .hide-sidebar .content {
-    margin-left: 0;
-  }
+      .navbar-text {
+        font-size: 0.9rem;
+      }
 
-  /* ================= Navbar ================= */
-  .navbar-custom {
-    background: linear-gradient(90deg, #2c3e50, #4a6278);
-    border-bottom: 2px solid #1a2d3e;
-  }
+      .badge.bg-danger {
+        transition: transform 0.3s ease;
+      }
 
-  .navbar-brand {
-    color: #fff;
-    transition: color 0.3s ease;
-  }
+      .animate-badge:hover .badge {
+        transform: scale(1.2);
+      }
 
-  .navbar-brand:hover {
-    color: #b2bec3;
-  }
+      /* ================= Dropdown Menu ================= */
+      .dropdown-menu {
+        background-color: #2c3e50;
+        border: none;
+      }
 
-  .nav-link {
-    color: #fff;
-    padding: 0.5rem 1rem;
-    transition: all 0.3s ease;
-  }
+      .dropdown-item {
+        color: #fff;
+      }
 
-  .nav-link:hover {
-    color: #b2bec3;
-    transform: scale(1.05);
-  }
+      .dropdown-item:hover {
+        background-color: #4a6278;
+        color: #b2bec3;
+      }
 
-  .navbar-text {
-    font-size: 0.9rem;
-  }
+      /* Style the select2 container */
+      .select2-container--bootstrap-5 .select2-selection {
+        min-height: 45px;
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.5rem;
+        border: 1px solid #ced4da;
+        font-size: 1rem;
+      }
 
-  .badge.bg-danger {
-    transition: transform 0.3s ease;
-  }
+      /* Placeholder text color */
+      .select2-container--bootstrap-5 .select2-selection__placeholder {
+        color: #6c757d;
+      }
 
-  .animate-badge:hover .badge {
-    transform: scale(1.2);
-  }
+      /* Clear button spacing */
+      .select2-container--bootstrap-5 .select2-selection__clear {
+        margin-right: 10px;
+      }
 
-  /* ================= Dropdown Menu ================= */
-  .dropdown-menu {
-    background-color: #2c3e50;
-    border: none;
-  }
+      /* On focus */
+      .select2-container--bootstrap-5.select2-container--focus .select2-selection {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+      }
 
-  .dropdown-item {
-    color: #fff;
-  }
+      /* Dropdown styling */
+      .select2-container--bootstrap-5 .select2-results__option--highlighted {
+        background-color: #e9ecef;
+        color: #000;
+      }
 
-  .dropdown-item:hover {
-    background-color: #4a6278;
-    color: #b2bec3;
-  }
-
-/* Style the select2 container */
-.select2-container--bootstrap-5 .select2-selection {
-  min-height: 45px;
-  padding: 0.375rem 0.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid #ced4da;
-  font-size: 1rem;
-}
-
-/* Placeholder text color */
-.select2-container--bootstrap-5 .select2-selection__placeholder {
-  color: #6c757d;
-}
-
-/* Clear button spacing */
-.select2-container--bootstrap-5 .select2-selection__clear {
-  margin-right: 10px;
-}
-
-/* On focus */
-.select2-container--bootstrap-5.select2-container--focus .select2-selection {
-  border-color: #86b7fe;
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-}
-
-/* Dropdown styling */
-.select2-container--bootstrap-5 .select2-results__option--highlighted {
-  background-color: #e9ecef;
-  color: #000;
-}
-
-/* Fix misaligned Select2 clear button */
-.select2-container--bootstrap-5 .select2-selection__clear {
-  margin-top: 0.4rem; /* Adjust vertically */
-  margin-right: 0.5rem;
-  position: absolute;
-  
-  top: 50%;
-  transform: translateY(-50%);
-  color: #dc3545;
-  font-size: 1.2rem;
-}
-
-</style>
-
+      /* Fix misaligned Select2 clear button */
+      .select2-container--bootstrap-5 .select2-selection__clear {
+        margin-top: 0.4rem; /* Adjust vertically */
+        margin-right: 0.5rem;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #dc3545;
+        font-size: 1.2rem;
+      }
+    </style>
   </head>
   <body class="{% if request.endpoint == 'login' %}hide-sidebar{% endif %}">
     <!-- Navbar -->
@@ -229,7 +219,8 @@
       <div class="container-fluid">
         <!-- Brand -->
         <a class="navbar-brand fw-bold fs-4" href="{{ url_for('home') }}">
-          <i class="bi bi-hospital me-2"></i> HIMS </a>
+          <i class="bi bi-hospital me-2"></i> HIMS
+        </a>
         <!-- Toggler for mobile -->
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
@@ -237,17 +228,58 @@
         <!-- Navbar items -->
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav me-auto align-items-center">
-            <!-- Left-side links (optional, e.g., Home when not authenticated) --> {% if not current_user.is_authenticated %} <li class="nav-item">
+            {% if not current_user.is_authenticated %}
+            <li class="nav-item">
               <a class="nav-link d-flex align-items-center" href="{{ url_for('home') }}">
-                <i class="bi bi-house me-2"></i> Home </a>
-            </li> {% endif %}
+                <i class="bi bi-house me-2"></i> Home
+              </a>
+            </li>
+            {% endif %}
           </ul>
-          <ul class="navbar-nav ms-auto align-items-center"> {% if current_user.is_authenticated %}
-            <!-- User Info -->
+          <ul class="navbar-nav ms-auto align-items-center">
+            {% if current_user.is_authenticated %}
+            <!-- Admin Switch User Dropdown -->
+            {% if current_user.role == 'admin' %}
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="switchUserDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-person-gear me-2"></i> Switch Role {% if session.switched_user %} ({{ session.switched_user|capitalize }}) {% endif %}
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="switchUserDropdown">
+                <form action="{{ url_for('admin.switch_user') }}" method="POST">
+                  
+                  <li>
+                    <div class="dropdown-item">
+                      <select class="form-select select2" name="role" id="switch_role" onchange="this.form.submit()">
+                        <option value="" {% if not session.switched_user %}selected{% endif %}>Select Role</option>
+                        <option value="records">Records</option>
+                        <option value="billing">Billing</option>
+                        <option value="nursing">Nursing</option>
+                        <option value="laboratory">Laboratory</option>
+                        <option value="imaging">Imaging</option>
+                        <option value="pharmacy">Pharmacy</option>
+                        <option value="medicine">Medicine</option>
+                        <option value="stores">Stores</option>
+                        <option value="hr">HR</option>
+                      </select>
+                    </div>
+                  </li>
+                  {% if session.switched_user %}
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <a class="dropdown-item" href="{{ url_for('admin.revert_user') }}">
+                      <i class="bi bi-arrow-left-circle me-2"></i> Revert to Admin
+                    </a>
+                  </li>
+                  {% endif %}
+                </form>
+              </ul>
+            </li>
+            {% endif %}
             <!-- Imaging Requests -->
             <li class="nav-item">
               <a class="nav-link d-flex align-items-center animate-badge" href="{{ url_for('medicine.unmatched_imaging') }}">
-                <i class="bi bi-camera-reels me-2"></i> Imaging Requests <span class="badge bg-danger rounded-pill ms-2 shadow-sm">{{ unmatched_count }}</span>
+                <i class="bi bi-camera-reels me-2"></i> Imaging Requests
+                <span class="badge bg-danger rounded-pill ms-2 shadow-sm">{{ unmatched_count }}</span>
               </a>
             </li>
             <!-- User Dropdown -->
@@ -258,17 +290,23 @@
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                 <li>
                   <a class="dropdown-item" href="#">
-                    <i class="bi bi-gear me-2"></i> Settings </a>
+                    <i class="bi bi-gear me-2"></i> Settings
+                  </a>
                 </li>
                 <li>
                   <a class="dropdown-item" href="{{ url_for('logout') }}">
-                    <i class="bi bi-box-arrow-right me-2"></i> Logout </a>
+                    <i class="bi bi-box-arrow-right me-2"></i> Logout
+                  </a>
                 </li>
               </ul>
-            </li> {% else %} <li class="nav-item">
+            </li>
+            {% else %}
+            <li class="nav-item">
               <a class="nav-link d-flex align-items-center" href="{{ url_for('login') }}">
-                <i class="bi bi-box-arrow-in-left me-2"></i> Login </a>
-            </li> {% endif %}
+                <i class="bi bi-box-arrow-in-left me-2"></i> Login
+              </a>
+            </li>
+            {% endif %}
           </ul>
         </div>
       </div>
@@ -277,178 +315,112 @@
     <button class="sidebar-toggle" onclick="toggleSidebar()">
       <i class="bi bi-list"></i>
     </button>
-    <!-- Sidebar --> 
-    {% if request.endpoint != 'login' %} <div class="sidebar" id="sidebar"> 
-        {% if current_user.is_authenticated %} {% if current_user.role == 'records' %} 
-        <a href="{{ url_for('records.index') }}">
-        <i class="bi bi-list-ul me-2"></i> Patient List </a>
-      <a href="{{ url_for('records.new_patient') }}">
-        <i class="bi bi-person-plus me-2"></i> New Patient </a>
-      <a href="{{ url_for('records.clinics') }}">
-        <i class="bi bi-building me-2"></i> Clinics </a>
-      <a href="{{ url_for('records.waiting_list') }}">
-        <i class="bi bi-hourglass-split me-2"></i> Waiting List </a>
-      <a href="{{ url_for('records.bookings') }}">
-        <i class="bi bi-calendar-check me-2"></i> Bookings </a>
+    <!-- Sidebar -->
+    {% if request.endpoint != 'login' %}
+    <div class="sidebar" id="sidebar">
+      {% if current_user.is_authenticated %}
+      {% set effective_role = session.switched_user if session.switched_user else current_user.role %}
+      {% if effective_role == 'records' %}
+      <a href="{{ url_for('records.index') }}"><i class="bi bi-list-ul me-2"></i> Patient List</a>
+      <a href="{{ url_for('records.new_patient') }}"><i class="bi bi-person-plus me-2"></i> New Patient</a>
+      <a href="{{ url_for('records.clinics') }}"><i class="bi bi-building me-2"></i> Clinics</a>
+      <a href="{{ url_for('records.waiting_list') }}"><i class="bi bi-hourglass-split me-2"></i> Waiting List</a>
+      <a href="{{ url_for('records.bookings') }}"><i class="bi bi-calendar-check me-2"></i> Bookings</a>
       <button type="button" data-bs-toggle="modal" data-bs-target="#bookClinicModal">
-        <i class="bi bi-calendar-plus me-2"></i> Book Clinic </button> {% elif current_user.role == 'billing' %} <a href="{{ url_for('billing.index') }}">
-        <i class="bi bi-list-ul me-2"></i> Billing List </a>
-      <a href="{{ url_for('billing.new_billing') }}">
-        <i class="bi bi-cash-stack me-2"></i> Create New Billing </a> {% elif current_user.role == 'nursing' %} <a href="{{ url_for('nursing.patient_dashboard') }}">
-        <i class="bi bi-person-lines-fill me-2"></i> Patient Dashboard </a>
-      <a href="{{ url_for('nursing.view_notes') }}">
-        <i class="bi bi-journal-text me-2"></i> View Notes </a>
-      <a href="{{ url_for('nursing.add_note') }}">
-        <i class="bi bi-pencil-square me-2"></i> Add Note </a>
-      <a href="{{ url_for('nursing.care_tasks') }}">
-        <i class="bi bi-list-task me-2"></i> Care Tasks </a>
-      <a href="{{ url_for('nursing.care_tasks') }}">
-        <i class="bi bi-plus-circle me-2"></i> Add Task </a>
-      <a href="{{ url_for('nursing.care_summary') }}">
-        <i class="bi bi-file-earmark-text me-2"></i> Care Summary </a>
-      <a href="{{ url_for('nursing.record_partogram') }}">
-        <i class="bi bi-file-earmark-text me-2"></i> Record Partogram </a>
-      <a href="{{ url_for('nursing.view_partograms') }}">
-        <i class="bi bi-file-eye-text me-2"></i> View Partograms </a>
-      <a href="{{ url_for('nursing.medication_admin') }}">
-        <i class="bi bi-capsule me-2"></i> Medication Admin </a>
-      <a href="{{ url_for('nursing.vital_signs') }}">
-        <i class="bi bi-heart-pulse me-2"></i> Vital Signs </a>
-      <a href="{{ url_for('nursing.shift_handover') }}">
-        <i class="bi bi-arrow-right-circle me-2"></i> Shift Handover </a>
-      <a href="{{ url_for('nursing.communicate_doctor') }}">
-        <i class="bi bi-chat-dots me-2"></i> Contact Doctor </a>
-      <a href="{{ url_for('nursing.notifications') }}">
-        <i class="bi bi-bell me-2"></i>Notifications {% if unread_notifications > 0 %} <span class="badge bg-danger">{{ unread_notifications }}</span> {% endif %} </a> {% elif current_user.role == 'laboratory' %} <a href="{{ url_for('laboratory.index') }}">
-        <i class="bi bi-list-check me-2"></i> Requests </a>
-      <a href="{{ url_for('laboratory.lab_tests') }}">
-        <i class="bi bi-clipboard-data me-2"></i> Lab Tests </a>
-      <a href="{{ url_for('laboratory.reagents_order') }}">
-        <i class="bi bi-cart-plus me-2"></i> Order for Reagents </a>
-      <a href="{{ url_for('laboratory.index') }}">
-        <i class="bi bi-hourglass-split me-2"></i> Pending Results </a>
-      <a href="{{ url_for('laboratory.processed_lab_results') }}">
-        <i class="bi bi-check2-circle me-2"></i> Processed Results </a>
-      <a href="{{ url_for('laboratory.lab_reagent_inventory') }}">
-        <i class="bi bi-box-seam me-2"></i> Reagent Inventory </a>
-      <a href="">
-        <i class="bi bi-file-earmark-text me-2"></i> Generate Reports </a>
-      <a href="">
-        <i class="bi bi-person-lines-fill me-2"></i> Patient Lab History </a>
-      <a href="{{ url_for('laboratory.search_patient') }}">
-        <i class="bi bi-person-lines-fill me-2"></i> Patient Lab History </a>
-      <a href="">
-        <i class="bi bi-people me-2"></i> Manage Lab Staff </a>
-      <a href="{{ url_for('laboratory.abnormal_results') }}">
-        <i class="bi bi-exclamation-triangle me-2"></i> Abnormal Results </a>
-      <a href="{{ url_for('laboratory.dashboard') }}">
-        <i class="bi bi-bar-chart-line me-2"></i> Lab Dashboard </a> 
-        {% elif current_user.role == 'imaging' %} 
-        <a href="{{ url_for('imaging.index') }}">
-        <i class="bi bi-list-check me-2"></i> Requests </a>
-      <a href="">
-        <i class="bi bi-list-check me-2"></i>inventory</a>
-      <a href="{{ url_for('imaging.imaging_results') }}">
-        <i class="bi bi-boxes me-2"></i> results</a>
-      <a href="">
-        <i class="bi bi-file-earmark-medical me-2"></i> Reports </a>
-      <a href="">
-        <i class="bi bi-person-lines-fill me-2"></i> Patient Records </a> 
-        {% elif current_user.role == 'pharmacy' %} 
-        <a href="{{ url_for('pharmacy.index') }}">
-        <i class="bi bi-hourglass-split me-2"></i> Waiting List </a>
-      <a href="{{ url_for('pharmacy.inventory') }}">
-        <i class="bi bi-boxes me-2"></i> Inventory </a>
-      <a href="{{ url_for('pharmacy.drug_requests') }}">
-        <i class="bi bi-truck me-2"></i> Request for Drugs </a>
-      <a href="{{ url_for('pharmacy.pending_requests') }}">
-        <i class="bi bi-hourglass-split me-2"></i> Pending Requests </a>
-      <a href="{{ url_for('pharmacy.served_requests') }}">
-        <i class="bi bi-check-circle me-2"></i> Served Requests </a>
-      <a href="{{ url_for('pharmacy.patient_history') }}">
-        <i class="bi bi-clock-history me-2"></i> Patient History </a>
-      <a href="">
-        <i class="bi bi-bar-chart-line me-2"></i> Consumption Report </a>
-      <a href="{{ url_for('pharmacy.low_stock') }}">
-        <i class="bi bi-exclamation-triangle me-2"></i> Low Running Stocks </a>
-      <a href="{{ url_for('pharmacy.expiries') }}">
-        <i class="bi bi-calendar-x me-2"></i> Expiries </a> 
-        <a href="{{ url_for('pharmacy.analytics') }}">
-        <i class="bi bi-graph-up me-2"></i> Analytics Dashboard </a>
-        {% elif current_user.role == 'medicine' %}
-      <!-- Patient Management -->
-      <a href="{{ url_for('medicine.index') }}">
-        <i class="bi bi-hourglass-split me-2"></i> Waiting List </a>
-      <a href="{{ url_for('medicine.ward_rounds') }}">
-        <i class="bi bi-hospital me-2"></i> Inpatients </a>
-            <a href="{{ url_for('pharmacy.patient_history') }}">
-        <i class="bi bi-clock-history me-2"></i> Patient History </a>
-      <a href="{{ url_for('medicine.admit_patient') }}">
-        <i class="bi bi-door-open me-2"></i> admit patient </a>
-      <a href="">
-        <i class="bi bi-door-open me-2"></i> Discharge Patient </a>
-      <!-- Lab-Related -->
-      <a href="{{ url_for('medicine.lab_patients') }}"> 
-        <i class="bi bi-activity me-2"></i> Patients from Lab </a>
-       <a href="{{ url_for('medicine.pending_lab_patients') }}"> 
-        <i class="bi bi-file-earmark-text me-2"></i> Pending Lab Results </a>
-      <!-- Theatre and Emergency -->
-      <a href="{{ url_for('medicine.get_theatre_list') }}">
-        <i class="bi bi-clipboard2-pulse me-2"></i> Theatre List </a>
-      <a href="">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i> Emergency </a>
-      <!-- References -->
-    <a href="{{ url_for('medicine.list_diseases') }}">
-        <i class="bi bi-virus me-2"></i> Diseases Ref </a>
-      <a href="{{ url_for('medicine.drugs_ref') }}">
-        <i class="bi bi-capsule me-2"></i> Drugs Ref </a>
-      <!-- Specialized Care -->
-      <a href="{{ url_for('medicine.oncology') }}">
-        <i class="bi bi-droplet me-2"></i> Oncology </a> 
-        {% elif current_user.role == 'stores' %} 
-        <a href="/">
-        <i class="bi bi-house me-2"></i> Home </a>
-      <a href="{{ url_for('stores.inventory') }}">
-        <i class="bi bi-boxes me-2"></i> Inventory </a>
-      <a href="{{ url_for('stores.non_pharms') }}">
-        <i class="bi bi-boxes me-2"></i> non_pharms </a>
-      <a href="">
-        <i class="bi bi-truck me-2"></i> Issue Requests </a> 
-        {% elif current_user.role == 'hr' %} 
-        <a href="{{ url_for('hr.index') }}" class="nav-link">
-        <i class="bi bi-house me-2"></i> Home </a>
-      <a href="{{ url_for('hr.employee_list') }}" class="nav-link">
-        <i class="bi bi-people me-2"></i> Employee List </a>
-      <a href="{{ url_for('hr.new_employee') }}" class="nav-link">
-        <i class="bi bi-person-plus me-2"></i> New Employee </a>
-      <a href="{{ url_for('hr.payroll_dashboard') }}" class="nav-link">
-        <i class="bi bi-cash-stack me-2"></i> Payroll </a>
-      <a href="{{ url_for('hr.add_deduction') }}" class="nav-link">
-        <i class="bi bi-dash-circle me-2"></i> Add Deduction </a>
-      <a href="{{ url_for('hr.add_allowance') }}" class="nav-link">
-        <i class="bi bi-plus-circle me-2"></i> Add Allowance </a>
-      <a href="{{ url_for('hr.leave_management') }}" class="nav-link">
-        <i class="bi bi-calendar-event me-2"></i> Leave Management </a>
-      <a href="{{ url_for('hr.reports') }}" class="nav-link">
-        <i class="bi bi-file-earmark-text me-2"></i> Reports </a>
-      <a href="{{ url_for('hr.audit_logs') }}" class="nav-link">
-        <i class="bi bi-list-check me-2"></i> Audit Logs </a> 
-        {% elif current_user.role == 'admin' %} 
-        <a href="{{ url_for('admin.index') }}">
-        <i class="bi bi-house me-2"></i> Home </a>
-      <a href="{{ url_for('admin.add_user') }}">
-        <i class="bi bi-person-plus me-2"></i> Add User </a>
-      <a href="{{ url_for('admin.manage_users') }}">
-        <i class="bi bi-people me-2"></i> Manage Users </a>
-      <a href="{{ url_for('admin.system_overview') }}">
-        <i class="bi bi-gear me-2"></i> System Overview </a>
-      <a href="{{ url_for('admin.logs') }}">
-        <i class="bi bi-journal-text me-2"></i> System Logs </a> {% endif %} {% endif %}
-    </div> {% endif %}
+        <i class="bi bi-calendar-plus me-2"></i> Book Clinic
+      </button>
+      {% elif effective_role == 'billing' %}
+      <a href="{{ url_for('billing.index') }}"><i class="bi bi-list-ul me-2"></i> Billing List</a>
+      <a href="{{ url_for('billing.new_billing') }}"><i class="bi bi-cash-stack me-2"></i> Create New Billing</a>
+      {% elif effective_role == 'nursing' %}
+      <a href="{{ url_for('nursing.patient_dashboard') }}"><i class="bi bi-person-lines-fill me-2"></i> Patient Dashboard</a>
+      <a href="{{ url_for('nursing.view_notes') }}"><i class="bi bi-journal-text me-2"></i> View Notes</a>
+      <a href="{{ url_for('nursing.add_note') }}"><i class="bi bi-pencil-square me-2"></i> Add Note</a>
+      <a href="{{ url_for('nursing.care_tasks') }}"><i class="bi bi-list-task me-2"></i> Care Tasks</a>
+      <a href="{{ url_for('nursing.care_tasks') }}"><i class="bi bi-plus-circle me-2"></i> Add Task</a>
+      <a href="{{ url_for('nursing.care_summary') }}"><i class="bi bi-file-earmark-text me-2"></i> Care Summary</a>
+      <a href="{{ url_for('nursing.record_partogram') }}"><i class="bi bi-file-earmark-text me-2"></i> Record Partogram</a>
+      <a href="{{ url_for('nursing.view_partograms') }}"><i class="bi bi-file-eye-text me-2"></i> View Partograms</a>
+      <a href="{{ url_for('nursing.medication_admin') }}"><i class="bi bi-capsule me-2"></i> Medication Admin</a>
+      <a href="{{ url_for('nursing.vital_signs') }}"><i class="bi bi-heart-pulse me-2"></i> Vital Signs</a>
+      <a href="{{ url_for('nursing.shift_handover') }}"><i class="bi bi-arrow-right-circle me-2"></i> Shift Handover</a>
+      <a href="{{ url_for('nursing.communicate_doctor') }}"><i class="bi bi-chat-dots me-2"></i> Contact Doctor</a>
+      <a href="{{ url_for('nursing.notifications') }}"><i class="bi bi-bell me-2"></i>Notifications
+        {% if unread_notifications > 0 %}<span class="badge bg-danger">{{ unread_notifications }}</span>{% endif %}
+      </a>
+      {% elif effective_role == 'laboratory' %}
+      <a href="{{ url_for('laboratory.index') }}"><i class="bi bi-list-check me-2"></i> Requests</a>
+      <a href="{{ url_for('laboratory.lab_tests') }}"><i class="bi bi-clipboard-data me-2"></i> Lab Tests</a>
+      <a href="{{ url_for('laboratory.reagents_order') }}"><i class="bi bi-cart-plus me-2"></i> Order for Reagents</a>
+      <a href="{{ url_for('laboratory.index') }}"><i class="bi bi-hourglass-split me-2"></i> Pending Results</a>
+      <a href="{{ url_for('laboratory.processed_lab_results') }}"><i class="bi bi-check2-circle me-2"></i> Processed Results</a>
+      <a href="{{ url_for('laboratory.lab_reagent_inventory') }}"><i class="bi bi-box-seam me-2"></i> Reagent Inventory</a>
+      <a href=""><i class="bi bi-file-earmark-text me-2"></i> Generate Reports</a>
+      <a href="{{ url_for('laboratory.search_patient') }}"><i class="bi bi-person-lines-fill me-2"></i> Patient Lab History</a>
+      <a href=""><i class="bi bi-people me-2"></i> Manage Lab Staff</a>
+      <a href="{{ url_for('laboratory.abnormal_results') }}"><i class="bi bi-exclamation-triangle me-2"></i> Abnormal Results</a>
+      <a href="{{ url_for('laboratory.dashboard') }}"><i class="bi bi-bar-chart-line me-2"></i> Lab Dashboard</a>
+      {% elif effective_role == 'imaging' %}
+      <a href="{{ url_for('imaging.index') }}"><i class="bi bi-list-check me-2"></i> Requests</a>
+      <a href=""><i class="bi bi-list-check me-2"></i>inventory</a>
+      <a href="{{ url_for('imaging.imaging_results') }}"><i class="bi bi-boxes me-2"></i> results</a>
+      <a href=""><i class="bi bi-file-earmark-medical me-2"></i> Reports</a>
+      <a href=""><i class="bi bi-person-lines-fill me-2"></i> Patient Records</a>
+      {% elif effective_role == 'pharmacy' %}
+      <a href="{{ url_for('pharmacy.index') }}"><i class="bi bi-hourglass-split me-2"></i> Waiting List</a>
+      <a href="{{ url_for('pharmacy.inventory') }}"><i class="bi bi-boxes me-2"></i> Inventory</a>
+      <a href="{{ url_for('pharmacy.drug_requests') }}"><i class="bi bi-truck me-2"></i> Request for Drugs</a>
+      <a href="{{ url_for('pharmacy.pending_requests') }}"><i class="bi bi-hourglass-split me-2"></i> Pending Requests</a>
+      <a href="{{ url_for('pharmacy.served_requests') }}"><i class="bi bi-check-circle me-2"></i> Served Requests</a>
+      <a href="{{ url_for('pharmacy.patient_history') }}"><i class="bi bi-clock-history me-2"></i> Patient History</a>
+      <a href=""><i class="bi bi-bar-chart-line me-2"></i> Consumption Report</a>
+      <a href="{{ url_for('pharmacy.low_stock') }}"><i class="bi bi-exclamation-triangle me-2"></i> Low Running Stocks</a>
+      <a href="{{ url_for('pharmacy.expiries') }}"><i class="bi bi-calendar-x me-2"></i> Expiries</a>
+      <a href="{{ url_for('pharmacy.analytics') }}"><i class="bi bi-graph-up me-2"></i> Analytics Dashboard</a>
+      {% elif effective_role == 'medicine' %}
+      <a href="{{ url_for('medicine.index') }}"><i class="bi bi-hourglass-split me-2"></i> Waiting List</a>
+      <a href="{{ url_for('medicine.ward_rounds') }}"><i class="bi bi-hospital me-2"></i> Inpatients</a>
+      <a href="{{ url_for('pharmacy.patient_history') }}"><i class="bi bi-clock-history me-2"></i> Patient History</a>
+      <a href="{{ url_for('medicine.admit_patient') }}"><i class="bi bi-door-open me-2"></i> admit patient</a>
+      <a href=""><i class="bi bi-door-open me-2"></i> Discharge Patient</a>
+      <a href="{{ url_for('medicine.lab_patients') }}"><i class="bi bi-activity me-2"></i> Patients from Lab</a>
+      <a href="{{ url_for('medicine.pending_lab_patients') }}"><i class="bi bi-file-earmark-text me-2"></i> Pending Lab Results</a>
+      <a href="{{ url_for('medicine.get_theatre_list') }}"><i class="bi bi-clipboard2-pulse me-2"></i> Theatre List</a>
+      <a href=""><i class="bi bi-exclamation-triangle-fill me-2"></i> Emergency</a>
+      <a href="{{ url_for('medicine.list_diseases') }}"><i class="bi bi-virus me-2"></i> Diseases Ref</a>
+      <a href="{{ url_for('medicine.drugs_ref') }}"><i class="bi bi-capsule me-2"></i> Drugs Ref</a>
+      <a href="{{ url_for('medicine.oncology') }}"><i class="bi bi-droplet me-2"></i> Oncology</a>
+      {% elif effective_role == 'stores' %}
+      <a href="/"><i class="bi bi-house me-2"></i> Home</a>
+      <a href="{{ url_for('stores.inventory') }}"><i class="bi bi-boxes me-2"></i> Inventory</a>
+      <a href="{{ url_for('stores.non_pharms') }}"><i class="bi bi-boxes me-2"></i> non_pharms</a>
+      <a href=""><i class="bi bi-truck me-2"></i> Issue Requests</a>
+      {% elif effective_role == 'hr' %}
+      <a href="{{ url_for('hr.index') }}" class="nav-link"><i class="bi bi-house me-2"></i> Home</a>
+      <a href="{{ url_for('hr.employee_list') }}" class="nav-link"><i class="bi bi-people me-2"></i> Employee List</a>
+      <a href="{{ url_for('hr.new_employee') }}" class="nav-link"><i class="bi bi-person-plus me-2"></i> New Employee</a>
+      <a href="{{ url_for('hr.payroll_dashboard') }}" class="nav-link"><i class="bi bi-cash-stack me-2"></i> Payroll</a>
+      <a href="{{ url_for('hr.add_deduction') }}" class="nav-link"><i class="bi bi-dash-circle me-2"></i> Add Deduction</a>
+      <a href="{{ url_for('hr.add_allowance') }}" class="nav-link"><i class="bi bi-plus-circle me-2"></i> Add Allowance</a>
+      <a href="{{ url_for('hr.leave_management') }}" class="nav-link"><i class="bi bi-calendar-event me-2"></i> Leave Management</a>
+      <a href="{{ url_for('hr.reports') }}" class="nav-link"><i class="bi bi-file-earmark-text me-2"></i> Reports</a>
+      <a href="{{ url_for('hr.audit_logs') }}" class="nav-link"><i class="bi bi-list-check me-2"></i> Audit Logs</a>
+      {% elif effective_role == 'admin' %}
+      <a href="{{ url_for('admin.index') }}"><i class="bi bi-house me-2"></i> Home</a>
+      <a href="{{ url_for('admin.add_user') }}"><i class="bi bi-person-plus me-2"></i> Add User</a>
+      <a href="{{ url_for('admin.manage_users') }}"><i class="bi bi-people me-2"></i> Manage Users</a>
+      <a href="{{ url_for('admin.system_overview') }}"><i class="bi bi-gear me-2"></i> System Overview</a>
+      <a href="{{ url_for('admin.logs') }}"><i class="bi bi-journal-text me-2"></i> System Logs</a>
+      {% endif %}
+      {% endif %}
+    </div>
+    {% endif %}
     <!-- Main Content -->
-    <main class="content"> {% block content %}{% endblock %} </main>
-    <!-- Book Clinic Modal --> 
-    {% if current_user.is_authenticated and current_user.role == 'records' %} 
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+    <!-- Book Clinic Modal -->
+    {% if current_user.is_authenticated and effective_role == 'records' %}
     <div class="modal fade" id="bookClinicModal" tabindex="-1" aria-labelledby="bookClinicModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -461,13 +433,19 @@
               <div class="mb-3">
                 <label for="patient_id" class="form-label">Select Patient</label>
                 <select class="form-select select2" id="patient_id" name="patient_id" required>
-                  <option value="" disabled selected>Select a patient</option> {% for patient in patients %} <option value="{{ patient.patient_id }}">{{ patient.name }} ({{ patient.patient_id }})</option> {% endfor %}
+                  <option value="" disabled selected>Select a patient</option>
+                  {% for patient in patients %}
+                  <option value="{{ patient.patient_id }}">{{ patient.name }} ({{ patient.patient_id }})</option>
+                  {% endfor %}
                 </select>
               </div>
               <div class="mb-3">
                 <label for="clinic_id" class="form-label">Select Clinic</label>
                 <select class="form-select select2" id="clinic_id" name="clinic_id" required>
-                  <option value="" disabled selected>Select a clinic</option> {% for clinic in clinics %} <option value="{{ clinic.clinic_id }}">{{ clinic.name }}</option> {% endfor %}
+                  <option value="" disabled selected>Select a clinic</option>
+                  {% for clinic in clinics %}
+                  <option value="{{ clinic.clinic_id }}">{{ clinic.name }}</option>
+                  {% endfor %}
                 </select>
               </div>
               <div class="mb-3">
@@ -482,164 +460,168 @@
           </form>
         </div>
       </div>
-    </div> {% endif %}
-<script>
-  $(document).ready(function () {
-    // Sidebar toggle
-    function toggleSidebar() {
-      const sidebar = document.getElementById('sidebar');
-      sidebar.classList.toggle('active');
-      const content = document.querySelector('.content');
-      content.style.marginLeft = sidebar.classList.contains('active') ? '250px' : '0';
-    }
+    </div>
+    {% endif %}
+    <script>
+      $(document).ready(function () {
+        // Initialize Select2 for switch role dropdown
+        $('#switch_role').select2({
+          theme: 'bootstrap-5',
+          placeholder: "Switch to role...",
+          allowClear: false,
+          width: '100%',
+          dropdownParent: $('#switchUserDropdown').parent()
+        });
 
-    $('.select2').select2({
-      width: '100%'
-    });
+        // Sidebar toggle
+        function toggleSidebar() {
+          const sidebar = document.getElementById('sidebar');
+          sidebar.classList.toggle('active');
+          const content = document.querySelector('.content');
+          content.style.marginLeft = sidebar.classList.contains('active') ? '250px' : '0';
+        }
 
-$('#patient_id').select2({
-  theme: 'bootstrap-5',
-  placeholder: "Enter patient name or number...",
-  allowClear: false,
-  minimumInputLength: 2,
-  width: "100%",
-  ajax: {
-    url: "{{ url_for('nursing.search_patients') }}",
-    dataType: 'json',
-    delay: 250,
-    data: function (params) {
-      return { q: params.term };
-    },
-    processResults: function (data) {
-      return {
-        results: data.map(patient => ({
-          id: patient.id,
-          text: patient.text  
-        }))
-      };
-    },
-    cache: true
-  }
-});
+        $('.select2').select2({
+          width: '100%'
+        });
 
-    // Select2 for ward search
-    $('#ward_id').select2({
-      theme: 'bootstrap-5',
-      placeholder: "Search for a ward...",
-      allowClear: true,
-      width: "100%",
-      ajax: {
-        url: "{{ url_for('nursing.search_wards') }}",
-        dataType: 'json',
-        type: "GET",
-        delay: 250,
-        processResults: function (data) {
-          return {
-            results: data.map(ward => ({
-              id: ward.id,
-              text: ward.text
-            }))
-          };
-        },
-        cache: true
-      }
-    });
+        $('#patient_id').select2({
+          theme: 'bootstrap-5',
+          placeholder: "Enter patient name or number...",
+          allowClear: false,
+          minimumInputLength: 2,
+          width: "100%",
+          ajax: {
+            url: "{{ url_for('nursing.search_patients') }}",
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+              return { q: params.term };
+            },
+            processResults: function (data) {
+              return {
+                results: data.map(patient => ({
+                  id: patient.id,
+                  text: patient.text
+                }))
+              };
+            },
+            cache: true
+          }
+        });
 
-    // ------------------ Imaging Select2 and Descriptions ------------------
+        $('#ward_id').select2({
+          theme: 'bootstrap-5',
+          placeholder: "Search for a ward...",
+          allowClear: true,
+          width: "100%",
+          ajax: {
+            url: "{{ url_for('nursing.search_wards') }}",
+            dataType: 'json',
+            type: "GET",
+            delay: 250,
+            processResults: function (data) {
+              return {
+                results: data.map(ward => ({
+                  id: ward.id,
+                  text: ward.text
+                }))
+              };
+            },
+            cache: true
+          }
+        });
 
-    $('#imaging_types').select2({
-      placeholder: "Choose imaging studies...",
-      closeOnSelect: true,
-      allowClear: true,
-      width: 'resolve'
-    });
+        $('#imaging_types').select2({
+          placeholder: "Choose imaging studies...",
+          closeOnSelect: true,
+          allowClear: true,
+          width: 'resolve'
+        });
 
-    function updateImagingDescriptions() {
-      const selected = $('#imaging_types').val() || [];
-      const container = $('#descriptionFields').empty();
+        function updateImagingDescriptions() {
+          const selected = $('#imaging_types').val() || [];
+          const container = $('#descriptionFields').empty();
 
-      if (selected.length === 0) {
-        container.append(`<div class="alert alert-info mb-0">
-            <i class="bi bi-info-circle me-2"></i>
-            No imaging studies selected. Descriptions will appear here when you select studies.
-          </div>`);
-        return;
-      }
+          if (selected.length === 0) {
+            container.append(`<div class="alert alert-info mb-0">
+                <i class="bi bi-info-circle me-2"></i>
+                No imaging studies selected. Descriptions will appear here when you select studies.
+              </div>`);
+            return;
+          }
 
-      selected.forEach(id => {
-        const text = $(`#imaging_types option[value="${id}"]`).text();
-        container.append(`<div class="description-field mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <h4 class="h6 mb-0">${text} Details</h4>
-            </div>
-            <textarea class="form-control" 
-                      id="description_${id}" 
-                      name="descriptions[${id}]" 
-                      rows="3"
-                      placeholder="Enter specific instructions for ${text}..."
-                      aria-label="Instructions for ${text}"></textarea>
-            <div class="form-text mt-2">Maximum 500 characters</div>
-          </div>`);
+          selected.forEach(id => {
+            const text = $(`#imaging_types option[value="${id}"]`).text();
+            container.append(`<div class="description-field mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h4 class="h6 mb-0">${text} Details</h4>
+                </div>
+                <textarea class="form-control" 
+                          id="description_${id}" 
+                          name="descriptions[${id}]" 
+                          rows="3"
+                          placeholder="Enter specific instructions for ${text}..."
+                          aria-label="Instructions for ${text}"></textarea>
+                <div class="form-text mt-2">Maximum 500 characters</div>
+              </div>`);
+          });
+        }
+
+        updateImagingDescriptions();
+        $('#imaging_types').on('change', updateImagingDescriptions);
+
+        $('#imagingForm').on('submit', function () {
+          $('#submitButton').prop('disabled', true)
+            .html(`<div class="spinner-border spinner-border-sm me-2" role="status"></div> Processing...`);
+        });
+
+        $('#lab_types').select2({
+          placeholder: "Choose lab tests...",
+          closeOnSelect: true,
+          allowClear: true,
+          width: 'resolve'
+        });
+
+        function updateLabDescriptions() {
+          const selected = $('#lab_types').val() || [];
+          const container = $('#descriptionFields').empty();
+
+          if (selected.length === 0) {
+            container.append(`<div class="alert alert-info mb-0">
+                <i class="bi bi-info-circle me-2"></i>
+                No lab tests selected. Descriptions will appear here when you select tests.
+              </div>`);
+            return;
+          }
+
+          selected.forEach(id => {
+            const text = $(`#lab_types option[value="${id}"]`).text();
+            container.append(`<div class="description-field mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h4 class="h6 mb-0">${text} Details</h4>
+                </div>
+                <textarea class="form-control" 
+                          id="description_${id}" 
+                          name="descriptions[${id}]" 
+                          rows="3"
+                          placeholder="Enter specific instructions for ${text}..."
+                          aria-label="Instructions for ${text}"></textarea>
+                <div class="form-text mt-2">Maximum 500 characters</div>
+              </div>`);
+          });
+        }
+
+        updateLabDescriptions();
+        $('#lab_types').on('change', updateLabDescriptions);
+
+        $('#labForm').on('submit', function () {
+          $('#submitButton').prop('disabled', true)
+            .html(`<div class="spinner-border spinner-border-sm me-2" role="status"></div> Processing...`);
+        });
+
+        console.log("Select2 initialized!");
       });
-    }
-
-    updateImagingDescriptions();
-    $('#imaging_types').on('change', updateImagingDescriptions);
-
-    $('#imagingForm').on('submit', function () {
-      $('#submitButton').prop('disabled', true)
-        .html(`<div class="spinner-border spinner-border-sm me-2" role="status"></div> Processing...`);
-    });
-
-    // ------------------ Lab Select2 and Descriptions ------------------
-
-    $('#lab_types').select2({
-      placeholder: "Choose lab tests...",
-      closeOnSelect: true,
-      allowClear: true,
-      width: 'resolve'
-    });
-
-    function updateLabDescriptions() {
-      const selected = $('#lab_types').val() || [];
-      const container = $('#descriptionFields').empty();
-
-      if (selected.length === 0) {
-        container.append(`<div class="alert alert-info mb-0">
-            <i class="bi bi-info-circle me-2"></i>
-            No lab tests selected. Descriptions will appear here when you select tests.
-          </div>`);
-        return;
-      }
-
-      selected.forEach(id => {
-        const text = $(`#lab_types option[value="${id}"]`).text();
-        container.append(`<div class="description-field mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <h4 class="h6 mb-0">${text} Details</h4>
-            </div>
-            <textarea class="form-control" 
-                      id="description_${id}" 
-                      name="descriptions[${id}]" 
-                      rows="3"
-                      placeholder="Enter specific instructions for ${text}..."
-                      aria-label="Instructions for ${text}"></textarea>
-            <div class="form-text mt-2">Maximum 500 characters</div>
-          </div>`);
-      });
-    }
-
-    updateLabDescriptions();
-    $('#lab_types').on('change', updateLabDescriptions);
-
-    $('#labForm').on('submit', function () {
-      $('#submitButton').prop('disabled', true)
-        .html(`<div class="spinner-border spinner-border-sm me-2" role="status"></div> Processing...`);
-    });
-
-    console.log("Select2 initialized!");
-  });
-</script>
-
+    </script>
   </body>
 </html>
