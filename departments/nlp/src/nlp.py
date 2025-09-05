@@ -16,7 +16,7 @@ from nltk.stem import WordNetLemmatizer
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from threading import Lock
-import numpy as np  # Added for probability handling
+import numpy as np
 
 # Set environment variables to avoid TensorFlow usage
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
@@ -38,7 +38,7 @@ from resources.common_fallbacks import (
     fallback_symptom_cuis,
     fallback_management_plans,
     COMMON_SYMPTOM_DISEASE_MAP,
-    SYMPTOM_NORMALIZATIONS
+    SYMPTOM_NORMALIZATIONS,
 )
 from departments.nlp.resources.cancer_diseases import (
     cancer_symptoms,
@@ -47,9 +47,10 @@ from departments.nlp.resources.cancer_diseases import (
     CANCER_PATTERNS,
     BREAST_CANCER_KEYWORD_CUIS,
     BREAST_CANCER_SYMPTOMS,
-    CANCER_KEYWORDS_FILE
+    CANCER_KEYWORDS_FILE,
 )
 from resources.clinical_markers import LAB_THRESHOLDS, CANCER_DISEASES
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("HIMS-NLP")
@@ -66,12 +67,12 @@ trained_model_path = "/home/mathu/projects/hospital/cancer_classifier"
 tokenizer = AutoTokenizer.from_pretrained(trained_model_path)
 model = AutoModelForSequenceClassification.from_pretrained(trained_model_path)
 model.eval()
-if torch.cuda.is_available():  # Ensure model uses GPU if available
+if torch.cuda.is_available():
     model.to("cuda")
     logger.info("Model moved to GPU")
 
 # Label mapping for cancer types
-cancer_types = list(CANCER_DISEASES) 
+cancer_types = list(CANCER_DISEASES)
 label_map = {name: idx for idx, name in enumerate(cancer_types)}
 id2label = {idx: name for idx, name in enumerate(cancer_types)}
 
@@ -84,7 +85,7 @@ SYMPTOM_RELATIONSHIPS = [
     'symptom_of',
     'associated_with',
     'finding_site_of',
-    'due_to'
+    'due_to',
 ]
 
 class UMLSMapper:
@@ -298,7 +299,7 @@ class DiseaseSymptomMapper:
                 cursor = conn.cursor()
                 cursor.execute("SELECT id, name FROM diseases")
                 diseases = cursor.fetchall()
-                from resources.cancer_diseases import cancer_diseases
+                from departments.nlp.resources.cancer_diseases import cancer_diseases
             
             with ThreadPoolExecutor(max_workers=4) as executor:
                 futures = [
@@ -353,12 +354,7 @@ class DiseaseSymptomMapper:
         return disease_name, symptoms
 
 class ClinicalNER:
-    """Named Entity Recognition for clinical text with enhanced symptom handling."""
-    
-    @classmethod
-    def initialize(cls):
-        if DiseasePredictor.clinical_terms is None:
-            DiseasePredictor.clinical_terms = cls._load_clinical_terms()
+    """Named Entity Recognition for clinical text with enhanced symptom and risk factor handling."""
     
     @classmethod
     def initialize(cls):
@@ -374,9 +370,10 @@ class ClinicalNER:
                     SELECT name FROM symptoms
                     UNION
                     SELECT keyword FROM disease_keywords
+                    UNION
+                    SELECT risk_factor FROM disease_risk_factors
                 """)
                 terms = {row['name'].lower() for row in cursor.fetchall()}
-                # Add cancer-specific terms from the new module
                 terms.update(CANCER_TERMS)
                 logger.info(f"Loaded {len(terms)} clinical terms from database")
                 return terms
@@ -391,12 +388,27 @@ class ClinicalNER:
         self.negation_terms = {"no", "not", "denies", "without", "absent", "negative"}
         self.lemmatizer = lemmatizer
         self.patterns = self._load_patterns()
-        self.compiled_patterns = [(label, re.compile(pattern, re.IGNORECASE)) for label, pattern in self.patterns]
+        self.compiled_patterns = []
+        for label, pattern in self.patterns:
+            try:
+                self.compiled_patterns.append((label, re.compile(pattern, re.IGNORECASE)))
+            except re.error as e:
+                logger.error(f"Failed to compile pattern for label {label}: {pattern} ({e})")
         self.temporal_patterns = [
             (re.compile(r"\b(\d+\s*(day|days|week|weeks|month|months|year|years)\s*(ago)?)\b", re.IGNORECASE), "DURATION"),
             (re.compile(r"\b(since|for)\s*(\d+\s*(day|days|week|weeks|month|months|year|years))\b", re.IGNORECASE), "DURATION"),
             (re.compile(r"\b\d+\s*days?\b", re.IGNORECASE), "DURATION"),
-            (re.compile(r"\bfor\s*(three|four|five|six|seven|eight|nine|ten|[1-9]\d*)\s*days?\b", re.IGNORECASE), "DURATION")
+            (re.compile(r"\bfor\s*(three|four|five|six|seven|eight|nine|ten|[1-9]\d*)\s*days?\b", re.IGNORECASE), "DURATION"),
+        ]
+        self.risk_factor_patterns = [
+            (label, re.compile(pattern, re.IGNORECASE)) for label, pattern in [
+                ("RISK_FACTOR", r"\b(smoking|tobacco use|cigarette|smoker)\b"),
+                ("RISK_FACTOR", r"\b(obesity|overweight|bmi\s*>\s*30)\b"),
+                ("RISK_FACTOR", r"\b(family history|genetic predisposition|hereditary)\b"),
+                ("RISK_FACTOR", r"\b(alcohol consumption|heavy drinking|alcoholism)\b"),
+                ("RISK_FACTOR", r"\b(hypertension|high blood pressure)\b"),
+                ("RISK_FACTOR", r"\b(diabetes|type 2 diabetes)\b"),
+            ]
         ]
         self.terms_regex = re.compile(
             r'\b(' + '|'.join(map(re.escape, sorted(DiseasePredictor.clinical_terms, key=len, reverse=True))) + r')\b',
@@ -406,32 +418,38 @@ class ClinicalNER:
         self.umls_mapper = umls_mapper or UMLSMapper.get_instance()
         self.invalid_terms = {'mg', 'ms', 'g', 'ml', 'mm', 'ng', 'dl', 'hr'}
     
-
     def _load_patterns(self) -> List[Tuple[str, str]]:
         def _flatten_cancer_patterns() -> List[Tuple[str, str]]:
-            # Flatten CANCER_PATTERNS into a list of (label, pattern) tuples
             flat = []
             for cancer_type, pattern_list in CANCER_PATTERNS.items():
                 for label, pattern in pattern_list:
-                    # Optionally prepend cancer_type to label for clarity: f"{cancer_type}_{label}"
-                    flat.append((label, pattern))
+                    try:
+                        re.compile(pattern, re.IGNORECASE)
+                        flat.append((label, pattern))
+                    except re.error as e:
+                        logger.error(f"Invalid regex pattern for {cancer_type}, label {label}: {pattern} ({e})")
             return flat
 
+        patterns = []
         try:
             with get_sqlite_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT label, pattern FROM patterns")
-                patterns = [(row['label'], row['pattern']) for row in cursor.fetchall()]
-                # Extend with all cancer patterns
+                for row in cursor.fetchall():
+                    try:
+                        re.compile(row['pattern'], re.IGNORECASE)
+                        patterns.append((row['label'], row['pattern']))
+                    except re.error as e:
+                        logger.error(f"Invalid regex pattern in database for label {row['label']}: {row['pattern']} ({e})")
                 patterns.extend(_flatten_cancer_patterns())
-                logger.info(f"Loaded {len(patterns)} patterns from database")
+                logger.info(f"Loaded {len(patterns)} valid patterns from database and cancer patterns")
                 return patterns
         except Exception as e:
-            logger.error(f"Error loading patterns: {e}")
+            logger.error(f"Error loading patterns from database: {e}")
             patterns = DEFAULT_PATTERNS
             patterns.extend(_flatten_cancer_patterns())
+            logger.info(f"Loaded {len(patterns)} valid fallback and cancer patterns")
             return patterns
-
     
     def extract_entities(self, text: str, doc=None) -> List[Tuple[str, str, dict]]:
         start_time = time.time()
@@ -445,12 +463,19 @@ class ClinicalNER:
         term_matches = {match.group().lower() for match in self.terms_regex.finditer(text)
                         if match.group().lower() not in self.invalid_terms} if self.terms_regex else set()
 
-        
         symptom_groups = defaultdict(set)
+        risk_factor_groups = defaultdict(set)
         for term in term_matches:
             base_term = self.umls_mapper.normalize_symptom(term)
             if base_term not in self.invalid_terms:
-                symptom_groups[base_term].add(term)
+                if base_term in DiseasePredictor.symptom_cuis:
+                    symptom_groups[base_term].add(term)
+                else:
+                    with get_sqlite_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT risk_factor FROM disease_risk_factors WHERE risk_factor = ?", (term,))
+                        if cursor.fetchone():
+                            risk_factor_groups[base_term].add(term)
         
         entities = []
         seen_entities = set()
@@ -462,7 +487,8 @@ class ClinicalNER:
                     "severity": 1.0,
                     "temporal": "UNSPECIFIED",
                     "variants": list(variants),
-                    "cancer_relevance": 0.9 if base_term in cancer_symptoms else 0.5  # Ensure cancer_symptoms is defined
+                    "cancer_relevance": 0.9 if base_term in cancer_symptoms else 0.5,
+                    "type": "SYMPTOM",
                 }
                 
                 for temp_text in temporal_matches:
@@ -473,13 +499,31 @@ class ClinicalNER:
                 entities.append((representative, "CLINICAL_TERM", context))
                 seen_entities.add(base_term)
         
-        for label, pattern in self.compiled_patterns:
+        for base_term, variants in risk_factor_groups.items():
+            if base_term not in seen_entities and base_term not in self.invalid_terms:
+                representative = max(variants, key=len)
+                context = {
+                    "severity": 1.0,
+                    "temporal": "UNSPECIFIED",
+                    "variants": list(variants),
+                    "type": "RISK_FACTOR",
+                }
+                
+                for temp_text in temporal_matches:
+                    if temp_text.lower() in text.lower():
+                        context["temporal"] = temp_text.lower()
+                        break
+                
+                entities.append((representative, "RISK_FACTOR", context))
+                seen_entities.add(base_term)
+        
+        for label, pattern in self.compiled_patterns + self.risk_factor_patterns:
             for match in pattern.finditer(text):
                 match_text = match.group().lower()
                 normalized = self.umls_mapper.normalize_symptom(match_text)
                 
                 if normalized not in seen_entities and normalized not in self.invalid_terms:
-                    context = {"severity": 1.0, "temporal": "UNSPECIFIED"}
+                    context = {"severity": 1.0, "temporal": "UNSPECIFIED", "type": label}
                     for temp_text in temporal_matches:
                         if temp_text.lower() in text.lower():
                             context["temporal"] = temp_text.lower()
@@ -509,18 +553,23 @@ class ClinicalNER:
                         seen_entities.add(normalized)
         
         symptom_disease_map = defaultdict(set)
+        risk_factor_disease_map = defaultdict(set)
         disease_symptom_count = defaultdict(int)
         disease_symptom_map = defaultdict(set)
         
         symptom_texts = [self.umls_mapper.normalize_symptom(ent[0]) for ent in entities
-                        if ent[0].lower() not in self.invalid_terms]
+                        if ent[0].lower() not in self.invalid_terms and ent[2].get('type') == 'SYMPTOM']
+        risk_factor_texts = [self.umls_mapper.normalize_symptom(ent[0]) for ent in entities
+                             if ent[0].lower() not in self.invalid_terms and ent[2].get('type') == 'RISK_FACTOR']
         
         with ThreadPoolExecutor() as executor:
-            futures = {executor.submit(self._get_diseases_for_symptom, symptom_text): symptom_text
-                       for symptom_text in set(symptom_texts)}
+            symptom_futures = {executor.submit(self._get_diseases_for_symptom, symptom_text): symptom_text
+                               for symptom_text in set(symptom_texts)}
+            risk_factor_futures = {executor.submit(self._get_diseases_for_risk_factor, rf_text): rf_text
+                                   for rf_text in set(risk_factor_texts)}
             
-            for future in futures:
-                symptom_text = futures[future]
+            for future in symptom_futures:
+                symptom_text = symptom_futures[future]
                 try:
                     diseases = future.result()
                     symptom_disease_map[symptom_text] = diseases
@@ -529,12 +578,23 @@ class ClinicalNER:
                         disease_symptom_map[disease].add(symptom_text)
                 except Exception as e:
                     logger.error(f"Error processing symptom {symptom_text}: {e}")
+            
+            for future in risk_factor_futures:
+                rf_text = risk_factor_futures[future]
+                try:
+                    diseases = future.result()
+                    risk_factor_disease_map[rf_text] = diseases
+                    for disease in diseases:
+                        disease_symptom_count[disease] += 0.5
+                        disease_symptom_map[disease].add(rf_text)
+                except Exception as e:
+                    logger.error(f"Error processing risk factor {rf_text}: {e}")
         
         for i, (entity_text, entity_label, context) in enumerate(entities):
             normalized_text = self.umls_mapper.normalize_symptom(entity_text)
-            diseases = symptom_disease_map.get(normalized_text, set())
+            diseases = symptom_disease_map.get(normalized_text, set()) if context.get('type') == 'SYMPTOM' else risk_factor_disease_map.get(normalized_text, set())
             
-            if not diseases and normalized_text in COMMON_SYMPTOM_DISEASE_MAP:
+            if not diseases and normalized_text in COMMON_SYMPTOM_DISEASE_MAP and context.get('type') == 'SYMPTOM':
                 diseases = set(COMMON_SYMPTOM_DISEASE_MAP[normalized_text])
             
             filtered_diseases = [d for d in diseases if disease_symptom_count.get(d, 0) >= 2 or d.lower() in CANCER_DISEASES]
@@ -567,59 +627,82 @@ class ClinicalNER:
             logger.error(f"Error looking up diseases for symptom '{symptom_text}': {e}")
             return set()
     
+    def _get_diseases_for_risk_factor(self, risk_factor_text):
+        try:
+            with get_sqlite_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT d.name
+                    FROM disease_risk_factors drf
+                    JOIN diseases d ON drf.disease_id = d.id
+                    WHERE drf.risk_factor = ?
+                """, (risk_factor_text,))
+                diseases = {row['name'].lower() for row in cursor.fetchall()}
+                return diseases
+        except Exception as e:
+            logger.error(f"Error looking up diseases for risk factor '{risk_factor_text}': {e}")
+            return set()
+    
     def extract_keywords_and_cuis(self, note: Dict) -> Tuple[List[str], List[str]]:
-            start_time = time.time()
-            text = ' '.join(filter(None, [
-                note.get('situation', ''),
-                note.get('hpi', ''),
-                note.get('symptoms', ''),
-                note.get('assessment', '')
-            ]))
-            if not text:
-                return [], []
+        start_time = time.time()
+        text = ' '.join(filter(None, [
+            note.get('situation', ''),
+            note.get('hpi', ''),
+            note.get('symptoms', ''),
+            note.get('assessment', '')
+        ]))
+        if not text:
+            return [], []
+        
+        entities = self.extract_entities(text)
+        terms = {ent[0].lower() for ent in entities if ent and ent[0].lower() not in self.invalid_terms}
+        
+        expected_keywords = []
+        reference_cuis = []
+        
+        try:
+            disease_keywords = DiseasePredictor.disease_keywords
+            symptom_cuis = DiseasePredictor.symptom_cuis
+            risk_factors = DiseasePredictor.risk_factors
             
-            entities = self.extract_entities(text)
-            terms = {ent[0].lower() for ent in entities if ent and ent[0].lower() not in self.invalid_terms}
-            
-            expected_keywords = []
-            reference_cuis = []
-            
-            try:
-                disease_keywords = DiseasePredictor.disease_keywords
-                symptom_cuis = DiseasePredictor.symptom_cuis
+            for term in terms:
+                for keyword, cui in disease_keywords.items():
+                    if keyword in term or term in keyword:
+                        if keyword not in expected_keywords:
+                            expected_keywords.append(keyword)
+                            reference_cuis.append(cui)
+                        break
+                if term in CANCER_TERMS and term not in expected_keywords:
+                    expected_keywords.append(term)
+                    cui = self.umls_mapper.map_term_to_cui(term)
+                    if cui:
+                        reference_cuis.append(cui[0])
                 
-                # Ensure cancer terms are included
-                for term in terms:
-                    for keyword, cui in disease_keywords.items():
-                        if keyword in term or term in keyword:
-                            if keyword not in expected_keywords:
-                                expected_keywords.append(keyword)
-                                reference_cuis.append(cui)
-                            break
-                    if term in CANCER_TERMS and term not in expected_keywords:
-                        expected_keywords.append(term)
-                        cui = self.umls_mapper.map_term_to_cui(term)
-                        if cui:
-                            reference_cuis.append(cui[0])
-                    
-                    if term in symptom_cuis and term not in expected_keywords:
-                        expected_keywords.append(term)
-                        if symptom_cuis[term]:
-                            reference_cuis.append(symptom_cuis[term])
-            except Exception as e:
-                logger.error(f"Error fetching keywords from database: {e}")
-                disease_keywords = DEFAULT_DISEASE_KEYWORDS
-                disease_keywords.update(BREAST_CANCER_KEYWORD_CUIS)
-                for term in terms:
-                    for keyword, cui in disease_keywords.items():
-                        if keyword in term or term in keyword:
-                            if keyword not in expected_keywords:
-                                expected_keywords.append(keyword)
-                                reference_cuis.append(cui)
-                            break
-            
-            logger.debug(f"Extracted {len(expected_keywords)} keywords and {len(reference_cuis)} CUIs in {time.time() - start_time:.3f} seconds")
-            return list(set(expected_keywords)), list(set(reference_cuis))
+                if term in symptom_cuis and term not in expected_keywords:
+                    expected_keywords.append(term)
+                    if symptom_cuis[term]:
+                        reference_cuis.append(symptom_cuis[term])
+                
+                if term in risk_factors and term not in expected_keywords:
+                    expected_keywords.append(term)
+                    cui = self.umls_mapper.map_term_to_cui(term)
+                    if cui:
+                        reference_cuis.append(cui[0])
+        except Exception as e:
+            logger.error(f"Error fetching keywords from database: {e}")
+            disease_keywords = DEFAULT_DISEASE_KEYWORDS
+            disease_keywords.update(BREAST_CANCER_KEYWORD_CUIS)
+            for term in terms:
+                for keyword, cui in disease_keywords.items():
+                    if keyword in term or term in keyword:
+                        if keyword not in expected_keywords:
+                            expected_keywords.append(keyword)
+                            reference_cuis.append(cui)
+                        break
+        
+        logger.debug(f"Extracted {len(expected_keywords)} keywords and {len(reference_cuis)} CUIs in {time.time() - start_time:.3f} seconds")
+        return list(set(expected_keywords)), list(set(reference_cuis))
+
 class DiseasePredictor:
     nlp = nlp
     clinical_terms = None
@@ -627,6 +710,7 @@ class DiseasePredictor:
     disease_keywords = None
     symptom_cuis = None
     management_plans = None
+    risk_factors = None
     _initialized = False
 
     @classmethod
@@ -658,17 +742,16 @@ class DiseasePredictor:
             cls.management_plans = cls._load_management_plans()
             logger.info(f"Loaded {len(cls.management_plans)} management plans")
         
+        if cls.risk_factors is None:
+            cls.risk_factors = cls._load_risk_factors()
+            logger.info(f"Loaded {len(cls.risk_factors)} risk factors")
+        
         cls._initialized = True
         logger.info("DiseasePredictor initialization complete")
 
     @staticmethod
     def _load_disease_keywords() -> Dict[str, str]:
-        """
-        Load disease keywords and their CUIs from the database or an external JSON file.
-        Returns a dictionary mapping keywords to their CUIs.
-        """
         def load_fallback_keywords() -> Dict[str, str]:
-            """Load cancer keywords from an external JSON file as a fallback."""
             try:
                 if os.path.exists(CANCER_KEYWORDS_FILE):
                     with open(CANCER_KEYWORDS_FILE, 'r') as f:
@@ -682,6 +765,8 @@ class DiseasePredictor:
                 logger.error(f"Failed to load keywords from {CANCER_KEYWORDS_FILE}: {e}")
                 return fallback_disease_keywords
 
+
+
         try:
             with get_sqlite_connection() as conn:
                 cursor = conn.cursor()
@@ -692,7 +777,6 @@ class DiseasePredictor:
                 """)
                 keywords = {row['keyword'].lower(): row['cui'] for row in cursor.fetchall()}
                 
-                # Load additional cancer keywords from external JSON file
                 try:
                     if os.path.exists(CANCER_KEYWORDS_FILE):
                         with open(CANCER_KEYWORDS_FILE, 'r') as f:
@@ -710,6 +794,7 @@ class DiseasePredictor:
             logger.error(f"Failed to load disease keywords from database: {e}")
             keywords = load_fallback_keywords()
             return keywords
+    
     @staticmethod
     def _load_symptom_cuis() -> Dict:
         try:
@@ -717,7 +802,6 @@ class DiseasePredictor:
                 cursor = conn.cursor()
                 cursor.execute("SELECT name, cui FROM symptoms")
                 cuis = {row['name'].lower(): row['cui'] for row in cursor.fetchall()}
-                # Add breast cancer-specific symptoms from resources.cancer_diseases
                 cuis.update(BREAST_CANCER_SYMPTOMS)
                 return cuis
         except Exception as e:
@@ -725,9 +809,7 @@ class DiseasePredictor:
             cuis = fallback_symptom_cuis
             cuis.update(BREAST_CANCER_SYMPTOMS)
             return cuis
-
-
-
+    
     @staticmethod
     def _load_management_plans() -> Dict:
         try:
@@ -758,18 +840,42 @@ class DiseasePredictor:
                         'description': row['description'] or ''
                     })
                 
-                # Load cancer-specific plans from resources.cancer_diseases
                 management_plans.update(CANCER_PLANS)
                 
                 return management_plans
         except Exception as e:
             logger.error(f"Failed to load management plans and lab tests: {e}")
             return fallback_management_plans
+    
+    @staticmethod
+    def _load_risk_factors() -> Dict:
+        try:
+            with get_sqlite_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT d.name, drf.risk_factor, drf.description
+                    FROM disease_risk_factors drf
+                    JOIN diseases d ON drf.disease_id = d.id
+                """)
+                risk_factors = {}
+                for row in cursor.fetchall():
+                    disease_name = row['name'].lower()
+                    if disease_name not in risk_factors:
+                        risk_factors[disease_name] = []
+                    risk_factors[disease_name].append({
+                        'risk_factor': row['risk_factor'],
+                        'description': row['description'] or ''
+                    })
+                logger.info(f"Loaded {sum(len(rf) for rf in risk_factors.values())} risk factors for {len(risk_factors)} diseases")
+                return risk_factors
+        except Exception as e:
+            logger.error(f"Failed to load risk factors: {e}")
+            return {}
 
     def __init__(self, ner_model=None):
         self.umls_mapper = UMLSMapper.get_instance()
         self.ner = ner_model or ClinicalNER(umls_mapper=self.umls_mapper)
-        self.primary_threshold = 1.0  # Lowered from 2.0 to ensure diagnosis assignment
+        self.primary_threshold = 1.0
         self.min_symptom_count = 2
     
     def predict_cancer_risk(self, text: str) -> Dict[str, float]:
@@ -795,26 +901,30 @@ class DiseasePredictor:
                 "primary_diagnosis": None,
                 "differential_diagnoses": [],
                 "lab_abnormalities": [],
+                "risk_factors": [],
                 "cancer_probabilities": {cancer: 0.0 for cancer in cancer_types}
             }
         
         symptom_terms = set()
+        risk_factor_terms = set()
         lab_abnormalities = set()
         cancer_relevance_scores = {}
         
         for entity in entities:
             normalized = self.umls_mapper.normalize_symptom(entity[0])
             if normalized not in self.ner.invalid_terms:
-                if entity[1] == 'CLINICAL_TERM':
+                if entity[1] == 'CLINICAL_TERM' and entity[2].get('type') == 'SYMPTOM':
                     symptom_terms.add(normalized)
                     cancer_relevance_scores[normalized] = entity[2].get('cancer_relevance', 0.5)
+                elif entity[1] == 'RISK_FACTOR':
+                    risk_factor_terms.add(normalized)
                 elif entity[1] in ['TUMOR_MARKER', 'BLOOD_COUNT', 'INFLAMMATORY_MARKER'] and entity[2].get('abnormal'):
                     lab_abnormalities.add(entity[2]['potential_cancer'])
         
-        logger.debug(f"Extracted symptoms: {symptom_terms}, Lab abnormalities: {lab_abnormalities}")
+        logger.debug(f"Extracted symptoms: {symptom_terms}, Risk factors: {risk_factor_terms}, Lab abnormalities: {lab_abnormalities}")
         
         cancer_diseases = {'prostate cancer', 'colorectal cancer', 'ovarian cancer', 'pancreatic cancer',
-                        'liver cancer', 'leukemia', 'lung cancer', 'breast cancer', 'lymphoma'}
+                           'liver cancer', 'leukemia', 'lung cancer', 'breast cancer', 'lymphoma'}
         
         disease_scores = defaultdict(float)
         
@@ -824,6 +934,8 @@ class DiseasePredictor:
                 matches += cancer_relevance_scores.get(term, 0.5)
             if disease.lower() in lab_abnormalities:
                 matches += 2.0
+            if disease.lower() in self.risk_factors:
+                matches += len([rf for rf in risk_factor_terms if any(rf in r['risk_factor'].lower() for r in self.risk_factors[disease.lower()])]) * 0.5
             if matches >= (self.min_symptom_count - 1 if disease.lower() in cancer_diseases else self.min_symptom_count):
                 disease_scores[disease] = matches
         
@@ -834,6 +946,8 @@ class DiseasePredictor:
                     matches += cancer_relevance_scores.get(term, 0.5)
                 if disease.lower() in lab_abnormalities:
                     matches += 2.0
+                if disease.lower() in self.risk_factors:
+                    matches += len([rf for rf in risk_factor_terms if any(rf in r['risk_factor'].lower() for r in self.risk_factors[disease.lower()])]) * 0.5
                 if matches > 0:
                     disease_scores[disease] = matches
         
@@ -857,7 +971,7 @@ class DiseasePredictor:
         cancer_probabilities = self.predict_cancer_risk(text)
         max_cancer = max(cancer_probabilities, key=cancer_probabilities.get)
         max_prob = cancer_probabilities[max_cancer]
-        if max_prob > 0.3 and not primary_diagnosis:  # Lowered from 0.7
+        if max_prob > 0.3 and not primary_diagnosis:
             primary_diagnosis = {"disease": max_cancer, "score": max_prob}
         elif max_prob > 0.3:
             differential_diagnoses.append({"disease": max_cancer, "score": max_prob})
@@ -866,10 +980,11 @@ class DiseasePredictor:
             "primary_diagnosis": primary_diagnosis,
             "differential_diagnoses": differential_diagnoses,
             "lab_abnormalities": list(lab_abnormalities),
+            "risk_factors": list(risk_factor_terms),
             "cancer_probabilities": cancer_probabilities
         }
         
-        logger.info(f"Predicted {len(sorted_diseases)} diseases from {len(symptom_terms)} symptoms and {len(lab_abnormalities)} lab abnormalities in {time.time() - start_time:.3f} seconds")
+        logger.info(f"Predicted {len(sorted_diseases)} diseases from {len(symptom_terms)} symptoms, {len(risk_factor_terms)} risk factors, and {len(lab_abnormalities)} lab abnormalities in {time.time() - start_time:.3f} seconds")
         return result
     
     def process_soap_note(self, note: Dict) -> Dict:
@@ -880,7 +995,11 @@ class DiseasePredictor:
             text = prepare_note_for_nlp(note)
             logger.debug(f"Text preparation took {time.time() - start_time:.3f} seconds")
             if not text:
-                return {"error": "No valid text in note", "note_id": note.get("id")}
+                return {
+                    "error": "No valid text in note",
+                    "note_id": note.get("id"),
+                    "details": "Note data is empty or missing required fields (situation, hpi, symptoms, assessment)"
+                }
             
             t = time.time()
             doc = self.nlp(text)
@@ -932,6 +1051,9 @@ class DiseasePredictor:
                         management_plans[disease]["cancer_follow_up"] = (
                             "Refer to oncologist; consider imaging (e.g., CT/MRI) and biopsy if indicated."
                         )
+                    if disease in self.risk_factors:
+                        management_plans[disease] = management_plans.get(disease, {})
+                        management_plans[disease]["risk_factors"] = self.risk_factors[disease]
                 
                 for disease in predictions["differential_diagnoses"]:
                     disease_name = disease["disease"].lower()
@@ -942,6 +1064,9 @@ class DiseasePredictor:
                         management_plans[disease_name]["cancer_follow_up"] = (
                             "Monitor symptoms; consider tumor marker tests and imaging."
                         )
+                    if disease_name in self.risk_factors:
+                        management_plans[disease_name] = management_plans.get(disease_name, {})
+                        management_plans[disease_name]["risk_factors"] = self.risk_factors[disease_name]
                 
                 for lab_abnormality in predictions["lab_abnormalities"]:
                     if lab_abnormality in cancer_diseases:
@@ -949,9 +1074,12 @@ class DiseasePredictor:
                         management_plans[lab_abnormality]["lab_follow_up"] = (
                             f"Repeat {lab_abnormality} tumor marker tests in 4-6 weeks; refer to specialist."
                         )
+                    if lab_abnormality in self.risk_factors:
+                        management_plans[lab_abnormality] = management_plans.get(lab_abnormality, {})
+                        management_plans[lab_abnormality]["risk_factors"] = self.risk_factors[lab_abnormality]
             except Exception as e:
                 logger.error(f"Error fetching management plans: {e}")
-            logger.debug(f"Management plans retrieval took {time.time() - t:.3f} seconds")
+            logger.debug(f"Management plans and risk factors retrieval took {time.time() - t:.3f} seconds")
             
             result = {
                 "note_id": note["id"],
@@ -959,6 +1087,7 @@ class DiseasePredictor:
                 "primary_diagnosis": predictions["primary_diagnosis"],
                 "differential_diagnoses": predictions["differential_diagnoses"],
                 "lab_abnormalities": predictions["lab_abnormalities"],
+                "risk_factors": predictions["risk_factors"],
                 "cancer_probabilities": predictions["cancer_probabilities"],
                 "keywords": expected_keywords,
                 "cuis": reference_cuis,

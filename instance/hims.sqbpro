@@ -1,5 +1,710 @@
-<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="/home/mathu/projects/hospital/instance/hims.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="5262"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><current_table name="4,17:mainadmitted_patients"/><default_encoding codec=""/><browse_table_settings/></tab_browse><tab_sql><sql name="SQL 1">UPDATE soap_notes
-SET ai_notes = NULL;
-UPDATE soap_notes
-SET ai_analysis = NULL;
-</sql><current_tab id="0"/></tab_sql></sqlb_project>
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="/home/mathu/projects/hospital/instance/hims.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="1"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="5262"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><current_table name="4,8:mainpatterns"/><default_encoding codec=""/><browse_table_settings><table schema="main" name="admitted_patients" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_"><sort/><column_widths><column index="1" value="41"/><column index="2" value="69"/><column index="3" value="55"/><column index="4" value="179"/><column index="5" value="141"/><column index="6" value="86"/><column index="7" value="98"/><column index="8" value="136"/><column index="9" value="116"/><column index="10" value="106"/><column index="11" value="107"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table><table schema="main" name="patterns" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_"><sort/><column_widths><column index="1" value="41"/><column index="2" value="101"/><column index="3" value="300"/><column index="4" value="70"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table></browse_table_settings></tab_browse><tab_sql><sql name="SQL 1">BEGIN TRANSACTION;
+
+-- Drop existing tables to apply structural changes (if needed)
+DROP TABLE IF EXISTS &quot;disease_risk_factors&quot;;
+DROP TABLE IF EXISTS &quot;disease_labs&quot;;
+DROP TABLE IF EXISTS &quot;disease_keywords&quot;;
+DROP TABLE IF EXISTS &quot;disease_management_plans&quot;;
+DROP TABLE IF EXISTS &quot;disease_symptoms&quot;;
+DROP TABLE IF EXISTS &quot;symptoms&quot;;
+DROP TABLE IF EXISTS &quot;diseases&quot;;
+
+-- Create updated diseases table with prevalence and last_updated
+CREATE TABLE IF NOT EXISTS &quot;diseases&quot; (
+    &quot;id&quot; INTEGER,
+    &quot;name&quot; TEXT NOT NULL UNIQUE,
+    &quot;cui&quot; TEXT NOT NULL,
+    &quot;description&quot; TEXT,
+    &quot;prevalence&quot; TEXT, -- New column for prevalence data
+    &quot;last_updated&quot; TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- New column for tracking updates
+    PRIMARY KEY(&quot;id&quot; AUTOINCREMENT)
+);
+
+-- Create updated symptoms table with last_updated
+CREATE TABLE IF NOT EXISTS &quot;symptoms&quot; (
+    &quot;id&quot; INTEGER,
+    &quot;name&quot; TEXT NOT NULL UNIQUE,
+    &quot;cui&quot; TEXT NOT NULL,
+    &quot;description&quot; TEXT,
+    &quot;last_updated&quot; TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- New column for tracking updates
+    PRIMARY KEY(&quot;id&quot; AUTOINCREMENT)
+);
+
+-- Create disease_symptoms table with updated foreign key constraints
+CREATE TABLE IF NOT EXISTS &quot;disease_symptoms&quot; (
+    &quot;disease_id&quot; INTEGER,
+    &quot;symptom_id&quot; INTEGER,
+    FOREIGN KEY(&quot;symptom_id&quot;) REFERENCES &quot;symptoms&quot;(&quot;id&quot;) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY(&quot;disease_id&quot;) REFERENCES &quot;diseases&quot;(&quot;id&quot;) ON DELETE CASCADE ON UPDATE CASCADE,
+    PRIMARY KEY(&quot;disease_id&quot;,&quot;symptom_id&quot;)
+);
+
+-- Create updated disease_management_plans with severity and plan_type
+CREATE TABLE IF NOT EXISTS &quot;disease_management_plans&quot; (
+    &quot;id&quot; INTEGER,
+    &quot;disease_id&quot; INTEGER NOT NULL,
+    &quot;plan&quot; TEXT NOT NULL,
+    &quot;severity&quot; TEXT CHECK(&quot;severity&quot; IN ('mild', 'moderate', 'severe')), -- New column for severity
+    &quot;plan_type&quot; TEXT CHECK(&quot;plan_type&quot; IN ('acute', 'chronic', 'preventive')), -- New column for plan type
+    &quot;created_at&quot; TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(&quot;disease_id&quot;) REFERENCES &quot;diseases&quot;(&quot;id&quot;) ON DELETE CASCADE ON UPDATE CASCADE,
+    PRIMARY KEY(&quot;id&quot; AUTOINCREMENT)
+);
+
+-- Create disease_keywords table
+CREATE TABLE IF NOT EXISTS &quot;disease_keywords&quot; (
+    &quot;id&quot; INTEGER,
+    &quot;disease_id&quot; INTEGER NOT NULL,
+    &quot;keyword&quot; TEXT NOT NULL,
+    &quot;cui&quot; TEXT,
+    FOREIGN KEY(&quot;disease_id&quot;) REFERENCES &quot;diseases&quot;(&quot;id&quot;) ON DELETE CASCADE ON UPDATE CASCADE,
+    PRIMARY KEY(&quot;id&quot; AUTOINCREMENT)
+);
+
+-- Create disease_labs table
+CREATE TABLE IF NOT EXISTS &quot;disease_labs&quot; (
+    &quot;id&quot; INTEGER,
+    &quot;disease_id&quot; INTEGER NOT NULL,
+    &quot;lab_test&quot; TEXT NOT NULL,
+    &quot;description&quot; TEXT,
+    FOREIGN KEY(&quot;disease_id&quot;) REFERENCES &quot;diseases&quot;(&quot;id&quot;) ON DELETE CASCADE ON UPDATE CASCADE,
+    PRIMARY KEY(&quot;id&quot; AUTOINCREMENT)
+);
+
+-- Create new disease_risk_factors table
+CREATE TABLE IF NOT EXISTS &quot;disease_risk_factors&quot; (
+    &quot;id&quot; INTEGER,
+    &quot;disease_id&quot; INTEGER NOT NULL,
+    &quot;risk_factor&quot; TEXT NOT NULL,
+    &quot;description&quot; TEXT,
+    FOREIGN KEY(&quot;disease_id&quot;) REFERENCES &quot;diseases&quot;(&quot;id&quot;) ON DELETE CASCADE ON UPDATE CASCADE,
+    PRIMARY KEY(&quot;id&quot; AUTOINCREMENT)
+);
+
+-- Insert updated and new diseases
+INSERT INTO &quot;diseases&quot; VALUES (1,'pneumonia','C0032285','A lung infection caused by bacteria, viruses, or fungi','5-10% of hospitalized patients','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (2,'myocardial infarction','C0027051','Heart attack due to blocked coronary arteries','3-4% of adults annually','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (3,'stroke','C0038454','Sudden interruption of blood flow to the brain','1-2% of adults annually','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (4,'gastroenteritis','C0017160','Inflammation of the stomach and intestines','20% of population annually','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (5,'urinary tract infection','C0033578','Infection of the urinary system','10-15% of women annually','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (6,'asthma','C0004096','Chronic respiratory condition with airway inflammation','8% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (7,'diabetes mellitus','C0011849','Chronic metabolic disorder affecting blood glucose regulation','10% of adults globally','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (8,'hypertension','C0020538','Elevated blood pressure persistently over time','30% of adults globally','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (9,'musculoskeletal back pain','C0026857','Back pain originating from muscles, bones, or joints','80% lifetime prevalence','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (10,'malaria','C0024530','Parasitic infection transmitted by mosquitoes','229 million cases annually','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (11,'viral hepatitis','C0019158','Inflammation of the liver caused by viral agents like Hepatitis A/B/C','1.5 million deaths annually','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (12,'dengue fever','C0011311','Viral illness spread by Aedes mosquitoes','390 million cases annually','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (13,'typhoid fever','C0041466','Bacterial infection caused by Salmonella typhi','11-20 million cases annually','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (14,'tuberculosis','C0041296','Infectious bacterial disease usually affecting the lungs','10 million cases annually','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (15,'sepsis','C0243026','Life-threatening systemic response to infection','49 million cases annually','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (16,'anemia','C0002871','Low red blood cell count or hemoglobin levels','1.9 billion cases globally','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (17,'depression','C0011570','Common but serious mood disorder','4.4% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (18,'anxiety disorders','C0003467','Conditions characterized by excessive fear or anxiety','4% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (19,'chronic obstructive pulmonary disease','C0003403','Progressive lung disease including emphysema and chronic bronchitis','3.9% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (20,'congestive heart failure','C0018802','Heart cannot pump blood effectively','26 million cases globally','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (21,'epilepsy','C0014544','Neurological disorder characterized by recurrent seizures','50 million cases globally','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (22,'chronic kidney disease','C0022658','Progressive loss of kidney function over time','13% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (23,'osteoarthritis','C0029408','Degenerative joint disease causing cartilage breakdown','7% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (24,'rheumatoid arthritis','C0003873','Autoimmune disorder causing joint inflammation','0.5-1% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (25,'migraine','C0026986','Neurological condition causing severe headaches','14% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (26,'hypothyroidism','C0020676','Underactive thyroid gland','4.6% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (27,'hyperthyroidism','C0020550','Overactive thyroid gland','1.2% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (28,'HIV/AIDS','C0001175','Viral infection attacking the immune system','38 million cases globally','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (29,'influenza','C0011991','Viral respiratory infection (flu)','1 billion cases annually','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (30,'common cold','C0009443','Viral upper respiratory infection','Multiple episodes per year','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (31,'systemic lupus erythematosus','C0024141','Autoimmune disease causing inflammation of multiple organs','0.1% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (32,'type 1 diabetes mellitus','C0011854','Autoimmune destruction of pancreatic beta cells leading to insulin deficiency','0.5% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (33,'psoriasis','C0033860','Chronic autoimmune skin condition causing red, scaly patches','2-3% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (34,'Sjögren’s syndrome','C0036394','Autoimmune disorder affecting moisture-producing glands, causing dryness','0.5-1% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (35,'Graves’ disease','C0018213','Autoimmune disorder causing hyperthyroidism','0.5% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (36,'myasthenia gravis','C0026898','Autoimmune neuromuscular disease causing muscle weakness','0.02% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (37,'autoimmune hepatitis','C0242209','Autoimmune inflammation of the liver','0.01-0.02% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (38,'systemic sclerosis','C0036421','Autoimmune connective tissue disease causing fibrosis of skin and organs','0.02% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (39,'Behçet’s disease','C0004943','Autoimmune vasculitis causing oral/genital ulcers and multisystem involvement','0.01% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (40,'lupus nephritis','C0024141','Autoimmune kidney inflammation associated with SLE','0.05% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (41,'multiple sclerosis','C0026769','Autoimmune demyelinating disease of the central nervous system','0.1% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (42,'Crohn’s disease','C0010346','Autoimmune inflammatory bowel disease affecting the GI tract','0.3% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (43,'ulcerative colitis','C0009324','Autoimmune inflammatory bowel disease limited to the colon','0.2% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (44,'polymyositis','C0085084','Autoimmune inflammatory myopathy causing muscle weakness','0.01% of global population','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (45,'long COVID','C0000001','Persistent symptoms following SARS-CoV-2 infection','10-20% of COVID-19 cases','2025-09-05 14:10:00');
+INSERT INTO &quot;diseases&quot; VALUES (46,'non-alcoholic fatty liver disease','C0400966','Fat accumulation in the liver not due to alcohol','25% of global population','2025-09-05 14:10:00');
+
+-- Insert updated and new symptoms
+INSERT INTO &quot;symptoms&quot; VALUES (1,'fever','C0015967','Elevated body temperature above normal','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (2,'cough','C0010200','Forceful expulsion of air from the lungs','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (3,'shortness of breath','C0013404','Difficulty breathing or feeling out of breath','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (4,'chest pain','C0008031','Pain or discomfort in the chest area','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (5,'nausea','C0027497','Feeling of sickness with possible vomiting','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (6,'headache','C0018681','Pain or discomfort in the head','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (7,'weakness','C0042270','Loss of strength or energy','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (8,'visual disturbances','C0042320','Blurred vision, double vision, or loss of sight','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (9,'slurred speech','C0038459','Impaired articulation of words','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (10,'abdominal pain','C0000737','Pain in the belly or abdominal region','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (11,'diarrhea','C0011991','Frequent passage of loose stools','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (12,'vomiting','C0042963','Forced expulsion of stomach contents','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (13,'loss of appetite','C0003123','Decreased desire to eat','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (14,'urinary frequency','C0235526','Need to urinate more often than usual','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (15,'dysuria','C0013428','Painful or difficult urination','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (16,'joint pain','C0003862','Pain in one or more joints','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (17,'fatigue','C0015672','Extreme tiredness not relieved by rest','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (18,'sore throat','C0242429','Pain or irritation in the throat','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (19,'polyuria','C0032109','Excessive production of urine','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (20,'thirst','C0040295','Strong desire to drink water','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (21,'jaundice','C0022346','Yellowing of the skin and eyes','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (22,'weight loss','C0042360','Unintentional or intentional decrease in body weight','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (23,'palpitations','C0031106','Awareness of heartbeat','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (24,'swelling','C0034086','Edema or fluid retention in tissues','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (25,'back pain','C0004604','Pain in the back region','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (26,'chills','C0007378','Shivering sensation often with coldness','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (27,'malaise','C0024623','General feeling of discomfort or unease','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (28,'rash','C0037284','Abnormal change in skin appearance or texture','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (29,'seizures','C0036572','Sudden uncontrolled electrical disturbances in brain','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (30,'hematuria','C0018965','Blood in urine','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (31,'joint stiffness','C0022404','Reduced joint mobility especially in morning','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (32,'photophobia','C0032230','Sensitivity to light','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (33,'aura','C0004329','Sensory disturbances preceding migraine/seizure','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (34,'cold intolerance','C0009269','Increased sensitivity to cold temperatures','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (35,'heat intolerance','C0018681','Increased sensitivity to warm temperatures','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (36,'night sweats','C0028081','Excessive sweating during sleep','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (37,'lymphadenopathy','C0024204','Swollen lymph nodes','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (38,'runny nose','C0035910','Excess nasal discharge','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (39,'sneezing','C0037384','Sudden forceful expulsion of air through nose','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (40,'confusion','C0009676','Disorientation and impaired thinking','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (41,'muscle stiffness','C0026848','Tightness and reduced flexibility in muscles','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (42,'tremors','C0040822','Involuntary shaking movements','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (43,'hallucinations','C0018524','Perceiving things that aren’t present','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (44,'malar rash','C0242209','Butterfly-shaped rash across cheeks and nose','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (45,'scaly skin','C0234450','Dry, flaky, or scaly skin patches','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (46,'dry eyes','C0013238','Chronic eye dryness or irritation','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (47,'polyphagia','C0020505','Excessive hunger or increased appetite','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (48,'pruritus','C0033576','Itching of the skin, often intense','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (49,'diplopia','C0012569','Double vision due to eye muscle dysfunction','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (50,'dark urine','C0025344','Urine appearing dark due to liver dysfunction','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (51,'raynaud’s phenomenon','C0034735','Vasospasm causing color changes in fingers/toes','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (52,'oral ulcers','C0033576','Painful sores in the mouth','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (53,'proteinuria','C0033687','Excess protein in the urine','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (54,'numbness','C0028643','Loss of sensation or tingling in extremities','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (55,'muscle pain','C0234450','Pain or discomfort in muscles','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (56,'bloody diarrhea','C0011992','Frequent loose stools with visible blood','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (57,'tenesmus','C0234451','Persistent urge to defecate with incomplete evacuation','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (58,'anosmia','C0021388','Loss of sense of smell','2025-09-05 14:10:00');
+INSERT INTO &quot;symptoms&quot; VALUES (59,'paresthesia','C0030554','Tingling or burning sensation in extremities','2025-09-05 14:10:00');
+
+-- Insert updated disease_symptoms (including new diseases and symptoms)
+INSERT INTO &quot;disease_symptoms&quot; VALUES (1,1);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (1,2);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (1,3);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (2,3);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (2,4);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (2,5);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (3,6);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (3,7);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (3,8);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (3,9);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (4,10);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (4,11);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (4,12);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (4,13);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (5,14);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (5,15);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (5,16);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (5,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (6,18);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (6,4);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (6,1);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (7,19);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (7,20);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (7,21);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (7,22);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (8,6);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (8,23);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (8,24);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (9,25);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (10,1);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (10,6);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (10,11);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (10,12);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (10,26);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (10,27);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (11,11);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (11,12);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (11,21);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (11,27);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (12,1);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (12,6);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (12,11);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (12,12);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (12,27);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (13,1);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (13,6);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (13,11);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (13,27);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (14,1);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (14,2);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (14,3);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (14,11);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (15,1);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (15,2);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (15,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (15,27);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (16,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (16,22);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (17,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (17,22);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (17,6);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (18,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (18,6);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (18,22);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (19,2);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (19,3);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (19,18);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (20,24);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (20,3);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (20,4);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (20,7);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (21,29);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (21,40);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (21,33);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (22,30);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (22,24);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (22,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (23,31);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (23,16);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (23,41);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (24,31);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (24,16);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (24,1);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (24,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (25,6);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (25,32);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (25,5);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (25,33);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (26,34);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (26,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (26,7);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (27,35);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (27,23);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (27,11);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (27,22);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (28,1);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (28,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (28,22);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (28,36);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (28,37);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (29,1);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (29,2);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (29,18);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (29,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (29,16);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (29,58);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (30,38);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (30,39);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (30,18);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (30,2);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (30,58);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (31,44);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (31,16);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (31,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (31,28);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (32,47);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (32,20);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (32,22);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (32,16);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (33,45);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (33,16);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (33,48);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (33,32);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (34,46);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (34,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (34,16);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (34,52);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (35,35);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (35,23);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (35,22);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (36,7);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (36,49);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (36,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (37,21);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (37,50);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (37,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (38,51);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (38,45);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (38,16);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (38,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (39,52);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (39,28);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (39,16);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (39,8);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (40,53);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (40,24);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (40,30);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (41,54);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (41,8);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (41,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (41,7);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (41,59);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (42,56);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (42,11);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (42,10);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (42,22);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (43,56);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (43,11);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (43,57);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (43,10);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (44,55);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (44,7);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (44,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (44,16);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (45,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (45,3);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (45,6);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (45,58);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (46,10);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (46,17);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (46,21);
+INSERT INTO &quot;disease_symptoms&quot; VALUES (46,50);
+
+-- Insert updated disease_management_plans with severity and plan_type
+INSERT INTO &quot;disease_management_plans&quot; VALUES (1,1,'Diagnosis:\n   - Confirm via clinical signs (fever, cough, dyspnea), CXR, or CT chest.\n   - Use CURB-65 score for severity; procalcitonin for bacterial etiology.\n\nTreatment:\n   - Outpatient: Amoxicillin-clavulanate or doxycycline.\n   - Inpatient: Ceftriaxone + azithromycin; consider levofloxacin for MDR.\n   - Viral: Oseltamivir or baloxavir for influenza.\n\nMonitoring:\n   - SpO2, CRP, serial CXR for non-responders.\n\nComplications:\n   - ARDS, empyema, sepsis.\n\nSupportive Care:\n   - Oxygen therapy, IV fluids, antipyretics.\n\nReferral:\n   - ICU for SpO2 &lt;92% or septic shock.\n\nPrevention:\n   - PCV15/PCV20 vaccination, smoking cessation, flu vaccine.','moderate','acute','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (2,2,'Diagnosis:\n   - ECG (ST elevation, Q waves), troponin I/T, coronary angiogram.\n\nTreatment:\n   - Aspirin 300 mg, ticagrelor, heparin; PCI within 90 min.\n   - SGLT2 inhibitors (e.g., dapagliflozin) for post-MI heart failure.\n   - Beta-blockers, high-dose statins, ACEi.\n\nMonitoring:\n   - Cardiac enzymes, echo for LVEF, Holter for arrhythmias.\n\nComplications:\n   - Cardiogenic shock, ventricular rupture, heart failure.\n\nSupportive Care:\n   - Pain control (morphine), oxygen if SpO2 &lt;90%.\n\nReferral:\n   - Immediate cath lab; cardiology follow-up.\n\nPrevention:\n   - Smoking cessation, DASH diet, cardiac rehab.','severe','acute','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (3,3,'Diagnosis:\n   - Non-contrast CT, MRI (DWI), NIHSS score.\n\nTreatment:\n   - Alteplase within 4.5 hrs; tenecteplase for large vessel occlusion.\n   - Thrombectomy within 24 hrs if LVO.\n   - BP control &lt;180/100 mmHg post-thrombolysis.\n\nMonitoring:\n   - Neuro checks q1h, repeat imaging at 24 hrs.\n\nComplications:\n   - Intracranial hemorrhage, cerebral edema.\n\nSupportive Care:\n   - Stroke unit, swallow assessment, DVT prophylaxis.\n\nReferral:\n   - Stroke team, endovascular intervention.\n\nPrevention:\n   - Dual antiplatelets, statins, BP control.','severe','acute','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (4,4,'Diagnosis:\n   - Clinical history, stool PCR for pathogens.\n\nTreatment:\n   - Oral rehydration solution (ORS); zinc in children &lt;5.\n   - Antibiotics (azithromycin) for shigella, severe cases only.\n   - Ondansetron for vomiting.\n\nMonitoring:\n   - Hydration status, stool output, electrolytes.\n\nComplications:\n   - Severe dehydration, HUS in E. coli infection.\n\nSupportive Care:\n   - Probiotics, bland diet post-recovery.\n\nReferral:\n   - Persistent symptoms, dysentery.\n\nPrevention:\n   - Safe water, handwashing, food safety.','mild','acute','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (5,5,'Diagnosis:\n   - Urinalysis, urine culture, point-of-care PCR for resistance.\n\nTreatment:\n   - Nitrofurantoin 100 mg BID x 5 days; fosfomycin 3 g single dose.\n   - Avoid TMP-SMX in high-resistance areas.\n\nMonitoring:\n   - Symptom resolution within 48 hrs, repeat culture if recurrent.\n\nComplications:\n   - Pyelonephritis, urosepsis.\n\nSupportive Care:\n   - Phenazopyridine for dysuria, hydration.\n\nReferral:\n   - Complicated UTI, pregnancy, or males.\n\nPrevention:\n   - Cranberry supplements, post-coital voiding.','mild','acute','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (6,6,'Diagnosis:\n   - Spirometry (FEV1/FVC &lt;0.7 post-bronchodilator), FeNO test.\n\nTreatment:\n   - GINA guidelines: SABA PRN for mild; ICS-formoterol for maintenance.\n   - Dupilumab or omalizumab for severe allergic asthma.\n\nMonitoring:\n   - Peak flow, ACT score, exacerbation history.\n\nComplications:\n   - Status asthmaticus, respiratory failure.\n\nSupportive Care:\n   - Inhaler technique training, allergen avoidance.\n\nReferral:\n   - Pulmonology for biologics or frequent exacerbations.\n\nPrevention:\n   - Flu vaccine, smoking cessation, action plan.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (7,7,'Diagnosis:\n   - HbA1c ≥6.5%, fasting glucose ≥126 mg/dL, CGM data.\n\nTreatment:\n   - Metformin + SGLT2 inhibitors or GLP-1 agonists for T2DM.\n   - Insulin pump/CGM for T1DM or advanced T2DM.\n\nMonitoring:\n   - HbA1c q3 months, lipid profile, microalbuminuria.\n\nComplications:\n   - DKA, HHS, macrovascular disease.\n\nSupportive Care:\n   - Carb counting, exercise, psychological support.\n\nReferral:\n   - Endocrinology for complex cases, CGM initiation.\n\nPrevention:\n   - Prediabetes screening, weight loss programs.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (8,8,'Diagnosis:\n   - BP ≥130/80 mmHg (3 readings), ABPM for white-coat HTN.\n\nTreatment:\n   - Lifestyle: DASH diet, 150 min/week exercise.\n   - Thiazide-like diuretics, ARBs, or CCBs; spironolactone for resistant HTN.\n\nMonitoring:\n   - Home BP monitoring, electrolytes, eGFR.\n\nComplications:\n   - LVH, stroke, renal failure.\n\nSupportive Care:\n   - Salt restriction, stress management.\n\nReferral:\n   - Resistant HTN, secondary causes.\n\nPrevention:\n   - Regular BP screening, weight control.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (9,9,'Diagnosis:\n   - History, physical exam; MRI/CT for red flags (e.g., cauda equina).\n\nTreatment:\n   - NSAIDs (ibuprofen), PT, cognitive behavioral therapy.\n   - Duloxetine for chronic pain; epidural steroids for radiculopathy.\n\nMonitoring:\n   - Pain VAS score, Oswestry Disability Index.\n\nComplications:\n   - Chronic pain syndrome, neurological deficits.\n\nSupportive Care:\n   - Core exercises, ergonomic adjustments.\n\nReferral:\n   - Spine specialist for persistent symptoms, surgery.\n\nPrevention:\n   - Posture training, lifting techniques.','mild','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (10,10,'Diagnosis:\n   - RDT, microscopy, or PCR for Plasmodium species.\n\nTreatment:\n   - ACT (artemether-lumefantrine) for uncomplicated; IV artesunate for severe.\n   - Primaquine for P. vivax/ovale (G6PD testing required).\n\nMonitoring:\n   - Parasite clearance, hemoglobin, renal function.\n\nComplications:\n   - Cerebral malaria, severe anemia, ARDS.\n\nSupportive Care:\n   - Hydration, antipyretics, glucose monitoring.\n\nReferral:\n   - Severe malaria, organ dysfunction.\n\nPrevention:\n   - LLINs, IRS, malaria vaccine (R21/Matrix-M).','severe','acute','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (11,11,'Diagnosis:\n   - Serology (HBsAg, anti-HCV), HBV/HCV PCR, FibroScan.\n\nTreatment:\n   - HBV: Tenofovir alafenamide or entecavir.\n   - HCV: Glecaprevir/pibrentasvir for 8–12 weeks.\n   - HAV: Supportive care.\n\nMonitoring:\n   - Viral load, LFTs, HCC screening (ultrasound).\n\nComplications:\n   - Cirrhosis, HCC, portal HTN.\n\nSupportive Care:\n   - Alcohol cessation, low-fat diet.\n\nReferral:\n   - Hepatology for advanced fibrosis, transplant.\n\nPrevention:\n   - HBV/HAV vaccines, safe needle practices.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (12,12,'Diagnosis:\n   - NS1 antigen, RT-PCR, IgM/IgG serology.\n\nTreatment:\n   - Supportive: Paracetamol, IV fluids for severe cases.\n   - Avoid NSAIDs to prevent bleeding risk.\n\nMonitoring:\n   - Hematocrit, platelets, warning signs (e.g., mucosal bleeding).\n\nComplications:\n   - Dengue hemorrhagic fever, shock syndrome.\n\nSupportive Care:\n   - Oral hydration, rest, mosquito bite prevention.\n\nReferral:\n   - ICU for warning signs, severe bleeding.\n\nPrevention:\n   - Dengue vaccine (CYD-TDV), vector control.','severe','acute','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (13,13,'Diagnosis:\n   - Blood/stool culture, PCR for Salmonella typhi.\n\nTreatment:\n   - Ceftriaxone or azithromycin for 7–14 days.\n   - Fluoroquinolones avoided due to resistance.\n\nMonitoring:\n   - Fever resolution, CBC, LFTs.\n\nComplications:\n   - Relapse, carrier state, perforation.\n\nSupportive Care:\n   - ORS, high-calorie diet post-recovery.\n\nReferral:\n   - Surgical consult for perforation.\n\nPrevention:\n   - ViCPS or Ty21a vaccine, sanitation.','moderate','acute','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (14,14,'Diagnosis:\n   - Xpert MTB/RIF Ultra, sputum culture, chest CT.\n\nTreatment:\n   - RIPE (rifampicin, isoniazid, pyrazinamide, ethambutol) for 6 months.\n   - Bedaquiline for MDR-TB.\n\nMonitoring:\n   - Sputum AFB q2 months, LFTs, visual acuity.\n\nComplications:\n   - MDR/XDR-TB, hemoptysis, pneumothorax.\n\nSupportive Care:\n   - Nutritional support, B6 supplementation.\n\nReferral:\n   - ID specialist for MDR-TB, surgical resection.\n\nPrevention:\n   - Isoniazid prophylaxis, ventilation control.','severe','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (15,15,'Diagnosis:\n   - qSOFA/SOFA score, blood cultures, lactate, PCT.\n\nTreatment:\n   - Broad-spectrum antibiotics (e.g., meropenem + vancomycin) within 1 hr.\n   - Fluid resuscitation (30 mL/kg), norepinephrine for shock.\n\nMonitoring:\n   - Lactate clearance, MAP &gt;65 mmHg, urine output.\n\nComplications:\n   - MODS, DIC, ARDS.\n\nSupportive Care:\n   - Mechanical ventilation, glycemic control.\n\nReferral:\n   - ICU, ID consult for source control.\n\nPrevention:\n   - Early infection treatment, vaccination.','severe','acute','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (16,16,'Diagnosis:\n   - CBC, peripheral smear, ferritin, TIBC, B12/folate.\n\nTreatment:\n   - Ferrous sulfate for IDA; IV iron for intolerance.\n   - B12 injections for pernicious anemia; transfusions for severe cases.\n\nMonitoring:\n   - Hb, reticulocyte count, MCV.\n\nComplications:\n   - High-output heart failure, neuro deficits.\n\nSupportive Care:\n   - Dietary iron sources, vitamin C.\n\nReferral:\n   - Hematology for refractory cases, bone marrow biopsy.\n\nPrevention:\n   - Iron-fortified foods, prenatal screening.','mild','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (17,17,'Diagnosis:\n   - PHQ-9, GAD-7, clinical interview, suicide risk.\n\nTreatment:\n   - CBT, SSRIs (sertraline, escitalopram), or ketamine for TRD.\n   - TMS or ECT for severe refractory cases.\n\nMonitoring:\n   - PHQ-9 score, suicidal ideation, sleep patterns.\n\nComplications:\n   - Self-harm, social withdrawal, substance use.\n\nSupportive Care:\n   - Peer support groups, mindfulness training.\n\nReferral:\n   - Psychiatry for suicidality, inpatient care.\n\nPrevention:\n   - Mental health screening, resilience training.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (18,18,'Diagnosis:\n   - GAD-7, SCID-5, rule out medical mimics.\n\nTreatment:\n   - CBT, SSRIs/SNRIs (e.g., venlafaxine), buspirone for GAD.\n   - Benzodiazepines short-term for acute panic.\n\nMonitoring:\n   - Anxiety severity, medication side effects.\n\nComplications:\n   - Phobias, substance dependence.\n\nSupportive Care:\n   - Relaxation techniques, sleep hygiene.\n\nReferral:\n   - Psychiatry for complex cases, therapy resistance.\n\nPrevention:\n   - Stress management, early CBT.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (19,19,'Diagnosis:\n   - Spirometry (FEV1/FVC &lt;0.7), DLCO, high-res CT.\n\nTreatment:\n   - LABA/LAMA (e.g., umeclidinium/vilanterol), ICS for exacerbations.\n   - Roflumilast for severe COPD with chronic bronchitis.\n\nMonitoring:\n   - CAT score, exacerbation frequency, SpO2.\n\nComplications:\n   - Cor pulmonale, pneumothorax, infections.\n\nSupportive Care:\n   - Pulmonary rehab, oxygen therapy.\n\nReferral:\n   - Pulmonology for LTOT or surgical options.\n\nPrevention:\n   - Smoking cessation, annual flu/pneumo vaccines.','severe','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (20,20,'Diagnosis:\n   - NT-proBNP, echo (LVEF), chest X-ray.\n\nTreatment:\n   - ARNI (sacubitril/valsartan), beta-blockers, SGLT2i.\n   - Loop diuretics for congestion, ICD for low EF.\n\nMonitoring:\n   - Daily weights, eGFR, potassium levels.\n\nComplications:\n   - Cardiogenic shock, sudden cardiac death.\n\nSupportive Care:\n   - Fluid/salt restriction, cardiac rehab.\n\nReferral:\n   - Cardiology for device therapy, transplant.\n\nPrevention:\n   - BP control, lipid management.','severe','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (21,21,'Diagnosis:\n   - EEG, MRI brain, seizure semiology.\n\nTreatment:\n   - Levetiracetam or lamotrigine first-line; perampanel for refractory cases.\n   - VNS or ketogenic diet for intractable epilepsy.\n\nMonitoring:\n   - Seizure log, AED levels, EEG.\n\nComplications:\n   - Status epilepticus, SUDEP.\n\nSupportive Care:\n   - Seizure safety, sleep hygiene.\n\nReferral:\n   - Neurology, epilepsy surgery evaluation.\n\nPrevention:\n   - Medication adherence, trigger avoidance.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (22,22,'Diagnosis:\n   - eGFR &lt;60 mL/min, urine ACR, renal ultrasound.\n\nTreatment:\n   - ACEi/ARBs, SGLT2i (e.g., empagliflozin), finerenone for proteinuria.\n   - Dialysis or transplant for ESRD.\n\nMonitoring:\n   - eGFR, electrolytes, BP control.\n\nComplications:\n   - ESRD, hyperkalemia, cardiovascular events.\n\nSupportive Care:\n   - Low-protein diet, smoking cessation.\n\nReferral:\n   - Nephrology for eGFR &lt;30, dialysis planning.\n\nPrevention:\n   - DM/HTN control, regular screening.','severe','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (23,23,'Diagnosis:\n   - X-ray (joint space narrowing), clinical exam.\n\nTreatment:\n   - Acetaminophen, topical NSAIDs, duloxetine.\n   - Intra-articular hyaluronic acid or PRP for knees.\n\nMonitoring:\n   - Pain scores, joint function, WOMAC index.\n\nComplications:\n   - Joint deformity, reduced mobility.\n\nSupportive Care:\n   - Weight loss, PT, assistive devices.\n\nReferral:\n   - Orthopedics for joint replacement.\n\nPrevention:\n   - Exercise, weight management.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (24,24,'Diagnosis:\n   - RF, anti-CCP, ESR/CRP, DAS28 score.\n\nTreatment:\n   - Methotrexate + hydroxychloroquine; JAKi (e.g., baricitinib) for moderate-severe.\n   - Anti-TNF (e.g., adalimumab) for DMARD failure.\n\nMonitoring:\n   - DAS28, joint counts, LFTs.\n\nComplications:\n   - Joint destruction, infections, CVD.\n\nSupportive Care:\n   - PT, smoking cessation, vaccinations.\n\nReferral:\n   - Rheumatology for early DMARDs, biologics.\n\nPrevention:\n   - Early treatment, infection monitoring.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (25,25,'Diagnosis:\n   - ICHD-3 criteria, headache diary, rule out secondary causes.\n\nTreatment:\n   - Acute: Rimegepant or ubrogepant; triptans if tolerated.\n   - Preventive: CGRP inhibitors (e.g., erenumab), topiramate.\n\nMonitoring:\n   - MIDAS score, attack frequency.\n\nComplications:\n   - Chronic migraine, medication overuse headache.\n\nSupportive Care:\n   - Trigger avoidance, stress management.\n\nReferral:\n   - Neurology for chronic or refractory cases.\n\nPrevention:\n   - Lifestyle changes, prophylactic therapy.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (26,26,'Diagnosis:\n   - TSH &gt;4 mIU/L, low free T4, thyroid ultrasound.\n\nTreatment:\n   - Levothyroxine (1.6 mcg/kg/day), titrate q6 weeks.\n   - Liothyronine for resistant cases (investigational).\n\nMonitoring:\n   - TSH q6–12 months, free T4, cardiac symptoms.\n\nComplications:\n   - Myxedema coma, CVD risk.\n\nSupportive Care:\n   - Warm clothing, dietary iodine.\n\nReferral:\n   - Endocrinology for myxedema, pregnancy.\n\nPrevention:\n   - Iodine supplementation, screening in elderly.','mild','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (27,27,'Diagnosis:\n   - TSH &lt;0.1 mIU/L, elevated T3/T4, TRAb.\n\nTreatment:\n   - Methimazole (5–30 mg/day), propranolol for tachycardia.\n   - Radioiodine or surgery for definitive treatment.\n\nMonitoring:\n   - Thyroid function q4–6 weeks, CBC, LFTs.\n\nComplications:\n   - Thyroid storm, atrial fibrillation.\n\nSupportive Care:\n   - Smoking cessation, eye lubrication.\n\nReferral:\n   - Endocrinology, ophthalmology for TED.\n\nPrevention:\n   - Regular monitoring, stress reduction.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (28,28,'Diagnosis:\n   - 4th-gen HIV test, viral load PCR, resistance testing.\n\nTreatment:\n   - ART: Biktarvy (bictegravir/emtricitabine/TAF) first-line.\n   - Cabotegravir/rilpivirine (long-acting injectable) for adherent patients.\n\nMonitoring:\n   - Viral load q3–6 months, CD4, renal/liver function.\n\nComplications:\n   - Opportunistic infections, IRIS, lipodystrophy.\n\nSupportive Care:\n   - Adherence counseling, vaccinations.\n\nReferral:\n   - ID specialist for all cases, resistance.\n\nPrevention:\n   - PrEP, condoms, needle exchange.','severe','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (29,29,'Diagnosis:\n   - Rapid antigen test, RT-PCR, clinical symptoms.\n\nTreatment:\n   - Baloxavir or oseltamivir within 48 hrs for high-risk.\n   - Symptomatic care for low-risk patients.\n\nMonitoring:\n   - Respiratory status, secondary infections.\n\nComplications:\n   - Pneumonia, myocarditis, encephalitis.\n\nSupportive Care:\n   - Hydration, antipyretics, rest.\n\nReferral:\n   - Pulmonology for severe respiratory distress.\n\nPrevention:\n   - Annual flu vaccine, hand hygiene.','mild','acute','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (30,30,'Diagnosis:\n   - Clinical diagnosis, PCR for atypical cases.\n\nTreatment:\n   - Symptomatic: Decongestants, saline nasal spray.\n   - Antihistamines for allergic component.\n\nMonitoring:\n   - Symptom duration (&gt;10 days suggests bacterial).\n\nComplications:\n   - Sinusitis, otitis media.\n\nSupportive Care:\n   - Hydration, steam inhalation.\n\nReferral:\n   - ENT for persistent symptoms, complications.\n\nPrevention:\n   - Handwashing, avoid sick contacts.','mild','acute','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (31,31,'Diagnosis:\n   - ANA, anti-dsDNA, anti-Smith, complement levels, SLICC criteria.\n\nTreatment:\n   - Hydroxychloroquine for all; prednisone for flares.\n   - Voclosporin or belimumab for lupus nephritis.\n   - Rituximab for severe organ involvement.\n\nMonitoring:\n   - SLEDAI, complement, proteinuria, ESR/CRP.\n\nComplications:\n   - Lupus nephritis, CNS lupus, thrombosis.\n\nSupportive Care:\n   - UV protection, vaccinations, smoking cessation.\n\nReferral:\n   - Rheumatology, nephrology for organ damage.\n\nPrevention:\n   - Early immunosuppression, flare prevention.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (32,32,'Diagnosis:\n   - Anti-GAD, anti-islet antibodies, HbA1c, C-peptide.\n\nTreatment:\n   - Insulin (basal-bolus or pump), CGM required.\n   - Teplizumab for stage 2 T1DM (pre-symptomatic).\n\nMonitoring:\n   - Glucose, HbA1c q3 months, DKA risk.\n\nComplications:\n   - Hypoglycemia, retinopathy, nephropathy.\n\nSupportive Care:\n   - Diabetes education, mental health support.\n\nReferral:\n   - Endocrinology for CGM, islet transplant.\n\nPrevention:\n   - Autoantibody screening in family members.','severe','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (33,33,'Diagnosis:\n   - Clinical (plaque psoriasis), PASI, skin biopsy.\n\nTreatment:\n   - Topical corticosteroids, calcipotriene for mild.\n   - IL-17/IL-23 inhibitors (e.g., bimekizumab) for moderate-severe.\n   - Apremilast or deucravacitinib for resistant cases.\n\nMonitoring:\n   - PASI, DLQI, joint symptoms, LFTs.\n\nComplications:\n   - Psoriatic arthritis, metabolic syndrome.\n\nSupportive Care:\n   - Emollients, UV protection, weight loss.\n\nReferral:\n   - Dermatology, rheumatology for PsA.\n\nPrevention:\n   - Trigger avoidance, stress reduction.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (34,34,'Diagnosis:\n   - Anti-SSA/SSB, salivary gland biopsy, Schirmer test.\n\nTreatment:\n   - Artificial tears/saliva, pilocarpine for sicca.\n   - Rituximab or belimumab for systemic disease.\n\nMonitoring:\n   - Sicca symptoms, lymphoma risk, RF/ANA.\n\nComplications:\n   - Lymphoma, parotid enlargement.\n\nSupportive Care:\n   - Oral hygiene, eye protection, hydration.\n\nReferral:\n   - Rheumatology, ophthalmology for complications.\n\nPrevention:\n   - Regular lymphoma screening, early treatment.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (35,35,'Diagnosis:\n   - TSH, free T4/T3, TRAb, thyroid scintigraphy.\n\nTreatment:\n   - Methimazole or propylthiouracil; beta-blockers.\n   - Teprotumumab for severe TED.\n   - Radioiodine or thyroidectomy for relapse.\n\nMonitoring:\n   - TFTs q4 weeks, LFTs, eye exam.\n\nComplications:\n   - Thyroid storm, ophthalmopathy, bone loss.\n\nSupportive Care:\n   - Smoking cessation, selenium supplementation.\n\nReferral:\n   - Endocri for TED, surgical consult.\n\nPrevention:\n   - Iodine control, stress management.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (36,36,'Diagnosis:\n   - AChR antibodies, EMG, single-fiber EMG.\n\nTreatment:\n   - Pyridostigmine, prednisone, azathioprine.\n   - Rozanolixizumab or eculizumab for refractory MG.\n   - Thymectomy for AChR-positive patients.\n\nMonitoring:\n   - MG-ADL score, respiratory function, QMG.\n\nComplications:\n   - Myasthenic crisis, thymoma.\n\nSupportive Care:\n   - PT, avoid aminoglycosides, vaccinations.\n\nReferral:\n   - Neurology, thoracic surgery for thymectomy.\n\nPrevention:\n   - Infection control, medication adherence.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (37,37,'Diagnosis:\n   - Anti-smooth muscle, ANA, IgG, liver biopsy.\n\nTreatment:\n   - Prednisone (40–60 mg/day), azathioprine maintenance.\n   - Mycophenolate for steroid intolerance.\n\nMonitoring:\n   - LFTs, IgG, fibrosis staging (FibroScan).\n\nComplications:\n   - Cirrhosis, HCC, liver failure.\n\nSupportive Care:\n   - Alcohol avoidance, low-fat diet.\n\nReferral:\n   - Hepatology for transplant, advanced disease.\n\nPrevention:\n   - Early immunosuppression, HCC screening.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (38,38,'Diagnosis:\n   - Anti-centromere/Scl-70, skin biopsy, mRSS.\n\nTreatment:\n   - Mycophenolate for skin/ILD, nifedipine for Raynaud’s.\n   - Riociguat for PAH, rituximab for refractory ILD.\n\nMonitoring:\n   - mRSS, PFTs, echo for PAH.\n\nComplications:\n   - Scleroderma renal crisis, ILD, GI dysmotility.\n\nSupportive Care:\n   - Skin moisturizers, PT, cold avoidance.\n\nReferral:\n   - Rheumatology, pulmonology for ILD/PAH.\n\nPrevention:\n   - Early immunosuppression, Raynaud’s protection.','severe','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (39,39,'Diagnosis:\n   - Recurrent ulcers, pathergy test, HLA-B51.\n\nTreatment:\n   - Colchicine for mucocutaneous; adalimumab for severe.\n   - Apremilast for oral ulcers, azathioprine for systemic.\n\nMonitoring:\n   - Ulcer frequency, ESR/CRP, eye exams.\n\nComplications:\n   - Uveitis, DVT, CNS involvement.\n\nSupportive Care:\n   - Pain relief, patient education.\n\nReferral:\n   - Rheumatology, ophthalmology for uveitis.\n\nPrevention:\n   - Flare management, infection control.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (40,40,'Diagnosis:\n   - Proteinuria (&gt;500 mg/day), renal biopsy, anti-dsDNA.\n\nTreatment:\n   - Mycophenolate or cyclophosphamide for induction.\n   - Voclosporin + hydroxychloroquine for maintenance.\n\nMonitoring:\n   - UPCR, eGFR, complement levels.\n\nComplications:\n   - ESRD, hypertension, infections.\n\nSupportive Care:\n   - Low-salt diet, BP control, vaccinations.\n\nReferral:\n   - Nephrology, rheumatology for management.\n\nPrevention:\n   - Early SLE control, renal screening.','severe','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (41,41,'Diagnosis:\n   - McDonald criteria, MRI (T2/FLAIR lesions), CSF bands.\n\nTreatment:\n   - High-efficacy DMTs: ocrelizumab, cladribine for RRMS.\n   - Siponimod or ponesimod for SPMS.\n   - Fenebrutinib (BTK inhibitor, investigational).\n\nMonitoring:\n   - MRI q6–12 months, EDSS, JC virus serology.\n\nComplications:\n   - PML, disability progression, spasticity.\n\nSupportive Care:\n   - PT, vitamin D, cognitive rehab.\n\nReferral:\n   - Neurology for DMTs, neuro-rehab.\n\nPrevention:\n   - Early DMT, infection monitoring.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (42,42,'Diagnosis:\n   - Colonoscopy, fecal calprotectin, CT/MR enterography.\n\nTreatment:\n   - Budesonide for mild; ustekinumab or risankizumab for moderate-severe.\n   - Surgery for fistulas, strictures.\n\nMonitoring:\n   - CDAI, CRP, calprotectin, colonoscopy q2–3 yrs.\n\nComplications:\n   - Abscesses, colorectal cancer, malnutrition.\n\nSupportive Care:\n   - Enteral nutrition, smoking cessation.\n\nReferral:\n   - IBD specialist, surgery for complications.\n\nPrevention:\n   - Maintenance therapy, CRC screening.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (43,43,'Diagnosis:\n   - Colonoscopy, Mayo score, fecal calprotectin.\n\nTreatment:\n   - Mesalamine for mild-moderate; tofacitinib or ozanimod for severe.\n   - Colectomy for refractory or toxic megacolon.\n\nMonitoring:\n   - Mayo score, CRP, colonoscopy q1–2 yrs.\n\nComplications:\n   - Toxic megacolon, colorectal cancer.\n\nSupportive Care:\n   - Low-fiber diet during flares, hydration.\n\nReferral:\n   - IBD specialist, colorectal surgery.\n\nPrevention:\n   - Adherence to 5-ASA, CRC surveillance.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (44,44,'Diagnosis:\n   - CK elevation, anti-Jo-1, muscle biopsy, MRI muscle.\n\nTreatment:\n   - Prednisone (1 mg/kg/day), methotrexate or tacrolimus.\n   - IVIG or rituximab for refractory cases.\n\nMonitoring:\n   - CK, muscle strength, PFTs for ILD.\n\nComplications:\n   - ILD, malignancy, dysphagia.\n\nSupportive Care:\n   - PT, sun protection, aspiration precautions.\n\nReferral:\n   - Rheumatology, pulmonology for ILD.\n\nPrevention:\n   - Early immunosuppression, cancer screening.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (45,45,'Diagnosis:\n   - Clinical history (post-COVID symptoms &gt;3 months), rule out mimics.\n\nTreatment:\n   - Symptomatic: Pacing for fatigue, beta-blockers for POTS.\n   - Multidisciplinary rehab for cognitive and respiratory issues.\n\nMonitoring:\n   - Symptom tracking, 6-minute walk test, cognitive assessment.\n\nComplications:\n   - Dysautonomia, ME/CFS, pulmonary fibrosis.\n\nSupportive Care:\n   - Energy conservation, mental health support.\n\nReferral:\n   - Long COVID clinic, pulmonology, cardiology.\n\nPrevention:\n   - COVID-19 vaccination, early antiviral use.','moderate','chronic','2025-09-05 14:10:00');
+INSERT INTO &quot;disease_management_plans&quot; VALUES (46,46,'Diagnosis:\n   - Liver ultrasound, FibroScan, ALT/AST elevation.\n\nTreatment:\n   - Lifestyle: Weight loss (7–10%), Mediterranean diet.\n   - Pioglitazone or vitamin E for NASH; obeticholic acid (investigational).\n\nMonitoring:\n   - LFTs, FibroScan, lipid profile, HbA1c.\n\nComplications:\n   - Cirrhosis, HCC, cardiovascular disease.\n\nSupportive Care:\n   - Exercise, alcohol avoidance, DM control.\n\nReferral:\n   - Hepatology for NASH, advanced fibrosis.\n\nPrevention:\n   - Obesity prevention, regular liver screening.','moderate','chronic','2025-09-05 14:10:00');
+
+-- Insert updated disease_keywords
+INSERT INTO &quot;disease_keywords&quot; VALUES (1,10,'malaria','C0024530');
+INSERT INTO &quot;disease_keywords&quot; VALUES (2,1,'pneumonia','C0032285');
+INSERT INTO &quot;disease_keywords&quot; VALUES (3,5,'uti','C0033578');
+INSERT INTO &quot;disease_keywords&quot; VALUES (4,5,'urinary tract infection','C0033578');
+INSERT INTO &quot;disease_keywords&quot; VALUES (5,4,'gastroenteritis','C0017160');
+INSERT INTO &quot;disease_keywords&quot; VALUES (6,12,'dengue','C0011311');
+INSERT INTO &quot;disease_keywords&quot; VALUES (7,11,'hepatitis','C0019158');
+INSERT INTO &quot;disease_keywords&quot; VALUES (8,11,'viral hepatitis','C0019158');
+INSERT INTO &quot;disease_keywords&quot; VALUES (9,6,'asthma','C0004096');
+INSERT INTO &quot;disease_keywords&quot; VALUES (10,2,'myocardial infarction','C0027051');
+INSERT INTO &quot;disease_keywords&quot; VALUES (11,2,'heart attack','C0027051');
+INSERT INTO &quot;disease_keywords&quot; VALUES (12,3,'stroke','C0038454');
+INSERT INTO &quot;disease_keywords&quot; VALUES (13,3,'cerebrovascular accident','C0038454');
+INSERT INTO &quot;disease_keywords&quot; VALUES (14,7,'diabetes','C0011849');
+INSERT INTO &quot;disease_keywords&quot; VALUES (15,8,'hypertension','C0020538');
+INSERT INTO &quot;disease_keywords&quot; VALUES (16,8,'high blood pressure','C0020538');
+INSERT INTO &quot;disease_keywords&quot; VALUES (17,9,'musculoskeletal back pain','C0026857');
+-- Continue inserting disease_keywords
+INSERT INTO &quot;disease_keywords&quot; VALUES (18,9,'back pain','C0004604');
+INSERT INTO &quot;disease_keywords&quot; VALUES (19,13,'typhoid','C0041466');
+INSERT INTO &quot;disease_keywords&quot; VALUES (20,13,'enteric fever','C0041466');
+INSERT INTO &quot;disease_keywords&quot; VALUES (21,14,'tuberculosis','C0041296');
+INSERT INTO &quot;disease_keywords&quot; VALUES (22,14,'tb','C0041296');
+INSERT INTO &quot;disease_keywords&quot; VALUES (23,15,'sepsis','C0243026');
+INSERT INTO &quot;disease_keywords&quot; VALUES (24,15,'blood poisoning','C0243026');
+INSERT INTO &quot;disease_keywords&quot; VALUES (25,16,'anemia','C0002871');
+INSERT INTO &quot;disease_keywords&quot; VALUES (26,16,'anaemia','C0002871');
+INSERT INTO &quot;disease_keywords&quot; VALUES (27,17,'depression','C0011570');
+INSERT INTO &quot;disease_keywords&quot; VALUES (28,17,'major depressive disorder','C0011570');
+INSERT INTO &quot;disease_keywords&quot; VALUES (29,18,'anxiety','C0003467');
+INSERT INTO &quot;disease_keywords&quot; VALUES (30,18,'anxiety disorder','C0003467');
+INSERT INTO &quot;disease_keywords&quot; VALUES (31,19,'copd','C0003403');
+INSERT INTO &quot;disease_keywords&quot; VALUES (32,19,'chronic obstructive pulmonary disease','C0003403');
+INSERT INTO &quot;disease_keywords&quot; VALUES (33,20,'heart failure','C0018802');
+INSERT INTO &quot;disease_keywords&quot; VALUES (34,20,'congestive heart failure','C0018802');
+INSERT INTO &quot;disease_keywords&quot; VALUES (35,21,'epilepsy','C0014544');
+INSERT INTO &quot;disease_keywords&quot; VALUES (36,21,'seizure disorder','C0014544');
+INSERT INTO &quot;disease_keywords&quot; VALUES (37,22,'ckd','C0022658');
+INSERT INTO &quot;disease_keywords&quot; VALUES (38,22,'chronic kidney disease','C0022658');
+INSERT INTO &quot;disease_keywords&quot; VALUES (39,22,'renal failure','C0022658');
+INSERT INTO &quot;disease_keywords&quot; VALUES (40,23,'osteoarthritis','C0029408');
+INSERT INTO &quot;disease_keywords&quot; VALUES (41,23,'degenerative arthritis','C0029408');
+INSERT INTO &quot;disease_keywords&quot; VALUES (42,24,'rheumatoid arthritis','C0003873');
+INSERT INTO &quot;disease_keywords&quot; VALUES (43,24,'inflammatory arthritis','C0003873');
+INSERT INTO &quot;disease_keywords&quot; VALUES (44,25,'migraine','C0026986');
+INSERT INTO &quot;disease_keywords&quot; VALUES (45,25,'migraine headache','C0026986');
+INSERT INTO &quot;disease_keywords&quot; VALUES (46,26,'hypothyroidism','C0020676');
+INSERT INTO &quot;disease_keywords&quot; VALUES (47,26,'underactive thyroid','C0020676');
+INSERT INTO &quot;disease_keywords&quot; VALUES (48,27,'hyperthyroidism','C0020550');
+INSERT INTO &quot;disease_keywords&quot; VALUES (49,27,'overactive thyroid','C0020550');
+INSERT INTO &quot;disease_keywords&quot; VALUES (50,27,'thyrotoxicosis','C0040132');
+INSERT INTO &quot;disease_keywords&quot; VALUES (51,28,'hiv','C0001175');
+INSERT INTO &quot;disease_keywords&quot; VALUES (52,28,'aids','C0001175');
+INSERT INTO &quot;disease_keywords&quot; VALUES (53,29,'influenza','C0011991');
+INSERT INTO &quot;disease_keywords&quot; VALUES (54,29,'flu','C0011991');
+INSERT INTO &quot;disease_keywords&quot; VALUES (55,30,'common cold','C0009443');
+INSERT INTO &quot;disease_keywords&quot; VALUES (56,30,'rhinovirus','C0009443');
+INSERT INTO &quot;disease_keywords&quot; VALUES (57,31,'systemic lupus erythematosus','C0024141');
+INSERT INTO &quot;disease_keywords&quot; VALUES (58,31,'sle','C0024141');
+INSERT INTO &quot;disease_keywords&quot; VALUES (59,31,'lupus','C0024141');
+INSERT INTO &quot;disease_keywords&quot; VALUES (60,32,'type 1 diabetes','C0011854');
+INSERT INTO &quot;disease_keywords&quot; VALUES (61,32,'juvenile diabetes','C0011854');
+INSERT INTO &quot;disease_keywords&quot; VALUES (62,33,'psoriasis','C0033860');
+INSERT INTO &quot;disease_keywords&quot; VALUES (63,33,'plaque psoriasis','C0033860');
+INSERT INTO &quot;disease_keywords&quot; VALUES (64,34,'sjögren’s syndrome','C0036394');
+INSERT INTO &quot;disease_keywords&quot; VALUES (65,34,'sjogren syndrome','C0036394');
+INSERT INTO &quot;disease_keywords&quot; VALUES (66,35,'graves’ disease','C0018213');
+INSERT INTO &quot;disease_keywords&quot; VALUES (67,35,'autoimmune hyperthyroidism','C0018213');
+INSERT INTO &quot;disease_keywords&quot; VALUES (68,36,'myasthenia gravis','C0026898');
+INSERT INTO &quot;disease_keywords&quot; VALUES (69,36,'mg','C0026898');
+INSERT INTO &quot;disease_keywords&quot; VALUES (70,37,'autoimmune hepatitis','C0242209');
+INSERT INTO &quot;disease_keywords&quot; VALUES (71,37,'aih','C0242209');
+INSERT INTO &quot;disease_keywords&quot; VALUES (72,38,'systemic sclerosis','C0036421');
+INSERT INTO &quot;disease_keywords&quot; VALUES (73,38,'scleroderma','C0036421');
+INSERT INTO &quot;disease_keywords&quot; VALUES (74,39,'behçet’s disease','C0004943');
+INSERT INTO &quot;disease_keywords&quot; VALUES (75,39,'behçet syndrome','C0004943');
+INSERT INTO &quot;disease_keywords&quot; VALUES (76,40,'lupus nephritis','C0024141');
+INSERT INTO &quot;disease_keywords&quot; VALUES (77,40,'sle nephritis','C0024141');
+INSERT INTO &quot;disease_keywords&quot; VALUES (78,41,'multiple sclerosis','C0026769');
+INSERT INTO &quot;disease_keywords&quot; VALUES (79,41,'ms','C0026769');
+INSERT INTO &quot;disease_keywords&quot; VALUES (80,42,'crohn’s disease','C0010346');
+INSERT INTO &quot;disease_keywords&quot; VALUES (81,42,'crohn disease','C0010346');
+INSERT INTO &quot;disease_keywords&quot; VALUES (82,43,'ulcerative colitis','C0009324');
+INSERT INTO &quot;disease_keywords&quot; VALUES (83,43,'uc','C0009324');
+INSERT INTO &quot;disease_keywords&quot; VALUES (84,44,'polymyositis','C0085084');
+INSERT INTO &quot;disease_keywords&quot; VALUES (85,44,'inflammatory myopathy','C0085084');
+INSERT INTO &quot;disease_keywords&quot; VALUES (86,45,'long covid','C0000001');
+INSERT INTO &quot;disease_keywords&quot; VALUES (87,45,'post-acute sequelae of sars-cov-2','C0000001');
+INSERT INTO &quot;disease_keywords&quot; VALUES (88,46,'nafld','C0400966');
+INSERT INTO &quot;disease_keywords&quot; VALUES (89,46,'non-alcoholic fatty liver disease','C0400966');
+INSERT INTO &quot;disease_keywords&quot; VALUES (90,46,'fatty liver','C0400966');
+
+-- Insert updated disease_labs
+INSERT INTO &quot;disease_labs&quot; VALUES (1,1,'Chest X-ray','Detects lung consolidation or infiltrates indicative of pneumonia');
+INSERT INTO &quot;disease_labs&quot; VALUES (2,1,'Sputum culture','Identifies causative organism (bacteria, fungi) in pneumonia');
+INSERT INTO &quot;disease_labs&quot; VALUES (3,1,'Complete Blood Count (CBC)','Assesses white blood cell count for infection severity');
+INSERT INTO &quot;disease_labs&quot; VALUES (4,1,'Procalcitonin','Differentiates bacterial vs. viral pneumonia');
+INSERT INTO &quot;disease_labs&quot; VALUES (5,2,'Troponin I/T','Elevated levels indicate myocardial damage in heart attack');
+INSERT INTO &quot;disease_labs&quot; VALUES (6,2,'Electrocardiogram (ECG)','Detects ST elevation, Q waves, or ischemic changes');
+INSERT INTO &quot;disease_labs&quot; VALUES (7,3,'CT Brain','Identifies ischemic or hemorrhagic stroke');
+INSERT INTO &quot;disease_labs&quot; VALUES (8,3,'MRI Brain (DWI)','Confirms acute ischemic stroke and lesion extent');
+INSERT INTO &quot;disease_labs&quot; VALUES (9,4,'Stool culture','Identifies bacterial or viral pathogens in gastroenteritis');
+INSERT INTO &quot;disease_labs&quot; VALUES (10,4,'Fecal occult blood test (FOBT)','Detects gastrointestinal bleeding');
+INSERT INTO &quot;disease_labs&quot; VALUES (11,4,'Stool PCR','Detects viral, bacterial, or parasitic DNA');
+INSERT INTO &quot;disease_labs&quot; VALUES (12,5,'Urinalysis','Detects pyuria, hematuria, or bacteria in UTI');
+INSERT INTO &quot;disease_labs&quot; VALUES (13,5,'Urine culture','Identifies specific bacterial cause and resistance');
+INSERT INTO &quot;disease_labs&quot; VALUES (14,6,'Spirometry','Confirms airflow obstruction in asthma (FEV1/FVC &lt;0.7)');
+INSERT INTO &quot;disease_labs&quot; VALUES (15,6,'Fractional exhaled nitric oxide (FeNO)','Assesses airway inflammation in asthma');
+INSERT INTO &quot;disease_labs&quot; VALUES (16,7,'HbA1c','Measures long-term glucose control in diabetes');
+INSERT INTO &quot;disease_labs&quot; VALUES (17,7,'Fasting glucose','Confirms elevated blood sugar levels');
+INSERT INTO &quot;disease_labs&quot; VALUES (18,7,'C-peptide','Differentiates T1DM vs. T2DM');
+INSERT INTO &quot;disease_labs&quot; VALUES (19,8,'Blood pressure monitoring','Confirms persistent hypertension (≥130/80 mmHg)');
+INSERT INTO &quot;disease_labs&quot; VALUES (20,8,'Ambulatory BP monitoring (ABPM)','Diagnoses white-coat or masked hypertension');
+INSERT INTO &quot;disease_labs&quot; VALUES (21,9,'X-ray spine','Rules out structural causes of back pain');
+INSERT INTO &quot;disease_labs&quot; VALUES (22,9,'MRI spine','Evaluates disc, nerve, or spinal cord involvement');
+INSERT INTO &quot;disease_labs&quot; VALUES (23,10,'Rapid Diagnostic Test (RDT)','Detects Plasmodium antigens for malaria');
+INSERT INTO &quot;disease_labs&quot; VALUES (24,10,'Blood smear microscopy','Confirms Plasmodium species and parasitemia');
+INSERT INTO &quot;disease_labs&quot; VALUES (25,10,'PCR for malaria','High-sensitivity detection of Plasmodium DNA');
+INSERT INTO &quot;disease_labs&quot; VALUES (26,11,'Viral serology','Detects HAV, HBV, HCV antibodies/antigens');
+INSERT INTO &quot;disease_labs&quot; VALUES (27,11,'Liver function tests (LFTs)','Assesses liver damage in hepatitis');
+INSERT INTO &quot;disease_labs&quot; VALUES (28,11,'FibroScan','Evaluates liver fibrosis non-invasively');
+INSERT INTO &quot;disease_labs&quot; VALUES (29,12,'NS1 antigen test','Detects dengue virus early in infection');
+INSERT INTO &quot;disease_labs&quot; VALUES (30,12,'IgM/IgG serology','Confirms dengue infection in later stages');
+INSERT INTO &quot;disease_labs&quot; VALUES (31,13,'Blood culture','Detects Salmonella typhi in typhoid fever');
+INSERT INTO &quot;disease_labs&quot; VALUES (32,13,'Stool culture','Detects Salmonella in carriers or late disease');
+INSERT INTO &quot;disease_labs&quot; VALUES (33,14,'Sputum AFB smear','Detects Mycobacterium tuberculosis in TB');
+INSERT INTO &quot;disease_labs&quot; VALUES (34,14,'Xpert MTB/RIF Ultra','Molecular test for rapid TB and rifampin resistance');
+INSERT INTO &quot;disease_labs&quot; VALUES (35,15,'Blood culture','Identifies causative organism in sepsis');
+INSERT INTO &quot;disease_labs&quot; VALUES (36,15,'Lactate','Assesses severity of sepsis and tissue perfusion');
+INSERT INTO &quot;disease_labs&quot; VALUES (37,15,'Procalcitonin','Guides antibiotic duration in sepsis');
+INSERT INTO &quot;disease_labs&quot; VALUES (38,16,'Complete Blood Count (CBC)','Confirms low hemoglobin in anemia');
+INSERT INTO &quot;disease_labs&quot; VALUES (39,16,'Iron studies','Differentiates types of anemia (e.g., iron deficiency)');
+INSERT INTO &quot;disease_labs&quot; VALUES (40,16,'Reticulocyte count','Assesses bone marrow response in anemia');
+INSERT INTO &quot;disease_labs&quot; VALUES (41,17,'No specific lab test','Diagnosis based on clinical criteria (PHQ-9, DSM-5)');
+INSERT INTO &quot;disease_labs&quot; VALUES (42,18,'No specific lab test','Diagnosis based on clinical criteria (GAD-7, DSM-5)');
+INSERT INTO &quot;disease_labs&quot; VALUES (43,19,'Spirometry','Confirms obstructive pattern in COPD (FEV1/FVC &lt;0.7)');
+INSERT INTO &quot;disease_labs&quot; VALUES (44,19,'High-resolution CT chest','Detects emphysema or bronchiectasis');
+INSERT INTO &quot;disease_labs&quot; VALUES (45,20,'NT-proBNP','Elevated in heart failure due to cardiac strain');
+INSERT INTO &quot;disease_labs&quot; VALUES (46,20,'Echocardiogram','Assesses LVEF and cardiac structure');
+INSERT INTO &quot;disease_labs&quot; VALUES (47,21,'Electroencephalogram (EEG)','Detects abnormal brain activity in epilepsy');
+INSERT INTO &quot;disease_labs&quot; VALUES (48,21,'MRI Brain','Rules out structural causes of seizures');
+INSERT INTO &quot;disease_labs&quot; VALUES (49,22,'Serum creatinine','Assesses kidney function in CKD');
+INSERT INTO &quot;disease_labs&quot; VALUES (50,22,'Urine albumin-creatinine ratio (ACR)','Detects early kidney damage');
+INSERT INTO &quot;disease_labs&quot; VALUES (51,23,'X-ray joint','Shows joint space narrowing, osteophytes in OA');
+INSERT INTO &quot;disease_labs&quot; VALUES (52,23,'MRI joint','Evaluates cartilage and soft tissue in OA');
+INSERT INTO &quot;disease_labs&quot; VALUES (53,24,'Rheumatoid factor (RF)','Supports diagnosis of rheumatoid arthritis');
+INSERT INTO &quot;disease_labs&quot; VALUES (54,24,'Anti-CCP antibodies','Highly specific for rheumatoid arthritis');
+INSERT INTO &quot;disease_labs&quot; VALUES (55,25,'No specific lab test','Diagnosis based on ICHD-3 criteria');
+INSERT INTO &quot;disease_labs&quot; VALUES (56,25,'MRI Brain','Rules out secondary causes of headache');
+INSERT INTO &quot;disease_labs&quot; VALUES (57,26,'Thyroid-stimulating hormone (TSH)','Confirms underactive thyroid (&gt;4 mIU/L)');
+INSERT INTO &quot;disease_labs&quot; VALUES (58,26,'Free T4','Assesses thyroid hormone levels');
+INSERT INTO &quot;disease_labs&quot; VALUES (59,27,'TSH','Confirms overactive thyroid (&lt;0.1 mIU/L)');
+INSERT INTO &quot;disease_labs&quot; VALUES (60,27,'Free T3/T4','Evaluates thyroid hormone excess');
+INSERT INTO &quot;disease_labs&quot; VALUES (61,28,'HIV antibody/p24 antigen','Confirms HIV infection');
+INSERT INTO &quot;disease_labs&quot; VALUES (62,28,'Viral load PCR','Quantifies HIV RNA for treatment monitoring');
+INSERT INTO &quot;disease_labs&quot; VALUES (63,29,'Rapid antigen test','Detects influenza virus in early infection');
+INSERT INTO &quot;disease_labs&quot; VALUES (64,29,'RT-PCR (nasopharyngeal swab)','Confirms influenza with high sensitivity');
+INSERT INTO &quot;disease_labs&quot; VALUES (65,30,'No specific lab test','Diagnosis based on clinical symptoms');
+INSERT INTO &quot;disease_labs&quot; VALUES (66,30,'RT-PCR (nasopharyngeal swab)','Identifies rhinovirus or other viruses if needed');
+INSERT INTO &quot;disease_labs&quot; VALUES (67,31,'ANA','Screens for autoimmune diseases like SLE');
+INSERT INTO &quot;disease_labs&quot; VALUES (68,31,'Anti-dsDNA','Highly specific for SLE diagnosis');
+INSERT INTO &quot;disease_labs&quot; VALUES (69,31,'Complement levels (C3/C4)','Low in active SLE');
+INSERT INTO &quot;disease_labs&quot; VALUES (70,32,'Anti-GAD antibodies','Confirms autoimmune type 1 diabetes');
+INSERT INTO &quot;disease_labs&quot; VALUES (71,32,'C-peptide','Assesses insulin production in T1DM');
+INSERT INTO &quot;disease_labs&quot; VALUES (72,33,'Skin biopsy','Confirms psoriasis in atypical presentations');
+INSERT INTO &quot;disease_labs&quot; VALUES (73,33,'PASI score','Assesses severity of psoriatic lesions (clinical tool)');
+INSERT INTO &quot;disease_labs&quot; VALUES (74,34,'Anti-SSA/SSB antibodies','Supports Sjögren’s syndrome diagnosis');
+INSERT INTO &quot;disease_labs&quot; VALUES (75,34,'Schirmer test','Measures tear production for dryness');
+INSERT INTO &quot;disease_labs&quot; VALUES (76,35,'Anti-TSH receptor antibodies','Confirms Graves’ disease');
+INSERT INTO &quot;disease_labs&quot; VALUES (77,35,'Thyroid scintigraphy','Evaluates thyroid uptake in hyperthyroidism');
+INSERT INTO &quot;disease_labs&quot; VALUES (78,36,'Anti-acetylcholine receptor antibodies','Confirms myasthenia gravis');
+INSERT INTO &quot;disease_labs&quot; VALUES (79,36,'Single-fiber EMG','High sensitivity for neuromuscular junction defects');
+INSERT INTO &quot;disease_labs&quot; VALUES (80,37,'Anti-smooth muscle antibodies','Supports autoimmune hepatitis diagnosis');
+INSERT INTO &quot;disease_labs&quot; VALUES (81,37,'Liver biopsy','Confirms liver inflammation and fibrosis');
+INSERT INTO &quot;disease_labs&quot; VALUES (82,38,'Anti-centromere antibodies','Supports limited systemic sclerosis diagnosis');
+INSERT INTO &quot;disease_labs&quot; VALUES (83,38,'Anti-Scl-70 antibodies','Specific for diffuse systemic sclerosis');
+INSERT INTO &quot;disease_labs&quot; VALUES (84,39,'HLA-B51','Genetic marker associated with Behçet’s disease');
+INSERT INTO &quot;disease_labs&quot; VALUES (85,39,'Pathergy test','Assesses skin hyperreactivity in Behçet’s');
+INSERT INTO &quot;disease_labs&quot; VALUES (86,40,'Urine protein-creatinine ratio','Detects proteinuria in lupus nephritis');
+INSERT INTO &quot;disease_labs&quot; VALUES (87,40,'Renal biopsy','Confirms kidney involvement in SLE');
+INSERT INTO &quot;disease_labs&quot; VALUES (88,41,'MRI brain/spine','Detects demyelinating lesions in multiple sclerosis');
+INSERT INTO &quot;disease_labs&quot; VALUES (89,41,'CSF oligoclonal bands','Supports MS diagnosis via spinal fluid analysis');
+INSERT INTO &quot;disease_labs&quot; VALUES (90,42,'Colonoscopy with biopsy','Confirms Crohn’s disease with mucosal findings');
+INSERT INTO &quot;disease_labs&quot; VALUES (91,42,'Fecal calprotectin','Assesses intestinal inflammation in Crohn’s');
+INSERT INTO &quot;disease_labs&quot; VALUES (92,43,'Colonoscopy with biopsy','Confirms ulcerative colitis with mucosal findings');
+INSERT INTO &quot;disease_labs&quot; VALUES (93,43,'Fecal calprotectin','Assesses intestinal inflammation in UC');
+INSERT INTO &quot;disease_labs&quot; VALUES (94,44,'Creatine kinase (CK)','Elevated in polymyositis due to muscle damage');
+INSERT INTO &quot;disease_labs&quot; VALUES (95,44,'Anti-Jo-1 antibodies','Supports polymyositis diagnosis');
+INSERT INTO &quot;disease_labs&quot; VALUES (96,45,'No specific lab test','Diagnosis based on clinical history post-COVID');
+INSERT INTO &quot;disease_labs&quot; VALUES (97,45,'6-minute walk test','Assesses functional capacity in Long COVID');
+INSERT INTO &quot;disease_labs&quot; VALUES (98,46,'Liver ultrasound','Detects steatosis in NAFLD');
+INSERT INTO &quot;disease_labs&quot; VALUES (99,46,'FibroScan','Assesses liver fibrosis in NAFLD');
+
+-- Insert disease_risk_factors
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (1,1,'Smoking','Increases risk of bacterial and viral pneumonia');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (2,1,'Age &gt;65','Higher susceptibility to severe pneumonia');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (3,2,'Atherosclerosis','Leads to coronary artery occlusion');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (4,2,'Hypertension','Increases cardiovascular strain');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (5,3,'Hypertension','Increases risk of ischemic and hemorrhagic stroke');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (6,3,'Atrial fibrillation','Promotes embolic stroke');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (7,4,'Contaminated food/water','Source of bacterial or viral pathogens');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (8,4,'Poor hygiene','Facilitates pathogen transmission');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (9,5,'Female gender','Higher risk due to shorter urethra');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (10,5,'Catheter use','Increases risk of nosocomial UTI');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (11,6,'Allergen exposure','Triggers airway inflammation in asthma');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (12,6,'Family history','Genetic predisposition to asthma');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (13,7,'Obesity','Increases insulin resistance in T2DM');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (14,7,'Family history','Genetic risk for T1DM and T2DM');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (15,8,'Obesity','Contributes to elevated blood pressure');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (16,8,'High salt intake','Increases blood pressure');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (17,9,'Poor posture','Strains musculoskeletal structures');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (18,9,'Sedentary lifestyle','Weakens core muscles, increasing back pain risk');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (19,10,'Mosquito exposure','Vector for Plasmodium transmission');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (20,10,'Travel to endemic areas','Increases malaria risk');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (21,11,'IV drug use','Risk for HBV/HCV transmission');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (22,11,'Unprotected sex','Increases risk of HBV transmission');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (23,12,'Mosquito exposure','Vector for dengue virus');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (24,12,'Urban crowding','Facilitates dengue transmission');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (25,13,'Contaminated water','Source of Salmonella typhi');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (26,13,'Poor sanitation','Increases typhoid transmission');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (27,14,'HIV infection','Increases susceptibility to TB');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (28,14,'Crowded living conditions','Facilitates TB transmission');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (29,15,'Immunosuppression','Increases risk of severe sepsis');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (30,15,'Invasive devices','Entry point for pathogens in sepsis');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (31,16,'Malnutrition','Leads to iron or B12 deficiency anemia');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (32,16,'Chronic disease','Causes anemia of chronic inflammation');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (33,17,'Family history','Genetic predisposition to depression');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (34,17,'Chronic stress','Triggers or exacerbates depression');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (35,18,'Trauma','Increases risk of anxiety disorders');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (36,18,'Family history','Genetic predisposition to anxiety');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (37,19,'Smoking','Primary cause of COPD');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (38,19,'Occupational exposures','Inhaled irritants increase COPD risk');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (39,20,'Hypertension','Increases cardiac workload in CHF');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (40,20,'Coronary artery disease','Reduces cardiac function in CHF');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (41,21,'Brain injury','Increases risk of epilepsy');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (42,21,'Family history','Genetic predisposition to seizures');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (43,22,'Diabetes','Leads to glomerular damage in CKD');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (44,22,'Hypertension','Causes renal vascular damage');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (45,23,'Obesity','Increases joint stress in osteoarthritis');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (46,23,'Joint trauma','Accelerates cartilage breakdown');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (47,24,'Family history','Genetic predisposition to RA');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (48,24,'Smoking','Triggers autoimmune response in RA');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (49,25,'Family history','Genetic predisposition to migraines');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (50,25,'Stress','Triggers migraine attacks');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (51,26,'Iodine deficiency','Contributes to hypothyroidism');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (52,26,'Autoimmune disease','Causes thyroiditis (e.g., Hashimoto’s)');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (53,27,'Autoimmune disease','Causes Graves’ disease');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (54,27,'Iodine excess','Triggers hyperthyroidism');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (55,28,'Unprotected sex','Primary mode of HIV transmission');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (56,28,'IV drug use','Increases HIV transmission risk');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (57,29,'Close contact','Facilitates influenza transmission');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (58,29,'Immunosuppression','Increases severity of influenza');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (59,30,'Close contact','Facilitates rhinovirus transmission');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (60,30,'Cold weather','Increases susceptibility to common cold');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (61,31,'Female gender','Higher prevalence of SLE in women');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (62,31,'Family history','Genetic predisposition to SLE');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (63,32,'Family history','Genetic risk for T1DM');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (64,32,'Autoimmune disease','Triggers beta-cell destruction');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (65,33,'Family history','Genetic predisposition to psoriasis');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (66,33,'Stress','Triggers psoriasis flares');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (67,34,'Female gender','Higher prevalence in women');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (68,34,'Autoimmune disease','Associated with Sjögren’s syndrome');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (69,35,'Family history','Genetic predisposition to Graves’ disease');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (70,35,'Smoking','Increases risk of thyroid eye disease');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (71,36,'Autoimmune disease','Triggers myasthenia gravis');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (72,36,'Thymoma','Associated with myasthenia gravis');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (73,37,'Female gender','Higher prevalence in women');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (74,37,'Autoimmune disease','Triggers AIH');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (75,38,'Female gender','Higher prevalence in women');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (76,38,'Environmental exposures','Triggers systemic sclerosis');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (77,39,'HLA-B51','Genetic predisposition to Behçet’s disease');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (78,39,'Infections','Potential trigger for Behçet’s flares');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (79,40,'SLE','Primary risk factor for lupus nephritis');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (80,40,'Hypertension','Worsens renal damage in lupus nephritis');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (81,41,'Female gender','Higher prevalence in women');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (82,41,'Vitamin D deficiency','Associated with MS risk');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (83,42,'Family history','Genetic predisposition to Crohn’s');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (84,42,'Smoking','Worsens Crohn’s disease');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (85,43,'Family history','Genetic predisposition to UC');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (86,43,'NSAID use','Triggers UC flares');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (87,44,'Autoimmune disease','Triggers polymyositis');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (88,44,'Malignancy','Associated with polymyositis risk');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (89,45,'Severe COVID-19','Increases risk of Long COVID');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (90,45,'Female gender','Higher prevalence in women');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (91,46,'Obesity','Primary risk factor for NAFLD');
+INSERT INTO &quot;disease_risk_factors&quot; VALUES (92,46,'Type 2 diabetes','Increases risk of NAFLD progression');
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS &quot;idx_diseases_name&quot; ON &quot;diseases&quot; (&quot;name&quot;);
+CREATE INDEX IF NOT EXISTS &quot;idx_symptoms_name&quot; ON &quot;symptoms&quot; (&quot;name&quot;);
+CREATE INDEX IF NOT EXISTS &quot;idx_disease_keywords_keyword&quot; ON &quot;disease_keywords&quot; (&quot;keyword&quot;);
+CREATE INDEX IF NOT EXISTS &quot;idx_disease_labs_test&quot; ON &quot;disease_labs&quot; (&quot;lab_test&quot;);
+CREATE INDEX IF NOT EXISTS &quot;idx_disease_risk_factors_risk&quot; ON &quot;disease_risk_factors&quot; (&quot;risk_factor&quot;);
+
+COMMIT;</sql><current_tab id="0"/></tab_sql></sqlb_project>
