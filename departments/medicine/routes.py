@@ -1,4 +1,4 @@
-# departments/nlp/soap_notes.py
+import requests 
 from flask import render_template, redirect, url_for, request, flash, jsonify,session
 from flask_wtf import FlaskForm
 from sqlalchemy import func
@@ -54,6 +54,7 @@ def submit_soap_notes(patient_id):
         return redirect(url_for('home'))
 
     try:
+        # --- Form Data Retrieval ---
         situation = request.form.get('situation')
         hpi = request.form.get('hpi')
         aggravating_factors = request.form.get('aggravating_factors')
@@ -63,8 +64,9 @@ def submit_soap_notes(patient_id):
         assessment = request.form.get('assessment')
         recommendation = request.form.get('recommendation')
         additional_notes = request.form.get('additional_notes')
-        symptoms = request.form.get('symptoms', '')  # New symptoms field
+        symptoms = request.form.get('symptoms', '')
 
+        # --- File Upload Handling ---
         file = request.files.get('file_upload')
         file_path = None
         if file and file.filename:
@@ -73,11 +75,12 @@ def submit_soap_notes(patient_id):
             file_path = os.path.join('Uploads', file.filename)
             file.save(os.path.join(upload_folder, file.filename))
 
+        # --- Input Validation ---
         if not all([situation, hpi, assessment, recommendation]):
             flash('All required fields must be filled out!', 'error')
             return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
 
-        # Process symptoms
+        # --- Symptoms Processing ---
         symptom_list = []
         if symptoms:
             if isinstance(symptoms, str):
@@ -86,7 +89,7 @@ def submit_soap_notes(patient_id):
                 symptom_list = [s.strip() for s in symptoms if isinstance(s, str) and s.strip()]
             logger.debug(f"Received symptoms for patient {patient_id}: {symptom_list}")
 
-        # Create SOAP note
+        # --- Create and Save SOAP Note Object ---
         new_soap_note = SOAPNote(
             patient_id=patient_id,
             situation=situation,
@@ -98,19 +101,39 @@ def submit_soap_notes(patient_id):
             assessment=assessment,
             recommendation=recommendation,
             additional_notes=additional_notes,
-            symptoms=json.dumps(symptom_list) if symptom_list else '',  # Store as JSON string
+            symptoms=json.dumps(symptom_list) if symptom_list else '',
             file_path=file_path,
-            ai_notes=None,  # Save as NULL
-            ai_analysis=None  # Save as NULL
+            ai_notes=None,
+            ai_analysis=None
         )
-
-
 
         db.session.add(new_soap_note)
         db.session.commit()
+        
+        # ⭐ --- START: TRIGGER FASTAPI NLP SERVICE --- ⭐
+        try:
+            # The note_id is now available on the new_soap_note object
+            note_id = new_soap_note.id
+            
+            # This URL should ideally be stored in your Flask app's configuration
+            nlp_api_url = 'http://127.0.0.1:8000/process_note'
+            payload = {'note_id': note_id}
+            
+            # Send the request to the FastAPI service
+            response = requests.post(nlp_api_url, json=payload, timeout=30)
+            
+            # This will raise an HTTPError if the HTTP request returned an unsuccessful status code
+            response.raise_for_status()
+            
+            logger.info(f"Successfully triggered AI analysis for SOAP note ID: {note_id}")
 
+        except requests.exceptions.RequestException as e:
+            # Catch connection errors, timeouts, and bad responses
+            logger.error(f"Failed to trigger AI analysis for note ID {note_id}: {e}")
+            flash('Note saved, but the AI analysis service could not be reached. Please ask an admin to process it manually.', 'warning')
+        # ⭐ --- END: TRIGGER FASTAPI NLP SERVICE --- ⭐
 
-
+        # --- Imaging Request Processing ---
         imaging_keywords = ["ct", "mri", "x-ray", "ultrasound", "pet", "scan"]
         words = recommendation.lower().split()
         matched_imaging = set()
@@ -138,22 +161,25 @@ def submit_soap_notes(patient_id):
                 db.session.add(unmatched_request)
                 unmatched_requests.append(imaging_request)
 
+        # Commit imaging requests
         db.session.commit()
 
+        # --- Notify Admin about Unmatched Requests ---
         if unmatched_requests:
             try:
                 message = f"Unmatched imaging requests for patient {patient_id}: {', '.join(unmatched_requests)}"
                 notify_admin(message)
             except Exception as e:
-                logger.error(f"Failed to notify admin: {str(e)}")
+                logger.error(f"Failed to notify admin about unmatched imaging: {str(e)}")
             flash(f"The following imaging requests need manual review: {', '.join(unmatched_requests)}", 'warning')
 
+        flash('SOAP note submitted successfully!', 'success')
         return redirect(url_for('medicine.notes', patient_id=patient_id))
 
     except Exception as e:
-        flash(f'Error submitting SOAP notes: {str(e)}', 'error')
+        flash(f'An unexpected error occurred: {str(e)}', 'error')
         db.session.rollback()
-        logger.error(f"Error in submit_soap_notes for patient {patient_id}: {str(e)}")
+        logger.error(f"Critical error in submit_soap_notes for patient {patient_id}: {str(e)}", exc_info=True)
         return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
 @bp.route('/notes/<string:patient_id>', methods=['GET']) 
 @login_required
