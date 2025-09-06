@@ -18,6 +18,21 @@ def index():
     print(clinics)  # Should display a list of Clinic objects
 
     return render_template('records/patients_list.html', patients=patients, clinics=clinics)
+@bp.route('/search_clinics')
+@login_required
+def search_clinics():
+    query = request.args.get("q", "").strip()
+
+    if not query:
+        return jsonify([])
+
+    clinics = Clinic.query.filter(
+        Clinic.name.ilike(f"%{query}%")
+    ).limit(20).all()
+
+    results = [clinic.to_select2() for clinic in clinics]
+    return jsonify(results)
+    
 
 @bp.route('/new_patient', methods=['GET', 'POST'])
 @login_required
