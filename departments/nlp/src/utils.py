@@ -7,14 +7,10 @@ from typing import Dict, List, Any
 from collections import defaultdict
 from datetime import datetime
 from textwrap import shorten
-
 import pytz
 from src.database import get_sqlite_connection
-from src.nlp import DiseasePredictor
 from resources.priority_symptoms import PRIORITY_SYMPTOMS
 from resources.common_fallbacks import fallback_management_plans
-# Assuming cancer plans are moved to a separate resource file for better organization
-# from resources.cancer_management_plans import cancer_management_plans
 
 logger = logging.getLogger("HIMS-NLP")
 
@@ -73,11 +69,9 @@ def load_management_plans() -> Dict[str, Dict[str, Any]]:
                 })
 
             # 3. Convert defaultdict to dict and integrate cancer-specific plans
-            # (It's better practice to move these to a separate `resources` file)
             cancer_plans = {
                 'prostate cancer': {'plan': 'Refer to oncologist; order prostate biopsy', 'lab_tests': [{'test': 'PSA follow-up', 'description': 'Monitor PSA levels in 4-6 weeks'}]},
                 'lymphoma': {'plan': 'Order lymph node biopsy; consider PET scan', 'lab_tests': [{'test': 'LDH', 'description': 'Assess lymphoma activity'}]},
-                # ... other cancer plans ...
             }
             final_plans = dict(management_plans)
             final_plans.update(cancer_plans)
@@ -103,25 +97,28 @@ def prepare_note_for_nlp(soap_note: Dict) -> str:
 
 def humanize_list(items: List[str]) -> str:
     """Format a list of items into a natural language string."""
-    if not items: return ""
-    if len(items) == 1: return items[0]
-    if len(items) == 2: return f"{items[0]} and {items[1]}"
+    if not items:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
     return f"{', '.join(items[:-1])}, and {items[-1]}"
 
-def generate_summary(text: str, soap_note: Dict, max_sentences: int = 4, doc=None) -> str:
+def generate_summary(text: str, soap_note: Dict, max_sentences: int = 4, doc=None, nlp=None, clinical_terms=None) -> str:
     """Generate a concise and natural clinical summary."""
     if not text.strip():
         return "No summary available."
 
     start_time = time.time()
-    if not doc:
-        doc = DiseasePredictor.nlp(text)
+    if not doc and nlp:
+        doc = nlp(text)
 
     # Extract key info from text
     symptoms = sorted({
-        term for sent in doc.sents for term in DiseasePredictor.clinical_terms
+        term for sent in (doc.sents if doc else []) for term in (clinical_terms or set())
         if term in sent.text.lower() and term not in SUMMARY_INVALID_TERMS
-    })
+    }) if doc and clinical_terms else []
     temporal_match = re.search(r"\b(\d+\s*(days?|weeks?|months?|years?)\s*(ago)?)\b", text, re.IGNORECASE)
     temporal_info = f", which began approximately {temporal_match.group(0)}" if temporal_match else ""
 
@@ -206,7 +203,6 @@ def generate_entities_html(entities: list) -> str:
         priority_badge = f'<span class="{BOOTSTRAP_CLASSES["badge_priority"]}">Priority</span>' if is_priority else ''
         card_border_class = 'border-danger' if is_priority else ''
         
-        # ✅ FIX APPLIED HERE: Converted severity and temporal values to strings before escaping.
         severity_str = html.escape(str(context.get("severity", "N/A")))
         temporal_str = html.escape(str(context.get("temporal", "N/A")))
 
@@ -336,7 +332,6 @@ def generate_html_response(data: Dict, status_code: int = 200) -> str:
             error_msg = data.get("error", "The requested note was not found.")
             return f'<div class="{bc["container"]}"><div class="{bc["alert_danger"]}">Error: {html.escape(error_msg)}</div></div>'
 
-        # Safely extract and format data
         note_id = html.escape(str(data.get("note_id", "Unknown")))
         patient_id = html.escape(str(data.get("patient_id", "Unknown")))
         created_at = data.get("created_at")
@@ -345,7 +340,6 @@ def generate_html_response(data: Dict, status_code: int = 200) -> str:
             utc_time = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
             processed_at = utc_time.astimezone(TIME_ZONE).strftime("%Y-%m-%d %H:%M:%S %Z")
 
-        # Generate each HTML component
         metadata_html = generate_metadata_html(note_id, patient_id, processed_at, data.get("processing_time", 0.0))
         primary_dx_html = generate_primary_diagnosis_html(data.get("primary_diagnosis", {}))
         
@@ -365,7 +359,6 @@ def generate_html_response(data: Dict, status_code: int = 200) -> str:
             f"<p>{html.escape(data.get('summary', ''))}</p>",
             is_visible=bool(data.get('summary')))
 
-        # Assemble the final HTML page
         return f"""
         <div class="{bc['container']}">
             <div class="{bc['card']}">
