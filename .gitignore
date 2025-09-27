@@ -42,3 +42,6 @@ departments/imaging/model_cache/
 .vscode/
 2022AA/
 data_cache/
+amr_ipc_classifier/
+cancer_classifier/
+logs/

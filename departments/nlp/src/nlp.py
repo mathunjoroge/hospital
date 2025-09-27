@@ -45,34 +45,72 @@ from .disease_symptom_mapper import DiseaseSymptomMapper
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 os.environ["USE_TF"] = "0"
 
+# Ensure reproducibility
+torch.manual_seed(42)
+torch.cuda.manual_seed(42) if torch.cuda.is_available() else None
+
 # Download NLTK data
 nltk.download("wordnet", quiet=True)
 nltk.download("omw-1.4", quiet=True)
 
 # Setup logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('/home/mathu/projects/hospital/logs/hims_nlp.log'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger("HIMS-NLP")
 HIMS_CONFIG = get_config()
 
-# Initialize spaCy and NLTK
-nlp = spacy.load("en_core_sci_sm", disable=["ner"])
-nlp.add_pipe("sentencizer")
+# Initialize spaCy with fallback
+try:
+    nlp = spacy.load("en_core_sci_sm", disable=["ner"])
+    nlp.add_pipe("sentencizer")
+except Exception as e:
+    logger.warning(f"Failed to load en_core_sci_sm: {e}. Falling back to en_core_web_sm.")
+    nlp = spacy.load("en_core_web_sm", disable=["ner"])
+    nlp.add_pipe("sentencizer")
 lemmatizer = WordNetLemmatizer()
 
-# Load trained model and tokenizer
+# Load cancer classifier model and tokenizer
 model_name = "emilyalsentzer/Bio_ClinicalBERT"
 trained_model_path = "/home/mathu/projects/hospital/cancer_classifier"
-tokenizer = AutoTokenizer.from_pretrained(trained_model_path)
-model = AutoModelForSequenceClassification.from_pretrained(trained_model_path)
-model.eval()
-if torch.cuda.is_available():
-    model.to("cuda")
-    logger.info("Model moved to GPU")
+try:
+    tokenizer = AutoTokenizer.from_pretrained(trained_model_path)
+    model = AutoModelForSequenceClassification.from_pretrained(trained_model_path)
+    model.eval()
+    if torch.cuda.is_available():
+        model.to("cuda")
+        logger.info("Cancer model moved to GPU")
+except Exception as e:
+    logger.error(f"Failed to load cancer classifier from {trained_model_path}: {e}")
+    raise
 
 # Label mapping for cancer types
 cancer_types = list(CANCER_DISEASES)
 label_map = {name: idx for idx, name in enumerate(cancer_types)}
 id2label = {idx: name for idx, name in enumerate(cancer_types)}
+
+# Load AMR/IPC classifier
+amr_ipc_model_path = "/home/mathu/projects/hospital/amr_ipc_classifier"
+try:
+    amr_ipc_tokenizer = AutoTokenizer.from_pretrained(amr_ipc_model_path)
+    amr_ipc_model = AutoModelForSequenceClassification.from_pretrained(amr_ipc_model_path)
+    amr_ipc_categories = list(amr_ipc_model.config.id2label.values()) if hasattr(amr_ipc_model.config, 'id2label') else ["amr_high", "amr_low", "amr_none", "ipc_adequate", "ipc_inadequate", "ipc_none"]
+    amr_ipc_id2label = {i: c for i, c in enumerate(amr_ipc_categories)}
+    if amr_ipc_model.config.num_labels != len(amr_ipc_categories):
+        logger.error(f"AMR/IPC model expects {amr_ipc_model.config.num_labels} labels, but {len(amr_ipc_categories)} categories defined")
+        raise ValueError("AMR/IPC model label mismatch")
+    amr_ipc_model.eval()
+    if torch.cuda.is_available():
+        amr_ipc_model.to("cuda")
+        logger.info("AMR/IPC model moved to GPU")
+except Exception as e:
+    logger.error(f"Failed to load AMR/IPC classifier from {amr_ipc_model_path}: {e}")
+    raise
 
 class ClinicalNER:
     """Named Entity Recognition for clinical text with enhanced symptom and risk factor handling."""
@@ -174,6 +212,9 @@ class ClinicalNER:
     
     def extract_entities(self, text: str, doc=None) -> List[Tuple[str, str, dict]]:
         start_time = time.time()
+        if not text or not text.strip():
+            logger.warning("Empty or invalid input text for entity extraction")
+            return []
         if not doc:
             doc = self.nlp(text)
         
@@ -283,7 +324,7 @@ class ClinicalNER:
         risk_factor_texts = [self.umls_mapper.normalize_symptom(ent[0]) for ent in entities
                              if ent[0].lower() not in self.invalid_terms and ent[2].get('type') == 'RISK_FACTOR']
         
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=HIMS_CONFIG.get("MAX_WORKERS", 4)) as executor:
             symptom_futures = {executor.submit(self._get_diseases_for_symptom, symptom_text): symptom_text
                                for symptom_text in set(symptom_texts)}
             risk_factor_futures = {executor.submit(self._get_diseases_for_risk_factor, rf_text): rf_text
@@ -327,7 +368,7 @@ class ClinicalNER:
         logger.debug(f"Entity extraction found {len(entities)} entities in {time.time() - start_time:.3f} seconds")
         return entities
     
-    def _get_diseases_for_symptom(self, symptom_text):
+    def _get_diseases_for_symptom(self, symptom_text: str) -> set:
         try:
             with get_sqlite_connection() as conn:
                 cursor = conn.cursor()
@@ -348,7 +389,7 @@ class ClinicalNER:
             logger.error(f"Error looking up diseases for symptom '{symptom_text}': {e}")
             return set()
     
-    def _get_diseases_for_risk_factor(self, risk_factor_text):
+    def _get_diseases_for_risk_factor(self, risk_factor_text: str) -> set:
         try:
             with get_sqlite_connection() as conn:
                 cursor = conn.cursor()
@@ -373,6 +414,7 @@ class ClinicalNER:
             note.get('assessment', '')
         ]))
         if not text:
+            logger.warning("Empty note text for keyword/CUI extraction")
             return [], []
         
         entities = self.extract_entities(text)
@@ -469,7 +511,7 @@ class DiseasePredictor:
         
         cls._initialized = True
         logger.info("DiseasePredictor initialization complete")
-
+    
     @staticmethod
     def _load_disease_keywords() -> Dict[str, str]:
         def load_fallback_keywords() -> Dict[str, str]:
@@ -522,11 +564,13 @@ class DiseasePredictor:
                 cursor.execute("SELECT name, cui FROM symptoms")
                 cuis = {row['name'].lower(): row['cui'] for row in cursor.fetchall()}
                 cuis.update(BREAST_CANCER_SYMPTOMS)
+                logger.info(f"Loaded {len(cuis)} symptom CUIs from database")
                 return cuis
         except Exception as e:
             logger.error(f"Failed to load symptom CUIs: {e}")
             cuis = fallback_symptom_cuis
             cuis.update(BREAST_CANCER_SYMPTOMS)
+            logger.info(f"Using {len(cuis)} fallback symptom CUIs")
             return cuis
     
     @staticmethod
@@ -560,10 +604,11 @@ class DiseasePredictor:
                     })
                 
                 management_plans.update(CANCER_PLANS)
-                
+                logger.info(f"Loaded {len(management_plans)} management plans from database")
                 return management_plans
         except Exception as e:
             logger.error(f"Failed to load management plans and lab tests: {e}")
+            logger.info(f"Using {len(fallback_management_plans)} fallback management plans")
             return fallback_management_plans
     
     @staticmethod
@@ -594,35 +639,99 @@ class DiseasePredictor:
     def __init__(self, ner_model=None):
         self.umls_mapper = UMLSMapper.get_instance()
         self.ner = ner_model or ClinicalNER(umls_mapper=self.umls_mapper)
-        self.primary_threshold = 1.0
+        self.primary_threshold = HIMS_CONFIG.get("SIMILARITY_THRESHOLD", 1.0)
         self.min_symptom_count = 2
     
     def predict_cancer_risk(self, text: str) -> Dict[str, float]:
         try:
-            inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=128)
+            text = text.strip()
+            if len(text.split()) < 3:
+                logger.debug("Input text too short for cancer prediction, padding")
+                text = text + " " + text
+            inputs = tokenizer(
+                text,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=128
+            )
             inputs = {k: v.to("cuda" if torch.cuda.is_available() else "cpu") for k, v in inputs.items()}
+            logger.debug(f"Cancer model input tokens: {inputs}")
             with torch.no_grad():
                 outputs = model(**inputs)
-                probs = torch.softmax(outputs.logits, dim=1)[0]
-            return {id2label[i]: prob.item() for i, prob in enumerate(probs)}
+                logits = outputs.logits
+                logger.debug(f"Cancer model logits: {logits}")
+                probs = torch.softmax(logits, dim=1)[0]
+                logger.debug(f"Cancer model probabilities: {probs}")
+            result = {id2label[i]: prob.item() for i, prob in enumerate(probs)}
+            total = sum(result.values())
+            if total == 0 or not all(0 <= v <= 1 for v in result.values()):
+                logger.warning("Invalid cancer probabilities, returning uniform distribution")
+                result = {cancer: 1.0 / len(cancer_types) for cancer in cancer_types}
+            logger.debug(f"Final cancer prediction: {result}")
+            return result
         except Exception as e:
-            logger.error(f"Error in Bio_ClinicalBERT prediction: {e}")
-            return {cancer: 0.0 for cancer in cancer_types}
+            logger.error(f"Error in cancer prediction: {e}")
+            return {cancer: 1.0 / len(cancer_types) for cancer in cancer_types}
+    
+    def predict_amr_ipc(self, text: str) -> Dict[str, float]:
+        """Predict AMR/IPC categories for the given clinical text.
 
-    def predict_from_text(self, text: str) -> Dict:
+        Args:
+            text (str): Clinical text to analyze.
+
+        Returns:
+            Dict[str, float]: Probabilities for each AMR/IPC category.
+        """
+        if not text or not text.strip():
+            logger.warning("Empty or invalid input text for AMR/IPC prediction")
+            return {label: 0.0 for label in amr_ipc_categories}
+        try:
+            text = text.strip()
+            if len(text.split()) < 3:
+                logger.debug("Input text too short for AMR/IPC prediction, padding")
+                text = text + " " + text
+            inputs = amr_ipc_tokenizer(
+                text,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=128
+            )
+            inputs = {k: v.to("cuda" if torch.cuda.is_available() else "cpu") for k, v in inputs.items()}
+            logger.debug(f"AMR/IPC input tokens: {inputs}")
+            with torch.no_grad():
+                outputs = amr_ipc_model(**inputs)
+                logits = outputs.logits
+                logger.debug(f"AMR/IPC model logits: {logits}")
+                probs = torch.softmax(logits, dim=1)[0]
+                logger.debug(f"AMR/IPC model probabilities: {probs}")
+            result = {amr_ipc_id2label[i]: prob.item() for i, prob in enumerate(probs)}
+            total = sum(result.values())
+            if total == 0 or not all(0 <= v <= 1 for v in result.values()):
+                logger.warning("Invalid AMR/IPC probabilities, returning uniform distribution")
+                result = {label: 1.0 / len(amr_ipc_categories) for label in amr_ipc_categories}
+            logger.debug(f"Final AMR/IPC prediction: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"Error in AMR/IPC prediction: {e}")
+            return {label: 1.0 / len(amr_ipc_categories) for label in amr_ipc_categories}
+    
+    def predict_from_text(self, text: str, amr_ipc_text: str = None) -> Dict:
         start_time = time.time()
-        text = bleach.clean(text)
-        entities = self.ner.extract_entities(text)
-        
-        if not entities:
+        cleaned_text = bleach.clean(text)  # For entity extraction
+        if not cleaned_text or not cleaned_text.strip():
             logger.warning("No entities extracted from text")
             return {
                 "primary_diagnosis": None,
                 "differential_diagnoses": [],
                 "lab_abnormalities": [],
                 "risk_factors": [],
-                "cancer_probabilities": {cancer: 0.0 for cancer in cancer_types}
+                "cancer_probabilities": {cancer: 0.0 for cancer in cancer_types},
+                "amr_ipc_probabilities": {label: 0.0 for label in amr_ipc_categories}
             }
+        
+        entities = self.ner.extract_entities(cleaned_text)
         
         symptom_terms = set()
         risk_factor_terms = set()
@@ -687,20 +796,23 @@ class DiseasePredictor:
             else:
                 differential_diagnoses = sorted_diseases
         
-        cancer_probabilities = self.predict_cancer_risk(text)
+        cancer_probabilities = self.predict_cancer_risk(cleaned_text)  # Use cleaned text for cancer model
         max_cancer = max(cancer_probabilities, key=cancer_probabilities.get)
         max_prob = cancer_probabilities[max_cancer]
-        if max_prob > 0.3 and not primary_diagnosis:
+        if max_prob > HIMS_CONFIG.get("CANCER_CONFIDENCE_THRESHOLD", 0.3) and not primary_diagnosis:
             primary_diagnosis = {"disease": max_cancer, "score": max_prob}
-        elif max_prob > 0.3:
+        elif max_prob > HIMS_CONFIG.get("CANCER_CONFIDENCE_THRESHOLD", 0.3):
             differential_diagnoses.append({"disease": max_cancer, "score": max_prob})
+        
+        amr_ipc_probabilities = self.predict_amr_ipc(amr_ipc_text if amr_ipc_text else text)  # Use AMR/IPC-specific text if provided
         
         result = {
             "primary_diagnosis": primary_diagnosis,
             "differential_diagnoses": differential_diagnoses,
             "lab_abnormalities": list(lab_abnormalities),
             "risk_factors": list(risk_factor_terms),
-            "cancer_probabilities": cancer_probabilities
+            "cancer_probabilities": cancer_probabilities,
+            "amr_ipc_probabilities": amr_ipc_probabilities
         }
         
         logger.info(f"Predicted {len(sorted_diseases)} diseases from {len(symptom_terms)} symptoms, {len(risk_factor_terms)} risk factors, and {len(lab_abnormalities)} lab abnormalities in {time.time() - start_time:.3f} seconds")
@@ -710,6 +822,14 @@ class DiseasePredictor:
         start_time = time.time()
         
         try:
+            if not isinstance(note, dict) or not note.get("id") or not note.get("patient_id"):
+                logger.error("Invalid SOAP note: missing id or patient_id")
+                return {
+                    "error": "Invalid SOAP note",
+                    "note_id": note.get("id"),
+                    "details": "Note must be a dictionary with 'id' and 'patient_id' fields"
+                }
+            
             text = prepare_note_for_nlp(note)
             logger.debug(f"Text preparation took {time.time() - start_time:.3f} seconds")
             if not text:
@@ -719,12 +839,22 @@ class DiseasePredictor:
                     "details": "Note data is empty or missing required fields (situation, hpi, symptoms, assessment)"
                 }
             
+            # Prepare AMR/IPC-specific text
+            amr_ipc_text = ' '.join(filter(None, [
+                note.get('situation', ''),
+                note.get('hpi', ''),
+                note.get('medical_history', ''),
+                note.get('medication_history', '')
+            ])).strip()
+            if not amr_ipc_text:
+                logger.warning("No valid text for AMR/IPC prediction from specified fields")
+                amr_ipc_text = text  # Fallback to full text
+            
             t = time.time()
             doc = self.nlp(text)
             logger.debug(f"spaCy processing took {time.time() - t:.3f} seconds")
             
             t = time.time()
-            # Pass DiseasePredictor.nlp and DiseasePredictor.clinical_terms to generate_summary
             summary = generate_summary(text, soap_note=note, doc=doc, nlp=self.nlp, clinical_terms=self.clinical_terms)
             logger.debug(f"Summary generation took {time.time() - t:.3f} seconds")
             
@@ -752,7 +882,7 @@ class DiseasePredictor:
             logger.debug(f"UMLS mapping took {time.time() - t:.3f} seconds")
             
             t = time.time()
-            predictions = self.predict_from_text(text)
+            predictions = self.predict_from_text(text, amr_ipc_text=amr_ipc_text)  # Pass AMR/IPC-specific text
             logger.debug(f"Prediction took {time.time() - t:.3f} seconds")
             
             management_plans = {}
@@ -765,7 +895,7 @@ class DiseasePredictor:
                     disease = predictions["primary_diagnosis"]["disease"].lower()
                     if disease in self.management_plans:
                         management_plans[disease] = self.management_plans[disease]
-                    if disease in cancer_diseases or max(predictions["cancer_probabilities"].values()) > 0.3:
+                    if disease in cancer_diseases or max(predictions["cancer_probabilities"].values()) > HIMS_CONFIG.get("CANCER_CONFIDENCE_THRESHOLD", 0.3):
                         management_plans[disease] = management_plans.get(disease, {})
                         management_plans[disease]["cancer_follow_up"] = (
                             "Refer to oncologist; consider imaging (e.g., CT/MRI) and biopsy if indicated."
@@ -796,9 +926,52 @@ class DiseasePredictor:
                     if lab_abnormality in self.risk_factors:
                         management_plans[lab_abnormality] = management_plans.get(lab_abnormality, {})
                         management_plans[lab_abnormality]["risk_factors"] = self.risk_factors[lab_abnormality]
+                
+                amr_ipc_probabilities = predictions["amr_ipc_probabilities"]
+                max_amr_ipc_category = max(amr_ipc_probabilities, key=amr_ipc_probabilities.get)
+                max_amr_ipc_prob = amr_ipc_probabilities[max_amr_ipc_category]
+                amr_ipc_threshold = HIMS_CONFIG.get("AMR_IPC_CONFIDENCE_THRESHOLD", 0.3)
+                
+                if max_amr_ipc_prob > amr_ipc_threshold:
+                    amr_ipc_recommendations = {}
+                    if "amr_high" in max_amr_ipc_category:
+                        amr_ipc_recommendations["amr"] = {
+                            "status": "High AMR Risk",
+                            "recommendation": "Initiate culture-guided antibiotic therapy; consider multidrug-resistant organism protocols."
+                        }
+                    elif "amr_low" in max_amr_ipc_category:
+                        amr_ipc_recommendations["amr"] = {
+                            "status": "Low AMR Risk",
+                            "recommendation": "Continue standard antibiotic therapy; monitor for resistance development."
+                        }
+                    elif "amr_none" in max_amr_ipc_category:
+                        amr_ipc_recommendations["amr"] = {
+                            "status": "No AMR Risk",
+                            "recommendation": "No specific AMR interventions required."
+                        }
+                    
+                    if "ipc_inadequate" in max_amr_ipc_category:
+                        amr_ipc_recommendations["ipc"] = {
+                            "status": "Inadequate IPC",
+                            "recommendation": "Implement strict infection control measures; review hand hygiene and isolation protocols."
+                        }
+                    elif "ipc_adequate" in max_amr_ipc_category:
+                        amr_ipc_recommendations["ipc"] = {
+                            "status": "Adequate IPC",
+                            "recommendation": "Maintain current infection prevention protocols."
+                        }
+                    elif "ipc_none" in max_amr_ipc_category:
+                        amr_ipc_recommendations["ipc"] = {
+                            "status": "No IPC Concerns",
+                            "recommendation": "No additional IPC measures required."
+                        }
+                    
+                    predictions["amr_ipc_recommendations"] = amr_ipc_recommendations
+                
             except Exception as e:
-                logger.error(f"Error fetching management plans: {e}")
-            logger.debug(f"Management plans and risk factors retrieval took {time.time() - t:.3f} seconds")
+                logger.error(f"Error fetching management plans or AMR/IPC recommendations: {e}")
+            
+            logger.debug(f"Management plans and AMR/IPC recommendations retrieval took {time.time() - t:.3f} seconds")
             
             result = {
                 "note_id": note["id"],
@@ -808,6 +981,8 @@ class DiseasePredictor:
                 "lab_abnormalities": predictions["lab_abnormalities"],
                 "risk_factors": predictions["risk_factors"],
                 "cancer_probabilities": predictions["cancer_probabilities"],
+                "amr_ipc_probabilities": predictions["amr_ipc_probabilities"],
+                "amr_ipc_recommendations": predictions.get("amr_ipc_recommendations", {}),
                 "keywords": expected_keywords,
                 "cuis": reference_cuis,
                 "entities": entities,
