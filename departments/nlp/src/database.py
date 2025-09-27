@@ -5,7 +5,7 @@ from typing import List, Dict, Optional
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
-from src.config import get_config
+from departments.nlp.src.config import get_config
 import logging
 
 logger = logging.getLogger("HIMS-NLP")

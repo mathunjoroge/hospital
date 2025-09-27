@@ -9,34 +9,14 @@ from datetime import datetime
 from textwrap import shorten
 import pytz
 from src.database import get_sqlite_connection
+from src.config import TIME_ZONE, BOOTSTRAP_CLASSES  # Import from config.py
 from resources.priority_symptoms import PRIORITY_SYMPTOMS
 from resources.common_fallbacks import fallback_management_plans
 
 logger = logging.getLogger("HIMS-NLP")
 
-# --- CONFIGURATION & SETUP ---
-
-# Central timezone configuration
-TIME_ZONE = pytz.timezone('Africa/Nairobi')
-
 # Define terms to ignore during summary entity extraction to avoid noise.
 SUMMARY_INVALID_TERMS = {'mg', 'ms', 'g', 'ml', 'mm', 'ng', 'dl', 'hr'}
-
-# Bootstrap styling constants
-BOOTSTRAP_CLASSES = {
-    "container": "container mt-4",
-    "card": "card shadow-sm mb-4",
-    "card_header": "card-header bg-primary text-white",
-    "card_body": "card-body",
-    "alert_success": "alert alert-success",
-    "alert_danger": "alert alert-danger",
-    "badge_primary": "badge bg-primary ms-2",
-    "badge_priority": "badge bg-danger ms-2",
-    "badge_keyword": "badge bg-info text-dark",
-    "badge_cui": "badge bg-secondary",
-    "badge_warning": "badge bg-warning text-dark",
-    "section_heading": "border-bottom pb-2 mb-3",
-}
 
 # --- DATA LOADING ---
 
@@ -76,6 +56,7 @@ def load_management_plans() -> Dict[str, Dict[str, Any]]:
             final_plans = dict(management_plans)
             final_plans.update(cancer_plans)
 
+            logger.info(f"Loaded {len(final_plans)} management plans")
             return final_plans
     except Exception as e:
         logger.error(f"Failed to load management plans: {e}", exc_info=True)
@@ -149,9 +130,11 @@ def _generate_component_html(title: str, icon_class: str, content: str, is_visib
     if not is_visible or not content:
         return ""
     return f"""
-    <div class="mb-4 filterable-section">
-        <h5 class="{BOOTSTRAP_CLASSES['section_heading']}"><i class="bi {icon_class}"></i> {title}</h5>
-        <div>{content}</div>
+    <div class="{BOOTSTRAP_CLASSES['card']} filterable-section">
+        <div class="{BOOTSTRAP_CLASSES['card_header']}">
+            <h6 class="mb-0"><i class="bi {icon_class}"></i> {title}</h6>
+        </div>
+        <div class="{BOOTSTRAP_CLASSES['card_body']}">{content}</div>
     </div>
     """
 
@@ -243,6 +226,20 @@ def generate_management_plans_html(management_plans: dict) -> str:
             )
             lab_tests_html = f'<h6>Recommended Lab Tests</h6><ul class="list-group list-group-flush">{items}</ul>'
         
+        # Include cancer_follow_up and lab_follow_up if present
+        cancer_follow_up = html.escape(data.get('cancer_follow_up', '')) if data.get('cancer_follow_up') else ''
+        cancer_follow_up_html = f'<p><strong>Cancer Follow-Up:</strong> {cancer_follow_up}</p>' if cancer_follow_up else ''
+        lab_follow_up = html.escape(data.get('lab_follow_up', '')) if data.get('lab_follow_up') else ''
+        lab_follow_up_html = f'<p><strong>Lab Follow-Up:</strong> {lab_follow_up}</p>' if lab_follow_up else ''
+        
+        risk_factors_html = ""
+        if risk_factors := data.get('risk_factors'):
+            items = "".join(
+                f'<li class="list-group-item">{html.escape(rf["risk_factor"])}</li>'
+                for rf in risk_factors
+            )
+            risk_factors_html = f'<h6>Risk Factors</h6><ul class="list-group list-group-flush">{items}</ul>'
+        
         plan_cards.append(f"""
         <div class="{BOOTSTRAP_CLASSES['card']}">
             <div class="{BOOTSTRAP_CLASSES['card_header']}">
@@ -250,7 +247,10 @@ def generate_management_plans_html(management_plans: dict) -> str:
             </div>
             <div class="{BOOTSTRAP_CLASSES['card_body']}">
                 <p><strong>Management Plan:</strong> {plan_escaped}</p>
+                {cancer_follow_up_html}
+                {lab_follow_up_html}
                 {lab_tests_html}
+                {risk_factors_html}
             </div>
         </div>
         """)
@@ -263,6 +263,9 @@ def generate_metadata_html(note_id: str, patient_id: str, processed_at: str, pro
     return f"""
     <div class="row g-3 mb-4">
         <div class="col-12 col-md-4"><div class="{card_class}"><div class="{body_class}">
+            <h6 class="card-title text-muted">Note ID</h6><p class="card-text mb-0">{note_id}</p>
+        </div></div></div>
+        <div class="col-12 col-md-4"><div class="{card_class}"><div class="{body_class}">
             <h6 class="card-title text-muted">Patient ID</h6><p class="card-text mb-0">{patient_id}</p>
         </div></div></div>
         <div class="col-12 col-md-4"><div class="{card_class}"><div class="{body_class}">
@@ -273,10 +276,59 @@ def generate_metadata_html(note_id: str, patient_id: str, processed_at: str, pro
         </div></div></div>
     </div>
     """
+
+def generate_amr_ipc_html(amr_ipc_probabilities: dict, amr_ipc_recommendations: dict) -> str:
+    """Generate HTML for AMR/IPC probabilities and recommendations."""
+    if not amr_ipc_probabilities and not amr_ipc_recommendations:
+        return ""
     
+    # Generate probabilities table
+    prob_rows = "".join(
+        f'<tr><td>{html.escape(category)}</td><td>{prob:.2f}</td></tr>'
+        for category, prob in amr_ipc_probabilities.items()
+    )
+    prob_html = f"""
+    <h6>AMR/IPC Probabilities</h6>
+    <table class="table table-bordered table-hover">
+        <thead class="table-light">
+            <tr><th scope="col">Category</th><th scope="col">Probability</th></tr>
+        </thead>
+        <tbody>{prob_rows}</tbody>
+    </table>
+    """
+    
+    # Generate recommendations
+    rec_html = ""
+    if amr_ipc_recommendations:
+        rec_items = "".join(
+            f'<li class="list-group-item"><strong>{html.escape(key.capitalize())}:</strong> '
+            f'Status: {html.escape(value["status"])}; '
+            f'Recommendation: {html.escape(value["recommendation"])}</li>'
+            for key, value in amr_ipc_recommendations.items()
+        )
+        rec_html = f"""
+        <h6>AMR/IPC Recommendations</h6>
+        <ul class="list-group list-group-flush">{rec_items}</ul>
+        """
+    else:
+        rec_html = '<p class="text-muted">No AMR/IPC recommendations available.</p>'
+    
+    return f"""
+    <div class="{BOOTSTRAP_CLASSES['card']} filterable-section">
+        <div class="{BOOTSTRAP_CLASSES['card_header']}">
+            <h6 class="mb-0"><i class="bi bi-shield-fill-exclamation"></i> AMR/IPC Analysis</h6>
+        </div>
+        <div class="{BOOTSTRAP_CLASSES['card_body']}">
+            {prob_html}
+            {rec_html}
+        </div>
+    </div>
+    """
+
 def _get_javascript_html() -> str:
     """Returns the inline JavaScript for report interactivity."""
     return """
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             let searchTimeout;
@@ -325,12 +377,19 @@ def _get_javascript_html() -> str:
     """
 
 def generate_html_response(data: Dict, status_code: int = 200) -> str:
-    """Generate the complete HTML response for the processed note."""
+    """Generate the core HTML content for the processed note, for embedding in a Jinja template."""
     bc = BOOTSTRAP_CLASSES
     try:
-        if status_code != 200:
+        if status_code != 200 or "error" in data:
             error_msg = data.get("error", "The requested note was not found.")
-            return f'<div class="{bc["container"]}"><div class="{bc["alert_danger"]}">Error: {html.escape(error_msg)}</div></div>'
+            return f"""
+            <div class="{bc['container']}">
+                <div class="{bc['alert_danger']}">
+                    <h4>Error Processing Note</h4>
+                    <p>{html.escape(error_msg)}</p>
+                </div>
+            </div>
+            """
 
         note_id = html.escape(str(data.get("note_id", "Unknown")))
         patient_id = html.escape(str(data.get("patient_id", "Unknown")))
@@ -346,7 +405,7 @@ def generate_html_response(data: Dict, status_code: int = 200) -> str:
         diff_dx_html = _generate_component_html("Differential Diagnoses", "bi-list-ul",
             generate_differential_diagnoses_html(data.get("differential_diagnoses", [])),
             is_visible=bool(data.get("differential_diagnoses")))
-
+        
         entities_html = _generate_component_html("Extracted Clinical Entities", "bi-card-list",
             generate_entities_html(data.get("entities", [])),
             is_visible=bool(data.get("entities")))
@@ -358,9 +417,14 @@ def generate_html_response(data: Dict, status_code: int = 200) -> str:
         summary_html = _generate_component_html("Clinical Summary", "bi-file-text-fill",
             f"<p>{html.escape(data.get('summary', ''))}</p>",
             is_visible=bool(data.get('summary')))
+        
+        amr_ipc_html = _generate_component_html("AMR/IPC Analysis", "bi-shield-fill-exclamation",
+            generate_amr_ipc_html(data.get("amr_ipc_probabilities", {}), data.get("amr_ipc_recommendations", {})),
+            is_visible=bool(data.get("amr_ipc_probabilities") or data.get("amr_ipc_recommendations")))
 
         return f"""
         <div class="{bc['container']}">
+            <h1 class="mt-4 mb-4">HIMS NLP Report</h1>
             <div class="{bc['card']}">
                 <div class="{bc['card_header']}">
                     <h3 class="mb-0"><i class="bi bi-clipboard-pulse"></i> AI Clinical Analysis - Note ID {note_id}</h3>
@@ -375,15 +439,23 @@ def generate_html_response(data: Dict, status_code: int = 200) -> str:
                     {entities_html}
                     {management_html}
                     {summary_html}
+                    {amr_ipc_html}
                     <div class="d-flex gap-2 mt-4">
                         <button class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer"></i> Print / Save as PDF</button>
                         <button class="btn btn-outline-secondary" onclick="copyToClipboard()"><i class="bi bi-clipboard"></i> Copy Report</button>
                     </div>
                 </div>
             </div>
+            {_get_javascript_html()}
         </div>
-        {_get_javascript_html()}
         """
     except Exception as e:
         logger.error(f"Fatal error during HTML generation for Note ID {data.get('note_id', 'N/A')}: {e}", exc_info=True)
-        return f'<div class="{bc["container"]}"><div class="{bc["alert_danger"]}">An unexpected error occurred while generating the report.</div></div>'
+        return f"""
+        <div class="{bc['container']}">
+            <div class="{bc['alert_danger']}">
+                <h4>An unexpected error occurred while generating the report.</h4>
+                <p>{html.escape(str(e))}</p>
+            </div>
+        </div>
+        """
