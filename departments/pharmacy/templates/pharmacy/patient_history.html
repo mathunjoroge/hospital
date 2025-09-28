@@ -3,29 +3,25 @@
   <!-- Patient ID Form -->
   <div class="card shadow-sm mb-4">
     <div class="card-body">
-      <h5 class="card-title fw-bold text-primary">
-        <i class="fas fa-search me-2"></i>Search Patient History
-      </h5>
-      <form method="POST" action="{{ url_for('pharmacy.patient_history') }}">
-        <!-- Add CSRF token for security -->
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <div class="row g-2 align-items-center">
-          <div class="col-md-8 col-12">
-            <label for="patient_id" class="form-label visually-hidden">Select Patient</label>
-            <select id="patient_id" name="patient_id" class="form-select" required>
-              <option value="" disabled selected>Select a patient</option>
-              <!-- Populate options server-side if not using JavaScript -->
-              {% for p in patients %}
-                <option value="{{ p.id }}">{{ p.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-4 col-12">
-            <button type="submit" class="btn btn-primary w-100">Search</button>
-          </div>
-        </div>
-      </form>
+        <h5 class="card-title fw-bold text-primary">
+            <i class="fas fa-search me-2"></i>Search Patient History
+        </h5>
+        <form method="POST" action="{{ url_for('pharmacy.patient_history') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-8 col-12">
+                    <label for="patient_id" class="form-label visually-hidden">Search Patient</label>
+                    <select id="patient_id" name="patient_id" class="form-select select2" required>
+                        <option value="" disabled selected>Enter patient name or number...</option>
+                    </select>
+                </div>
+                <div class="col-md-4 col-12">
+                    <button type="submit" class="btn btn-primary w-100">Search</button>
+                </div>
+            </div>
+        </form>
     </div>
+</div>
   </div>
 
   <!-- Patient History Display -->

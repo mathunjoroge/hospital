@@ -8,6 +8,7 @@ from collections import defaultdict
 from datetime import datetime
 from textwrap import shorten
 import pytz
+from summarizer import ClinicalSummarizer
 from src.database import get_sqlite_connection
 from src.config import TIME_ZONE, BOOTSTRAP_CLASSES  # Import from config.py
 from resources.priority_symptoms import PRIORITY_SYMPTOMS
@@ -86,43 +87,50 @@ def humanize_list(items: List[str]) -> str:
         return f"{items[0]} and {items[1]}"
     return f"{', '.join(items[:-1])}, and {items[-1]}"
 
-def generate_summary(text: str, soap_note: Dict, max_sentences: int = 4, doc=None, nlp=None, clinical_terms=None) -> str:
-    """Generate a concise and natural clinical summary."""
-    if not text.strip():
+def generate_summary(text: str, soap_note: dict, max_sentences: int = 4, doc=None, nlp=None, clinical_terms=None) -> str:
+    """Generate a concise and natural clinical summary using ClinicalSummarizer."""
+    if not text.strip() and not soap_note:
         return "No summary available."
 
     start_time = time.time()
-    if not doc and nlp:
-        doc = nlp(text)
-
-    # Extract key info from text
-    symptoms = sorted({
-        term for sent in (doc.sents if doc else []) for term in (clinical_terms or set())
-        if term in sent.text.lower() and term not in SUMMARY_INVALID_TERMS
-    }) if doc and clinical_terms else []
-    temporal_match = re.search(r"\b(\d+\s*(days?|weeks?|months?|years?)\s*(ago)?)\b", text, re.IGNORECASE)
-    temporal_info = f", which began approximately {temporal_match.group(0)}" if temporal_match else ""
-
-    # Extract structured data
-    lab_abnormalities = [lab for lab in soap_note.get('lab_abnormalities', []) if lab.lower() not in SUMMARY_INVALID_TERMS]
-    recommendation = soap_note.get('recommendation', '').strip()
-
-    summary_parts = []
-    if symptoms:
-        summary_parts.append(f"The patient presents with {humanize_list(symptoms)}{temporal_info}.")
-    if lab_abnormalities:
-        summary_parts.append(f"Noteworthy lab abnormalities include {humanize_list(lab_abnormalities)}.")
-    if recommendation:
-        summary_parts.append(f"The current recommendation is: {recommendation}")
     
-    summary = " ".join(summary_parts[:max_sentences]).strip()
+    # Prepare text from all relevant SOAP note fields if text is not provided
+    if not text and soap_note:
+        text = ' '.join(filter(None, [
+            soap_note.get('situation', ''),
+            soap_note.get('hpi', ''),
+            soap_note.get('symptoms', ''),
+            soap_note.get('aggravating_factors', ''),
+            soap_note.get('alleviating_factors', ''),
+            soap_note.get('medical_history', ''),
+            soap_note.get('medication_history', ''),
+            soap_note.get('assessment', ''),
+            soap_note.get('recommendation', ''),
+            soap_note.get('additional_notes', ''),
+            soap_note.get('ai_notes', '')
+        ])).strip()
+
+    if not text.strip():
+        return "No summary available."
+
+    # Initialize ClinicalSummarizer
+    summarizer = ClinicalSummarizer(model_name="facebook/bart-large-cnn")
+
+    # Generate summary using transformer model
+    summary = summarizer.summarize(text, max_length=200, min_length=30)
+    
+    # Split summary into sentences and respect max_sentences
+    sentences = [s.strip() for s in summary.split("\n- ") if s.strip()]
+    if len(sentences) > max_sentences:
+        sentences = sentences[:max_sentences]
+        summary = "- " + "\n- ".join(sentences)
+    
     logger.debug(f"Summary generation took {time.time() - start_time:.3f} seconds.")
 
     if not summary:
         return shorten(text, width=250, placeholder="...")
     
-    return re.sub(r'\s+', ' ', summary)
-
+    return summary
 # --- HTML REPORT GENERATION ---
 
 def _generate_component_html(title: str, icon_class: str, content: str, is_visible: bool = True) -> str:
@@ -316,7 +324,7 @@ def generate_amr_ipc_html(amr_ipc_probabilities: dict, amr_ipc_recommendations: 
     return f"""
     <div class="{BOOTSTRAP_CLASSES['card']} filterable-section">
         <div class="{BOOTSTRAP_CLASSES['card_header']}">
-            <h6 class="mb-0"><i class="bi bi-shield-fill-exclamation"></i> AMR/IPC Analysis</h6>
+            
         </div>
         <div class="{BOOTSTRAP_CLASSES['card_body']}">
             {prob_html}
@@ -328,7 +336,7 @@ def generate_amr_ipc_html(amr_ipc_probabilities: dict, amr_ipc_recommendations: 
 def _get_javascript_html() -> str:
     """Returns the inline JavaScript for report interactivity."""
     return """
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             let searchTimeout;
@@ -434,11 +442,11 @@ def generate_html_response(data: Dict, status_code: int = 200) -> str:
                         <input type="search" class="form-control" id="reportSearch" placeholder="🔍 Search report content..." aria-label="Search report">
                     </div>
                     <div class="filterable-section">{metadata_html}</div>
+                    {summary_html}
                     <div class="filterable-section">{primary_dx_html}</div>
                     {diff_dx_html}
                     {entities_html}
                     {management_html}
-                    {summary_html}
                     {amr_ipc_html}
                     <div class="d-flex gap-2 mt-4">
                         <button class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer"></i> Print / Save as PDF</button>
@@ -458,4 +466,5 @@ def generate_html_response(data: Dict, status_code: int = 200) -> str:
                 <p>{html.escape(str(e))}</p>
             </div>
         </div>
+        ""
         """

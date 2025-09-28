@@ -1003,35 +1003,40 @@
           });
 
           // 🔹 Reusable initializer for Patient search
-          function initPatientSearch(selector) {
-            if ($(selector).length) {
-              $(selector).select2({
-                theme: 'bootstrap-5',
-                placeholder: "Enter patient name or number...",
-                allowClear: false,
-                minimumInputLength: 2,
-                width: "100%",
-                dropdownParent: $('#bookClinicModal'),  // Attach to modal
-                ajax: {
-                  url: "{{ url_for('nursing.search_patients') }}",
-                  dataType: 'json',
-                  delay: 250,
-                  data: function (params) {
+// Reusable initializer for Patient search
+function initPatientSearch(selector) {
+    if ($(selector).length) {
+        $(selector).select2({
+            theme: 'bootstrap-5',
+            placeholder: "Enter patient name or number...",
+            allowClear: true,
+            minimumInputLength: 2,
+            width: "100%",
+            ajax: {
+                url: "{{ url_for('nursing.search_patients') }}", // Ensure this resolves correctly
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
                     return { q: params.term };
-                  },
-                  processResults: function (data) {
+                },
+                processResults: function (data) {
                     return {
-                      results: data.map(patient => ({
-                        id: patient.id,
-                        text: patient.text
-                      }))
+                        results: data.map(patient => ({
+                            id: patient.id,
+                            text: patient.text
+                        }))
                     };
-                  },
-                  cache: true
-                }
-              });
+                },
+                cache: true
             }
-          }
+        });
+    }
+}
+
+// Initialize patient search for all #patient_id elements
+$(document).ready(function() {
+    initPatientSearch('#patient_id');
+});
           // 🔹 Reusable initializer for Clinic search
           function initClinicSearch(selector) {
             if ($(selector).length) {
