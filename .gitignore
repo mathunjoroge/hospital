@@ -11,6 +11,7 @@ __pycache__/
 # Ignore distribution/build files
 build/
 dist/
+amr_ipc_classifier/
 cancer_classifier/
 *.egg-info/
 

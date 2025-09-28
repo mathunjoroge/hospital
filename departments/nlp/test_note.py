@@ -24,21 +24,20 @@ def test_process_soap_note():
         logger.error(f"Failed to initialize DiseasePredictor: {e}", exc_info=True)
         raise
     
-    # Create a sample SOAP note
     sample_note = {
         "id": 1001,  # Integer primary key
         "patient_id": "P1000",
         "created_at": datetime.utcnow().isoformat() + "Z",
-        "situation": "Patient presents with persistent fever, cough, and fatigue following recent hospitalization for a urinary tract infection.",
-        "hpi": "45-year-old male with a 5-day history of fever (up to 39°C), productive cough with yellow sputum, and increasing fatigue. Reports shortness of breath on exertion. Recently treated for a urinary tract infection with ciprofloxacin 500 mg BID for 7 days, completed 2 weeks ago. Symptoms began 3 days after completing antibiotics.",
-        "symptoms": "fever, productive cough, yellow sputum, fatigue, shortness of breath",
-        "aggravating_factors": "Symptoms worsen with physical activity and at night.",
-        "alleviating_factors": "Rest and hydration provide mild relief.",
-        "medical_history": "Type 2 diabetes mellitus (diagnosed 2018, controlled with metformin), history of recurrent urinary tract infections, hypertension, smoking (10 pack-years, quit 2 years ago).",
-        "medication_history": "Ciprofloxacin 500 mg BID for 7 days (completed 2 weeks ago), metformin 1000 mg BID, lisinopril 10 mg daily.",
-        "assessment": "Suspected post-infectious pneumonia, possible antibiotic-resistant organism given recent ciprofloxacin use. Consider community-acquired pneumonia vs. healthcare-associated pneumonia. Rule out early sepsis and malignancy given fatigue and smoking history.",
-        "recommendation": "Order chest X-ray, sputum culture, and blood cultures. Start empiric antibiotics (ceftriaxone 1g IV daily + azithromycin 500 mg PO daily). Monitor for sepsis. Consider CT chest if no improvement in 48 hours. Refer to infectious disease if cultures indicate resistance.",
-        "additional_notes": "Patient advised to maintain hydration and monitor symptoms. Discussed smoking cessation benefits given history.",
+        "situation": "Patient presents with fever, cough, and fatigue, consistent with a viral illness.",
+        "hpi": "45-year-old male with a 3-day history of fever (up to 38.5°C), dry cough, and increasing fatigue. Reports myalgias, sore throat, and mild shortness of breath. Symptoms began after exposure to a family member with similar symptoms. No recent hospitalizations or antibiotic use. No known contact with resistant infections.",
+        "symptoms": "fever, dry cough, fatigue, myalgias, sore throat, mild shortness of breath",
+        "aggravating_factors": "Symptoms worsen with physical activity.",
+        "alleviating_factors": "Rest and over-the-counter antipyretics (acetaminophen) provide mild relief.",
+        "medical_history": "Type 2 diabetes mellitus (diagnosed 2018, controlled with metformin), history of recurrent urinary tract infections (last treated 6 months ago), hypertension, smoking (10 pack-years, quit 2 years ago).",
+        "medication_history": "Metformin 1000 mg BID, lisinopril 10 mg daily, acetaminophen 500 mg PRN for fever (started 2 days ago).",
+        "assessment": "Suspected influenza, likely uncomplicated given low risk of antimicrobial resistance and no recent antibiotic exposure. Rule out secondary bacterial infection or early complications given diabetes and smoking history.",
+        "recommendation": "Order rapid influenza diagnostic test to confirm diagnosis. Initiate antiviral therapy (oseltamivir 75 mg PO BID for 5 days) if influenza confirmed and symptoms <48 hours. Supportive care with hydration and rest. Monitor for signs of secondary bacterial infection (e.g., worsening cough, purulent sputum). No antibiotics indicated at this time. Follow up in 3-5 days or sooner if symptoms worsen.",
+        "additional_notes": "Patient advised to maintain hydration, rest, and avoid contact with others to prevent spread. Discussed smoking cessation benefits given history.",
         "ai_notes": "",  # Initially empty, to be populated by NLP pipeline
         "ai_analysis": "",  # Initially empty, to be populated by NLP pipeline
         "file_path": "/home/mathu/projects/hospital/uploads/P1000_note_1001.pdf"  # Example path

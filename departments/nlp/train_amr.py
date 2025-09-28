@@ -1,27 +1,50 @@
 import os
-os.environ["USE_TF"] = "0"
-os.environ["USE_TORCH"] = "1"  # Explicitly enable PyTorch
+import csv
+import logging
 from typing import List
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_recall_fscore_support
 import torch
 import numpy as np
-from transformers import (
-    AutoTokenizer,
-    AutoModelForSequenceClassification,
-    Trainer,
-    TrainingArguments
-)
-from datasets import Dataset
-import logging
-from collections import Counter
 
-# Set environment variables
+# Explicitly avoid TensorFlow
+os.environ["USE_TF"] = "0"
+os.environ["USE_TORCH"] = "1"
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ModelTrainer")
+
+# Import transformers with fallback
+try:
+    from transformers import (
+        AutoTokenizer,
+        AutoModelForSequenceClassification,
+        Trainer,
+        TrainingArguments,
+    )
+except ImportError as e:
+    if "transformers.trainer" in str(e) or "modeling_tf_utils" in str(e):
+        logger.warning("TensorFlow-related import failed. Using PyTorch-only imports.")
+        from transformers import (
+            AutoTokenizer,
+            AutoModelForSequenceClassification,
+            TrainingArguments,
+        )
+        # Manually import Trainer to avoid TensorFlow dependencies
+        from transformers.trainer import Trainer
+    else:
+        raise
+
+from datasets import Dataset
+from collections import Counter
+
+# Log environment details
+logger.info(f"PyTorch version: {torch.__version__}")
+logger.info(f"CUDA available: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    logger.info(f"CUDA device: {torch.cuda.get_device_name(0)}")
 
 # 1. Define model and label mapping
 model_name = "emilyalsentzer/Bio_ClinicalBERT"
@@ -29,8 +52,28 @@ categories = ["amr_high", "amr_low", "amr_none", "ipc_adequate", "ipc_inadequate
 label_map = {name: idx for idx, name in enumerate(categories)}
 id2label = {idx: name for idx, name in enumerate(categories)}
 
-# 2. Load training texts
-from resources.amr_training_data import texts  # Import from saved file
+# 2. Load training texts from CSV
+def load_training_data() -> List[str]:
+    data_path = "/home/mathu/projects/hospital/departments/nlp/resources/amr_training_data.csv"
+    texts = []
+    try:
+        with open(data_path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            next(reader)  # Skip header
+            texts = [row[0] for row in reader if row]
+        logger.info(f"Loaded {len(texts)} training texts from {data_path}")
+    except FileNotFoundError:
+        logger.error(f"CSV file not found: {data_path}")
+        raise
+    except Exception as e:
+        logger.error(f"Error loading CSV file {data_path}: {e}")
+        raise
+    if not texts:
+        logger.error("No texts loaded from CSV file")
+        raise ValueError("No texts loaded from CSV file")
+    return texts
+
+texts = load_training_data()
 
 # 3. Enhanced auto-labeling function with AMR/IPC keywords
 def auto_label(texts: List[str]) -> List[int]:
@@ -40,10 +83,10 @@ def auto_label(texts: List[str]) -> List[int]:
         assigned = False
         keywords = {
             "amr_high": ["mrsa", "vre", "esbl", "carbapenem-resistant", "multidrug-resistant", 
-                        "antibiotic failure", "antibiotic resistance", "recent antibiotic use", 
-                        "treatment failure", "possible resistance"],
+                         "antibiotic failure", "antibiotic resistance", "recent antibiotic use", 
+                         "treatment failure", "possible resistance", "ciprofloxacin", "ceftriaxone"],
             "amr_low": ["susceptible", "sensitive", "culture negative", "pan-sensitive"],
-            "amr_none": [],  # Fallback for AMR if no specific keywords
+            "amr_none": [],  # Fallback for AMR
             "ipc_adequate": ["contact precautions", "hand hygiene", "isolation protocol", "sterile technique"],
             "ipc_inadequate": ["no isolation", "poor compliance", "no precautions", "no ipc", "no sterile technique"],
             "ipc_none": ["no signs of infection", "no antibiotics", "routine care", "no infection"]
@@ -71,41 +114,80 @@ def auto_label(texts: List[str]) -> List[int]:
 
 labels = auto_label(texts)
 
-# 4. Filter out examples with ambiguous labels
-filtered = [(t, l) for t, l in zip(texts, labels) if l >= 0]
-if not filtered:
-    raise ValueError("No valid labeled examples found in dataset")
-texts, labels = zip(*filtered)
-
-# 5. Check class distribution
+# 4. Balance class distribution
 label_counts = Counter(labels)
-logger.info("Class distribution:")
+logger.info("Initial class distribution:")
 for idx, count in label_counts.items():
     logger.info(f"{id2label[idx]}: {count} examples")
 
-# 6. Ensure class weights cover all classes
-# Initialize weights for all 6 classes, defaulting to 1.0 for missing classes
+# Merge rare classes (<2 examples) into fallback classes
+min_examples = 2
+new_texts = []
+new_labels = []
+for text, label in zip(texts, labels):
+    if label_counts[label] < min_examples:
+        if label in [label_map["amr_high"], label_map["amr_low"], label_map["amr_none"]]:
+            new_labels.append(label_map["amr_none"])
+        else:
+            new_labels.append(label_map["ipc_none"])
+        logger.debug(f"Reassigned text to fallback class: {text[:50]}...")
+    else:
+        new_labels.append(label)
+    new_texts.append(text)
+
+texts, labels = new_texts, new_labels
+
+# 5. Filter out examples with ambiguous labels
+filtered = [(t, l) for t, l in zip(texts, labels) if l >= 0]
+if not filtered:
+    raise ValueError("No valid labeled examples found in dataset")
+texts, labels = map(list, zip(*filtered))
+
+# 6. Check final class distribution
+label_counts = Counter(labels)
+logger.info("Final class distribution:")
+for idx, count in label_counts.items():
+    logger.info(f"{id2label[idx]}: {count} examples")
+
+# Ensure at least two examples per class
+for idx in range(len(categories)):
+    if label_counts.get(idx, 0) < min_examples:
+        logger.warning(f"Class {id2label[idx]} has {label_counts.get(idx, 0)} examples. Adding synthetic examples.")
+        synthetic_texts = [
+            f"Synthetic {id2label[idx]} example: {'resistant infection' if 'amr' in id2label[idx] else 'no precautions' if 'ipc' in id2label[idx] else 'routine care'}."
+        ] * (min_examples - label_counts.get(idx, 0))
+        texts.extend(synthetic_texts)
+        labels.extend([idx] * len(synthetic_texts))
+        logger.info(f"Added {len(synthetic_texts)} synthetic examples for {id2label[idx]}")
+
+# 7. Ensure class weights cover all classes
 class_weights = torch.ones(len(categories)).to("cuda" if torch.cuda.is_available() else "cpu")
 for idx, category in enumerate(categories):
     count = label_counts.get(idx, 0)
     if count > 0:
         class_weights[idx] = 1.0 / count
     else:
-        class_weights[idx] = 1.0  # Default weight for classes with zero counts
+        class_weights[idx] = 1.0
 logger.info(f"Class weights: {class_weights}")
 
-# 7. Split into train and validation sets
-train_texts, val_texts, train_labels, val_labels = train_test_split(
-    texts, labels, test_size=0.2, random_state=42, stratify=labels
-)
+# 8. Split into train and validation sets
+try:
+    train_texts, val_texts, train_labels, val_labels = train_test_split(
+        texts, labels, test_size=0.2, random_state=42, stratify=labels
+    )
+except ValueError as e:
+    logger.warning(f"Stratified split failed: {e}. Falling back to non-stratified split.")
+    train_texts, val_texts, train_labels, val_labels = train_test_split(
+        texts, labels, test_size=0.2, random_state=42
+    )
 
-# 8. Load tokenizer and model
+# 9. Load tokenizer and model
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForSequenceClassification.from_pretrained(
     model_name, num_labels=len(categories), id2label=id2label, label2id=label_map
 )
 
-# 9. Tokenization function
+# 10. Tokenization function
 MAX_LENGTH = 128
 def tokenize_function(examples):
     return tokenizer(
@@ -115,13 +197,13 @@ def tokenize_function(examples):
         max_length=MAX_LENGTH
     )
 
-# 10. Prepare Hugging Face Datasets
+# 11. Prepare Hugging Face Datasets
 train_dataset = Dataset.from_dict({"text": train_texts, "label": train_labels})
 val_dataset = Dataset.from_dict({"text": val_texts, "label": val_labels})
 tokenized_train = train_dataset.map(tokenize_function, batched=True)
 tokenized_val = val_dataset.map(tokenize_function, batched=True)
 
-# 11. Define compute_metrics function for evaluation
+# 12. Define compute_metrics function for evaluation
 def compute_metrics(eval_pred):
     logits, labels = eval_pred
     predictions = np.argmax(logits, axis=-1)
@@ -145,13 +227,13 @@ def compute_metrics(eval_pred):
         **per_class_metrics
     }
 
-# 12. Training arguments
+# 13. Training arguments
 training_args = TrainingArguments(
     output_dir="/home/mathu/projects/hospital/amr_ipc_classifier",
     per_device_train_batch_size=4,
     per_device_eval_batch_size=4,
-    num_train_epochs=6,
-    logging_dir="./logs",
+    num_train_epochs=8,
+    logging_dir="/home/mathu/projects/hospital/logs",
     logging_steps=10,
     save_strategy="epoch",
     eval_strategy="epoch",
@@ -164,7 +246,7 @@ training_args = TrainingArguments(
     save_total_limit=2
 )
 
-# 13. Trainer setup with class weights
+# 14. Trainer setup with class weights
 class CustomTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
         labels = inputs.get("labels")
@@ -182,11 +264,11 @@ trainer = CustomTrainer(
     compute_metrics=compute_metrics
 )
 
-# 14. Train the model
+# 15. Train the model
 logger.info("Starting training...")
 trainer.train()
 
-# 15. Save the trained model and tokenizer
+# 16. Save the trained model and tokenizer
 model.save_pretrained("/home/mathu/projects/hospital/amr_ipc_classifier")
 tokenizer.save_pretrained("/home/mathu/projects/hospital/amr_ipc_classifier")
 
