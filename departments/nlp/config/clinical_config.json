@@ -1,0 +1,99 @@
+{
+  "disease_categories": {
+    "cardiovascular": [
+      "chest pain",
+      "hypertension",
+      "heart failure",
+      "mi",
+      "myocardial",
+      "cad",
+      "arrhythmia"
+    ],
+    "respiratory": [
+      "cough",
+      "fever",
+      "pneumonia",
+      "copd",
+      "asthma",
+      "bronchitis",
+      "dyspnea"
+    ],
+    "gastrointestinal": [
+      "abdominal pain",
+      "nausea",
+      "vomiting",
+      "diarrhea",
+      "gi bleed",
+      "ibd"
+    ],
+    "neurological": [
+      "headache",
+      "seizure",
+      "stroke",
+      "tia",
+      "migraine",
+      "neuropathy"
+    ],
+    "endocrine": [
+      "diabetes",
+      "thyroid",
+      "hyperglycemia",
+      "hypoglycemia",
+      "dka"
+    ],
+    "infectious": [
+      "infection",
+      "sepsis",
+      "bacteremia",
+      "uti",
+      "cellulitis",
+      "meningitis"
+    ],
+    "renal": [
+      "aki",
+      "ckd",
+      "renal failure",
+      "kidney",
+      "creatinine"
+    ],
+    "musculoskeletal": [
+      "fracture",
+      "arthritis",
+      "back pain",
+      "trauma"
+    ],
+    "hematological": [
+      "anemia",
+      "thrombocytopenia",
+      "coagulopathy",
+      "dvt"
+    ],
+    "oncological": [
+      "cancer",
+      "malignancy",
+      "tumor",
+      "chemotherapy"
+    ],
+    "psychiatric": [
+      "depression",
+      "anxiety",
+      "bipolar",
+      "schizophrenia"
+    ]
+  },
+  "hmis_replacements": {
+    "°C": "degrees Celsius",
+    "BP": "blood pressure",
+    "HR": "heart rate",
+    "RR": "respiratory rate",
+    "SpO2": "oxygen saturation",
+    "T": "temperature",
+    "WBC": "white blood cell count",
+    "HGB": "hemoglobin",
+    "PLT": "platelets",
+    "Na": "sodium",
+    "K": "potassium",
+    "Cr": "creatinine",
+    "BUN": "blood urea nitrogen"
+  }
+}
