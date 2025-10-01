@@ -118,7 +118,7 @@ def generate_summary(text: str = "", soap_note: Dict[str, str] = None, max_sente
         return "No summary available."
 
     # Initialize ClinicalSummarizer
-    summarizer = ClinicalSummarizer(model_name="facebook/bart-large-cnn")
+    summarizer = ClinicalSummarizer(model_name="google/pegasus-pubmed")
 
     # Generate summary using transformer model. 
     # This returns the full, formatted output (Summary + Suggestions).
