@@ -20,7 +20,7 @@ def run_test():
 
     # Test with plain text
     sample_text = (
-        " A 45-year-old male presents with fever, cough, and fatigue after exposure to a sick contact. "
+        "A 45-year-old male presents with fever, cough, and fatigue after exposure to a sick contact. "
         "Past history includes diabetes and hypertension. Assessment: possible viral infection. "
         "Plan: order influenza test and provide supportive care."
     )

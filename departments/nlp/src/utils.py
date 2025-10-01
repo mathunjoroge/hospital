@@ -87,16 +87,19 @@ def humanize_list(items: List[str]) -> str:
         return f"{items[0]} and {items[1]}"
     return f"{', '.join(items[:-1])}, and {items[-1]}"
 
-def generate_summary(text: str, soap_note: dict, max_sentences: int = 4, doc=None, nlp=None, clinical_terms=None) -> str:
+def generate_summary(text: str = "", soap_note: Dict[str, str] = None, max_sentences: int = 4, **kwargs) -> str:
     """Generate a concise and natural clinical summary using ClinicalSummarizer."""
+    if soap_note is None:
+        soap_note = {}
+        
     if not text.strip() and not soap_note:
         return "No summary available."
 
     start_time = time.time()
     
     # Prepare text from all relevant SOAP note fields if text is not provided
-    if not text and soap_note:
-        text = ' '.join(filter(None, [
+    if not text.strip() and soap_note:
+        text_parts = [
             soap_note.get('situation', ''),
             soap_note.get('hpi', ''),
             soap_note.get('symptoms', ''),
@@ -108,7 +111,8 @@ def generate_summary(text: str, soap_note: dict, max_sentences: int = 4, doc=Non
             soap_note.get('recommendation', ''),
             soap_note.get('additional_notes', ''),
             soap_note.get('ai_notes', '')
-        ])).strip()
+        ]
+        text = ' '.join(filter(None, text_parts)).strip()
 
     if not text.strip():
         return "No summary available."
@@ -116,21 +120,20 @@ def generate_summary(text: str, soap_note: dict, max_sentences: int = 4, doc=Non
     # Initialize ClinicalSummarizer
     summarizer = ClinicalSummarizer(model_name="facebook/bart-large-cnn")
 
-    # Generate summary using transformer model
+    # Generate summary using transformer model. 
+    # This returns the full, formatted output (Summary + Suggestions).
     summary = summarizer.summarize(text, max_length=200, min_length=30)
     
-    # Split summary into sentences and respect max_sentences
-    sentences = [s.strip() for s in summary.split("\n- ") if s.strip()]
-    if len(sentences) > max_sentences:
-        sentences = sentences[:max_sentences]
-        summary = "- " + "\n- ".join(sentences)
+    # --- Truncation Logic REMOVED ---
     
     logger.debug(f"Summary generation took {time.time() - start_time:.3f} seconds.")
 
-    if not summary:
+    # Fallback if summarizer returns an empty or failure state
+    if not summary or "No summary could be generated." in summary:
         return shorten(text, width=250, placeholder="...")
     
-    return summary
+    # Return the full, structured output from the ClinicalSummarizer
+    return summary 
 # --- HTML REPORT GENERATION ---
 
 def _generate_component_html(title: str, icon_class: str, content: str, is_visible: bool = True) -> str:
@@ -423,7 +426,7 @@ def generate_html_response(data: Dict, status_code: int = 200) -> str:
             is_visible=bool(data.get("management_plans")))
             
         summary_html = _generate_component_html("Clinical Summary", "bi-file-text-fill",
-            f"<p>{html.escape(data.get('summary', ''))}</p>",
+            f"{data.get('summary', '')}",
             is_visible=bool(data.get('summary')))
         
         amr_ipc_html = _generate_component_html("AMR/IPC Analysis", "bi-shield-fill-exclamation",
