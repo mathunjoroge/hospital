@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_session import Session
 from flask_login import login_user, current_user, logout_user, login_required
 from flask_migrate import Migrate
 from flask_mail import Mail
@@ -17,6 +18,7 @@ from departments.models.nursing import Notifications
 from werkzeug.utils import secure_filename
 
 # Initialize Flask app
+logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config.from_object(Config)
 
@@ -25,8 +27,14 @@ app.config['UPLOAD_FOLDER'] = os.path.join('Uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['DICOM_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'dicom_Uploads')
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2 GB file limit
+# In app.py, after Session(app)
+app.config['SESSION_FILE_DIR'] = os.path.join(app.root_path, 'sessions')
+os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
+logger.info("Session directory initialized at: %s", app.config['SESSION_FILE_DIR'])
 
 os.makedirs(app.config['DICOM_UPLOAD_FOLDER'], exist_ok=True)
+app.config['SESSION_TYPE'] = 'filesystem'  # Use filesystem for simplicity; consider Redis for production
+Session(app)
 
 # Initialize extensions
 db.init_app(app)
