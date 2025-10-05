@@ -754,10 +754,15 @@
     <!-- Sidebar -->
     {% if request.endpoint != 'login' %}
     <div class="sidebar" id="sidebar">
+
+
       {% if current_user.is_authenticated %}
         {% set effective_role = session.switched_user if session.switched_user else current_user.role %}
         {% include 'side_bars/' ~ effective_role ~ '.html' ignore missing %}
       {% endif %}
+            <a href="{{ url_for('medicine.chatbot_interface') }}" class="chat">
+  <i class="bi bi-chat-dots me-2"></i> Chatbot
+</a>
     </div>
     {% endif %}
     <!-- Main Content -->

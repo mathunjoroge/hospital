@@ -6,6 +6,7 @@ from wtforms import SelectField
 from wtforms.validators import DataRequired
 from sqlalchemy import text
 import json
+from contextlib import contextmanager
 from typing import Optional, List, Dict, Any
 import psycopg2
 from datetime import date
@@ -37,15 +38,76 @@ from departments.models.medicine import (
     OncoTreatmentRecord,PrescriptionDrugDetail,OncologyNote,
     CancerType, CancerStage, CancerTypeStage, CancerDetail
 )
+from departments.nlp.chatbot import UniversalClinicalSummarizer
 import logging
 import json
+from flask import Response, stream_with_context, request
+import time
 from departments.nlp.logging_setup import get_logger
 logger = get_logger()
+
+# Instantiate the summarizer for use in chatbot_interface
+
 
 socketio = SocketIO()
 prescription_id = str(uuid.uuid4())
 csrf = CSRFProtect()
+summarizer = UniversalClinicalSummarizer(gemini_api_key="AIzaSyBIiewOwY2H4qUUKm3EsaHybqxXjEo6cHE")
 
+@bp.route('/chatbot', methods=['GET', 'POST'])
+def chatbot_interface():
+    """
+    Handles displaying the chatbot form (GET) and processing submitted notes (POST).
+    Maintains conversation history in session and supports streaming responses.
+    """
+    # Ensure session is initialized for conversation history
+    if 'conversation' not in session:
+        session['conversation'] = []
+        logger.debug("Initialized empty conversation history in session")
+
+    if request.method == 'POST':
+        input_note = request.form.get('clinical_note', '').strip()
+        
+        def generate():
+            if not input_note:
+                error_html = summarizer._format_output("Please enter a clinical note to summarize.", is_error=True)
+                yield error_html.encode('utf-8')
+                logger.warning("Empty clinical note submitted")
+                return
+
+            logger.info(f"Received note for summarization. Length: {len(input_note)} chars")
+            summary_html = summarizer.answer(input_note, conversation_history=session.get('conversation', []))
+            
+            # Append the new question and response to the conversation history
+            session['conversation'].append({
+                'question': input_note,
+                'response': summary_html
+            })
+            session.modified = True  # Ensure session updates
+            logger.debug("Appended new conversation entry: %s", input_note)
+
+            # Stream the response
+            chunk_size = 50
+            for i in range(0, len(summary_html), chunk_size):
+                chunk = summary_html[i:i + chunk_size]
+                yield chunk.encode('utf-8')
+                time.sleep(0.05)
+
+        return Response(stream_with_context(generate()), content_type='text/html; charset=utf-8')
+
+    # For GET requests, render the template with conversation history
+    logger.debug("Rendering chatbot template with conversation: %s", session['conversation'])
+    return render_template('medicine/chat_bot.html', conversation=session.get('conversation', []), input_note='')
+
+@bp.route('/clear_conversation', methods=['POST'])
+def clear_conversation():
+    """
+    Clears the conversation history from the session.
+    """
+    session.pop('conversation', None)
+    session.modified = True
+    logger.info("Conversation history cleared")
+    return redirect('/medicine/chatbot')
 @bp.route('/submit_soap_notes/<patient_id>', methods=['POST'])
 @login_required
 def submit_soap_notes(patient_id):
