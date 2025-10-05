@@ -5,135 +5,195 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.4.0/purify.min.js"></script>
 
 <body class="bg-light d-flex justify-content-center align-items-start p-4">
-    <div class="container-lg bg-white shadow-lg rounded-4 d-flex flex-column vh-90 overflow-hidden">
-        <header class="text-center border-bottom py-3">
-            <h1 class="text-primary mb-1">🩺 HMIS Clinical Information Chatbot</h1>
-            <p class="text-secondary">Enter a clinical note or question below. Press <strong>Enter</strong> to send, or <strong>Shift + Enter</strong> for a new line.</p>
-            <div class="text-end">
-                <form action="/medicine/clear_conversation" method="POST" style="display: inline;">
-                    <button type="submit" class="btn btn-outline-secondary btn-sm">Clear Conversation</button>
-                </form>
-            </div>
-        </header>
-
-
-
-        <main class="flex-grow-1 overflow-auto p-3">
-            <div class="conversation-container mt-3">
-                {% if conversation %}
-                    {% for entry in conversation %}
-                        <div class="conversation-entry mb-4">
-                            <div class="user-question bg-primary text-white p-3 rounded-3">
-                                <strong>You:</strong> {{ entry.question | safe }}
-                            </div>
-                            <div class="chatbot-response mt-2">
-                                {{ entry.response | safe }}
-                            </div>
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="container text-center">
-                        <p class="text-muted">No conversation history yet. Start by asking a question!</p>
-                    </div>
-                {% endif %}
-                <div class="summary-container mt-3">
-                    <div class="streaming-container" id="streaming-response"></div>
-                </div>
-            </div>
-        </main>
-                <form id="chat-form" method="POST" action="/medicine/chatbot" class="border-bottom bg-light p-3">
-            <div class="input-group">
-                <textarea name="clinical_note" id="clinical_note" class="form-control rounded-3" rows="2" placeholder="Type your clinical note or question..." autocomplete="off">{{ input_note }}</textarea>
-                <button type="submit" class="btn btn-primary rounded-circle ms-2 d-flex justify-content-center align-items-center shadow-sm send-btn">
-                    <i class="bi bi-send-fill fs-5"></i>
-                </button>
-            </div>
+  <div class="container-lg bg-white shadow-lg rounded-4 d-flex flex-column vh-90 overflow-hidden">
+    <header class="text-center border-bottom py-3">
+      <h1 class="text-primary mb-1">🩺 HMIS Clinical Information Chatbot</h1>
+      <p class="text-secondary">Enter a clinical note or question below. Press <strong>Enter</strong> to send, or <strong>Shift + Enter</strong> for a new line.</p>
+      <div class="text-end">
+        <form action="/medicine/clear_conversation" method="POST" style="display:inline;">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">Clear Conversation</button>
         </form>
-    </div>
+      </div>
+    </header>
 
-    <script>
-        const form = document.getElementById("chat-form");
-        const textarea = document.getElementById("clinical_note");
-        const summaryContainer = document.querySelector(".summary-container");
-        const conversationContainer = document.querySelector(".conversation-container");
-        const main = document.querySelector("main");
+    <main class="flex-grow-1 overflow-auto p-3">
+      <div class="conversation-container mt-3">
+        {% if conversation %}
+          {% for entry in conversation %}
+            <div class="conversation-entry mb-4">
+              <div class="user-question bg-primary text-white p-3 rounded-3">
+                <strong>You:</strong> {{ entry.question | safe }}
+              </div>
+              <div class="chatbot-response mt-2 response-content">
+                {{ entry.response | safe }}
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="container text-center">
+            <p class="text-muted">No conversation history yet. Start by asking a question!</p>
+          </div>
+        {% endif %}
+        <div class="summary-container mt-3">
+          <div class="streaming-container" id="streaming-response"></div>
+        </div>
+      </div>
+    </main>
 
-        form.addEventListener("submit", async function (e) {
-            e.preventDefault();
-            const formData = new FormData(form);
-            const clinicalNote = formData.get("clinical_note").trim();
+    <form id="chat-form" method="POST" action="/medicine/chatbot" class="border-bottom bg-light p-3">
+      <div class="input-group">
+        <textarea name="clinical_note" id="clinical_note" class="form-control rounded-3" rows="2"
+          placeholder="Type your clinical note or question..." autocomplete="off">{{ input_note }}</textarea>
+        <button type="submit" class="btn btn-primary rounded-circle ms-2 d-flex justify-content-center align-items-center shadow-sm send-btn">
+          <i class="bi bi-send-fill fs-5"></i>
+        </button>
+      </div>
+    </form>
+  </div>
 
-            if (!clinicalNote) {
-                summaryContainer.innerHTML = '<div class="hmis-error">Please enter a clinical note or question.</div>';
-                main.scrollTop = main.scrollHeight;
-                console.log("Empty input detected");
-                return;
-            }
+  <script>
+  // --- CHAT STREAM HANDLER ---
+  const form = document.getElementById("chat-form");
+  const textarea = document.getElementById("clinical_note");
+  const summaryContainer = document.querySelector(".summary-container");
+  const conversationContainer = document.querySelector(".conversation-container");
+  const main = document.querySelector("main");
 
-            // Add user question to conversation immediately
-            const userEntry = document.createElement("div");
-            userEntry.classList.add("conversation-entry", "mb-4");
-            userEntry.innerHTML = `
-                <div class="user-question bg-primary text-white p-3 rounded-3">
-                    <strong>You:</strong> ${DOMPurify.sanitize(clinicalNote)}
-                </div>
-            `;
-            conversationContainer.insertBefore(userEntry, summaryContainer);
-            summaryContainer.innerHTML = '<div class="streaming-container" id="streaming-response"></div>';
-            const streamingContainer = document.getElementById("streaming-response");
-            main.scrollTop = main.scrollHeight;
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const clinicalNote = formData.get("clinical_note").trim();
 
-            try {
-                console.log("Sending POST request to /medicine/chatbot");
-                const response = await fetch("/medicine/chatbot", { method: "POST", body: formData });
-                if (!response.ok) throw new Error(`Network error: ${response.status}`);
+    if (!clinicalNote) {
+      summaryContainer.innerHTML = '<div class="hmis-error">Please enter a clinical note or question.</div>';
+      main.scrollTop = main.scrollHeight;
+      return;
+    }
 
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let fullResponse = '';
+    // Add user question to conversation
+    const userEntry = document.createElement("div");
+    userEntry.classList.add("conversation-entry", "mb-4");
+    userEntry.innerHTML = `
+      <div class="user-question bg-primary text-white p-3 rounded-3">
+        <strong>You:</strong> ${DOMPurify.sanitize(clinicalNote)}
+      </div>
+    `;
+    conversationContainer.insertBefore(userEntry, summaryContainer);
+    summaryContainer.innerHTML = '<div class="streaming-container" id="streaming-response"></div>';
+    const streamingContainer = document.getElementById("streaming-response");
+    main.scrollTop = main.scrollHeight;
 
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        streamingContainer.classList.add("streaming-complete");
-                        console.log("Streaming complete");
-                        // Append response to the user entry
-                        const responseDiv = document.createElement("div");
-                        responseDiv.classList.add("chatbot-response", "mt-2");
-                        responseDiv.innerHTML = fullResponse;
-                        userEntry.appendChild(responseDiv);
-                        summaryContainer.innerHTML = ''; // Clear streaming container
-                        main.scrollTop = main.scrollHeight;
-                        break;
-                    }
-                    const chunk = decoder.decode(value, { stream: true });
-                    fullResponse += chunk;
-                    const tempDiv = document.createElement("div");
-                    tempDiv.innerHTML = fullResponse;
-                    if (tempDiv.innerHTML) streamingContainer.innerHTML = fullResponse;
-                    main.scrollTop = main.scrollHeight;
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                }
+    try {
+      const response = await fetch("/medicine/chatbot", { method: "POST", body: formData });
+      if (!response.ok) throw new Error(`Network error: ${response.status}`);
 
-                textarea.value = ''; // Clear textarea
-            } catch (error) {
-                summaryContainer.innerHTML = '<div class="hmis-error">Error fetching response. Please try again.</div>';
-                console.error("Streaming error:", error);
-                main.scrollTop = main.scrollHeight;
-            }
-        });
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = '';
 
-        textarea.addEventListener("keydown", function (e) {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                form.dispatchEvent(new Event("submit"));
-            }
-        });
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          streamingContainer.classList.add("streaming-complete");
+          // Create chatbot response
+          const responseDiv = document.createElement("div");
+          responseDiv.classList.add("chatbot-response", "mt-2", "response-content");
+          responseDiv.innerHTML = formatMedicalResponse(fullResponse);
+          userEntry.appendChild(responseDiv);
+          summaryContainer.innerHTML = '';
+          main.scrollTop = main.scrollHeight;
+          break;
+        }
+        const chunk = decoder.decode(value, { stream: true });
+        fullResponse += chunk;
+        streamingContainer.innerHTML = formatMedicalResponse(fullResponse);
+        main.scrollTop = main.scrollHeight;
+        await new Promise(r => setTimeout(r, 40));
+      }
 
-        window.addEventListener("load", () => {
-            main.scrollTop = main.scrollHeight;
-            console.log("Page loaded, conversation length:", {{ conversation | length | tojson }});
-        });
-    </script>
+      textarea.value = '';
+    } catch (error) {
+      summaryContainer.innerHTML = '<div class="hmis-error">Error fetching response. Please try again.</div>';
+      console.error("Streaming error:", error);
+      main.scrollTop = main.scrollHeight;
+    }
+  });
+
+  textarea.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      form.dispatchEvent(new Event("submit"));
+    }
+  });
+
+  window.addEventListener("load", () => {
+    main.scrollTop = main.scrollHeight;
+  });
+  </script>
+
+  <script>
+  // --- RESPONSE FORMATTER ---
+  function formatMedicalResponse(rawText) {
+    if (!rawText) return "";
+    let formatted = DOMPurify.sanitize(rawText);
+
+    formatted = formatted
+      .replace(/^### (.*)$/gim, '<h4 class="text-primary mt-3">$1</h4>')
+      .replace(/^## (.*)$/gim, '<h3 class="text-success mt-3">$1</h3>')
+      .replace(/^# (.*)$/gim, '<h2 class="mt-3">$1</h2>')
+      .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+      .replace(/^\s*\* (.*)$/gim, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/gims, '<ul class="ms-3">$1</ul>')
+      .replace(
+        /MANDATORY DISCLAIMER:[\s\S]*/gim,
+        '<div class="alert alert-warning mt-3"><strong>⚠️ Medical Disclaimer:</strong> This content is for educational purposes only. Always consult a qualified healthcare provider.</div>'
+      );
+
+    // Table handling
+    if (formatted.includes('|')) {
+      formatted = formatted.replace(
+        /\|(.+)\|\n\|([-\s\|]+)\|\n((\|.+\|\n)*)/gim,
+        match => {
+          const rows = match.trim().split('\n');
+          let html = "<table class='table table-bordered table-sm mt-3'>";
+          rows.forEach((row, i) => {
+            const cells = row.split('|').filter(Boolean).map(c => c.trim());
+            if (i === 0)
+              html += '<thead><tr>' + cells.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+            else if (!row.includes('---'))
+              html += '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+          });
+          html += '</tbody></table>';
+          return html;
+        }
+      );
+    }
+
+    formatted = formatted.replace(/\n/g, '<br>');
+    return formatted.trim();
+  }
+  </script>
+
+  <style>
+  .response-content {
+    background: #f9fafb;
+    border-radius: 10px;
+    padding: 15px 20px;
+    line-height: 1.6;
+  }
+  .response-content h3, .response-content h4 {
+    border-bottom: 2px solid #e3e3e3;
+    padding-bottom: 4px;
+  }
+  .response-content ul {
+    list-style-type: disc;
+  }
+  .alert-warning {
+    background-color: #fff3cd;
+    border: 1px solid #ffeeba;
+    border-radius: 8px;
+  }
+  </style>
 </body>
 {% endblock %}

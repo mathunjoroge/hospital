@@ -23,7 +23,7 @@ API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
 # --- Universal Clinical Summarizer Class ---
 class UniversalClinicalSummarizer:
-    """A medical chatbot using Gemini API for accurate, safe, and grounded medical responses."""
+    """A medical chatbot using Gemini API for natural, conversational medical responses."""
     
     SAFETY_FILTERS: Dict[str, Any] = {
         "dangerous_advice": [
@@ -43,7 +43,7 @@ class UniversalClinicalSummarizer:
         self.gemini_api_key = gemini_api_key
         logger.info(f"MedicalChatbot initialized with model: {GEMINI_MODEL}")
 
-    def _query_gemini(self, prompt: str, max_tokens: int = 1000, max_retries: int = 5) -> Dict[str, Any]:
+    def _query_gemini(self, prompt: str, max_tokens: int = 1500, max_retries: int = 5) -> Dict[str, Any]:
         """
         Query Gemini API with Google Search grounding and exponential backoff.
         Returns a dictionary containing the 'text' and 'sources' (list of dicts).
@@ -53,15 +53,16 @@ class UniversalClinicalSummarizer:
         system_instruction = """
         You are an evidence-based medical AI assistant designed for natural, multi-turn conversations. Your primary purpose is to educate, inform, and support users by explaining medical concepts, clinical findings, and treatment options in clear, professional language.
 
-        Your core directives are:
-        1.  **Maintain Conversational Flow:** Understand and respond to multi-part questions (e.g., "what is X, how is it treated, how can I prevent it?"). Address all parts of a user's request in a single, comprehensive, and well-structured response. Use the provided conversation history to maintain context and ensure continuity.
-        2.  **Provide Structured Answers:** Organize information clearly using headings, bolding, and lists to make complex topics easy to understand.
-        3.  **Ground All Information:** All factual claims must be grounded in credible, verifiable medical sources.
-        4.  **Emphasize Disclaimers:** Always include a clear, prominent disclaimer that you are **not a substitute for professional medical advice, diagnosis, or treatment**.
-        5.  **Encourage Professional Consultation:** Strongly encourage users to **consult a qualified healthcare professional** for personalized advice.
-        6.  **Maintain Tone:** Be neutral, evidence-based, and empathetic.
+        CRITICAL DIRECTIVES:
+        1. **ALWAYS provide complete, detailed medical explanations** - never cut off responses prematurely
+        2. **Maintain Conversational Flow:** Understand and respond to multi-part questions and follow-up questions naturally
+        3. **Be Conversational:** Use natural language, appropriate greetings, and follow-up questions
+        4. **Provide Structured Answers:** Organize information clearly using headings, bolding, and lists
+        5. **Ground All Information:** All factual claims must be grounded in credible, verifiable medical sources
+        6. **Include Disclaimers:** Always include appropriate medical disclaimers
+        7. **Maintain Tone:** Be neutral, evidence-based, and empathetic
 
-        Your goal is to assist in medical understanding—not to make clinical judgments or replace professional expertise.
+        IMPORTANT: Your responses must be COMPLETE and not truncated. Provide full explanations.
         """
 
         payload = {
@@ -69,7 +70,7 @@ class UniversalClinicalSummarizer:
             "systemInstruction": {"parts": [{"text": system_instruction}]},
             "generationConfig": {
                 "maxOutputTokens": max_tokens,
-                "temperature": 0.2, 
+                "temperature": 0.3,
             },
             "tools": [{"google_search": {}}],
         }
@@ -78,7 +79,7 @@ class UniversalClinicalSummarizer:
         
         for attempt in range(max_retries):
             try:
-                response = requests.post(url, headers=headers, json=payload, timeout=20)
+                response = requests.post(url, headers=headers, json=payload, timeout=30)
                 response.raise_for_status()
                 
                 result = response.json()
@@ -103,6 +104,7 @@ class UniversalClinicalSummarizer:
                                 "title": attribution['web'].get('title', 'N/A')
                             })
                 
+                logger.info(f"API response received. Length: {len(text)} characters")
                 return {"text": text, "sources": sources}
 
             except requests.exceptions.RequestException as e:
@@ -155,90 +157,173 @@ For personalized, accurate, and safe medical information, you must:
 This chatbot provides general, educational information only.
 """
 
+    def _build_conversational_prompt(self, question: str, conversation_history: List[Dict[str, str]] = None) -> str:
+        """Build a conversational prompt that intelligently maintains context."""
+        
+        # Start with strong context instructions
+        prompt = """You are having a natural, ongoing conversation about medical topics. You MUST maintain context from the conversation history.
+
+CRITICAL RULES FOR FOLLOW-UP QUESTIONS:
+1. When a user asks a short follow-up question like "what are the causes", "tell me more", "how is it treated", etc., you MUST assume it refers to the most recent topic discussed
+2. NEVER ask for clarification on follow-up questions - use the context from our previous discussion
+3. Continue the conversation naturally about the same topic
+4. Provide detailed, specific information relevant to the ongoing discussion"""
+        
+        # Add conversation history if available
+        if conversation_history and len(conversation_history) > 0:
+            prompt += "\n\nCONVERSATION HISTORY (MOST RECENT FIRST):\n"
+            # Show the most recent exchanges first for better context
+            for i, entry in enumerate(reversed(conversation_history[-3:])):
+                clean_response = self._clean_previous_response(entry['response'])
+                if entry['question'].strip() and clean_response.strip():
+                    prompt += f"USER: {entry['question']}\n"
+                    prompt += f"YOU: {clean_response}\n\n"
+        
+        # Enhanced follow-up detection with stronger context
+        is_follow_up = self._is_follow_up_question(question, conversation_history)
+        
+        if is_follow_up and conversation_history and len(conversation_history) > 0:
+            # Get the most recent conversation for context
+            last_exchange = conversation_history[-1]
+            last_question = last_exchange['question']
+            last_response_clean = self._clean_previous_response(last_exchange['response'])
+            
+            prompt += f"CONTEXT FOR CURRENT QUESTION:\n"
+            prompt += f"We are currently discussing: '{last_question}'\n"
+            prompt += f"Your last response was about: {last_response_clean[:300]}...\n"
+            prompt += f"The user's current question '{question}' is a DIRECT FOLLOW-UP about this same topic.\n\n"
+            
+            prompt += "RESPONSE REQUIREMENTS:\n"
+            prompt += "✅ Continue discussing the SAME TOPIC from our previous conversation\n"
+            prompt += "✅ DO NOT ask 'what do you mean?' or ask for clarification\n"
+            prompt += "✅ Provide specific, detailed information relevant to the ongoing discussion\n"
+            prompt += "✅ Structure your response clearly\n"
+            prompt += "✅ Include appropriate medical disclaimers\n\n"
+            
+            prompt += f"Based on our discussion about '{last_question}', please answer the follow-up question: '{question}'\n\n"
+        
+        prompt += f"CURRENT USER MESSAGE: {question}\n\n"
+        
+        if not is_follow_up:
+            prompt += """Please provide a complete, detailed explanation that:
+1. Answers the question thoroughly
+2. Uses clear structure with headings and bullet points if helpful
+3. Includes relevant medical information
+4. Adds appropriate disclaimers
+5. Is conversational and helpful
+
+Response:"""
+        
+        return prompt
+
+    def _is_follow_up_question(self, current_question: str, conversation_history: List[Dict[str, str]] = None) -> bool:
+        """Determine if the current question is likely a follow-up to previous conversation."""
+        if not conversation_history or len(conversation_history) == 0:
+            return False
+        
+        follow_up_indicators = [
+            'what are the', 'how do you', 'can you explain', 'tell me more',
+            'what about', 'and what', 'how about', 'what causes',
+            'what symptoms', 'how is it', 'what treatment', 'how do they',
+            'what is the', 'can it be', 'is it', 'does it', 'what is it',
+            'what was that', 'explain more', 'go on', 'continue', 'and how',
+            'what about the', 'tell me about', 'what else', 'how about',
+            'what are', 'how are', 'why are', 'when are', 'where are'
+        ]
+        
+        current_lower = current_question.lower().strip()
+        
+        # Check if it contains follow-up phrases
+        for indicator in follow_up_indicators:
+            if current_lower.startswith(indicator) or f" {indicator} " in f" {current_lower} ":
+                return True
+        
+        # Check if it's a short, context-dependent question (5 words or less)
+        if len(current_question.split()) <= 5:
+            return True
+        
+        # Check for pronouns that reference previous content
+        reference_pronouns = ['they', 'it', 'that', 'this', 'those', 'these']
+        if any(pronoun in current_lower.split() for pronoun in reference_pronouns):
+            return True
+        
+        # Check for very short questions that are likely follow-ups
+        if len(current_question) <= 20 and current_lower not in ['hello', 'hi', 'help', 'thanks', 'thank you']:
+            return True
+        
+        return False
+
+    def _clean_previous_response(self, response: str) -> str:
+        """Clean previous responses to remove HTML and formatting for context."""
+        if not response:
+            return ""
+            
+        # Remove HTML tags
+        clean_text = bleach.clean(response, tags=[], strip=True)
+        
+        # Remove the disclaimer section and footer
+        disclaimer_start = clean_text.find("MANDATORY DISCLAIMER:")
+        if disclaimer_start != -1:
+            clean_text = clean_text[:disclaimer_start].strip()
+        
+        # Remove header information and metadata
+        clean_text = re.sub(r'🩺 Medical Assistant.*?Your question:', '', clean_text, flags=re.DOTALL)
+        clean_text = re.sub(r'Response generated on.*', '', clean_text, flags=re.DOTALL)
+        clean_text = re.sub(r'Powered by Gemini AI.*', '', clean_text, flags=re.DOTALL)
+        clean_text = re.sub(r'---.*', '', clean_text, flags=re.DOTALL)
+        
+        # Clean up extra whitespace but preserve paragraph structure
+        clean_text = re.sub(r'\n\s*\n', '\n\n', clean_text)
+        clean_text = re.sub(r'[ \t]+', ' ', clean_text)
+        clean_text = clean_text.strip()
+        
+        return clean_text
+
     def answer(self, question: str, conversation_history: List[Dict[str, str]] = None) -> str:
-            """Answer a medical question with accuracy, using conversation history for context.
+        """Answer a medical question with natural conversation flow."""
+        try:
+            if not question or not question.strip():
+                return self._format_output(
+                    "Hello! I'm here to help with medical questions. What would you like to know?", 
+                    question="Greeting", 
+                    sources=[]
+                )
             
-            This updated function cleans previous Assistant responses in the history 
-            to ensure the AI maintains conversational context without being confused 
-            by HTML, disclaimers, and metadata."""
+            # Check for emergency conditions
+            emergency_response = self._check_emergency(question)
+            if emergency_response:
+                return self._format_output(emergency_response, question=question, is_error=True)
             
-            try:
-                if not question or not question.strip():
-                    return self._format_output("Please provide a valid medical question.", sources=[])
-                
-                # Check for emergency conditions
-                emergency_response = self._check_emergency(question)
-                if emergency_response:
-                    return self._format_output(emergency_response, is_error=True)
-                
-                # Build prompt with streamlined conversation history
-                prompt = ""
-                if conversation_history:
-                    prompt += "Conversation History:\n"
-                    
-                    # Iterate over the last 5 exchanges to build context
-                    for entry in conversation_history[-5:]:
-                        
-                        # --- START FIX: Robust Cleaning of Assistant's previous response ---
-                        
-                        # 1. Strip all HTML tags entirely (leaving only text)
-                        clean_response = bleach.clean(entry['response'], tags=[], strip=True)
-                        
-                        # 2. Use a single, powerful regex to remove all non-core content:
-                        #    - MANDATORY DISCLAIMER block
-                        #    - Generated by / Powered by lines
-                        #    - Any remaining horizontal rules (---)
-                        #    - The specific in-response disclaimer text if it was included in the content
-                        # The pattern matches any text starting from the word DISCLAIMER: to the end of the string,
-                        # ensuring a clean cut-off.
-                        
-                        # We will first try to find the starting point of the noise block
-                        disclaimer_start_index = clean_response.find("MANDATORY DISCLAIMER:")
-                        if disclaimer_start_index != -1:
-                            # Cut the string off before the noise starts
-                            clean_response = clean_response[:disclaimer_start_index].strip()
-                        
-                        # Also remove the internal disclaimer paragraph if it's still there
-                        internal_disclaimer = "Disclaimer: I am an AI assistant and cannot provide medical advice. This information is for educational purposes only and is not a substitute for professional medical advice, diagnosis, or treatment. Always consult a qualified healthcare professional for personalized advice regarding your health."
-                        clean_response = clean_response.replace(internal_disclaimer, '').strip()
+            # Build conversational prompt with improved context handling
+            prompt = self._build_conversational_prompt(question, conversation_history)
+            
+            logger.info(f"Generated prompt for question: {question}")
+            logger.info(f"Conversation history length: {len(conversation_history) if conversation_history else 0}")
+            
+            # Query Gemini API with grounding - increased tokens for complete responses
+            api_result = self._query_gemini(prompt, max_tokens=1800)
+            response = api_result['text']
+            sources = api_result['sources']
 
-                        # Finally, remove the surrounding header/footer content that isn't the body
-                        clean_response = re.sub(r'🩺 Grounded Medical Assistant|Question:.*|Generated by Medical Chatbot.*|---', '', clean_response, flags=re.DOTALL).strip()
-                        
-                        # Replace multiple newlines/spaces with a single space for neatness
-                        clean_response = re.sub(r'\s+', ' ', clean_response).strip()
-                        
-                        # --- END FIX ---
-
-                        # Add the cleaned history to the prompt
-                        # If the question was blank (e.g. from an initial blank load), skip it
-                        if entry['question'].strip():
-                            prompt += f"User: {entry['question']}\nAssistant: {clean_response}\n"
-                        
-                    prompt += "\nCurrent Question:\n"
-                prompt += question
-
-                # Query Gemini API with grounding
-                api_result = self._query_gemini(prompt)
-                response = api_result['text']
-                sources = api_result['sources']
-
-                if not response:
-                    logger.warning("Gemini API returned empty response after retries.")
-                    return self._format_output(self._safe_fallback_response(question), sources=[])
-                
-                # Verify response for safety
-                response = self._verify_response(response)
-                
-                # Add mandatory disclaimers and metadata (as before)
+            if not response:
+                logger.warning("Gemini API returned empty response after retries.")
+                return self._format_output(self._safe_fallback_response(question), question=question, sources=[])
+            
+            logger.info(f"Successfully generated response of {len(response)} characters")
+            
+            # Verify response for safety
+            response = self._verify_response(response)
+            
+            # Add mandatory disclaimers and metadata
+            if "disclaimer" not in response.lower() and "consult" not in response.lower():
                 response += "\n\n---"
-                response += "\n**MANDATORY DISCLAIMER:** This information is for educational purposes only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of a qualified healthcare provider for any health concerns or before starting a new treatment."
-                
-                return self._format_output(response, question=question, sources=sources)
+                response += "\n**MANDATORY DISCLAIMER:** \n This information is for educational purposes only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of a qualified healthcare provider for any health concerns or before starting a new treatment."
             
-            except Exception as e:
-                logger.error(f"Critical error processing question: {e}")
-                return self._format_output(self._safe_fallback_response(question), sources=[])
+            return self._format_output(response, question=question, sources=sources)
+        
+        except Exception as e:
+            logger.error(f"Critical error processing question: {e}")
+            return self._format_output(self._safe_fallback_response(question), question=question, sources=[])
 
     def _verify_response(self, response: str) -> str:
         """Verify response for safety (e.g., preventing dangerous advice)."""
@@ -246,7 +331,7 @@ This chatbot provides general, educational information only.
         for pattern in self.SAFETY_FILTERS["dangerous_advice"]:
             if re.search(pattern, response_lower, re.IGNORECASE):
                 logger.warning(f"Dangerous advice pattern detected and will be overridden: {pattern}")
-                return "Caution: I cannot provide advice on self-treatment or altering prescribed medications. You must consult your physician or a pharmacist immediately."
+                return "I understand you're looking for guidance, but I cannot provide advice on self-treatment or altering prescribed medications. It's essential to consult your physician or a pharmacist for personalized medical advice."
         return response
 
     def _format_output(self, response: str, question: str = None, sources: List[Dict[str, str]] = None, is_error: bool = False) -> str:
@@ -259,80 +344,8 @@ This chatbot provides general, educational information only.
                 for s in sources
             )
             source_html = f"""
-                    <style>
-            .hmis-response {{
-                font-family: 'Inter', sans-serif;
-                background-color: #f9fafb;
-                padding: 1.5rem;
-                border-radius: 0.75rem;
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
-                max-width: 100%;
-                margin: 1rem auto;
-            }}
-            .response-header h3 {{
-                font-size: 1.5rem;
-                font-weight: 700;
-                color: #059669;
-                margin-bottom: 0.5rem;
-            }}
-            .response-header p {{
-                font-style: italic;
-                color: #4b5563;
-                margin-bottom: 1rem;
-                border-bottom: 1px solid #e5e7eb;
-                padding-bottom: 0.5rem;
-            }}
-            .response-content p {{
-                white-space: pre-wrap;
-                font-size: 1rem;
-                line-height: 1.6;
-                color: #1f2937;
-            }}
-            .disclaimer {{
-                margin-top: 1.5rem;
-                padding-top: 1rem;
-                border-top: 1px solid #e5e7eb;
-                font-size: 0.875rem;
-                color: #6b7280;
-            }}
-            .disclaimer strong {{
-                color: #ef4444;
-                font-weight: 600;
-            }}
-            .grounding-sources {{
-                margin-top: 1rem;
-                padding: 0.75rem;
-                background-color: #e0f2f1;
-                border-radius: 0.5rem;
-                border: 1px solid #99f6e4;
-            }}
-            .grounding-sources h4 {{
-                font-size: 1rem;
-                color: #047857;
-                margin-bottom: 0.5rem;
-            }}
-            .grounding-sources ul {{
-                list-style-type: none;
-                padding-left: 0;
-            }}
-            .grounding-sources li {{
-                margin-bottom: 0.25rem;
-                font-size: 0.85rem;
-            }}
-            .grounding-sources a {{
-                color: #059669;
-                text-decoration: underline;
-            }}
-            .chatbot-error {{
-                background-color: #fee2e2;
-                border: 2px solid #ef4444;
-            }}
-            .chatbot-error h3 {{
-                color: #dc2626;
-            }}
-        </style>
             <div class="grounding-sources">
-                <h4>Sources (Grounding)</h4>
+                <h4>📚 Sources & References</h4>
                 <ul>{source_list}</ul>
             </div>
             """
@@ -345,20 +358,22 @@ This chatbot provides general, educational information only.
             </div>
             """
         
-        html = f"""
+        # Format question for display (handle empty questions for initial state)
+        display_question = bleach.clean(question) if question else "Starting our conversation"
         
-        <div class="hmis-response">
+        html = f"""
+        <div class="container">
             <div class="response-header">
-                <h3>🩺 Grounded Medical Assistant</h3>
-                <p><strong>Question:</strong> {bleach.clean(question) if question else "General inquiry"}</p>
+                <h3>🩺 Medical Assistant</h3>
+                <p><strong>Your question:</strong> {display_question}</p>
             </div>
             <div class="response-content">
                 <p>{response_clean}</p>
             </div>
             {source_html}
             <div class="disclaimer">
-                <p><em>Generated by Medical Chatbot on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</em></p>
-                <p><em>Powered by Gemini API</em></p>
+                <p><em>Response generated on {datetime.now().strftime('%Y-%m-%d at %H:%M')}</em></p>
+                <p><em>Powered by Gemini AI with medical source verification</em></p>
             </div>
         </div>
         """
