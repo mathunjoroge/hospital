@@ -1,199 +1,182 @@
 {% extends "base.html" %}
 {% block content %}
-<title>HMIS Clinical Chatbot</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.4.0/purify.min.js"></script>
-
-<body class="bg-light d-flex justify-content-center align-items-start p-4">
-  <div class="container-lg bg-white shadow-lg rounded-4 d-flex flex-column vh-90 overflow-hidden">
-    <header class="text-center border-bottom py-3">
-      <h1 class="text-primary mb-1">🩺 HMIS Clinical Information Chatbot</h1>
-      <p class="text-secondary">Enter a clinical note or question below. Press <strong>Enter</strong> to send, or <strong>Shift + Enter</strong> for a new line.</p>
-      <div class="text-end">
-        <form action="/medicine/clear_conversation" method="POST" style="display:inline;">
-          <button type="submit" class="btn btn-outline-secondary btn-sm">Clear Conversation</button>
-        </form>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>HMIS Clinical Chatbot</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.4.0/purify.min.js"></script>
+  <style>
+    body { background:#f3f7fb; }
+    .chat-wrap { max-width:auto; margin:30px auto; height:82vh; display:flex; flex-direction:column; background:white; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,0.06); overflow:hidden;}
+    .chat-header { padding:18px; border-bottom:1px solid #eef3f8; position:relative; }
+    .thinking-indicator { 
+      position:absolute; right:20px; top:20px;
+      display:none; font-size:0.9rem; color:#6c757d;
+      font-style:italic;
+    }
+    .thinking-indicator.active { display:inline-block; }
+    .chat-body { flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:12px; }
+    .input-area { padding:14px; border-top:1px solid #eef3f8; display:flex; gap:10px; align-items:center; }
+    .msg { max-width:78%; padding:12px 14px; border-radius:12px; white-space:pre-wrap; box-shadow:0 2px 6px rgba(0,0,0,0.03); animation:fadeUp .18s ease; transition:all 0.3s ease; }
+    .msg.user { align-self:flex-end; background:#0d6efd; color:#fff; border-bottom-right-radius:6px; }
+    .msg.bot { align-self:flex-start; background:#f8f9fa; color:#212529; border-bottom-left-radius:6px; }
+    .typing { display:inline-block; width:48px; height:14px; position:relative; }
+    .typing span { position:absolute; top:0; width:8px; height:8px; border-radius:50%; background:#c7cbd0; animation: blink 1s infinite; opacity:0.9; }
+    .typing span:nth-child(1){ left:0; animation-delay:0s; }
+    .typing span:nth-child(2){ left:12px; animation-delay:0.15s; }
+    .typing span:nth-child(3){ left:24px; animation-delay:0.3s; }
+    @keyframes blink { 0%{ transform: translateY(0); opacity:0.25;} 50%{ transform: translateY(-4px); opacity:1;} 100%{ transform: translateY(0); opacity:0.25;} }
+    @keyframes fadeUp { from {opacity:0; transform: translateY(6px);} to {opacity:1; transform: translateY(0);} }
+    .followups { margin-top:8px; display:flex; flex-wrap:wrap; gap:8px; }
+    .followups button { background:#e7f1ff; border:1px solid #d0e7ff; color:#0366d6; padding:6px 10px; border-radius:8px; cursor:pointer; }
+    .meta { font-size:0.85rem; color:#6c757d; margin-top:6px;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="chat-header d-flex justify-content-between align-items-center">
+      <div>
+        <h4 class="mb-0">🩺 HMIS Clinical Assistant</h4>
+        <small class="text-muted">Ask clinical questions — conversation is remembered during this session.</small>
       </div>
-    </header>
+      <div id="thinking-indicator" class="thinking-indicator">Thinking...</div>
+      <form action="/medicine/clear_conversation" method="POST" style="margin:0;">
+        {{ clear_form.csrf_token }}
+        <button class="btn btn-sm btn-outline-secondary">Clear</button>
+      </form>
+    </div>
 
-    <main class="flex-grow-1 overflow-auto p-3">
-      <div class="conversation-container mt-3">
-        {% if conversation %}
-          {% for entry in conversation %}
-            <div class="conversation-entry mb-4">
-              <div class="user-question bg-primary text-white p-3 rounded-3">
-                <strong>You:</strong> {{ entry.question | safe }}
-              </div>
-              <div class="chatbot-response mt-2 response-content">
-                {{ entry.response | safe }}
-              </div>
-            </div>
-          {% endfor %}
-        {% else %}
-          <div class="container text-center">
-            <p class="text-muted">No conversation history yet. Start by asking a question!</p>
-          </div>
-        {% endif %}
-        <div class="summary-container mt-3">
-          <div class="streaming-container" id="streaming-response"></div>
-        </div>
-      </div>
-    </main>
+    <div id="chat-body" class="chat-body">
+      {% for entry in conversation %}
+        <div class="msg user"><strong>You:</strong> {{ entry.question | safe }}</div>
+        <div class="msg bot response-content">{{ entry.response | safe }}</div>
+      {% endfor %}
+    </div>
 
-    <form id="chat-form" method="POST" action="/medicine/chatbot" class="border-bottom bg-light p-3">
-      <div class="input-group">
-        <textarea name="clinical_note" id="clinical_note" class="form-control rounded-3" rows="2"
-          placeholder="Type your clinical note or question..." autocomplete="off">{{ input_note }}</textarea>
-        <button type="submit" class="btn btn-primary rounded-circle ms-2 d-flex justify-content-center align-items-center shadow-sm send-btn">
-          <i class="bi bi-send-fill fs-5"></i>
-        </button>
-      </div>
+    <form id="chat-form" method="POST" action="/medicine/chatbot" class="input-area">
+      {{ form.csrf_token }}
+      <textarea id="clinical_note" name="clinical_note" class="form-control" rows="1" placeholder="Type your clinical note or question..."></textarea>
+      <button type="submit" class="btn btn-primary">Send</button>
     </form>
   </div>
 
   <script>
-  // --- CHAT STREAM HANDLER ---
-  const form = document.getElementById("chat-form");
-  const textarea = document.getElementById("clinical_note");
-  const summaryContainer = document.querySelector(".summary-container");
-  const conversationContainer = document.querySelector(".conversation-container");
-  const main = document.querySelector("main");
+    function sanitizeHtml(html) { return DOMPurify.sanitize(html); }
 
-  form.addEventListener("submit", async function (e) {
-    e.preventDefault();
-    const formData = new FormData(form);
-    const clinicalNote = formData.get("clinical_note").trim();
-
-    if (!clinicalNote) {
-      summaryContainer.innerHTML = '<div class="hmis-error">Please enter a clinical note or question.</div>';
-      main.scrollTop = main.scrollHeight;
-      return;
+    function formatMedicalResponse(rawText) {
+      if (!rawText) return "";
+      let formatted = rawText
+        .replace(/^### (.*)$/gim, '<h5 class="text-primary">$1</h5>')
+        .replace(/^## (.*)$/gim, '<h4 class="text-success">$1</h4>')
+        .replace(/^# (.*)$/gim, '<h3>$1</h3>')
+        .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+        .replace(/^\s*\* (.*)$/gim, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/gims, '<ul class="ms-3">$1</ul>')
+        .replace(/MANDATORY DISCLAIMER:[\s\S]*/gim, '<div class="alert alert-warning mt-2"><strong>⚠️ Medical Disclaimer:</strong> This content is for educational purposes only. Consult a healthcare professional.</div>')
+        .replace(/\n/g, '<br>');
+      return formatted.trim();
     }
 
-    // Add user question to conversation
-    const userEntry = document.createElement("div");
-    userEntry.classList.add("conversation-entry", "mb-4");
-    userEntry.innerHTML = `
-      <div class="user-question bg-primary text-white p-3 rounded-3">
-        <strong>You:</strong> ${DOMPurify.sanitize(clinicalNote)}
-      </div>
-    `;
-    conversationContainer.insertBefore(userEntry, summaryContainer);
-    summaryContainer.innerHTML = '<div class="streaming-container" id="streaming-response"></div>';
-    const streamingContainer = document.getElementById("streaming-response");
-    main.scrollTop = main.scrollHeight;
+    const chatBody = document.getElementById('chat-body');
+    const form = document.getElementById('chat-form');
+    const textarea = document.getElementById('clinical_note');
+    const thinking = document.getElementById('thinking-indicator');
 
-    try {
-      const response = await fetch("/medicine/chatbot", { method: "POST", body: formData });
-      if (!response.ok) throw new Error(`Network error: ${response.status}`);
+    function scrollToBottom() { chatBody.scrollTop = chatBody.scrollHeight; }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullResponse = '';
+    function createUserBubble(text) {
+      const el = document.createElement('div');
+      el.className = 'msg user';
+      el.innerHTML = `<strong>You:</strong> ${sanitizeHtml(text)}`;
+      chatBody.appendChild(el);
+      scrollToBottom();
+    }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          streamingContainer.classList.add("streaming-complete");
-          // Create chatbot response
-          const responseDiv = document.createElement("div");
-          responseDiv.classList.add("chatbot-response", "mt-2", "response-content");
-          responseDiv.innerHTML = formatMedicalResponse(fullResponse);
-          userEntry.appendChild(responseDiv);
-          summaryContainer.innerHTML = '';
-          main.scrollTop = main.scrollHeight;
-          break;
-        }
-        const chunk = decoder.decode(value, { stream: true });
-        fullResponse += chunk;
-        streamingContainer.innerHTML = formatMedicalResponse(fullResponse);
-        main.scrollTop = main.scrollHeight;
-        await new Promise(r => setTimeout(r, 40));
+    function createBotBubble(initialText = '') {
+      const el = document.createElement('div');
+      el.className = 'msg bot';
+      if (initialText) {
+        el.textContent = initialText;
+      } else {
+        el.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
       }
-
-      textarea.value = '';
-    } catch (error) {
-      summaryContainer.innerHTML = '<div class="hmis-error">Error fetching response. Please try again.</div>';
-      console.error("Streaming error:", error);
-      main.scrollTop = main.scrollHeight;
+      chatBody.appendChild(el);
+      scrollToBottom();
+      return el;
     }
-  });
 
-  textarea.addEventListener("keydown", function (e) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      form.dispatchEvent(new Event("submit"));
+    function extractFollowups(text) {
+      const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+      const candidates = lines.filter(l => l.startsWith('•') || l.startsWith('-') || /^\d+\./.test(l));
+      if (candidates.length === 0) {
+        return lines.filter(l => l.toLowerCase().startsWith('would') || l.endsWith('?')).slice(0,3);
+      }
+      return candidates.map(l => l.replace(/^[-•\d\.\s]+/, '').trim()).slice(0,3);
     }
-  });
 
-  window.addEventListener("load", () => {
-    main.scrollTop = main.scrollHeight;
-  });
-  </script>
+    function renderFollowups(followups, container) {
+      if (!followups || followups.length === 0) return;
+      const div = document.createElement('div');
+      div.className = 'followups';
+      followups.forEach(q => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = q;
+        btn.onclick = () => { textarea.value = q; textarea.focus(); };
+        div.appendChild(btn);
+      });
+      container.appendChild(div);
+      scrollToBottom();
+    }
 
-  <script>
-  // --- RESPONSE FORMATTER ---
-  function formatMedicalResponse(rawText) {
-    if (!rawText) return "";
-    let formatted = DOMPurify.sanitize(rawText);
-
-    formatted = formatted
-      .replace(/^### (.*)$/gim, '<h4 class="text-primary mt-3">$1</h4>')
-      .replace(/^## (.*)$/gim, '<h3 class="text-success mt-3">$1</h3>')
-      .replace(/^# (.*)$/gim, '<h2 class="mt-3">$1</h2>')
-      .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-      .replace(/^\s*\* (.*)$/gim, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>)/gims, '<ul class="ms-3">$1</ul>')
-      .replace(
-        /MANDATORY DISCLAIMER:[\s\S]*/gim,
-        '<div class="alert alert-warning mt-3"><strong>⚠️ Medical Disclaimer:</strong> This content is for educational purposes only. Always consult a qualified healthcare provider.</div>'
-      );
-
-    // Table handling
-    if (formatted.includes('|')) {
-      formatted = formatted.replace(
-        /\|(.+)\|\n\|([-\s\|]+)\|\n((\|.+\|\n)*)/gim,
-        match => {
-          const rows = match.trim().split('\n');
-          let html = "<table class='table table-bordered table-sm mt-3'>";
-          rows.forEach((row, i) => {
-            const cells = row.split('|').filter(Boolean).map(c => c.trim());
-            if (i === 0)
-              html += '<thead><tr>' + cells.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
-            else if (!row.includes('---'))
-              html += '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
-          });
-          html += '</tbody></table>';
-          return html;
+    async function postAndStream(formData, botBubble) {
+      thinking.classList.add('active');
+      try {
+        const response = await fetch(form.action, { method: 'POST', body: formData });
+        if (!response.ok) throw new Error(`Response not OK: ${response.status}`);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulated = '';
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          accumulated += decoder.decode(value, { stream: true });
+          botBubble.innerHTML = sanitizeHtml(formatMedicalResponse(accumulated));
+          scrollToBottom();
         }
-      );
+        renderFollowups(extractFollowups(accumulated), botBubble);
+      } catch (err) {
+        botBubble.innerHTML = sanitizeHtml('<strong>⚠️ Error:</strong> Unable to process your request.');
+        console.error(err);
+      } finally {
+        thinking.classList.remove('active');
+      }
     }
 
-    formatted = formatted.replace(/\n/g, '<br>');
-    return formatted.trim();
-  }
-  </script>
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const note = textarea.value.trim();
+      if (!note) return;
+      createUserBubble(note);
+      const botBubble = createBotBubble("Thinking...");
+      const fd = new FormData(form); // Include CSRF token
+      postAndStream(fd, botBubble);
+      textarea.value = '';
+      textarea.focus();
+    });
 
-  <style>
-  .response-content {
-    background: #f9fafb;
-    border-radius: 10px;
-    padding: 15px 20px;
-    line-height: 1.6;
-  }
-  .response-content h3, .response-content h4 {
-    border-bottom: 2px solid #e3e3e3;
-    padding-bottom: 4px;
-  }
-  .response-content ul {
-    list-style-type: disc;
-  }
-  .alert-warning {
-    background-color: #fff3cd;
-    border: 1px solid #ffeeba;
-    border-radius: 8px;
-  }
-  </style>
+    textarea.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    window.addEventListener('load', scrollToBottom);
+  </script>
 </body>
+</html>
 {% endblock %}

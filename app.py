@@ -1,4 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+import logging
+import os
+import time
+import redis
+from datetime import datetime
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_session import Session
 from flask_login import login_user, current_user, logout_user, login_required
 from flask_migrate import Migrate
@@ -6,19 +11,13 @@ from flask_mail import Mail
 from flask_socketio import SocketIO
 from flask_apscheduler import APScheduler
 from werkzeug.security import check_password_hash
-from datetime import datetime
-import os
-import logging
-import uuid
 from config import Config
 from extensions import db, login_manager
 from departments.models.user import User
 from departments.models.admin import Log
 from departments.models.nursing import Notifications
-from werkzeug.utils import secure_filename
 
 # Initialize Flask app
-logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config.from_object(Config)
 
@@ -27,14 +26,50 @@ app.config['UPLOAD_FOLDER'] = os.path.join('Uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['DICOM_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'dicom_Uploads')
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2 GB file limit
-# In app.py, after Session(app)
-app.config['SESSION_FILE_DIR'] = os.path.join(app.root_path, 'sessions')
-os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
-logger.info("Session directory initialized at: %s", app.config['SESSION_FILE_DIR'])
 
-os.makedirs(app.config['DICOM_UPLOAD_FOLDER'], exist_ok=True)
-app.config['SESSION_TYPE'] = 'filesystem'  # Use filesystem for simplicity; consider Redis for production
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
+app.config['SESSION_TYPE'] = 'redis'
+app.config['SESSION_REDIS'] = redis.Redis(host='localhost', port=6379, db=0)
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV', 'development') == 'production'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_FILE_THRESHOLD'] = 500
+app.config['SESSION_KEY_PREFIX'] = 'hospital_flask_session:'
+
+# Temporary logger before full logging config
+temp_logger = logging.getLogger(__name__)
+
+filesystem_session_dir = os.path.abspath(os.path.join(os.getcwd(), 'flask_session'))
+
+try:
+    app.config['SESSION_REDIS'].ping()
+    temp_logger.info("Redis connection successful. Using Redis session backend.")
+    os.makedirs(filesystem_session_dir, exist_ok=True)
+    if not os.access(filesystem_session_dir, os.W_OK):
+        temp_logger.warning(f"Filesystem session directory not writable: {filesystem_session_dir}")
+    else:
+        temp_logger.debug(f"Filesystem session directory ready at: {filesystem_session_dir}")
+except redis.ConnectionError as e:
+    temp_logger.error(f"Redis connection failed: {e}. Falling back to filesystem sessions.")
+    app.config['SESSION_TYPE'] = 'filesystem'
+    app.config['SESSION_FILE_DIR'] = filesystem_session_dir
+    os.makedirs(filesystem_session_dir, exist_ok=True)
+    if not os.access(filesystem_session_dir, os.W_OK):
+        temp_logger.critical(f"Session directory {filesystem_session_dir} is NOT writable.")
+        raise PermissionError(f"Session directory {filesystem_session_dir} is not writable")
+    else:
+        temp_logger.info(f"Using Filesystem sessions at: {filesystem_session_dir}")
+
 Session(app)
+   
+
+# Ensure DICOM upload folder exists
+os.makedirs(app.config['DICOM_UPLOAD_FOLDER'], exist_ok=True)
+
+
 
 # Initialize extensions
 db.init_app(app)
@@ -48,9 +83,18 @@ socketio = SocketIO(app)
 scheduler = APScheduler()
 scheduler.init_app(app)
 
-# Logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging (Moved here for proper config application)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('medical_chatbot.log'),
+        logging.StreamHandler()
+    ]
+)
+# Re-get the logger now that basicConfig is set
 logger = logging.getLogger(__name__)
+logger.debug(f"Final Session configuration: TYPE={app.config['SESSION_TYPE']}, REDIS={app.config.get('SESSION_REDIS', 'Filesystem')}")
 
 # Jinja filters
 @app.template_filter('parse_iso')
@@ -64,6 +108,7 @@ def parse_iso(timestamp):
     except (ValueError, TypeError) as e:
         logger.error(f"Error parsing timestamp {timestamp}: {e}")
         return timestamp
+
 
 @app.context_processor
 def inject_unread_notifications():
@@ -142,7 +187,6 @@ def logout():
         return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    # Import blueprints only when running the app
     from departments.records import bp as records_bp
     from departments.billing import bp as billing_bp
     from departments.pharmacy import bp as pharmacy_bp
@@ -155,7 +199,6 @@ if __name__ == '__main__':
     from departments.hr import bp as hr_bp
     from departments.api import bp as api_bp
 
-    # Register blueprints after all imports and definitions
     app.register_blueprint(records_bp, url_prefix='/records')
     app.register_blueprint(billing_bp, url_prefix='/billing')
     app.register_blueprint(pharmacy_bp, url_prefix='/pharmacy')
@@ -169,7 +212,7 @@ if __name__ == '__main__':
     app.register_blueprint(api_bp, url_prefix='/api')
 
     with app.app_context():
-        db.create_all()  # Ensure tables exist
+        db.create_all()
 
-    scheduler.start()  # Start APScheduler
+    scheduler.start()
     socketio.run(app, debug=True)
