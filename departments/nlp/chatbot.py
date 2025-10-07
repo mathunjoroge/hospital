@@ -7,6 +7,9 @@ from typing import Dict, List, Optional, Any
 import requests
 import json
 import os
+import spacy
+import numpy as np
+from scipy.spatial.distance import cosine
 
 # --- Logging Configuration ---
 logging.basicConfig(
@@ -20,6 +23,15 @@ logger = logging.getLogger("MedicalChatbot")
 # --- API Configuration ---
 GEMINI_MODEL = "gemini-2.5-flash-preview-05-20"
 API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
+
+# --- Load SpaCy for Semantic Similarity ---
+# NOTE: While spacy is no longer used for conversational logic, 
+# it's kept here in case it's needed for other NLP tasks.
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    logger.error("SpaCy model 'en_core_web_sm' not found. Please install with: python -m spacy download en_core_web_sm")
+    raise
 
 # --- Universal Clinical Summarizer Class ---
 class UniversalClinicalSummarizer:
@@ -36,41 +48,52 @@ class UniversalClinicalSummarizer:
         ]
     }
 
-    def __init__(self, gemini_api_key: str):
-        """Initialize the chatbot with a Gemini API key."""
+    def __init__(self, gemini_api_key: str, user_type: str = "doctor"):
+        """Initialize the chatbot with a Gemini API key and user type."""
         if not gemini_api_key:
             raise ValueError("Gemini API key is required to connect to the service.")
         self.gemini_api_key = gemini_api_key
-        logger.info(f"MedicalChatbot initialized with model: {GEMINI_MODEL}")
+        self.user_type = user_type.lower()  # "patient" or "clinician"
+        logger.info(f"MedicalChatbot initialized with model: {GEMINI_MODEL}, user_type: {user_type}")
 
-    def _query_gemini(self, prompt: str, max_tokens: int = 1500, max_retries: int = 5) -> Dict[str, Any]:
-        """
-        Query Gemini API with Google Search grounding and exponential backoff.
-        Returns a dictionary containing the 'text' and 'sources' (list of dicts).
-        """
+    # FIX 1: _query_gemini now accepts the full 'contents' list (conversation history)
+    def _query_gemini(self, contents: List[Dict[str, Any]], max_tokens: int = 1500, max_retries: int = 5) -> Dict[str, Any]:
+        """Query Gemini API with Google Search grounding and exponential backoff."""
         url = f"{API_BASE_URL}/{GEMINI_MODEL}:generateContent?key={self.gemini_api_key}"
         
-        system_instruction = """
-        You are an evidence-based medical AI assistant designed for natural, multi-turn conversations. Your primary purpose is to educate, inform, and support users by explaining medical concepts, clinical findings, and treatment options in clear, professional language.
+        system_instruction = f"""
+        You are an **evidence-based clinical AI assistant** trained to provide accurate, comprehensive, and context-aware medical information through natural, multi-turn conversations. Your purpose is to **educate, inform, and support** users — {'patients with clear, empathetic language' if self.user_type == 'patient' else 'clinicians with precise, technical details'} — by explaining medical concepts, findings, and management options.
 
-        CRITICAL DIRECTIVES:
-        1. **ALWAYS provide complete, detailed medical explanations** - never cut off responses prematurely
-        2. **Maintain Conversational Flow:** Understand and respond to multi-part questions and follow-up questions naturally
-        3. **Be Conversational:** Use natural language, appropriate greetings, and follow-up questions
-        4. **Provide Structured Answers:** Organize information clearly using headings, bolding, and lists
-        5. **Ground All Information:** All factual claims must be grounded in credible, verifiable medical sources
-        6. **Include Disclaimers:** Always include appropriate medical disclaimers
-        7. **Maintain Tone:** Be neutral, evidence-based, and empathetic
+        ### CORE DIRECTIVES
+        1. **Provide Comprehensive, Evidence-Based Explanations:** Always deliver thorough, accurate, and up-to-date medical information grounded in reputable clinical sources (e.g., WHO, CDC, NICE, NIH, peer-reviewed journals).
 
-        IMPORTANT: Your responses must be COMPLETE and not truncated. Provide full explanations.
+        2. **Ensure Conversational and Contextual Understanding:** Recognize and respond effectively to multi-part or follow-up questions, maintaining a coherent conversational flow.
+
+        3. **Communicate Professionally and Empathetically:** {'Use simple, empathetic language for patients, avoiding jargon unless requested.' if self.user_type == 'patient' else 'Use precise, technical language suitable for clinicians, including medical terminology.'}
+
+        4. **Organize Responses Logically:** Structure answers with clear headings, bullet points, and concise summaries where appropriate.
+
+        5. **Maintain Scientific Integrity:** Avoid speculation, misinformation, or unsupported claims. Cite or reference authoritative sources when applicable.
+
+        6. **Apply Clinical Reasoning Principles:** Where relevant, discuss differential diagnoses, pathophysiology, diagnostic workup, management strategies, and patient counseling.
+
+        7. **Include Appropriate Medical Disclaimers:** Always clarify that your guidance is for **educational and informational purposes only**, and not a substitute for professional medical advice, diagnosis, or treatment.
+
+        ### STYLE AND TONE
+        - Be **neutral, evidence-driven, and empathetic**.  
+        - Avoid sensational or absolute language.  
+        - Encourage users to consult qualified healthcare professionals for personalized medical care.
+
+        **NOTE:** Responses must be **complete**, **well-structured**, and **never truncated**. Always deliver full explanations with professionalism and precision.
         """
 
         payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
+            # FIX 1.1: Use the incoming contents list directly
+            "contents": contents,
             "systemInstruction": {"parts": [{"text": system_instruction}]},
             "generationConfig": {
                 "maxOutputTokens": max_tokens,
-                "temperature": 0.3,
+                "temperature": 0.3 if self.user_type == "patient" else 0.5,
             },
             "tools": [{"google_search": {}}],
         }
@@ -89,7 +112,14 @@ class UniversalClinicalSummarizer:
                     return {"text": "", "sources": []}
 
                 if not result.get('candidates'):
-                    raise ValueError("API response structure is invalid or candidates are missing.")
+                    # The model might return a response without candidates if the history is too long or complex.
+                    # This check is vital.
+                    if attempt < max_retries - 1:
+                        logger.warning("API returned no candidates. Retrying...")
+                        wait_time = 2 ** attempt
+                        time.sleep(wait_time)
+                        continue # Continue to the next attempt
+                    raise ValueError("API response structure is invalid or candidates are missing after retries.")
 
                 candidate = result['candidates'][0]
                 text = candidate['content']['parts'][0]['text'].strip()
@@ -120,6 +150,14 @@ class UniversalClinicalSummarizer:
                 return {"text": "", "sources": []}
         
         return {"text": "", "sources": []}
+
+    # --- REMOVED HELPER FUNCTIONS ---
+    # The following functions are removed as they are redundant and interfere with 
+    # the LLM's native context handling:
+    # - _summarize_conversation_history
+    # - _build_conversational_prompt
+    # - _is_follow_up_question
+    # - _clean_previous_response
 
     def _check_emergency(self, question: str) -> Optional[str]:
         """Check if the question indicates a medical emergency."""
@@ -156,131 +194,10 @@ For personalized, accurate, and safe medical information, you must:
 
 This chatbot provides general, educational information only.
 """
-
-    def _build_conversational_prompt(self, question: str, conversation_history: List[Dict[str, str]] = None) -> str:
-        """Build a conversational prompt that intelligently maintains context."""
-        
-        # Start with strong context instructions
-        prompt = """You are having a natural, ongoing conversation about medical topics. You MUST maintain context from the conversation history.
-
-CRITICAL RULES FOR FOLLOW-UP QUESTIONS:
-1. When a user asks a short follow-up question like "what are the causes", "tell me more", "how is it treated", etc., you MUST assume it refers to the most recent topic discussed
-2. NEVER ask for clarification on follow-up questions - use the context from our previous discussion
-3. Continue the conversation naturally about the same topic
-4. Provide detailed, specific information relevant to the ongoing discussion"""
-        
-        # Add conversation history if available
-        if conversation_history and len(conversation_history) > 0:
-            prompt += "\n\nCONVERSATION HISTORY (MOST RECENT FIRST):\n"
-            # Show the most recent exchanges first for better context
-            for i, entry in enumerate(reversed(conversation_history[-3:])):
-                clean_response = self._clean_previous_response(entry['response'])
-                if entry['question'].strip() and clean_response.strip():
-                    prompt += f"USER: {entry['question']}\n"
-                    prompt += f"YOU: {clean_response}\n\n"
-        
-        # Enhanced follow-up detection with stronger context
-        is_follow_up = self._is_follow_up_question(question, conversation_history)
-        
-        if is_follow_up and conversation_history and len(conversation_history) > 0:
-            # Get the most recent conversation for context
-            last_exchange = conversation_history[-1]
-            last_question = last_exchange['question']
-            last_response_clean = self._clean_previous_response(last_exchange['response'])
-            
-            prompt += f"CONTEXT FOR CURRENT QUESTION:\n"
-            prompt += f"We are currently discussing: '{last_question}'\n"
-            prompt += f"Your last response was about: {last_response_clean[:300]}...\n"
-            prompt += f"The user's current question '{question}' is a DIRECT FOLLOW-UP about this same topic.\n\n"
-            
-            prompt += "RESPONSE REQUIREMENTS:\n"
-            prompt += "✅ Continue discussing the SAME TOPIC from our previous conversation\n"
-            prompt += "✅ DO NOT ask 'what do you mean?' or ask for clarification\n"
-            prompt += "✅ Provide specific, detailed information relevant to the ongoing discussion\n"
-            prompt += "✅ Structure your response clearly\n"
-            prompt += "✅ Include appropriate medical disclaimers\n\n"
-            
-            prompt += f"Based on our discussion about '{last_question}', please answer the follow-up question: '{question}'\n\n"
-        
-        prompt += f"CURRENT USER MESSAGE: {question}\n\n"
-        
-        if not is_follow_up:
-            prompt += """Please provide a complete, detailed explanation that:
-1. Answers the question thoroughly
-2. Uses clear structure with headings and bullet points if helpful
-3. Includes relevant medical information
-4. Adds appropriate disclaimers
-5. Is conversational and helpful
-
-Response:"""
-        
-        return prompt
-
-    def _is_follow_up_question(self, current_question: str, conversation_history: List[Dict[str, str]] = None) -> bool:
-        """Determine if the current question is likely a follow-up to previous conversation."""
-        if not conversation_history or len(conversation_history) == 0:
-            return False
-        
-        follow_up_indicators = [
-            'what are the', 'how do you', 'can you explain', 'tell me more',
-            'what about', 'and what', 'how about', 'what causes',
-            'what symptoms', 'how is it', 'what treatment', 'how do they',
-            'what is the', 'can it be', 'is it', 'does it', 'what is it',
-            'what was that', 'explain more', 'go on', 'continue', 'and how',
-            'what about the', 'tell me about', 'what else', 'how about',
-            'what are', 'how are', 'why are', 'when are', 'where are'
-        ]
-        
-        current_lower = current_question.lower().strip()
-        
-        # Check if it contains follow-up phrases
-        for indicator in follow_up_indicators:
-            if current_lower.startswith(indicator) or f" {indicator} " in f" {current_lower} ":
-                return True
-        
-        # Check if it's a short, context-dependent question (5 words or less)
-        if len(current_question.split()) <= 5:
-            return True
-        
-        # Check for pronouns that reference previous content
-        reference_pronouns = ['they', 'it', 'that', 'this', 'those', 'these']
-        if any(pronoun in current_lower.split() for pronoun in reference_pronouns):
-            return True
-        
-        # Check for very short questions that are likely follow-ups
-        if len(current_question) <= 20 and current_lower not in ['hello', 'hi', 'help', 'thanks', 'thank you']:
-            return True
-        
-        return False
-
-    def _clean_previous_response(self, response: str) -> str:
-        """Clean previous responses to remove HTML and formatting for context."""
-        if not response:
-            return ""
-            
-        # Remove HTML tags
-        clean_text = bleach.clean(response, tags=[], strip=True)
-        
-        # Remove the disclaimer section and footer
-        disclaimer_start = clean_text.find("MANDATORY DISCLAIMER:")
-        if disclaimer_start != -1:
-            clean_text = clean_text[:disclaimer_start].strip()
-        
-        # Remove header information and metadata
-        clean_text = re.sub(r'🩺 Medical Assistant.*?Your question:', '', clean_text, flags=re.DOTALL)
-        clean_text = re.sub(r'Response generated on.*', '', clean_text, flags=re.DOTALL)
-        clean_text = re.sub(r'Powered by Gemini AI.*', '', clean_text, flags=re.DOTALL)
-        clean_text = re.sub(r'---.*', '', clean_text, flags=re.DOTALL)
-        
-        # Clean up extra whitespace but preserve paragraph structure
-        clean_text = re.sub(r'\n\s*\n', '\n\n', clean_text)
-        clean_text = re.sub(r'[ \t]+', ' ', clean_text)
-        clean_text = clean_text.strip()
-        
-        return clean_text
-
+    
+    # FIX 2: Refactored 'answer' to build the native 'contents' history format
     def answer(self, question: str, conversation_history: List[Dict[str, str]] = None) -> str:
-        """Answer a medical question with natural conversation flow."""
+        """Answer a medical question using native chat history for natural conversation flow."""
         try:
             if not question or not question.strip():
                 return self._format_output(
@@ -289,19 +206,37 @@ Response:"""
                     sources=[]
                 )
             
-            # Check for emergency conditions
             emergency_response = self._check_emergency(question)
             if emergency_response:
                 return self._format_output(emergency_response, question=question, is_error=True)
             
-            # Build conversational prompt with improved context handling
-            prompt = self._build_conversational_prompt(question, conversation_history)
+            # --- Build the native contents list ---
+            llm_contents = []
+            if conversation_history:
+                for entry in conversation_history:
+                    # FIX 2.1: Assumes app.py now saves history in the format: 
+                    # {'role': 'user'/'model', 'content': 'clean text response'}
+                    role = entry.get('role', 'user') # Default to user for safety
+                    content = entry.get('content', '')
+
+                    if content and role in ['user', 'model']:
+                        llm_contents.append({
+                            "role": role,
+                            "parts": [{"text": content}]
+                        })
+                    else:
+                        logger.warning(f"Skipping invalid history entry: {entry}")
+
+            # FIX 2.2: Add the current user question
+            llm_contents.append({
+                "role": "user",
+                "parts": [{"text": question}]
+            })
             
-            logger.info(f"Generated prompt for question: {question}")
-            logger.info(f"Conversation history length: {len(conversation_history) if conversation_history else 0}")
+            logger.info(f"Sending {len(llm_contents)} total history entries to Gemini.")
             
-            # Query Gemini API with grounding - increased tokens for complete responses
-            api_result = self._query_gemini(prompt, max_tokens=1800)
+            # FIX 2.3: Query the updated Gemini function using the contents list
+            api_result = self._query_gemini(llm_contents, max_tokens=1800)
             response = api_result['text']
             sources = api_result['sources']
 
@@ -310,11 +245,8 @@ Response:"""
                 return self._format_output(self._safe_fallback_response(question), question=question, sources=[])
             
             logger.info(f"Successfully generated response of {len(response)} characters")
-            
-            # Verify response for safety
             response = self._verify_response(response)
             
-            # Add mandatory disclaimers and metadata
             if "disclaimer" not in response.lower() and "consult" not in response.lower():
                 response += "\n\n---"
                 response += "\n**MANDATORY DISCLAIMER:** \n This information is for educational purposes only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of a qualified healthcare provider for any health concerns or before starting a new treatment."
@@ -326,7 +258,7 @@ Response:"""
             return self._format_output(self._safe_fallback_response(question), question=question, sources=[])
 
     def _verify_response(self, response: str) -> str:
-        """Verify response for safety (e.g., preventing dangerous advice)."""
+        """Verify response for safety."""
         response_lower = response.lower()
         for pattern in self.SAFETY_FILTERS["dangerous_advice"]:
             if re.search(pattern, response_lower, re.IGNORECASE):
@@ -358,7 +290,6 @@ Response:"""
             </div>
             """
         
-        # Format question for display (handle empty questions for initial state)
         display_question = bleach.clean(question) if question else "Starting our conversation"
         
         html = f"""

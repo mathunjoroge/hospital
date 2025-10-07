@@ -1,4 +1,6 @@
 import requests 
+import pickle
+import re
 from flask import render_template, redirect, url_for, request, flash, jsonify,session
 from flask_wtf import FlaskForm
 from sqlalchemy import func
@@ -13,7 +15,8 @@ from datetime import date
 from psycopg2.extras import RealDictCursor
 from flask import current_app
 from flask_login import login_required, current_user
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect,CSRFError
+from scipy.spatial.distance import cosine
 from extensions import db
 from flask import session
 from flask_socketio import SocketIO
@@ -44,6 +47,7 @@ import json
 from flask import Response, stream_with_context, request
 import time
 from departments.nlp.logging_setup import get_logger
+from flask.sessions import SecureCookieSessionInterface
 logger = get_logger()
 
 # Instantiate the summarizer for use in chatbot_interface
@@ -52,62 +56,167 @@ logger = get_logger()
 socketio = SocketIO()
 prescription_id = str(uuid.uuid4())
 csrf = CSRFProtect()
+
 summarizer = UniversalClinicalSummarizer(gemini_api_key="AIzaSyBIiewOwY2H4qUUKm3EsaHybqxXjEo6cHE")
 
+
+from flask import make_response
+
+def persist_session(app, sess):
+    """
+    Force Flask to persist session data during streaming responses.
+    Works safely for both Redis and filesystem session backends.
+    """
+    try:
+        session_interface = app.session_interface
+
+        if not hasattr(session_interface, 'save_session'):
+            logger.warning("Session interface does not implement save_session().")
+            return
+
+        # Use a dummy response so save_session() can set headers properly
+        dummy_response = make_response()
+
+        # Save the session (Redis or filesystem)
+        session_interface.save_session(app, sess, dummy_response)
+
+        # For filesystem sessions, ensure folder exists and is writable
+        if app.config.get('SESSION_TYPE') == 'filesystem':
+            session_dir = app.config.get('SESSION_FILE_DIR')
+            if session_dir:
+                os.makedirs(session_dir, exist_ok=True)
+                if not os.access(session_dir, os.W_OK):
+                    logger.warning(f"Session directory is not writable: {session_dir}")
+                else:
+                    logger.debug(f"Session directory verified: {session_dir}")
+
+        logger.debug("Session persisted successfully during stream.")
+
+    except Exception as e:
+        logger.error(f"Failed to persist session during stream: {e}", exc_info=True)
+
+
+
 @bp.route('/chatbot', methods=['GET', 'POST'])
+@login_required
 def chatbot_interface():
     """
     Handles displaying the chatbot form (GET) and processing submitted notes (POST).
-    Maintains conversation history in session and supports streaming responses.
+    Maintains conversation history in the session using role/content pairs for multi-turn coherence.
     """
-    # Ensure session is initialized for conversation history
+    session_id = session.sid if hasattr(session, 'sid') else str(uuid4())
+
+    # Initialize session conversation list if missing
     if 'conversation' not in session:
         session['conversation'] = []
-        logger.debug("Initialized empty conversation history in session")
+        session.modified = True
+        logger.debug(f"Initialized new conversation for session {session_id}")
 
+    current_history = session.get('conversation', [])
+    logger.debug(f"Session ID: {session_id}, Current conversation length: {len(current_history)}")
+
+    # --- POST: Handle submitted note ---
     if request.method == 'POST':
-        input_note = request.form.get('clinical_note', '').strip()
-        
-        def generate():
-            if not input_note:
-                error_html = summarizer._format_output("Please enter a clinical note to summarize.", is_error=True)
-                yield error_html.encode('utf-8')
-                logger.warning("Empty clinical note submitted")
-                return
+        try:
+            input_note = request.form.get('clinical_note', '').strip()
+            logger.debug(f"Received clinical_note: {input_note[:80]}")
 
-            logger.info(f"Received note for summarization. Length: {len(input_note)} chars")
-            summary_html = summarizer.answer(input_note, conversation_history=session.get('conversation', []))
-            
-            # Append the new question and response to the conversation history
-            session['conversation'].append({
-                'question': input_note,
-                'response': summary_html
-            })
-            session.modified = True  # Ensure session updates
-            logger.debug("Appended new conversation entry: %s", input_note)
+            def generate():
+                if not input_note:
+                    yield summarizer._format_output(
+                        "Please enter a clinical note to summarize.", is_error=True
+                    ).encode('utf-8')
+                    return
 
-            # Stream the response
-            chunk_size = 50
-            for i in range(0, len(summary_html), chunk_size):
-                chunk = summary_html[i:i + chunk_size]
-                yield chunk.encode('utf-8')
-                time.sleep(0.05)
+                try:
+                    # Assemble full context (past turns + new input)
+                    conversation_context = session.get('conversation', [])[:]
+                    conversation_context.append({'role': 'user', 'content': input_note})
 
-        return Response(stream_with_context(generate()), content_type='text/html; charset=utf-8')
+                    logger.info(f"Summarizing input note ({len(input_note)} chars) for session {session_id}")
 
-    # For GET requests, render the template with conversation history
-    logger.debug("Rendering chatbot template with conversation: %s", session['conversation'])
-    return render_template('medicine/chat_bot.html', conversation=session.get('conversation', []), input_note='')
+                    # Generate AI summary
+                    summary_html = summarizer.answer(input_note, conversation_history=conversation_context)
 
+                    # Extract plain text for storage
+                    raw_text_response = bleach.clean(summary_html, tags=[], strip=True)
+                    raw_text_response = re.sub(r'Response generated on.*', '', raw_text_response, flags=re.DOTALL)
+                    raw_text_response = re.sub(r'Powered by Gemini AI.*', '', raw_text_response, flags=re.DOTALL)
+                    raw_text_response = re.sub(r'\s{2,}', ' ', raw_text_response).strip()
+
+                    # Store both user and model messages
+                    session['conversation'].append({'role': 'user', 'content': input_note})
+                    session['conversation'].append({'role': 'model', 'content': raw_text_response})
+
+                    # Limit stored turns
+                    if len(session['conversation']) > 10:
+                        session['conversation'] = session['conversation'][-10:]
+
+                    # Mark session as modified and persist
+                    session.modified = True
+                    session['_last_save'] = time.time()  # force change detection
+                    persist_session(current_app, session)
+                    logger.debug(f"Saved conversation (total turns: {len(session['conversation'])})")
+
+                    # Stream response in chunks
+                    chunk_size = 50
+                    for i in range(0, len(summary_html), chunk_size):
+                        yield summary_html[i:i + chunk_size].encode('utf-8')
+                        time.sleep(0.05)
+
+                except Exception as e:
+                    logger.error(f"Error generating AI response: {e}", exc_info=True)
+                    yield summarizer._format_output(
+                        "An error occurred while processing your request. Please try again.",
+                        is_error=True
+                    ).encode('utf-8')
+
+            # Persist session before streaming starts
+            persist_session(current_app, session)
+            return Response(stream_with_context(generate()), content_type='text/html; charset=utf-8')
+
+        except CSRFError as e:
+            logger.error(f"CSRF validation failed: {e}")
+            return Response(
+                summarizer._format_output(
+                    "CSRF validation failed. Please refresh and try again.", is_error=True
+                ).encode('utf-8'),
+                status=403
+            )
+
+    # --- GET: Render chat page ---
+    class ChatForm(FlaskForm):
+        pass
+
+    class ClearForm(FlaskForm):
+        pass
+
+    logger.debug(f"Rendering chatbot template for session {session_id}")
+    return render_template(
+        'medicine/chat_bot.html',
+        conversation=current_history,
+        input_note='',
+        form=ChatForm(),
+        clear_form=ClearForm()
+    )
+
+
+# --- Clear Conversation Route ---
 @bp.route('/clear_conversation', methods=['POST'])
+@login_required
 def clear_conversation():
     """
-    Clears the conversation history from the session.
+    Clears conversation history from the session.
     """
+    session_id = session.sid if hasattr(session, 'sid') else str(uuid4())
+    logger.debug(f"Clearing conversation for session: {session_id}")
     session.pop('conversation', None)
     session.modified = True
-    logger.info("Conversation history cleared")
+    persist_session(current_app, session)
+    logger.info(f"Conversation cleared for session {session_id}")
     return redirect('/medicine/chatbot')
+
+
 @bp.route('/submit_soap_notes/<patient_id>', methods=['POST'])
 @login_required
 def submit_soap_notes(patient_id):
