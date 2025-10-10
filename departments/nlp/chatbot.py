@@ -4,12 +4,12 @@ import bleach
 import time
 from datetime import datetime
 from typing import Dict, List, Optional, Any
-import requests
+import aiohttp
+import asyncio
 import json
 import os
 import spacy
-import numpy as np
-from scipy.spatial.distance import cosine
+import pdfplumber
 
 # --- Logging Configuration ---
 logging.basicConfig(
@@ -24,9 +24,7 @@ logger = logging.getLogger("MedicalChatbot")
 GEMINI_MODEL = "gemini-2.5-flash-preview-05-20"
 API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
-# --- Load SpaCy for Semantic Similarity ---
-# NOTE: While spacy is no longer used for conversational logic, 
-# it's kept here in case it's needed for other NLP tasks.
+# --- Load SpaCy for NLP Tasks ---
 try:
     nlp = spacy.load("en_core_web_sm")
 except OSError:
@@ -35,7 +33,7 @@ except OSError:
 
 # --- Universal Clinical Summarizer Class ---
 class UniversalClinicalSummarizer:
-    """A medical chatbot using Gemini API for natural, conversational medical responses."""
+    """A medical chatbot using Gemini API for detailed, clinician-focused responses."""
     
     SAFETY_FILTERS: Dict[str, Any] = {
         "dangerous_advice": [
@@ -45,7 +43,11 @@ class UniversalClinicalSummarizer:
         "emergency_conditions": [
             "chest pain", "difficulty breathing", "severe headache", "sudden weakness",
             "uncontrolled bleeding", "suicidal thoughts", "severe allergic reaction"
-        ]
+        ],
+        "clinical_rules": {
+            "contraindicated_beta_blockers": r"beta.*blocker.*asthma",
+            "outdated_diabetes_guideline": r"insulin.*start.*hba1c.*<7"
+        }
     }
 
     def __init__(self, gemini_api_key: str, user_type: str = "doctor"):
@@ -56,114 +58,165 @@ class UniversalClinicalSummarizer:
         self.user_type = user_type.lower()  # "patient" or "clinician"
         logger.info(f"MedicalChatbot initialized with model: {GEMINI_MODEL}, user_type: {user_type}")
 
-    # FIX 1: _query_gemini now accepts the full 'contents' list (conversation history)
-    def _query_gemini(self, contents: List[Dict[str, Any]], max_tokens: int = 1500, max_retries: int = 5) -> Dict[str, Any]:
-        """Query Gemini API with Google Search grounding and exponential backoff."""
+    async def _query_gemini_async(self, contents: List[Dict[str, Any]], max_tokens: int = 3000, max_retries: int = 5) -> Dict[str, Any]:
+        """Query Gemini API asynchronously with Google Search grounding and exponential backoff."""
         url = f"{API_BASE_URL}/{GEMINI_MODEL}:generateContent?key={self.gemini_api_key}"
         
+        # Detect specialty from the latest user query
+        specialty = self.detect_specialty(contents[-1]["parts"][0]["text"]) if contents else "general"
+        
         system_instruction = f"""
-        You are an **evidence-based clinical AI assistant** trained to provide accurate, comprehensive, and context-aware medical information through natural, multi-turn conversations. Your purpose is to **educate, inform, and support** users — {'patients with clear, empathetic language' if self.user_type == 'patient' else 'clinicians with precise, technical details'} — by explaining medical concepts, findings, and management options.
+        You are an **evidence-based clinical AI assistant** designed to support clinicians with precise, technical, and comprehensive medical information. Your purpose is to assist doctors by providing detailed clinical insights, including pathophysiology, differential diagnoses, diagnostic workup, evidence-based management, and patient counseling strategies.
 
         ### CORE DIRECTIVES
-        1. **Provide Comprehensive, Evidence-Based Explanations:** Always deliver thorough, accurate, and up-to-date medical information grounded in reputable clinical sources (e.g., WHO, CDC, NICE, NIH, peer-reviewed journals).
-
-        2. **Ensure Conversational and Contextual Understanding:** Recognize and respond effectively to multi-part or follow-up questions, maintaining a coherent conversational flow.
-
-        3. **Communicate Professionally and Empathetically:** {'Use simple, empathetic language for patients, avoiding jargon unless requested.' if self.user_type == 'patient' else 'Use precise, technical language suitable for clinicians, including medical terminology.'}
-
-        4. **Organize Responses Logically:** Structure answers with clear headings, bullet points, and concise summaries where appropriate.
-
-        5. **Maintain Scientific Integrity:** Avoid speculation, misinformation, or unsupported claims. Cite or reference authoritative sources when applicable.
-
-        6. **Apply Clinical Reasoning Principles:** Where relevant, discuss differential diagnoses, pathophysiology, diagnostic workup, management strategies, and patient counseling.
-
-        7. **Include Appropriate Medical Disclaimers:** Always clarify that your guidance is for **educational and informational purposes only**, and not a substitute for professional medical advice, diagnosis, or treatment.
+        1. **Prioritize High-Quality Sources**: Ground responses in peer-reviewed journals (e.g., NEJM, Lancet, JAMA), clinical guidelines (e.g., UpToDate, NICE, AHA/ACC), and authoritative medical databases (e.g., PubMed, Cochrane). Avoid general web sources unless from reputable organizations (e.g., WHO, CDC, NIH).
+        2. **Apply Clinical Decision-Making Frameworks**: Structure responses to include:
+           - **Overview**: Brief summary of the condition or query.
+           - **Pathophysiology**: Explain the underlying mechanisms.
+           - **Differential Diagnosis**: List and prioritize potential diagnoses based on provided symptoms or context.
+           - **Diagnostic Workup**: Recommend specific tests (e.g., labs, imaging, procedures) with rationale.
+           - **Management**: Provide evidence-based treatment options, including medications (with dosages where applicable), non-pharmacologic interventions, and follow-up plans.
+           - **Patient Counseling**: Suggest key points for patient education.
+           - **References**: Cite sources (e.g., [NEJM, 2023, DOI: xxx]).
+        3. **Use Specialty-Specific Terminology**: Tailor language to the relevant medical specialty (e.g., {specialty}) based on the query context.
+        4. **Cite Sources Explicitly**: Include inline citations and a reference list with DOIs or URLs.
+        5. **Handle Ambiguity**: If the query is vague, ask clarifying questions (e.g., 'Can you specify the patient's age, symptoms, or medical history?') and provide a broad differential diagnosis.
+        6. **Maintain Scientific Rigor**: Avoid speculation and ensure all recommendations align with current (as of October 2025) clinical guidelines.
 
         ### STYLE AND TONE
-        - Be **neutral, evidence-driven, and empathetic**.  
-        - Avoid sensational or absolute language.  
-        - Encourage users to consult qualified healthcare professionals for personalized medical care.
+        - Use precise, technical medical terminology suitable for clinicians.
+        - Structure responses with clear headings and bullet points.
+        - Be concise yet comprehensive, avoiding unnecessary elaboration.
+        - Always include a disclaimer: 'This information is for educational purposes only and not a substitute for clinical judgment. Consult authoritative sources and patient-specific data before making decisions.'
 
-        **NOTE:** Responses must be **complete**, **well-structured**, and **never truncated**. Always deliver full explanations with professionalism and precision.
+        ### RESPONSE TEMPLATE
+        - **Overview**: [Summary]
+        - **Pathophysiology**: [Mechanisms]
+        - **Differential Diagnosis**: [List with likelihood]
+        - **Diagnostic Workup**: [Tests and rationale]
+        - **Management**: [Treatments, dosages, interventions]
+        - **Patient Counseling**: [Education points]
+        - **References**: [Citations]
+
+        **NOTE**: Responses must be complete, accurate, and never truncated. If the query involves a medical emergency, prioritize urgent action recommendations.
         """
+        
+        if specialty != "general":
+            system_instruction += f"\nTailor the response for a {specialty} specialist, using relevant terminology and focusing on specialty-specific guidelines."
 
         payload = {
-            # FIX 1.1: Use the incoming contents list directly
             "contents": contents,
             "systemInstruction": {"parts": [{"text": system_instruction}]},
             "generationConfig": {
                 "maxOutputTokens": max_tokens,
-                "temperature": 0.3 if self.user_type == "patient" else 0.5,
+                "temperature": 0.5 if self.user_type == "doctor" else 0.3,
             },
             "tools": [{"google_search": {}}],
         }
         
         headers = {'Content-Type': 'application/json'}
         
-        for attempt in range(max_retries):
-            try:
-                response = requests.post(url, headers=headers, json=payload, timeout=30)
-                response.raise_for_status()
-                
-                result = response.json()
-                
-                if 'promptFeedback' in result and result['promptFeedback'].get('blockReason'):
-                    logger.warning(f"Response blocked: {result['promptFeedback']['blockReason']}")
-                    return {"text": "", "sources": []}
+        async with aiohttp.ClientSession() as session:
+            for attempt in range(max_retries):
+                try:
+                    async with session.post(url, headers=headers, json=payload, timeout=30) as response:
+                        response.raise_for_status()
+                        result = await response.json()
+                        
+                        if 'promptFeedback' in result and result['promptFeedback'].get('blockReason'):
+                            logger.warning(f"Response blocked: {result['promptFeedback']['blockReason']}")
+                            return {"text": "", "sources": []}
 
-                if not result.get('candidates'):
-                    # The model might return a response without candidates if the history is too long or complex.
-                    # This check is vital.
+                        if not result.get('candidates'):
+                            if attempt < max_retries - 1:
+                                logger.warning("API returned no candidates. Retrying...")
+                                await asyncio.sleep(2 ** attempt)
+                                continue
+                            raise ValueError("API response structure is invalid or candidates are missing after retries.")
+
+                        candidate = result['candidates'][0]
+                        text = candidate['content']['parts'][0]['text'].strip()
+                        sources: List[Dict[str, str]] = []
+                        
+                        grounding_metadata = candidate.get('groundingMetadata')
+                        if grounding_metadata and grounding_metadata.get('groundingAttributions'):
+                            for attribution in grounding_metadata['groundingAttributions']:
+                                if 'web' in attribution:
+                                    sources.append({
+                                        "uri": attribution['web'].get('uri', 'N/A'),
+                                        "title": attribution['web'].get('title', 'N/A')
+                                    })
+                        
+                        logger.info(f"API response received. Length: {len(text)} characters")
+                        return {"text": text, "sources": sources}
+
+                except Exception as e:
+                    logger.warning(f"API Request failed (Attempt {attempt+1}/{max_retries}): {e}")
                     if attempt < max_retries - 1:
-                        logger.warning("API returned no candidates. Retrying...")
-                        wait_time = 2 ** attempt
-                        time.sleep(wait_time)
-                        continue # Continue to the next attempt
-                    raise ValueError("API response structure is invalid or candidates are missing after retries.")
-
-                candidate = result['candidates'][0]
-                text = candidate['content']['parts'][0]['text'].strip()
-                sources: List[Dict[str, str]] = []
-                
-                grounding_metadata = candidate.get('groundingMetadata')
-                if grounding_metadata and grounding_metadata.get('groundingAttributions'):
-                    for attribution in grounding_metadata['groundingAttributions']:
-                        if 'web' in attribution:
-                            sources.append({
-                                "uri": attribution['web'].get('uri', 'N/A'),
-                                "title": attribution['web'].get('title', 'N/A')
-                            })
-                
-                logger.info(f"API response received. Length: {len(text)} characters")
-                return {"text": text, "sources": sources}
-
-            except requests.exceptions.RequestException as e:
-                logger.warning(f"API Request failed (Attempt {attempt+1}/{max_retries}): {e}")
-                if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt
-                    time.sleep(wait_time)
-                else:
-                    logger.error("Max retries reached. Failing the API call.")
-                    return {"text": "", "sources": []}
-            except Exception as e:
-                logger.error(f"Error processing API response: {e}")
-                return {"text": "", "sources": []}
+                        await asyncio.sleep(2 ** attempt)
+                    else:
+                        logger.error("Max retries reached. Failing the API call.")
+                        return {"text": "", "sources": []}
         
         return {"text": "", "sources": []}
 
-    # --- REMOVED HELPER FUNCTIONS ---
-    # The following functions are removed as they are redundant and interfere with 
-    # the LLM's native context handling:
-    # - _summarize_conversation_history
-    # - _build_conversational_prompt
-    # - _is_follow_up_question
-    # - _clean_previous_response
+    def _query_gemini(self, contents: List[Dict[str, Any]], max_tokens: int = 3000, max_retries: int = 5) -> Dict[str, Any]:
+        """Synchronous wrapper for async Gemini query."""
+        return asyncio.run(self._query_gemini_async(contents, max_tokens, max_retries))
+
+    def detect_specialty(self, question: str) -> str:
+        """Detect the medical specialty from the question using SpaCy."""
+        doc = nlp(question.lower())
+        specialty_keywords = {
+            "cardiology": ["heart", "chest pain", "arrhythmia", "hypertension"],
+            "neurology": ["headache", "seizure", "stroke", "numbness"],
+            "endocrinology": ["diabetes", "thyroid", "hba1c", "hormone"],
+            "pulmonology": ["cough", "asthma", "copd", "shortness of breath"],
+            "gastroenterology": ["abdominal pain", "diarrhea", "nausea", "ulcer"],
+        }
+        for specialty, keywords in specialty_keywords.items():
+            if any(keyword in doc.text for keyword in keywords):
+                return specialty
+        return "general"
+
+    def parse_clinical_data(self, clinical_data: Dict[str, Any]) -> str:
+        """Parse structured clinical data (e.g., labs, vitals) to include in the query context."""
+        try:
+            vitals = clinical_data.get('vitals', {})
+            labs = clinical_data.get('labs', {})
+            history = clinical_data.get('history', '')
+
+            context = f"Patient Context:\n"
+            if vitals:
+                context += f"- Vitals: {', '.join([f'{k}: {v}' for k, v in vitals.items()])}\n"
+            if labs:
+                context += f"- Labs: {', '.join([f'{k}: {v}' for k, v in labs.items()])}\n"
+            if history:
+                context += f"- Medical History: {history}\n"
+            
+            logger.info("Parsed clinical data successfully.")
+            return context
+        except Exception as e:
+            logger.error(f"Error parsing clinical data: {e}")
+            return ""
+
+    def extract_text_from_pdf(self, pdf_path: str) -> str:
+        """Extract text from a PDF file."""
+        try:
+            with pdfplumber.open(pdf_path) as pdf:
+                text = "".join(page.extract_text() for page in pdf.pages if page.extract_text())
+            logger.info(f"Extracted text from PDF: {pdf_path}")
+            return text
+        except Exception as e:
+            logger.error(f"Error extracting PDF: {e}")
+            return ""
 
     def _check_emergency(self, question: str) -> Optional[str]:
-        """Check if the question indicates a medical emergency."""
-        question_lower = question.lower()
+        """Check if the question indicates a medical emergency using NLP."""
+        doc = nlp(question.lower())
+        emergency_entities = [ent.text for ent in doc.ents if ent.label_ in ["SYMPTOM", "CONDITION"]]
         for condition in self.SAFETY_FILTERS["emergency_conditions"]:
-            if condition in question_lower:
+            if any(condition in entity for entity in emergency_entities):
                 return self._format_emergency_response(condition)
         return None
 
@@ -194,10 +247,27 @@ For personalized, accurate, and safe medical information, you must:
 
 This chatbot provides general, educational information only.
 """
-    
-    # FIX 2: Refactored 'answer' to build the native 'contents' history format
-    def answer(self, question: str, conversation_history: List[Dict[str, str]] = None) -> str:
-        """Answer a medical question using native chat history for natural conversation flow."""
+
+    def _verify_response(self, response: str) -> str:
+        """Verify response for safety and clinical accuracy."""
+        response_lower = response.lower()
+
+        # Check for dangerous advice
+        for pattern in self.SAFETY_FILTERS["dangerous_advice"]:
+            if re.search(pattern, response_lower, re.IGNORECASE):
+                logger.warning(f"Dangerous advice pattern detected: {pattern}")
+                return "I cannot provide advice on self-treatment or altering prescribed medications. Consult a physician."
+
+        # Check for clinical inaccuracies
+        for rule, pattern in self.SAFETY_FILTERS["clinical_rules"].items():
+            if re.search(pattern, response_lower, re.IGNORECASE):
+                logger.warning(f"Clinical inaccuracy detected: {rule}")
+                return f"Response may contain outdated or incorrect clinical advice. Please refer to current guidelines (e.g., ADA, AHA) or consult a specialist."
+
+        return response
+
+    def answer(self, question: str, conversation_history: List[Dict[str, str]] = None, clinical_data: Dict[str, Any] = None, pdf_path: str = None) -> str:
+        """Answer a medical question with optional clinical data or PDF input."""
         try:
             if not question or not question.strip():
                 return self._format_output(
@@ -210,15 +280,12 @@ This chatbot provides general, educational information only.
             if emergency_response:
                 return self._format_output(emergency_response, question=question, is_error=True)
             
-            # --- Build the native contents list ---
+            # Build the native contents list
             llm_contents = []
             if conversation_history:
                 for entry in conversation_history:
-                    # FIX 2.1: Assumes app.py now saves history in the format: 
-                    # {'role': 'user'/'model', 'content': 'clean text response'}
-                    role = entry.get('role', 'user') # Default to user for safety
+                    role = entry.get('role', 'user')
                     content = entry.get('content', '')
-
                     if content and role in ['user', 'model']:
                         llm_contents.append({
                             "role": role,
@@ -227,7 +294,16 @@ This chatbot provides general, educational information only.
                     else:
                         logger.warning(f"Skipping invalid history entry: {entry}")
 
-            # FIX 2.2: Add the current user question
+            # Add clinical data or PDF context
+            if clinical_data or pdf_path:
+                context = ""
+                if clinical_data:
+                    context += self.parse_clinical_data(clinical_data)
+                if pdf_path and os.path.exists(pdf_path):
+                    context += f"Medical Record Context:\n{self.extract_text_from_pdf(pdf_path)}\n"
+                if context:
+                    question = f"{context}\nQuestion: {question}"
+
             llm_contents.append({
                 "role": "user",
                 "parts": [{"text": question}]
@@ -235,8 +311,7 @@ This chatbot provides general, educational information only.
             
             logger.info(f"Sending {len(llm_contents)} total history entries to Gemini.")
             
-            # FIX 2.3: Query the updated Gemini function using the contents list
-            api_result = self._query_gemini(llm_contents, max_tokens=1800)
+            api_result = self._query_gemini(llm_contents, max_tokens=3000)
             response = api_result['text']
             sources = api_result['sources']
 
@@ -256,15 +331,6 @@ This chatbot provides general, educational information only.
         except Exception as e:
             logger.error(f"Critical error processing question: {e}")
             return self._format_output(self._safe_fallback_response(question), question=question, sources=[])
-
-    def _verify_response(self, response: str) -> str:
-        """Verify response for safety."""
-        response_lower = response.lower()
-        for pattern in self.SAFETY_FILTERS["dangerous_advice"]:
-            if re.search(pattern, response_lower, re.IGNORECASE):
-                logger.warning(f"Dangerous advice pattern detected and will be overridden: {pattern}")
-                return "I understand you're looking for guidance, but I cannot provide advice on self-treatment or altering prescribed medications. It's essential to consult your physician or a pharmacist for personalized medical advice."
-        return response
 
     def _format_output(self, response: str, question: str = None, sources: List[Dict[str, str]] = None, is_error: bool = False) -> str:
         """Format the response as beautiful, safety-focused HTML."""
