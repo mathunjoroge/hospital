@@ -10,6 +10,10 @@ import json
 import os
 import spacy
 import pdfplumber
+from PIL import Image
+import pytesseract
+from docx import Document
+import csv
 
 # --- Logging Configuration ---
 logging.basicConfig(
@@ -30,6 +34,14 @@ try:
 except OSError:
     logger.error("SpaCy model 'en_core_web_sm' not found. Please install with: python -m spacy download en_core_web_sm")
     raise
+
+# --- Allowed File Types ---
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'txt', 'csv', 'docx'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB max file size
+
+def allowed_file(filename: str) -> bool:
+    """Check if the file extension is allowed."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- Universal Clinical Summarizer Class ---
 class UniversalClinicalSummarizer:
@@ -55,7 +67,7 @@ class UniversalClinicalSummarizer:
         if not gemini_api_key:
             raise ValueError("Gemini API key is required to connect to the service.")
         self.gemini_api_key = gemini_api_key
-        self.user_type = user_type.lower()  # "patient" or "clinician"
+        self.user_type = user_type.lower()
         logger.info(f"MedicalChatbot initialized with model: {GEMINI_MODEL}, user_type: {user_type}")
 
     async def _query_gemini_async(self, contents: List[Dict[str, Any]], max_tokens: int = 3000, max_retries: int = 5) -> Dict[str, Any]:
@@ -200,16 +212,49 @@ class UniversalClinicalSummarizer:
             logger.error(f"Error parsing clinical data: {e}")
             return ""
 
-    def extract_text_from_pdf(self, pdf_path: str) -> str:
-        """Extract text from a PDF file."""
+    def extract_text_from_file(self, file_stream: Any, filename: str) -> str:
+        """Extract text from a file stream based on its type."""
         try:
-            with pdfplumber.open(pdf_path) as pdf:
-                text = "".join(page.extract_text() for page in pdf.pages if page.extract_text())
-            logger.info(f"Extracted text from PDF: {pdf_path}")
-            return text
+            extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+            
+            if extension in ['png', 'jpg', 'jpeg', 'gif']:
+                img = Image.open(file_stream)
+                text = pytesseract.image_to_string(img)
+                logger.info(f"Extracted text from image: {filename}")
+                return text.strip() or "No text could be extracted from the image."
+            
+            elif extension == 'pdf':
+                with pdfplumber.open(file_stream) as pdf:
+                    text = "".join(page.extract_text() for page in pdf.pages if page.extract_text())
+                logger.info(f"Extracted text from PDF: {filename}")
+                return text.strip() or "No text could be extracted from the PDF."
+            
+            elif extension == 'txt':
+                text = file_stream.read().decode('utf-8')
+                logger.info(f"Extracted text from TXT: {filename}")
+                return text.strip()
+            
+            elif extension == 'csv':
+                text = ''
+                reader = csv.reader(file_stream.read().decode('utf-8').splitlines())
+                for row in reader:
+                    text += ' '.join(row) + '\n'
+                logger.info(f"Extracted text from CSV: {filename}")
+                return text.strip()
+            
+            elif extension == 'docx':
+                doc = Document(file_stream)
+                text = '\n'.join([para.text for para in doc.paragraphs])
+                logger.info(f"Extracted text from DOCX: {filename}")
+                return text.strip() or "No text could be extracted from the DOCX."
+            
+            else:
+                logger.warning(f"Unsupported file type: {filename}")
+                return "Unsupported file type."
+        
         except Exception as e:
-            logger.error(f"Error extracting PDF: {e}")
-            return ""
+            logger.error(f"Error extracting content from file {filename}: {e}")
+            return f"Error processing file: {str(e)}"
 
     def _check_emergency(self, question: str) -> Optional[str]:
         """Check if the question indicates a medical emergency using NLP."""
@@ -266,17 +311,17 @@ This chatbot provides general, educational information only.
 
         return response
 
-    def answer(self, question: str, conversation_history: List[Dict[str, str]] = None, clinical_data: Dict[str, Any] = None, pdf_path: str = None) -> str:
-        """Answer a medical question with optional clinical data or PDF input."""
+    def answer(self, question: str, conversation_history: List[Dict[str, str]] = None, clinical_data: Dict[str, Any] = None, file_stream: Any = None, filename: str = None) -> str:
+        """Answer a medical question with optional clinical data or file input."""
         try:
-            if not question or not question.strip():
+            if not question and not file_stream:
                 return self._format_output(
-                    "Hello! I'm here to help with medical questions. What would you like to know?", 
+                    "Hello! I'm here to help with medical questions or file analysis. Please provide a question or upload a file.", 
                     question="Greeting", 
                     sources=[]
                 )
             
-            emergency_response = self._check_emergency(question)
+            emergency_response = self._check_emergency(question) if question else None
             if emergency_response:
                 return self._format_output(emergency_response, question=question, is_error=True)
             
@@ -294,19 +339,56 @@ This chatbot provides general, educational information only.
                     else:
                         logger.warning(f"Skipping invalid history entry: {entry}")
 
-            # Add clinical data or PDF context
-            if clinical_data or pdf_path:
+            # Add clinical data or file context
+            combined_input = question or ""
+            if clinical_data or file_stream:
                 context = ""
                 if clinical_data:
                     context += self.parse_clinical_data(clinical_data)
-                if pdf_path and os.path.exists(pdf_path):
-                    context += f"Medical Record Context:\n{self.extract_text_from_pdf(pdf_path)}\n"
+                if file_stream and filename:
+                    if not allowed_file(filename):
+                        logger.warning(f"Invalid file type: {filename}")
+                        return self._format_output(
+                            "Invalid file type. Allowed types: images, PDF, TXT, CSV, DOCX.",
+                            question=question,
+                            is_error=True
+                        )
+                    
+                    # Check file size
+                    file_stream.seek(0, os.SEEK_END)
+                    file_size = file_stream.tell()
+                    file_stream.seek(0)
+                    if file_size > MAX_FILE_SIZE:
+                        logger.warning(f"File too large: {filename}, size: {file_size} bytes")
+                        return self._format_output(
+                            f"File size exceeds limit of {MAX_FILE_SIZE // (1024 * 1024)}MB.",
+                            question=question,
+                            is_error=True
+                        )
+                    
+                    file_content = self.extract_text_from_file(file_stream, filename)
+                    if file_content.startswith("Error") or file_content == "Unsupported file type.":
+                        return self._format_output(
+                            file_content,
+                            question=question,
+                            is_error=True
+                        )
+                    context += f"File Content [{filename}]:\n{file_content}\n"
+                
                 if context:
-                    question = f"{context}\nQuestion: {question}"
+                    combined_input = f"{context}\nQuestion: {combined_input}" if question else context
+
+            if not combined_input.strip():
+                logger.warning("No valid input provided (question or file content).")
+                return self._format_output(
+                    "Please provide a clinical question or a valid file.",
+                    question=question,
+                    is_error=True
+                )
 
             llm_contents.append({
                 "role": "user",
-                "parts": [{"text": question}]
+                "parts": [{"text": combined_input}]
             })
             
             logger.info(f"Sending {len(llm_contents)} total history entries to Gemini.")
@@ -317,7 +399,7 @@ This chatbot provides general, educational information only.
 
             if not response:
                 logger.warning("Gemini API returned empty response after retries.")
-                return self._format_output(self._safe_fallback_response(question), question=question, sources=[])
+                return self._format_output(self._safe_fallback_response(question or "File analysis"), question=question, sources=[])
             
             logger.info(f"Successfully generated response of {len(response)} characters")
             response = self._verify_response(response)
@@ -326,11 +408,11 @@ This chatbot provides general, educational information only.
                 response += "\n\n---"
                 response += "\n**MANDATORY DISCLAIMER:** \n This information is for educational purposes only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of a qualified healthcare provider for any health concerns or before starting a new treatment."
             
-            return self._format_output(response, question=question, sources=sources)
+            return self._format_output(response, question=question or f"Analysis of {filename}", sources=sources)
         
         except Exception as e:
-            logger.error(f"Critical error processing question: {e}")
-            return self._format_output(self._safe_fallback_response(question), question=question, sources=[])
+            logger.error(f"Critical error processing question or file: {e}")
+            return self._format_output(self._safe_fallback_response(question or "File analysis"), question=question, sources=[])
 
     def _format_output(self, response: str, question: str = None, sources: List[Dict[str, str]] = None, is_error: bool = False) -> str:
         """Format the response as beautiful, safety-focused HTML."""
