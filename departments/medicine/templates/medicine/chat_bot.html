@@ -28,11 +28,9 @@
     .typing span:nth-child(3){ left:24px; animation-delay:0.3s; }
     @keyframes blink { 0%{ transform: translateY(0); opacity:0.25;} 50%{ transform: translateY(-4px); opacity:1;} 100%{ transform: translateY(0); opacity:0.25;} }
     @keyframes fadeUp { from {opacity:0; transform: translateY(6px);} to {opacity:1; transform: translateY(0);} }
-    .followups { margin-top:8px; display:flex; flex-wrap:wrap; gap:8px; }
-    .followups button { background:#e7f1ff; border:1px solid #d0e7ff; color:#0366d6; padding:6px 10px; border-radius:8px; cursor:pointer; }
+    .followups, .suggestions { margin-top:8px; display:flex; flex-wrap:wrap; gap:8px; }
+    .followups button, .suggestions button { background:#e7f1ff; border:1px solid #d0e7ff; color:#0366d6; padding:6px 10px; border-radius:8px; cursor:pointer; }
     .meta { font-size:0.85rem; color:#6c757d; margin-top:6px;}
-
-    /* --- NEW/MODIFIED STYLES FOR FILE ATTACHMENT --- */
     .input-wrapper { padding: 14px; border-top: 1px solid #eef3f8; }
     .input-area { display: flex; gap: 10px; align-items: center; }
     .file-preview {
@@ -103,53 +101,48 @@
   <script>
     function sanitizeHtml(html) { return DOMPurify.sanitize(html); }
 
-function formatMedicalResponse(rawText) {
-  if (!rawText) return "";
-  let formatted = rawText
-    .replace(/^### (.*)$/gim, '<h5 class="text-primary">$1</h5>')
-    .replace(/^## (.*)$/gim, '<h4 class="text-success">$1</h4>')
-    .replace(/^# (.*)$/gim, '<h3>$1</h3>')
-    .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-    .replace(/^\s*\* (.*)$/gim, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>)/gims, '<ul class="ms-3">$1</ul>')
-    .replace(/MANDATORY DISCLAIMER:[\s\S]*/gim, '<div class="alert alert-warning mt-2"><strong>⚠️ Medical Disclaimer:</strong> This content is for educational purposes only. Consult a healthcare professional.</div>')
-    // Convert URLs to clickable links
-    .replace(/(https?:\/\/[^\s<]+)(?=\s|$|<)/gim, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
-    .replace(/\n/g, '<br>');
-  return formatted.trim();
-}
+    function formatMedicalResponse(rawText) {
+      if (!rawText) return "";
+      let formatted = rawText
+        .replace(/^### (.*)$/gim, '<h5 class="text-primary">$1</h5>')
+        .replace(/^## (.*)$/gim, '<h4 class="text-success">$1</h4>')
+        .replace(/^# (.*)$/gim, '<h3>$1</h3>')
+        .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+        .replace(/^\s*\* (.*)$/gim, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/gims, '<ul class="ms-3">$1</ul>')
+        .replace(/MANDATORY DISCLAIMER:[\s\S]*/gim, '<div class="alert alert-warning mt-2"><strong>⚠️ Medical Disclaimer:</strong> This content is for educational purposes only. Consult a healthcare professional.</div>')
+        .replace(/(https?:\/\/[^\s<]+)(?=\s|$|<)/gim, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+        .replace(/\n/g, '<br>');
+      return formatted.trim();
+    }
 
     const chatBody = document.getElementById('chat-body');
     const form = document.getElementById('chat-form');
     const textarea = document.getElementById('clinical_note');
     const thinking = document.getElementById('thinking-indicator');
-    
-    // --- NEW: ELEMENTS FOR FILE ATTACHMENT ---
     const attachBtn = document.getElementById('attach-btn');
     const fileInput = document.getElementById('file-input');
     const filePreviewContainer = document.getElementById('file-preview-container');
 
     function scrollToBottom() { chatBody.scrollTop = chatBody.scrollHeight; }
-    
-    // --- NEW: FUNCTION TO REMOVE SELECTED FILE ---
+
     function removeSelectedFile() {
-        fileInput.value = ''; // Clears the file input
-        filePreviewContainer.style.display = 'none';
-        filePreviewContainer.innerHTML = '';
+      fileInput.value = '';
+      filePreviewContainer.style.display = 'none';
+      filePreviewContainer.innerHTML = '';
     }
 
-    // --- MODIFIED: CREATE USER BUBBLE TO SHOW ATTACHMENT INFO ---
     function createUserBubble(text, file) {
-        const el = document.createElement('div');
-        el.className = 'msg user';
-        let fileHtml = '';
-        if (file) {
-            fileHtml = `<div class="attachment-info">📎 ${sanitizeHtml(file.name)}</div>`;
-        }
-        el.innerHTML = `<strong>You:</strong> ${sanitizeHtml(text)}${fileHtml}`;
-        chatBody.appendChild(el);
-        scrollToBottom();
+      const el = document.createElement('div');
+      el.className = 'msg user';
+      let fileHtml = '';
+      if (file) {
+        fileHtml = `<div class="attachment-info">📎 ${sanitizeHtml(file.name)}</div>`;
+      }
+      el.innerHTML = `<strong>You:</strong> ${sanitizeHtml(text)}${fileHtml}`;
+      chatBody.appendChild(el);
+      scrollToBottom();
     }
 
     function createBotBubble(initialText = '') {
@@ -174,6 +167,14 @@ function formatMedicalResponse(rawText) {
       return candidates.map(l => l.replace(/^[-•\d\.\s]+/, '').trim()).slice(0,3);
     }
 
+    // NEW: Extract suggestion topics from response
+    function extractSuggestions(text) {
+      const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+      // Match lines that look like guideline or reference titles
+      const suggestionRegex = /^(American.*|European.*|UpToDate:.*)$/i;
+      return lines.filter(line => suggestionRegex.test(line)).slice(0, 4); // Limit to 4 suggestions
+    }
+
     function renderFollowups(followups, container) {
       if (!followups || followups.length === 0) return;
       const div = document.createElement('div');
@@ -182,7 +183,31 @@ function formatMedicalResponse(rawText) {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.textContent = q;
-        btn.onclick = () => { textarea.value = q; textarea.focus(); };
+        btn.onclick = () => {
+          textarea.value = q;
+          textarea.focus();
+          form.requestSubmit(); // Auto-submit the form
+        };
+        div.appendChild(btn);
+      });
+      container.appendChild(div);
+      scrollToBottom();
+    }
+
+    // NEW: Render suggestion topics as clickable buttons
+    function renderSuggestions(suggestions, container) {
+      if (!suggestions || suggestions.length === 0) return;
+      const div = document.createElement('div');
+      div.className = 'suggestions';
+      suggestions.forEach(s => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = s;
+        btn.onclick = () => {
+          textarea.value = s;
+          textarea.focus();
+          form.requestSubmit(); // Auto-submit the form
+        };
         div.appendChild(btn);
       });
       container.appendChild(div);
@@ -205,6 +230,7 @@ function formatMedicalResponse(rawText) {
           scrollToBottom();
         }
         renderFollowups(extractFollowups(accumulated), botBubble);
+        renderSuggestions(extractSuggestions(accumulated), botBubble); // Render suggestions
       } catch (err) {
         botBubble.innerHTML = sanitizeHtml('<strong>⚠️ Error:</strong> Unable to process your request.');
         console.error(err);
@@ -212,14 +238,13 @@ function formatMedicalResponse(rawText) {
         thinking.classList.remove('active');
       }
     }
-    
-    // --- MODIFIED: FORM SUBMIT LISTENER TO HANDLE FILES ---
+
     form.addEventListener('submit', e => {
       e.preventDefault();
       const note = textarea.value.trim();
       const file = fileInput.files[0];
 
-      if (!note && !file) return; // Exit if both text and file are missing
+      if (!note && !file) return;
 
       createUserBubble(note, file);
       const botBubble = createBotBubble("Thinking...");
@@ -227,7 +252,7 @@ function formatMedicalResponse(rawText) {
       postAndStream(fd, botBubble);
 
       textarea.value = '';
-      removeSelectedFile(); // Reset file input after sending
+      removeSelectedFile();
       textarea.focus();
     });
 
@@ -238,25 +263,24 @@ function formatMedicalResponse(rawText) {
       }
     });
 
-    // --- NEW: EVENT LISTENERS FOR FILE ATTACHMENT UI ---
     attachBtn.addEventListener('click', () => {
-        fileInput.click();
+      fileInput.click();
     });
 
     fileInput.addEventListener('change', () => {
-        if (fileInput.files.length > 0) {
-            const fileName = fileInput.files[0].name;
-            filePreviewContainer.innerHTML = `
-                <div class="file-preview">
-                    <span>${sanitizeHtml(fileName)}</span>
-                    <button type="button" id="remove-file-btn" title="Remove file">&times;</button>
-                </div>
-            `;
-            filePreviewContainer.style.display = 'block';
-            document.getElementById('remove-file-btn').addEventListener('click', removeSelectedFile);
-        } else {
-            removeSelectedFile();
-        }
+      if (fileInput.files.length > 0) {
+        const fileName = fileInput.files[0].name;
+        filePreviewContainer.innerHTML = `
+          <div class="file-preview">
+            <span>${sanitizeHtml(fileName)}</span>
+            <button type="button" id="remove-file-btn" title="Remove file">&times;</button>
+          </div>
+        `;
+        filePreviewContainer.style.display = 'block';
+        document.getElementById('remove-file-btn').addEventListener('click', removeSelectedFile);
+      } else {
+        removeSelectedFile();
+      }
     });
 
     window.addEventListener('load', scrollToBottom);
