@@ -41,7 +41,7 @@ def create_lab_report_pdf(filename="sample_lab_report.pdf"):
     cbc_tests = [
         ("WBC", "6.5", "x10^3/uL", "4.0 - 11.0"),
         ("RBC", "4.8", "x10^6/uL", "4.5 - 5.9"),
-        ("Hemoglobin", "14.2", "g/dL", "13.5 - 17.5"),
+        ("Hemoglobin", "6.2", "g/dL", "13.5 - 17.5"),
         ("Hematocrit", "42.0", "%", "38.0 - 50.0"),
         ("Platelets", "250", "x10^3/uL", "150 - 450")
     ]
@@ -67,8 +67,8 @@ def create_lab_report_pdf(filename="sample_lab_report.pdf"):
 
     # Notes
     y_position = draw_text("Notes", margin, y_position, size=14, bold=True)
-    y_position = draw_text("Elevated HbA1c suggests prediabetes. Recommend follow-up with endocrinologist.", margin, y_position, size=10)
-    y_position = draw_text("All other results within normal limits.", margin, y_position, size=10)
+    y_position = draw_text("", margin, y_position, size=10)
+    y_position = draw_text("", margin, y_position, size=10)
 
     # Footer
     c.setFont("Helvetica", 8)

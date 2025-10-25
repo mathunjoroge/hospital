@@ -63,7 +63,7 @@ socketio = SocketIO()
 prescription_id = str(uuid.uuid4())
 csrf = CSRFProtect()
 
-Summarizer = UniversalClinicalSummarizer(gemini_api_key="")
+Summarizer = UniversalClinicalSummarizer(gemini_api_key="AIzaSyBIiewOwY2H4qUUKm3EsaHybqxXjEo6cHE")
 
 
 from flask import make_response
