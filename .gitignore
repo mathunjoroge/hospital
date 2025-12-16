@@ -14,6 +14,8 @@ dist/
 amr_ipc_classifier/
 cancer_classifier/
 *.egg-info/
+unsloth/
+
 
 # Ignore logs and temp files
 *.log
