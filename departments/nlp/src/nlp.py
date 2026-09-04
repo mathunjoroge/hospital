@@ -16,13 +16,13 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import numpy as np
 
 # Local project imports
-from src.database import get_sqlite_connection
-from src.config import get_config
-from src.utils import prepare_note_for_nlp, generate_summary
-from resources.default_patterns import DEFAULT_PATTERNS
-from resources.default_clinical_terms import DEFAULT_CLINICAL_TERMS
-from resources.default_disease_keywords import DEFAULT_DISEASE_KEYWORDS
-from resources.common_fallbacks import (
+from .database import get_sqlite_connection
+from .config import get_config
+from .utils import prepare_note_for_nlp, generate_summary
+from departments.nlp.resources.default_patterns import DEFAULT_PATTERNS
+from departments.nlp.resources.default_clinical_terms import DEFAULT_CLINICAL_TERMS
+from departments.nlp.resources.default_disease_keywords import DEFAULT_DISEASE_KEYWORDS
+from departments.nlp.resources.common_fallbacks import (
     fallback_disease_keywords,
     fallback_symptom_cuis,
     fallback_management_plans,
@@ -37,7 +37,7 @@ from departments.nlp.resources.cancer_diseases import (
     BREAST_CANCER_SYMPTOMS,
     CANCER_KEYWORDS_FILE,
 )
-from resources.clinical_markers import LAB_THRESHOLDS, CANCER_DISEASES
+from departments.nlp.resources.clinical_markers import LAB_THRESHOLDS, CANCER_DISEASES
 from .umls_mapper import UMLSMapper
 from .disease_symptom_mapper import DiseaseSymptomMapper
 

@@ -298,7 +298,7 @@ def prescriptions():
         ).all()
 
         return render_template(
-            'pharmacy.prescriptions.html',
+            'pharmacy/prescriptions.html',
             prescriptions=active_prescriptions
         )
 

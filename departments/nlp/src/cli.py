@@ -4,10 +4,10 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.progress import track
 from concurrent.futures import ThreadPoolExecutor
-from src.nlp import DiseasePredictor
-from src.database import fetch_soap_notes, fetch_single_soap_note, get_sqlite_connection
-from src.utils import generate_html_response
-from src.config import get_config
+from .nlp import DiseasePredictor
+from .database import fetch_soap_notes, fetch_single_soap_note, get_sqlite_connection
+from .utils import generate_html_response
+from .config import get_config
 import logging
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # 0 = all logs, 1 = info, 2 = warnings, 3 = errors only
@@ -60,7 +60,7 @@ class HIMSCLI:
     
     def _show_status(self, detail: bool = False):
         """Display system status."""
-        from src.nlp import DiseasePredictor
+        from .nlp import DiseasePredictor
         status = {
             "NLP Model": "Loaded" if DiseasePredictor.nlp else "Error",
             "SQLite Database": HIMS_CONFIG["SQLITE_DB_PATH"],
@@ -128,7 +128,7 @@ class HIMSCLI:
     
     def _run_prediction(self, text: str):
         """Run disease prediction on input text."""
-        from src.nlp import DiseasePredictor
+        from .nlp import DiseasePredictor
         console.print(Panel("Clinical Text Analysis", style="bold blue"))
         console.print(f"Input: {text[:200]}...\n")
         
@@ -156,8 +156,8 @@ class HIMSCLI:
     
     def _process_single_note(self, note_id: int) -> bool:
         """Process a single SOAP note."""
-        from src.nlp import DiseasePredictor
-        from src.database import fetch_single_soap_note, update_ai_analysis
+        from .nlp import DiseasePredictor
+        from .database import fetch_single_soap_note, update_ai_analysis
         predictor = DiseasePredictor()
         note = fetch_single_soap_note(note_id)
         if note:
@@ -168,7 +168,7 @@ class HIMSCLI:
     
     def _process_notes(self, note_id: int, process_all: bool, limit: int, latest: bool = False, parallel: bool = False):
         """Process SOAP notes based on CLI arguments."""
-        from src.database import fetch_soap_notes
+        from .database import fetch_soap_notes
         if latest:
             console.print(Panel("Processing Latest Note", style="bold green"))
             try:

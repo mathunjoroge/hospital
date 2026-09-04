@@ -8,10 +8,10 @@ from sqlalchemy.sql import text
 from sqlalchemy.orm import Session
 
 # Local project imports
-from src.database import get_sqlite_connection, UMLSSession
-from src.config import get_config
+from .database import get_sqlite_connection, UMLSSession
+from .config import get_config
 from departments.nlp.resources.cancer_diseases import cancer_diseases
-from resources.common_fallbacks import COMMON_SYMPTOM_DISEASE_MAP
+from departments.nlp.resources.common_fallbacks import COMMON_SYMPTOM_DISEASE_MAP
 from .umls_mapper import UMLSMapper
 
 # Setup logging

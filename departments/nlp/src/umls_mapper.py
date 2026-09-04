@@ -7,10 +7,10 @@ from threading import Lock
 from collections import defaultdict
 
 # Local project imports
-from src.database import UMLSSession
-from src.config import get_config
-from resources.common_terms import common_terms
-from resources.common_fallbacks import SYMPTOM_NORMALIZATIONS
+from .database import UMLSSession
+from .config import get_config
+from departments.nlp.resources.common_terms import common_terms
+from departments.nlp.resources.common_fallbacks import SYMPTOM_NORMALIZATIONS
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

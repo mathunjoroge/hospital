@@ -8,11 +8,11 @@ from collections import defaultdict
 from datetime import datetime
 from textwrap import shorten
 import pytz
-from summarizer import ClinicalSummarizer
-from src.database import get_sqlite_connection
-from src.config import TIME_ZONE, BOOTSTRAP_CLASSES  # Import from config.py
-from resources.priority_symptoms import PRIORITY_SYMPTOMS
-from resources.common_fallbacks import fallback_management_plans
+from departments.nlp.summarizer import ClinicalSummarizer
+from .database import get_sqlite_connection
+from .config import TIME_ZONE, BOOTSTRAP_CLASSES  # Import from config.py
+from departments.nlp.resources.priority_symptoms import PRIORITY_SYMPTOMS
+from departments.nlp.resources.common_fallbacks import fallback_management_plans
 
 logger = logging.getLogger("HIMS-NLP")
 

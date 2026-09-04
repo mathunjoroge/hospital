@@ -6,10 +6,10 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import uvicorn
-from src.nlp import DiseasePredictor
-from src.utils import generate_html_response
-from src.database import fetch_single_soap_note, update_ai_analysis
-from src.config import get_config
+from .nlp import DiseasePredictor
+from .utils import generate_html_response
+from .database import fetch_single_soap_note, update_ai_analysis
+from .config import get_config
 import logging
 import bleach
 

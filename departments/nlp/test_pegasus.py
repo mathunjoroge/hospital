@@ -1,7 +1,7 @@
 # test_summarizer.py
-from summarizer import ClinicalSummarizer
+from departments.nlp.summarizer import ClinicalSummarizer
 
-def run_test():
+def test_clinical_summarizer():
     print("=== Testing ClinicalSummarizer ===")
     
     summarizer = ClinicalSummarizer()
@@ -35,4 +35,4 @@ def run_test():
     print(summary3)
 
 if __name__ == "__main__":
-    run_test()
+    test_clinical_summarizer()
