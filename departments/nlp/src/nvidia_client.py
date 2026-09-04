@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 logger = logging.getLogger("HIMS-NVIDIA-NIM")
 
 NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
-DEFAULT_MODEL = "meta/llama-3.1-70b-instruct"
+DEFAULT_MODEL = "meta/llama-3.2-11b-vision-instruct"
 
 CANCER_TYPES = [
     "breast cancer",
