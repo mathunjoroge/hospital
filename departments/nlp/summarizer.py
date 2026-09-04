@@ -1,6 +1,5 @@
 import logging
 import spacy
-from transformers import PegasusForConditionalGeneration, PegasusTokenizer
 import torch
 import unicodedata
 from typing import Union, Dict, List, Optional, Set
@@ -8,6 +7,8 @@ import warnings
 import re
 from datetime import datetime
 import bleach
+
+from departments.nlp.src.nvidia_client import NvidiaNIMClient
 
 # --- HMIS Configuration ---
 
@@ -32,8 +33,7 @@ class ClinicalSummarizer:
     """
 
     # Class-level cache for models
-    _model: Optional[PegasusForConditionalGeneration] = None
-    _tokenizer: Optional[PegasusTokenizer] = None
+    _nvidia_client: Optional[NvidiaNIMClient] = None
     _nlp: Optional[spacy.language.Language] = None
     _initialized: bool = False
 
@@ -46,25 +46,17 @@ class ClinicalSummarizer:
         'ago', 'daily', 'bid', 'po', 'iv', 'status', 'condition', 'finding', 'normal'
     }
 
-    def __init__(self, model_name: str = "google/pegasus-pubmed", device: Optional[str] = None):
+    def __init__(self, model_name: str = "meta/llama-3.1-70b-instruct", device: Optional[str] = None):
         """
-        Initialize the ClinicalSummarizer with Pegasus model.
-
-        Args:
-            model_name (str): Name of the Pegasus model (default: google/pegasus-pubmed).
-            device (Optional[str]): Device to run the model on (e.g., 'cuda' or 'cpu').
+        Initialize the ClinicalSummarizer with NVIDIA NIM API.
         """
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self._initialize_models(model_name)
-
-        if self._model:
-            self._model.to(self.device)
-        
         logger.info(f"HMIS Clinical Summarizer initialized on device: {self.device}")
 
     @classmethod
     def _initialize_models(cls, model_name: str) -> None:
-        """Initialize Pegasus and spaCy models."""
+        """Initialize NVIDIA NIM Client and spaCy models."""
         if cls._initialized:
             return
 
@@ -72,8 +64,7 @@ class ClinicalSummarizer:
             warnings.filterwarnings("ignore", category=FutureWarning)
             try:
                 logger.info("Loading HMIS Clinical Summarizer models...")
-                cls._tokenizer = PegasusTokenizer.from_pretrained(model_name)
-                cls._model = PegasusForConditionalGeneration.from_pretrained(model_name)
+                cls._nvidia_client = NvidiaNIMClient(model=model_name)
 
                 try:
                     cls._nlp = spacy.load("en_core_sci_sm")
@@ -150,23 +141,10 @@ class ClinicalSummarizer:
         return "Summarize the following clinical note accurately and concisely for hospital use: " + text
 
     def _generate_summary(self, text: str, max_length: int, min_length: int) -> str:
-        """Generate summary using Pegasus model."""
+        """Generate summary using NVIDIA NIM model with fallback."""
         try:
-            inputs = self._tokenizer(
-                [text], max_length=1024, truncation=True, return_tensors="pt"
-            ).to(self.device)
-            
-            summary_ids = self._model.generate(
-                inputs["input_ids"], 
-                num_beams=4, 
-                max_length=max_length, 
-                min_length=min_length, 
-                early_stopping=True,
-                no_repeat_ngram_size=3
-            )
-            
-            summary = self._tokenizer.decode(summary_ids[0], skip_special_tokens=True)
-            logger.info("Summary generated successfully")
+            summary = self._nvidia_client.summarize_note(text)
+            logger.info("Summary generated successfully via NVIDIA NIM")
             return summary
             
         except Exception as e:
@@ -424,7 +402,7 @@ class ClinicalSummarizer:
         return {
             "initialized": self._initialized,
             "device": self.device,
-            "models_loaded": bool(self._model and self._tokenizer and self._nlp),
+            "models_loaded": bool(self._nvidia_client and self._nlp),
             "timestamp": datetime.now().isoformat()
         }
 

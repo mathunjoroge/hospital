@@ -40,6 +40,7 @@ from departments.nlp.resources.cancer_diseases import (
 from departments.nlp.resources.clinical_markers import LAB_THRESHOLDS, CANCER_DISEASES
 from .umls_mapper import UMLSMapper
 from .disease_symptom_mapper import DiseaseSymptomMapper
+from .nvidia_client import NvidiaNIMClient, CANCER_TYPES, AMR_IPC_CATEGORIES
 
 # Set environment variables to avoid TensorFlow usage
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
@@ -75,42 +76,17 @@ except Exception as e:
     nlp.add_pipe("sentencizer")
 lemmatizer = WordNetLemmatizer()
 
-# Load cancer classifier model and tokenizer
-model_name = "emilyalsentzer/Bio_ClinicalBERT"
-trained_model_path = "/home/mathu/projects/hospital/cancer_classifier"
-try:
-    tokenizer = AutoTokenizer.from_pretrained(trained_model_path)
-    model = AutoModelForSequenceClassification.from_pretrained(trained_model_path)
-    model.eval()
-    if torch.cuda.is_available():
-        model.to("cuda")
-        logger.info("Cancer model moved to GPU")
-except Exception as e:
-    logger.error(f"Failed to load cancer classifier from {trained_model_path}: {e}")
-    raise
+# Initialize NVIDIA NIM Client for AI Model Inferences
+nvidia_client = NvidiaNIMClient()
 
 # Label mapping for cancer types
 cancer_types = list(CANCER_DISEASES)
 label_map = {name: idx for idx, name in enumerate(cancer_types)}
 id2label = {idx: name for idx, name in enumerate(cancer_types)}
 
-# Load AMR/IPC classifier
-amr_ipc_model_path = "/home/mathu/projects/hospital/amr_ipc_classifier"
-try:
-    amr_ipc_tokenizer = AutoTokenizer.from_pretrained(amr_ipc_model_path)
-    amr_ipc_model = AutoModelForSequenceClassification.from_pretrained(amr_ipc_model_path)
-    amr_ipc_categories = list(amr_ipc_model.config.id2label.values()) if hasattr(amr_ipc_model.config, 'id2label') else ["amr_high", "amr_low", "amr_none", "ipc_adequate", "ipc_inadequate", "ipc_none"]
-    amr_ipc_id2label = {i: c for i, c in enumerate(amr_ipc_categories)}
-    if amr_ipc_model.config.num_labels != len(amr_ipc_categories):
-        logger.error(f"AMR/IPC model expects {amr_ipc_model.config.num_labels} labels, but {len(amr_ipc_categories)} categories defined")
-        raise ValueError("AMR/IPC model label mismatch")
-    amr_ipc_model.eval()
-    if torch.cuda.is_available():
-        amr_ipc_model.to("cuda")
-        logger.info("AMR/IPC model moved to GPU")
-except Exception as e:
-    logger.error(f"Failed to load AMR/IPC classifier from {amr_ipc_model_path}: {e}")
-    raise
+# AMR/IPC categories
+amr_ipc_categories = AMR_IPC_CATEGORIES
+amr_ipc_id2label = {i: c for i, c in enumerate(amr_ipc_categories)}
 
 class ClinicalNER:
     """Named Entity Recognition for clinical text with enhanced symptom and risk factor handling."""
@@ -643,79 +619,12 @@ class DiseasePredictor:
         self.min_symptom_count = 2
     
     def predict_cancer_risk(self, text: str) -> Dict[str, float]:
-        try:
-            text = text.strip()
-            if len(text.split()) < 3:
-                logger.debug("Input text too short for cancer prediction, padding")
-                text = text + " " + text
-            inputs = tokenizer(
-                text,
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-                max_length=128
-            )
-            inputs = {k: v.to("cuda" if torch.cuda.is_available() else "cpu") for k, v in inputs.items()}
-            logger.debug(f"Cancer model input tokens: {inputs}")
-            with torch.no_grad():
-                outputs = model(**inputs)
-                logits = outputs.logits
-                logger.debug(f"Cancer model logits: {logits}")
-                probs = torch.softmax(logits, dim=1)[0]
-                logger.debug(f"Cancer model probabilities: {probs}")
-            result = {id2label[i]: prob.item() for i, prob in enumerate(probs)}
-            total = sum(result.values())
-            if total == 0 or not all(0 <= v <= 1 for v in result.values()):
-                logger.warning("Invalid cancer probabilities, returning uniform distribution")
-                result = {cancer: 1.0 / len(cancer_types) for cancer in cancer_types}
-            logger.debug(f"Final cancer prediction: {result}")
-            return result
-        except Exception as e:
-            logger.error(f"Error in cancer prediction: {e}")
-            return {cancer: 1.0 / len(cancer_types) for cancer in cancer_types}
-    
+        """Predict cancer risk using NVIDIA NIM API model with offline fallback."""
+        return nvidia_client.predict_cancer_risk(text)
+
     def predict_amr_ipc(self, text: str) -> Dict[str, float]:
-        """Predict AMR/IPC categories for the given clinical text.
-
-        Args:
-            text (str): Clinical text to analyze.
-
-        Returns:
-            Dict[str, float]: Probabilities for each AMR/IPC category.
-        """
-        if not text or not text.strip():
-            logger.warning("Empty or invalid input text for AMR/IPC prediction")
-            return {label: 0.0 for label in amr_ipc_categories}
-        try:
-            text = text.strip()
-            if len(text.split()) < 3:
-                logger.debug("Input text too short for AMR/IPC prediction, padding")
-                text = text + " " + text
-            inputs = amr_ipc_tokenizer(
-                text,
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-                max_length=128
-            )
-            inputs = {k: v.to("cuda" if torch.cuda.is_available() else "cpu") for k, v in inputs.items()}
-            logger.debug(f"AMR/IPC input tokens: {inputs}")
-            with torch.no_grad():
-                outputs = amr_ipc_model(**inputs)
-                logits = outputs.logits
-                logger.debug(f"AMR/IPC model logits: {logits}")
-                probs = torch.softmax(logits, dim=1)[0]
-                logger.debug(f"AMR/IPC model probabilities: {probs}")
-            result = {amr_ipc_id2label[i]: prob.item() for i, prob in enumerate(probs)}
-            total = sum(result.values())
-            if total == 0 or not all(0 <= v <= 1 for v in result.values()):
-                logger.warning("Invalid AMR/IPC probabilities, returning uniform distribution")
-                result = {label: 1.0 / len(amr_ipc_categories) for label in amr_ipc_categories}
-            logger.debug(f"Final AMR/IPC prediction: {result}")
-            return result
-        except Exception as e:
-            logger.error(f"Error in AMR/IPC prediction: {e}")
-            return {label: 1.0 / len(amr_ipc_categories) for label in amr_ipc_categories}
+        """Predict AMR/IPC categories using NVIDIA NIM API model with offline fallback."""
+        return nvidia_client.predict_amr_ipc(text)
     
     def predict_from_text(self, text: str, amr_ipc_text: str = None) -> Dict:
         start_time = time.time()
