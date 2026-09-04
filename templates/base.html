@@ -1,1104 +1,1145 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HIMS - {{ title|default('Health Information Management System') }}</title>
-    <!-- Meta Tags -->
-    <meta name="description" content="Health Information Management System (HIMS) - Manage patient records, billing, and more.">
-    <meta name="keywords" content="HIMS, healthcare, patient management, billing, records">
-    <meta name="author" content="Your Organization">
-    <meta name="csrf-token" content="{{ csrf_token() if csrf_token is defined else '' }}">
-    <!-- Favicon -->
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
-    <!-- Select2 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
-    <!-- Fix Select2 Width -->
-    <style>
-      .select2-container {
-        width: 100% !important;
-      }
-      
-      /* Theme selector styles */
-      .theme-option {
-        display: flex;
-        align-items: center;
-        padding: 8px 12px;
-        border-radius: 6px;
-        margin-bottom: 5px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-      }
-      
-      .theme-option:hover {
-        background-color: rgba(255, 255, 255, 0.1);
-      }
-      
-      .theme-option.active {
-        background-color: rgba(255, 255, 255, 0.2);
-        font-weight: 600;
-      }
-      
-      .theme-color {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        margin-right: 10px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-      }
-      
-      .theme-blue .theme-color { background: linear-gradient(135deg, #2c3e50, #4a6278); }
-      .theme-green .theme-color { background: linear-gradient(135deg, #1b5e20, #2e7d32); }
-      .theme-teal .theme-color { background: linear-gradient(135deg, #00796b, #009688); }
-      .theme-purple .theme-color { background: linear-gradient(135deg, #4a2c82, #6f42c1); }
-      .theme-orange .theme-color { background: linear-gradient(135deg, #d35400, #fd7e14); }
-      .theme-dark .theme-color { background: linear-gradient(135deg, #212529, #343a40); }
-      .theme-mocha .theme-color { background: linear-gradient(135deg, #A47864, #8B4513); }
-      .theme-sunny .theme-color { background: linear-gradient(135deg, #FFD700, #FFA500); }
-      .theme-ruby .theme-color { background: linear-gradient(135deg, #9B1D64, #D63384); }
-      .theme-cream .theme-color { background: linear-gradient(135deg, #FFFDD0, #F5DEB3); }
-      .theme-orchid .theme-color { background: linear-gradient(135deg, #DA70D6, #BA55D3); }
-      .theme-lime .theme-color { background: linear-gradient(135deg, #32CD32, #00FF00); }
-      .theme-ocean .theme-color { background: linear-gradient(135deg, #0077BE, #00BFFF); }
-      .theme-clay .theme-color { background: linear-gradient(135deg, #CD853F, #D2691E); }
-      
-      /* Theme-specific variables */
-      .theme-blue {
-        --primary-color: #2c6bac;
-        --secondary-color: #e8f1f5;
-        --hover-color: #1a4f7a;
-        --sidebar-bg: #2c3e50;
-        --navbar-bg: linear-gradient(90deg, #2c3e50, #4a6278);
-        --card-bg: #ffffff;
-        --content-bg: #f8f9fa;
-        --text-color: #333;
-      }
-      
-      .theme-green {
-        --primary-color: #28a745;
-        --secondary-color: #e8f5e9;
-        --hover-color: #1e7e34;
-        --sidebar-bg: #1b5e20;
-        --navbar-bg: linear-gradient(90deg, #1b5e20, #2e7d32);
-        --card-bg: #ffffff;
-        --content-bg: #f8f9fa;
-        --text-color: #333;
-      }
-      
-      .theme-teal {
-        --primary-color: #20c997;
-        --secondary-color: #e8f6f3;
-        --hover-color: #138a6f;
-        --sidebar-bg: #00796b;
-        --navbar-bg: linear-gradient(90deg, #00796b, #009688);
-        --card-bg: #ffffff;
-        --content-bg: #f8f9fa;
-        --text-color: #333;
-      }
-      
-      .theme-purple {
-        --primary-color: #6f42c1;
-        --secondary-color: #f0e9ff;
-        --hover-color: #5a36af;
-        --sidebar-bg: #4a2c82;
-        --navbar-bg: linear-gradient(90deg, #4a2c82, #6f42c1);
-        --card-bg: #ffffff;
-        --content-bg: #f8f9fa;
-        --text-color: #333;
-      }
-      
-      .theme-orange {
-        --primary-color: #fd7e14;
-        --secondary-color: #fff3e8;
-        --hover-color: #e36209;
-        --sidebar-bg: #d35400;
-        --navbar-bg: linear-gradient(90deg, #d35400, #fd7e14);
-        --card-bg: #ffffff;
-        --content-bg: #f8f9fa;
-        --text-color: #333;
-      }
-      
-      .theme-dark {
-        --primary-color: #495057;
-        --secondary-color: #343a40;
-        --hover-color: #212529;
-        --sidebar-bg: #212529;
-        --navbar-bg: linear-gradient(90deg, #212529, #343a40);
-        --card-bg: #343a40;
-        --content-bg: #212529;
-        --text-color: #e9ecef;
-      }
-      
-      /* New Themes */
-      .theme-mocha {
-        --primary-color: #A47864;
-        --secondary-color: #F5F5DC;
-        --hover-color: #8B4513;
-        --sidebar-bg: #8B4513;
-        --navbar-bg: linear-gradient(90deg, #A47864, #D2B48C);
-        --card-bg: #FDF6E3;
-        --content-bg: #FAF0E6;
-        --text-color: #4A2C2A;
-      }
-      
-      .theme-sunny {
-        --primary-color: #FFD700;
-        --secondary-color: #FFFACD;
-        --hover-color: #FFA500;
-        --sidebar-bg: #FF8C00;
-        --navbar-bg: linear-gradient(90deg, #FFD700, #FFA500);
-        --card-bg: #ffffff;
-        --content-bg: #FFFFE0;
-        --text-color: #B8860B;
-      }
-      
-      .theme-ruby {
-        --primary-color: #D63384;
-        --secondary-color: #FFE4E1;
-        --hover-color: #C2185B;
-        --sidebar-bg: #9B1D64;
-        --navbar-bg: linear-gradient(90deg, #D63384, #AD1457);
-        --card-bg: #ffffff;
-        --content-bg: #FFF0F5;
-        --text-color: #880E4F;
-      }
-      
-      .theme-cream {
-        --primary-color: #FFFDD0;
-        --secondary-color: #F5DEB3;
-        --hover-color: #FAFAD2;
-        --sidebar-bg: #F5DEB3;
-        --navbar-bg: linear-gradient(90deg, #FFFDD0, #FDF5E6);
-        --card-bg: #ffffff;
-        --content-bg: #FDF5E6;
-        --text-color: #8B4513;
-      }
-      
-      .theme-orchid {
-        --primary-color: #DA70D6;
-        --secondary-color: #F8F1FF;
-        --hover-color: #BA55D3;
-        --sidebar-bg: #9370DB;
-        --navbar-bg: linear-gradient(90deg, #DA70D6, #DDA0DD);
-        --card-bg: #ffffff;
-        --content-bg: #F3E5F5;
-        --text-color: #4B0082;
-      }
-      
-      .theme-lime {
-        --primary-color: #32CD32;
-        --secondary-color: #F0FFF0;
-        --hover-color: #228B22;
-        --sidebar-bg: #006400;
-        --navbar-bg: linear-gradient(90deg, #32CD32, #00FF7F);
-        --card-bg: #ffffff;
-        --content-bg: #F0FFF0;
-        --text-color: #006400;
-      }
-      
-      .theme-ocean {
-        --primary-color: #0077BE;
-        --secondary-color: #E0F7FA;
-        --hover-color: #0056A0;
-        --sidebar-bg: #004A80;
-        --navbar-bg: linear-gradient(90deg, #0077BE, #00BFFF);
-        --card-bg: #ffffff;
-        --content-bg: #E3F2FD;
-        --text-color: #003A66;
-      }
-      
-      .theme-clay {
-        --primary-color: #CD853F;
-        --secondary-color: #FAEBD7;
-        --hover-color: #D2691E;
-        --sidebar-bg: #A0522D;
-        --navbar-bg: linear-gradient(90deg, #CD853F, #D2691E);
-        --card-bg: #ffffff;
-        --content-bg: #FFF8DC;
-        --text-color: #8B4513;
-      }
-      
-      /* Apply theme variables */
-      body {
-        --primary-color: #2c6bac;
-        --secondary-color: #e8f1f5;
-        --hover-color: #1a4f7a;
-        --sidebar-bg: #2c3e50;
-        --navbar-bg: linear-gradient(90deg, #2c3e50, #4a6278);
-        --card-bg: #ffffff;
-        --content-bg: #f8f9fa;
-        --text-color: #333;
-      }
-      
-      .theme-dark .card {
-        color: #e9ecef;
-      }
-      
-      /* Toast notification */
-      .toast-container {
-        z-index: 9999;
-      }
 
-      /* Dropdown z-index fixes */
-      .dropdown-menu {
-        z-index: 1055 !important;
-      }
-      .select2-dropdown {
-        z-index: 1056 !important;
-      }
-    </style>
-    <!-- Custom Styles -->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HIMS - {{ title|default('Health Information Management System') }}</title>
+  <!-- Meta Tags -->
+  <meta name="description"
+    content="Health Information Management System (HIMS) - Manage patient records, billing, and more.">
+  <meta name="keywords" content="HIMS, healthcare, patient management, billing, records">
+  <meta name="author" content="Your Organization">
+  <meta name="csrf-token" content="{{ csrf_token() if csrf_token is defined else '' }}">
+  <!-- Favicon -->
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+  <!-- Select2 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+  <!-- Fix Select2 Width -->
+  <style>
+    .select2-container {
+      width: 100% !important;
+    }
 
-    <style>
-      /* ================= Layout & Structure ================= */
-      body {
-        padding-top: 60px;
-        display: flex;
-        min-height: 100vh;
-        flex-direction: column;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: var(--content-bg);
-        color: var(--text-color);
-      }
+    /* Theme selector styles */
+    .theme-option {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
 
-      main {
-        flex: 1;
-      }
+    .theme-option:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
 
+    .theme-option.active {
+      background-color: rgba(255, 255, 255, 0.2);
+      font-weight: 600;
+    }
+
+    .theme-color {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      margin-right: 10px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .theme-blue .theme-color {
+      background: linear-gradient(135deg, #2c3e50, #4a6278);
+    }
+
+    .theme-green .theme-color {
+      background: linear-gradient(135deg, #1b5e20, #2e7d32);
+    }
+
+    .theme-teal .theme-color {
+      background: linear-gradient(135deg, #00796b, #009688);
+    }
+
+    .theme-purple .theme-color {
+      background: linear-gradient(135deg, #4a2c82, #6f42c1);
+    }
+
+    .theme-orange .theme-color {
+      background: linear-gradient(135deg, #d35400, #fd7e14);
+    }
+
+    .theme-dark .theme-color {
+      background: linear-gradient(135deg, #212529, #343a40);
+    }
+
+    .theme-mocha .theme-color {
+      background: linear-gradient(135deg, #A47864, #8B4513);
+    }
+
+    .theme-sunny .theme-color {
+      background: linear-gradient(135deg, #FFD700, #FFA500);
+    }
+
+    .theme-ruby .theme-color {
+      background: linear-gradient(135deg, #9B1D64, #D63384);
+    }
+
+    .theme-cream .theme-color {
+      background: linear-gradient(135deg, #FFFDD0, #F5DEB3);
+    }
+
+    .theme-orchid .theme-color {
+      background: linear-gradient(135deg, #DA70D6, #BA55D3);
+    }
+
+    .theme-lime .theme-color {
+      background: linear-gradient(135deg, #32CD32, #00FF00);
+    }
+
+    .theme-ocean .theme-color {
+      background: linear-gradient(135deg, #0077BE, #00BFFF);
+    }
+
+    .theme-clay .theme-color {
+      background: linear-gradient(135deg, #CD853F, #D2691E);
+    }
+
+    /* Theme-specific variables */
+    .theme-blue {
+      --primary-color: #2c6bac;
+      --secondary-color: #e8f1f5;
+      --hover-color: #1a4f7a;
+      --sidebar-bg: #2c3e50;
+      --navbar-bg: linear-gradient(90deg, #2c3e50, #4a6278);
+      --card-bg: #ffffff;
+      --content-bg: #f8f9fa;
+      --text-color: #333;
+    }
+
+    .theme-green {
+      --primary-color: #28a745;
+      --secondary-color: #e8f5e9;
+      --hover-color: #1e7e34;
+      --sidebar-bg: #1b5e20;
+      --navbar-bg: linear-gradient(90deg, #1b5e20, #2e7d32);
+      --card-bg: #ffffff;
+      --content-bg: #f8f9fa;
+      --text-color: #333;
+    }
+
+    .theme-teal {
+      --primary-color: #20c997;
+      --secondary-color: #e8f6f3;
+      --hover-color: #138a6f;
+      --sidebar-bg: #00796b;
+      --navbar-bg: linear-gradient(90deg, #00796b, #009688);
+      --card-bg: #ffffff;
+      --content-bg: #f8f9fa;
+      --text-color: #333;
+    }
+
+    .theme-purple {
+      --primary-color: #6f42c1;
+      --secondary-color: #f0e9ff;
+      --hover-color: #5a36af;
+      --sidebar-bg: #4a2c82;
+      --navbar-bg: linear-gradient(90deg, #4a2c82, #6f42c1);
+      --card-bg: #ffffff;
+      --content-bg: #f8f9fa;
+      --text-color: #333;
+    }
+
+    .theme-orange {
+      --primary-color: #fd7e14;
+      --secondary-color: #fff3e8;
+      --hover-color: #e36209;
+      --sidebar-bg: #d35400;
+      --navbar-bg: linear-gradient(90deg, #d35400, #fd7e14);
+      --card-bg: #ffffff;
+      --content-bg: #f8f9fa;
+      --text-color: #333;
+    }
+
+    .theme-dark {
+      --primary-color: #495057;
+      --secondary-color: #343a40;
+      --hover-color: #212529;
+      --sidebar-bg: #212529;
+      --navbar-bg: linear-gradient(90deg, #212529, #343a40);
+      --card-bg: #343a40;
+      --content-bg: #212529;
+      --text-color: #e9ecef;
+    }
+
+    /* New Themes */
+    .theme-mocha {
+      --primary-color: #A47864;
+      --secondary-color: #F5F5DC;
+      --hover-color: #8B4513;
+      --sidebar-bg: #8B4513;
+      --navbar-bg: linear-gradient(90deg, #A47864, #D2B48C);
+      --card-bg: #FDF6E3;
+      --content-bg: #FAF0E6;
+      --text-color: #4A2C2A;
+    }
+
+    .theme-sunny {
+      --primary-color: #FFD700;
+      --secondary-color: #FFFACD;
+      --hover-color: #FFA500;
+      --sidebar-bg: #FF8C00;
+      --navbar-bg: linear-gradient(90deg, #FFD700, #FFA500);
+      --card-bg: #ffffff;
+      --content-bg: #FFFFE0;
+      --text-color: #B8860B;
+    }
+
+    .theme-ruby {
+      --primary-color: #D63384;
+      --secondary-color: #FFE4E1;
+      --hover-color: #C2185B;
+      --sidebar-bg: #9B1D64;
+      --navbar-bg: linear-gradient(90deg, #D63384, #AD1457);
+      --card-bg: #ffffff;
+      --content-bg: #FFF0F5;
+      --text-color: #880E4F;
+    }
+
+    .theme-cream {
+      --primary-color: #FFFDD0;
+      --secondary-color: #F5DEB3;
+      --hover-color: #FAFAD2;
+      --sidebar-bg: #F5DEB3;
+      --navbar-bg: linear-gradient(90deg, #FFFDD0, #FDF5E6);
+      --card-bg: #ffffff;
+      --content-bg: #FDF5E6;
+      --text-color: #8B4513;
+    }
+
+    .theme-orchid {
+      --primary-color: #DA70D6;
+      --secondary-color: #F8F1FF;
+      --hover-color: #BA55D3;
+      --sidebar-bg: #9370DB;
+      --navbar-bg: linear-gradient(90deg, #DA70D6, #DDA0DD);
+      --card-bg: #ffffff;
+      --content-bg: #F3E5F5;
+      --text-color: #4B0082;
+    }
+
+    .theme-lime {
+      --primary-color: #32CD32;
+      --secondary-color: #F0FFF0;
+      --hover-color: #228B22;
+      --sidebar-bg: #006400;
+      --navbar-bg: linear-gradient(90deg, #32CD32, #00FF7F);
+      --card-bg: #ffffff;
+      --content-bg: #F0FFF0;
+      --text-color: #006400;
+    }
+
+    .theme-ocean {
+      --primary-color: #0077BE;
+      --secondary-color: #E0F7FA;
+      --hover-color: #0056A0;
+      --sidebar-bg: #004A80;
+      --navbar-bg: linear-gradient(90deg, #0077BE, #00BFFF);
+      --card-bg: #ffffff;
+      --content-bg: #E3F2FD;
+      --text-color: #003A66;
+    }
+
+    .theme-clay {
+      --primary-color: #CD853F;
+      --secondary-color: #FAEBD7;
+      --hover-color: #D2691E;
+      --sidebar-bg: #A0522D;
+      --navbar-bg: linear-gradient(90deg, #CD853F, #D2691E);
+      --card-bg: #ffffff;
+      --content-bg: #FFF8DC;
+      --text-color: #8B4513;
+    }
+
+    /* Apply theme variables */
+    body {
+      --primary-color: #2c6bac;
+      --secondary-color: #e8f1f5;
+      --hover-color: #1a4f7a;
+      --sidebar-bg: #2c3e50;
+      --navbar-bg: linear-gradient(90deg, #2c3e50, #4a6278);
+      --card-bg: #ffffff;
+      --content-bg: #f8f9fa;
+      --text-color: #333;
+    }
+
+    .theme-dark .card {
+      color: #e9ecef;
+    }
+
+    /* Toast notification */
+    .toast-container {
+      z-index: 9999;
+    }
+
+    /* Dropdown z-index fixes */
+    .dropdown-menu {
+      z-index: 1055 !important;
+    }
+
+    .select2-dropdown {
+      z-index: 1056 !important;
+    }
+  </style>
+  <!-- Custom Styles -->
+
+  <style>
+    /* ================= Layout & Structure ================= */
+    body {
+      padding-top: 60px;
+      display: flex;
+      min-height: 100vh;
+      flex-direction: column;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--content-bg);
+      color: var(--text-color);
+    }
+
+    main {
+      flex: 1;
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 60px;
+      bottom: 0;
+      left: 0;
+      width: 250px;
+      background: var(--sidebar-bg);
+      color: white;
+      padding: 20px 0;
+      transition: transform 0.3s ease-in-out;
+      z-index: 1000;
+      box-shadow: 3px 0 10px rgba(0, 0, 0, 0.1);
+      overflow-y: auto;
+    }
+
+    .content {
+      margin-left: 250px;
+      padding: 20px;
+      transition: margin-left 0.3s ease-in-out;
+      text-align: left;
+      background-color: var(--content-bg);
+      min-height: calc(100vh - 60px);
+    }
+
+    @media (max-width: 768px) {
       .sidebar {
-        position: fixed;
-        top: 60px;
-        bottom: 0;
-        left: 0;
-        width: 250px;
-        background: var(--sidebar-bg);
-        color: white;
-        padding: 20px 0;
-        transition: transform 0.3s ease-in-out;
-        z-index: 1000;
-        box-shadow: 3px 0 10px rgba(0, 0, 0, 0.1);
-        overflow-y: auto;
+        transform: translateX(-100%);
       }
 
       .content {
-        margin-left: 250px;
-        padding: 20px;
-        transition: margin-left 0.3s ease-in-out;
-        text-align: left;
-        background-color: var(--content-bg);
-        min-height: calc(100vh - 60px);
-      }
-
-      @media (max-width: 768px) {
-        .sidebar {
-          transform: translateX(-100%);
-        }
-
-        .content {
-          margin-left: 0;
-        }
-
-        .sidebar.active {
-          transform: translateX(0);
-        }
-
-        .sidebar-toggle {
-          display: block;
-        }
-      }
-
-      .sidebar a {
-        color: white;
-        text-decoration: none;
-        display: block;
-        margin: 5px 15px;
-        padding: 12px 15px;
-        border-radius: 8px;
-        text-align: left;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-      }
-
-      .sidebar a:before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        height: 100%;
-        width: 4px;
-        background-color: var(--primary-color);
-        opacity: 0;
-        transition: opacity 0.3s ease;
-      }
-
-      .sidebar a:hover {
-        background-color: rgba(255, 255, 255, 0.1);
-        color: white;
-        transform: translateX(5px);
-      }
-
-      .sidebar a:hover:before {
-        opacity: 1;
-      }
-
-      .sidebar a.active {
-        background-color: rgba(52, 152, 219, 0.2);
-        font-weight: 600;
-        color: white;
-      }
-
-      .sidebar a.active:before {
-        opacity: 1;
-      }
-
-      .sidebar-toggle {
-        display: none;
-        position: fixed;
-        top: 70px;
-        left: 15px;
-        z-index: 1100;
-        background-color: var(--sidebar-bg);
-        color: white;
-        border: none;
-        padding: 10px;
-        border-radius: 50%;
-        cursor: pointer;
-        width: 40px;
-        height: 40px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-      }
-
-      .hide-sidebar .sidebar {
-        display: none;
-      }
-
-      .hide-sidebar .content {
         margin-left: 0;
       }
 
-      /* ================= Navbar ================= */
-      .navbar-custom {
-        background: var(--navbar-bg);
-        border-bottom: 2px solid #1a2d3e;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        padding: 0.5rem 1rem;
+      .sidebar.active {
+        transform: translateX(0);
       }
 
-      .navbar-brand {
-        color: #fff;
-        transition: color 0.3s ease;
-        font-weight: 600;
-        font-size: 1.5rem;
+      .sidebar-toggle {
+        display: block;
+      }
+    }
+
+    .sidebar a {
+      color: white;
+      text-decoration: none;
+      display: block;
+      margin: 5px 15px;
+      padding: 12px 15px;
+      border-radius: 8px;
+      text-align: left;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .sidebar a:before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 4px;
+      background-color: var(--primary-color);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .sidebar a:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: white;
+      transform: translateX(5px);
+    }
+
+    .sidebar a:hover:before {
+      opacity: 1;
+    }
+
+    .sidebar a.active {
+      background-color: rgba(52, 152, 219, 0.2);
+      font-weight: 600;
+      color: white;
+    }
+
+    .sidebar a.active:before {
+      opacity: 1;
+    }
+
+    .sidebar-toggle {
+      display: none;
+      position: fixed;
+      top: 70px;
+      left: 15px;
+      z-index: 1100;
+      background-color: var(--sidebar-bg);
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 50%;
+      cursor: pointer;
+      width: 40px;
+      height: 40px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    .hide-sidebar .sidebar {
+      display: none;
+    }
+
+    .hide-sidebar .content {
+      margin-left: 0;
+    }
+
+    /* ================= Navbar ================= */
+    .navbar-custom {
+      background: var(--navbar-bg);
+      border-bottom: 2px solid #1a2d3e;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      padding: 0.5rem 1rem;
+    }
+
+    .navbar-brand {
+      color: #fff;
+      transition: color 0.3s ease;
+      font-weight: 600;
+      font-size: 1.5rem;
+    }
+
+    .navbar-brand:hover {
+      color: #b2bec3;
+    }
+
+    .nav-link {
+      color: #fff;
+      padding: 0.5rem 1rem;
+      transition: all 0.3s ease;
+      border-radius: 6px;
+      margin: 0 2px;
+    }
+
+    .nav-link:hover {
+      color: #b2bec3;
+      transform: scale(1.05);
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .navbar-text {
+      font-size: 0.9rem;
+      color: #fff;
+    }
+
+    .badge.bg-danger {
+      transition: transform 0.3s ease;
+    }
+
+    .animate-badge:hover .badge {
+      transform: scale(1.2);
+    }
+
+    /* ================= Dropdown Menu ================= */
+    .dropdown-menu {
+      background-color: #2c3e50;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      padding: 0.5rem;
+    }
+
+    .dropdown-item {
+      color: #fff;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .dropdown-item:hover {
+      background-color: #4a6278;
+      color: #b2bec3;
+    }
+
+    /* Style the select2 container */
+    .select2-container--bootstrap-5 .select2-selection {
+      min-height: 45px;
+      padding: 0.375rem 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid #ced4da;
+      font-size: 1rem;
+    }
+
+    /* Placeholder text color */
+    .select2-container--bootstrap-5 .select2-selection__placeholder {
+      color: #6c757d;
+    }
+
+    /* Clear button spacing */
+    .select2-container--bootstrap-5 .select2-selection__clear {
+      margin-right: 10px;
+    }
+
+    /* On focus */
+    .select2-container--bootstrap-5.select2-container--focus .select2-selection {
+      border-color: #86b7fe;
+      box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    /* Dropdown styling */
+    .select2-container--bootstrap-5 .select2-results__option--highlighted {
+      background-color: #e9ecef;
+      color: #000;
+    }
+
+    /* Fix misaligned Select2 clear button */
+    .select2-container--bootstrap-5 .select2-selection__clear {
+      margin-top: 0.4rem;
+      /* Adjust vertically */
+      margin-right: 0.5rem;
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #dc3545;
+      font-size: 1.2rem;
+    }
+
+    /* ================= Enhanced UI Elements ================= */
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      margin-bottom: 1.5rem;
+      border: none;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+      background: var(--navbar-bg);
+      color: white;
+      border-radius: 10px 10px 0 0 !important;
+      font-weight: 600;
+      padding: 1rem 1.5rem;
+    }
+
+    .btn {
+      border-radius: 6px;
+      padding: 0.5rem 1.2rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, var(--primary-color), var(--hover-color));
+      border: none;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(90deg, var(--hover-color), var(--primary-color));
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .table {
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .table thead th {
+      background: var(--navbar-bg);
+      color: white;
+      border: none;
+      padding: 1rem;
+    }
+
+    .table tbody tr {
+      transition: background-color 0.2s ease;
+    }
+
+    .table tbody tr:hover {
+      background-color: rgba(44, 62, 80, 0.05);
+    }
+
+    .alert {
+      border-radius: 10px;
+      border: none;
+      padding: 1rem 1.5rem;
+    }
+
+    .alert-info {
+      background-color: var(--secondary-color);
+      color: var(--text-color);
+    }
+
+    /* Animation utilities */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
       }
 
-      .navbar-brand:hover {
-        color: #b2bec3;
+      to {
+        opacity: 1;
+        transform: translateY(0);
       }
+    }
 
-      .nav-link {
-        color: #fff;
-        padding: 0.5rem 1rem;
-        transition: all 0.3s ease;
-        border-radius: 6px;
-        margin: 0 2px;
-      }
+    .animate-fade-in {
+      animation: fadeIn 0.5s ease forwards;
+    }
 
-      .nav-link:hover {
-        color: #b2bec3;
-        transform: scale(1.05);
-        background-color: rgba(255, 255, 255, 0.1);
-      }
+    /* Loading spinner */
+    .spinner-border {
+      width: 1.5rem;
+      height: 1.5rem;
+      border-width: 0.2em;
+    }
 
-      .navbar-text {
-        font-size: 0.9rem;
-        color: #fff;
-      }
+    /* Dashboard specific styles */
+    .stat-card {
+      text-align: center;
+      padding: 1.5rem;
+      border-radius: 10px;
+      background: var(--card-bg);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+    }
 
-      .badge.bg-danger {
-        transition: transform 0.3s ease;
-      }
+    .stat-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
 
-      .animate-badge:hover .badge {
-        transform: scale(1.2);
-      }
+    .stat-card i {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      color: var(--primary-color);
+    }
 
-      /* ================= Dropdown Menu ================= */
-      .dropdown-menu {
-        background-color: #2c3e50;
-        border: none;
-        border-radius: 8px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        padding: 0.5rem;
-      }
+    .stat-card h3 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      color: var(--primary-color);
+    }
 
-      .dropdown-item {
-        color: #fff;
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
-        transition: all 0.2s ease;
-      }
+    .stat-card p {
+      color: #6c757d;
+      margin-bottom: 0;
+    }
 
-      .dropdown-item:hover {
-        background-color: #4a6278;
-        color: #b2bec3;
-      }
+    /* Form enhancements */
+    .form-control,
+    .form-select {
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      border: 1px solid #ced4da;
+      transition: all 0.2s ease;
+    }
 
-      /* Style the select2 container */
-      .select2-container--bootstrap-5 .select2-selection {
-        min-height: 45px;
-        padding: 0.375rem 0.75rem;
-        border-radius: 0.5rem;
-        border: 1px solid #ced4da;
-        font-size: 1rem;
-      }
+    .form-control:focus,
+    .form-select:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 0.25rem rgba(44, 107, 172, 0.25);
+    }
 
-      /* Placeholder text color */
-      .select2-container--bootstrap-5 .select2-selection__placeholder {
-        color: #6c757d;
-      }
+    /* Modal enhancements */
+    .modal-content {
+      border-radius: 12px;
+      border: none;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
 
-      /* Clear button spacing */
-      .select2-container--bootstrap-5 .select2-selection__clear {
-        margin-right: 10px;
-      }
+    .modal-header {
+      background: var(--navbar-bg);
+      color: white;
+      border-radius: 12px 12px 0 0;
+      padding: 1rem 1.5rem;
+    }
 
-      /* On focus */
-      .select2-container--bootstrap-5.select2-container--focus .select2-selection {
-        border-color: #86b7fe;
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-      }
+    .modal-footer {
+      border-radius: 0 0 12px 12px;
+      padding: 1rem 1.5rem;
+    }
+  </style>
+</head>
 
-      /* Dropdown styling */
-      .select2-container--bootstrap-5 .select2-results__option--highlighted {
-        background-color: #e9ecef;
-        color: #000;
-      }
-
-      /* Fix misaligned Select2 clear button */
-      .select2-container--bootstrap-5 .select2-selection__clear {
-        margin-top: 0.4rem; /* Adjust vertically */
-        margin-right: 0.5rem;
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #dc3545;
-        font-size: 1.2rem;
-      }
-
-      /* ================= Enhanced UI Elements ================= */
-      .card {
-        background-color: var(--card-bg);
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        margin-bottom: 1.5rem;
-        border: none;
-      }
-
-      .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-      }
-
-      .card-header {
-        background: var(--navbar-bg);
-        color: white;
-        border-radius: 10px 10px 0 0 !important;
-        font-weight: 600;
-        padding: 1rem 1.5rem;
-      }
-
-      .btn {
-        border-radius: 6px;
-        padding: 0.5rem 1.2rem;
-        font-weight: 500;
-        transition: all 0.2s ease;
-      }
-
-      .btn-primary {
-        background: linear-gradient(90deg, var(--primary-color), var(--hover-color));
-        border: none;
-      }
-
-      .btn-primary:hover {
-        background: linear-gradient(90deg, var(--hover-color), var(--primary-color));
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-      }
-
-      .table {
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      }
-
-      .table thead th {
-        background: var(--navbar-bg);
-        color: white;
-        border: none;
-        padding: 1rem;
-      }
-
-      .table tbody tr {
-        transition: background-color 0.2s ease;
-      }
-
-      .table tbody tr:hover {
-        background-color: rgba(44, 62, 80, 0.05);
-      }
-
-      .alert {
-        border-radius: 10px;
-        border: none;
-        padding: 1rem 1.5rem;
-      }
-
-      .alert-info {
-        background-color: var(--secondary-color);
-        color: var(--text-color);
-      }
-
-      /* Animation utilities */
-      @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-
-      .animate-fade-in {
-        animation: fadeIn 0.5s ease forwards;
-      }
-
-      /* Loading spinner */
-      .spinner-border {
-        width: 1.5rem;
-        height: 1.5rem;
-        border-width: 0.2em;
-      }
-
-      /* Dashboard specific styles */
-      .stat-card {
-        text-align: center;
-        padding: 1.5rem;
-        border-radius: 10px;
-        background: var(--card-bg);
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        transition: all 0.3s ease;
-      }
-
-      .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-      }
-
-      .stat-card i {
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
-        color: var(--primary-color);
-      }
-
-      .stat-card h3 {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-        color: var(--primary-color);
-      }
-
-      .stat-card p {
-        color: #6c757d;
-        margin-bottom: 0;
-      }
-
-      /* Form enhancements */
-      .form-control, .form-select {
-        border-radius: 6px;
-        padding: 0.75rem 1rem;
-        border: 1px solid #ced4da;
-        transition: all 0.2s ease;
-      }
-
-      .form-control:focus, .form-select:focus {
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 0.25rem rgba(44, 107, 172, 0.25);
-      }
-
-      /* Modal enhancements */
-      .modal-content {
-        border-radius: 12px;
-        border: none;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-      }
-
-      .modal-header {
-        background: var(--navbar-bg);
-        color: white;
-        border-radius: 12px 12px 0 0;
-        padding: 1rem 1.5rem;
-      }
-
-      .modal-footer {
-        border-radius: 0 0 12px 12px;
-        padding: 1rem 1.5rem;
-      }
-    </style>
-  </head>
-  <body class="{% if request.endpoint == 'login' %}hide-sidebar{% endif %} theme-blue">
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top navbar-custom shadow-sm">
-      <div class="container-fluid">
-        <!-- Brand -->
-        <a class="navbar-brand fw-bold fs-4" href="{{ url_for('home') }}">
-          <i class="bi bi-hospital me-2"></i> HIMS
-        </a>
-        <!-- Toggler for mobile -->
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <!-- Navbar items -->
-        <div class="collapse navbar-collapse" id="navbarNav">
-          <ul class="navbar-nav me-auto align-items-center">
-            {% if not current_user.is_authenticated %}
-            <li class="nav-item">
-              <a class="nav-link d-flex align-items-center" href="{{ url_for('home') }}">
-                <i class="bi bi-house me-2"></i> Home
-              </a>
-            </li>
-            {% endif %}
-          </ul>
-          <ul class="navbar-nav ms-auto align-items-center">
-            {% if current_user.is_authenticated %}
-            <!-- Admin Switch User Dropdown -->
-            {% if current_user.role == 'admin' %}
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="switchUserDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-person-gear me-2"></i> Switch Role {% if session.switched_user %} ({{ session.switched_user|capitalize }}) {% endif %}
-              </a>
-              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="switchUserDropdown">
-                <form action="{{ url_for('admin.switch_user') }}" method="POST">
-                  <li>
-                    <div class="dropdown-item p-2">
-                      <select class="form-select select2 w-100" name="role" id="switch_role">
-                        <option value="" {% if not session.switched_user %}selected{% endif %}>Select Role</option>
-                        <option value="records">Records</option>
-                        <option value="billing">Billing</option>
-                        <option value="nursing">Nursing</option>
-                        <option value="laboratory">Laboratory</option>
-                        <option value="imaging">Imaging</option>
-                        <option value="pharmacy">Pharmacy</option>
-                        <option value="medicine">Medicine</option>
-                        <option value="stores">Stores</option>
-                        <option value="hr">HR</option>
-                      </select>
-                    </div>
-                  </li>
-                  {% if session.switched_user %}
-                  <li><hr class="dropdown-divider"></li>
-                  <li>
-                    <a class="dropdown-item" href="{{ url_for('admin.revert_user') }}">
-                      <i class="bi bi-arrow-left-circle me-2"></i> Revert to Admin
-                    </a>
-                  </li>
-                  {% endif %}
-                </form>
-              </ul>
-            </li>
-            {% endif %}
-            <!-- Imaging Requests -->
-            <li class="nav-item">
-              <a class="nav-link d-flex align-items-center animate-badge" href="{{ url_for('medicine.unmatched_imaging') }}">
-                <i class="bi bi-camera-reels me-2"></i> Imaging Requests
-                <span class="badge bg-danger rounded-pill ms-2 shadow-sm">{{ unmatched_count }}</span>
-              </a>
-            </li>
-            <!-- User Dropdown -->
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-person me-2"></i> {{ current_user.username }}
-              </a>
-              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+<body class="{% if request.endpoint == 'login' %}hide-sidebar{% endif %} theme-blue">
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark fixed-top navbar-custom shadow-sm">
+    <div class="container-fluid">
+      <!-- Brand -->
+      <a class="navbar-brand fw-bold fs-4" href="{{ url_for('home') }}">
+        <i class="bi bi-hospital me-2"></i> HIMS
+      </a>
+      <!-- Toggler for mobile -->
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <!-- Navbar items -->
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto align-items-center">
+          {% if not current_user.is_authenticated %}
+          <li class="nav-item">
+            <a class="nav-link d-flex align-items-center" href="{{ url_for('home') }}">
+              <i class="bi bi-house me-2"></i> Home
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+        <ul class="navbar-nav ms-auto align-items-center">
+          {% if current_user.is_authenticated %}
+          <!-- Admin Switch User Dropdown -->
+          {% if current_user.role == 'admin' %}
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="switchUserDropdown" role="button"
+              data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-person-gear me-2"></i> Switch Role {% if session.switched_user %} ({{
+              session.switched_user|capitalize }}) {% endif %}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="switchUserDropdown">
+              <form action="{{ url_for('admin.switch_user') }}" method="POST">
                 <li>
-                  <a class="dropdown-item" href="#">
-                    <i class="bi bi-gear me-2"></i> Settings
-                  </a>
+                  <div class="dropdown-item p-2">
+                    <select class="form-select select2 w-100" name="role" id="switch_role">
+                      <option value="" {% if not session.switched_user %}selected{% endif %}>Select Role</option>
+                      <option value="records">Records</option>
+                      <option value="billing">Billing</option>
+                      <option value="nursing">Nursing</option>
+                      <option value="laboratory">Laboratory</option>
+                      <option value="imaging">Imaging</option>
+                      <option value="pharmacy">Pharmacy</option>
+                      <option value="medicine">Medicine</option>
+                      <option value="stores">Stores</option>
+                      <option value="hr">HR</option>
+                    </select>
+                  </div>
+                </li>
+                {% if session.switched_user %}
+                <li>
+                  <hr class="dropdown-divider">
                 </li>
                 <li>
-                  <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#themeModal">
-                    <i class="bi bi-palette me-2"></i> Change Theme
+                  <a class="dropdown-item" href="{{ url_for('admin.revert_user') }}">
+                    <i class="bi bi-arrow-left-circle me-2"></i> Revert to Admin
                   </a>
                 </li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                  <a class="dropdown-item" href="{{ url_for('logout') }}">
-                    <i class="bi bi-box-arrow-right me-2"></i> Logout
-                  </a>
-                </li>
-              </ul>
-            </li>
-            {% else %}
-            <li class="nav-item">
-              <a class="nav-link d-flex align-items-center" href="{{ url_for('login') }}">
-                <i class="bi bi-box-arrow-in-left me-2"></i> Login
-              </a>
-            </li>
-            {% endif %}
-          </ul>
-        </div>
+                {% endif %}
+              </form>
+            </ul>
+          </li>
+          {% endif %}
+          <!-- Imaging Requests -->
+          <li class="nav-item">
+            <a class="nav-link d-flex align-items-center animate-badge"
+              href="{{ url_for('medicine.unmatched_imaging') }}">
+              <i class="bi bi-camera-reels me-2"></i> Imaging Requests
+              <span class="badge bg-danger rounded-pill ms-2 shadow-sm">{{ unmatched_count }}</span>
+            </a>
+          </li>
+          <!-- User Dropdown -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button"
+              data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-person me-2"></i> {{ current_user.username }}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+              <li>
+                <a class="dropdown-item" href="#">
+                  <i class="bi bi-gear me-2"></i> Settings
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#themeModal">
+                  <i class="bi bi-palette me-2"></i> Change Theme
+                </a>
+              </li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li>
+                <a class="dropdown-item" href="{{ url_for('logout') }}">
+                  <i class="bi bi-box-arrow-right me-2"></i> Logout
+                </a>
+              </li>
+            </ul>
+          </li>
+          {% else %}
+          <li class="nav-item">
+            <a class="nav-link d-flex align-items-center" href="{{ url_for('login') }}">
+              <i class="bi bi-box-arrow-in-left me-2"></i> Login
+            </a>
+          </li>
+          {% endif %}
+        </ul>
       </div>
-    </nav>
-    <!-- Sidebar Toggle Button -->
-    <button class="sidebar-toggle" onclick="toggleSidebar()">
-      <i class="bi bi-list"></i>
-    </button>
-    <!-- Sidebar -->
-    {% if request.endpoint != 'login' %}
-    <div class="sidebar" id="sidebar">
-
-
-      {% if current_user.is_authenticated %}
-        {% set effective_role = session.switched_user if session.switched_user else current_user.role %}
-        {% include 'side_bars/' ~ effective_role ~ '.html' ignore missing %}
-      {% endif %}
-            <a href="{{ url_for('medicine.chatbot_interface') }}" class="chat">
-  <i class="bi bi-chat-dots me-2"></i> Chatbot
-</a>
     </div>
+  </nav>
+  <!-- Sidebar Toggle Button -->
+  <button class="sidebar-toggle" onclick="toggleSidebar()">
+    <i class="bi bi-list"></i>
+  </button>
+  <!-- Sidebar -->
+  {% if request.endpoint != 'login' %}
+  <div class="sidebar" id="sidebar">
+
+
+    {% if current_user.is_authenticated %}
+    {% set effective_role = session.switched_user if session.switched_user else current_user.role %}
+    {% include 'side_bars/' ~ effective_role ~ '.html' ignore missing %}
     {% endif %}
-    <!-- Main Content -->
-    <main class="content">
-      {% block content %}{% endblock %}
-    </main>
-    
-   <!-- Theme Selection Modal -->
-<div class="modal fade" id="themeModal" tabindex="-1" aria-labelledby="themeModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content rounded-3 shadow-lg">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title" id="themeModalLabel">
-          <i class="bi bi-palette me-2"></i> Choose Theme
-        </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body bg-white text-dark p-4">
-        <div class="row g-3">
-          <!-- Theme Options -->
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="theme-option theme-blue active" data-theme="blue" role="button" tabindex="0" aria-checked="true">
-              <div class="theme-color"></div>
-              <div class="theme-name">Default Blue</div>
+    <a href="{{ url_for('medicine.chatbot_interface') }}" class="chat">
+      <i class="bi bi-chat-dots me-2"></i> Chatbot
+    </a>
+  </div>
+  {% endif %}
+  <!-- Main Content -->
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Theme Selection Modal -->
+  <div class="modal fade" id="themeModal" tabindex="-1" aria-labelledby="themeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content rounded-3 shadow-lg">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="themeModalLabel">
+            <i class="bi bi-palette me-2"></i> Choose Theme
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body bg-white text-dark p-4">
+          <div class="row g-3">
+            <!-- Theme Options -->
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="theme-option theme-blue active" data-theme="blue" role="button" tabindex="0"
+                aria-checked="true">
+                <div class="theme-color"></div>
+                <div class="theme-name">Default Blue</div>
+              </div>
             </div>
-          </div>
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="theme-option theme-green" data-theme="green" role="button" tabindex="0" aria-checked="false">
-              <div class="theme-color"></div>
-              <div class="theme-name">Medical Green</div>
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="theme-option theme-green" data-theme="green" role="button" tabindex="0" aria-checked="false">
+                <div class="theme-color"></div>
+                <div class="theme-name">Medical Green</div>
+              </div>
             </div>
-          </div>
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="theme-option theme-teal" data-theme="teal">
-              <div class="theme-color"></div>
-              <div class="theme-name">Professional Teal</div>
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="theme-option theme-teal" data-theme="teal">
+                <div class="theme-color"></div>
+                <div class="theme-name">Professional Teal</div>
+              </div>
             </div>
-          </div>
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="theme-option theme-purple" data-theme="purple">
-              <div class="theme-color"></div>
-              <div class="theme-name">Calm Purple</div>
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="theme-option theme-purple" data-theme="purple">
+                <div class="theme-color"></div>
+                <div class="theme-name">Calm Purple</div>
+              </div>
             </div>
-          </div>
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="theme-option theme-orange" data-theme="orange">
-              <div class="theme-color"></div>
-              <div class="theme-name">Warm Orange</div>
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="theme-option theme-orange" data-theme="orange">
+                <div class="theme-color"></div>
+                <div class="theme-name">Warm Orange</div>
+              </div>
             </div>
-          </div>
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="theme-option theme-dark" data-theme="dark">
-              <div class="theme-color"></div>
-              <div class="theme-name">Dark Mode</div>
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="theme-option theme-dark" data-theme="dark">
+                <div class="theme-color"></div>
+                <div class="theme-name">Dark Mode</div>
+              </div>
             </div>
-          </div>
-          <!-- New Themes -->
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="theme-option theme-mocha" data-theme="mocha">
-              <div class="theme-color"></div>
-              <div class="theme-name">Earthy Mocha</div>
+            <!-- New Themes -->
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="theme-option theme-mocha" data-theme="mocha">
+                <div class="theme-color"></div>
+                <div class="theme-name">Earthy Mocha</div>
+              </div>
             </div>
-          </div>
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="theme-option theme-sunny" data-theme="sunny">
-              <div class="theme-color"></div>
-              <div class="theme-name">Sunny Optimism</div>
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="theme-option theme-sunny" data-theme="sunny">
+                <div class="theme-color"></div>
+                <div class="theme-name">Sunny Optimism</div>
+              </div>
             </div>
-          </div>
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="theme-option theme-ruby" data-theme="ruby">
-              <div class="theme-color"></div>
-              <div class="theme-name">Ruby Warmth</div>
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="theme-option theme-ruby" data-theme="ruby">
+                <div class="theme-color"></div>
+                <div class="theme-name">Ruby Warmth</div>
+              </div>
             </div>
-          </div>
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="theme-option theme-cream" data-theme="cream">
-              <div class="theme-color"></div>
-              <div class="theme-name">Cream Pastel</div>
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="theme-option theme-cream" data-theme="cream">
+                <div class="theme-color"></div>
+                <div class="theme-name">Cream Pastel</div>
+              </div>
             </div>
-          </div>
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="theme-option theme-orchid" data-theme="orchid">
-              <div class="theme-color"></div>
-              <div class="theme-name">Vibrant Orchid</div>
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="theme-option theme-orchid" data-theme="orchid">
+                <div class="theme-color"></div>
+                <div class="theme-name">Vibrant Orchid</div>
+              </div>
             </div>
-          </div>
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="theme-option theme-lime" data-theme="lime">
-              <div class="theme-color"></div>
-              <div class="theme-name">Fresh Lime</div>
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="theme-option theme-lime" data-theme="lime">
+                <div class="theme-color"></div>
+                <div class="theme-name">Fresh Lime</div>
+              </div>
             </div>
-          </div>
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="theme-option theme-ocean" data-theme="ocean">
-              <div class="theme-color"></div>
-              <div class="theme-name">Serene Ocean</div>
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="theme-option theme-ocean" data-theme="ocean">
+                <div class="theme-color"></div>
+                <div class="theme-name">Serene Ocean</div>
+              </div>
             </div>
-          </div>
-          <div class="col-6 col-md-4 col-lg-3">
-            <div class="theme-option theme-clay" data-theme="clay">
-              <div class="theme-color"></div>
-              <div class="theme-name">Terracotta Clay</div>
+            <div class="col-6 col-md-4 col-lg-3">
+              <div class="theme-option theme-clay" data-theme="clay">
+                <div class="theme-color"></div>
+                <div class="theme-name">Terracotta Clay</div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary">Apply Theme</button>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary">Apply Theme</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- CSS -->
-<style>
-.theme-option {
-  border: 2px solid #ddd;
-  border-radius: 12px;
-  padding: 15px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background: #fafafa;
-}
-.theme-option:hover {
-  border-color: #0d6efd;
-  transform: translateY(-3px) scale(1.03);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-}
-.theme-option.active {
-  border-color: #0d6efd;
-  background: #e9f2ff;
-  box-shadow: 0 0 0 3px rgba(13,110,253,.25);
-}
-.theme-color {
-  width: 45px;
-  height: 45px;
-  border-radius: 50%;
-  margin: 0 auto 10px;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-}
-.theme-name {
-  font-size: 0.9rem;
-  font-weight: 500;
-}
+  <!-- CSS -->
+  <style>
+    .theme-option {
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: #fafafa;
+    }
 
-/* Theme Colors */
-.theme-blue .theme-color { background-color: #0d6efd; }
-.theme-green .theme-color { background-color: #198754; }
-.theme-teal .theme-color { background-color: #20c997; }
-.theme-purple .theme-color { background-color: #6f42c1; }
-.theme-orange .theme-color { background-color: #fd7e14; }
-.theme-dark .theme-color { background-color: #212529; }
-.theme-mocha .theme-color { background-color: #6d4c41; }
-.theme-sunny .theme-color { background-color: #ffc107; }
-.theme-ruby .theme-color { background-color: #dc3545; }
-.theme-cream .theme-color { background-color: #f8f9fa; border: 1px solid #ddd; }
-.theme-orchid .theme-color { background-color: #da70d6; }
-.theme-lime .theme-color { background-color: #a4c639; }
-.theme-ocean .theme-color { background-color: #0077b6; }
-.theme-clay .theme-color { background-color: #b5651d; }
-</style>
+    .theme-option:hover {
+      border-color: #0d6efd;
+      transform: translateY(-3px) scale(1.03);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
 
-    
-    <!-- Bootstrap Toast Notification -->
-    <div class="toast-container position-fixed bottom-0 end-0 p-3">
-      <div id="themeToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="toast-header">
-          <i class="bi bi-check-circle text-success me-2"></i>
-          <strong class="me-auto">Theme Updated</strong>
-          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-        <div class="toast-body" id="toastMessage"></div>
+    .theme-option.active {
+      border-color: #0d6efd;
+      background: #e9f2ff;
+      box-shadow: 0 0 0 3px rgba(13, 110, 253, .25);
+    }
+
+    .theme-color {
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      margin: 0 auto 10px;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .theme-name {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    /* Theme Colors */
+    .theme-blue .theme-color {
+      background-color: #0d6efd;
+    }
+
+    .theme-green .theme-color {
+      background-color: #198754;
+    }
+
+    .theme-teal .theme-color {
+      background-color: #20c997;
+    }
+
+    .theme-purple .theme-color {
+      background-color: #6f42c1;
+    }
+
+    .theme-orange .theme-color {
+      background-color: #fd7e14;
+    }
+
+    .theme-dark .theme-color {
+      background-color: #212529;
+    }
+
+    .theme-mocha .theme-color {
+      background-color: #6d4c41;
+    }
+
+    .theme-sunny .theme-color {
+      background-color: #ffc107;
+    }
+
+    .theme-ruby .theme-color {
+      background-color: #dc3545;
+    }
+
+    .theme-cream .theme-color {
+      background-color: #f8f9fa;
+      border: 1px solid #ddd;
+    }
+
+    .theme-orchid .theme-color {
+      background-color: #da70d6;
+    }
+
+    .theme-lime .theme-color {
+      background-color: #a4c639;
+    }
+
+    .theme-ocean .theme-color {
+      background-color: #0077b6;
+    }
+
+    .theme-clay .theme-color {
+      background-color: #b5651d;
+    }
+  </style>
+
+
+  <!-- Bootstrap Toast Notification -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="themeToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header">
+        <i class="bi bi-check-circle text-success me-2"></i>
+        <strong class="me-auto">Theme Updated</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
       </div>
+      <div class="toast-body" id="toastMessage"></div>
     </div>
+  </div>
 
-    {% if current_user.is_authenticated and effective_role == 'records' %}
-    <div class="modal fade" id="bookClinicModal" tabindex="-1" aria-labelledby="bookClinicModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="bookClinicModalLabel">
-              <i class="bi bi-calendar-plus me-2"></i> Book Clinic
-            </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  {% if current_user.is_authenticated and effective_role == 'records' %}
+  <div class="modal fade" id="bookClinicModal" tabindex="-1" aria-labelledby="bookClinicModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="bookClinicModalLabel">
+            <i class="bi bi-calendar-plus me-2"></i> Book Clinic
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <!-- Form posts to book_clinic route -->
+        <form id="bookClinicForm" method="POST" action="{{ url_for('records.book_clinic') }}">
+          <div class="modal-body">
+            <!-- 🔹 Patient search -->
+            <div class="mb-3">
+              <label for="patient_id" class="form-label">Select Patient</label>
+              <select class="form-select select2" id="patient_id" name="patient_id" required></select>
+            </div>
+            <!-- 🔹 Clinic search -->
+            <div class="mb-3">
+              <label for="clinic_id" class="form-label">Select Clinic</label>
+              <select class="form-select select2" id="clinic_id" name="clinic_id" required></select>
+            </div>
+            <!-- 🔹 Date picker -->
+            <div class="mb-3">
+              <label for="clinic_date" class="form-label">Clinic Date</label>
+              <input type="date" class="form-control" id="clinic_date" name="clinic_date" required>
+            </div>
           </div>
-          <!-- Form posts to book_clinic route -->
-          <form id="bookClinicForm" method="POST" action="{{ url_for('records.book_clinic') }}">
-            <div class="modal-body">
-              <!-- 🔹 Patient search -->
-              <div class="mb-3">
-                <label for="patient_id" class="form-label">Select Patient</label>
-                <select class="form-select select2" id="patient_id" name="patient_id" required></select>
-              </div>
-              <!-- 🔹 Clinic search -->
-              <div class="mb-3">
-                <label for="clinic_id" class="form-label">Select Clinic</label>
-                <select class="form-select select2" id="clinic_id" name="clinic_id" required></select>
-              </div>
-              <!-- 🔹 Date picker -->
-              <div class="mb-3">
-                <label for="clinic_date" class="form-label">Clinic Date</label>
-                <input type="date" class="form-control" id="clinic_date" name="clinic_date" required>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-              <button type="submit" class="btn btn-primary">
-                <i class="bi bi-check-circle me-2"></i> Book
-              </button>
-            </div>
-          </form>
-        </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-circle me-2"></i> Book
+            </button>
+          </div>
+        </form>
       </div>
     </div>
-    {% endif %}
+  </div>
+  {% endif %}
 
-    <!-- jQuery (required for Select2) -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <!-- Bootstrap JS (required for dropdowns and modals) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Select2 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    
-    <script>
-      $(document).ready(function() {
-        try {
-          // 🔹 Universal Select2 initialization
-          $('.select2').each(function() {
-            const $this = $(this);
-            const isAjax = $this.data('ajax-url'); // Optional: if you add data-ajax-url to selects
-            if (isAjax) {
-              // AJAX config would go here if needed
-            } else {
-              $this.select2({
-                theme: 'bootstrap-5',
-                width: '100%'
-              });
-            }
-          });
+  <!-- jQuery (required for Select2) -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <!-- Bootstrap JS (required for dropdowns and modals) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Select2 JS -->
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-          // 🔹 Reusable initializer for Patient search
-// Reusable initializer for Patient search
-function initPatientSearch(selector) {
-    if ($(selector).length) {
-        $(selector).select2({
-            theme: 'bootstrap-5',
-            placeholder: "Enter patient name or number...",
-            allowClear: true,
-            minimumInputLength: 2,
-            width: "100%",
-            ajax: {
-                url: "{{ url_for('nursing.search_patients') }}", // Ensure this resolves correctly
+  <script>
+    $(document).ready(function () {
+      try {
+        // 🔹 Universal Select2 initialization
+        $('.select2').each(function () {
+          const $this = $(this);
+          const isAjax = $this.data('ajax-url'); // Optional: if you add data-ajax-url to selects
+          if (isAjax) {
+            // AJAX config would go here if needed
+          } else {
+            $this.select2({
+              theme: 'bootstrap-5',
+              width: '100%'
+            });
+          }
+        });
+
+        // 🔹 Reusable initializer for Patient search
+        // Reusable initializer for Patient search
+        function initPatientSearch(selector) {
+          if ($(selector).length) {
+            $(selector).select2({
+              theme: 'bootstrap-5',
+              placeholder: "Enter patient name or number...",
+              allowClear: true,
+              minimumInputLength: 2,
+              width: "100%",
+              ajax: {
+                url: "#", // Temporary fix for missing route nursing.search_patients
                 dataType: 'json',
                 delay: 250,
                 data: function (params) {
-                    return { q: params.term };
+                  return { q: params.term };
                 },
-                processResults: function (data) {
-                    return {
-                        results: data.map(patient => ({
-                            id: patient.id,
-                            text: patient.text
-                        }))
-                    };
-                },
-                cache: true
-            }
-        });
-    }
-}
-
-// Initialize patient search for all #patient_id elements
-$(document).ready(function() {
-    initPatientSearch('#patient_id');
-});
-          // 🔹 Reusable initializer for Clinic search
-          function initClinicSearch(selector) {
-            if ($(selector).length) {
-              $(selector).select2({
-                theme: 'bootstrap-5',
-                placeholder: "Enter clinic name...",
-                allowClear: false,
-                minimumInputLength: 1,
-                width: "100%",
-                dropdownParent: $('#bookClinicModal'),  // Attach to modal
-                ajax: {
-                  url: "{{ url_for('records.search_clinics') }}",
-                  dataType: 'json',
-                  delay: 250,
-                  data: function (params) {
-                    return { q: params.term };
-                  },
-                  processResults: function (data) {
-                    return { results: data };
-                  },
-                  cache: true
-                }
-              });
-            }
-          }
-
-          // 🔹 Switch role dropdown - Improved
-          if ($('#switch_role').length) {
-            $('#switch_role').select2({
-              theme: 'bootstrap-5',
-              placeholder: "Switch to role...",
-              allowClear: false,
-              width: '100%',
-              dropdownParent: $('.dropdown-menu')  // Attach to dropdown menu
-            }).on('change', function() {
-              // Trigger form submit manually
-              $(this).closest('form').submit();
-            });
-          }
-
-          // 🔹 Ward search
-          if ($('#ward_id').length) {
-            $('#ward_id').select2({
-              theme: 'bootstrap-5',
-              placeholder: "Search for a ward...",
-              allowClear: true,
-              width: "100%",
-              ajax: {
-                url: "{{ url_for('nursing.search_wards') }}",
-                dataType: 'json',
-                type: "GET",
-                delay: 250,
                 processResults: function (data) {
                   return {
-                    results: data.map(ward => ({
-                      id: ward.id,
-                      text: ward.text
+                    results: data.map(patient => ({
+                      id: patient.id,
+                      text: patient.text
                     }))
                   };
                 },
@@ -1106,28 +1147,98 @@ $(document).ready(function() {
               }
             });
           }
+        }
 
-          // 🔹 Imaging multi-select
-          if ($('#imaging_types').length) {
-            $('#imaging_types').select2({
-              placeholder: "Choose imaging studies...",
-              closeOnSelect: true,
-              allowClear: true,
-              width: 'resolve'
+        // Initialize patient search for all #patient_id elements
+        $(document).ready(function () {
+          initPatientSearch('#patient_id');
+        });
+        // 🔹 Reusable initializer for Clinic search
+        function initClinicSearch(selector) {
+          if ($(selector).length) {
+            $(selector).select2({
+              theme: 'bootstrap-5',
+              placeholder: "Enter clinic name...",
+              allowClear: false,
+              minimumInputLength: 1,
+              width: "100%",
+              dropdownParent: $('#bookClinicModal'),  // Attach to modal
+              ajax: {
+                url: "#", // Temporary fix for missing route records.search_clinics
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                  return { q: params.term };
+                },
+                processResults: function (data) {
+                  return { results: data };
+                },
+                cache: true
+              }
             });
-            function updateImagingDescriptions() {
-              const selected = $('#imaging_types').val() || [];
-              const container = $('#descriptionFields').empty();
-              if (selected.length === 0) {
-                container.append(`<div class="alert alert-info mb-0">
+          }
+        }
+
+        // 🔹 Switch role dropdown - Improved
+        if ($('#switch_role').length) {
+          $('#switch_role').select2({
+            theme: 'bootstrap-5',
+            placeholder: "Switch to role...",
+            allowClear: false,
+            width: '100%',
+            dropdownParent: $('.dropdown-menu')  // Attach to dropdown menu
+          }).on('change', function () {
+            // Trigger form submit manually
+            $(this).closest('form').submit();
+          });
+        }
+
+        // 🔹 Ward search
+        if ($('#ward_id').length) {
+          $('#ward_id').select2({
+            theme: 'bootstrap-5',
+            placeholder: "Search for a ward...",
+            allowClear: true,
+            width: "100%",
+            ajax: {
+              url: "{{ url_for('nursing.search_wards') }}",
+              dataType: 'json',
+              type: "GET",
+              delay: 250,
+              processResults: function (data) {
+                return {
+                  results: data.map(ward => ({
+                    id: ward.id,
+                    text: ward.text
+                  }))
+                };
+              },
+              cache: true
+            }
+          });
+        }
+
+        // 🔹 Imaging multi-select
+        if ($('#imaging_types').length) {
+          $('#imaging_types').select2({
+            placeholder: "Choose imaging studies...",
+            closeOnSelect: true,
+            allowClear: true,
+            width: 'resolve'
+          });
+          function updateImagingDescriptions() {
+            const selected = $('#imaging_types').val() || [];
+            const container = $('#descriptionFields').empty();
+            if (selected.length === 0) {
+              container.append(`<div class="alert alert-info mb-0">
                     <i class="bi bi-info-circle me-2"></i>
                     No imaging studies selected. Descriptions will appear here when you select studies.
                   </div>`);
-                return;
-              }
-              selected.forEach(id => {
-                const text = $(`#imaging_types option[value="${id}"]`).text();
-                container.append(`<div class="description-field mb-4">
+              return;
+            }
+            selected.forEach(id => {
+              const text = $(`#imaging_types option[value="${id}"]`).text();
+              container.append(`<div class="description-field mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                       <h4 class="h6 mb-0">${text} Details</h4>
                     </div>
@@ -1139,37 +1250,37 @@ $(document).ready(function() {
                               aria-label="Instructions for ${text}"></textarea>
                     <div class="form-text mt-2">Maximum 500 characters</div>
                   </div>`);
-              });
-            }
-            updateImagingDescriptions();
-            $('#imaging_types').on('change', updateImagingDescriptions);
-            $('#imagingForm').on('submit', function () {
-              $('#submitButton').prop('disabled', true)
-                .html(`<div class="spinner-border spinner-border-sm me-2" role="status"></div> Processing...`);
             });
           }
+          updateImagingDescriptions();
+          $('#imaging_types').on('change', updateImagingDescriptions);
+          $('#imagingForm').on('submit', function () {
+            $('#submitButton').prop('disabled', true)
+              .html(`<div class="spinner-border spinner-border-sm me-2" role="status"></div> Processing...`);
+          });
+        }
 
-          // 🔹 Lab multi-select
-          if ($('#lab_types').length) {
-            $('#lab_types').select2({
-              placeholder: "Choose lab tests...",
-              closeOnSelect: true,
-              allowClear: true,
-              width: 'resolve'
-            });
-            function updateLabDescriptions() {
-              const selected = $('#lab_types').val() || [];
-              const container = $('#descriptionFields').empty();
-              if (selected.length === 0) {
-                container.append(`<div class="alert alert-info mb-0">
+        // 🔹 Lab multi-select
+        if ($('#lab_types').length) {
+          $('#lab_types').select2({
+            placeholder: "Choose lab tests...",
+            closeOnSelect: true,
+            allowClear: true,
+            width: 'resolve'
+          });
+          function updateLabDescriptions() {
+            const selected = $('#lab_types').val() || [];
+            const container = $('#descriptionFields').empty();
+            if (selected.length === 0) {
+              container.append(`<div class="alert alert-info mb-0">
                     <i class="bi bi-info-circle me-2"></i>
                     No lab tests selected. Descriptions will appear here when you select tests.
                   </div>`);
-                return;
-              }
-              selected.forEach(id => {
-                const text = $(`#lab_types option[value="${id}"]`).text();
-                container.append(`<div class="description-field mb-4">
+              return;
+            }
+            selected.forEach(id => {
+              const text = $(`#lab_types option[value="${id}"]`).text();
+              container.append(`<div class="description-field mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                       <h4 class="h6 mb-0">${text} Details</h4>
                     </div>
@@ -1181,88 +1292,89 @@ $(document).ready(function() {
                               aria-label="Instructions for ${text}"></textarea>
                     <div class="form-text mt-2">Maximum 500 characters</div>
                   </div>`);
-              });
-            }
-            updateLabDescriptions();
-            $('#lab_types').on('change', updateLabDescriptions);
-            $('#labForm').on('submit', function () {
-              $('#submitButton').prop('disabled', true)
-                .html(`<div class="spinner-border spinner-border-sm me-2" role="status"></div> Processing...`);
             });
           }
-
-          // ✅ Initialize patient & clinic inside modal
-          initPatientSearch('#patient_id');
-          initClinicSearch('#clinic_id');
-          
-          // Theme selection functionality
-          const themeOptions = document.querySelectorAll('.theme-option');
-          const body = document.body;
-          var themeModal = new bootstrap.Modal(document.getElementById('themeModal'));
-          
-          // Load saved theme
-          const savedTheme = localStorage.getItem('selectedTheme');
-          if (savedTheme) {
-            // Remove any existing theme classes while preserving layout classes
-            const bodyClasses = body.className.split(' ').filter(cls => !cls.startsWith('theme-'));
-            body.className = bodyClasses.join(' ') + ' theme-' + savedTheme;
-            
-            // Update active option
-            themeOptions.forEach(option => {
-              option.classList.remove('active');
-              if (option.getAttribute('data-theme') === savedTheme) {
-                option.classList.add('active');
-              }
-            });
-            // Fallback for CSS vars
-            document.documentElement.setAttribute('data-theme', savedTheme);
-          }
-          
-          // Theme selection
-          themeOptions.forEach(option => {
-            option.addEventListener('click', function() {
-              try {
-                const theme = this.getAttribute('data-theme');
-                
-                // Remove only theme classes while preserving layout classes
-                const bodyClasses = body.className.split(' ').filter(cls => !cls.startsWith('theme-'));
-                body.className = bodyClasses.join(' ') + ' theme-' + theme;
-                
-                // Update active option
-                themeOptions.forEach(opt => opt.classList.remove('active'));
-                this.classList.add('active');
-                
-                // Save to localStorage
-                localStorage.setItem('selectedTheme', theme);
-                
-                // Show notification
-                showToast(`Theme changed to ${this.querySelector('.theme-name').textContent}`);
-                
-                // Auto-close modal
-                themeModal.hide();
-              } catch (e) {
-                console.error('Theme switch error:', e);
-              }
-            });
+          updateLabDescriptions();
+          $('#lab_types').on('change', updateLabDescriptions);
+          $('#labForm').on('submit', function () {
+            $('#submitButton').prop('disabled', true)
+              .html(`<div class="spinner-border spinner-border-sm me-2" role="status"></div> Processing...`);
           });
-          
-          // Enhanced Toast notification function using Bootstrap Toast
-          function showToast(message) {
-            const toastEl = document.getElementById('themeToast');
-            toastEl.querySelector('#toastMessage').textContent = message;
-            const toast = new bootstrap.Toast(toastEl);
-            toast.show();
-          }
-          
-          console.log("✅ Select2 and Bootstrap initialized successfully!");
-        } catch (e) {
-          console.error('Initialization error:', e);
         }
-      });
-      
-      function toggleSidebar() {
-        document.querySelector('.sidebar').classList.toggle('active');
+
+        // ✅ Initialize patient & clinic inside modal
+        initPatientSearch('#patient_id');
+        initClinicSearch('#clinic_id');
+
+        // Theme selection functionality
+        const themeOptions = document.querySelectorAll('.theme-option');
+        const body = document.body;
+        var themeModal = new bootstrap.Modal(document.getElementById('themeModal'));
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('selectedTheme');
+        if (savedTheme) {
+          // Remove any existing theme classes while preserving layout classes
+          const bodyClasses = body.className.split(' ').filter(cls => !cls.startsWith('theme-'));
+          body.className = bodyClasses.join(' ') + ' theme-' + savedTheme;
+
+          // Update active option
+          themeOptions.forEach(option => {
+            option.classList.remove('active');
+            if (option.getAttribute('data-theme') === savedTheme) {
+              option.classList.add('active');
+            }
+          });
+          // Fallback for CSS vars
+          document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+
+        // Theme selection
+        themeOptions.forEach(option => {
+          option.addEventListener('click', function () {
+            try {
+              const theme = this.getAttribute('data-theme');
+
+              // Remove only theme classes while preserving layout classes
+              const bodyClasses = body.className.split(' ').filter(cls => !cls.startsWith('theme-'));
+              body.className = bodyClasses.join(' ') + ' theme-' + theme;
+
+              // Update active option
+              themeOptions.forEach(opt => opt.classList.remove('active'));
+              this.classList.add('active');
+
+              // Save to localStorage
+              localStorage.setItem('selectedTheme', theme);
+
+              // Show notification
+              showToast(`Theme changed to ${this.querySelector('.theme-name').textContent}`);
+
+              // Auto-close modal
+              themeModal.hide();
+            } catch (e) {
+              console.error('Theme switch error:', e);
+            }
+          });
+        });
+
+        // Enhanced Toast notification function using Bootstrap Toast
+        function showToast(message) {
+          const toastEl = document.getElementById('themeToast');
+          toastEl.querySelector('#toastMessage').textContent = message;
+          const toast = new bootstrap.Toast(toastEl);
+          toast.show();
+        }
+
+        console.log("✅ Select2 and Bootstrap initialized successfully!");
+      } catch (e) {
+        console.error('Initialization error:', e);
       }
-    </script>
-  </body>
+    });
+
+    function toggleSidebar() {
+      document.querySelector('.sidebar').classList.toggle('active');
+    }
+  </script>
+</body>
+
 </html>

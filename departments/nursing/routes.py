@@ -1,7 +1,10 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash,jsonify
 from flask_login import login_required, current_user
 from extensions import db
-from departments.models.nursing import NursingNote, NursingCareTask,Vitals,Partogram,Partogram, MedicationAdmin,  Messages,NursingNote, NursingCareTask, Vitals, Partogram, MedicationAdmin, Messages, Notifications
+from departments.models.nursing import (
+    NursingNote, NursingCareTask, Vitals, Partogram,
+    MedicationAdmin, Messages, Notifications
+)
 from departments.models.records import Patient,PatientWaitingList
 from departments.models.user import User
 from departments.models.medicine import Ward

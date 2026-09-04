@@ -1,6 +1,6 @@
 from flask import render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
-from ..models import MortuaryData
+from departments.models.mortuary import MortuaryData
 from . import bp
 
 @bp.route('/')
