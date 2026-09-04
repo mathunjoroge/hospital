@@ -11,13 +11,9 @@ redis
 requests
 python-dotenv
 email_validator
-torch
-torchvision
-transformers
 scipy
 scikit-learn
 pandas
 numpy
 Pillow
-accelerate
 python-dateutil

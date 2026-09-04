@@ -1,2 +1,14 @@
-<a href="{{ url_for('billing.index') }}"><i class="bi bi-list-ul me-2"></i> Billing List</a>
-<a href="{{ url_for('billing.new_billing') }}"><i class="bi bi-cash-stack me-2"></i> Create New Billing</a>
+<div class="sidebar-heading">Cashier & Bills</div>
+<a href="{{ url_for('billing.index') }}"><i class="bi bi-person-lines-fill me-2"></i> Unpaid Queue</a>
+<a href="{{ url_for('billing.list_billings') }}"><i class="bi bi-file-earmark-text-fill me-2"></i> All Invoices</a>
+<a href="{{ url_for('billing.new_invoice') }}"><i class="bi bi-receipt me-2"></i> Create Invoice</a>
+<a href="{{ url_for('billing.new_drugs_billing') }}"><i class="bi bi-capsule-pill me-2"></i> Drug Billing</a>
+
+<div class="sidebar-heading">Receipts & Services</div>
+<a href="{{ url_for('billing.receipts_list') }}"><i class="bi bi-receipt-cutoff me-2"></i> Receipt Log</a>
+<a href="{{ url_for('billing.charges') }}"><i class="bi bi-journal-medical me-2"></i> Service Charges</a>
+<a href="{{ url_for('billing.add_charge') }}"><i class="bi bi-plus-circle-fill me-2"></i> Add Service Charge</a>
+
+<div class="sidebar-heading">Reports & Financials</div>
+<a href="{{ url_for('billing.daily_revenue_report') }}"><i class="bi bi-cash-coin me-2"></i> Daily Revenue</a>
+<a href="{{ url_for('billing.outstanding_report') }}"><i class="bi bi-exclamation-triangle-fill me-2"></i> Outstanding Debt</a>

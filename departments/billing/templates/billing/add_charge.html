@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  :root {
+    --bl-primary: #059669;
+    --bl-primary-dark: #047857;
+    --bl-header-bg: linear-gradient(135deg, #064e3b 0%, #059669 60%, #10b981 100%);
+    --bl-card-shadow: 0 4px 20px rgba(5, 150, 105, 0.08);
+  }
+  .form-header-card {
+    background: var(--bl-header-bg);
+    color: #ffffff;
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(4, 120, 87, 0.2);
+  }
+  .form-card {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: var(--bl-card-shadow);
+    max-width: 700px;
+    margin: 0 auto;
+  }
+</style>
+
+<div class="container-fluid px-4 py-3">
+  <!-- Header Banner -->
+  <div class="form-header-card max-w-700 mx-auto d-flex align-items-center justify-content-between" style="max-width: 700px;">
+    <div>
+      <h2 class="fw-bold mb-1">
+        <i class="bi {{ 'bi-pencil-square' if charge else 'bi-plus-circle-fill' }} me-2"></i>
+        {{ 'Edit Service Charge' if charge else 'Add New Service Charge' }}
+      </h2>
+      <p class="mb-0 text-white-50 fs-6">Configure tariff name, category, and fee details.</p>
+    </div>
+    <div>
+      <a href="{{ url_for('billing.charges') }}" class="btn btn-light fw-bold text-success">
+        <i class="bi bi-arrow-left me-1"></i> Catalog
+      </a>
+    </div>
+  </div>
+
+  <!-- Form Card -->
+  <div class="card form-card p-4">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'danger' if category in ['error', 'danger'] else category }} alert-dismissible fade show rounded-3 mb-4" role="alert">
+            <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('billing.edit_charge', charge_id=charge.id) if charge else url_for('billing.add_charge') }}">
+      <div class="mb-3">
+        <label for="name" class="form-label fw-bold text-dark">Service / Charge Name <span class="text-danger">*</span></label>
+        <input type="text" id="name" name="name" class="form-control form-control-lg" placeholder="e.g., Outpatient Consultation Fee" value="{{ charge.name if charge else '' }}" required>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label for="category_id" class="form-label fw-bold text-dark">Category</label>
+          <select id="category_id" name="category_id" class="form-select">
+            <option value="">-- Select Existing Category --</option>
+            {% for cat in categories %}
+              <option value="{{ cat.id }}" {% if charge and charge.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label for="new_category_name" class="form-label fw-bold text-dark">Or Create New Category</label>
+          <input type="text" id="new_category_name" name="new_category_name" class="form-control" placeholder="e.g., Emergency Care">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label for="cost" class="form-label fw-bold text-dark">Cost (Kshs) <span class="text-danger">*</span></label>
+        <div class="input-group input-group-lg">
+          <span class="input-group-text fw-bold text-success">Kshs</span>
+          <input type="number" step="0.01" min="0" id="cost" name="cost" class="form-control font-monospace" placeholder="0.00" value="{{ charge.cost if charge else '' }}" required>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label for="description" class="form-label fw-bold text-dark">Description / Details</label>
+        <textarea id="description" name="description" class="form-control" rows="3" placeholder="Optional service notes or tariff details...">{{ charge.description if charge else '' }}</textarea>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2">
+        <a href="{{ url_for('billing.charges') }}" class="btn btn-light px-4 fw-semibold">Cancel</a>
+        <button type="submit" class="btn btn-success px-5 fw-bold">
+          <i class="bi bi-check-lg me-1"></i> {{ 'Save Changes' if charge else 'Create Charge' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

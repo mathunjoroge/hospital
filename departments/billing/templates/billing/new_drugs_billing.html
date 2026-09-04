@@ -1,38 +1,95 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">Create New Drug Billing</h2>
-    <form id="newDrugsBillingForm" method="POST">
-        <!-- Select Patient -->
-        <div class="mb-3">
-            <label for="patient_id" class="form-label">Select Patient</label>
-            <select class="form-select select2" id="patient_id" name="patient_id" required>
-                <option value="" disabled selected>Select a patient</option>
-                {% for patient in patients %}
-                <option value="{{ patient.patient_id }}">{{ patient.name }} ({{ patient.patient_id }})</option>
-                {% endfor %}
-            </select>
-        </div>
+<style>
+  :root {
+    --bl-primary: #059669;
+    --bl-primary-dark: #047857;
+    --bl-header-bg: linear-gradient(135deg, #064e3b 0%, #059669 60%, #10b981 100%);
+    --bl-card-shadow: 0 4px 20px rgba(5, 150, 105, 0.08);
+  }
+  .form-header-card {
+    background: var(--bl-header-bg);
+    color: #ffffff;
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(4, 120, 87, 0.2);
+  }
+  .form-card {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: var(--bl-card-shadow);
+    max-width: 700px;
+    margin: 0 auto;
+  }
+</style>
 
-        <!-- Select Drug -->
-        <div class="mb-3">
-            <label for="drug_id" class="form-label">Select Drug</label>
-            <select class="form-select" id="drug_id" name="drug_id" required>
-                <option value="" disabled selected>Select a drug</option>
-                {% for drug in drugs %}
-                <option value="{{ drug.id }}">{{ drug.generic_name }} - {{ drug.dosage_form }} (Kshs {{ drug.selling_price }})</option>
-                {% endfor %}
-            </select>
-        </div>
+<div class="container-fluid px-4 py-3">
+  <!-- Header Banner -->
+  <div class="form-header-card max-w-700 mx-auto d-flex align-items-center justify-content-between" style="max-width: 700px;">
+    <div>
+      <h2 class="fw-bold mb-1"><i class="bi bi-capsule-pill me-2"></i> Create Drug Invoice</h2>
+      <p class="mb-0 text-white-50 fs-6">Directly bill medication items to a patient account.</p>
+    </div>
+    <div>
+      <a href="{{ url_for('billing.list_billings') }}" class="btn btn-light fw-bold text-success">
+        <i class="bi bi-arrow-left me-1"></i> Invoices List
+      </a>
+    </div>
+  </div>
 
-        <!-- Quantity -->
-        <div class="mb-3">
-            <label for="quantity" class="form-label">Quantity</label>
-            <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
-        </div>
+  <!-- Form Card -->
+  <div class="card form-card p-4">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'danger' if category in ['error', 'danger'] else category }} alert-dismissible fade show rounded-3 mb-4" role="alert">
+            <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
 
-        <!-- Submit Button -->
-        <button type="submit" class="btn btn-primary">Create Drug Billing</button>
+    <form method="POST">
+      <!-- Select Patient -->
+      <div class="mb-4">
+        <label for="patient_id" class="form-label fw-bold text-dark"><i class="bi bi-person me-1 text-success"></i> Select Patient <span class="text-danger">*</span></label>
+        <select class="form-select form-select-lg select2" id="patient_id" name="patient_id" required>
+          <option value="" disabled selected>Select a patient...</option>
+          {% for patient in patients %}
+            <option value="{{ patient.patient_id }}">{{ patient.name }} ({{ patient.patient_id }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Select Drug -->
+      <div class="mb-4">
+        <label for="drug_id" class="form-label fw-bold text-dark"><i class="bi bi-capsule me-1 text-success"></i> Select Medication <span class="text-danger">*</span></label>
+        <select class="form-select form-select-lg" id="drug_id" name="drug_id" required>
+          <option value="" disabled selected>-- Select a drug --</option>
+          {% for drug in drugs %}
+            <option value="{{ drug.id }}">{{ drug.generic_name }} ({{ drug.brand_name or '' }}) - {{ drug.dosage_form or '' }} (Kshs {{ "{:,.2f}".format(drug.selling_price) }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Quantity -->
+      <div class="mb-4">
+        <label for="quantity" class="form-label fw-bold text-dark">Quantity Dispensed <span class="text-danger">*</span></label>
+        <input type="number" class="form-control form-control-lg font-monospace" id="quantity" name="quantity" min="1" value="1" required>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+        <a href="{{ url_for('billing.list_billings') }}" class="btn btn-light px-4 fw-semibold">Cancel</a>
+        <button type="submit" class="btn btn-success px-5 fw-bold">
+          <i class="bi bi-check-lg me-1"></i> Bill Medication
+        </button>
+      </div>
     </form>
+  </div>
 </div>
 {% endblock %}

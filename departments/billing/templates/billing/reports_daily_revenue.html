@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  :root {
+    --bl-primary: #059669;
+    --bl-primary-dark: #047857;
+    --bl-header-bg: linear-gradient(135deg, #064e3b 0%, #059669 60%, #10b981 100%);
+    --bl-card-shadow: 0 4px 20px rgba(5, 150, 105, 0.08);
+  }
+  .report-header-card {
+    background: var(--bl-header-bg);
+    color: #ffffff;
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(4, 120, 87, 0.2);
+  }
+  .card-wrap {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: var(--bl-card-shadow);
+  }
+  .table-custom th {
+    background: #f8fafc;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #475569;
+    font-weight: 700;
+  }
+</style>
+
+<div class="container-fluid px-4 py-3">
+  <!-- Header Banner -->
+  <div class="report-header-card d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+    <div>
+      <h2 class="fw-bold mb-1"><i class="bi bi-cash-coin me-2"></i> Daily Revenue & Shift Report</h2>
+      <p class="mb-0 text-white-50 fs-6">Monitor total cashier collections, revenue distribution, and payment mode breakdowns.</p>
+    </div>
+    <div class="mt-3 mt-md-0">
+      <a href="{{ url_for('billing.index') }}" class="btn btn-light fw-bold text-success">
+        <i class="bi bi-arrow-left me-1"></i> Cashier Queue
+      </a>
+    </div>
+  </div>
+
+  <!-- Date Range Filter -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-3">
+      <form method="GET" action="{{ url_for('billing.daily_revenue_report') }}" class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label fw-bold small text-muted">Start Date</label>
+          <input type="date" name="start" class="form-control" value="{{ start_date }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-bold small text-muted">End Date</label>
+          <input type="date" name="end" class="form-control" value="{{ end_date }}">
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+          <button type="submit" class="btn btn-success fw-bold w-100"><i class="bi bi-funnel me-1"></i> Apply Filter</button>
+          <a href="{{ url_for('billing.daily_revenue_report') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise"></i></a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Stat Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card-wrap p-4 text-center">
+        <div class="text-uppercase fw-bold text-muted small mb-1">Total Revenue Collected</div>
+        <div class="fs-2 fw-bold text-success font-monospace">Kshs {{ "{:,.2f}".format(total_revenue) }}</div>
+        <small class="text-muted"><i class="bi bi-calendar-check me-1"></i> Period: {{ start_date }} to {{ end_date }}</small>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card-wrap p-4 text-center">
+        <div class="text-uppercase fw-bold text-muted small mb-1">Total Receipts Issued</div>
+        <div class="fs-2 fw-bold text-dark font-monospace">{{ paid_records|length }}</div>
+        <small class="text-muted"><i class="bi bi-receipt me-1"></i> Settlement Transactions</small>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card-wrap p-4 text-center">
+        <div class="text-uppercase fw-bold text-muted small mb-1">Total Unpaid Balance</div>
+        <div class="fs-2 fw-bold text-danger font-monospace">Kshs {{ "{:,.2f}".format(total_balance) }}</div>
+        <small class="text-muted"><i class="bi bi-clock me-1"></i> Outstanding Balances</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart & Payment Methods Breakdown -->
+  <div class="row g-4 mb-4">
+    <div class="col-lg-5">
+      <div class="card-wrap p-4 h-100">
+        <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-pie-chart-fill me-2 text-success"></i> Payment Method Breakdown</h5>
+        <div style="height: 250px;" class="position-relative">
+          <canvas id="paymentMethodChart"></canvas>
+        </div>
+        <div class="mt-3">
+          {% for method, amount in by_method.items() %}
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+              <span class="fw-bold text-dark"><i class="bi bi-credit-card me-2 text-success"></i> {{ method }}</span>
+              <span class="font-monospace fw-bold text-success">Kshs {{ "{:,.2f}".format(amount) }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <div class="card-wrap p-4 h-100">
+        <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-journal-text me-2 text-success"></i> Recent Collections</h5>
+        <div class="table-responsive">
+          <table class="table table-custom table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Receipt #</th>
+                <th>Patient</th>
+                <th>Method</th>
+                <th class="text-end">Amount Paid</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in paid_records[:10] %}
+              <tr>
+                <td><span class="badge bg-dark font-monospace">{{ r.receipt_number }}</span></td>
+                <td>
+                  <div class="fw-bold text-dark small">{{ r.patient.name if r.patient else 'N/A' }}</div>
+                  <small class="text-muted">{{ r.paid_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                </td>
+                <td><span class="badge bg-success-subtle text-success border border-success-subtle">{{ r.payment_method or 'Cash' }}</span></td>
+                <td class="text-end font-monospace fw-bold text-success">Kshs {{ "{:,.2f}".format(r.amount_paid) }}</td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4" class="text-center text-muted py-4">No collections recorded in selected period.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const ctx = document.getElementById('paymentMethodChart').getContext('2d');
+  const labels = {{ by_method.keys()|list|tojson }};
+  const dataValues = {{ by_method.values()|list|tojson }};
+
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: dataValues,
+        backgroundColor: ['#059669', '#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' }
+      }
+    }
+  });
+</script>
+{% endblock %}

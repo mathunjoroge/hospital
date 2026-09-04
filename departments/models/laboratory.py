@@ -20,7 +20,7 @@ class LabResult(db.Model):
     __tablename__ = 'lab_results'
 
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
+    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)
     lab_test_id = db.Column(db.Integer, db.ForeignKey('labtests.id'), nullable=False)
     test_date = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
     result_notes = db.Column(db.Text)  # Optional notes

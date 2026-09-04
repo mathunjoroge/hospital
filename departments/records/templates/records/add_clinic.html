@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  :root {
+    --rc-primary: #1a56db; --rc-primary-dark: #1e3a8a;
+    --rc-header-bg: linear-gradient(135deg, #1e3a8a 0%, #1a56db 60%, #3b82f6 100%);
+    --rc-card-shadow: 0 4px 24px rgba(26,86,219,0.10);
+    --rc-border: #e0e7ff; --rc-bg: #f0f4ff;
+  }
+  body { background: var(--rc-bg); }
+  .rc-header { background: var(--rc-header-bg); border-radius:18px; padding:2rem 2.5rem; color:white; margin-bottom:2rem; box-shadow:0 8px 32px rgba(26,86,219,0.25); display:flex; align-items:center; justify-content:space-between; }
+  .rc-header h1 { font-size:1.7rem; font-weight:700; margin:0 0 .25rem; }
+  .rc-header p { margin:0; opacity:.8; }
+  .btn-rc-back { background:rgba(255,255,255,.15); color:white; border:1.5px solid rgba(255,255,255,.3); border-radius:8px; padding:.5rem 1.1rem; font-weight:600; font-size:.85rem; text-decoration:none; display:inline-flex; align-items:center; gap:.4rem; transition:all .15s; }
+  .btn-rc-back:hover { background:rgba(255,255,255,.25); color:white; }
+
+  .rc-form-card { background:white; border-radius:16px; box-shadow:var(--rc-card-shadow); padding:2rem; }
+  .rc-section-header { background:linear-gradient(90deg,#eff6ff,#e0e7ff); border-left:4px solid var(--rc-primary); padding:.8rem 1.2rem; font-weight:700; color:var(--rc-primary-dark); font-size:.95rem; display:flex; align-items:center; gap:.5rem; margin-bottom:1rem; border-radius:8px; }
+  .form-label { font-weight:600; font-size:.88rem; color:#374151; }
+  .form-control { border:1.5px solid var(--rc-border); border-radius:8px; padding:.6rem .9rem; font-size:.9rem; transition:border-color .2s, box-shadow .2s; }
+  .form-control:focus { border-color:var(--rc-primary); box-shadow:0 0 0 3px rgba(26,86,219,.12); outline:none; }
+  .required-star { color:#ef4444; }
+  .btn-rc-submit { background:var(--rc-header-bg); color:white; border:none; border-radius:10px; padding:.75rem 2.5rem; font-weight:700; font-size:1rem; width:100%; cursor:pointer; transition:opacity .2s,transform .15s; display:flex; align-items:center; justify-content:center; gap:.5rem; margin-top:1.5rem; }
+  .btn-rc-submit:hover { opacity:.9; transform:translateY(-1px); }
+</style>
+
+<div class="container-fluid px-4 py-4">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <div class="rc-header">
+    <div>
+      <h1><i class="bi bi-building-plus me-2"></i>{% if clinic is defined and clinic %}Edit Clinic{% else %}Add New Clinic{% endif %}</h1>
+      <p>{% if clinic is defined and clinic %}Update clinic details{% else %}Register a new outpatient clinic{% endif %}</p>
+    </div>
+    <a href="{{ url_for('records.clinics') }}" class="btn-rc-back"><i class="bi bi-arrow-left"></i> Back to Clinics</a>
+  </div>
+
+  <div class="rc-form-card">
+    <div class="rc-section-header"><i class="bi bi-hospital"></i> Clinic Details</div>
+    <form method="POST">
+      <div class="row g-3">
+        <div class="col-md-8">
+          <label class="form-label">Clinic Name <span class="required-star">*</span></label>
+          <input type="text" class="form-control" name="name" placeholder="e.g. Orthopedic Clinic"
+                 value="{{ clinic.name if (clinic is defined and clinic) else '' }}" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Consultation Fee (Ksh) <span class="required-star">*</span></label>
+          <input type="number" class="form-control" name="fee" step="0.01" min="0" placeholder="e.g. 500.00"
+                 value="{{ '%.2f'|format(clinic.fee) if (clinic is defined and clinic) else '' }}" required>
+        </div>
+      </div>
+      <button type="submit" class="btn-rc-submit">
+        <i class="bi bi-check-circle-fill"></i>
+        {% if clinic is defined and clinic %}Save Changes{% else %}Add Clinic{% endif %}
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

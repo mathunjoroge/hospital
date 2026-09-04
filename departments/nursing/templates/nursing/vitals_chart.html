@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  :root {
+    --ns-primary: #e11d48;
+    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+    --ns-card-shadow: 0 4px 20px rgba(225, 29, 72, 0.08);
+  }
+  .nursing-header-card {
+    background: var(--ns-header-bg);
+    color: #ffffff;
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(190, 18, 60, 0.2);
+  }
+  .card-wrap {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: var(--ns-card-shadow);
+  }
+  .table-custom th {
+    background: #f8fafc;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #475569;
+    font-weight: 700;
+  }
+</style>
+
+<div class="container-fluid px-4 py-3">
+  <!-- Header Banner -->
+  <div class="nursing-header-card d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+    <div>
+      <h2 class="fw-bold mb-1"><i class="bi bi-graph-up-arrow me-2"></i> Vitals Time-Series Trend Chart</h2>
+      <p class="mb-0 text-white-50 fs-6">Patient: <strong class="text-white">{{ patient.name }}</strong> | ID: <span class="font-monospace fw-bold">{{ patient.patient_id }}</span></p>
+    </div>
+    <div class="mt-3 mt-md-0 d-flex gap-2">
+      <a href="{{ url_for('nursing.patient_dashboard', patient_id=patient.patient_id) }}" class="btn btn-light fw-bold text-danger">
+        <i class="bi bi-speedometer2 me-1"></i> Kardex Dashboard
+      </a>
+      <a href="{{ url_for('nursing.vital_signs') }}" class="btn btn-outline-light fw-bold">
+        <i class="bi bi-plus-circle me-1"></i> Record Vitals
+      </a>
+    </div>
+  </div>
+
+  <!-- Chart Card -->
+  <div class="card-wrap p-4 mb-4">
+    <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-heart-pulse-fill text-danger me-2"></i> Physiological Trend Graph</h5>
+    <div style="height: 350px;" class="position-relative">
+      <canvas id="vitalsTrendChart"></canvas>
+    </div>
+  </div>
+
+  <!-- History Table -->
+  <div class="card-wrap p-4">
+    <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-clock-history me-2 text-danger"></i> Vitals Observation Log</h5>
+    <div class="table-responsive">
+      <table class="table table-custom table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Temp (°C)</th>
+            <th>BP (mmHg)</th>
+            <th>Pulse (bpm)</th>
+            <th>SpO2 (%)</th>
+            <th>Glucose</th>
+            <th>Weight (kg)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in vitals_history %}
+          <tr>
+            <td><small class="text-muted"><i class="bi bi-clock me-1"></i> {{ v.timestamp.strftime('%Y-%m-%d %H:%M') }}</small></td>
+            <td><span class="fw-bold {{ 'text-danger' if (v.temperature and (v.temperature > 37.5 or v.temperature < 35.5)) else 'text-dark' }}">{{ v.temperature or '-' }}</span></td>
+            <td><span class="fw-bold text-primary">{{ v.blood_pressure_systolic or '-' }}/{{ v.blood_pressure_diastolic or '-' }}</span></td>
+            <td><span class="fw-bold text-dark">{{ v.pulse or '-' }}</span></td>
+            <td><span class="fw-bold {{ 'text-danger' if (v.oxygen_saturation and v.oxygen_saturation < 95) else 'text-success' }}">{{ v.oxygen_saturation or '-' }}%</span></td>
+            <td>{{ v.blood_glucose or '-' }}</td>
+            <td>{{ v.weight or '-' }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" class="text-center py-4 text-muted">No vitals entries recorded for this patient.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  const ctx = document.getElementById('vitalsTrendChart').getContext('2d');
+  const timestamps = {{ timestamps|tojson }};
+  const temps = {{ temps|tojson }};
+  const pulse = {{ pulse|tojson }};
+  const bpSys = {{ bp_sys|tojson }};
+  const spo2 = {{ spo2|tojson }};
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: timestamps,
+      datasets: [
+        {
+          label: 'Temperature (°C)',
+          data: temps,
+          borderColor: '#e11d48',
+          backgroundColor: 'rgba(225, 29, 72, 0.1)',
+          tension: 0.3,
+          yAxisID: 'y'
+        },
+        {
+          label: 'Pulse (bpm)',
+          data: pulse,
+          borderColor: '#059669',
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          yAxisID: 'y1'
+        },
+        {
+          label: 'Systolic BP (mmHg)',
+          data: bpSys,
+          borderColor: '#2563eb',
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          yAxisID: 'y1'
+        },
+        {
+          label: 'SpO2 (%)',
+          data: spo2,
+          borderColor: '#7c3aed',
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          yAxisID: 'y1'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { type: 'linear', display: true, position: 'left', min: 34, max: 42, title: { display: true, text: 'Temp °C' } },
+        y1: { type: 'linear', display: true, position: 'right', min: 40, max: 200, grid: { drawOnChartArea: false }, title: { display: true, text: 'BP / Pulse / SpO2' } }
+      }
+    }
+  });
+</script>
+{% endblock %}

@@ -1,28 +1,72 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">Clinics List</h2>
-    <table class="table table-striped table-bordered">
-        <thead class="table-dark">
-            <tr>
-               
-                <th>Name</th>
-                <th>Fee</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for clinic in clinics %}
-            <tr>
-                
-                <td>{{ clinic.name }}</td>
-                <td>{{ clinic.fee }}</td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="3" class="text-center">No clinics registered yet.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<style>
+  :root {
+    --rc-primary: #1a56db; --rc-primary-dark: #1e3a8a;
+    --rc-header-bg: linear-gradient(135deg, #1e3a8a 0%, #1a56db 60%, #3b82f6 100%);
+    --rc-card-shadow: 0 4px 24px rgba(26,86,219,0.10);
+    --rc-border: #e0e7ff; --rc-bg: #f0f4ff;
+  }
+  body { background: var(--rc-bg); }
+  .rc-header { background: var(--rc-header-bg); border-radius:18px; padding:2rem 2.5rem; color:white; margin-bottom:2rem; box-shadow:0 8px 32px rgba(26,86,219,0.25); position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; }
+  .rc-header::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.06); }
+  .rc-header h1 { font-size:1.7rem; font-weight:700; margin:0 0 .25rem; }
+  .rc-header p { margin:0; opacity:.8; }
+  .btn-rc-primary { background: var(--rc-header-bg); color:white; border:none; border-radius:8px; padding:.55rem 1.2rem; font-weight:600; font-size:.9rem; display:inline-flex; align-items:center; gap:.4rem; cursor:pointer; transition:opacity .2s,transform .15s; text-decoration:none; }
+  .btn-rc-primary:hover { opacity:.9; color:white; transform:translateY(-1px); }
+
+  .clinics-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:1.2rem; }
+  .clinic-card { background:white; border-radius:14px; box-shadow:var(--rc-card-shadow); padding:1.5rem; border-top:4px solid var(--rc-primary); transition:transform .2s, box-shadow .2s; position:relative; overflow:hidden; }
+  .clinic-card:hover { transform:translateY(-4px); box-shadow:0 8px 32px rgba(26,86,219,0.18); }
+  .clinic-card::before { content:''; position:absolute; top:0; right:0; width:80px; height:80px; background:linear-gradient(135deg,#eff6ff,transparent); border-radius:0 0 0 80px; }
+  .clinic-card .clinic-icon { width:52px; height:52px; border-radius:12px; background:linear-gradient(135deg,#eff6ff,#dbeafe); display:flex; align-items:center; justify-content:center; font-size:1.6rem; margin-bottom:1rem; color:var(--rc-primary); }
+  .clinic-card .clinic-name { font-size:1.1rem; font-weight:700; color:#1e293b; margin-bottom:.3rem; }
+  .clinic-card .clinic-fee { font-size:1.4rem; font-weight:800; color:var(--rc-primary); margin-bottom:.8rem; }
+  .clinic-card .clinic-fee span { font-size:.8rem; font-weight:400; color:#64748b; }
+  .btn-rc-sm { padding:.3rem .8rem; border-radius:6px; font-size:.8rem; font-weight:600; border:none; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:.3rem; transition:all .15s; }
+  .btn-rc-edit { background:#fff7ed; color:#d97706; }
+  .btn-rc-edit:hover { background:#d97706; color:white; }
+
+  .empty-state { text-align:center; padding:4rem; color:#94a3b8; }
+  .empty-state i { font-size:3rem; display:block; margin-bottom:1rem; }
+</style>
+
+<div class="container-fluid px-4 py-4">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <div class="rc-header">
+    <div>
+      <h1><i class="bi bi-building-fill me-2"></i>Clinics</h1>
+      <p>Manage clinics and their consultation fees</p>
+    </div>
+    <a href="{{ url_for('records.add_clinic') }}" class="btn-rc-primary" style="font-size:.95rem;">
+      <i class="bi bi-plus-circle-fill"></i> Add New Clinic
+    </a>
+  </div>
+
+  {% if clinics %}
+  <div class="clinics-grid">
+    {% for clinic in clinics %}
+    <div class="clinic-card">
+      <div class="clinic-icon"><i class="bi bi-hospital"></i></div>
+      <div class="clinic-name">{{ clinic.name }}</div>
+      <div class="clinic-fee">Ksh {{ "%.2f"|format(clinic.fee) }} <span>per visit</span></div>
+      <a href="{{ url_for('records.edit_clinic', clinic_id=clinic.clinic_id) }}" class="btn-rc-sm btn-rc-edit">
+        <i class="bi bi-pencil"></i> Edit
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-building-x"></i>
+    <p>No clinics registered yet.</p>
+    <a href="{{ url_for('records.add_clinic') }}" class="btn-rc-primary">Add First Clinic</a>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

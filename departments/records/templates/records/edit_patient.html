@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  :root {
+    --rc-primary: #1a56db; --rc-primary-dark: #1e3a8a;
+    --rc-header-bg: linear-gradient(135deg, #1e3a8a 0%, #1a56db 60%, #3b82f6 100%);
+    --rc-card-shadow: 0 4px 24px rgba(26,86,219,0.10);
+    --rc-border: #e0e7ff; --rc-bg: #f0f4ff;
+  }
+  body { background: var(--rc-bg); }
+  .rc-header { background: var(--rc-header-bg); border-radius:18px; padding:2rem 2.5rem; color:white; margin-bottom:2rem; box-shadow:0 8px 32px rgba(26,86,219,0.25); display:flex; align-items:center; justify-content:space-between; }
+  .rc-header h1 { font-size:1.7rem; font-weight:700; margin:0 0 .25rem; }
+  .rc-header p { margin:0; opacity:.8; }
+  .btn-rc-back { background:rgba(255,255,255,0.15); color:white; border:1.5px solid rgba(255,255,255,0.3); border-radius:8px; padding:.5rem 1.2rem; font-weight:600; font-size:.88rem; text-decoration:none; display:inline-flex; align-items:center; gap:.4rem; transition:all .15s; }
+  .btn-rc-back:hover { background:rgba(255,255,255,0.25); color:white; }
+
+  .rc-section-header { background:linear-gradient(90deg,#eff6ff,#e0e7ff); border-left:4px solid var(--rc-primary); padding:.8rem 1.2rem; font-weight:700; color:var(--rc-primary-dark); font-size:.95rem; display:flex; align-items:center; gap:.5rem; margin-bottom:.5rem; border-radius:8px; }
+  .rc-form-card { background:white; border-radius:16px; box-shadow:var(--rc-card-shadow); padding:2rem; margin-bottom:1.5rem; }
+  .form-label { font-weight:600; font-size:.88rem; color:#374151; margin-bottom:.3rem; }
+  .form-control, .form-select { border:1.5px solid var(--rc-border); border-radius:8px; padding:.55rem .9rem; font-size:.9rem; transition:border-color .2s, box-shadow .2s; }
+  .form-control:focus, .form-select:focus { border-color:var(--rc-primary); box-shadow:0 0 0 3px rgba(26,86,219,0.12); }
+  .required-star { color:#ef4444; }
+  .btn-rc-submit { background:var(--rc-header-bg); color:white; border:none; border-radius:10px; padding:.75rem 2.5rem; font-weight:700; font-size:1rem; width:100%; cursor:pointer; transition:opacity .2s,transform .15s; display:flex; align-items:center; justify-content:center; gap:.5rem; }
+  .btn-rc-submit:hover { opacity:.9; transform:translateY(-1px); }
+</style>
+
+<div class="container-fluid px-4 py-4">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <div class="rc-header">
+    <div>
+      <h1><i class="bi bi-pencil-square me-2"></i>Edit Patient — {{ patient.name }}</h1>
+      <p>Patient ID: {{ patient.patient_id }}</p>
+    </div>
+    <a href="{{ url_for('records.patient_profile', patient_id=patient.patient_id) }}" class="btn-rc-back">
+      <i class="bi bi-arrow-left"></i> Back to Profile
+    </a>
+  </div>
+
+  <form method="POST" novalidate>
+
+    <!-- Personal Information -->
+    <div class="rc-form-card">
+      <div class="rc-section-header"><i class="bi bi-person-badge"></i> Personal Information</div>
+      <div class="row g-3 mt-1">
+        <div class="col-md-6">
+          <label class="form-label">Full Name <span class="required-star">*</span></label>
+          <input type="text" class="form-control" name="name" value="{{ patient.name }}" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">National ID / Passport <span class="required-star">*</span></label>
+          <input type="text" class="form-control" name="national_id" value="{{ patient.national_id }}" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Sex <span class="required-star">*</span></label>
+          <select class="form-select" name="sex" required>
+            <option value="Male" {% if patient.sex=='Male' %}selected{% endif %}>Male</option>
+            <option value="Female" {% if patient.sex=='Female' %}selected{% endif %}>Female</option>
+            <option value="Other" {% if patient.sex=='Other' %}selected{% endif %}>Other</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Date of Birth <span class="required-star">*</span></label>
+          <input type="date" class="form-control" name="date_of_birth" value="{{ patient.date_of_birth.strftime('%Y-%m-%d') }}" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Marital Status <span class="required-star">*</span></label>
+          <select class="form-select" name="marital_status" required>
+            <option value="Single" {% if patient.marital_status=='Single' %}selected{% endif %}>Single</option>
+            <option value="Married" {% if patient.marital_status=='Married' %}selected{% endif %}>Married</option>
+            <option value="Divorced" {% if patient.marital_status=='Divorced' %}selected{% endif %}>Divorced</option>
+            <option value="Widowed" {% if patient.marital_status=='Widowed' %}selected{% endif %}>Widowed</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Blood Group <span class="required-star">*</span></label>
+          <select class="form-select" name="blood_group" required>
+            {% for bg in ['A+','A-','B+','B-','O+','O-','AB+','AB-'] %}
+            <option value="{{ bg }}" {% if patient.blood_group==bg %}selected{% endif %}>{{ bg }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label">Place of Residence <span class="required-star">*</span></label>
+          <input type="text" class="form-control" name="place_of_residence" value="{{ patient.place_of_residence }}" required>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact Information -->
+    <div class="rc-form-card">
+      <div class="rc-section-header"><i class="bi bi-telephone"></i> Contact Information</div>
+      <div class="row g-3 mt-1">
+        <div class="col-md-6">
+          <label class="form-label">Primary Contact <span class="required-star">*</span></label>
+          <input type="tel" class="form-control" name="contact" value="{{ patient.contact }}" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Emergency Contact <span class="required-star">*</span></label>
+          <input type="tel" class="form-control" name="emergency_contact" value="{{ patient.emergency_contact }}" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Next of Kin <span class="required-star">*</span></label>
+          <input type="text" class="form-control" name="next_of_kin" value="{{ patient.next_of_kin }}" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Relationship <span class="required-star">*</span></label>
+          <input type="text" class="form-control" name="relationship_with_next_of_kin" value="{{ patient.relationship_with_next_of_kin }}" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Next of Kin Contact <span class="required-star">*</span></label>
+          <input type="tel" class="form-control" name="next_of_kin_contact" value="{{ patient.next_of_kin_contact }}" required>
+        </div>
+      </div>
+    </div>
+
+    <!-- Insurance & Employment -->
+    <div class="rc-form-card">
+      <div class="rc-section-header"><i class="bi bi-shield-check"></i> Insurance & Employment <span style="font-weight:400; font-size:.82rem; color:#64748b; margin-left:.5rem;">(Optional)</span></div>
+      <div class="row g-3 mt-1">
+        <div class="col-md-6">
+          <label class="form-label">Insurance Provider</label>
+          <input type="text" class="form-control" name="insurance_provider" value="{{ patient.insurance_provider or '' }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Insurance Policy Number</label>
+          <input type="text" class="form-control" name="insurance_policy_number" value="{{ patient.insurance_policy_number or '' }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Occupation</label>
+          <input type="text" class="form-control" name="occupation" value="{{ patient.occupation or '' }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Employer Name</label>
+          <input type="text" class="form-control" name="employer_name" value="{{ patient.employer_name or '' }}">
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <div class="rc-form-card">
+      <button type="submit" class="btn-rc-submit">
+        <i class="bi bi-check-circle-fill"></i> Save Changes
+      </button>
+    </div>
+
+  </form>
+</div>
+{% endblock %}

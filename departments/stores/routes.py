@@ -7,7 +7,7 @@ import os
 
 from extensions import db
 from . import bp  # Import the blueprint
-from departments.models.pharmacy import Drug, DrugRequest, RequestItem
+from departments.models.pharmacy import Drug, Batch, DrugRequest, RequestItem
 from departments.models.stores import NonPharmCategory, NonPharmItem, OtherOrder
 from departments.models.user import User  # Import User model
 
@@ -20,13 +20,15 @@ def index():
     """Store dashboard showing pending drug requests."""
     FILE_NAME = "stores/routes.py"  # Ensure this is defined
 
-    if current_user.role.lower() not in ['store', 'admin']:
+    if current_user.role.lower() not in ['store', 'stores', 'admin']:
         flash('Unauthorized access. Store staff only.', 'error')
         return redirect(url_for('login'))  
 
     try:
-        # Fetch pending drug requests
-        pending_requests = DrugRequest.query.filter_by(status='Pending').order_by(DrugRequest.request_date.desc()).all()
+        # Fetch submitted and pending drug requests
+        pending_requests = DrugRequest.query.filter(
+            DrugRequest.status.in_(['Submitted', 'Pending'])
+        ).order_by(DrugRequest.request_date.desc()).all()
 
         # Get user IDs from the requests
         user_ids = [req.requested_by for req in pending_requests]  # List of requested_by IDs
@@ -53,7 +55,7 @@ def index():
 @login_required
 def inventory():
     """Displays the store's drug inventory."""
-    if current_user.role not in ['stores', 'admin']:
+    if current_user.role.lower() not in ['store', 'stores', 'admin']:
         flash('Unauthorized access. Store staff only.', 'error')
         return redirect(url_for('login'))
 
@@ -67,23 +69,21 @@ def inventory():
         return redirect(url_for('stores.index'))
 
 
-
-
 @bp.route('/issue_request', methods=['GET'])
 @login_required
 def list_issue_requests():
     """
-    Lists all pending drug requests for issuance.
+    Lists all pending/submitted drug requests for issuance.
     Accessible only to store staff.
     """
     # Check authorization first
-    if current_user.role not in ['stores', 'admin']: 
+    if current_user.role.lower() not in ['store', 'stores', 'admin']: 
         abort(403, description="Access restricted to store staff only")
 
     try:
         pending_requests = (
             DrugRequest.query
-            .filter_by(status='Pending')
+            .filter(DrugRequest.status.in_(['Submitted', 'Pending']))
             .order_by(DrugRequest.request_date.desc())
             .all()
         )
@@ -106,9 +106,9 @@ def list_issue_requests():
 def issue_request(request_id):
     """
     Allows store staff to view and issue drugs for a specific request.
-    Handles quantity issuance input and updates.
+    Handles quantity issuance input and updates stock in stores & pharmacy.
     """
-    if current_user.role not in ['stores', 'admin']:
+    if current_user.role.lower() not in ['store', 'stores', 'admin']:
         flash("Access restricted to store staff only", "error")
         return redirect(url_for('login')), 403
 
@@ -139,11 +139,28 @@ def issue_request(request_id):
 
                     item.quantity_issued = quantity_issued
 
+                    if quantity_issued > 0:
+                        # Deduct from Store stock
+                        item.drug.quantity_in_stock = max(0, item.drug.quantity_in_stock - quantity_issued)
+
+                        # Create/update Pharmacy Batch so Pharmacy receives the issued stock
+                        batch = Batch.query.filter_by(drug_id=item.drug_id, batch_number=f"REQ-{drug_request.id}").first()
+                        if not batch:
+                            batch = Batch(
+                                drug_id=item.drug_id,
+                                batch_number=f"REQ-{drug_request.id}",
+                                quantity_in_stock=quantity_issued,
+                                expiry_date=datetime.today().date().replace(year=datetime.today().year + 2)
+                            )
+                            db.session.add(batch)
+                        else:
+                            batch.quantity_in_stock += quantity_issued
+
                 # Update status if all items have quantities set
                 if all(item.quantity_issued is not None for item in drug_request.items):
-                    drug_request.status = 'Issued'
+                    drug_request.status = 'Completed'
                 db.session.commit()
-                flash("Drug request issued successfully", "success")
+                flash("Drug request issued successfully and stock released to pharmacy", "success")
                 return redirect(url_for('stores.list_issue_requests'))
 
             except SQLAlchemyError as e:
@@ -178,7 +195,7 @@ def non_pharms():
     """Display all non-pharmaceutical items grouped by category."""
     FILE_NAME = "stores/routes.py"
 
-    if current_user.role.lower() not in ['store', 'stores', 'nursing', 'kitchen', 'laundry']:
+    if current_user.role.lower() not in ['store', 'stores', 'nursing', 'kitchen', 'laundry', 'admin']:
         flash('Unauthorized access. Authorized staff only.', 'error')
         return redirect(url_for('login'))
 
@@ -214,11 +231,12 @@ def non_pharms():
         flash(error_message, 'error')
         print(f"Debug: {error_message}")
         return redirect(url_for('stores.index'))    
+
 @bp.route('/manage_reagent_requests', methods=['GET', 'POST'])
 @login_required
 def manage_reagent_requests():
-    """Handles approving or rejecting reagent restock requests."""
-    if current_user.role != 'admin':
+    """Handles approving or rejecting non-pharm commodity requests (e.g. lab reagents, nursing supplies)."""
+    if current_user.role.lower() not in ['store', 'stores', 'admin']:
         flash('You do not have permission to access this page.', 'error')
         return redirect(url_for('home'))
 
@@ -231,14 +249,18 @@ def manage_reagent_requests():
 
             if action == "approve":
                 reagent = NonPharmItem.query.get(reagent_request.item_id)
-                reagent.stock_level += reagent_request.quantity_requested
+                if reagent:
+                    # Deduct from Store stock and issue to requesting department
+                    reagent.stock_level = max(0, reagent.stock_level - reagent_request.quantity_requested)
+                    reagent.in_dispensing += reagent_request.quantity_requested
                 reagent_request.status = "Approved"
+                reagent_request.quantity_issued = reagent_request.quantity_requested
                 db.session.commit()
-                flash(f"Reagent restock approved! Stock updated for {reagent.name}.", "success")
+                flash(f"Commodity request approved! Stock released for {reagent.name if reagent else 'item'}.", "success")
             else:
-                db.session.delete(reagent_request)
+                reagent_request.status = "Rejected"
                 db.session.commit()
-                flash("Reagent restock request rejected!", "warning")
+                flash("Commodity request rejected!", "warning")
 
             return redirect(url_for('stores.manage_reagent_requests'))
 
@@ -250,7 +272,8 @@ def manage_reagent_requests():
         return render_template('stores/manage_reagent_requests.html', requests=requests)
 
     except Exception as e:
-        flash(f"Error managing reagent requests: {e}", "error")
+        db.session.rollback()
+        flash(f"Error managing commodity requests: {e}", "error")
         print(f"Debug: Error in stores.manage_reagent_requests: {e}")
         return redirect(url_for('stores.index'))
 

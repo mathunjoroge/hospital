@@ -1,100 +1,199 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">Drug Request</h2>
+<style>
+  :root {
+    --ph-primary: #0e7c61;
+    --ph-primary-light: #16a085;
+    --ph-accent: #27ae60;
+    --ph-header-bg: linear-gradient(135deg, #0e7c61 0%, #16a085 60%, #1abc9c 100%);
+    --ph-card-shadow: 0 4px 24px rgba(14,124,97,0.10);
+    --ph-border: rgba(14,124,97,0.12);
+  }
 
-<div class="card-body">
-    <form method="POST">
-        <div class="row g-3 mb-3">
-            <!-- Drug Selection -->
-            <div class="col-md-4">
-                <label for="drug_id" class="form-label">Select Drug</label>
-                <select name="drug_id" id="drug_id" class="form-select select2" required>
-                    <option value="">-- Select a Drug --</option>
-                    {% for drug in all_drugs %}
-                    <option value="{{ drug.id }}">
-                        {{ drug.generic_name }} ({{ drug.brand_name | default('N/A') }}) - 
-                        {{ drug.dosage_form }} {{ drug.strength }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
+  .ph-header-banner {
+    background: var(--ph-header-bg);
+    border-radius: 16px;
+    padding: 24px 32px;
+    color: #ffffff;
+    box-shadow: 0 8px 32px rgba(14, 124, 97, 0.25);
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ph-header-banner::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 320px;
+    height: 320px;
+    background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
 
-            <!-- Quantity Input -->
-            <div class="col-md-3">
-                <label for="quantity" class="form-label">Quantity</label>
-                <input type="number" name="quantity" id="quantity" class="form-control" min="1" required>
-            </div>
+  .ph-card {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid var(--ph-border);
+    box-shadow: var(--ph-card-shadow);
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
 
-            <!-- Action Button -->
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-plus-circle me-2"></i> Add
-                </button>
-            </div>
-        </div>
-    </form>
-</div>
+  .ph-card-header {
+    background: #f4fbf8;
+    border-bottom: 1px solid var(--ph-border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ph-card-header h5 {
+    color: var(--ph-primary);
+    font-weight: 700;
+    margin: 0;
+  }
 
-    <!-- Current Request -->
+  .table-ph {
+    margin-bottom: 0;
+  }
+  .table-ph th {
+    background: #eef7f4;
+    color: #1a4d3e;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 12px 16px;
+    border-bottom: 2px solid var(--ph-border);
+  }
+  .table-ph td {
+    padding: 14px 16px;
+    vertical-align: middle;
+    color: #2c3e50;
+  }
+
+  .btn-ph-primary {
+    background: linear-gradient(135deg, #0e7c61 0%, #16a085 100%);
+    color: white;
+    border: none;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 10px 20px;
+    transition: all 0.2s ease;
+  }
+  .btn-ph-primary:hover {
+    background: linear-gradient(135deg, #0c6952 0%, #138a72 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(14,124,97,0.3);
+  }
+</style>
+
+<div class="container mt-4 mb-5">
+  <!-- Header Banner -->
+  <div class="ph-header-banner d-flex justify-content-between align-items-center">
+    <div>
+      <h2 class="fw-bold mb-1"><i class="bi bi-truck me-2"></i>Drug Request Requisition</h2>
+      <p class="mb-0 text-white-50">Create and manage department stock requests from the central store</p>
+    </div>
     {% if latest_request %}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-info text-white">
-            <h4 class="mb-0">Current Drug Request</h4>
-        </div>
-        <div class="card-body">
-            <table class="table table-striped">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Request Date</th>
-                        <th>Status</th>
-                        <th>Drugs Requested</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>{{ latest_request.request_date.strftime('%d-%m-%Y') }}</td>
-                        <td>{{ latest_request.status }}</td>
-                        <td>
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Drug</th>
-                                        <th>Dosage Form</th>
-                                        <th>Strength</th>
-                                        <th>Qty Requested</th>
-                                        <th>Qty Issued</th>
-                                        <th>Comments</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for item in latest_request.items %}
-                                    <tr>
-                                        <td>{{ item.drug.generic_name }} ({{ item.drug.brand_name | default('N/A') }})</td>
-                                        <td>{{ item.drug.dosage_form }}</td>
-                                        <td>{{ item.drug.strength }}</td>
-                                        <td>{{ item.quantity_requested }}</td>
-                                        <td>{{ item.quantity_issued }}</td>
-                                        <td>{{ item.comments | default("N/A") }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    
-    <!-- Save Order Button -->
-    <div class="text-center mt-4">
-        <a href="{{ url_for('pharmacy.save_order') }}" class="btn btn-primary">Save Order</a>
-    </div>
-    
-    {% else %}
-    <p class="text-muted text-center">No active drug request. Please submit a request.</p>
+    <a href="{{ url_for('pharmacy.save_order') }}" class="btn btn-light fw-bold text-success px-4 py-2 shadow-sm">
+      <i class="bi bi-check-all me-2"></i>Save & Finalize Order
+    </a>
     {% endif %}
+  </div>
+
+  <!-- Request Form Card -->
+  <div class="ph-card">
+    <div class="ph-card-header">
+      <h5><i class="bi bi-plus-circle me-2"></i>Add Items to Requisition</h5>
+    </div>
+    <div class="card-body p-4">
+      <form method="POST">
+        <div class="row g-3 align-items-end">
+          <!-- Drug Selection -->
+          <div class="col-md-7">
+            <label for="drug_id" class="form-label fw-bold text-secondary">Select Drug</label>
+            <select name="drug_id" id="drug_id" class="form-select select2" required>
+              <option value="">-- Select a Drug --</option>
+              {% for drug in all_drugs %}
+              <option value="{{ drug.id }}">
+                {{ drug.generic_name }} ({{ drug.brand_name | default('N/A') }}) - {{ drug.dosage_form }} {{ drug.strength }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Quantity Input -->
+          <div class="col-md-3">
+            <label for="quantity" class="form-label fw-bold text-secondary">Quantity Requested</label>
+            <input type="number" name="quantity" id="quantity" class="form-control" min="1" placeholder="Qty" required>
+          </div>
+
+          <!-- Action Button -->
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-ph-primary w-100">
+              <i class="bi bi-plus-lg me-1"></i> Add Item
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Current Request Summary -->
+  {% if latest_request %}
+  <div class="ph-card">
+    <div class="ph-card-header">
+      <h5><i class="bi bi-list-check me-2"></i>Current Requisition Details</h5>
+      <span class="badge bg-warning text-dark px-3 py-2 fs-6">Status: {{ latest_request.status }}</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="p-3 bg-light border-bottom text-muted small">
+        <i class="bi bi-calendar-event me-1"></i> Request Date: <strong>{{ latest_request.request_date.strftime('%d-%m-%Y %H:%M') if latest_request.request_date else 'N/A' }}</strong>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-ph table-hover">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Drug Details</th>
+              <th>Dosage Form</th>
+              <th>Strength</th>
+              <th class="text-center">Qty Requested</th>
+              <th class="text-center">Qty Issued</th>
+              <th>Comments</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in latest_request.items %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td class="fw-bold text-dark">{{ item.drug.generic_name }} <small class="text-muted">({{ item.drug.brand_name | default('N/A') }})</small></td>
+              <td><span class="badge bg-light text-dark border">{{ item.drug.dosage_form }}</span></td>
+              <td>{{ item.drug.strength }}</td>
+              <td class="text-center"><span class="badge bg-primary fs-6">{{ item.quantity_requested }}</span></td>
+              <td class="text-center"><span class="badge bg-secondary fs-6">{{ item.quantity_issued }}</span></td>
+              <td class="text-muted">{{ item.comments | default("N/A") }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-center mt-4">
+    <a href="{{ url_for('pharmacy.save_order') }}" class="btn btn-ph-primary btn-lg px-5 shadow">
+      <i class="bi bi-send-check me-2"></i> Submit & Save Order
+    </a>
+  </div>
+  {% else %}
+  <div class="ph-card text-center p-5">
+    <i class="bi bi-inbox text-muted display-4 mb-3 d-block"></i>
+    <h5 class="text-secondary fw-bold">No Active Requisition</h5>
+    <p class="text-muted">Select drugs above to add items to your request list.</p>
+  </div>
+  {% endif %}
 
 </div>
 {% endblock %}

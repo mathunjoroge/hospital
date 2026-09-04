@@ -12,7 +12,7 @@ from flask_socketio import SocketIO
 from flask_apscheduler import APScheduler
 from werkzeug.security import check_password_hash
 from config import Config
-from extensions import db, login_manager
+from extensions import db, login_manager, socketio
 from departments.models.user import User
 from departments.models.admin import Log
 from departments.models.nursing import Notifications
@@ -77,7 +77,7 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 mail = Mail(app)
 migrate = Migrate(app, db)
-socketio = SocketIO(app)
+socketio.init_app(app)
 
 # Initialize APScheduler
 scheduler = APScheduler()
@@ -186,33 +186,36 @@ def logout():
         flash(f'Logout error: {e}', 'error')
         return redirect(url_for('login'))
 
+from departments.records import bp as records_bp
+from departments.billing import bp as billing_bp
+from departments.pharmacy import bp as pharmacy_bp
+from departments.medicine import bp as medicine_bp
+from departments.laboratory import bp as laboratory_bp
+from departments.imaging import bp as imaging_bp
+from departments.stores import bp as stores_bp
+from departments.admin import bp as admin_bp
+from departments.nursing import bp as nursing_bp
+from departments.hr import bp as hr_bp
+from departments.mortuary import bp as mortuary_bp
+from departments.api import bp as api_bp
+
+app.register_blueprint(records_bp, url_prefix='/records')
+app.register_blueprint(billing_bp, url_prefix='/billing')
+app.register_blueprint(pharmacy_bp, url_prefix='/pharmacy')
+app.register_blueprint(medicine_bp, url_prefix='/medicine')
+app.register_blueprint(laboratory_bp, url_prefix='/laboratory')
+app.register_blueprint(imaging_bp, url_prefix='/imaging')
+app.register_blueprint(stores_bp, url_prefix='/stores')
+app.register_blueprint(admin_bp, url_prefix='/admin')
+app.register_blueprint(nursing_bp, url_prefix='/nursing')
+app.register_blueprint(hr_bp, url_prefix='/hr')
+app.register_blueprint(mortuary_bp, url_prefix='/mortuary')
+app.register_blueprint(api_bp, url_prefix='/api')
+
 if __name__ == '__main__':
-    from departments.records import bp as records_bp
-    from departments.billing import bp as billing_bp
-    from departments.pharmacy import bp as pharmacy_bp
-    from departments.medicine import bp as medicine_bp
-    from departments.laboratory import bp as laboratory_bp
-    from departments.imaging import bp as imaging_bp
-    from departments.stores import bp as stores_bp
-    from departments.admin import bp as admin_bp
-    from departments.nursing import bp as nursing_bp
-    from departments.hr import bp as hr_bp
-    from departments.api import bp as api_bp
-
-    app.register_blueprint(records_bp, url_prefix='/records')
-    app.register_blueprint(billing_bp, url_prefix='/billing')
-    app.register_blueprint(pharmacy_bp, url_prefix='/pharmacy')
-    app.register_blueprint(medicine_bp, url_prefix='/medicine')
-    app.register_blueprint(laboratory_bp, url_prefix='/laboratory')
-    app.register_blueprint(imaging_bp, url_prefix='/imaging')
-    app.register_blueprint(stores_bp, url_prefix='/stores')
-    app.register_blueprint(admin_bp, url_prefix='/admin')
-    app.register_blueprint(nursing_bp, url_prefix='/nursing')
-    app.register_blueprint(hr_bp, url_prefix='/hr')
-    app.register_blueprint(api_bp, url_prefix='/api')
-
     with app.app_context():
         db.create_all()
 
     scheduler.start()
     socketio.run(app, debug=True)
+

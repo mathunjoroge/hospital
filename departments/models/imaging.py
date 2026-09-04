@@ -8,7 +8,7 @@ class ImagingResult(db.Model):
     __tablename__ = 'imaging_results'
     id = db.Column(db.Integer, primary_key=True)
     result_id = db.Column(db.String, unique=True, nullable=False)
-    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
+    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)
     imaging_id = db.Column(db.Integer, db.ForeignKey('imaging.id'), nullable=False)
     test_date = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
     result_notes = db.Column(db.Text)

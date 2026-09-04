@@ -1,61 +1,102 @@
 {% extends "base.html" %}
-
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">Admitted Patients</h2>
+<style>
+  :root { --md-primary: #e11d48; --md-primary-dark: #be123c; }
+  .md-page-header { background: linear-gradient(135deg, #881337, #be123c 60%, #e11d48); border-radius: 16px; padding: 1.75rem 2rem; color: #fff; margin-bottom: 1.5rem; box-shadow: 0 8px 24px rgba(190,18,60,0.2); }
+  .md-card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
+  .md-card-header { background: #f8fafc; padding: 1rem 1.4rem; border-bottom: 1px solid #e2e8f0; }
+  .table-md th { background: #f8fafc; font-size: 0.77rem; text-transform: uppercase; letter-spacing: 0.06em; color: #475569; font-weight: 700; padding: 1rem 1.1rem; border-bottom: 2px solid #e2e8f0; }
+  .table-md td { padding: 1.1rem 1.1rem; vertical-align: middle; border-color: #f1f5f9; }
+  .table-md tbody tr:hover { background: #fff5f7; }
+</style>
 
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=True) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+<div class="container-fluid px-4 py-3">
+  {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="alert alert-{{ 'danger' if category in ['error','danger'] else category }} alert-dismissible fade show rounded-3 shadow-sm mb-3">
+        <i class="bi bi-info-circle-fill me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}{% endif %}
+  {% endwith %}
 
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th>Patient</th>
-                    <th>Ward</th>
-                    <th>Admission Date</th>
-                    <th>Admission Criteria</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for patient in patients %}
-                <tr>
-                    <td>{{ patient.patient_name }}</td>
-                    <td>{{ patient.ward_name }} ({{ patient.ward_sex }})</td>
-                    <td>{{ patient.admitted_on.strftime('%Y-%m-%d %H:%M:%S') if patient.admitted_on else 'N/A' }}</td>
-                    <td>{{ patient.admission_criteria }}</td>
-                    <td>
-                        {% if patient.discharged_on %}
-                            <span class="badge bg-success">Discharged</span>
-                        {% else %}
-                            <span class="badge bg-warning">Admitted</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if not patient.discharged_on %}
-                            <form method="POST" action="{{ url_for('medicine.discharge_patient', id=patient.id) }}">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-danger btn-sm">Discharge</button>
-                            </form>
-                        {% else %}
-                            <span class="text-muted">Completed</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+  <div class="md-page-header d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+    <div>
+      <h3 class="fw-bold mb-1"><i class="bi bi-person-vcard-fill me-2"></i>Admitted Patients</h3>
+      <p class="mb-0 text-white-50 fs-6">All patients currently or previously admitted to a ward.</p>
     </div>
+    <div class="mt-3 mt-md-0 d-flex gap-2">
+      <a href="{{ url_for('medicine.admit_patient') }}" class="btn btn-light fw-bold text-danger">
+        <i class="bi bi-person-plus me-1"></i>Admit New Patient
+      </a>
+      <a href="{{ url_for('medicine.ward_rounds') }}" class="btn btn-outline-light fw-bold">
+        <i class="bi bi-hospital me-1"></i>Ward Rounds
+      </a>
+    </div>
+  </div>
+
+  <div class="md-card">
+    <div class="md-card-header d-flex align-items-center justify-content-between">
+      <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-people-fill me-2 text-danger"></i>All Admissions</h5>
+      <span class="badge rounded-pill" style="background:#e11d48; font-size:0.82rem; padding: 0.5rem 1rem;">{{ patients|length }} record{{ 's' if patients|length != 1 }}</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-md table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Ward</th>
+            <th>Admitted On</th>
+            <th>Criteria</th>
+            <th class="text-center">Status</th>
+            <th class="text-center">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for patient in patients %}
+          <tr>
+            <td>
+              <div class="fw-bold">{{ patient.patient_name }}</div>
+              <small class="text-muted font-monospace">{{ patient.patient_id }}</small>
+            </td>
+            <td>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ patient.ward_name }} ({{ patient.ward_sex }})</span>
+            </td>
+            <td>
+              <div class="small">{{ patient.admitted_on.strftime('%d %b %Y') if patient.admitted_on else 'N/A' }}</div>
+              <small class="text-muted">{{ patient.admitted_on.strftime('%H:%M') if patient.admitted_on else '' }}</small>
+            </td>
+            <td><small class="text-muted">{{ (patient.admission_criteria or '—')[:60] }}{% if patient.admission_criteria and patient.admission_criteria|length > 60 %}…{% endif %}</small></td>
+            <td class="text-center">
+              {% if patient.discharged_on %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle">Discharged</span>
+              {% else %}
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Admitted</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if not patient.discharged_on %}
+                <form method="POST" action="{{ url_for('medicine.discharge_patient', id=patient.id) }}" class="d-inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm btn-danger fw-semibold" onclick="return confirm('Discharge this patient?')">
+                    <i class="bi bi-door-open me-1"></i>Discharge
+                  </button>
+                </form>
+              {% else %}
+                <span class="text-muted small">{{ patient.discharged_on.strftime('%d %b %Y') if patient.discharged_on else '—' }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center py-5 text-muted">
+              <i class="bi bi-hospital display-4 d-block mb-2 opacity-50"></i>No patients found.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 {% endblock %}

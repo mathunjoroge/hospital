@@ -1,47 +1,119 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="container mt-4">
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h2 class="card-title mb-0"><i class="bi bi-chat-dots me-2"></i>Contact Doctor</h2>
-        </div>
-        <div class="card-body">
-            <!-- Flash Messages -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
+{% block title %}Contact Doctor - Nursing Communication{% endblock %}
 
-            <!-- Message Form -->
-            <form method="POST" action="{{ url_for('nursing.communicate_doctor') }}">
-                <div class="mb-3">
-                    <label for="patient_id" class="form-label">Patient ID</label>
-                    <input type="text" class="form-control" id="patient_id" name="patient_id">
-                    <div class="form-text">Enter the patient's unique identifier (e.g., P001). Leave blank if not patient-specific.</div>
-                </div>
-                <div class="mb-3">
-                    <label for="doctor_id" class="form-label">Select Doctor</label>
-                    <select class="form-select" id="doctor_id" name="doctor_id" required>
-                        <option value="" disabled selected>Select a doctor</option>
-                        {% for doctor in doctors %}
-                            <option value="{{ doctor.id }}">{{ doctor.username }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label for="message" class="form-label">Message</label>
-                    <textarea class="form-control" id="message" name="message" rows="4" required></textarea>
-                    <div class="form-text">Enter your message for the doctor.</div>
-                </div>
-                <button type="submit" class="btn btn-primary"><i class="bi bi-send me-2"></i>Send Message</button>
-            </form>
+{% block content %}
+<style>
+  :root {
+    --ns-primary: #e11d48;
+    --ns-primary-hover: #be123c;
+    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+  }
+
+  .ns-header-card {
+    background: var(--ns-header-bg);
+    color: #ffffff;
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.3);
+  }
+
+  .ns-glass-card {
+    background: var(--bs-body-bg);
+    border: 1px solid rgba(225, 29, 72, 0.15);
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  }
+
+  .ns-card-header {
+    background: rgba(225, 29, 72, 0.06);
+    border-bottom: 1px solid rgba(225, 29, 72, 0.12);
+    border-top-left-radius: 14px !important;
+    border-top-right-radius: 14px !important;
+  }
+
+  .ns-btn-primary {
+    background-color: var(--ns-primary);
+    border-color: var(--ns-primary);
+    color: #fff;
+  }
+  .ns-btn-primary:hover {
+    background-color: var(--ns-primary-hover);
+    border-color: var(--ns-primary-hover);
+    color: #fff;
+  }
+</style>
+
+<div class="container-fluid py-4 px-4">
+
+  <!-- Header Banner -->
+  <div class="card ns-header-card mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+          <span class="badge bg-white text-danger px-3 py-2 fw-semibold rounded-pill mb-2">
+            <i class="bi bi-chat-dots-fill me-1"></i> Physician Dispatch & Consults
+          </span>
+          <h2 class="h1 fw-bold text-white mb-1">
+            <i class="bi bi-person-fill-add me-2"></i>Contact Attending Doctor
+          </h2>
+          <p class="text-white-50 mb-0">Dispatch urgent alerts, clinical consults, or routine patient updates to medical staff.</p>
         </div>
+
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('nursing.notifications') }}" class="btn btn-light rounded-pill px-3 shadow-sm text-danger fw-semibold">
+            <i class="bi bi-bell-fill me-1"></i> Notifications
+          </a>
+          <a href="{{ url_for('nursing.ward_patients') }}" class="btn btn-outline-light rounded-pill px-3 shadow-sm">
+            <i class="bi bi-arrow-left me-1"></i> Ward View
+          </a>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card ns-glass-card">
+        <div class="card-header ns-card-header py-3">
+          <h5 class="mb-0 text-danger fw-bold"><i class="bi bi-send-check me-2"></i>Direct Physician Communication Form</h5>
+        </div>
+        <div class="card-body p-4">
+          <form method="POST" action="{{ url_for('nursing.communicate_doctor') }}">
+            
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label for="doctor_id" class="form-label fw-semibold">Target Doctor / Specialist <span class="text-danger">*</span></label>
+                <select class="form-select border-danger-subtle" id="doctor_id" name="doctor_id" required>
+                  <option value="" disabled selected>-- Select Attending Doctor --</option>
+                  {% for doctor in doctors %}
+                  <option value="{{ doctor.id }}">Dr. {{ doctor.username }} (ID: {{ doctor.id }})</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label for="patient_id" class="form-label fw-semibold">Associated Patient ID</label>
+                <input type="text" class="form-control border-danger-subtle" id="patient_id" name="patient_id" placeholder="e.g. P1000 (Optional)" value="{{ request.args.get('patient_id', '') }}">
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label for="message" class="form-label fw-semibold">Clinical Message & Details <span class="text-danger">*</span></label>
+              <textarea class="form-control border-danger-subtle" id="message" name="message" rows="5" required placeholder="State SBAR situation: Patient condition change, urgent lab result, pain level escalation, or medication order verification..."></textarea>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+              <a href="{{ url_for('nursing.ward_patients') }}" class="btn btn-outline-secondary rounded-pill px-4">Cancel</a>
+              <button type="submit" class="btn ns-btn-primary rounded-pill px-4 fw-semibold">
+                <i class="bi bi-send me-1"></i> Dispatch Message to Doctor
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}

@@ -1,114 +1,176 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-    /* Nav Tabs Custom Styling */
-    .nav-tabs {
-        border-bottom: 2px solid #dee2e6;
-        margin-top: 1rem;
-        margin-bottom: 1rem;
-    }
+  :root {
+    --ph-header-bg: linear-gradient(135deg, #0e7c61 0%, #16a085 60%, #1abc9c 100%);
+    --ph-card-shadow: 0 4px 24px rgba(14,124,97,0.10);
+    --ph-border: rgba(14,124,97,0.12);
+    --ph-surface: #f4fbf8;
+  }
+  .ph-hero {
+    background: var(--ph-header-bg); border-radius: 16px; padding: 1.75rem 2.5rem;
+    margin-bottom: 2rem; color: white; display: flex; align-items: center;
+    justify-content: space-between; box-shadow: 0 8px 32px rgba(14,124,97,0.22);
+    position: relative; overflow: hidden;
+  }
+  .ph-hero::after { content:''; position:absolute; right:-30px; top:-30px; width:180px; height:180px; background:rgba(255,255,255,0.07); border-radius:50%; }
+  .ph-hero h2 { font-size:1.5rem; font-weight:700; margin:0; }
+  .ph-hero p  { opacity:.85; margin:.2rem 0 0; font-size:.9rem; }
 
-    .nav-tabs .nav-link {
-        color: #6c757d; /* muted gray */
-        background-color: #f8f9fa;
-        border: 1px solid transparent;
-        border-top-left-radius: 0.5rem;
-        border-top-right-radius: 0.5rem;
-        margin-right: 0.25rem;
-        padding: 0.5rem 1rem;
-        transition: all 0.3s ease-in-out;
-    }
+  /* Tabs */
+  .nav-tabs { border-bottom: 2px solid var(--ph-border); margin-bottom: 1.5rem; }
+  .nav-tabs .nav-link {
+    color: #7ca898; background: white; border: 1px solid transparent;
+    border-radius: 10px 10px 0 0; margin-right: 4px;
+    padding: 0.55rem 1.1rem; font-weight: 600; font-size: 0.88rem; transition: all 0.2s;
+  }
+  .nav-tabs .nav-link:hover { color: #0e7c61; background: var(--ph-surface); }
+  .nav-tabs .nav-link.active {
+    color: #0e7c61; background: white;
+    border-color: var(--ph-border) var(--ph-border) #fff; font-weight: 700;
+  }
+  .tab-content {
+    border: 1px solid var(--ph-border); border-top: none;
+    padding: 1.5rem; background: white; border-radius: 0 0 12px 12px;
+  }
 
-    .nav-tabs .nav-link:hover {
-        color: #0056b3;
-        background-color: #e9ecef;
-        border-color: #dee2e6 #dee2e6 #fff;
-    }
+  .ph-card {
+    background: white; border-radius: 16px; box-shadow: var(--ph-card-shadow);
+    border: 1px solid var(--ph-border); overflow: hidden;
+  }
+  .ph-card-header {
+    background: var(--ph-header-bg); padding: 1rem 1.5rem;
+    display: flex; align-items: center; justify-content: space-between; color: white;
+  }
+  .ph-card-header h5 { margin: 0; font-weight: 700; color: white; }
 
-    .nav-tabs .nav-link.active {
-        color: #0d6efd;
-        background-color: #ffffff;
-        border-color: #dee2e6 #dee2e6 #ffffff;
-        font-weight: 600;
-    }
+  .ph-table { margin: 0; box-shadow: none; border-radius: 0; }
+  .ph-table thead th {
+    background: var(--ph-surface) !important; color: #0e7c61 !important;
+    font-weight: 700; font-size: 0.80rem; text-transform: uppercase;
+    letter-spacing: 0.05em; padding: 0.75rem 1rem; border-bottom: 2px solid var(--ph-border);
+  }
+  .ph-table tbody td {
+    padding: 0.8rem 1rem; vertical-align: middle;
+    border-bottom: 1px solid #f0f4f3; font-size: 0.93rem; color: #2d4a3e;
+  }
+  .ph-table tbody tr:hover { background: #edfaf5 !important; }
 
-    .tab-content {
-        border: 1px solid #dee2e6;
-        border-top: none;
-        padding: 1rem;
-        background-color: #ffffff;
-        border-bottom-left-radius: 0.5rem;
-        border-bottom-right-radius: 0.5rem;
-    }
+  .btn-dispense-tab {
+    background: var(--ph-header-bg); color: white; border: none;
+    border-radius: 8px; padding: 0.38rem 0.9rem; font-weight: 600; font-size: 0.85rem;
+    transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;
+  }
+  .btn-dispense-tab:hover { color: white; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(14,124,97,0.35); }
+
+  .back-btn {
+    background: var(--ph-header-bg); color: white; border: none;
+    border-radius: 10px; padding: 0.5rem 1.4rem; font-weight: 600;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
+  }
+  .back-btn:hover { color: white; transform: translateY(-2px); box-shadow: 0 6px 18px rgba(14,124,97,0.35); }
+
+  .ph-count-badge {
+    background: rgba(255,255,255,0.25); color: white;
+    border-radius: 20px; padding: 0.2rem 0.75rem; font-size: 0.83rem; font-weight: 600;
+  }
+
+  .empty-state { padding: 2.5rem; text-align: center; color: #7ca898; }
+  .empty-state i { font-size: 2.5rem; opacity: 0.4; display: block; margin-bottom: 0.75rem; }
 </style>
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">Prescriptions for {{ patient.name }} ({{ patient.patient_id }})</h2>
 
-    {% if prescription_list %}
-    <!-- Tabs Navigation -->
+<div class="container-fluid px-4 py-4">
+
+  <!-- Hero -->
+  <div class="ph-hero animate-fade-in">
+    <div>
+      <h2><i class="bi bi-file-medical me-2"></i> Prescriptions for {{ patient.name }}</h2>
+      <p>Patient ID: <code style="color:rgba(255,255,255,0.9);">{{ patient.patient_id }}</code></p>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <span class="ph-count-badge">
+        <i class="bi bi-journals me-1"></i> {{ prescription_list|length }} prescription{{ 's' if prescription_list|length != 1 else '' }}
+      </span>
+      <i class="bi bi-person-vcard" style="font-size:2.8rem; opacity:0.85;"></i>
+    </div>
+  </div>
+
+  {% if prescription_list %}
+
+  <!-- ── Prescription Tabs ── -->
+  <div class="animate-fade-in">
     <ul class="nav nav-tabs" id="prescriptionTabs">
-        {% for prescription in prescription_list %}
-        <li class="nav-item">
-            <a class="nav-link {% if loop.first %}active{% endif %}" data-bs-toggle="tab" href="#prescription{{ loop.index }}">
-                Prescription {{ loop.index }}
-            </a>
-        </li>
-        {% endfor %}
+      {% for prescription in prescription_list %}
+      <li class="nav-item">
+        <a class="nav-link {% if loop.first %}active{% endif %}"
+           data-bs-toggle="tab" href="#prescription{{ loop.index }}">
+          <i class="bi bi-prescription2 me-1"></i> Rx {{ loop.index }}
+        </a>
+      </li>
+      {% endfor %}
     </ul>
 
-    <!-- Tabs Content -->
-    <div class="tab-content mt-3">
-        {% for prescription in prescription_list %}
-        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="prescription{{ loop.index }}">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Prescription {{ loop.index }}</h5>
-                </div>
-                <div class="card-body">
-                    <table class="table table-striped table-bordered">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Drug Name</th>
-                                <th>Dosage Form</th>
-                                <th>Strength</th>
-                                <th>Frequency</th>
-                                <th>Number of Days</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for medicine in prescription.medicines %}
-                            <tr>
-                                <td>{{ medicine.medicine.generic_name }} ({{ medicine.medicine.brand_name | default("N/A") }})</td>
-                                <td>{{ medicine.dosage }}</td>
-                                <td>{{ medicine.strength }}</td>
-                                <td>{{ medicine.frequency }}</td>
-                                <td>{{ medicine.num_days }}</td>
-                                <td>
-                                    {% if loop.first %}
-                                    <a href="{{ url_for('pharmacy.dispense_prescription', prescription_id=prescription.prescription_id) }}" 
-                                       class="btn btn-info btn-sm">
-                                        <i class="bi bi-check-circle me-2"></i> Dispense
-                                    </a>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+    <div class="tab-content">
+      {% for prescription in prescription_list %}
+      <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="prescription{{ loop.index }}">
+        <div class="ph-card">
+          <div class="ph-card-header">
+            <h5><i class="bi bi-clipboard2-pulse me-2"></i> Prescription {{ loop.index }}</h5>
+            <a href="{{ url_for('pharmacy.dispense_prescription', prescription_id=prescription.prescription_id) }}"
+               class="btn-dispense-tab">
+              <i class="bi bi-box-seam"></i> Dispense This Rx
+            </a>
+          </div>
+          <div class="table-responsive">
+            <table class="table ph-table mb-0">
+              <thead>
+                <tr>
+                  <th>#</th><th>Drug Name</th><th>Dosage Form</th>
+                  <th>Strength</th><th>Frequency</th><th>Days</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for medicine in prescription.medicines %}
+                <tr>
+                  <td class="text-muted">{{ loop.index }}</td>
+                  <td>
+                    <strong>{{ medicine.medicine.generic_name }}</strong>
+                    <small class="text-muted ms-1">({{ medicine.medicine.brand_name | default('N/A') }})</small>
+                  </td>
+                  <td>{{ medicine.dosage }}</td>
+                  <td>{{ medicine.strength }}</td>
+                  <td>{{ medicine.frequency }}</td>
+                  <td>{{ medicine.num_days }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="6">
+                    <div class="empty-state">
+                      <i class="bi bi-inbox-fill"></i> No medicines in this prescription.
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
-        {% endfor %}
+      </div>
+      {% endfor %}
     </div>
+  </div>
 
-    {% else %}
-    <p class="text-muted text-center">No prescriptions available for this patient.</p>
-    {% endif %}
+  {% else %}
+  <div class="alert alert-info rounded-3 shadow-sm">
+    <i class="bi bi-info-circle-fill me-2"></i> No prescriptions available for this patient.
+  </div>
+  {% endif %}
 
-    <!-- Back Button -->
-    <div class="text-center mt-4">
-        <a href="{{ url_for('pharmacy.index') }}" class="btn btn-secondary">Back to Waiting List</a>
-    </div>
+  <div class="mt-4">
+    <a href="{{ url_for('pharmacy.index') }}" class="back-btn">
+      <i class="bi bi-arrow-left"></i> Back to Waiting List
+    </a>
+  </div>
+
 </div>
 {% endblock %}

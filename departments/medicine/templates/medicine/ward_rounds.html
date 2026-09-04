@@ -1,130 +1,173 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+  :root {
+    --md-primary: #e11d48;
+    --md-primary-dark: #be123c;
+    --md-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+  }
+  .wr-header { background: var(--md-header-bg); border-radius: 16px; padding: 1.75rem 2rem; color: #fff; margin-bottom: 1.5rem; box-shadow: 0 8px 24px rgba(190,18,60,0.2); }
+  .wr-card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
+  .wr-card-header { background: #f8fafc; padding: 1rem 1.4rem; border-bottom: 1px solid #e2e8f0; }
+  .table-wr th { background: #f8fafc; font-size: 0.77rem; text-transform: uppercase; letter-spacing: 0.06em; color: #475569; font-weight: 700; padding: 1rem 1.1rem; border-bottom: 2px solid #e2e8f0; }
+  .table-wr td { padding: 1.1rem 1.1rem; vertical-align: middle; border-color: #f1f5f9; }
+  .table-wr tbody tr:hover { background: #fff5f7; }
+  .btn-wr { font-size: 0.82rem; font-weight: 600; padding: 0.4rem 0.9rem; border-radius: 7px; }
+  .status-badge { font-size: 0.78rem; font-weight: 700; padding: 0.3rem 0.75rem; border-radius: 20px; }
+  .filter-card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 1rem 1.4rem; margin-bottom: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+</style>
 
-<div class="container mt-5">
-  <h2 class="mb-4">Ward Rounds</h2>
-
-  <!-- Flash Messages -->
+<div class="container-fluid px-4 py-3">
+  <!-- Flash -->
   {% with messages = get_flashed_messages(with_categories=True) %}
     {% if messages %}
       {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="alert alert-{{ 'danger' if category in ['error','danger'] else category }} alert-dismissible fade show rounded-3 shadow-sm mb-3">
+          <i class="bi bi-info-circle-fill me-2"></i>{{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
       {% endfor %}
     {% endif %}
   {% endwith %}
 
-  <!-- Ward Selection -->
-  <form method="GET" action="{{ url_for('medicine.ward_rounds') }}" class="mb-3">
-    <label for="ward_id" class="form-label fw-bold">Select Ward</label>
-    <select id="ward_id" name="ward_id" class="form-select" onchange="this.form.submit()">
-      <option value="">All Wards</option>
-      {% for ward in wards %}
-        <option value="{{ ward.id }}" {% if selected_ward == ward.id|string %}selected{% endif %}>
-          {{ ward.name }} ({{ ward.sex }}) - Available Beds: {{ ward.available_beds() }}
-        </option>
-      {% endfor %}
-    </select>
-  </form>
+  <!-- Header -->
+  <div class="wr-header d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+    <div>
+      <h3 class="fw-bold mb-1"><i class="bi bi-hospital-fill me-2"></i>Ward Rounds</h3>
+      <p class="mb-0 text-white-50 fs-6">Review admitted patients, add progress notes, prescribe, and discharge.</p>
+    </div>
+    <div class="mt-3 mt-md-0 d-flex gap-2">
+      <a href="{{ url_for('medicine.admit_patient') }}" class="btn btn-light fw-bold text-danger">
+        <i class="bi bi-person-plus me-1"></i>Admit Patient
+      </a>
+      <a href="{{ url_for('medicine.index') }}" class="btn btn-outline-light fw-bold">
+        <i class="bi bi-arrow-left me-1"></i>OPD Queue
+      </a>
+    </div>
+  </div>
 
-  <!-- Patient Table -->
-  <div class="table-responsive">
-    <table class="table table-bordered table-hover align-middle">
-      <thead class="table-dark text-center">
-        <tr>
-          <th>Patient</th>
-          <th>Ward</th>
-          <th>Admitted On</th>
-          <th>Prescribe Drugs</th>
-          <th>Request Labs</th>
-          <th>Request Imaging</th>
-          <th>Action</th>
-          <th>Discharge</th>
-        </tr>
-      </thead>
-      <tbody id="patient_table">
-        {% for patient in admitted_patients %}
-          <tr>
-            <td class="fw-bold text-primary">
-              <i class="bi bi-person-circle me-1"></i> {{ patient.patient_name }}
-            </td>
-            <td class="text-center">
-              <span class="badge bg-info text-dark">{{ patient.ward_name }}</span>
-            </td>
-            <td class="text-center">
-              <i class="bi bi-calendar-check me-1"></i> {{ patient.admitted_on.strftime('%Y-%m-%d %H:%M') }}
-            </td>
-            <td class="text-center">
-<a href="{{ url_for('medicine.prescribe_drugs', patient_id=patient.patient_id, dept=1) }}"
-   class="btn btn-sm btn-outline-success" data-bs-toggle="tooltip" title="Prescribe medication">
-    <i class="bi bi-capsule-pill"></i> Prescribe
-</a>
-            </td>
-            <td class="text-center">
-<a href="{{ url_for('medicine.request_lab_tests', patient_id=patient.patient_id, dept=1) }}" 
-   class="btn btn-sm btn-outline-warning" data-bs-toggle="tooltip" title="Request lab tests">
-    <i class="bi bi-flask"></i> Labs
-</a>
-            </td>
-            <td class="text-center">
-<!-- Imaging -->
-<a href="{{ url_for('medicine.request_imaging', patient_id=patient.patient_id, dept=1) }}" 
-   class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Request imaging">
-    <i class="bi bi-camera-reels"></i> Imaging
-</a>
-            </td>
-            <td class="text-center">
-              <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" 
-                      data-bs-target="#wardRoundModal" 
-                      data-admission-id="{{ patient.id }}" 
-                      data-patient-name="{{ patient.patient_name }}"
-                      title="Add ward round notes">
-                <i class="bi bi-journal-medical"></i> Notes
-              </button>
-            </td>
-            <td class="text-center">
-              <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" 
-                      data-bs-target="#dischargeModal" 
-                      data-patient-id="{{ patient.patient_id }}" 
-                      data-patient-name="{{ patient.patient_name }}"
-                      title="Discharge patient">
-                <i class="bi bi-door-open"></i> Discharge
-              </button>
-            </td>
-          </tr>
-        {% else %}
-          <tr>
-            <td colspan="8" class="text-center text-muted">
-              <i class="bi bi-exclamation-triangle"></i> No inpatients found.
-            </td>
-          </tr>
+  <!-- Ward Filter -->
+  <div class="filter-card">
+    <form method="GET" action="{{ url_for('medicine.ward_rounds') }}" class="d-flex align-items-center gap-3 flex-wrap">
+      <label class="fw-bold text-dark small mb-0 text-uppercase text-muted">Filter by Ward</label>
+      <select id="ward_id" name="ward_id" class="form-select form-select-sm" style="max-width: 260px;" onchange="this.form.submit()">
+        <option value="">All Wards</option>
+        {% for ward in wards %}
+          <option value="{{ ward.id }}" {% if selected_ward == ward.id|string %}selected{% endif %}>
+            {{ ward.name }} ({{ ward.sex }}) — {{ ward.available_beds() }} beds free
+          </option>
         {% endfor %}
-      </tbody>
-    </table>
+      </select>
+      {% if selected_ward %}
+        <a href="{{ url_for('medicine.ward_rounds') }}" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-x-circle me-1"></i>Clear
+        </a>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- Patients Table -->
+  <div class="wr-card">
+    <div class="wr-card-header d-flex align-items-center justify-content-between">
+      <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-people-fill me-2 text-danger"></i>Admitted Patients</h5>
+      <span class="badge rounded-pill" style="background: var(--md-primary); font-size: 0.82rem; padding: 0.5rem 1rem;">
+        {{ admitted_patients|length }} patient{{ 's' if admitted_patients|length != 1 else '' }}
+      </span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-wr table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Ward</th>
+            <th>Admitted On</th>
+            <th class="text-center">Clinical Actions</th>
+            <th class="text-center">Discharge</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for patient in admitted_patients %}
+          <tr>
+            <td>
+              <div class="fw-bold text-dark">{{ patient.patient_name }}</div>
+              <small class="text-muted font-monospace">{{ patient.patient_id }}</small>
+            </td>
+            <td>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                {{ patient.ward_name }}
+              </span>
+            </td>
+            <td>
+              <div class="small"><i class="bi bi-calendar3 me-1 text-muted"></i>{{ patient.admitted_on.strftime('%d %b %Y') }}</div>
+              <div class="small text-muted">{{ patient.admitted_on.strftime('%H:%M') }}</div>
+            </td>
+            <td class="text-center">
+              <div class="d-flex justify-content-center gap-1 flex-wrap">
+                <a href="{{ url_for('medicine.soap_notes', patient_id=patient.patient_id) }}"
+                   class="btn btn-outline-danger btn-wr" title="SBAR Notes">
+                  <i class="bi bi-clipboard2-pulse me-1"></i>Notes
+                </a>
+                <a href="{{ url_for('medicine.prescribe_drugs', patient_id=patient.patient_id, dept=1) }}"
+                   class="btn btn-outline-success btn-wr" title="Prescribe Drugs">
+                  <i class="bi bi-capsule-pill me-1"></i>Rx
+                </a>
+                <a href="{{ url_for('medicine.request_lab_tests', patient_id=patient.patient_id, dept=1) }}"
+                   class="btn btn-outline-warning btn-wr" title="Request Labs">
+                  <i class="bi bi-flask me-1"></i>Labs
+                </a>
+                <a href="{{ url_for('medicine.request_imaging', patient_id=patient.patient_id, dept=1) }}"
+                   class="btn btn-outline-info btn-wr" title="Request Imaging">
+                  <i class="bi bi-camera-reels me-1"></i>Imaging
+                </a>
+                <button class="btn btn-outline-secondary btn-wr"
+                        data-bs-toggle="modal" data-bs-target="#wardRoundModal"
+                        data-admission-id="{{ patient.id }}" data-patient-name="{{ patient.patient_name }}"
+                        title="Add ward round note">
+                  <i class="bi bi-journal-medical me-1"></i>Round
+                </button>
+              </div>
+            </td>
+            <td class="text-center">
+              <button class="btn btn-sm btn-danger btn-wr"
+                      data-bs-toggle="modal" data-bs-target="#dischargeModal"
+                      data-patient-id="{{ patient.patient_id }}" data-patient-name="{{ patient.patient_name }}">
+                <i class="bi bi-door-open me-1"></i>Discharge
+              </button>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-center py-5 text-muted">
+              <i class="bi bi-hospital display-4 d-block mb-2 text-muted opacity-50"></i>
+              No inpatients found for the selected ward.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
 <!-- Ward Round Modal -->
-<div class="modal fade" id="wardRoundModal" tabindex="-1" aria-labelledby="wardRoundLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg"> 
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Ward Round - <span id="modalPatientName"></span></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal fade" id="wardRoundModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius:16px; overflow:hidden;">
+      <div class="modal-header" style="background: linear-gradient(135deg, #881337, #e11d48); color:#fff;">
+        <h5 class="modal-title fw-bold"><i class="bi bi-journal-medical me-2"></i>Ward Round — <span id="modalPatientName"></span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body p-4">
         <form method="POST" action="{{ url_for('medicine.ward_rounds') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="admission_id" id="modalAdmissionId">
-
           <div class="mb-3">
-            <label for="notes" class="form-label">Progress Notes</label>
-            <textarea name="notes" class="form-control" rows="3" required></textarea>
+            <label class="form-label fw-semibold">Progress Notes <span class="text-danger">*</span></label>
+            <textarea name="notes" class="form-control" rows="4" required
+              placeholder="Document clinical observations, patient condition, response to treatment..."></textarea>
           </div>
-
           <div class="mb-3">
-            <label for="status" class="form-label">Patient Status</label>
+            <label class="form-label fw-semibold">Patient Status <span class="text-danger">*</span></label>
             <select name="status" class="form-select" required>
               <option value="Under Treatment">Under Treatment</option>
               <option value="Stable">Stable</option>
@@ -132,15 +175,16 @@
               <option value="Ready for Discharge">Ready for Discharge</option>
             </select>
           </div>
-
           <div class="mb-3">
-            <label for="instructions" class="form-label">Additional Instructions</label>
-            <textarea name="instructions" class="form-control" rows="2"></textarea>
+            <label class="form-label fw-semibold">Additional Instructions</label>
+            <textarea name="instructions" class="form-control" rows="2"
+              placeholder="Nursing instructions, dietary restrictions, activity levels..."></textarea>
           </div>
-
-          <div class="d-flex justify-content-between">
-            <button type="submit" class="btn btn-success">Save Notes</button>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn fw-bold text-white" style="background: #e11d48;">
+              <i class="bi bi-check-lg me-1"></i>Save Round Notes
+            </button>
           </div>
         </form>
       </div>
@@ -149,64 +193,64 @@
 </div>
 
 <!-- Discharge Modal -->
-<div class="modal fade" id="dischargeModal" tabindex="-1" aria-labelledby="dischargeModalLabel" aria-hidden="true">
+<div class="modal fade" id="dischargeModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Discharge Patient - <span id="modalPatientName"></span></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-content border-0 shadow-lg" style="border-radius:16px; overflow:hidden;">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-door-open me-2"></i>Discharge — <span id="dischargePatientName"></span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form id="dischargeForm" method="POST">
-        <div class="modal-body">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body p-4">
           <div class="mb-3">
-            <label for="discharge_summary" class="form-label">Discharge Summary</label>
-            <textarea name="discharge_summary" class="form-control" required></textarea>
+            <label class="form-label fw-semibold">Discharge Summary <span class="text-danger">*</span></label>
+            <textarea name="discharge_summary" class="form-control" rows="4" required
+              placeholder="Final diagnosis, treatment provided, outcome..."></textarea>
           </div>
           <div class="mb-3">
-            <label for="prescribed_drugs" class="form-label">Prescribed Drugs</label>
-            <textarea name="prescribed_drugs" class="form-control"></textarea>
+            <label class="form-label fw-semibold">Discharge Medications</label>
+            <textarea name="prescribed_drugs" class="form-control" rows="2"
+              placeholder="List medications to be taken at home..."></textarea>
           </div>
-          <div class="mb-3">
-            <label for="follow_up_clinic" class="form-label">Follow-up Clinic</label>
-            <input type="text" name="follow_up_clinic" class="form-control">
+          <div class="mb-0">
+            <label class="form-label fw-semibold">Follow-up Clinic</label>
+            <input type="text" name="follow_up_clinic" class="form-control" placeholder="e.g., Medical OPD in 2 weeks">
           </div>
         </div>
         <div class="modal-footer">
-          <button type="submit" class="btn btn-danger">Confirm Discharge</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger fw-bold">
+            <i class="bi bi-check-circle me-1"></i>Confirm Discharge
+          </button>
         </div>
       </form>
     </div>
   </div>
 </div>
 
-<!-- Scripts -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  // Ward round modal population
+  // Ward round modal
   const wardRoundModal = document.getElementById('wardRoundModal');
   if (wardRoundModal) {
     wardRoundModal.addEventListener('show.bs.modal', function (event) {
-      const button = event.relatedTarget;
-      document.getElementById('modalAdmissionId').value = button.dataset.admissionId;
-      document.getElementById('modalPatientName').textContent = button.dataset.patientName;
+      const btn = event.relatedTarget;
+      document.getElementById('modalAdmissionId').value = btn.dataset.admissionId;
+      document.getElementById('modalPatientName').textContent = btn.dataset.patientName;
     });
   }
-
-  // Discharge modal population
+  // Discharge modal
   const dischargeModal = document.getElementById('dischargeModal');
   if (dischargeModal) {
     dischargeModal.addEventListener('show.bs.modal', function (event) {
-      const button = event.relatedTarget;
-      document.getElementById('modalPatientName').textContent = button.dataset.patientName;
-      document.getElementById('dischargeForm').action = `/medicine/discharge-patient/${button.dataset.patientId}`;
+      const btn = event.relatedTarget;
+      document.getElementById('dischargePatientName').textContent = btn.dataset.patientName;
+      document.getElementById('dischargeForm').action = `/medicine/discharge-patient/${btn.dataset.patientId}`;
     });
   }
-
-  // Enable tooltips
-  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-  tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
+  // Tooltips
+  [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]')).forEach(el => new bootstrap.Tooltip(el));
 });
 </script>
-
 {% endblock %}

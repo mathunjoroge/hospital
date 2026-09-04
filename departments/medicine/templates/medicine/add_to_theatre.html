@@ -1,38 +1,83 @@
 {% extends "base.html" %}
-
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">Add Patient to Theatre List</h2>
+<style>
+  :root { --md-primary: #e11d48; --md-primary-dark: #be123c; }
+  .md-page-header { background: linear-gradient(135deg, #881337, #be123c 60%, #e11d48); border-radius: 16px; padding: 1.75rem 2rem; color: #fff; margin-bottom: 1.5rem; box-shadow: 0 8px 24px rgba(190,18,60,0.2); }
+  .md-form-card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
+  .md-form-header { background: #f8fafc; padding: 1rem 1.5rem; border-bottom: 1px solid #e2e8f0; }
+  .md-form-body { padding: 1.5rem; }
+  .form-label { font-weight: 600; font-size: 0.88rem; color: #374151; }
+  .form-control, .form-select { border-radius: 9px; border: 1.5px solid #e2e8f0; }
+  .form-control:focus, .form-select:focus { border-color: var(--md-primary); box-shadow: 0 0 0 3px rgba(225,29,72,0.1); }
+  .btn-submit { background: var(--md-primary); color: #fff; border: none; font-weight: 700; padding: 0.75rem 2rem; border-radius: 10px; }
+  .btn-submit:hover { background: var(--md-primary-dark); color: #fff; }
+</style>
 
-    <form method="POST" action="{{ url_for('medicine.add_to_theatre') }}">
-        <div class="mb-3">
-            <label for="patient_id" class="form-label">Patient</label>
-            <select name="patient_id" class="form-control" required>
-                <option value="">Select Patient</option>
-                {% for patient in patients %}
-                <option value="{{ patient.patient_id }}">{{ patient.name }}</option>
-                {% endfor %}
-            </select>
+<div class="container-fluid px-4 py-3">
+  {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="alert alert-{{ 'danger' if category in ['error','danger'] else category }} alert-dismissible fade show rounded-3 shadow-sm mb-3">
+        <i class="bi bi-info-circle-fill me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <div class="md-page-header">
+    <h3 class="fw-bold mb-1"><i class="bi bi-plus-circle-fill me-2"></i>Book Procedure to Theatre</h3>
+    <p class="mb-0 text-white-50 fs-6">Schedule a surgical procedure for a patient.</p>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-lg-6">
+      <div class="md-form-card">
+        <div class="md-form-header">
+          <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-scissors me-2 text-danger"></i>Procedure Details</h5>
         </div>
+        <div class="md-form-body">
+          <form method="POST" action="{{ url_for('medicine.add_to_theatre') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <div class="mb-3">
-            <label for="procedure_id" class="form-label">Procedure</label>
-            <select name="procedure_id" class="form-control" required>
-                <option value="">Select Procedure</option>
+            <div class="mb-4">
+              <label class="form-label">Patient <span class="text-danger">*</span></label>
+              <select name="patient_id" class="form-select" required>
+                <option value="">— Select Patient —</option>
+                {% for patient in patients %}
+                <option value="{{ patient.patient_id }}">{{ patient.name }} ({{ patient.patient_id }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label">Procedure <span class="text-danger">*</span></label>
+              <select name="procedure_id" class="form-select" required>
+                <option value="">— Select Procedure —</option>
                 {% for procedure in procedures %}
                 <option value="{{ procedure.id }}">{{ procedure.name }}</option>
                 {% endfor %}
-            </select>
+              </select>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label">Booking Notes <span class="text-muted small">(Optional)</span></label>
+              <textarea name="notes_on_book" class="form-control" rows="3"
+                placeholder="Any pre-operative notes or special instructions..."></textarea>
+            </div>
+
+            <input type="hidden" name="created_by" value="{{ current_user.id if current_user else 1 }}">
+
+            <div class="d-flex justify-content-between">
+              <a href="{{ url_for('medicine.get_theatre_list') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Back to Theatre List
+              </a>
+              <button type="submit" class="btn-submit btn">
+                <i class="bi bi-check-circle me-2"></i>Book to Theatre
+              </button>
+            </div>
+          </form>
         </div>
-
-        <div class="mb-3">
-            <label for="notes_on_book" class="form-label">Booking Notes (Optional)</label>
-            <textarea name="notes_on_book" class="form-control"></textarea>
-        </div>
-
-        <input type="hidden" name="created_by" value="1">  <!-- Replace with session user ID -->
-
-        <button type="submit" class="btn btn-primary">Add to Theatre</button>
-    </form>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}

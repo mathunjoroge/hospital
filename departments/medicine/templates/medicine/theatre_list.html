@@ -1,86 +1,111 @@
 {% extends "base.html" %}
-
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">Theatre List</h2>
+<style>
+  :root { --md-primary: #e11d48; --md-primary-dark: #be123c; }
+  .md-page-header { background: linear-gradient(135deg, #881337, #be123c 60%, #e11d48); border-radius: 16px; padding: 1.75rem 2rem; color: #fff; margin-bottom: 1.5rem; box-shadow: 0 8px 24px rgba(190,18,60,0.2); }
+  .md-card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
+  .md-card-header { background: #f8fafc; padding: 1rem 1.4rem; border-bottom: 1px solid #e2e8f0; }
+  .table-md th { background: #f8fafc; font-size: 0.77rem; text-transform: uppercase; letter-spacing: 0.06em; color: #475569; font-weight: 700; padding: 1rem 1.1rem; border-bottom: 2px solid #e2e8f0; }
+  .table-md td { padding: 1.1rem 1.1rem; vertical-align: middle; border-color: #f1f5f9; }
+  .table-md tbody tr:hover { background: #fff5f7; }
+  .filter-bar { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 0.9rem 1.3rem; margin-bottom: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+</style>
 
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=True) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+<div class="container-fluid px-4 py-3">
+  {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="alert alert-{{ 'danger' if category in ['error','danger'] else category }} alert-dismissible fade show rounded-3 shadow-sm mb-3">
+        <i class="bi bi-info-circle-fill me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}{% endif %}
+  {% endwith %}
 
-    <!-- Add to Theatre Button -->
-    <div class="mb-3 text-end">
-        <a href="{{ url_for('medicine.add_to_theatre') }}" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> Add to Theatre
-        </a>
+  <div class="md-page-header d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+    <div>
+      <h3 class="fw-bold mb-1"><i class="bi bi-scissors me-2"></i>Theatre List</h3>
+      <p class="mb-0 text-white-50 fs-6">Manage surgical procedures — pending and completed.</p>
     </div>
+    <div class="mt-3 mt-md-0 d-flex gap-2">
+      <a href="{{ url_for('medicine.add_to_theatre') }}" class="btn btn-light fw-bold text-danger">
+        <i class="bi bi-plus-circle me-1"></i>Book Procedure
+      </a>
+      <a href="{{ url_for('medicine.ward_rounds') }}" class="btn btn-outline-light fw-bold">
+        <i class="bi bi-hospital me-1"></i>Ward Rounds
+      </a>
+    </div>
+  </div>
 
-    <!-- Status Filter -->
-    <form method="GET" action="{{ url_for('medicine.get_theatre_list') }}" class="mb-4">
-        <div class="input-group">
-            <select name="status" class="form-control">
-                <option value="">All</option>
-                <option value="0" {% if request.args.get('status') == "0" %}selected{% endif %}>Pending</option>
-                <option value="1" {% if request.args.get('status') == "1" %}selected{% endif %}>Completed</option>
-            </select>
-            <button type="submit" class="btn btn-primary">Filter</button>
-        </div>
+  <!-- Filter -->
+  <div class="filter-bar">
+    <form method="GET" action="{{ url_for('medicine.get_theatre_list') }}" class="d-flex gap-3 align-items-center flex-wrap">
+      <label class="fw-bold text-muted small text-uppercase mb-0">Filter Status</label>
+      <select name="status" class="form-select form-select-sm" style="max-width: 200px;">
+        <option value="">All</option>
+        <option value="0" {% if request.args.get('status') == "0" %}selected{% endif %}>Pending</option>
+        <option value="1" {% if request.args.get('status') == "1" %}selected{% endif %}>Completed</option>
+      </select>
+      <button type="submit" class="btn btn-sm btn-outline-danger">Apply</button>
+      {% if request.args.get('status') %}<a href="{{ url_for('medicine.get_theatre_list') }}" class="btn btn-sm btn-outline-secondary">Clear</a>{% endif %}
     </form>
+  </div>
 
-    <!-- Theatre List Table -->
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th>Patient</th>
-                    <th>Procedure</th>
-                    <th>Status</th>
-                    <th>Booking Notes</th>
-                    <th>Created At</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for entry in theatre_entries %}
-                <tr>
-                    <td>{{ entry.patient_name }}</td>
-                    <td>{{ entry.procedure_name }}</td>
-                    <td>
-                        {% if entry.status == 0 %}
-                            <span class="badge bg-warning">Pending</span>
-                        {% elif entry.status == 1 %}
-                            <span class="badge bg-success">Completed</span>
-                        {% else %}
-                            <span class="badge bg-secondary">Unknown</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ entry.notes_on_book|default('N/A') }}</td>
-                    <td>{{ entry.created_at }}</td>
-                    <td>
-                        {% if entry.status == 0 %}
-                            <a href="{{ url_for('medicine.update_post_op', entry_id=entry.id) }}" class="btn btn-success btn-sm">
-                                <i class="bi bi-pencil"></i> Update Post-Op Notes
-                            </a>
-                        {% else %}
-                            <span class="text-muted">Completed</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6" class="text-center text-muted">No procedures found.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+  <div class="md-card">
+    <div class="md-card-header d-flex align-items-center justify-content-between">
+      <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-clipboard-check me-2 text-danger"></i>Scheduled Procedures</h5>
+      <span class="badge rounded-pill" style="background: #e11d48; font-size:0.82rem; padding: 0.5rem 1rem;">{{ theatre_entries|length }} entr{{ 'ies' if theatre_entries|length != 1 else 'y' }}</span>
     </div>
+    <div class="table-responsive">
+      <table class="table table-md table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Procedure</th>
+            <th class="text-center">Status</th>
+            <th>Booking Notes</th>
+            <th>Booked On</th>
+            <th class="text-center">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in theatre_entries %}
+          <tr>
+            <td class="fw-bold text-dark">{{ entry.patient_name }}</td>
+            <td>{{ entry.procedure_name }}</td>
+            <td class="text-center">
+              {% if entry.status == 0 %}
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 rounded-pill">Pending</span>
+              {% elif entry.status == 1 %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">Completed</span>
+              {% else %}
+                <span class="badge bg-secondary-subtle text-secondary border px-3 py-2 rounded-pill">Unknown</span>
+              {% endif %}
+            </td>
+            <td><small class="text-muted">{{ entry.notes_on_book or '—' }}</small></td>
+            <td>
+              <small>{{ entry.created_at.strftime('%d %b %Y') if entry.created_at else 'N/A' }}</small>
+            </td>
+            <td class="text-center">
+              {% if entry.status == 0 %}
+                <a href="{{ url_for('medicine.update_post_op', entry_id=entry.id) }}" class="btn btn-sm btn-success fw-semibold">
+                  <i class="bi bi-pencil me-1"></i>Post-Op Notes
+                </a>
+              {% else %}
+                <span class="text-muted small">Completed</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center py-5 text-muted">
+              <i class="bi bi-scissors display-4 d-block mb-2 opacity-50"></i>
+              No procedures found.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 {% endblock %}

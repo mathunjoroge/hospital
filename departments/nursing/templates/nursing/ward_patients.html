@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  :root {
+    --ns-primary: #e11d48;
+    --ns-primary-dark: #be123c;
+    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+    --ns-card-shadow: 0 4px 20px rgba(225, 29, 72, 0.08);
+  }
+  .nursing-header-card {
+    background: var(--ns-header-bg);
+    color: #ffffff;
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(190, 18, 60, 0.2);
+  }
+  .card-table-wrap {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: var(--ns-card-shadow);
+    overflow: hidden;
+  }
+  .table-custom th {
+    background: #f8fafc;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #475569;
+    font-weight: 700;
+    padding: 1rem 1.25rem;
+  }
+  .table-custom td {
+    padding: 1rem 1.25rem;
+    vertical-align: middle;
+  }
+</style>
+
+<div class="container-fluid px-4 py-3">
+  <!-- Header Banner -->
+  <div class="nursing-header-card d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+    <div>
+      <h2 class="fw-bold mb-1"><i class="bi bi-hospital me-2"></i> Inpatient Ward Monitoring</h2>
+      <p class="mb-0 text-white-50 fs-6">Monitor admitted ward patients, bed assignments, Kardex notes, and vitals schedules.</p>
+    </div>
+    <div class="mt-3 mt-md-0 d-flex gap-2">
+      <a href="{{ url_for('nursing.index') }}" class="btn btn-light fw-bold text-danger">
+        <i class="bi bi-hourglass-split me-1"></i> Triage Queue
+      </a>
+    </div>
+  </div>
+
+  <!-- Inpatients Table -->
+  <div class="card-table-wrap">
+    <div class="p-3 bg-light border-bottom d-flex align-items-center justify-content-between">
+      <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-person-workspace me-2 text-danger"></i> Currently Admitted Inpatients</h5>
+      <span class="badge bg-danger px-3 py-2 rounded-pill">{{ admissions|length }} Active Admissions</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-custom table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Ward Name</th>
+            <th>Patient Details</th>
+            <th>Admission Date</th>
+            <th>Sex / DOB</th>
+            <th class="text-end">Nursing Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in admissions %}
+          <tr>
+            <td>
+              <span class="badge bg-rose-subtle text-danger border border-rose-subtle px-3 py-2 rounded-pill fw-bold fs-6" style="background: #ffe4e6;">
+                <i class="bi bi-building me-1"></i> {{ a.ward.name if a.ward else 'General Ward' }}
+              </span>
+            </td>
+            <td>
+              <div class="fw-bold text-dark fs-6">{{ a.patient.name if a.patient else 'N/A' }}</div>
+              <small class="text-muted">ID: <span class="font-monospace fw-bold">{{ a.patient.patient_id if a.patient else 'N/A' }}</span></small>
+            </td>
+            <td>
+              <div><i class="bi bi-calendar-check me-1 text-muted"></i> {{ a.admitted_on.strftime('%Y-%m-%d %H:%M') if a.admitted_on else 'N/A' }}</div>
+            </td>
+            <td>
+              <div class="small text-dark">{{ a.patient.sex if a.patient else 'N/A' }}</div>
+              <small class="text-muted">DOB: {{ a.patient.date_of_birth if a.patient else 'N/A' }}</small>
+            </td>
+            <td class="text-end">
+              <div class="btn-group">
+                <a href="{{ url_for('nursing.patient_dashboard', patient_id=a.patient.patient_id) }}" class="btn btn-sm btn-outline-danger fw-semibold">
+                  <i class="bi bi-speedometer2 me-1"></i> Kardex
+                </a>
+                <a href="{{ url_for('nursing.vitals_chart', patient_id=a.patient.patient_id) }}" class="btn btn-sm btn-outline-primary fw-semibold">
+                  <i class="bi bi-graph-up me-1"></i> Vitals Trend
+                </a>
+                <a href="{{ url_for('nursing.vital_signs') }}" class="btn btn-sm btn-danger fw-bold">
+                  <i class="bi bi-heart-pulse me-1"></i> Record Vitals
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-center py-5 text-muted">
+              <i class="bi bi-hospital display-4 d-block mb-3 text-muted"></i>
+              No active inpatient ward admissions found.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

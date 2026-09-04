@@ -7,7 +7,7 @@ from departments.models.nursing import (
 )
 from departments.models.records import Patient,PatientWaitingList
 from departments.models.user import User
-from departments.models.medicine import Ward
+from departments.models.medicine import Ward, AdmittedPatient
 from departments.models.admin import Log
 from sqlalchemy.orm import joinedload
 import logging
@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 @login_required
 def index():
     """Display the nursing waiting list."""
-    if current_user.role not in ['medicine', 'admin']: 
+    if current_user.role not in ['nursing', 'medicine', 'admin']: 
         flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))  # Redirect to billing.index if role is invalid
+        return redirect(url_for('login'))
 
     try:
         # Fetch all patients in the nursing waiting list who are not yet seen
@@ -136,7 +136,7 @@ def vitals(patient_id):
 @login_required
 def view_notes():
     """View all nursing notes for patients."""
-    if current_user.role not in ['medicine', 'admin']: 
+    if current_user.role not in ['nursing', 'medicine', 'admin']: 
         flash('Unauthorized access. Nursing staff only.', 'error')
         logger.warning(f"Unauthorized access attempt to /nursing/view_notes by user {current_user.id}")
         db.session.add(Log(
@@ -799,7 +799,7 @@ def view_partograms():
 @bp.route('/patient_dashboard')
 @login_required
 def patient_dashboard():
-    if current_user.role != 'nursing':
+    if current_user.role not in ['nursing', 'admin', 'medicine']:
         flash('You do not have permission to access this page.', 'error')
         return redirect(url_for('login'))
 
@@ -815,7 +815,7 @@ def patient_dashboard():
 @bp.route('/medication_admin', methods=['GET', 'POST'])
 @login_required
 def medication_admin():
-    if current_user.role != 'nursing':
+    if current_user.role not in ['nursing', 'admin', 'medicine']:
         flash('You do not have permission to access this page.', 'error')
         return redirect(url_for('login'))
 
@@ -849,7 +849,7 @@ def medication_admin():
 @bp.route('/vital_signs', methods=['GET', 'POST'])
 @login_required
 def vital_signs():
-    if current_user.role != 'nursing':
+    if current_user.role not in ['nursing', 'admin', 'medicine']:
         flash('You do not have permission to access this page.', 'error')
         return redirect(url_for('login'))
 
@@ -904,8 +904,8 @@ def vital_signs():
 @bp.route('/shift_handover')
 @login_required
 def shift_handover():
-    if current_user.role != 'nursing':
-        flash('You do not have permission to access this page.', 'error')
+    if current_user.role not in ['nursing', 'admin', 'medicine', 'doctor']:
+        flash('Unauthorized access. Nursing and clinical staff only.', 'error')
         return redirect(url_for('login'))
 
     try:
@@ -924,11 +924,12 @@ def shift_handover():
     except Exception as e:
         flash(f'Error fetching shift handover data: {str(e)}', 'error')
         return redirect(url_for('nursing.index'))
+
 @bp.route('/communicate_doctor', methods=['GET', 'POST'])
 @login_required
 def communicate_doctor():
-    if current_user.role != 'nursing':
-        flash('You do not have permission to access this page.', 'error')
+    if current_user.role not in ['nursing', 'admin', 'medicine', 'doctor']:
+        flash('Unauthorized access. Nursing and clinical staff only.', 'error')
         return redirect(url_for('login'))
 
     if request.method == 'POST':
@@ -960,9 +961,12 @@ def communicate_doctor():
             return redirect(url_for('nursing.communicate_doctor'))
     
     try:
-        doctors = User.query.filter_by(role='doctor').all()
+        doctors = User.query.filter(User.role.in_(['doctor', 'medicine'])).all()
+        if not doctors:
+            doctors = User.query.filter(User.role.in_(['doctor', 'medicine', 'admin'])).all()
         return render_template('nursing/communicate_doctor.html', doctors=doctors)
     except Exception as e:
+        logger.error(f"Error fetching doctors in communicate_doctor: {e}", exc_info=True)
         flash(f'Error fetching doctors: {str(e)}', 'error')
         return redirect(url_for('nursing.index'))
 
@@ -1027,4 +1031,70 @@ def mark_task_completed(task_id):
     except Exception as e:
         db.session.rollback()
         flash(f'Error marking task as completed: {str(e)}', 'error')
-        return redirect(url_for('nursing.patient_dashboard', patient_id=patient_id))        
+        return redirect(url_for('nursing.patient_dashboard', patient_id=patient_id))
+
+
+# ─────────────────────────────────────────────
+# WARD INPATIENTS MONITORING
+# ─────────────────────────────────────────────
+@bp.route('/ward_patients')
+@login_required
+def ward_patients():
+    if current_user.role not in ['nursing', 'admin', 'medicine']:
+        flash('Unauthorized access.', 'error')
+        return redirect(url_for('login'))
+
+    admissions = AdmittedPatient.query.filter_by(discharged_on=None).options(
+        joinedload(AdmittedPatient.patient),
+        joinedload(AdmittedPatient.ward)
+    ).order_by(AdmittedPatient.admitted_on.desc()).all()
+
+    return render_template('nursing/ward_patients.html', admissions=admissions)
+
+
+# ─────────────────────────────────────────────
+# VISUAL VITALS TREND CHART
+# ─────────────────────────────────────────────
+@bp.route('/vitals_chart/<patient_id>')
+@login_required
+def vitals_chart(patient_id):
+    if current_user.role not in ['nursing', 'admin', 'medicine']:
+        flash('Unauthorized access.', 'error')
+        return redirect(url_for('login'))
+
+    patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
+    vitals_history = Vitals.query.filter_by(patient_id=patient_id).order_by(Vitals.timestamp.asc()).all()
+
+    timestamps = [v.timestamp.strftime('%m-%d %H:%M') for v in vitals_history]
+    temps = [v.temperature or 0 for v in vitals_history]
+    pulse = [v.pulse or 0 for v in vitals_history]
+    bp_sys = [v.blood_pressure_systolic or 0 for v in vitals_history]
+    bp_dia = [v.blood_pressure_diastolic or 0 for v in vitals_history]
+    spo2 = [v.oxygen_saturation or 0 for v in vitals_history]
+
+    return render_template(
+        'nursing/vitals_chart.html',
+        patient=patient,
+        vitals_history=vitals_history,
+        timestamps=timestamps,
+        temps=temps,
+        pulse=pulse,
+        bp_sys=bp_sys,
+        bp_dia=bp_dia,
+        spo2=spo2
+    )
+
+
+# ─────────────────────────────────────────────
+# FLUID BALANCE CHART
+# ─────────────────────────────────────────────
+@bp.route('/fluid_balance/<patient_id>', methods=['GET', 'POST'])
+@login_required
+def fluid_balance(patient_id):
+    if current_user.role not in ['nursing', 'admin', 'medicine']:
+        flash('Unauthorized access.', 'error')
+        return redirect(url_for('login'))
+
+    patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
+    return render_template('nursing/fluid_balance.html', patient=patient)
+        

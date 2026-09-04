@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  :root {
+    --rc-primary: #1a56db; --rc-primary-dark: #1e3a8a;
+    --rc-header-bg: linear-gradient(135deg, #1e3a8a 0%, #1a56db 60%, #3b82f6 100%);
+    --rc-card-shadow: 0 4px 24px rgba(26,86,219,0.10);
+    --rc-border: #e0e7ff; --rc-bg: #f0f4ff;
+  }
+  body { background: var(--rc-bg); }
+  .rc-header { background: var(--rc-header-bg); border-radius:18px; padding:2rem 2.5rem; color:white; margin-bottom:2rem; box-shadow:0 8px 32px rgba(26,86,219,0.25); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
+  .rc-header h1 { font-size:1.7rem; font-weight:700; margin:0 0 .25rem; }
+  .rc-header p { margin:0; opacity:.8; }
+
+  .rc-card { background:white; border-radius:16px; box-shadow:var(--rc-card-shadow); overflow:hidden; margin-bottom:1.5rem; }
+  .rc-card-header { padding:1.2rem 1.5rem; border-bottom:1px solid var(--rc-border); background:linear-gradient(135deg,#f8faff,#eff6ff); font-weight:700; color:var(--rc-primary-dark); display:flex; align-items:center; gap:.5rem; }
+  .rc-card-body { padding:1.5rem; }
+
+  .filter-form { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; }
+  .filter-form input[type=date] { border:1.5px solid var(--rc-border); border-radius:8px; padding:.5rem .9rem; font-size:.9rem; outline:none; transition:border-color .2s; }
+  .filter-form input[type=date]:focus { border-color:var(--rc-primary); }
+  .btn-filter { background:var(--rc-header-bg); color:white; border:none; border-radius:8px; padding:.5rem 1.2rem; font-weight:600; font-size:.88rem; cursor:pointer; display:inline-flex; align-items:center; gap:.4rem; }
+  .btn-filter:hover { opacity:.9; }
+
+  .stat-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+  .stat-card { background:white; border-radius:14px; box-shadow:var(--rc-card-shadow); padding:1.3rem 1.5rem; border-left:4px solid var(--rc-primary); display:flex; align-items:center; gap:1rem; }
+  .stat-card.orange { border-left-color:#d97706; }
+  .stat-card .s-icon { width:44px; height:44px; border-radius:10px; background:#eff6ff; display:flex; align-items:center; justify-content:center; font-size:1.3rem; color:var(--rc-primary); flex-shrink:0; }
+  .stat-card.orange .s-icon { background:#fff7ed; color:#d97706; }
+  .stat-card .s-val { font-size:1.8rem; font-weight:800; color:#1e293b; line-height:1; }
+  .stat-card .s-lbl { font-size:.75rem; text-transform:uppercase; color:#64748b; }
+
+  .rc-table { width:100%; border-collapse:collapse; }
+  .rc-table thead tr { background:linear-gradient(90deg,#1e3a8a,#1a56db); }
+  .rc-table thead th { color:white; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; padding:.8rem 1rem; font-weight:600; }
+  .rc-table tbody tr { border-bottom:1px solid #f1f5f9; transition:background .15s; }
+  .rc-table tbody tr:hover { background:#f0f4ff; }
+  .rc-table tbody td { padding:.75rem 1rem; font-size:.88rem; color:#334155; }
+
+  .date-chip { background:#eff6ff; color:var(--rc-primary); border-radius:6px; padding:.15rem .6rem; font-size:.85rem; font-weight:600; font-family:monospace; }
+  .count-chip { background:#1a56db; color:white; border-radius:20px; padding:.2rem .7rem; font-size:.85rem; font-weight:700; }
+  .count-chip.green { background:#059669; }
+</style>
+
+<div class="container-fluid px-4 py-4">
+
+  <div class="rc-header">
+    <div>
+      <h1><i class="bi bi-bar-chart-line-fill me-2"></i>Daily OPD Report</h1>
+      <p>Patient registrations and clinic attendance by date</p>
+    </div>
+    <form method="GET" class="filter-form">
+      <label style="color:rgba(255,255,255,.8); font-weight:600; font-size:.88rem;">From</label>
+      <input type="date" name="start" value="{{ start_date.strftime('%Y-%m-%d') }}">
+      <label style="color:rgba(255,255,255,.8); font-weight:600; font-size:.88rem;">To</label>
+      <input type="date" name="end" value="{{ end_date.strftime('%Y-%m-%d') }}">
+      <button type="submit" class="btn-filter"><i class="bi bi-funnel"></i> Apply</button>
+    </form>
+  </div>
+
+  <!-- Summary Stats -->
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="s-icon"><i class="bi bi-person-plus"></i></div>
+      <div>
+        <div class="s-val">{{ total_registrations }}</div>
+        <div class="s-lbl">New Registrations</div>
+      </div>
+    </div>
+    <div class="stat-card orange">
+      <div class="s-icon"><i class="bi bi-calendar-check"></i></div>
+      <div>
+        <div class="s-val">{{ total_bookings }}</div>
+        <div class="s-lbl">Clinic Bookings</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="rc-card" style="margin-bottom:1.5rem;">
+    <div class="rc-card-header"><i class="bi bi-graph-up"></i> Daily Trend — {{ start_date.strftime('%d %b %Y') }} to {{ end_date.strftime('%d %b %Y') }}</div>
+    <div class="rc-card-body">
+      <canvas id="opdChart" height="90"></canvas>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+    <!-- Daily Registrations Table -->
+    <div class="rc-card">
+      <div class="rc-card-header"><i class="bi bi-person-plus"></i> New Patient Registrations</div>
+      <div style="overflow-x:auto;">
+        <table class="rc-table">
+          <thead><tr><th>Date</th><th>Count</th></tr></thead>
+          <tbody>
+            {% for row in daily_registrations %}
+            <tr>
+              <td><span class="date-chip">{{ row.reg_date }}</span></td>
+              <td><span class="count-chip">{{ row.count }}</span></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="2" style="text-align:center; padding:2rem; color:#94a3b8;">No registrations in this period.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Bookings Table -->
+    <div class="rc-card">
+      <div class="rc-card-header"><i class="bi bi-calendar-check"></i> Clinic Bookings by Date</div>
+      <div style="overflow-x:auto;">
+        <table class="rc-table">
+          <thead><tr><th>Date</th><th>Bookings</th></tr></thead>
+          <tbody>
+            {% for row in daily_bookings %}
+            <tr>
+              <td><span class="date-chip">{{ row.visit_date }}</span></td>
+              <td><span class="count-chip green">{{ row.count }}</span></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="2" style="text-align:center; padding:2rem; color:#94a3b8;">No bookings in this period.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const regLabels = {{ daily_registrations | map(attribute='reg_date') | map('string') | list | tojson }};
+const regData   = {{ daily_registrations | map(attribute='count') | list | tojson }};
+const bkgLabels = {{ daily_bookings | map(attribute='visit_date') | map('string') | list | tojson }};
+const bkgData   = {{ daily_bookings | map(attribute='count') | list | tojson }};
+
+// Merge labels
+const allLabels = [...new Set([...regLabels, ...bkgLabels])].sort();
+const regMap = Object.fromEntries(regLabels.map((l,i) => [l, regData[i]]));
+const bkgMap = Object.fromEntries(bkgLabels.map((l,i) => [l, bkgData[i]]));
+
+new Chart(document.getElementById('opdChart'), {
+  type: 'bar',
+  data: {
+    labels: allLabels,
+    datasets: [
+      {
+        label: 'New Registrations',
+        data: allLabels.map(l => regMap[l] || 0),
+        backgroundColor: 'rgba(26,86,219,0.7)',
+        borderRadius: 6
+      },
+      {
+        label: 'Clinic Bookings',
+        data: allLabels.map(l => bkgMap[l] || 0),
+        backgroundColor: 'rgba(217,119,6,0.7)',
+        borderRadius: 6
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' } },
+    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+  }
+});
+</script>
+{% endblock %}

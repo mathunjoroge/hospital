@@ -6,6 +6,6 @@ from . import bp
 @bp.route('/')
 @login_required
 def index():
-    if current_user.role != 'mortuary':
+    if current_user.role not in ['mortuary', 'admin']:
         return redirect(url_for('login'))
     return render_template('mortuary.html')

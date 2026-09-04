@@ -1,190 +1,338 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center"><i class="bi bi-prescription"></i> Dispense Prescription</h2>
+<style>
+  :root {
+    --ph-primary: #0e7c61;
+    --ph-header-bg: linear-gradient(135deg, #0e7c61 0%, #16a085 60%, #1abc9c 100%);
+    --ph-card-shadow: 0 4px 24px rgba(14,124,97,0.10);
+    --ph-border: rgba(14,124,97,0.12);
+    --ph-surface: #f4fbf8;
+  }
 
-    {% if prescribed_medicines %}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Medicines to Dispense</h4>
-            <span class="badge bg-light text-dark p-2">Total: {{ prescribed_medicines|length }} Medicines</span>
-        </div>
-        <div class="card-body">
-            <table class="table table-hover align-middle">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Drug Name</th>
-                        <th>Dosage</th>
-                        <th>Strength</th>
-                        <th>Frequency</th>
-                        <th>Days</th>
-                        <th>Stock Available</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for medicine in prescribed_medicines %}
-                    <tr>
-                        <td>
-                            <strong>{{ medicine.medicine.generic_name }}</strong>
-                            <small class="text-muted">({{ medicine.medicine.brand_name | default("N/A") }})</small>
-                        </td>
-                        <td>{{ medicine.dosage }}</td>
-                        <td>{{ medicine.strength }}</td>
-                        <td>{{ medicine.frequency }}</td>
-                        <td>{{ medicine.num_days }}</td>
-                        <td>
-                            {% set batch = drug_batches.get(medicine.medicine.id, None) %}
-                            <span class="badge {% if batch and batch.quantity_in_stock > 0 %}bg-success{% else %}bg-danger{% endif %}">
-                                {{ batch.quantity_in_stock if batch else "N/A" }}
-                            </span>
-                        </td>
-                        <td>
-                            {% if batch and batch.quantity_in_stock >= medicine.num_days %}
-                                <span class="text-success fw-bold">
-                                    <i class="bi bi-check-circle"></i> Available
-                                </span>
-                            {% elif batch %}
-                                <span class="text-warning fw-bold">
-                                    <i class="bi bi-exclamation-triangle"></i> Low Stock
-                                </span>
-                            {% else %}
-                                <span class="text-danger fw-bold">
-                                    <i class="bi bi-x-circle"></i> Out of Stock
-                                </span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+  .ph-hero {
+    background: var(--ph-header-bg);
+    border-radius: 16px; padding: 1.75rem 2.5rem;
+    margin-bottom: 2rem; color: white;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 8px 32px rgba(14,124,97,0.22);
+    position: relative; overflow: hidden;
+  }
+  .ph-hero::after {
+    content:''; position:absolute; right:-30px; top:-30px;
+    width:180px; height:180px; background:rgba(255,255,255,0.07); border-radius:50%;
+  }
+  .ph-hero h2 { font-size:1.5rem; font-weight:700; margin:0; }
+  .ph-hero p  { opacity:.85; margin:.2rem 0 0; font-size:.9rem; }
+
+  .ph-card {
+    background: white; border-radius: 16px;
+    box-shadow: var(--ph-card-shadow); border: 1px solid var(--ph-border);
+    overflow: hidden; margin-bottom: 1.75rem;
+  }
+  .ph-card-header {
+    padding: 1rem 1.5rem; display: flex;
+    align-items: center; justify-content: space-between;
+    color: white; font-weight: 700;
+  }
+  .ph-card-header.primary { background: var(--ph-header-bg); }
+  .ph-card-header.success { background: linear-gradient(90deg, #0e7c61, #27ae60); }
+  .ph-card-header h5,
+  .ph-card-header h4 { margin: 0; color: white; font-weight: 700; }
+
+  .ph-table { margin: 0; box-shadow: none; border-radius: 0; }
+  .ph-table thead th {
+    background: var(--ph-surface) !important; color: #0e7c61 !important;
+    font-weight: 700; font-size: 0.80rem; text-transform: uppercase;
+    letter-spacing: 0.05em; padding: 0.75rem 1rem;
+    border-bottom: 2px solid var(--ph-border);
+  }
+  .ph-table tbody td {
+    padding: 0.8rem 1rem; vertical-align: middle;
+    border-bottom: 1px solid #f0f4f3; font-size: 0.93rem; color: #2d4a3e;
+  }
+  .ph-table tbody tr:hover { background: #edfaf5 !important; }
+
+  .stock-badge {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.28rem 0.7rem; border-radius: 8px; font-weight: 700; font-size: 0.82rem;
+  }
+  .stock-badge.ok       { background: #e8f5ee; color: #0e7c61; }
+  .stock-badge.low      { background: #fef5e7; color: #d35400; }
+  .stock-badge.none     { background: #fde8e8; color: #c0392b; }
+
+  .status-ok   { color: #0e7c61; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem; }
+  .status-low  { color: #d35400; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem; }
+  .status-none { color: #c0392b; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem; }
+
+  /* Prescription tabs */
+  .nav-tabs { border-bottom: 2px solid var(--ph-border); margin-bottom: 1.5rem; }
+  .nav-tabs .nav-link {
+    color: #7ca898; background: white; border: 1px solid transparent;
+    border-radius: 10px 10px 0 0; margin-right: 4px;
+    padding: 0.55rem 1.1rem; font-weight: 600; font-size: 0.88rem;
+    transition: all 0.2s;
+  }
+  .nav-tabs .nav-link:hover { color: #0e7c61; background: var(--ph-surface); }
+  .nav-tabs .nav-link.active {
+    color: #0e7c61; background: white; border-color: var(--ph-border) var(--ph-border) #fff;
+    font-weight: 700;
+  }
+  .tab-content {
+    border: 1px solid var(--ph-border); border-top: none; padding: 1.5rem;
+    background: white; border-radius: 0 0 12px 12px;
+  }
+
+  /* Dispense form */
+  .dispense-form-zone {
+    background: var(--ph-surface); border-radius: 12px;
+    padding: 1.5rem; margin-bottom: 1.5rem;
+    border: 1px solid var(--ph-border);
+  }
+  .dispense-form-zone label { font-weight: 600; color: #1a3a2e; font-size: 0.87rem; margin-bottom: 0.4rem; }
+  .dispense-form-zone .form-control,
+  .dispense-form-zone .form-select {
+    border-radius: 8px; border: 1.5px solid var(--ph-border);
+  }
+  .dispense-form-zone .form-control:focus,
+  .dispense-form-zone .form-select:focus {
+    border-color: #0e7c61; box-shadow: 0 0 0 3px rgba(14,124,97,0.12);
+  }
+
+  .btn-dispense {
+    background: var(--ph-header-bg); color: white; border: none;
+    border-radius: 10px; padding: 0.6rem 1.6rem; font-weight: 700;
+    transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem;
+  }
+  .btn-dispense:hover { color: white; transform: translateY(-2px); box-shadow: 0 6px 18px rgba(14,124,97,0.35); }
+
+  .btn-save-all {
+    background: linear-gradient(90deg, #0e7c61, #27ae60); color: white; border: none;
+    border-radius: 10px; padding: 0.65rem 2rem; font-weight: 700; width: 100%;
+    transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  }
+  .btn-save-all:hover { color: white; transform: translateY(-2px); box-shadow: 0 6px 18px rgba(14,124,97,0.35); }
+
+  .btn-del-dispensed {
+    background: #fde8e8; color: #c0392b; border: none; border-radius: 7px;
+    padding: 0.3rem 0.7rem; font-size: 0.82rem; font-weight: 600; transition: all 0.2s;
+  }
+  .btn-del-dispensed:hover { background: #c0392b; color: white; }
+
+  .ph-total-row td { font-weight: 700; background: #f4fbf8 !important; }
+
+  .back-btn {
+    background: var(--ph-header-bg); color: white; border: none;
+    border-radius: 10px; padding: 0.5rem 1.4rem; font-weight: 600;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
+  }
+  .back-btn:hover { color: white; transform: translateY(-2px); box-shadow: 0 6px 18px rgba(14,124,97,0.35); }
+
+  .ph-count-badge {
+    background: rgba(255,255,255,0.25); color: white;
+    border-radius: 20px; padding: 0.2rem 0.75rem; font-size: 0.83rem; font-weight: 600;
+  }
+</style>
+
+<div class="container-fluid px-4 py-4">
+
+  <!-- Hero -->
+  <div class="ph-hero animate-fade-in">
+    <div>
+      <h2><i class="bi bi-prescription2 me-2"></i> Dispense Prescription</h2>
+      <p>Review prescribed medicines, select batches, and record dispensing</p>
     </div>
+    <i class="bi bi-capsule-pill" style="font-size:3rem; opacity:0.85;"></i>
+  </div>
 
-    <!-- Dispensing Form -->
-    <form method="POST" action="{{ url_for('pharmacy.process_dispense', prescription_id=prescription_id) }}">
+  {% if prescribed_medicines %}
+
+  <!-- ── Medicines to Dispense ── -->
+  <div class="ph-card animate-fade-in">
+    <div class="ph-card-header primary">
+      <h5><i class="bi bi-clipboard2-pulse me-2"></i> Medicines to Dispense</h5>
+      <span class="ph-count-badge">{{ prescribed_medicines|length }} medicine{{ 's' if prescribed_medicines|length != 1 else '' }}</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table ph-table mb-0">
+        <thead>
+          <tr>
+            <th>Drug Name</th><th>Dosage</th><th>Strength</th>
+            <th>Frequency</th><th>Days</th><th>Stock Available</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for medicine in prescribed_medicines %}
+          {% set batch = drug_batches.get(medicine.medicine.id, None) %}
+          <tr>
+            <td>
+              <strong>{{ medicine.medicine.generic_name }}</strong>
+              <small class="text-muted ms-1">({{ medicine.medicine.brand_name | default('N/A') }})</small>
+            </td>
+            <td>{{ medicine.dosage }}</td>
+            <td>{{ medicine.strength }}</td>
+            <td>{{ medicine.frequency }}</td>
+            <td>{{ medicine.num_days }}</td>
+            <td>
+              {% if batch %}
+                <span class="stock-badge {{ 'ok' if batch.quantity_in_stock > 10 else 'low' if batch.quantity_in_stock > 0 else 'none' }}">
+                  <i class="bi bi-box-seam"></i> {{ batch.quantity_in_stock }}
+                </span>
+              {% else %}
+                <span class="stock-badge none"><i class="bi bi-x-circle"></i> N/A</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if batch and batch.quantity_in_stock >= medicine.num_days %}
+                <span class="status-ok"><i class="bi bi-check-circle-fill"></i> Available</span>
+              {% elif batch and batch.quantity_in_stock > 0 %}
+                <span class="status-low"><i class="bi bi-exclamation-triangle-fill"></i> Low Stock</span>
+              {% else %}
+                <span class="status-none"><i class="bi bi-x-circle-fill"></i> Out of Stock</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Dispensing Form ── -->
+  <form method="POST" action="{{ url_for('pharmacy.process_dispense', prescription_id=prescription_id) }}">
+    <input type="hidden" name="prescription_id" value="{{ prescription_id }}">
+    <div class="dispense-form-zone animate-fade-in">
+      <h6 class="fw-bold mb-3" style="color:#0e7c61;"><i class="bi bi-plus-circle me-2"></i>Add Drug to Dispense</h6>
+      <div class="row g-3 align-items-end">
+        <div class="col-md-5">
+          <label for="drugs">Select Drug &amp; Batch</label>
+          <select id="drugs" name="drug_id" class="form-select select2" required>
+            <option value="" disabled selected>Loading drugs…</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="batch_display">Batch ID</label>
+          <input type="hidden" id="batch_id" name="batch_id" required>
+          <input type="text" id="batch_display" class="form-control" placeholder="Auto-filled" disabled>
+        </div>
+        <div class="col-md-2">
+          <label for="quantity_dispensed">Quantity</label>
+          <input type="number" id="quantity_dispensed" name="quantity_dispensed" class="form-control" min="1" placeholder="Units" required>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn-dispense w-100">
+            <i class="bi bi-capsule"></i> Dispense
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <!-- ── Dispensed Drugs ── -->
+  <div class="ph-card animate-fade-in">
+    <div class="ph-card-header success">
+      <h5><i class="bi bi-check2-square me-2"></i> Dispensed Drugs</h5>
+      <span class="ph-count-badge">{{ dispensed_drugs|length }} item{{ 's' if dispensed_drugs|length != 1 else '' }}</span>
+    </div>
+    <div class="card-body p-0">
+      <form method="POST" action="{{ url_for('pharmacy.save_dispensed_drugs') }}">
         <input type="hidden" name="prescription_id" value="{{ prescription_id }}">
-
-        <div class="row g-2 align-items-end">
-            <!-- Select Drug -->
-            <div class="col-md-6 col-lg-4">
-                <label for="drugs" class="form-label fw-bold">Select Drug:</label>
-                <select id="drugs" name="drug_id" class="form-select select2" required>
-                    <option value="" disabled selected>Loading drugs...</option>
-                </select>
-            </div>
-
-            <!-- Hidden Input for Batch ID -->
-            <div class="col-md-4 col-lg-2">
-                <label for="batch_id" class="form-label fw-bold">Batch ID:</label>
-                <input type="hidden" id="batch_id" name="batch_id" required>
-                <input type="text" id="batch_display" class="form-control" disabled>
-            </div>
-
-            <!-- Quantity -->
-            <div class="col-md-4 col-lg-2">
-                <label for="quantity_dispensed" class="form-label fw-bold">Quantity:</label>
-                <input type="number" id="quantity_dispensed" name="quantity_dispensed" class="form-control" min="1" required>
-            </div>
-
-            <!-- Submit Button -->
-            <div class="col-md-2 col-lg-2">
-                <button type="submit" class="btn btn-primary btn-sm w-100">Dispense</button>
-            </div>
+        <div class="table-responsive">
+          <table class="table ph-table mb-0">
+            <thead>
+              <tr>
+                <th>Drug Name</th><th>Batch ID</th><th>Qty Dispensed</th>
+                <th>Unit Price</th><th>Total</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for drug in dispensed_drugs %}
+              <tr>
+                <td>
+                  <strong>{{ drug.generic_name }}</strong>
+                  <small class="text-muted ms-1">({{ drug.brand_name | default('N/A') }})</small>
+                </td>
+                <td><code>{{ drug.batch_id }}</code></td>
+                <td>
+                  <input type="number" class="form-control form-control-sm" style="width:90px;"
+                         name="updatedDrugs[{{ drug.id }}]" min="1" value="{{ drug.quantity_dispensed }}" required>
+                </td>
+                <td>Kshs {{ "%.2f"|format(drug.selling_price) }}</td>
+                <td><strong>Kshs {{ "%.2f"|format(drug.total) }}</strong></td>
+                <td>
+                  <button type="button" class="btn-del-dispensed" onclick="confirmDelete('{{ drug.id }}')">
+                    <i class="bi bi-trash"></i> Remove
+                  </button>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="6" class="text-center py-4 text-muted">
+                  <i class="bi bi-inbox me-2"></i>No drugs dispensed yet.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-    </form>
-
-    <!-- Display Dispensed Drugs -->
-    <div class="card shadow-sm mt-4">
-        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Dispensed Drugs</h4>
-            <button class="btn btn-light btn-sm fw-bold" type="submit">
-                <i class="bi bi-save"></i> Save Dispensed Drugs
-            </button>
+        {% if dispensed_drugs %}
+        <div class="p-3">
+          <button type="submit" class="btn-save-all">
+            <i class="bi bi-save2-fill"></i> Save &amp; Finalise Dispensing
+          </button>
         </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('pharmacy.save_dispensed_drugs') }}">
-                <input type="" name="prescription_id" value="{{ prescription_id }}">
-                <table class="table table-hover align-middle">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Drug Name</th>
-                            <th>Batch ID</th>
-                            <th>Quantity</th>
-                            <th>Price</th>
-                            <th>Total</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for drug in dispensed_drugs %}
-                        <tr>
-                            <td>
-                                <strong>{{ drug.generic_name }}</strong>
-                                <small class="text-muted">({{ drug.brand_name | default("N/A") }})</small>
-                            </td>
-                            <td>{{ drug.batch_id }}</td>
-                            <td>
-                                <input type="number" class="form-control form-control-sm" name="updatedDrugs[{{ drug.id }}]"
-                                       min="1" value="{{ drug.quantity_dispensed }}" required>
-                            </td>
-                            <td>Kshs {{ drug.selling_price }}</td>
-                            <td>Kshs {{ drug.total }}</td>
-                            <td>
-                                <button class="btn btn-sm btn-danger" onclick="confirmDelete('{{ drug.id }}')">
-                                    <i class="bi bi-trash"></i> Delete
-                                </button>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="6" class="text-center text-muted">No drugs have been dispensed yet.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                <button type="submit" class="btn btn-success w-100 mt-3 fw-bold">
-                    <i class="bi bi-save"></i> Save Dispensed Drugs
-                </button>
-            </form>
-        </div>
+        {% endif %}
+      </form>
     </div>
+  </div>
 
-    {% else %}
-    <div class="alert alert-info text-center">
-        <i class="bi bi-info-circle"></i> No medicines available in this prescription.
-    </div>
-    {% endif %}
+  {% else %}
+  <div class="alert alert-info rounded-3 shadow-sm">
+    <i class="bi bi-info-circle-fill me-2"></i> No medicines found in this prescription.
+  </div>
+  {% endif %}
+
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    let batchIdInput = document.getElementById("batch_id");
-    let batchDisplayInput = document.getElementById("batch_display");
-    let quantityInput = document.getElementById("quantity_dispensed");
+  let batchIdInput    = document.getElementById("batch_id");
+  let batchDisplayInput = document.getElementById("batch_display");
+  let quantityInput   = document.getElementById("quantity_dispensed");
 
-    $("#drugs").select2();
+  if (typeof $ !== 'undefined') $("#drugs").select2();
 
-    fetch("/pharmacy/get_all_batches")
-        .then(response => response.json())
-        .then(data => {
-            let drugSelect = $("#drugs");
-            drugSelect.empty().append('<option value="" disabled selected>Select drug</option>');
-            data.forEach(batch => {
-                drugSelect.append(
-                    `<option value="${batch.drug_id}" data-batch-id="${batch.batch_id}" data-batch-qty="${batch.batch_qty}">
-                        ${batch.brand_name} | ${batch.generic_name} | ${batch.dosage_form} | ${batch.strength}
-                    </option>`
-                );
-            });
-        });
-
-    $("#drugs").on("change", function () {
-        let selectedOption = this.selectedOptions[0];
-        batchIdInput.value = selectedOption.dataset.batchId;
-        batchDisplayInput.value = selectedOption.dataset.batchId;
-        quantityInput.setAttribute("max", selectedOption.dataset.batchQty);
+  fetch("/pharmacy/get_all_batches")
+    .then(r => r.json())
+    .then(data => {
+      let drugSelect = $("#drugs");
+      drugSelect.empty().append('<option value="" disabled selected>Select drug…</option>');
+      data.forEach(b => {
+        drugSelect.append(
+          `<option value="${b.drug_id}" data-batch-id="${b.batch_id}" data-batch-qty="${b.batch_qty}">
+            ${b.brand_name || ''} | ${b.generic_name} | ${b.dosage_form || ''} | ${b.strength || ''} (Stock: ${b.batch_qty})
+          </option>`
+        );
+      });
+    })
+    .catch(() => {
+      let drugSelect = $("#drugs");
+      drugSelect.empty().append('<option value="" disabled selected>Error loading drugs</option>');
     });
+
+  $("#drugs").on("change", function () {
+    let sel = this.selectedOptions[0];
+    if (batchIdInput)      batchIdInput.value      = sel.dataset.batchId;
+    if (batchDisplayInput) batchDisplayInput.value = sel.dataset.batchId;
+    if (quantityInput)     quantityInput.setAttribute("max", sel.dataset.batchQty);
+  });
 });
+
+function confirmDelete(drugId) {
+  if (confirm("Remove this dispensed drug entry?")) {
+    fetch(`/pharmacy/delete_dispensed_drug/${drugId}`, { method: 'GET' })
+      .then(() => location.reload())
+      .catch(err => alert('Error removing drug: ' + err));
+  }
+}
 </script>
 {% endblock %}

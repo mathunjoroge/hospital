@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  :root {
+    --bl-primary: #059669;
+    --bl-primary-dark: #047857;
+  }
+  .receipt-card {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2.5rem;
+  }
+  .hospital-header {
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .receipt-title-badge {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+    padding: 0.35rem 1rem;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+  }
+  .receipt-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    .receipt-card, .receipt-card * {
+      visibility: visible;
+    }
+    .receipt-card {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      max-width: 100%;
+      border: none;
+      box-shadow: none;
+      padding: 1rem;
+    }
+    .no-print {
+      display: none !important;
+    }
+  }
+</style>
+
+<div class="container py-4">
+  <div class="no-print d-flex justify-content-between align-items-center max-w-800 mx-auto mb-3" style="max-width: 800px;">
+    <a href="{{ url_for('billing.receipts_list') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i> Back to Receipt Log
+    </a>
+    <button onclick="window.print()" class="btn btn-success fw-bold">
+      <i class="bi bi-printer-fill me-1"></i> Print Official Receipt
+    </button>
+  </div>
+
+  <div class="receipt-card">
+    <!-- Hospital Header -->
+    <div class="hospital-header d-flex justify-content-between align-items-start">
+      <div>
+        <h3 class="fw-bold text-success mb-1"><i class="bi bi-hospital me-2"></i> HIMS MEDICAL CENTER</h3>
+        <p class="text-muted small mb-0">Official Payment Receipt & Financial Clearance</p>
+        <p class="text-muted small mb-0">Tel: +254 700 000 000 | Email: billing@hims.health</p>
+      </div>
+      <div class="text-end">
+        <span class="receipt-title-badge mb-2 d-inline-block">OFFICIAL RECEIPT</span>
+        <div class="fw-bold text-dark fs-5 font-monospace">{{ paid_record.receipt_number }}</div>
+        <small class="text-muted">Date: {{ paid_record.paid_at.strftime('%Y-%m-%d %H:%M') }}</small>
+      </div>
+    </div>
+
+    <!-- Patient & Payment Metadata -->
+    <div class="row g-3 mb-4 p-3 rounded-3" style="background: #f8fafc; border: 1px solid #f1f5f9;">
+      <div class="col-sm-6">
+        <small class="text-uppercase fw-bold text-muted d-block mb-1">Patient Details</small>
+        <div class="fw-bold text-dark fs-6">{{ patient.name }}</div>
+        <div class="small text-muted">ID: <span class="font-monospace fw-bold">{{ patient.patient_id }}</span> | Sex: {{ patient.sex }}</div>
+        <div class="small text-muted">Contact: {{ patient.contact }}</div>
+      </div>
+      <div class="col-sm-6 text-sm-end">
+        <small class="text-uppercase fw-bold text-muted d-block mb-1">Payment Method & Reference</small>
+        <div class="fw-bold text-success fs-6"><i class="bi bi-check-circle-fill me-1"></i> {{ paid_record.payment_method or 'Cash' }}</div>
+        <div class="small text-muted">Timestamp: {{ paid_record.paid_at.strftime('%B %d, %Y at %H:%M') }}</div>
+      </div>
+    </div>
+
+    <!-- Itemized Table -->
+    <div class="table-responsive mb-4">
+      <table class="table table-bordered receipt-table align-middle">
+        <thead>
+          <tr>
+            <th>Item / Service Description</th>
+            <th class="text-center">Qty / Days</th>
+            <th class="text-end">Amount (Kshs)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set ns = namespace(total=0) %}
+
+          {% for item in dispensed %}
+            {% set cost = item.drug.selling_price * item.quantity_dispensed %}
+            {% set ns.total = ns.total + cost %}
+            <tr>
+              <td><i class="bi bi-capsule me-2 text-success"></i> {{ item.drug.generic_name }} ({{ item.drug.dosage_form or '' }})</td>
+              <td class="text-center">{{ item.quantity_dispensed }}</td>
+              <td class="text-end font-monospace">Kshs {{ "{:,.2f}".format(cost) }}</td>
+            </tr>
+          {% endfor %}
+
+          {% for item in labs %}
+            {% set cost = item.lab_test.cost %}
+            {% set ns.total = ns.total + cost %}
+            <tr>
+              <td><i class="bi bi-flask me-2 text-info"></i> Lab: {{ item.lab_test.test_name }}</td>
+              <td class="text-center">1</td>
+              <td class="text-end font-monospace">Kshs {{ "{:,.2f}".format(cost) }}</td>
+            </tr>
+          {% endfor %}
+
+          {% for item in clinics %}
+            {% set cost = item.clinic.fee %}
+            {% set ns.total = ns.total + cost %}
+            <tr>
+              <td><i class="bi bi-building me-2 text-primary"></i> Clinic Consultation: {{ item.clinic.name }}</td>
+              <td class="text-center">1</td>
+              <td class="text-end font-monospace">Kshs {{ "{:,.2f}".format(cost) }}</td>
+            </tr>
+          {% endfor %}
+
+          {% for item in theatres %}
+            {% set cost = item.procedure.cost %}
+            {% set ns.total = ns.total + cost %}
+            <tr>
+              <td><i class="bi bi-scissors me-2 text-danger"></i> Theatre: {{ item.procedure.name }}</td>
+              <td class="text-center">1</td>
+              <td class="text-end font-monospace">Kshs {{ "{:,.2f}".format(cost) }}</td>
+            </tr>
+          {% endfor %}
+
+          {% for item in images %}
+            {% set cost = item.imaging.cost %}
+            {% set ns.total = ns.total + cost %}
+            <tr>
+              <td><i class="bi bi-camera-reels me-2 text-warning"></i> Imaging: {{ item.imaging.imaging_type }}</td>
+              <td class="text-center">1</td>
+              <td class="text-end font-monospace">Kshs {{ "{:,.2f}".format(cost) }}</td>
+            </tr>
+          {% endfor %}
+
+          {% for item in billings %}
+            {% set cost = item.total_cost %}
+            {% set ns.total = ns.total + cost %}
+            <tr>
+              <td><i class="bi bi-tag me-2 text-secondary"></i> {{ item.charge.name }}</td>
+              <td class="text-center">{{ item.quantity }}</td>
+              <td class="text-end font-monospace">Kshs {{ "{:,.2f}".format(cost) }}</td>
+            </tr>
+          {% endfor %}
+
+          {% for item in drugs_bills %}
+            {% set cost = item.total_cost %}
+            {% set ns.total = ns.total + cost %}
+            <tr>
+              <td><i class="bi bi-capsule-pill me-2 text-success"></i> {{ item.drug.generic_name if item.drug else 'Prescribed Medication' }}</td>
+              <td class="text-center">{{ item.quantity }}</td>
+              <td class="text-end font-monospace">Kshs {{ "{:,.2f}".format(cost) }}</td>
+            </tr>
+          {% endfor %}
+
+          {% if ns.total == 0 %}
+            <tr>
+              <td colspan="3" class="text-center text-muted">Summary Payment Record</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Financial Totals Summary -->
+    <div class="row justify-content-end mb-4">
+      <div class="col-sm-6">
+        <div class="border rounded-3 p-3 bg-light">
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Grand Total:</span>
+            <span class="fw-bold font-monospace">Kshs {{ "{:,.2f}".format(paid_record.grand_total) }}</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Amount Paid:</span>
+            <span class="fw-bold text-success font-monospace fs-6">Kshs {{ "{:,.2f}".format(paid_record.amount_paid) }}</span>
+          </div>
+          <hr class="my-2">
+          <div class="d-flex justify-content-between">
+            <span class="fw-bold text-dark">Remaining Balance:</span>
+            <span class="fw-bold font-monospace {{ 'text-danger' if paid_record.balance > 0 else 'text-muted' }}">
+              Kshs {{ "{:,.2f}".format(paid_record.balance) }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Signatures -->
+    <div class="row mt-5 pt-3 border-top text-center small text-muted">
+      <div class="col-6">
+        <div class="border-bottom mx-auto mb-1" style="width: 150px;"></div>
+        <div>Cashier Signature</div>
+      </div>
+      <div class="col-6">
+        <div class="border-bottom mx-auto mb-1" style="width: 150px;"></div>
+        <div>Customer Signature</div>
+      </div>
+    </div>
+
+    <div class="text-center mt-4 pt-2 text-muted small">
+      <i class="bi bi-shield-check text-success me-1"></i> Thank you for choosing HIMS Medical Center. Keep this receipt safe for your records.
+    </div>
+  </div>
+</div>
+{% endblock %}

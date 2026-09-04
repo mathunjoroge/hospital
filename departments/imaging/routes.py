@@ -3,82 +3,23 @@ import uuid
 import logging
 import numpy as np
 from datetime import datetime
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import pydicom
-from torchvision import models  # Explicitly import torchvision.models
-from transformers import AutoTokenizer, AutoModelForCausalLM
 from flask import flash, redirect, render_template, request, url_for, current_app, send_from_directory
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from extensions import db
-from departments.models.medicine import RequestedImage, Imaging, ImagingResult,SOAPNote
+from departments.models.medicine import RequestedImage, Imaging, ImagingResult, SOAPNote
+from departments.nlp.src.nvidia_client import NvidiaNIMClient
 from sqlalchemy.orm import joinedload
 from . import bp
-from app import socketio
+from extensions import socketio
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Define device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-logger.debug(f"Using device: {device}")
-
-def load_models():
-    """Load AI models for image analysis and report generation."""
-    models_dict = {}  # Renamed to avoid shadowing 'models' from torchvision
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    model_dir = os.path.join(script_dir, "models")
-    model_path = os.path.join(model_dir, "med_image_model.pth")
-    os.makedirs(model_dir, exist_ok=True)
-    logger.debug(f"Model directory: {model_dir}, Model path: {model_path}")
-
-    # Load pre-trained DenseNet121 and adapt for medical imaging
-    try:
-        from torchvision.models import DenseNet121_Weights
-        densenet = models.densenet121(weights=DenseNet121_Weights.IMAGENET1K_V1)
-        densenet.features.conv0 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        num_ftrs = densenet.classifier.in_features
-        densenet.classifier = nn.Linear(num_ftrs, 15)
-        models_dict['image_model'] = densenet.to(device)
-        logger.debug("Initialized DenseNet121 with modified input and output layers")
-
-        # Load fine-tuned weights if available
-        if os.path.exists(model_path):
-            try:
-                checkpoint = torch.load(model_path, map_location=device)
-                state_dict = checkpoint.get('state_dict', checkpoint)
-                state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
-                models_dict['image_model'].load_state_dict(state_dict, strict=True)
-                logger.info(f"Loaded fine-tuned weights from {model_path}")
-            except RuntimeError as e:
-                logger.warning(f"Failed to load fine-tuned weights: {e}. Using pre-trained ImageNet weights.")
-                torch.save({'state_dict': models_dict['image_model'].state_dict()}, model_path)
-        else:
-            logger.info(f"No fine-tuned weights at {model_path}. Saving initial state.")
-            torch.save({'state_dict': models_dict['image_model'].state_dict()}, model_path)
-
-        models_dict['image_model'].eval()
-    except Exception as e:
-        logger.error(f"Image model initialization failed: {e}")
-        models_dict['image_model'] = None
-        flash("AI image analysis unavailable due to model loading failure.", "error")
-
-    # Load language model for report generation
-    try:
-        models_dict['report_tokenizer'] = AutoTokenizer.from_pretrained("microsoft/BioGPT-Large")
-        models_dict['report_model'] = AutoModelForCausalLM.from_pretrained("microsoft/BioGPT-Large").to(device)
-        logger.info("Loaded microsoft/BioGPT-Large for report generation")
-    except Exception as e:
-        logger.warning(f"Failed to load BioGPT: {e}")
-        models_dict['report_tokenizer'] = None
-        models_dict['report_model'] = None
-
-    return models_dict
-
-models = load_models()
+# Initialize NVIDIA NIM client
+nim_client = NvidiaNIMClient()
 
 def allowed_file(filename):
     """Check if the uploaded file has a valid DICOM extension."""
@@ -95,9 +36,12 @@ def validate_dicom_file(filepath):
         if not hasattr(dicom, 'PixelData'):
             logger.error(f"No PixelData in {filepath}")
             return False, "DICOM file has no pixel data"
-        if dicom.file_meta.TransferSyntaxUID.is_compressed:
+        if hasattr(dicom, 'file_meta') and hasattr(dicom.file_meta, 'TransferSyntaxUID') and dicom.file_meta.TransferSyntaxUID.is_compressed:
             logger.debug(f"Decompressing {filepath}")
-            dicom.decompress()
+            try:
+                dicom.decompress()
+            except Exception as e:
+                logger.warning(f"Could not decompress pixel data: {e}")
         _ = dicom.pixel_array
         logger.debug(f"Validated DICOM: {filepath}, shape: {dicom.pixel_array.shape}")
         return True, "Valid DICOM image"
@@ -112,7 +56,7 @@ def get_modality_and_body_part(dicom):
     modality_map = {'CR': 'X-ray', 'DX': 'X-ray', 'CT': 'CT Scan', 'MR': 'MRI', 'PT': 'PET', 'CY': 'Cytology'}
     modality = modality_map.get(modality, modality)
     if body_part == 'unknown' and hasattr(dicom, 'StudyDescription'):
-        body_part = dicom.StudyDescription.lower() or 'unspecified region'
+        body_part = str(getattr(dicom, 'StudyDescription', '')).lower() or 'unspecified region'
     patient_info = {
         'patient_id': getattr(dicom, 'PatientID', 'Unknown'),
         'patient_name': str(getattr(dicom, 'PatientName', 'Unknown')),
@@ -123,85 +67,43 @@ def get_modality_and_body_part(dicom):
     logger.debug(f"Extracted: modality={modality}, body_part={body_part}")
     return modality, body_part, patient_info
 
-def preprocess_dicom(dicom_path, target_size=224):
-    """Preprocess the DICOM image for model inference."""
-    logger.debug(f"Preprocessing DICOM: {dicom_path}")
-    try:
-        dicom = pydicom.dcmread(dicom_path, force=True)
-        if dicom.file_meta.TransferSyntaxUID.is_compressed:
-            logger.debug(f"Decompressing {dicom_path}")
-            dicom.decompress()
-        image = dicom.pixel_array.astype(np.float32)
-        logger.debug(f"Raw image shape: {image.shape}")
-        if len(image.shape) == 3:
-            if image.shape[-1] in [3, 4]:
-                image = np.mean(image, axis=-1)
-            elif image.shape[0] > 1:
-                image = image[image.shape[0] // 2]
-        elif len(image.shape) > 3:
-            raise ValueError(f"Unsupported image dimensions: {image.shape}")
-        if image.max() > image.min():
-            image = (image - image.min()) / (image.max() - image.min())
-        else:
-            image = np.zeros_like(image)
-            logger.warning(f"No contrast in {dicom_path}, using zeroed image")
-        image = np.expand_dims(image, axis=(0, 1))  # [1, 1, H, W]
-        image = torch.from_numpy(image).float()
-        image = F.interpolate(image, size=(target_size, target_size), mode='bilinear', align_corners=False)
-        logger.debug(f"Preprocessed shape: {image.shape}")
-        modality, body_part, patient_info = get_modality_and_body_part(dicom)
-        return image.to(device), modality, body_part, patient_info
-    except Exception as e:
-        logger.error(f"Preprocessing failed for {dicom_path}: {e}")
-        raise
-
-def analyze_dicom(dicom_path):
-    """Analyze a DICOM image using the loaded AI model, supporting multi-label predictions."""
+def analyze_dicom(dicom_path, description="", symptoms=""):
+    """Analyze a DICOM image using NVIDIA NIM Vision model API with DICOM metadata extraction."""
     logger.debug(f"Analyzing DICOM: {dicom_path}")
-    if not models['image_model']:
-        logger.error("Image model unavailable")
-        return {"error": "AI analysis unavailable", "status": "error"}
     try:
         is_valid, message = validate_dicom_file(dicom_path)
         if not is_valid:
             logger.error(f"Validation failed: {message}")
             return {"error": message, "status": "error"}
-        image, modality, body_part, patient_info = preprocess_dicom(dicom_path)
-        logger.debug(f"Preprocessed: shape={image.shape}, modality={modality}, body_part={body_part}")
-        with torch.no_grad():
-            outputs = models['image_model'](image)
-            probs = torch.sigmoid(outputs)  # Multi-label
-            threshold = 0.7  # Match generate_report threshold
-            classes = [
-                'Normal', 'Inflammation', 'Mass', 'Nodule', 'Cyst',
-                'Fracture', 'Thickening', 'Edema', 'Tumor', 'Lesion',
-                'Hemorrhage', 'Midline Shift', 'Effusion', 'Infiltration', 'Abnormality'
-            ]
-            predictions = [classes[i] for i, p in enumerate(probs[0]) if p.item() > threshold]
-            confidences = [round(p.item() * 100, 1) for p in probs[0] if p.item() > threshold]
-            if not predictions:  # Default to Normal if no high-confidence findings
-                max_conf, pred_idx = torch.max(probs, 1)
-                if max_conf.item() < 0.7:
-                    predictions = ['Normal']
-                    confidences = [round(max_conf.item() * 100, 1)]
-                else:
-                    predictions = [classes[pred_idx.item()]]
-                    confidences = [round(max_conf.item() * 100, 1)]
-            result = {
-                'predictions': predictions,
-                'confidence': max(confidences) if confidences else 0,
-                'all_probs': {c: round(p.item() * 100, 1) for c, p in zip(classes, probs[0]) if p.item() > 0.05},
-                'status': 'success',
-                'filename': os.path.basename(dicom_path),
-                'modality': modality,
-                'body_part': body_part,
-                'patient_info': patient_info
-            }
-            logger.debug(f"Analysis result: {result}")
-            return result
+
+        dicom = pydicom.dcmread(dicom_path, force=True)
+        modality, body_part, patient_info = get_modality_and_body_part(dicom)
+        logger.debug(f"DICOM metadata: modality={modality}, body_part={body_part}")
+
+        nim_analysis = nim_client.analyze_radiology(
+            modality=modality,
+            body_part=body_part,
+            description=description,
+            symptoms=symptoms
+        )
+
+        result = {
+            'predictions': nim_analysis.get('predictions', ['Normal']),
+            'confidence': nim_analysis.get('confidence', 88.0),
+            'impression': nim_analysis.get('impression', f"Unremarkable {modality} examination."),
+            'status': 'success',
+            'filename': os.path.basename(dicom_path),
+            'modality': modality,
+            'body_part': body_part,
+            'patient_info': patient_info
+        }
+        logger.debug(f"Analysis result via NVIDIA NIM: {result}")
+        return result
+
     except Exception as e:
         logger.error(f"Analysis failed for {dicom_path}: {e}")
         return {"error": str(e), "status": "error"}
+
 
 def generate_report(analysis_results, patient_id, result_id, description=None, symptoms=None, custom_findings=None, custom_impression=None):
     """

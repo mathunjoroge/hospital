@@ -1,141 +1,229 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container">
-    <h2 class="mb-4">Register New Patient</h2>
-    <form method="POST" novalidate>
+<style>
+  :root {
+    --rc-primary: #1a56db;
+    --rc-primary-dark: #1e3a8a;
+    --rc-primary-light: #3b82f6;
+    --rc-header-bg: linear-gradient(135deg, #1e3a8a 0%, #1a56db 60%, #3b82f6 100%);
+    --rc-card-shadow: 0 4px 24px rgba(26,86,219,0.10);
+    --rc-border: #e0e7ff;
+    --rc-bg: #f0f4ff;
+  }
+  body { background: var(--rc-bg); }
+  .rc-header {
+    background: var(--rc-header-bg);
+    border-radius: 18px;
+    padding: 2rem 2.5rem;
+    color: white;
+    margin-bottom: 2rem;
+    box-shadow: 0 8px 32px rgba(26,86,219,0.25);
+    position: relative;
+    overflow: hidden;
+  }
+  .rc-header::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.06); }
+  .rc-header h1 { font-size:1.7rem; font-weight:700; margin:0 0 .25rem; }
+  .rc-header p { margin:0; opacity:.8; font-size:.95rem; }
 
+  .rc-card { background:white; border-radius:16px; box-shadow:var(--rc-card-shadow); overflow:hidden; margin-bottom:1.5rem; }
+  .rc-section-header {
+    background: linear-gradient(90deg, #eff6ff, #e0e7ff);
+    border-left: 4px solid var(--rc-primary);
+    padding: .8rem 1.2rem;
+    font-weight: 700;
+    color: var(--rc-primary-dark);
+    font-size: .95rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: .5rem;
+    border-radius: 8px;
+  }
+  .rc-form-card { background:white; border-radius:16px; box-shadow:var(--rc-card-shadow); padding:2rem; margin-bottom:1.5rem; }
+  .form-label { font-weight:600; font-size:.88rem; color:#374151; margin-bottom:.3rem; }
+  .form-control, .form-select {
+    border: 1.5px solid var(--rc-border);
+    border-radius:8px;
+    padding:.55rem .9rem;
+    font-size:.9rem;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .form-control:focus, .form-select:focus {
+    border-color: var(--rc-primary);
+    box-shadow: 0 0 0 3px rgba(26,86,219,0.12);
+  }
+  .required-star { color: #ef4444; }
+  .btn-rc-submit {
+    background: var(--rc-header-bg);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: .75rem 2.5rem;
+    font-weight: 700;
+    font-size: 1rem;
+    width: 100%;
+    cursor: pointer;
+    transition: opacity .2s, transform .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+  }
+  .btn-rc-submit:hover { opacity:.9; transform:translateY(-1px); }
+  .btn-rc-back {
+    background: white;
+    color: var(--rc-primary);
+    border: 1.5px solid var(--rc-border);
+    border-radius: 8px;
+    padding: .5rem 1.2rem;
+    font-weight: 600;
+    font-size: .88rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    transition: all .15s;
+  }
+  .btn-rc-back:hover { background:#eff6ff; color:var(--rc-primary); }
+</style>
 
-        <div class="row">
-            <!-- Left Column -->
-            <div class="col-md-6">
-                <!-- Name -->
-                <div class="mb-3">
-                    <label for="name" class="form-label">Name</label>
-                    <input type="text" class="form-control" id="name" name="name" required>
-                </div>
+<div class="container-fluid px-4 py-4">
 
-                <!-- Place of Residence -->
-                <div class="mb-3">
-                    <label for="place_of_residence" class="form-label">Place of Residence</label>
-                    <input type="text" class="form-control" id="place_of_residence" name="place_of_residence" required>
-                </div>
-
-                <!-- Sex -->
-                <div class="mb-3">
-                    <label for="sex" class="form-label">Sex</label>
-                    <select class="form-select" id="sex" name="sex" required>
-                        <option value="">Select Sex</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-
-                <!-- Date of Birth -->
-                <div class="mb-3">
-                    <label for="date_of_birth" class="form-label">Date of Birth</label>
-                    <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" required>
-                </div>
-
-                <!-- Marital Status -->
-                <div class="mb-3">
-                    <label for="marital_status" class="form-label">Marital Status</label>
-                    <select class="form-select" id="marital_status" name="marital_status" required>
-                        <option value="">Select Marital Status</option>
-                        <option value="Single">Single</option>
-                        <option value="Married">Married</option>
-                        <option value="Divorced">Divorced</option>
-                        <option value="Widowed">Widowed</option>
-                    </select>
-                </div>
-
-                <!-- Blood Group -->
-                <div class="mb-3">
-                    <label for="blood_group" class="form-label">Blood Group</label>
-                    <select class="form-select" id="blood_group" name="blood_group" required>
-                        <option value="">Select Blood Group</option>
-                        <option value="A+">A+</option>
-                        <option value="A-">A-</option>
-                        <option value="B+">B+</option>
-                        <option value="B-">B-</option>
-                        <option value="O+">O+</option>
-                        <option value="O-">O-</option>
-                        <option value="AB+">AB+</option>
-                        <option value="AB-">AB-</option>
-                    </select>
-                </div>
-
-                <!-- Contact Number -->
-                <div class="mb-3">
-                    <label for="contact" class="form-label">Contact Number</label>
-                    <input type="tel" class="form-control" id="contact" name="contact" required>
-                </div>
-
-                <!-- Next of Kin -->
-                <div class="mb-3">
-                    <label for="next_of_kin" class="form-label">Next of Kin</label>
-                    <input type="text" class="form-control" id="next_of_kin" name="next_of_kin" required>
-                </div>
-            </div>
-
-            <!-- Right Column -->
-            <div class="col-md-6">
-                <!-- Relationship with Next of Kin -->
-                <div class="mb-3">
-                    <label for="relationship_with_next_of_kin" class="form-label">Relationship with Next of Kin</label>
-                    <input type="text" class="form-control" id="relationship_with_next_of_kin" name="relationship_with_next_of_kin" required>
-                </div>
-
-                <!-- Next of Kin Contact -->
-                <div class="mb-3">
-                    <label for="next_of_kin_contact" class="form-label">Next of Kin Contact</label>
-                    <input type="tel" class="form-control" id="next_of_kin_contact" name="next_of_kin_contact" required>
-                </div>
-
-                <!-- National ID/Passport Number -->
-                <div class="mb-3">
-                    <label for="national_id" class="form-label">National ID/Passport Number</label>
-                    <input type="text" class="form-control" id="national_id" name="national_id" required>
-                </div>
-
-                <!-- Insurance Provider -->
-                <div class="mb-3">
-                    <label for="insurance_provider" class="form-label">Insurance Provider</label>
-                    <input type="text" class="form-control" id="insurance_provider" name="insurance_provider">
-                </div>
-
-                <!-- Insurance Policy Number -->
-                <div class="mb-3">
-                    <label for="insurance_policy_number" class="form-label">Insurance Policy Number</label>
-                    <input type="text" class="form-control" id="insurance_policy_number" name="insurance_policy_number">
-                </div>
-
-                <!-- Occupation -->
-                <div class="mb-3">
-                    <label for="occupation" class="form-label">Occupation</label>
-                    <input type="text" class="form-control" id="occupation" name="occupation">
-                </div>
-
-                <!-- Employer Name -->
-                <div class="mb-3">
-                    <label for="employer_name" class="form-label">Employer Name</label>
-                    <input type="text" class="form-control" id="employer_name" name="employer_name">
-                </div>
-
-                <!-- Emergency Contact -->
-                <div class="mb-3">
-                    <label for="emergency_contact" class="form-label">Emergency Contact</label>
-                    <input type="tel" class="form-control" id="emergency_contact" name="emergency_contact" required>
-                </div>
-            </div>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
 
-        <!-- Submit Button -->
-        <div class="container">
-            
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Register Patient</button>
-            </div>
-        
-    </form>
+  <!-- Header -->
+  <div class="rc-header">
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+      <div>
+        <h1><i class="bi bi-person-plus-fill me-2"></i>Register New Patient</h1>
+        <p>Complete all required fields to create a patient record</p>
+      </div>
+      <a href="{{ url_for('records.index') }}" class="btn-rc-back">
+        <i class="bi bi-arrow-left"></i> Back to List
+      </a>
+    </div>
+  </div>
+
+  <form method="POST" novalidate>
+
+    <!-- Personal Information -->
+    <div class="rc-form-card">
+      <div class="rc-section-header"><i class="bi bi-person-badge"></i> Personal Information</div>
+      <div class="row g-3 mt-1">
+        <div class="col-md-6">
+          <label class="form-label">Full Name <span class="required-star">*</span></label>
+          <input type="text" class="form-control" name="name" placeholder="e.g. John Doe" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">National ID / Passport <span class="required-star">*</span></label>
+          <input type="text" class="form-control" name="national_id" placeholder="e.g. 12345678" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Sex <span class="required-star">*</span></label>
+          <select class="form-select" name="sex" required>
+            <option value="">Select...</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Date of Birth <span class="required-star">*</span></label>
+          <input type="date" class="form-control" name="date_of_birth" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Marital Status <span class="required-star">*</span></label>
+          <select class="form-select" name="marital_status" required>
+            <option value="">Select...</option>
+            <option value="Single">Single</option>
+            <option value="Married">Married</option>
+            <option value="Divorced">Divorced</option>
+            <option value="Widowed">Widowed</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Blood Group <span class="required-star">*</span></label>
+          <select class="form-select" name="blood_group" required>
+            <option value="">Select...</option>
+            <option>A+</option><option>A-</option>
+            <option>B+</option><option>B-</option>
+            <option>O+</option><option>O-</option>
+            <option>AB+</option><option>AB-</option>
+          </select>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label">Place of Residence <span class="required-star">*</span></label>
+          <input type="text" class="form-control" name="place_of_residence" placeholder="e.g. Nairobi, Westlands" required>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact Information -->
+    <div class="rc-form-card">
+      <div class="rc-section-header"><i class="bi bi-telephone"></i> Contact Information</div>
+      <div class="row g-3 mt-1">
+        <div class="col-md-6">
+          <label class="form-label">Primary Contact <span class="required-star">*</span></label>
+          <input type="tel" class="form-control" name="contact" placeholder="+254..." required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Emergency Contact <span class="required-star">*</span></label>
+          <input type="tel" class="form-control" name="emergency_contact" placeholder="+254..." required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Next of Kin <span class="required-star">*</span></label>
+          <input type="text" class="form-control" name="next_of_kin" placeholder="Full name" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Relationship <span class="required-star">*</span></label>
+          <input type="text" class="form-control" name="relationship_with_next_of_kin" placeholder="e.g. Spouse, Parent" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Next of Kin Contact <span class="required-star">*</span></label>
+          <input type="tel" class="form-control" name="next_of_kin_contact" placeholder="+254..." required>
+        </div>
+      </div>
+    </div>
+
+    <!-- Insurance & Employment -->
+    <div class="rc-form-card">
+      <div class="rc-section-header"><i class="bi bi-shield-check"></i> Insurance & Employment <span style="font-weight:400; font-size:.82rem; color:#64748b; margin-left:.5rem;">(Optional)</span></div>
+      <div class="row g-3 mt-1">
+        <div class="col-md-6">
+          <label class="form-label">Insurance Provider</label>
+          <input type="text" class="form-control" name="insurance_provider" placeholder="e.g. NHIF, AAR">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Insurance Policy Number</label>
+          <input type="text" class="form-control" name="insurance_policy_number" placeholder="Policy number">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Occupation</label>
+          <input type="text" class="form-control" name="occupation" placeholder="e.g. Teacher, Engineer">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Employer Name</label>
+          <input type="text" class="form-control" name="employer_name" placeholder="e.g. Ministry of Health">
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <div class="rc-form-card">
+      <button type="submit" class="btn-rc-submit">
+        <i class="bi bi-person-check-fill"></i> Register Patient
+      </button>
+    </div>
+
+  </form>
 </div>
 {% endblock %}

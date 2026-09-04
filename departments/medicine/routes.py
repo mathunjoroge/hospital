@@ -481,7 +481,24 @@ def index():
         ]
         if not valid_waiting_list:
             flash('No patients in the medicine waiting list.', 'info')  # Inform user if list is empty
-        return render_template('medicine/index.html', waiting_list=valid_waiting_list)
+
+        # KPI stats for dashboard
+        try:
+            total_inpatients = AdmittedPatient.query.filter(AdmittedPatient.discharged_on == None).count()
+            pending_labs = RequestedLab.query.filter_by(status='pending').count()
+            pending_imaging = RequestedImage.query.filter_by(status='pending').count()
+            theatre_pending = TheatreList.query.filter_by(status=0).count()
+        except Exception:
+            total_inpatients = pending_labs = pending_imaging = theatre_pending = 0
+
+        return render_template(
+            'medicine/index.html',
+            waiting_list=valid_waiting_list,
+            total_inpatients=total_inpatients,
+            pending_labs=pending_labs,
+            pending_imaging=pending_imaging,
+            theatre_pending=theatre_pending,
+        )
     except Exception as e:
         flash(f'Error fetching the waiting list: {e}', 'error')
         print(f"Debug: Error in medicine.index: {e}")  # Debugging
@@ -1188,6 +1205,7 @@ def drug_details(drug: str):
         return render_template('medicine/error.html', message="An error occurred while fetching drug details.")
 #add patient to theatre lists
 @bp.route('/add-to-theatre', methods=['GET', 'POST'])
+@login_required
 def add_to_theatre():
     """Add a patient to the theatre list."""
     if request.method == 'POST':
@@ -1244,6 +1262,7 @@ def add_to_theatre():
 
 # ✅ Corrected Route: Display Theatre List
 @bp.route('/theatre-list', methods=['GET'])
+@login_required
 def get_theatre_list():
     """Retrieve all theatre list entries."""
     try:
@@ -1272,6 +1291,7 @@ def get_theatre_list():
 
 
 @bp.route('/update-post-op/<int:entry_id>', methods=['GET', 'POST'])
+@login_required
 def update_post_op(entry_id):
     """Update post-operative notes for a theatre list entry."""
     try:
@@ -1390,6 +1410,7 @@ def admit_patient():
 
 # 2️⃣ Discharge a Patient (Free Up Bed)
 @bp.route('/discharge-patient/<int:id>', methods=['POST'])
+@login_required
 def discharge_patient(id):
     """Discharge a patient and free their assigned bed."""
     try:
@@ -1419,6 +1440,7 @@ def discharge_patient(id):
 
 # 3️⃣ patients in ward
 @bp.route('/admitted-patients', methods=['GET'])
+@login_required
 def view_admitted_patients():
     """View all admitted patients."""
     try:
@@ -1441,6 +1463,7 @@ def view_admitted_patients():
         flash(f"Error: {str(e)}", "danger")
         return redirect(url_for('medicine.admit_patient'))
 @bp.route('/ward-bed-history/<int:ward_id>', methods=['GET'])
+@login_required
 def ward_bed_history(ward_id):
     """View bed history for a ward."""
     try:
@@ -1459,6 +1482,7 @@ def ward_bed_history(ward_id):
     
 # ✅ Fetch available rooms in a ward
 @bp.route('/available-rooms/<int:ward_id>', methods=['GET'])
+@login_required
 def available_rooms(ward_id):
     """Return available rooms in a ward."""
     try:
@@ -1467,6 +1491,7 @@ def available_rooms(ward_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 @bp.route('/available-beds/<int:room_id>', methods=['GET'])
+@login_required
 def available_beds(room_id):
     """Return available beds in a room."""
     try:
@@ -1695,6 +1720,7 @@ def delete_disease(disease_id):
     return redirect(url_for('medicine.list_diseases'))
 
 @bp.route('/oncology', methods=['GET', 'POST'])
+@login_required
 def oncology():
     search_form = PatientSearchForm()
     selected_patient = None
@@ -1721,6 +1747,7 @@ def oncology():
 
 
 @bp.route('/oncology/encounter/<patient_id>', methods=['GET', 'POST'])
+@login_required
 def oncology_encounter(patient_id):
     # Fetch patient
     selected_patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
@@ -1825,6 +1852,7 @@ def add_onco_patient():
     patients = Patient.query.all()
     return render_template('medicine/oncology/add_onco_patient.html', patients=patients)
 @bp.route('/oncology/note/<int:note_id>/edit', methods=['GET', 'POST'])
+@login_required
 def edit_note(note_id):
     note = OncologyNote.query.get_or_404(note_id)
     patient = Patient.query.filter_by(patient_id=note.patient_id).first_or_404()

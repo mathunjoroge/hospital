@@ -1,71 +1,144 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h2 class="card-title mb-0"><i class="bi bi-heart-pulse me-2"></i>Record Vital Signs</h2>
-        </div>
-        <div class="card-body">
-            <!-- Flash Messages -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
+<style>
+  :root {
+    --ns-primary: #e11d48;
+    --ns-primary-dark: #be123c;
+    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+    --ns-card-shadow: 0 4px 20px rgba(225, 29, 72, 0.08);
+  }
+  .nursing-header-card {
+    background: var(--ns-header-bg);
+    color: #ffffff;
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(190, 18, 60, 0.2);
+  }
+  .form-card {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: var(--ns-card-shadow);
+    max-width: 900px;
+    margin: 0 auto;
+  }
+</style>
 
-            <form method="POST" action="{{ url_for('nursing.vital_signs') }}">
-                <div class="mb-3">
-                    <label for="patient_id" class="form-label">Patient ID</label>
-                    <input type="text" class="form-control" id="patient_id" name="patient_id" required>
-                </div>
-                <div class="mb-3">
-                    <label for="heart_rate" class="form-label">Heart Rate (bpm)</label>
-                    <input type="number" class="form-control" id="heart_rate" name="heart_rate">
-                </div>
-                <div class="mb-3">
-                    <label for="respiratory_rate" class="form-label">Respiratory Rate (breaths/min)</label>
-                    <input type="number" class="form-control" id="respiratory_rate" name="respiratory_rate">
-                </div>
-                <div class="mb-3">
-                    <label for="oxygen_saturation" class="form-label">Oxygen Saturation (%)</label>
-                    <input type="number" class="form-control" id="oxygen_saturation" name="oxygen_saturation">
-                </div>
-                <div class="mb-3">
-                    <label for="temperature" class="form-label">Temperature (°C)</label>
-                    <input type="number" step="0.1" class="form-control" id="temperature" name="temperature">
-                </div>
-                <div class="mb-3">
-                    <label for="pulse" class="form-label">Pulse (bpm)</label>
-                    <input type="number" class="form-control" id="pulse" name="pulse">
-                </div>
-                <div class="mb-3">
-                    <label for="blood_pressure_systolic" class="form-label">Blood Pressure Systolic (mmHg)</label>
-                    <input type="number" class="form-control" id="blood_pressure_systolic" name="blood_pressure_systolic">
-                </div>
-                <div class="mb-3">
-                    <label for="blood_pressure_diastolic" class="form-label">Blood Pressure Diastolic (mmHg)</label>
-                    <input type="number" class="form-control" id="blood_pressure_diastolic" name="blood_pressure_diastolic">
-                </div>
-                <div class="mb-3">
-                    <label for="blood_glucose" class="form-label">Blood Glucose (mg/dL)</label>
-                    <input type="number" step="0.1" class="form-control" id="blood_glucose" name="blood_glucose">
-                </div>
-                <div class="mb-3">
-                    <label for="weight" class="form-label">Weight (kg)</label>
-                    <input type="number" step="0.1" class="form-control" id="weight" name="weight">
-                </div>
-                <div class="mb-3">
-                    <label for="height" class="form-label">Height (cm)</label>
-                    <input type="number" step="0.1" class="form-control" id="height" name="height">
-                </div>
-                <button type="submit" class="btn btn-primary">Record Vital Signs</button>
-            </form>
-        </div>
+<div class="container-fluid px-4 py-3">
+  <!-- Header Banner -->
+  <div class="nursing-header-card max-w-900 mx-auto d-flex align-items-center justify-content-between" style="max-width: 900px;">
+    <div>
+      <h2 class="fw-bold mb-1"><i class="bi bi-heart-pulse-fill me-2"></i> Record Physiological Vital Signs</h2>
+      <p class="mb-0 text-white-50 fs-6">Input patient temperature, blood pressure, pulse, SpO2, and glucose levels.</p>
     </div>
+    <div>
+      <a href="{{ url_for('nursing.index') }}" class="btn btn-light fw-bold text-danger">
+        <i class="bi bi-arrow-left me-1"></i> Triage Queue
+      </a>
+    </div>
+  </div>
+
+  <!-- Form Card -->
+  <div class="card form-card p-4">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'danger' if category in ['error', 'danger'] else category }} alert-dismissible fade show rounded-3 mb-4" role="alert">
+            <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('nursing.vital_signs') }}">
+      <!-- Patient Selection -->
+      <div class="mb-4">
+        <label for="patient_id" class="form-label fw-bold text-dark"><i class="bi bi-person me-1 text-danger"></i> Patient ID <span class="text-danger">*</span></label>
+        <input type="text" class="form-control form-control-lg font-monospace" id="patient_id" name="patient_id" placeholder="Enter Patient ID (e.g. P1000)" value="{{ request.args.get('patient_id', '') }}" required>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <!-- Temp -->
+        <div class="col-md-4">
+          <label for="temperature" class="form-label fw-bold text-dark">Temperature (°C)</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light text-danger"><i class="bi bi-thermometer-half"></i></span>
+            <input type="number" step="0.1" class="form-control font-monospace" id="temperature" name="temperature" placeholder="36.5">
+          </div>
+          <small class="text-muted">Normal: 36.1 - 37.2 °C</small>
+        </div>
+
+        <!-- Pulse -->
+        <div class="col-md-4">
+          <label for="pulse" class="form-label fw-bold text-dark">Pulse Rate (bpm)</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light text-success"><i class="bi bi-activity"></i></span>
+            <input type="number" class="form-control font-monospace" id="pulse" name="pulse" placeholder="72">
+          </div>
+          <small class="text-muted">Normal: 60 - 100 bpm</small>
+        </div>
+
+        <!-- SpO2 -->
+        <div class="col-md-4">
+          <label for="oxygen_saturation" class="form-label fw-bold text-dark">Oxygen Saturation (SpO2 %)</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light text-primary"><i class="bi bi-wind"></i></span>
+            <input type="number" class="form-control font-monospace" id="oxygen_saturation" name="oxygen_saturation" placeholder="98">
+          </div>
+          <small class="text-muted">Normal: 95 - 100 %</small>
+        </div>
+
+        <!-- BP Systolic -->
+        <div class="col-md-4">
+          <label for="blood_pressure_systolic" class="form-label fw-bold text-dark">BP Systolic (mmHg)</label>
+          <input type="number" class="form-control font-monospace" id="blood_pressure_systolic" name="blood_pressure_systolic" placeholder="120">
+          <small class="text-muted">Normal: 90 - 120 mmHg</small>
+        </div>
+
+        <!-- BP Diastolic -->
+        <div class="col-md-4">
+          <label for="blood_pressure_diastolic" class="form-label fw-bold text-dark">BP Diastolic (mmHg)</label>
+          <input type="number" class="form-control font-monospace" id="blood_pressure_diastolic" name="blood_pressure_diastolic" placeholder="80">
+          <small class="text-muted">Normal: 60 - 80 mmHg</small>
+        </div>
+
+        <!-- Respiration -->
+        <div class="col-md-4">
+          <label for="respiratory_rate" class="form-label fw-bold text-dark">Respiration Rate (rpm)</label>
+          <input type="number" class="form-control font-monospace" id="respiratory_rate" name="respiratory_rate" placeholder="16">
+          <small class="text-muted">Normal: 12 - 20 rpm</small>
+        </div>
+
+        <!-- Glucose -->
+        <div class="col-md-4">
+          <label for="blood_glucose" class="form-label fw-bold text-dark">Blood Glucose (mg/dL)</label>
+          <input type="number" step="0.1" class="form-control font-monospace" id="blood_glucose" name="blood_glucose" placeholder="95">
+        </div>
+
+        <!-- Weight -->
+        <div class="col-md-4">
+          <label for="weight" class="form-label fw-bold text-dark">Weight (kg)</label>
+          <input type="number" step="0.1" class="form-control font-monospace" id="weight" name="weight" placeholder="70.5">
+        </div>
+
+        <!-- Height -->
+        <div class="col-md-4">
+          <label for="height" class="form-label fw-bold text-dark">Height (cm)</label>
+          <input type="number" step="0.1" class="form-control font-monospace" id="height" name="height" placeholder="175">
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+        <a href="{{ url_for('nursing.index') }}" class="btn btn-light px-4 fw-semibold">Cancel</a>
+        <button type="submit" class="btn btn-danger px-5 fw-bold">
+          <i class="bi bi-check-lg me-1"></i> Save Vitals Record
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 {% endblock %}

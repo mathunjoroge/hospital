@@ -1,48 +1,100 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5 billing-container">
-    <!-- Header -->
-    <div class="billing-header mb-4">
-        <h2 class="billing-title">{{ "Payment Confirmation" if payment_success else "Unpaid Bills" }}</h2>
-        <p class="patient-info">Patient: <strong>{{ patient.name }}</strong> | ID: <strong>{{ patient.patient_id }}</strong></p>
-        {% if not payment_success %}
-            <button type="button" id="select-all-global" class="btn btn-secondary mt-2">Select All</button>
-        {% endif %}
+<style>
+  :root {
+    --bl-primary: #059669;
+    --bl-primary-dark: #047857;
+    --bl-header-bg: linear-gradient(135deg, #064e3b 0%, #059669 60%, #10b981 100%);
+    --bl-card-shadow: 0 4px 20px rgba(5, 150, 105, 0.08);
+  }
+  .billing-header-card {
+    background: var(--bl-header-bg);
+    color: #ffffff;
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(4, 120, 87, 0.2);
+  }
+</style>
+
+<div class="container-fluid px-4 py-3 billing-container">
+    <!-- Header Banner -->
+    <div class="billing-header-card d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="bi bi-cash-register me-2"></i> {{ "Payment Confirmation" if payment_success else "Cashier Checkout Desk" }}</h2>
+            <p class="mb-0 text-white-50 fs-6">Patient: <strong class="text-white">{{ patient.name }}</strong> | ID: <span class="font-monospace fw-bold">{{ patient.patient_id }}</span></p>
+        </div>
+        <div class="mt-3 mt-md-0 d-flex gap-2">
+            <a href="{{ url_for('billing.paid_bills', patient_id=patient.patient_id) }}" class="btn btn-outline-light fw-bold">
+                <i class="bi bi-clock-history me-1"></i> Payment History
+            </a>
+            {% if not payment_success %}
+                <button type="button" id="select-all-global" class="btn btn-light text-success fw-bold">
+                    <i class="bi bi-check2-square me-1"></i> Select All Items
+                </button>
+            {% endif %}
+        </div>
     </div>
 
     {% if payment_success %}
         <!-- Payment Confirmation -->
-        <div class="card billing-card mb-4">
-            <div class="card-body">
-                <h3 class="card-title">Payment Successful</h3>
-                <p><strong>Receipt Number:</strong> {{ receipt_number }}</p>
-                <p><strong>Amount Paid:</strong> Kshs {{ "{:,.2f}".format(amount_paid) }}</p>
-                <p><strong>Payment Method:</strong> {{ payment_method }}</p>
-                {% if payment_reference %}
-                    <p><strong>Payment Reference:</strong> {{ payment_reference }}</p>
-                {% endif %}
-                <h4>Paid Items:</h4>
-                <table class="table table-striped table-bordered billing-table">
-                    <thead class="table-dark">
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-body p-4">
+                <div class="alert alert-success d-flex align-items-center mb-4 rounded-3">
+                    <i class="bi bi-check-circle-fill fs-2 me-3"></i>
+                    <div>
+                        <h4 class="alert-heading mb-1 fw-bold">Payment Successfully Processed!</h4>
+                        <p class="mb-0">Receipt <strong>{{ receipt_number }}</strong> has been recorded in the database.</p>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 border">
+                            <small class="text-uppercase fw-bold text-muted d-block">Receipt Number</small>
+                            <span class="fs-5 font-monospace fw-bold text-dark">{{ receipt_number }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 border">
+                            <small class="text-uppercase fw-bold text-muted d-block">Amount Paid</small>
+                            <span class="fs-5 font-monospace fw-bold text-success">Kshs {{ "{:,.2f}".format(amount_paid) }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 border">
+                            <small class="text-uppercase fw-bold text-muted d-block">Payment Method</small>
+                            <span class="fs-5 font-bold text-primary">{{ payment_method }} {{ '(' ~ payment_reference ~ ')' if payment_reference else '' }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <h5 class="fw-bold mb-3 text-dark">Settled Item Breakdown</h5>
+                <table class="table table-bordered align-middle">
+                    <thead class="table-light">
                         <tr>
                             <th>Category</th>
                             <th>Details</th>
-                            <th>Total Cost</th>
+                            <th class="text-end">Total Cost</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for category, total in paid_totals.items() %}
                             <tr>
-                                <td>{{ category }}</td>
-                                <td>{{ paid_items[category]|join(', ') }}</td>
-                                <td class="text-right">Kshs {{ "{:,.2f}".format(total) }}</td>
+                                <td><span class="fw-bold text-dark">{{ category }}</span></td>
+                                <td><span class="text-muted">{{ paid_items[category]|join(', ') }}</span></td>
+                                <td class="text-end font-monospace fw-bold">Kshs {{ "{:,.2f}".format(total) }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
-                <div class="text-center mt-3">
-                    <a href="{{ url_for('billing.pay_bills', patient_id=patient.patient_id) }}" class="btn btn-primary">Back to Unpaid Bills</a>
-                    <button type="button" class="btn btn-info" onclick="window.print()">Print Receipt</button>
+                <div class="text-center mt-4 d-flex justify-content-center gap-2">
+                    <a href="{{ url_for('billing.pay_bills', patient_id=patient.patient_id) }}" class="btn btn-outline-secondary px-4 fw-semibold">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Unpaid Desk
+                    </a>
+                    <a href="{{ url_for('billing.official_receipt', receipt_number=receipt_number) }}" class="btn btn-success px-4 fw-bold shadow-sm">
+                        <i class="bi bi-printer-fill me-1"></i> View / Print Official Receipt
+                    </a>
                 </div>
             </div>
         </div>
@@ -418,7 +470,10 @@
 </style>
 
 <script>
-    {% if not payment_success %}
+document.addEventListener("DOMContentLoaded", function() {
+    const globalBtn = document.getElementById('select-all-global');
+    if (!globalBtn) return;
+
     // Select All Checkboxes per Section
     document.querySelectorAll('.select-all').forEach(checkbox => {
         checkbox.addEventListener('change', function() {
@@ -429,10 +484,10 @@
     });
 
     // Global Select All Button
-    document.getElementById('select-all-global').addEventListener('click', function() {
-        const isChecked = this.textContent === 'Select All';
+    globalBtn.addEventListener('click', function() {
+        const isChecked = this.textContent.trim().includes('Select All');
         document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = isChecked);
-        this.textContent = isChecked ? 'Deselect All' : 'Select All';
+        this.innerHTML = isChecked ? '<i class="bi bi-x-square me-1"></i> Deselect All' : '<i class="bi bi-check2-square me-1"></i> Select All Items';
         updateSelectedTotal();
     });
 
@@ -450,8 +505,14 @@
                 }
             }
         });
-        document.getElementById('selected-total').innerHTML = `<strong>Selected Total: Kshs ${total.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</strong>`;
-        document.getElementById('amount_paid').value = total.toFixed(2);
+        const selectedTotalEl = document.getElementById('selected-total');
+        if (selectedTotalEl) {
+            selectedTotalEl.innerHTML = `<strong>Selected Total: Kshs ${total.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</strong>`;
+        }
+        const amountPaidInput = document.getElementById('amount_paid');
+        if (amountPaidInput) {
+            amountPaidInput.value = total.toFixed(2);
+        }
         updateReceiptPreview();
     }
 
@@ -460,7 +521,9 @@
         const items = [];
         let total = 0;
         document.querySelectorAll('.billing-card').forEach(card => {
-            const category = card.querySelector('.card-title').textContent;
+            const titleEl = card.querySelector('.card-title');
+            if (!titleEl) return;
+            const category = titleEl.textContent;
             let categoryTotal = 0;
             const checkedRows = card.querySelectorAll('input[type="checkbox"]:checked');
             if (checkedRows.length > 0) {
@@ -469,23 +532,24 @@
                     const costCell = row.querySelector('.text-right');
                     const cost = costCell ? parseFloat(costCell.textContent.replace('Kshs ', '').replace(/,/g, '')) || 0 : 0;
                     categoryTotal += cost;
-                    return row.cells[2].textContent; // e.g., Drug name, Test name
+                    return row.cells[2].textContent;
                 }).join(', ');
                 items.push(`<tr><td>${category}</td><td>${details}</td><td>Kshs ${categoryTotal.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}</td></tr>`);
                 total += categoryTotal;
             }
         });
-        document.getElementById('receipt-items').innerHTML = items.join('');
-        document.getElementById('receipt-total').textContent = total.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+        const receiptItems = document.getElementById('receipt-items');
+        if (receiptItems) receiptItems.innerHTML = items.join('');
+        const receiptTotal = document.getElementById('receipt-total');
+        if (receiptTotal) receiptTotal.textContent = total.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
     }
 
     // Event Listeners
-    document.querySelectorAll('input[name="dispensed_drugs"], input[name="requested_labs"], input[name="clinic_bookings"], input[name="theatre_list"], input[name="requested_images"], input[name="admitted_patients"]').forEach(cb => {
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
         cb.addEventListener('change', updateSelectedTotal);
     });
 
-    // Initial call to ensure correct state
     updateSelectedTotal();
-    {% endif %}
+});
 </script>
 {% endblock %}

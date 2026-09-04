@@ -87,7 +87,7 @@ class RequestedLab(db.Model):
     __tablename__ = 'requested_labs'
     
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey('patients.patient_id'), nullable=False)
+    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)
     lab_test_id = db.Column(db.Integer, db.ForeignKey('labtests.id'), nullable=False)
     date_requested = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.Integer, default=0)
@@ -142,7 +142,7 @@ class UnmatchedImagingRequest(db.Model):
     __tablename__ = 'unmatched_imaging_requests'
 
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey('patients.patient_id'), nullable=False)
+    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)
     description = db.Column(db.Text, nullable=False)
     date_requested = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -226,6 +226,8 @@ class AdmittedPatient(db.Model):
 
     # Relationships
     ward = db.relationship("Ward", backref="admitted_patients")
+    patient = db.relationship("Patient", backref=db.backref("admitted_records", lazy=True))
+
     
     def __repr__(self):
         return f"<AdmittedPatient {self.patient_id} - Ward: {self.ward_id} - Admitted On: {self.admitted_on}>"  
@@ -348,7 +350,7 @@ class OncoPatient(db.Model):
     """Represents a patient enrolled in oncology care."""
     __tablename__ = 'onco_patients'
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False, index=True)  # Links to Patient model
+    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False, index=True)  # Links to Patient model
     diagnosis = db.Column(db.String(200), nullable=False)  # e.g., 'Breast Cancer, Stage II'
     diagnosis_date = db.Column(db.Date, nullable=False)
     cancer_type = db.Column(db.String(100), nullable=False)  # e.g., 'Breast', 'Lung', 'Prostate'

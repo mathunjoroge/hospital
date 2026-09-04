@@ -1,56 +1,156 @@
 {% extends "base.html" %}
+{% block title %}Nursing Notes Log - Kardex System{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">Nursing Notes</h2>
+<style>
+  :root {
+    --ns-primary: #e11d48;
+    --ns-primary-hover: #be123c;
+    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+  }
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  .ns-header-card {
+    background: var(--ns-header-bg);
+    color: #ffffff;
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.3);
+  }
+
+  .ns-glass-card {
+    background: var(--bs-body-bg);
+    border: 1px solid rgba(225, 29, 72, 0.15);
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  }
+
+  .ns-card-header {
+    background: rgba(225, 29, 72, 0.06);
+    border-bottom: 1px solid rgba(225, 29, 72, 0.12);
+    border-top-left-radius: 14px !important;
+    border-top-right-radius: 14px !important;
+  }
+
+  .ns-btn-primary {
+    background-color: var(--ns-primary);
+    border-color: var(--ns-primary);
+    color: #fff;
+  }
+  .ns-btn-primary:hover {
+    background-color: var(--ns-primary-hover);
+    border-color: var(--ns-primary-hover);
+    color: #fff;
+  }
+</style>
+
+<div class="container-fluid py-4 px-4">
+
+  <!-- Header Banner -->
+  <div class="card ns-header-card mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+          <span class="badge bg-white text-danger px-3 py-2 fw-semibold rounded-pill mb-2">
+            <i class="bi bi-journal-medical me-1"></i> Ward Kardex Log
+          </span>
+          <h2 class="h1 fw-bold text-white mb-1">
+            <i class="bi bi-journal-text me-2"></i>Nursing Notes History
+          </h2>
+          <p class="text-white-50 mb-0">Complete audit stream of patient clinical observations, care notes, and shift handovers.</p>
+        </div>
+
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('nursing.add_note') }}" class="btn btn-light rounded-pill px-4 shadow-sm text-danger fw-semibold">
+            <i class="bi bi-pencil-square me-1"></i> Add New Note
+          </a>
+          <a href="{{ url_for('nursing.ward_patients') }}" class="btn btn-outline-light rounded-pill px-3 shadow-sm">
+            <i class="bi bi-arrow-left me-1"></i> Ward View
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card ns-glass-card mb-4">
+    <div class="card-header ns-card-header py-3 d-flex align-items-center justify-content-between">
+      <h5 class="mb-0 text-danger fw-bold"><i class="bi bi-list-ul me-2"></i>Recorded Clinical Notes ({{ notes|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+      {% if notes %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light text-uppercase small">
+            <tr>
+              <th class="ps-4">Patient</th>
+              <th>Nurse</th>
+              <th>Observation / Note</th>
+              <th>Kardex Background</th>
+              <th>Timestamp</th>
+              <th class="pe-4 text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for note in notes %}
+            <tr>
+              <td class="ps-4">
+                <a href="{{ url_for('nursing.patient_dashboard') }}?patient_id={{ note.patient_id }}" class="fw-bold text-danger text-decoration-none">
+                  <i class="bi bi-person-circle me-1"></i>#{{ note.patient_id }}
+                </a>
+              </td>
+              <td>
+                <span class="badge bg-secondary-subtle text-secondary px-2 py-1 rounded-pill">
+                  <i class="bi bi-person me-1"></i>{{ note.nurse.username if note.nurse else 'Staff Nurse' }}
+                </span>
+              </td>
+              <td style="max-width: 300px;">
+                <p class="mb-1 text-dark fw-medium fs-6">{{ note.note }}</p>
+                {% if note.shift_update %}
+                <div class="small text-muted border-top pt-1 mt-1">
+                  <strong>Shift Update:</strong> {{ note.shift_update }}
                 </div>
+                {% endif %}
+              </td>
+              <td style="max-width: 250px;">
+                <div class="d-flex flex-wrap gap-1">
+                  {% if note.code_status %}
+                  <span class="badge bg-warning text-dark me-1"><i class="bi bi-shield-exclamation me-1"></i>{{ note.code_status }}</span>
+                  {% endif %}
+                  {% if note.allergies %}
+                  <span class="badge bg-danger text-white me-1"><i class="bi bi-exclamation-triangle me-1"></i>{{ note.allergies }}</span>
+                  {% endif %}
+                  {% if note.medications %}
+                  <span class="badge bg-info text-dark"><i class="bi bi-capsule me-1"></i>Meds Logged</span>
+                  {% endif %}
+                  {% if not note.code_status and not note.allergies and not note.medications %}
+                  <span class="text-muted small">Standard entry</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="text-muted small">
+                {% if note.timestamp %}
+                  {{ note.timestamp.strftime('%Y-%m-%d %H:%M') if note.timestamp.strftime is defined else note.timestamp }}
+                {% else %}
+                  N/A
+                {% endif %}
+              </td>
+              <td class="pe-4 text-end">
+                <a href="{{ url_for('nursing.patient_dashboard') }}?patient_id={{ note.patient_id }}" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                  Kardex <i class="bi bi-arrow-right me-1"></i>
+                </a>
+              </td>
+            </tr>
             {% endfor %}
-        {% endif %}
-    {% endwith %}
-
-    {% if notes %}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">Patient Notes</h4>
-        </div>
-        <div class="card-body">
-            <table class="table table-striped">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Patient ID</th>
-                        <th>Note</th>
-                        <th>Timestamp</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for note in notes %}
-                    <tr>
-                        <td>{{ note.patient_id }}</td>
-                        <td>{{ note.note }}</td>
-                        <td>{{ note.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-journal-x display-4 d-block opacity-50 mb-2 text-danger"></i>
+        <p class="mb-0">No nursing notes have been logged yet.</p>
+      </div>
+      {% endif %}
     </div>
-    {% else %}
-    <p class="text-muted text-center">No nursing notes found.</p>
-    {% endif %}
+  </div>
 
-    <div class="text-center mt-4">
-        <a href="{{ url_for('nursing.add_note') }}" class="btn btn-primary">
-            <i class="bi bi-pencil-square me-2"></i> Add Note
-        </a>
-        <a href="{{ url_for('home') }}" class="btn btn-secondary">
-            <i class="bi bi-arrow-left me-2"></i> Back to Home
-        </a>
-    </div>
 </div>
 {% endblock %}

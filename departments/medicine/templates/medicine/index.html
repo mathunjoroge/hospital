@@ -1,47 +1,280 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-            <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-    <h2 class="mb-4">Doctor's Waiting List</h2>
+<style>
+  :root {
+    --md-primary: #e11d48;
+    --md-primary-dark: #be123c;
+    --md-primary-deep: #881337;
+    --md-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+    --md-card-shadow: 0 4px 20px rgba(225, 29, 72, 0.08);
+    --md-glass: rgba(255,255,255,0.7);
+  }
+  .md-header-card {
+    background: var(--md-header-bg);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(190,18,60,0.22);
+  }
+  .md-stat-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 1.3rem 1.6rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: var(--md-card-shadow);
+    transition: transform 0.18s, box-shadow 0.18s;
+  }
+  .md-stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 28px rgba(225,29,72,0.13);
+  }
+  .md-icon-circle {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; flex-shrink: 0;
+  }
+  .md-table-card {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: var(--md-card-shadow);
+    overflow: hidden;
+  }
+  .md-table-header {
+    background: #f8fafc;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .table-md th {
+    background: #f8fafc;
+    font-size: 0.77rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #475569;
+    font-weight: 700;
+    padding: 1rem 1.2rem;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  .table-md td {
+    padding: 1.1rem 1.2rem;
+    vertical-align: middle;
+    border-color: #f1f5f9;
+  }
+  .table-md tbody tr:hover { background: #fff5f7; }
+  .btn-md-primary {
+    background: var(--md-primary);
+    color: #fff;
+    border: none;
+    font-weight: 600;
+    padding: 0.5rem 1.1rem;
+    border-radius: 8px;
+    font-size: 0.87rem;
+    transition: background 0.18s;
+  }
+  .btn-md-primary:hover { background: var(--md-primary-dark); color: #fff; }
+  .nav-module-link {
+    display: flex; align-items: center; gap: 0.55rem;
+    font-size: 0.88rem; font-weight: 600;
+    color: #64748b; text-decoration: none;
+    padding: 0.55rem 0.9rem;
+    border-radius: 9px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .nav-module-link:hover, .nav-module-link.active {
+    background: #fff0f3; color: var(--md-primary);
+  }
+  .nav-module-link i { font-size: 1rem; }
+</style>
 
-    <!-- Table for Waiting Patients -->
-    <table class="table table-striped table-bordered">
-        <thead class="table-dark">
-            <tr>
-                <th>Patient Name</th>
-                <th>Patient Number</th>
-                <th>Actions</th>
-            </tr>
+<div class="container-fluid px-4 py-3">
+  <!-- Flash -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category in ['error','danger'] else category }} alert-dismissible fade show rounded-3 shadow-sm mb-3">
+          <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <!-- Header Banner -->
+  <div class="md-header-card d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+    <div>
+      <h2 class="fw-bold mb-1"><i class="bi bi-clipboard2-pulse-fill me-2"></i>Medicine Department</h2>
+      <p class="mb-0 text-white-50 fs-6">Outpatient clinic, ward rounds, theatre, oncology, and drug reference.</p>
+    </div>
+    <div class="mt-3 mt-md-0 d-flex flex-wrap gap-2">
+      <a href="{{ url_for('medicine.ward_rounds') }}" class="btn btn-light fw-bold text-danger">
+        <i class="bi bi-hospital me-1"></i> Ward Rounds
+      </a>
+      <a href="{{ url_for('medicine.get_theatre_list') }}" class="btn btn-outline-light fw-bold">
+        <i class="bi bi-scissors me-1"></i> Theatre
+      </a>
+      <a href="{{ url_for('medicine.chatbot_interface') }}" class="btn btn-outline-light fw-bold">
+        <i class="bi bi-robot me-1"></i> AI Chatbot
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="md-stat-card d-flex align-items-center justify-content-between">
+        <div>
+          <div class="text-uppercase fw-bold text-muted small mb-1">OPD Queue</div>
+          <div class="fs-2 fw-bold text-dark">{{ waiting_list|length }}</div>
+          <small class="text-muted">Awaiting doctor</small>
+        </div>
+        <div class="md-icon-circle" style="background:#fff0f3;">
+          <i class="bi bi-person-lines-fill text-danger"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="md-stat-card d-flex align-items-center justify-content-between">
+        <div>
+          <div class="text-uppercase fw-bold text-muted small mb-1">Inpatients</div>
+          <div class="fs-2 fw-bold text-dark">{{ total_inpatients }}</div>
+          <small class="text-muted">Currently admitted</small>
+        </div>
+        <div class="md-icon-circle" style="background:#eff6ff;">
+          <i class="bi bi-hospital-fill text-primary"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="md-stat-card d-flex align-items-center justify-content-between">
+        <div>
+          <div class="text-uppercase fw-bold text-muted small mb-1">Pending Labs</div>
+          <div class="fs-2 fw-bold text-dark">{{ pending_labs }}</div>
+          <small class="text-muted">Awaiting results</small>
+        </div>
+        <div class="md-icon-circle" style="background:#fefce8;">
+          <i class="bi bi-flask text-warning"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="md-stat-card d-flex align-items-center justify-content-between">
+        <div>
+          <div class="text-uppercase fw-bold text-muted small mb-1">Theatre Queue</div>
+          <div class="fs-2 fw-bold text-dark">{{ theatre_pending }}</div>
+          <small class="text-muted">Procedures scheduled</small>
+        </div>
+        <div class="md-icon-circle" style="background:#f0fdf4;">
+          <i class="bi bi-scissors text-success"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Navigation Modules -->
+  <div class="md-table-card mb-4">
+    <div class="md-table-header">
+      <h6 class="fw-bold text-dark mb-0"><i class="bi bi-grid-3x3-gap-fill me-2 text-danger"></i>Clinical Modules</h6>
+    </div>
+    <div class="p-3">
+      <div class="row g-2">
+        <!-- Outpatient -->
+        <div class="col-12 col-md-4">
+          <div class="p-3 rounded-3 border" style="border-color: #fecdd3 !important; background: #fff5f7;">
+            <div class="fw-bold text-danger mb-2 small text-uppercase"><i class="bi bi-person-check me-1"></i>Outpatient Clinic</div>
+            <div class="d-flex flex-column gap-1">
+              <a href="{{ url_for('medicine.index') }}" class="nav-module-link active"><i class="bi bi-list-task"></i>Waiting List</a>
+              <a href="{{ url_for('medicine.chatbot_interface') }}" class="nav-module-link"><i class="bi bi-robot"></i>AI Clinical Assistant</a>
+              <a href="{{ url_for('medicine.drugs_ref') }}" class="nav-module-link"><i class="bi bi-capsule"></i>Drug Reference</a>
+            </div>
+          </div>
+        </div>
+        <!-- Ward & Inpatients -->
+        <div class="col-12 col-md-4">
+          <div class="p-3 rounded-3 border" style="border-color: #bfdbfe !important; background: #eff6ff;">
+            <div class="fw-bold text-primary mb-2 small text-uppercase"><i class="bi bi-hospital me-1"></i>Ward & Inpatients</div>
+            <div class="d-flex flex-column gap-1">
+              <a href="{{ url_for('medicine.ward_rounds') }}" class="nav-module-link"><i class="bi bi-journal-medical"></i>Ward Rounds</a>
+              <a href="{{ url_for('medicine.view_admitted_patients') }}" class="nav-module-link"><i class="bi bi-person-vcard"></i>Admitted Patients</a>
+              <a href="{{ url_for('medicine.admit_patient') }}" class="nav-module-link"><i class="bi bi-person-plus"></i>Admit Patient</a>
+              <a href="{{ url_for('medicine.view_inpatients') }}" class="nav-module-link"><i class="bi bi-people-fill"></i>Inpatient List</a>
+            </div>
+          </div>
+        </div>
+        <!-- Theatre & Oncology -->
+        <div class="col-12 col-md-4">
+          <div class="p-3 rounded-3 border" style="border-color: #bbf7d0 !important; background: #f0fdf4;">
+            <div class="fw-bold text-success mb-2 small text-uppercase"><i class="bi bi-scissors me-1"></i>Theatre & Oncology</div>
+            <div class="d-flex flex-column gap-1">
+              <a href="{{ url_for('medicine.get_theatre_list') }}" class="nav-module-link"><i class="bi bi-clipboard-check"></i>Theatre List</a>
+              <a href="{{ url_for('medicine.add_to_theatre') }}" class="nav-module-link"><i class="bi bi-plus-circle"></i>Book to Theatre</a>
+              <a href="{{ url_for('medicine.oncology') }}" class="nav-module-link"><i class="bi bi-heart-pulse"></i>Oncology Clinic</a>
+              <a href="{{ url_for('medicine.list_diseases') }}" class="nav-module-link"><i class="bi bi-journal-bookmark"></i>Disease Registry</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Waiting List Table -->
+  <div class="md-table-card">
+    <div class="md-table-header d-flex align-items-center justify-content-between">
+      <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-person-lines-fill me-2 text-danger"></i>OPD Waiting List</h5>
+      <span class="badge px-3 py-2 rounded-pill" style="background: var(--md-primary);">
+        {{ waiting_list|length }} Patient{{ 's' if waiting_list|length != 1 else '' }}
+      </span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-md table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Patient ID</th>
+            <th>Name</th>
+            <th>Sex / DOB</th>
+            <th>Contact</th>
+            <th class="text-end">Actions</th>
+          </tr>
         </thead>
         <tbody>
-            {% for entry in waiting_list %}
-            <tr>
-                <td>{{ entry.patient.name if entry.patient else 'N/A' }}</td>
-                <td>{{ entry.patient.patient_id if entry.patient else 'N/A' }}</td>
-                <td>
-                    <!-- Link to SOAP Notes -->
-                    <a href="{{ url_for('medicine.soap_notes', patient_id=entry.patient_id) }}" class="btn btn-success btn-sm">View Notes</a>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="3" class="text-center">No patients in the doctor's waiting list.</td>
-            </tr>
-            {% endfor %}
+          {% for entry in waiting_list %}
+          <tr>
+            <td><span class="badge bg-secondary font-monospace fs-6">{{ entry.patient.patient_id if entry.patient else 'N/A' }}</span></td>
+            <td>
+              <div class="fw-bold text-dark">{{ entry.patient.name if entry.patient else 'N/A' }}</div>
+            </td>
+            <td>
+              <div>{{ entry.patient.sex if entry.patient else '—' }}</div>
+              <small class="text-muted">{{ entry.patient.date_of_birth if entry.patient else '—' }}</small>
+            </td>
+            <td>
+              <small><i class="bi bi-telephone me-1 text-muted"></i>{{ entry.patient.contact if entry.patient else '—' }}</small>
+            </td>
+            <td class="text-end">
+              <div class="btn-group">
+                <a href="{{ url_for('medicine.soap_notes', patient_id=entry.patient_id) }}"
+                   class="btn-md-primary btn">
+                  <i class="bi bi-clipboard2-pulse me-1"></i>SBAR Notes
+                </a>
+                <a href="{{ url_for('medicine.chatbot_interface') }}"
+                   class="btn btn-outline-secondary btn-sm">
+                  <i class="bi bi-robot me-1"></i>AI
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-center py-5 text-muted">
+              <i class="bi bi-check-circle-fill text-success display-4 d-block mb-3"></i>
+              No patients currently in the OPD waiting list.
+            </td>
+          </tr>
+          {% endfor %}
         </tbody>
-    </table>
-
-    <!-- Add Patient to Waiting List Button -->
-  
+      </table>
+    </div>
+  </div>
 </div>
 {% endblock %}

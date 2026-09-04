@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  :root {
+    --rc-primary: #1a56db; --rc-primary-dark: #1e3a8a;
+    --rc-header-bg: linear-gradient(135deg, #1e3a8a 0%, #1a56db 60%, #3b82f6 100%);
+    --rc-card-shadow: 0 4px 24px rgba(26,86,219,0.10);
+    --rc-border: #e0e7ff; --rc-bg: #f0f4ff;
+  }
+  body { background: var(--rc-bg); }
+  .rc-header { background: var(--rc-header-bg); border-radius:18px; padding:2rem 2.5rem; color:white; margin-bottom:2rem; box-shadow:0 8px 32px rgba(26,86,219,0.25); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
+  .rc-header h1 { font-size:1.7rem; font-weight:700; margin:0 0 .25rem; }
+  .rc-header p { margin:0; opacity:.8; }
+  .year-form { display:flex; align-items:center; gap:.8rem; }
+  .year-form label { color:rgba(255,255,255,.8); font-weight:600; }
+  .year-form select { border:1.5px solid rgba(255,255,255,.4); border-radius:8px; padding:.5rem .9rem; background:rgba(255,255,255,.15); color:white; outline:none; font-size:.9rem; }
+  .year-form select option { background:#1e3a8a; }
+  .btn-filter { background:white; color:var(--rc-primary); border:none; border-radius:8px; padding:.5rem 1.2rem; font-weight:700; font-size:.88rem; cursor:pointer; display:inline-flex; align-items:center; gap:.4rem; }
+
+  .stat-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+  .stat-card { background:white; border-radius:14px; box-shadow:var(--rc-card-shadow); padding:1.3rem 1.5rem; border-left:4px solid var(--rc-primary); display:flex; align-items:center; gap:1rem; }
+  .stat-card.purple { border-left-color:#7c3aed; }
+  .stat-card.pink { border-left-color:#be185d; }
+  .stat-card .s-icon { width:44px; height:44px; border-radius:10px; background:#eff6ff; display:flex; align-items:center; justify-content:center; font-size:1.3rem; color:var(--rc-primary); flex-shrink:0; }
+  .stat-card.purple .s-icon { background:#ede9fe; color:#7c3aed; }
+  .stat-card.pink .s-icon { background:#fce7f3; color:#be185d; }
+  .stat-card .s-val { font-size:1.8rem; font-weight:800; color:#1e293b; line-height:1; }
+  .stat-card .s-lbl { font-size:.75rem; text-transform:uppercase; color:#64748b; }
+
+  .rc-card { background:white; border-radius:16px; box-shadow:var(--rc-card-shadow); overflow:hidden; margin-bottom:1.5rem; }
+  .rc-card-header { padding:1.2rem 1.5rem; border-bottom:1px solid var(--rc-border); background:linear-gradient(135deg,#f8faff,#eff6ff); font-weight:700; color:var(--rc-primary-dark); display:flex; align-items:center; gap:.5rem; }
+  .rc-card-body { padding:1.5rem; }
+
+  .rc-table { width:100%; border-collapse:collapse; }
+  .rc-table thead tr { background:linear-gradient(90deg,#1e3a8a,#1a56db); }
+  .rc-table thead th { color:white; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; padding:.8rem 1rem; font-weight:600; }
+  .rc-table tbody tr { border-bottom:1px solid #f1f5f9; }
+  .rc-table tbody tr:hover { background:#f0f4ff; }
+  .rc-table tbody td { padding:.8rem 1rem; font-size:.9rem; color:#334155; }
+  .count-pill { background:#1a56db; color:white; border-radius:20px; padding:.2rem .8rem; font-size:.85rem; font-weight:700; }
+</style>
+
+<div class="container-fluid px-4 py-4">
+
+  <div class="rc-header">
+    <div>
+      <h1><i class="bi bi-person-lines-fill me-2"></i>Patient Registration Report</h1>
+      <p>Monthly new patient registration statistics</p>
+    </div>
+    <form method="GET" class="year-form">
+      <label>Year</label>
+      <select name="year" onchange="this.form.submit()">
+        {% for y in available_years %}
+        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+        {% if not available_years %}
+        <option value="{{ year }}">{{ year }}</option>
+        {% endif %}
+      </select>
+    </form>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="s-icon"><i class="bi bi-people-fill"></i></div>
+      <div>
+        <div class="s-val">{{ total_year }}</div>
+        <div class="s-lbl">Total in {{ year }}</div>
+      </div>
+    </div>
+    {% for row in sex_data %}
+    <div class="stat-card {% if row.sex == 'Female' %}pink{% else %}purple{% endif %}">
+      <div class="s-icon"><i class="bi bi-gender-{{ 'female' if row.sex == 'Female' else 'male' }}"></i></div>
+      <div>
+        <div class="s-val">{{ row.count }}</div>
+        <div class="s-lbl">{{ row.sex }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Line Chart -->
+  <div class="rc-card">
+    <div class="rc-card-header"><i class="bi bi-graph-up-arrow"></i> Monthly Registrations — {{ year }}</div>
+    <div class="rc-card-body">
+      <canvas id="regChart" height="80"></canvas>
+    </div>
+  </div>
+
+  <!-- Monthly Table -->
+  <div class="rc-card">
+    <div class="rc-card-header"><i class="bi bi-table"></i> Monthly Breakdown</div>
+    <table class="rc-table">
+      <thead><tr><th>Month</th><th>Registrations</th></tr></thead>
+      <tbody>
+        {% for i in range(12) %}
+        <tr>
+          <td>{{ month_names[i] }} {{ year }}</td>
+          <td>
+            {% if month_counts[i] > 0 %}
+            <span class="count-pill">{{ month_counts[i] }}</span>
+            {% else %}
+            <span style="color:#94a3b8;">0</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const months = {{ month_names | tojson }};
+const counts = {{ month_counts | tojson }};
+
+new Chart(document.getElementById('regChart'), {
+  type: 'line',
+  data: {
+    labels: months,
+    datasets: [{
+      label: 'New Patients',
+      data: counts,
+      borderColor: '#1a56db',
+      backgroundColor: 'rgba(26,86,219,0.1)',
+      borderWidth: 3,
+      pointBackgroundColor: '#1a56db',
+      pointRadius: 5,
+      fill: true,
+      tension: 0.3
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' } },
+    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+  }
+});
+</script>
+{% endblock %}

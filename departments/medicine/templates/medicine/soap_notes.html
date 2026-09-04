@@ -1,106 +1,233 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+  :root {
+    --md-primary: #e11d48;
+    --md-primary-dark: #be123c;
+    --md-primary-deep: #881337;
+  }
+  .sbar-header {
+    background: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+    border-radius: 16px;
+    padding: 1.5rem 2rem;
+    color: #fff;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 24px rgba(190,18,60,0.2);
+  }
+  .sbar-section-card {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    margin-bottom: 1.25rem;
+    overflow: hidden;
+  }
+  .sbar-section-title {
+    padding: 0.9rem 1.4rem;
+    font-size: 0.83rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .sbar-section-body { padding: 1.25rem 1.4rem; }
+  .form-label { font-weight: 600; font-size: 0.88rem; color: #374151; }
+  .form-control, .form-select {
+    border-radius: 9px;
+    border: 1.5px solid #e2e8f0;
+    font-size: 0.9rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .form-control:focus, .form-select:focus {
+    border-color: var(--md-primary);
+    box-shadow: 0 0 0 3px rgba(225,29,72,0.1);
+  }
+  .btn-sbar-submit {
+    background: var(--md-primary);
+    color: #fff; border: none;
+    font-weight: 700; padding: 0.75rem 2.5rem;
+    border-radius: 10px; font-size: 1rem;
+    transition: background 0.18s, transform 0.15s;
+  }
+  .btn-sbar-submit:hover { background: var(--md-primary-dark); color: #fff; transform: translateY(-1px); }
+  .patient-badge { background: rgba(255,255,255,0.2); border-radius: 10px; padding: 0.4rem 1rem; }
+</style>
 
-<div class="container mt-4">
-    <div class="card shadow">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">Patient Documentation (SBAR)  for {{ patient.name }} ({{ patient.patient_id }})</h4>
+<div class="container-fluid px-4 py-3">
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category in ['error','danger'] else category }} alert-dismissible fade show rounded-3 shadow-sm mb-3">
+          <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('medicine.submit_soap_notes', patient_id=patient.patient_id) }}" enctype="multipart/form-data">
-                <div class="row">
-                    <!-- Left Column -->
-                    <div class="col-md-6">
-                        <!-- Situation -->
-                        <div class="mb-3">
-                            <label for="situation" class="form-label fw-bold">Chief Complaint:</label>
-                            <textarea id="situation" name="situation" class="form-control" required placeholder="Describe the patient's main issue..."></textarea>
-                        </div>
-                        
-                        <!-- History of Presenting Illness (HPI) -->
-                        <h5 class="text-success">History of Presenting Illness (HPI)</h5>
-                        <div class="mb-3">
-                            <label for="hpi" class="form-label fw-bold">Detailed Description:</label>
-                            <textarea id="hpi" name="hpi" class="form-control" required placeholder="Onset, duration, severity, associated symptoms, and progression..."></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="aggravating_factors" class="form-label fw-bold">Aggravating Factors:</label>
-                            <textarea id="aggravating_factors" name="aggravating_factors" class="form-control" placeholder="What makes the symptoms worse?"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="alleviating_factors" class="form-label fw-bold">Alleviating Factors:</label>
-                            <textarea id="alleviating_factors" name="alleviating_factors" class="form-control" placeholder="What helps relieve the symptoms?"></textarea>
-                        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
 
-                        <!-- Background -->
-                        <h5 class="text-success">B: Background</h5>
-                        <div class="mb-3">
-                            <label for="medical_history" class="form-label fw-bold">Medical History:</label>
-                            <textarea id="medical_history" name="medical_history" class="form-control" placeholder="List chronic illnesses, past surgeries, conditions..."></textarea>
-                        </div>
-                    </div>
-
-                    <!-- Right Column -->
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="medication_history" class="form-label fw-bold">Medication History:</label>
-                            <textarea id="medication_history" name="medication_history" class="form-control" placeholder="List current medications & dosages..."></textarea>
-                        </div>
-                        <!-- Assessment -->
-                        <h5 class="text-warning">A: Assessment</h5>
-                        <div class="mb-3">
-                            <label for="assessment" class="form-label fw-bold">Clinical Findings / Diagnosis:</label>
-                            <textarea id="assessment" name="assessment" class="form-control" required placeholder="Provide clinical findings, possible diagnosis..."></textarea>
-                        </div>
-
-                        <!-- Recommendation -->
-                        <h5 class="text-info">R: Recommendation</h5>
-                        <div class="mb-3">
-                            <label for="recommendation" class="form-label fw-bold">Next Steps / Treatment Plan:</label>
-                            <textarea id="recommendation" name="recommendation" class="form-control" required placeholder="Specify recommended treatments, referrals, tests..."></textarea>
-                        </div>
-
-                        <!-- Additional Notes & Attachments -->
-                        <h5 class="text-secondary">Additional Information</h5>
-                        <div class="mb-3">
-                            <label for="additional_notes" class="form-label fw-bold">Additional Notes:</label>
-                            <textarea id="additional_notes" name="additional_notes" class="form-control" placeholder="Any extra observations or instructions..."></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="file_upload" class="form-label fw-bold">Attach Files (Optional):</label>
-                            <input type="file" id="file_upload" name="file_upload" class="form-control">
-                        </div>
-
-                        <!-- Submit Button -->
-                        <div class="text-center mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg px-5">Submit Report</button>
-                        </div>
-                    </div>
-                </div>
-            </form>
-        </div>
+  <!-- Patient Header -->
+  <div class="sbar-header d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+    <div>
+      <div class="text-white-50 small fw-semibold text-uppercase mb-1"><i class="bi bi-clipboard2-pulse me-1"></i>SBAR Clinical Documentation</div>
+      <h3 class="fw-bold mb-1">{{ patient.name }}</h3>
+      <div class="d-flex flex-wrap gap-2">
+        <span class="patient-badge small"><i class="bi bi-person-badge me-1"></i>{{ patient.patient_id }}</span>
+        {% if patient.sex %}<span class="patient-badge small"><i class="bi bi-gender-ambiguous me-1"></i>{{ patient.sex }}</span>{% endif %}
+        {% if patient.date_of_birth %}<span class="patient-badge small"><i class="bi bi-calendar3 me-1"></i>{{ patient.date_of_birth }}</span>{% endif %}
+      </div>
     </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('medicine.request_lab_tests', patient_id=patient.patient_id) }}" class="btn btn-light text-danger fw-semibold">
+        <i class="bi bi-flask me-1"></i>Request Labs
+      </a>
+      <a href="{{ url_for('medicine.request_imaging', patient_id=patient.patient_id) }}" class="btn btn-outline-light fw-semibold">
+        <i class="bi bi-camera me-1"></i>Request Imaging
+      </a>
+      <a href="{{ url_for('medicine.prescribe_drugs', patient_id=patient.patient_id) }}" class="btn btn-outline-light fw-semibold">
+        <i class="bi bi-capsule me-1"></i>Prescribe Drugs
+      </a>
+    </div>
+  </div>
+
+  <form method="POST" action="{{ url_for('medicine.submit_soap_notes', patient_id=patient.patient_id) }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="row g-3">
+      <!-- Left Column -->
+      <div class="col-lg-6">
+        <!-- S: Situation / Chief Complaint -->
+        <div class="sbar-section-card">
+          <div class="sbar-section-title" style="color: #e11d48;">
+            <span class="fw-black" style="font-size:1.1rem">S</span> &mdash; Situation (Chief Complaint)
+          </div>
+          <div class="sbar-section-body">
+            <label for="situation" class="form-label">Chief Complaint <span class="text-danger">*</span></label>
+            <textarea id="situation" name="situation" class="form-control" rows="3" required
+              placeholder="Describe the patient's main presenting complaint..."></textarea>
+          </div>
+        </div>
+
+        <!-- History of Presenting Illness -->
+        <div class="sbar-section-card">
+          <div class="sbar-section-title" style="color: #0f766e;">
+            <i class="bi bi-clock-history"></i> History of Presenting Illness (HPI)
+          </div>
+          <div class="sbar-section-body">
+            <div class="mb-3">
+              <label for="hpi" class="form-label">Detailed Description <span class="text-danger">*</span></label>
+              <textarea id="hpi" name="hpi" class="form-control" rows="3" required
+                placeholder="Onset, duration, severity, associated symptoms, and progression..."></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="aggravating_factors" class="form-label">Aggravating Factors</label>
+              <textarea id="aggravating_factors" name="aggravating_factors" class="form-control" rows="2"
+                placeholder="What makes the symptoms worse?"></textarea>
+            </div>
+            <div class="mb-0">
+              <label for="alleviating_factors" class="form-label">Alleviating Factors</label>
+              <textarea id="alleviating_factors" name="alleviating_factors" class="form-control" rows="2"
+                placeholder="What helps relieve the symptoms?"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- B: Background -->
+        <div class="sbar-section-card">
+          <div class="sbar-section-title" style="color: #1d4ed8;">
+            <span class="fw-black" style="font-size:1.1rem">B</span> &mdash; Background
+          </div>
+          <div class="sbar-section-body">
+            <div class="mb-3">
+              <label for="medical_history" class="form-label">Medical History</label>
+              <textarea id="medical_history" name="medical_history" class="form-control" rows="3"
+                placeholder="Chronic illnesses, past surgeries, known conditions..."></textarea>
+            </div>
+            <div class="mb-0">
+              <label for="medication_history" class="form-label">Current Medications</label>
+              <textarea id="medication_history" name="medication_history" class="form-control" rows="2"
+                placeholder="List current medications and dosages..."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div class="col-lg-6">
+        <!-- A: Assessment -->
+        <div class="sbar-section-card">
+          <div class="sbar-section-title" style="color: #b45309;">
+            <span class="fw-black" style="font-size:1.1rem">A</span> &mdash; Assessment
+          </div>
+          <div class="sbar-section-body">
+            <label for="assessment" class="form-label">Clinical Findings / Diagnosis <span class="text-danger">*</span></label>
+            <textarea id="assessment" name="assessment" class="form-control" rows="4" required
+              placeholder="Clinical examination findings, differential diagnosis..."></textarea>
+          </div>
+        </div>
+
+        <!-- R: Recommendation -->
+        <div class="sbar-section-card">
+          <div class="sbar-section-title" style="color: #6d28d9;">
+            <span class="fw-black" style="font-size:1.1rem">R</span> &mdash; Recommendation
+          </div>
+          <div class="sbar-section-body">
+            <label for="recommendation" class="form-label">Treatment Plan / Next Steps <span class="text-danger">*</span></label>
+            <textarea id="recommendation" name="recommendation" class="form-control" rows="4" required
+              placeholder="Prescribed treatments, referrals, follow-up instructions..."></textarea>
+          </div>
+        </div>
+
+        <!-- Additional -->
+        <div class="sbar-section-card">
+          <div class="sbar-section-title" style="color: #475569;">
+            <i class="bi bi-paperclip"></i> Additional Information
+          </div>
+          <div class="sbar-section-body">
+            <div class="mb-3">
+              <label for="additional_notes" class="form-label">Additional Notes</label>
+              <textarea id="additional_notes" name="additional_notes" class="form-control" rows="3"
+                placeholder="Any extra observations or instructions..."></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="file_upload" class="form-label">Attach Supporting File <span class="text-muted small">(Optional)</span></label>
+              <input type="file" id="file_upload" name="file_upload" class="form-control">
+              <div class="form-text">PNG, JPG, PDF, TXT, CSV, DOCX — max 5 MB</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="d-flex gap-2 justify-content-end">
+          <a href="{{ url_for('medicine.index') }}" class="btn btn-outline-secondary px-4">
+            <i class="bi bi-arrow-left me-1"></i>Back
+          </a>
+          <button type="submit" class="btn-sbar-submit btn">
+            <i class="bi bi-check-circle me-2"></i>Submit SBAR Notes
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <!-- Previous SOAP Notes -->
+  {% if soap_notes %}
+  <div class="mt-4">
+    <h5 class="fw-bold text-dark mb-3"><i class="bi bi-journal-text me-2 text-danger"></i>Previous Notes</h5>
+    {% for note in soap_notes %}
+    <div class="sbar-section-card">
+      <div class="sbar-section-title d-flex justify-content-between" style="color: #64748b;">
+        <span><i class="bi bi-clock me-1"></i>{{ note.created_at.strftime('%d %b %Y %H:%M') if note.created_at else 'N/A' }}</span>
+        <span class="badge bg-light text-dark border">{{ note.created_by if note.created_by else 'System' }}</span>
+      </div>
+      <div class="sbar-section-body row g-3">
+        {% if note.situation %}<div class="col-md-6"><div class="fw-semibold text-danger small mb-1">S — Situation</div><div class="small text-muted">{{ note.situation }}</div></div>{% endif %}
+        {% if note.assessment %}<div class="col-md-6"><div class="fw-semibold text-warning small mb-1">A — Assessment</div><div class="small text-muted">{{ note.assessment }}</div></div>{% endif %}
+        {% if note.recommendation %}<div class="col-12"><div class="fw-semibold text-purple small mb-1">R — Recommendation</div><div class="small text-muted">{{ note.recommendation }}</div></div>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 </div>
-
-
-    <!-- Action Buttons -->
-<!-- Links to Separate Pages -->
-<div class="container">
-<div class="mt-4">
-    <h3>Actions</h3>
-<ul class="list-unstyled d-flex gap-2">
-
-    <li> <a href="{{ url_for('medicine.index') }}" class="btn btn-secondary">Back to Waiting List</a></li>
-</ul>
-
-</div>
-</div>
-
-    
-
-    <!-- Back Button -->
- 
-
-
-
 {% endblock %}

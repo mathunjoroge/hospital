@@ -479,195 +479,6 @@ def dispense_prescription(prescription_id):
 
     except Exception as e:
         flash(f'Error fetching prescription: {e}', 'error')
-        return redirect(url_for('pharmacy.index'))
-@bp.route('/get_all_batches', methods=['GET'])
-@login_required
-def get_all_batches():
-    """Fetch all available drugs with unique batches, ordered by expiry date."""
-    try:
-        query = text("""
-            SELECT 
-                drugs.id AS drug_id, 
-                drugs.generic_name, 
-                drugs.brand_name, 
-                drugs.dosage_form, 
-                drugs.strength, 
-                drugs.selling_price, 
-                MIN(batches.expiry_date) AS expiry_date,  -- Get the earliest expiry date
-                batches.quantity_in_stock AS batch_qty, 
-                batches.id AS batch_id  -- ✅ Use batch_id instead of batch_number
-            FROM batches 
-            JOIN drugs ON batches.drug_id = drugs.id 
-            WHERE batches.quantity_in_stock > 0
-            GROUP BY drugs.id, batches.id  -- ✅ Group by batch_id instead of batch_number
-            ORDER BY expiry_date ASC
-        """)
-
-        batches = db.session.execute(query).fetchall()
-
-        if not batches:
-            print("📌 DEBUG: No available drugs found")
-            return jsonify({'error': 'No available drugs'}), 200
-
-        # Convert to JSON format
-        batch_list = [
-            {
-                'drug_id': batch.drug_id,
-                'generic_name': batch.generic_name,
-                'brand_name': batch.brand_name,
-                'dosage_form': batch.dosage_form,
-                'strength': batch.strength,
-                'selling_price': batch.selling_price,
-                'batch_qty': batch.batch_qty,
-                'batch_id': batch.batch_id  # ✅ Use batch_id instead of batch_number
-            }
-            for batch in batches
-        ]
-
-        print(f"📌 DEBUG: API Response: {len(batch_list)} unique batches returned")
-        return jsonify(batch_list), 200
-
-    except Exception as e:
-        print(f"❌ ERROR: {e}")  # Debugging
-        return jsonify({'error': f'Error fetching batches: {str(e)}'}), 500
-
-@bp.route('/dispense/process/<string:prescription_id>', methods=['POST'])
-@login_required
-def process_dispense(prescription_id):
-    """
-    Handles dispensing of drugs, updates stock, and renders the dispense prescription page with dispensed drug details.
-    """
-    # Check user permissions
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('Access denied.', 'error')
-        return redirect(url_for('home'))
-
-    try:
-        # Extract form data
-        drug_id = request.form.get('drug_id')
-        batch_id = request.form.get('batch_id')  # ✅ Updated to batch_id
-        quantity_dispensed = request.form.get('quantity_dispensed')
-
-        # Validate form inputs
-        if not drug_id or not batch_id or not quantity_dispensed:
-            flash('Invalid input! Please select a drug and specify its quantity.', 'error')
-            return redirect(url_for('pharmacy.dispense_prescription', prescription_id=prescription_id))
-
-        try:
-            quantity_dispensed = int(quantity_dispensed)
-            if quantity_dispensed <= 0:
-                raise ValueError("Quantity must be greater than zero.")
-        except ValueError:
-            flash('Invalid quantity! Enter a positive number.', 'error')
-            return redirect(url_for('pharmacy.dispense_prescription', prescription_id=prescription_id))
-
-        # Fetch the selected drug
-        drug = Drug.query.get(drug_id)
-        if not drug:
-            flash(f'Drug with ID {drug_id} does not exist!', 'error')
-            return redirect(url_for('pharmacy.dispense_prescription', prescription_id=prescription_id))
-
-        # Fetch the selected batch
-        batch = Batch.query.filter_by(id=batch_id, drug_id=drug.id).first()
-        if not batch:
-            flash(f'Batch ID {batch_id} does not exist for {drug.generic_name}.', 'error')
-            return redirect(url_for('pharmacy.dispense_prescription', prescription_id=prescription_id))
-
-        if batch.quantity_in_stock < quantity_dispensed:
-            flash(f'Insufficient stock for {drug.generic_name}. Available: {batch.quantity_in_stock}', 'error')
-            return redirect(url_for('pharmacy.dispense_prescription', prescription_id=prescription_id))
-
-        # Fetch the prescription
-        prescribed_medicine = PrescribedMedicine.query.filter_by(prescription_id=prescription_id).first()
-        if not prescribed_medicine:
-            flash('Prescription not found.', 'error')
-            return redirect(url_for('pharmacy.index'))
-
-        # Get patient ID from the prescription
-        patient_id = prescribed_medicine.patient_id
-
-        # Create a new dispensed drug entry
-        new_dispensed_drug = DispensedDrug(
-            drug_id=drug.id,
-            batch_id=batch.id,  # ✅ Updated to batch_id
-            patient_id=patient_id,
-            prescription_id=prescription_id,
-            quantity_dispensed=quantity_dispensed,
-            date_dispensed=datetime.today().date(),
-            status="Pending"
-        )
-        db.session.add(new_dispensed_drug)
-
-        # Update batch stock
-        batch.quantity_in_stock -= quantity_dispensed
-        db.session.add(batch)
-
-        # Commit changes to the database
-        db.session.commit()
-        flash(f'{drug.generic_name} ({quantity_dispensed} units) dispensed successfully!', 'success')
-
-        # ✅ Fetch all dispensed drugs for this prescription (Using SQLAlchemy ORM)
-        dispensed_drugs = (
-            db.session.query(
-                Drug.generic_name,
-                Drug.brand_name,
-                Drug.dosage_form,
-                Drug.strength,
-                Drug.selling_price,
-                DispensedDrug.id,
-                DispensedDrug.batch_id,  # ✅ Updated to batch_id
-                DispensedDrug.quantity_dispensed,
-                (Drug.selling_price * DispensedDrug.quantity_dispensed).label("total"),
-            )
-            .join(DispensedDrug, DispensedDrug.drug_id == Drug.id)
-            .filter(DispensedDrug.prescription_id == prescription_id)
-            .all()
-        )
-
-        # Convert query results to a list of dictionaries
-        dispensed_drugs_list = [
-            {
-                "generic_name": drug.generic_name,
-                "id": drug.id,
-                "brand_name": drug.brand_name,
-                "dosage_form": drug.dosage_form,
-                "strength": drug.strength,
-                "selling_price": drug.selling_price,
-                "batch_id": drug.batch_id,  # ✅ Updated to batch_id
-                "quantity_dispensed": drug.quantity_dispensed,
-                "total": drug.total,
-            }
-            for drug in dispensed_drugs
-        ]
-
-        # Debugging: Print fetched data
-        print("📌 Dispensed Drugs:", dispensed_drugs_list)
-
-        # Fetch data needed for the `dispense_prescription` template
-        prescribed_medicines = PrescribedMedicine.query.filter_by(prescription_id=prescription_id).all()
-        drug_batches = {
-            batch.drug_id: batch
-            for batch in Batch.query.filter(
-                Batch.drug_id.in_([m.medicine_id for m in prescribed_medicines])
-            ).all()
-        }
-
-        # ✅ Render the template with dispensed drugs
-        return render_template(
-            'pharmacy/dispense_prescription.html',
-            prescription_id=prescription_id,
-            prescribed_medicines=prescribed_medicines,
-            drug_batches=drug_batches,
-            dispensed_drugs=dispensed_drugs_list,  # ✅ Correctly displaying batch_id
-        )
-
-    except Exception as e:
-        # Rollback in case of errors
-        db.session.rollback()
-        print(f"⚠️ ERROR while committing: {e}")
-        flash(f'Error dispensing drug: {e}', 'error')
-        return redirect(url_for('pharmacy.dispense_prescription', prescription_id=prescription_id))
-
 @bp.route('/delete_dispensed_drug/<int:dispensed_drug_id>', methods=['GET'])
 @login_required
 def delete_dispensed_drug(dispensed_drug_id):
@@ -952,7 +763,7 @@ def save_prescription(prescription_id):
             # Create a new dispensed drug entry
             new_dispensed_drug = DispensedDrug(
                 drug_id=drug.id,
-                batch_no=batch.batch_number,
+                batch_id=batch.id,
                 patient_id=patient_id,
                 prescription_id=prescription_id,
                 quantity_dispensed=quantity_dispensed,
@@ -993,7 +804,7 @@ def remove_dispensed(dispense_id):
             return redirect(url_for('pharmacy.dispense_prescription', prescription_id=request.form.get('prescription_id')))
 
         # Restore stock in the batch
-        batch = Batch.query.filter_by(batch_number=dispensed_drug.batch_no, drug_id=dispensed_drug.drug_id).first()
+        batch = Batch.query.get(dispensed_drug.batch_id) if dispensed_drug.batch_id else None
         if batch:
             batch.quantity_in_stock += dispensed_drug.quantity_dispensed
             db.session.add(batch)
@@ -1266,11 +1077,183 @@ def served_requests_details(request_id):
 
     return render_template('pharmacy/served_request_details.html', drug_request=drug_request, requested_by=requested_by)
 
-#patient history API
+@bp.route('/get_all_batches', methods=['GET'])
+@login_required
+def get_all_batches():
+    """Fetch all available drugs with unique batches, ordered by expiry date."""
+    try:
+        batches = (
+            db.session.query(Batch)
+            .join(Drug, Batch.drug_id == Drug.id)
+            .filter(Batch.quantity_in_stock > 0)
+            .order_by(Batch.expiry_date.asc())
+            .all()
+        )
+
+        if not batches:
+            print("📌 DEBUG: No available drugs found")
+            return jsonify({'error': 'No available drugs'}), 200
+
+        # Convert to JSON format
+        batch_list = [
+            {
+                'drug_id': batch.drug_id,
+                'generic_name': batch.drug.generic_name,
+                'brand_name': batch.drug.brand_name,
+                'dosage_form': batch.drug.dosage_form,
+                'strength': batch.drug.strength,
+                'selling_price': batch.drug.selling_price,
+                'batch_qty': batch.quantity_in_stock,
+                'batch_id': batch.id
+            }
+            for batch in batches
+        ]
+
+        print(f"📌 DEBUG: API Response: {len(batch_list)} unique batches returned")
+        return jsonify(batch_list), 200
+
+    except Exception as e:
+        print(f"❌ ERROR: {e}")  # Debugging
+        return jsonify({'error': f'Error fetching batches: {str(e)}'}), 500
+
+@bp.route('/dispense/process/<string:prescription_id>', methods=['POST'])
+@login_required
+def process_dispense(prescription_id):
+    """
+    Handles dispensing of drugs, updates stock, and renders the dispense prescription page with dispensed drug details.
+    """
+    # Check user permissions
+    if current_user.role not in ['pharmacy', 'admin']:
+        flash('Access denied.', 'error')
+        return redirect(url_for('home'))
+
+    try:
+        # Extract form data
+        drug_id = request.form.get('drug_id')
+        batch_id = request.form.get('batch_id')
+        quantity_dispensed = request.form.get('quantity_dispensed')
+
+        # Validate form inputs
+        if not drug_id or not batch_id or not quantity_dispensed:
+            flash('Invalid input! Please select a drug and specify its quantity.', 'error')
+            return redirect(url_for('pharmacy.dispense_prescription', prescription_id=prescription_id))
+
+        try:
+            quantity_dispensed = int(quantity_dispensed)
+            if quantity_dispensed <= 0:
+                raise ValueError("Quantity must be greater than zero.")
+        except ValueError:
+            flash('Invalid quantity! Enter a positive number.', 'error')
+            return redirect(url_for('pharmacy.dispense_prescription', prescription_id=prescription_id))
+
+        # Fetch the selected drug
+        drug = Drug.query.get(drug_id)
+        if not drug:
+            flash(f'Drug with ID {drug_id} does not exist!', 'error')
+            return redirect(url_for('pharmacy.dispense_prescription', prescription_id=prescription_id))
+
+        # Fetch the selected batch
+        batch = Batch.query.filter_by(id=batch_id, drug_id=drug.id).first()
+        if not batch:
+            flash(f'Batch ID {batch_id} does not exist for {drug.generic_name}.', 'error')
+            return redirect(url_for('pharmacy.dispense_prescription', prescription_id=prescription_id))
+
+        if batch.quantity_in_stock < quantity_dispensed:
+            flash(f'Insufficient stock for {drug.generic_name}. Available: {batch.quantity_in_stock}', 'error')
+            return redirect(url_for('pharmacy.dispense_prescription', prescription_id=prescription_id))
+
+        # Fetch the prescription
+        prescribed_medicine = PrescribedMedicine.query.filter_by(prescription_id=prescription_id).first()
+        if not prescribed_medicine:
+            flash('Prescription not found.', 'error')
+            return redirect(url_for('pharmacy.index'))
+
+        # Get patient ID from the prescription
+        patient_id = prescribed_medicine.patient_id
+
+        # Create a new dispensed drug entry
+        new_dispensed_drug = DispensedDrug(
+            drug_id=drug.id,
+            batch_id=batch.id,
+            patient_id=patient_id,
+            prescription_id=prescription_id,
+            quantity_dispensed=quantity_dispensed,
+            date_dispensed=datetime.today().date(),
+            status="Pending"
+        )
+        db.session.add(new_dispensed_drug)
+
+        # Update batch stock
+        batch.quantity_in_stock -= quantity_dispensed
+        db.session.add(batch)
+
+        # Commit changes to the database
+        db.session.commit()
+        flash(f'{drug.generic_name} ({quantity_dispensed} units) dispensed successfully!', 'success')
+
+        # Fetch all dispensed drugs for this prescription
+        dispensed_drugs = (
+            db.session.query(
+                Drug.generic_name,
+                Drug.brand_name,
+                Drug.dosage_form,
+                Drug.strength,
+                Drug.selling_price,
+                DispensedDrug.id,
+                DispensedDrug.batch_id,
+                DispensedDrug.quantity_dispensed,
+                (Drug.selling_price * DispensedDrug.quantity_dispensed).label("total"),
+            )
+            .join(DispensedDrug, DispensedDrug.drug_id == Drug.id)
+            .filter(DispensedDrug.prescription_id == prescription_id)
+            .all()
+        )
+
+        dispensed_drugs_list = [
+            {
+                "generic_name": d.generic_name,
+                "id": d.id,
+                "brand_name": d.brand_name,
+                "dosage_form": d.dosage_form,
+                "strength": d.strength,
+                "selling_price": d.selling_price,
+                "batch_id": d.batch_id,
+                "quantity_dispensed": d.quantity_dispensed,
+                "total": d.total,
+            }
+            for d in dispensed_drugs
+        ]
+
+        prescribed_medicines = PrescribedMedicine.query.filter_by(prescription_id=prescription_id).all()
+        drug_batches = {
+            b.drug_id: b
+            for b in Batch.query.filter(
+                Batch.drug_id.in_([m.medicine_id for m in prescribed_medicines])
+            ).all()
+        }
+
+        return render_template(
+            'pharmacy/dispense_prescription.html',
+            prescription_id=prescription_id,
+            prescribed_medicines=prescribed_medicines,
+            drug_batches=drug_batches,
+            drugs=Drug.query.all(),
+            dispensed_drugs=dispensed_drugs_list
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error processing dispense: {e}', 'error')
+        print(f"Debug: Error in pharmacy.process_dispense: {e}")
+        return redirect(url_for('pharmacy.index'))
+
 @bp.route('/patient_history', methods=['GET', 'POST'])
 @login_required
 def patient_history():
     """API endpoint to retrieve patient history by patient_id with clinical data."""
+    from departments.models.medicine import SOAPNote, RequestedLab, LabTest, RequestedImage, Imaging, AdmittedPatient
+    from departments.models.nursing import Vitals
+
     if request.method == 'POST':
         if request.is_json:
             data = request.get_json()
@@ -1284,70 +1267,27 @@ def patient_history():
             flash('Please provide a patient ID.', 'error')
             return render_template('pharmacy/pharmacy_dashboard.html', patient_history_form=True)
 
-        # Verify patient exists
-        patient_query = text("SELECT * FROM patients WHERE patient_id = :patient_id")
-        patient = db.session.execute(patient_query, {"patient_id": patient_id}).fetchone()
+        patient = Patient.query.filter_by(patient_id=patient_id).first()
         if not patient:
             if request.is_json:
                 return jsonify({'error': f'No patient found with ID {patient_id}'}), 404
             flash(f'No patient found with ID {patient_id}.', 'error')
             return render_template('pharmacy/pharmacy_dashboard.html', patient_history_form=True)
 
-        # Query Prescribed Medicines
-        prescribed_meds_query = text("""
-            SELECT pm.*, m.generic_name, m.brand_name
-            FROM prescribed_medicines pm
-            JOIN medicines m ON pm.medicine_id = m.id
-            WHERE pm.patient_id = :patient_id
-        """)
-        prescribed_meds = db.session.execute(prescribed_meds_query, {"patient_id": patient_id}).fetchall()
+        prescribed_meds = PrescribedMedicine.query.filter_by(patient_id=patient_id).options(joinedload(PrescribedMedicine.medicine)).all()
+        dispensed_drugs = DispensedDrug.query.filter_by(patient_id=patient_id).options(joinedload(DispensedDrug.drug), joinedload(DispensedDrug.batch)).all()
+        requested_labs = RequestedLab.query.filter_by(patient_id=patient_id).options(joinedload(RequestedLab.lab_test)).all()
+        lab_results = LabResult.query.filter_by(patient_id=patient_id).options(joinedload(LabResult.lab_test)).all()
 
-        # Query Dispensed Drugs
-        dispensed_drugs_query = text("""
-            SELECT dd.*, d.generic_name, d.brand_name, b.batch_number
-            FROM dispensed_drugs dd
-            JOIN drugs d ON dd.drug_id = d.id
-            JOIN batches b ON dd.batch_id = b.id
-            WHERE dd.patient_id = :patient_id
-        """)
-        dispensed_drugs = db.session.execute(dispensed_drugs_query, {"patient_id": patient_id}).fetchall()
-
-        # Query Requested Labs
-        requested_labs_query = text("""
-            SELECT rl.*, lt.test_name
-            FROM requested_labs rl
-            JOIN labtests lt ON rl.lab_test_id = lt.id
-            WHERE rl.patient_id = :patient_id
-        """)
-        requested_labs = db.session.execute(requested_labs_query, {"patient_id": patient_id}).fetchall()
-
-        # Query Lab Results with Processing
-        lab_results_query = text("""
-            SELECT lr.*, lt.test_name
-            FROM lab_results lr
-            JOIN labtests lt ON lr.lab_test_id = lt.id
-            WHERE lr.patient_id = :patient_id
-        """)
-        lab_results = db.session.execute(lab_results_query, {"patient_id": patient_id}).fetchall()
-
-        # Process Lab Results for Presentation
         test_presentations = {}
         for result in lab_results:
-            test_id = result.lab_test_id
-            result_id = result.result_id
             results_dict = {}
             try:
                 results_dict = json.loads(result.result) if result.result else {}
             except json.JSONDecodeError:
-                flash(f'Invalid result format for result ID {result_id}.', 'warning')
+                flash(f'Invalid result format for result ID {result.result_id}.', 'warning')
 
-            # Fetch parameters for this lab test
-            params_query = text("""
-                SELECT * FROM labresults_templates
-                WHERE test_id = :test_id
-            """)
-            parameters = db.session.execute(params_query, {"test_id": test_id}).fetchall()
-
+            parameters = LabResultTemplate.query.filter_by(test_id=result.lab_test_id).all()
             test_presentation = []
             for param in parameters:
                 result_value = results_dict.get(str(param.id))
@@ -1370,80 +1310,41 @@ def patient_history():
                     'status': status
                 })
 
-            test_presentations[result_id] = {
-                'test_name': result.test_name,
+            test_presentations[result.result_id] = {
+                'test_name': result.lab_test.test_name if result.lab_test else "Unknown Test",
                 'test_date': result.test_date,
                 'result_notes': result.result_notes,
                 'parameters': test_presentation
             }
 
-        # Query Requested Imaging
-        requested_images_query = text("""
-            SELECT ri.*, i.imaging_type
-            FROM requested_images ri
-            JOIN imaging i ON ri.imaging_id = i.id
-            WHERE ri.patient_id = :patient_id
-        """)
-        requested_images = db.session.execute(requested_images_query, {"patient_id": patient_id}).fetchall()
+        requested_images = RequestedImage.query.filter_by(patient_id=patient_id).options(joinedload(RequestedImage.imaging)).all()
+        imaging_results = ImagingResult.query.filter_by(patient_id=patient_id).options(joinedload(ImagingResult.imaging)).all()
+        vitals = Vitals.query.filter_by(patient_id=patient_id).all()
+        soap_notes = SOAPNote.query.filter_by(patient_id=patient_id).all()
+        clinic_bookings = ClinicBooking.query.filter_by(patient_id=patient_id).options(joinedload(ClinicBooking.clinic)).all()
+        admissions = AdmittedPatient.query.filter_by(patient_id=patient_id).options(joinedload(AdmittedPatient.ward)).all()
+        billing = Billing.query.filter_by(patient_id=patient_id).options(joinedload(Billing.charge)).all()
 
-        # Query Imaging Results
-        imaging_results_query = text("""
-            SELECT ir.*, i.imaging_type
-            FROM imaging_results ir
-            JOIN imaging i ON ir.imaging_id = i.id
-            WHERE ir.patient_id = :patient_id
-        """)
-        imaging_results = db.session.execute(imaging_results_query, {"patient_id": patient_id}).fetchall()
-
-        # Query Vitals
-        vitals_query = text("SELECT * FROM vitals WHERE patient_id = :patient_id")
-        vitals = db.session.execute(vitals_query, {"patient_id": patient_id}).fetchall()
-
-        # Query SOAP Notes
-        soap_notes_query = text("SELECT * FROM soap_notes WHERE patient_id = :patient_id")
-        soap_notes = db.session.execute(soap_notes_query, {"patient_id": patient_id}).fetchall()
-
-        # Query Clinic Bookings
-        clinic_bookings_query = text("""
-            SELECT cb.*, c.name AS clinic_name
-            FROM clinic_bookings cb
-            JOIN clinics c ON cb.clinic_id = c.clinic_id
-            WHERE cb.patient_id = :patient_id
-        """)
-        clinic_bookings = db.session.execute(clinic_bookings_query, {"patient_id": patient_id}).fetchall()
-
-        # Query Admissions
-        admissions_query = text("""
-            SELECT ap.*, w.name AS ward_name
-            FROM admitted_patients ap
-            JOIN wards w ON ap.ward_id = w.id
-            WHERE ap.patient_id = :patient_id
-        """)
-        admissions = db.session.execute(admissions_query, {"patient_id": patient_id}).fetchall()
-
-        # Query Billing
-        billing_query = text("""
-            SELECT b.*, ch.name AS charge_name
-            FROM billing b
-            JOIN charges ch ON b.charge_id = ch.id
-            WHERE b.patient_id = :patient_id
-        """)
-        billing = db.session.execute(billing_query, {"patient_id": patient_id}).fetchall()
-
-        # Prepare data for JSON response
         history_data = {
-            'patient': dict(patient._mapping),
-            'prescribed_meds': [dict(row._mapping) for row in prescribed_meds],
-            'dispensed_drugs': [dict(row._mapping) for row in dispensed_drugs],
-            'requested_labs': [dict(row._mapping) for row in requested_labs],
-            'lab_results': test_presentations,  # Structured presentation
-            'requested_images': [dict(row._mapping) for row in requested_images],
-            'imaging_results': [dict(row._mapping) for row in imaging_results],
-            'vitals': [dict(row._mapping) for row in vitals],
-            'soap_notes': [dict(row._mapping) for row in soap_notes],
-            'clinic_bookings': [dict(row._mapping) for row in clinic_bookings],
-            'admissions': [dict(row._mapping) for row in admissions],
-            'billing': [dict(row._mapping) for row in billing]
+            'patient': {
+                'id': patient.id,
+                'patient_id': patient.patient_id,
+                'name': patient.name,
+                'sex': patient.sex,
+                'contact': patient.contact,
+                'date_registered': patient.date_registered.strftime('%Y-%m-%d %H:%M:%S') if patient.date_registered else None
+            },
+            'prescribed_meds': [{'id': m.id, 'medicine': m.medicine.generic_name if m.medicine else 'N/A', 'dosage': m.dosage, 'frequency': m.frequency} for m in prescribed_meds],
+            'dispensed_drugs': [{'id': d.id, 'drug': d.drug.generic_name if d.drug else 'N/A', 'quantity': d.quantity_dispensed, 'date': d.date_dispensed.strftime('%Y-%m-%d')} for d in dispensed_drugs],
+            'requested_labs': [{'id': l.id, 'test_name': l.lab_test.test_name if l.lab_test else 'N/A', 'status': l.status} for l in requested_labs],
+            'lab_results': test_presentations,
+            'requested_images': [{'id': i.id, 'type': i.imaging.imaging_type if i.imaging else 'N/A', 'status': i.status} for i in requested_images],
+            'imaging_results': [{'id': ir.id, 'type': ir.imaging.imaging_type if ir.imaging else 'N/A', 'findings': ir.ai_findings} for ir in imaging_results],
+            'vitals': [{'temp': v.temperature, 'bp': f"{v.blood_pressure_systolic}/{v.blood_pressure_diastolic}", 'pulse': v.pulse} for v in vitals],
+            'soap_notes': [{'id': s.id, 'assessment': s.assessment, 'recommendation': s.recommendation} for s in soap_notes],
+            'clinic_bookings': [{'id': cb.id, 'clinic': cb.clinic.name if cb.clinic else 'N/A', 'date': cb.clinic_date.strftime('%Y-%m-%d')} for cb in clinic_bookings],
+            'admissions': [{'id': a.id, 'ward': a.ward.name if a.ward else 'N/A', 'admitted_on': a.admitted_on.strftime('%Y-%m-%d')} for a in admissions],
+            'billing': [{'id': b.id, 'charge': b.charge.name if b.charge else 'N/A', 'cost': float(b.total_cost), 'status': b.status} for b in billing]
         }
 
         if request.is_json:
@@ -1455,7 +1356,7 @@ def patient_history():
             prescribed_meds=prescribed_meds,
             dispensed_drugs=dispensed_drugs,
             requested_labs=requested_labs,
-            lab_results=test_presentations,  # Pass structured data
+            lab_results=test_presentations,
             requested_images=requested_images,
             imaging_results=imaging_results,
             vitals=vitals,
@@ -1470,6 +1371,7 @@ def patient_history():
 
 
 @bp.route('/analytics', methods=['GET', 'POST'])
+@login_required
 def analytics():
     end_date = datetime.now()
     start_date = end_date - timedelta(days=30)
@@ -1564,6 +1466,7 @@ def analytics():
     )
 
 @bp.route('/analytics/export')
+@login_required
 def export_analytics():
     sales_data = session.get('sales_data', {})
     start_date = session.get('start_date', (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))

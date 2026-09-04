@@ -1,62 +1,127 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center"><i class="bi bi-clock-history"></i> Pending Drug Requests</h2>
+<style>
+  :root {
+    --ph-primary: #0e7c61;
+    --ph-header-bg: linear-gradient(135deg, #0e7c61 0%, #16a085 60%, #1abc9c 100%);
+    --ph-card-shadow: 0 4px 24px rgba(14,124,97,0.10);
+    --ph-border: rgba(14,124,97,0.12);
+  }
 
-    <!-- Filter Form -->
-    <form method="POST" class="mb-4">
-        <div class="row">
-            <div class="col-md-4">
-                <label for="start_date" class="form-label">Start Date</label>
-                <input type="date" name="start_date" id="start_date" class="form-control">
-            </div>
-            <div class="col-md-4">
-                <label for="end_date" class="form-label">End Date</label>
-                <input type="date" name="end_date" id="end_date" class="form-control">
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-filter"></i> Filter</button>
-            </div>
+  .ph-header-banner {
+    background: var(--ph-header-bg);
+    border-radius: 16px;
+    padding: 24px 32px;
+    color: #ffffff;
+    box-shadow: 0 8px 32px rgba(14, 124, 97, 0.25);
+    margin-bottom: 28px;
+  }
+
+  .ph-card {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid var(--ph-border);
+    box-shadow: var(--ph-card-shadow);
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+
+  .ph-card-header {
+    background: #f4fbf8;
+    border-bottom: 1px solid var(--ph-border);
+    padding: 16px 24px;
+  }
+  .ph-card-header h5 {
+    color: var(--ph-primary);
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .table-ph th {
+    background: #eef7f4;
+    color: #1a4d3e;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 12px 16px;
+    border-bottom: 2px solid var(--ph-border);
+  }
+  .table-ph td {
+    padding: 14px 16px;
+    vertical-align: middle;
+  }
+</style>
+
+<div class="container mt-4 mb-5">
+  <div class="ph-header-banner d-flex justify-content-between align-items-center">
+    <div>
+      <h2 class="fw-bold mb-1"><i class="bi bi-hourglass-split me-2"></i>Pending Drug Requests</h2>
+      <p class="mb-0 text-white-50">Review and process ongoing store requisitions</p>
+    </div>
+  </div>
+
+  <!-- Filter Form -->
+  <div class="ph-card p-4">
+    <form method="POST">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label for="start_date" class="form-label fw-bold text-secondary">Start Date</label>
+          <input type="date" name="start_date" id="start_date" class="form-control">
         </div>
+        <div class="col-md-4">
+          <label for="end_date" class="form-label fw-bold text-secondary">End Date</label>
+          <input type="date" name="end_date" id="end_date" class="form-control">
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-outline-success w-100 fw-bold">
+            <i class="bi bi-funnel me-1"></i> Filter Requests
+          </button>
+        </div>
+      </div>
     </form>
+  </div>
 
-    <!-- Table: Summary of Pending Requests -->
-    {% if pending_requests %}
-    <div class="card shadow-sm">
-        <div class="card-header bg-warning text-white">
-            <h4 class="mb-0">Recent Pending Requests</h4>
-        </div>
-        <div class="card-body">
-            <table class="table table-striped">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Request Date</th>
-                        <th>Requested By</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for req in pending_requests %}
-                    <tr>
-                        <td>{{ req.request_date.strftime('%Y-%m-%d') }}</td>
-                        <td>{{ req.requested_by }}</td>
-                        <td><span class="badge bg-warning">{{ req.status }}</span></td>
-                        <td>
-                            <a href="{{ url_for('pharmacy.pending_request_details', request_id=req.id) }}" class="btn btn-outline-primary btn-sm">
-                                <i class="bi bi-eye"></i> View Details
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+  <!-- Table Summary -->
+  {% if pending_requests %}
+  <div class="ph-card">
+    <div class="ph-card-header">
+      <h5><i class="bi bi-list-ul me-2"></i>Active Pending Queue</h5>
     </div>
-    {% else %}
-    <div class="alert alert-info text-center">
-        <i class="bi bi-exclamation-triangle"></i> No pending requests found.
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-ph table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Request Date</th>
+              <th>Requested By</th>
+              <th>Status</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for req in pending_requests %}
+            <tr>
+              <td class="fw-semibold text-dark">{{ req.request_date.strftime('%Y-%m-%d %H:%M') if req.request_date else 'N/A' }}</td>
+              <td><span class="badge bg-light text-dark border"><i class="bi bi-person me-1"></i>{{ req.requested_by }}</span></td>
+              <td><span class="badge bg-warning text-dark px-3 py-2 fs-6"><i class="bi bi-clock me-1"></i>{{ req.status }}</span></td>
+              <td class="text-end">
+                <a href="{{ url_for('pharmacy.pending_request_details', request_id=req.id) }}" class="btn btn-sm btn-outline-primary fw-bold">
+                  <i class="bi bi-eye me-1"></i> View Details
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
-    {% endif %}
+  </div>
+  {% else %}
+  <div class="ph-card text-center p-5">
+    <i class="bi bi-check-circle text-muted display-4 mb-3 d-block"></i>
+    <h5 class="text-secondary fw-bold">No Pending Requests Found</h5>
+    <p class="text-muted">All drug requisitions have been processed or no matching records exist for this filter.</p>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

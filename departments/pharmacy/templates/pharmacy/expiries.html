@@ -1,72 +1,165 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">Expired Medications</h2>
+<style>
+  :root {
+    --ph-header-bg: linear-gradient(135deg, #0e7c61 0%, #16a085 60%, #1abc9c 100%);
+    --ph-danger-bg: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+    --ph-card-shadow: 0 4px 24px rgba(14,124,97,0.10);
+    --ph-border: rgba(14,124,97,0.12);
+    --ph-surface: #f4fbf8;
+  }
+  .ph-hero {
+    background: var(--ph-danger-bg); border-radius: 16px; padding: 1.75rem 2.5rem;
+    margin-bottom: 2rem; color: white; display: flex; align-items: center;
+    justify-content: space-between; box-shadow: 0 8px 32px rgba(192,57,43,0.22);
+    position: relative; overflow: hidden;
+  }
+  .ph-hero::after { content:''; position:absolute; right:-30px; top:-30px; width:180px; height:180px; background:rgba(255,255,255,0.07); border-radius:50%; }
+  .ph-hero h2 { font-size:1.5rem; font-weight:700; margin:0; }
+  .ph-hero p  { opacity:.85; margin:.2rem 0 0; font-size:.9rem; }
 
-    {% if expired_drugs %}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-danger text-white">
-            <h4 class="mb-0">Expired Drugs</h4>
-        </div>
-        <div class="card-body">
-            <table class="table table-striped">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Generic Name</th>
-                        <th>Brand Name</th>
-                        <th>Dosage Form</th>
-                        <th>Strength</th>
-                        <th>Batch Number</th>
-                        <th>Batch Quantity</th>
-                        <th>Expiry Date</th>
-                        <th>Total Stock</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for drug in expired_drugs %}
-                    <tr>
-                        <td>{{ drug.generic_name }}</td>
-                        <td>{{ drug.brand_name | default("N/A") }}</td>
-                        <td>{{ drug.dosage_form | default("N/A") }}</td>
-                        <td>{{ drug.strength | default("N/A") }}</td>
-                        <td>{{ drug.batch_number | default("N/A") }}</td>
-                        <td>{{ drug.batch_quantity }}</td>
-                        <td>{{ drug.expiry_date.strftime('%d-%m-%Y') if drug.expiry_date else "N/A" }}</td>
-                        <td>{{ drug.total_stock }}</td>
-                        <td>
-                            <a href="{{ url_for('pharmacy.remove_batch', batch_id=drug.batch_id) }}"
-                               class="btn btn-sm btn-warning"
-                               onclick="return confirm('Are you sure you want to remove this batch from inventory?');">
-                                Remove
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+  .ph-card {
+    background: white; border-radius: 16px; box-shadow: var(--ph-card-shadow);
+    border: 1px solid var(--ph-border); overflow: hidden; margin-bottom: 1.75rem;
+  }
+  .ph-card-header {
+    padding: 1rem 1.5rem; display: flex; align-items: center;
+    justify-content: space-between; color: white;
+  }
+  .ph-card-header.danger { background: var(--ph-danger-bg); }
+  .ph-card-header h5 { margin: 0; font-weight: 700; color: white; }
 
-    <!-- Remove All Button -->
-    <div class="text-center mb-4">
-        <a href="{{ url_for('pharmacy.remove_all_expiries') }}"
-           class="btn btn-danger"
-           onclick="return confirm('Are you sure you want to remove all expired batches from inventory?');">
-            Remove All Expired Batches
-        </a>
-    </div>
-    {% else %}
-    <p class="text-muted text-center">No expired drugs in the inventory.</p>
-    {% endif %}
+  .ph-table { margin: 0; box-shadow: none; border-radius: 0; }
+  .ph-table thead th {
+    background: #fff5f5 !important; color: #c0392b !important;
+    font-weight: 700; font-size: 0.80rem; text-transform: uppercase;
+    letter-spacing: 0.05em; padding: 0.75rem 1rem; border-bottom: 2px solid #fde8e8;
+  }
+  .ph-table tbody td {
+    padding: 0.8rem 1rem; vertical-align: middle;
+    border-bottom: 1px solid #fff5f5; font-size: 0.93rem; color: #2d4a3e;
+  }
+  .ph-table tbody tr:hover { background: #fff5f5 !important; }
 
-    <!-- Back Button -->
-    <div class="text-center mt-4">
-        <a href="{{ url_for('pharmacy.index') }}" class="btn btn-secondary">Back to Dashboard</a>
-                <a href="{{ url_for('pharmacy.expiries_report') }}"
-           class="btn btn-success">
-            expries report
-        </a>
+  .btn-remove-one {
+    background: #fde8e8; color: #c0392b; border: none; border-radius: 8px;
+    padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 600;
+    transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.35rem; text-decoration: none;
+  }
+  .btn-remove-one:hover { background: #c0392b; color: white; transform: translateY(-1px); }
+
+  .btn-remove-all {
+    background: var(--ph-danger-bg); color: white; border: none; border-radius: 10px;
+    padding: 0.6rem 1.8rem; font-weight: 700; font-size: 0.95rem;
+    transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
+  }
+  .btn-remove-all:hover { color: white; transform: translateY(-2px); box-shadow: 0 6px 18px rgba(192,57,43,0.35); }
+
+  .btn-secondary-ph {
+    background: linear-gradient(90deg, #6c757d, #495057); color: white; border: none;
+    border-radius: 10px; padding: 0.5rem 1.4rem; font-weight: 600;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
+  }
+  .btn-secondary-ph:hover { color: white; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+
+  .btn-report-ph {
+    background: var(--ph-header-bg); color: white; border: none;
+    border-radius: 10px; padding: 0.5rem 1.4rem; font-weight: 600;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
+  }
+  .btn-report-ph:hover { color: white; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(14,124,97,0.35); }
+
+  .expiry-date { color: #c0392b; font-weight: 700; }
+  .ph-count-badge { background: rgba(255,255,255,0.25); color: white; border-radius: 20px; padding: 0.2rem 0.75rem; font-size: 0.83rem; font-weight: 600; }
+  .empty-ph { color: #7ca898; text-align: center; padding: 2.5rem 0; }
+  .empty-ph i { font-size: 2.5rem; display: block; margin-bottom: 0.75rem; opacity: 0.4; }
+</style>
+
+<div class="container-fluid px-4 py-4">
+
+  <!-- Hero -->
+  <div class="ph-hero animate-fade-in">
+    <div>
+      <h2><i class="bi bi-calendar-x me-2"></i> Expired Medications</h2>
+      <p>Review and remove all expired drug batches from inventory</p>
     </div>
+    <div class="d-flex align-items-center gap-3">
+      {% if expired_drugs %}
+      <span class="ph-count-badge"><i class="bi bi-exclamation-triangle me-1"></i>{{ expired_drugs|length }} expired</span>
+      {% endif %}
+      <i class="bi bi-x-octagon" style="font-size:3rem; opacity:0.85;"></i>
+    </div>
+  </div>
+
+  {% if expired_drugs %}
+  <!-- ── Expired Drugs Table ── -->
+  <div class="ph-card animate-fade-in">
+    <div class="ph-card-header danger">
+      <h5><i class="bi bi-x-octagon-fill me-2"></i> Expired Drug Batches</h5>
+      <span class="ph-count-badge">{{ expired_drugs|length }} batches</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table ph-table mb-0">
+        <thead>
+          <tr>
+            <th>Generic Name</th><th>Brand Name</th><th>Form</th>
+            <th>Strength</th><th>Batch No.</th><th>Qty/Batch</th>
+            <th>Expiry Date</th><th>Total Stock</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for drug in expired_drugs %}
+          <tr>
+            <td><strong>{{ drug.generic_name }}</strong></td>
+            <td>{{ drug.brand_name | default('—') }}</td>
+            <td>{{ drug.dosage_form | default('—') }}</td>
+            <td>{{ drug.strength | default('—') }}</td>
+            <td><code>{{ drug.batch_number | default('—') }}</code></td>
+            <td>{{ drug.batch_quantity }}</td>
+            <td><span class="expiry-date"><i class="bi bi-calendar-x me-1"></i>{{ drug.expiry_date.strftime('%d %b %Y') if drug.expiry_date else '—' }}</span></td>
+            <td>{{ drug.total_stock }}</td>
+            <td>
+              <a href="{{ url_for('pharmacy.remove_batch', batch_id=drug.batch_id) }}"
+                 class="btn-remove-one"
+                 onclick="return confirm('Remove this expired batch from inventory?');">
+                <i class="bi bi-trash3"></i> Remove
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Remove All Button -->
+  <div class="d-flex gap-3 align-items-center mb-4 animate-fade-in">
+    <a href="{{ url_for('pharmacy.remove_all_expiries') }}"
+       class="btn-remove-all"
+       onclick="return confirm('Remove ALL expired batches from inventory? This cannot be undone.');">
+      <i class="bi bi-trash3-fill"></i> Remove All Expired Batches
+    </a>
+    <a href="{{ url_for('pharmacy.expiries_report') }}" class="btn-report-ph">
+      <i class="bi bi-file-earmark-text"></i> Expiry Report
+    </a>
+    <a href="{{ url_for('pharmacy.index') }}" class="btn-secondary-ph">
+      <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+  </div>
+
+  {% else %}
+  <div class="ph-card animate-fade-in">
+    <div class="empty-ph">
+      <i class="bi bi-check-circle-fill" style="color:#27ae60; opacity:0.7;"></i>
+      <p class="fw-bold text-muted">No expired drugs in inventory. Great job!</p>
+    </div>
+  </div>
+  <div class="mt-3">
+    <a href="{{ url_for('pharmacy.index') }}" class="btn-secondary-ph">
+      <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+  </div>
+  {% endif %}
+
 </div>
 {% endblock %}

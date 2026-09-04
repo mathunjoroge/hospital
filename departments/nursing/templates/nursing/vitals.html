@@ -1,213 +1,283 @@
 {% extends "base.html" %}
+{% block title %}Patient Vitals: {{ patient_id }} - Nursing{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center text-primary fw-bold">Patient Vitals - ID: {{ patient_id }}</h2>
-
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
-    <!-- Vitals Form -->
-    <div class="card shadow-sm mb-4 border-primary">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0"><i class="bi bi-heart-pulse me-2"></i> Record Vitals</h4>
-        </div>
-        <div class="card-body">
-            <form method="POST">
-                <div class="accordion" id="vitalsAccordion">
-                    <!-- Cardiovascular Group -->
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingCardio">
-                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCardio" aria-expanded="true" aria-controls="collapseCardio">
-                                <i class="bi bi-heart me-2"></i> Cardiovascular
-                            </button>
-                        </h2>
-                        <div id="collapseCardio" class="accordion-collapse collapse show" aria-labelledby="headingCardio" data-bs-parent="#vitalsAccordion">
-                            <div class="accordion-body">
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label for="pulse" class="form-label">Pulse (bpm)</label>
-                                        <input type="number" class="form-control border-primary" id="pulse" name="pulse" value="{{ vitals.pulse if vitals else '' }}" placeholder="60-100">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="blood_pressure_systolic" class="form-label">Blood Pressure (mmHg)</label>
-                                        <div class="input-group">
-                                            <input type="number" class="form-control border-primary" id="blood_pressure_systolic" name="blood_pressure_systolic" value="{{ vitals.blood_pressure_systolic if vitals else '' }}" placeholder="90-120">
-                                            <span class="input-group-text">/</span>
-                                            <input type="number" class="form-control border-primary" id="blood_pressure_diastolic" name="blood_pressure_diastolic" value="{{ vitals.blood_pressure_diastolic if vitals else '' }}" placeholder="60-80">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Respiratory Group -->
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingRespiratory">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseRespiratory" aria-expanded="false" aria-controls="collapseRespiratory">
-                                <i class="bi bi-lungs me-2"></i> Respiratory
-                            </button>
-                        </h2>
-                        <div id="collapseRespiratory" class="accordion-collapse collapse" aria-labelledby="headingRespiratory" data-bs-parent="#vitalsAccordion">
-                            <div class="accordion-body">
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label for="respiratory_rate" class="form-label">Respiratory Rate (breaths/min)</label>
-                                        <input type="number" class="form-control border-success" id="respiratory_rate" name="respiratory_rate" value="{{ vitals.respiratory_rate if vitals else '' }}" placeholder="12-20">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="oxygen_saturation" class="form-label">Oxygen Saturation (%)</label>
-                                        <input type="number" class="form-control border-success" id="oxygen_saturation" name="oxygen_saturation" value="{{ vitals.oxygen_saturation if vitals else '' }}" placeholder="95-100">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Metabolic Group -->
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingMetabolic">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMetabolic" aria-expanded="false" aria-controls="collapseMetabolic">
-                                <i class="bi bi-droplet me-2"></i> Metabolic
-                            </button>
-                        </h2>
-                        <div id="collapseMetabolic" class="accordion-collapse collapse" aria-labelledby="headingMetabolic" data-bs-parent="#vitalsAccordion">
-                            <div class="accordion-body">
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label for="temperature" class="form-label">Temperature (°C)</label>
-                                        <input type="number" step="0.1" class="form-control border-warning" id="temperature" name="temperature" value="{{ vitals.temperature if vitals else '' }}" placeholder="36.1-37.2">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="blood_glucose" class="form-label">Blood Glucose (mg/dL)</label>
-                                        <input type="number" step="0.1" class="form-control border-warning" id="blood_glucose" name="blood_glucose" value="{{ vitals.blood_glucose if vitals else '' }}" placeholder="70-110">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Physical Group -->
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingPhysical">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePhysical" aria-expanded="false" aria-controls="collapsePhysical">
-                                <i class="bi bi-person me-2"></i> Physical
-                            </button>
-                        </h2>
-                        <div id="collapsePhysical" class="accordion-collapse collapse" aria-labelledby="headingPhysical" data-bs-parent="#vitalsAccordion">
-                            <div class="accordion-body">
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label for="weight" class="form-label">Weight (kg)</label>
-                                        <input type="number" step="0.1" class="form-control border-info" id="weight" name="weight" value="{{ vitals.weight if vitals else '' }}" placeholder="e.g., 70.5">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="height" class="form-label">Height (cm)</label>
-                                        <input type="number" step="0.1" class="form-control border-info" id="height" name="height" value="{{ vitals.height if vitals else '' }}" placeholder="e.g., 170.0">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="text-center mt-4">
-                    <button type="submit" class="btn btn-primary btn-lg">
-                        <i class="bi bi-save me-2"></i> Save Vitals
-                    </button>
-                    <a href="/" class="btn btn-secondary btn-lg ms-2">
-                        <i class="bi bi-arrow-left me-2"></i> Back to Waiting List
-                    </a>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Latest Vitals Display -->
-    {% if vitals %}
-    <div class="card shadow-sm mb-4 border-success">
-        <div class="card-header bg-success text-white">
-            <h4 class="mb-0"><i class="bi bi-clock-history me-2"></i> Latest Recorded Vitals</h4>
-        </div>
-        <div class="card-body">
-            <div class="row g-4">
-                <!-- Cardiovascular -->
-                <div class="col-md-6">
-                    <div class="card border-primary h-100">
-                        <div class="card-body">
-                            <h5 class="card-title text-primary"><i class="bi bi-heart me-2"></i> Cardiovascular</h5>
-                            <p><strong>Pulse:</strong> {{ vitals.pulse|default('N/A') }} bpm</p>
-                            <p><strong>Blood Pressure:</strong> {{ vitals.blood_pressure_systolic|default('N/A') }} / {{ vitals.blood_pressure_diastolic|default('N/A') }} mmHg</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Respiratory -->
-                <div class="col-md-6">
-                    <div class="card border-success h-100">
-                        <div class="card-body">
-                            <h5 class="card-title text-success"><i class="bi bi-lungs me-2"></i> Respiratory</h5>
-                            <p><strong>Respiratory Rate:</strong> {{ vitals.respiratory_rate|default('N/A') }} breaths/min</p>
-                            <p><strong>Oxygen Saturation:</strong> {{ vitals.oxygen_saturation|default('N/A') }} %</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Metabolic -->
-                <div class="col-md-6">
-                    <div class="card border-warning h-100">
-                        <div class="card-body">
-                            <h5 class="card-title text-warning"><i class="bi bi-droplet me-2"></i> Metabolic</h5>
-                            <p><strong>Temperature:</strong> {{ vitals.temperature|default('N/A') }} °C</p>
-                            <p><strong>Blood Glucose:</strong> {{ vitals.blood_glucose|default('N/A') }} mg/dL</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Physical -->
-                <div class="col-md-6">
-                    <div class="card border-info h-100">
-                        <div class="card-body">
-                            <h5 class="card-title text-info"><i class="bi bi-person me-2"></i> Physical</h5>
-                            <p><strong>Weight:</strong> {{ vitals.weight|default('N/A') }} kg</p>
-                            <p><strong>Height:</strong> {{ vitals.height|default('N/A') }} cm</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Timestamp -->
-                <div class="col-12 text-center mt-3">
-                    <p class="text-muted"><strong>Recorded:</strong> {{ vitals.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-</div>
-
-<!-- Custom CSS for Elegance -->
 <style>
-    .accordion-button:not(.collapsed) {
-        background-color: #e9ecef;
-        color: #2c3e50;
-    }
-    .accordion-button:focus {
-        box-shadow: none;
-    }
-    .card.border-primary, .card.border-success, .card.border-warning, .card.border-info {
-        border-width: 2px;
-    }
-    .btn-lg {
-        padding: 0.75rem 1.5rem;
-        font-size: 1.25rem;
-    }
-    .input-group-text {
-        background-color: #f8f9fa;
-    }
+  :root {
+    --ns-primary: #e11d48;
+    --ns-primary-hover: #be123c;
+    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+  }
+
+  .ns-header-card {
+    background: var(--ns-header-bg);
+    color: #ffffff;
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.3);
+  }
+
+  .ns-glass-card {
+    background: var(--bs-body-bg);
+    border: 1px solid rgba(225, 29, 72, 0.15);
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  }
+
+  .ns-card-header {
+    background: rgba(225, 29, 72, 0.06);
+    border-bottom: 1px solid rgba(225, 29, 72, 0.12);
+    border-top-left-radius: 14px !important;
+    border-top-right-radius: 14px !important;
+  }
+
+  .ns-btn-primary {
+    background-color: var(--ns-primary);
+    border-color: var(--ns-primary);
+    color: #fff;
+  }
+  .ns-btn-primary:hover {
+    background-color: var(--ns-primary-hover);
+    border-color: var(--ns-primary-hover);
+    color: #fff;
+  }
+
+  .accordion-button:not(.collapsed) {
+    background-color: rgba(225, 29, 72, 0.08);
+    color: #be123c;
+    font-weight: 600;
+  }
+  .accordion-button:focus {
+    box-shadow: none;
+  }
 </style>
+
+<div class="container-fluid py-4 px-4">
+
+  <!-- Header Banner -->
+  <div class="card ns-header-card mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+          <span class="badge bg-white text-danger px-3 py-2 fw-semibold rounded-pill mb-2">
+            <i class="bi bi-heart-pulse-fill me-1"></i> Patient Vital Signs Logging
+          </span>
+          <h2 class="h1 fw-bold text-white mb-1">
+            <i class="bi bi-activity me-2"></i>Patient #{{ patient_id }}
+          </h2>
+          <p class="text-white-50 mb-0">Record and monitor physiological parameters and vital trends.</p>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <a href="{{ url_for('nursing.vitals_chart', patient_id=patient_id) }}" class="btn btn-light rounded-pill px-3 shadow-sm text-danger fw-semibold">
+            <i class="bi bi-graph-up-arrow me-1"></i> Visual Trend Chart
+          </a>
+          <a href="{{ url_for('nursing.patient_dashboard') }}?patient_id={{ patient_id }}" class="btn btn-outline-light rounded-pill px-3 shadow-sm">
+            <i class="bi bi-person-badge me-1"></i> Patient Kardex
+          </a>
+          <a href="{{ url_for('nursing.index') }}" class="btn btn-dark rounded-pill px-3 shadow-sm">
+            <i class="bi bi-arrow-left me-1"></i> Triage List
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Vitals Input Form -->
+    <div class="col-lg-7">
+      <div class="card ns-glass-card">
+        <div class="card-header ns-card-header py-3">
+          <h5 class="mb-0 text-danger fw-bold"><i class="bi bi-clipboard2-pulse me-2"></i>Record Clinical Vitals</h5>
+        </div>
+        <div class="card-body p-4">
+          <form method="POST">
+            <div class="accordion" id="vitalsAccordion">
+              
+              <!-- Cardiovascular -->
+              <div class="accordion-item border rounded-3 mb-3 overflow-hidden">
+                <h2 class="accordion-header" id="headingCardio">
+                  <button class="accordion-button fw-bold text-danger" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCardio" aria-expanded="true">
+                    <i class="bi bi-heart-pulse me-2"></i> 1. Cardiovascular System
+                  </button>
+                </h2>
+                <div id="collapseCardio" class="accordion-collapse collapse show" data-bs-parent="#vitalsAccordion">
+                  <div class="accordion-body bg-light">
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        <label for="pulse" class="form-label fw-semibold">Pulse Rate (bpm)</label>
+                        <input type="number" class="form-control border-danger-subtle" id="pulse" name="pulse" value="{{ vitals.pulse if vitals else '' }}" placeholder="Normal: 60-100">
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label fw-semibold">Blood Pressure (mmHg)</label>
+                        <div class="input-group">
+                          <input type="number" class="form-control border-danger-subtle" id="blood_pressure_systolic" name="blood_pressure_systolic" value="{{ vitals.blood_pressure_systolic if vitals else '' }}" placeholder="Systolic (90-120)">
+                          <span class="input-group-text bg-white border-danger-subtle">/</span>
+                          <input type="number" class="form-control border-danger-subtle" id="blood_pressure_diastolic" name="blood_pressure_diastolic" value="{{ vitals.blood_pressure_diastolic if vitals else '' }}" placeholder="Diastolic (60-80)">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Respiratory -->
+              <div class="accordion-item border rounded-3 mb-3 overflow-hidden">
+                <h2 class="accordion-header" id="headingRespiratory">
+                  <button class="accordion-button collapsed fw-bold text-danger" type="button" data-bs-toggle="collapse" data-bs-target="#collapseRespiratory">
+                    <i class="bi bi-lungs me-2"></i> 2. Respiratory & Oxygenation
+                  </button>
+                </h2>
+                <div id="collapseRespiratory" class="accordion-collapse collapse" data-bs-parent="#vitalsAccordion">
+                  <div class="accordion-body bg-light">
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        <label for="respiratory_rate" class="form-label fw-semibold">Respiratory Rate (breaths/min)</label>
+                        <input type="number" class="form-control border-danger-subtle" id="respiratory_rate" name="respiratory_rate" value="{{ vitals.respiratory_rate if vitals else '' }}" placeholder="Normal: 12-20">
+                      </div>
+                      <div class="col-md-6">
+                        <label for="oxygen_saturation" class="form-label fw-semibold">Oxygen Saturation SpO2 (%)</label>
+                        <input type="number" class="form-control border-danger-subtle" id="oxygen_saturation" name="oxygen_saturation" value="{{ vitals.oxygen_saturation if vitals else '' }}" placeholder="Normal: 95-100%">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Metabolic -->
+              <div class="accordion-item border rounded-3 mb-3 overflow-hidden">
+                <h2 class="accordion-header" id="headingMetabolic">
+                  <button class="accordion-button collapsed fw-bold text-danger" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMetabolic">
+                    <i class="bi bi-thermometer-half me-2"></i> 3. Temperature & Metabolic
+                  </button>
+                </h2>
+                <div id="collapseMetabolic" class="accordion-collapse collapse" data-bs-parent="#vitalsAccordion">
+                  <div class="accordion-body bg-light">
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        <label for="temperature" class="form-label fw-semibold">Body Temperature (°C)</label>
+                        <input type="number" step="0.1" class="form-control border-danger-subtle" id="temperature" name="temperature" value="{{ vitals.temperature if vitals else '' }}" placeholder="Normal: 36.5 - 37.5 °C">
+                      </div>
+                      <div class="col-md-6">
+                        <label for="blood_glucose" class="form-label fw-semibold">Blood Glucose (mg/dL)</label>
+                        <input type="number" step="0.1" class="form-control border-danger-subtle" id="blood_glucose" name="blood_glucose" value="{{ vitals.blood_glucose if vitals else '' }}" placeholder="Normal Fasting: 70-110">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Physical -->
+              <div class="accordion-item border rounded-3 mb-3 overflow-hidden">
+                <h2 class="accordion-header" id="headingPhysical">
+                  <button class="accordion-button collapsed fw-bold text-danger" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePhysical">
+                    <i class="bi bi-person-bounding-box me-2"></i> 4. Physical Measurements
+                  </button>
+                </h2>
+                <div id="collapsePhysical" class="accordion-collapse collapse" data-bs-parent="#vitalsAccordion">
+                  <div class="accordion-body bg-light">
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        <label for="weight" class="form-label fw-semibold">Weight (kg)</label>
+                        <input type="number" step="0.1" class="form-control border-danger-subtle" id="weight" name="weight" value="{{ vitals.weight if vitals else '' }}" placeholder="e.g., 70.5">
+                      </div>
+                      <div class="col-md-6">
+                        <label for="height" class="form-label fw-semibold">Height (cm)</label>
+                        <input type="number" step="0.1" class="form-control border-danger-subtle" id="height" name="height" value="{{ vitals.height if vitals else '' }}" placeholder="e.g., 170.0">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+              <a href="{{ url_for('nursing.index') }}" class="btn btn-outline-secondary rounded-pill px-4">Cancel</a>
+              <button type="submit" class="btn ns-btn-primary rounded-pill px-4 fw-semibold">
+                <i class="bi bi-save me-1"></i> Save Vitals Record
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Latest Vitals Summary Side Card -->
+    <div class="col-lg-5">
+      <div class="card ns-glass-card h-100">
+        <div class="card-header ns-card-header py-3 d-flex align-items-center justify-content-between">
+          <h5 class="mb-0 text-danger fw-bold"><i class="bi bi-clock-history me-2"></i>Latest Recorded Entry</h5>
+          {% if vitals %}
+          <small class="badge bg-danger-subtle text-danger px-3 py-1 rounded-pill">Active</small>
+          {% endif %}
+        </div>
+        <div class="card-body p-4">
+          {% if vitals %}
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="p-3 bg-light rounded-3 border">
+                <div class="small text-muted fw-semibold">Pulse Rate</div>
+                <div class="fs-4 fw-bold text-danger mt-1">{{ vitals.pulse|default('N/A') }} <small class="fs-6 text-muted">bpm</small></div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 bg-light rounded-3 border">
+                <div class="small text-muted fw-semibold">Blood Pressure</div>
+                <div class="fs-4 fw-bold text-dark mt-1">{{ vitals.blood_pressure_systolic|default('N/A') }}/{{ vitals.blood_pressure_diastolic|default('N/A') }}</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 bg-light rounded-3 border">
+                <div class="small text-muted fw-semibold">Resp. Rate</div>
+                <div class="fs-4 fw-bold text-primary mt-1">{{ vitals.respiratory_rate|default('N/A') }} <small class="fs-6 text-muted">/min</small></div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 bg-light rounded-3 border">
+                <div class="small text-muted fw-semibold">Oxygen SpO2</div>
+                <div class="fs-4 fw-bold text-success mt-1">{{ vitals.oxygen_saturation|default('N/A') }} <small class="fs-6 text-muted">%</small></div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 bg-light rounded-3 border">
+                <div class="small text-muted fw-semibold">Temperature</div>
+                <div class="fs-4 fw-bold text-warning mt-1">{{ vitals.temperature|default('N/A') }} <small class="fs-6 text-muted">°C</small></div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 bg-light rounded-3 border">
+                <div class="small text-muted fw-semibold">Blood Glucose</div>
+                <div class="fs-4 fw-bold text-dark mt-1">{{ vitals.blood_glucose|default('N/A') }} <small class="fs-6 text-muted">mg/dL</small></div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 bg-light rounded-3 border">
+                <div class="small text-muted fw-semibold">Weight</div>
+                <div class="fs-5 fw-bold text-dark mt-1">{{ vitals.weight|default('N/A') }} kg</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 bg-light rounded-3 border">
+                <div class="small text-muted fw-semibold">Height</div>
+                <div class="fs-5 fw-bold text-dark mt-1">{{ vitals.height|default('N/A') }} cm</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-top text-muted small text-center">
+            <i class="bi bi-clock me-1"></i> Recorded on {{ vitals.timestamp }}
+          </div>
+          {% else %}
+          <div class="text-center py-5 text-muted">
+            <i class="bi bi-activity display-4 d-block opacity-50 mb-2 text-danger"></i>
+            <p class="mb-0">No previous vitals recorded for this patient.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
 {% endblock %}

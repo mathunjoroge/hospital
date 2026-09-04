@@ -1,82 +1,154 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="container mt-4">
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h2 class="card-title mb-0"><i class="bi bi-arrow-right-circle me-2"></i>Shift Handover</h2>
-        </div>
-        <div class="card-body">
-            <!-- Flash Messages -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
+{% block title %}Nursing Shift Handover Report - Nursing{% endblock %}
 
-            <!-- Handover Data Table -->
-            {% if handover_data %}
-                <table class="table table-striped table-hover">
-                    <thead>
-                        <tr>
-                            <th>Patient ID</th>
-                            <th>Latest Partogram</th>
-                            <th>Latest Note</th>
-                            <th>Pending Tasks</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for data in handover_data %}
-                            <tr>
-                                <td>{{ data.patient_id }}</td>
-                                <td>
-                                    {% if data.partogram %}
-                                        Recorded at: {{ data.partogram.timestamp }}<br>
-                                        Cervical Dilation: {{ data.partogram.cervical_dilation }} cm<br>
-                                        Fetal Heart Rate: {{ data.partogram.fetal_heart_rate }} bpm
-                                    {% else %}
-                                        No partogram available.
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if data.note %}
-                                        {{ data.note.note }}<br>
-                                        <small class="text-muted">Recorded at: {{ data.note.timestamp }}</small>
-                                    {% else %}
-                                        No recent note.
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if data.tasks %}
-                                        <ul>
-                                            {% for task in data.tasks %}
-                                                <li>{{ task.task_description }} (Priority: {{ task.priority }})</li>
-                                            {% endfor %}
-                                        </ul>
-                                    {% else %}
-                                        No pending tasks.
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <a href="{{ url_for('nursing.patient_dashboard', patient_id=data.patient_id) }}" class="btn btn-sm btn-primary">
-                                        <i class="bi bi-eye me-1"></i>View Patient
-                                    </a>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <div class="alert alert-info" role="alert">
-                    No patients with recent activity (last 12 hours) found.
-                </div>
-            {% endif %}
+{% block content %}
+<style>
+  :root {
+    --ns-primary: #e11d48;
+    --ns-primary-hover: #be123c;
+    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+  }
+
+  .ns-header-card {
+    background: var(--ns-header-bg);
+    color: #ffffff;
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.3);
+  }
+
+  .ns-glass-card {
+    background: var(--bs-body-bg);
+    border: 1px solid rgba(225, 29, 72, 0.15);
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  }
+
+  .ns-card-header {
+    background: rgba(225, 29, 72, 0.06);
+    border-bottom: 1px solid rgba(225, 29, 72, 0.12);
+    border-top-left-radius: 14px !important;
+    border-top-right-radius: 14px !important;
+  }
+
+  .ns-btn-primary {
+    background-color: var(--ns-primary);
+    border-color: var(--ns-primary);
+    color: #fff;
+  }
+  .ns-btn-primary:hover {
+    background-color: var(--ns-primary-hover);
+    border-color: var(--ns-primary-hover);
+    color: #fff;
+  }
+</style>
+
+<div class="container-fluid py-4 px-4">
+
+  <!-- Header Banner -->
+  <div class="card ns-header-card mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+          <span class="badge bg-white text-danger px-3 py-2 fw-semibold rounded-pill mb-2">
+            <i class="bi bi-arrow-repeat me-1"></i> SBAR Shift Handover Report
+          </span>
+          <h2 class="h1 fw-bold text-white mb-1">
+            <i class="bi bi-arrow-right-circle me-2"></i>Nursing Shift Handover
+          </h2>
+          <p class="text-white-50 mb-0">Active patient summary for incoming shift nurses (Active last 12-24 hours).</p>
         </div>
+
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('nursing.ward_patients') }}" class="btn btn-light rounded-pill px-3 shadow-sm text-danger fw-semibold">
+            <i class="bi bi-hospital me-1"></i> Ward View
+          </a>
+          <a href="{{ url_for('nursing.index') }}" class="btn btn-outline-light rounded-pill px-3 shadow-sm">
+            <i class="bi bi-arrow-left me-1"></i> Triage List
+          </a>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <div class="card ns-glass-card mb-4">
+    <div class="card-header ns-card-header py-3 d-flex align-items-center justify-content-between">
+      <h5 class="mb-0 text-danger fw-bold"><i class="bi bi-people-fill me-2"></i>Shift Patients Overview ({{ handover_data|length if handover_data else 0 }})</h5>
+    </div>
+    <div class="card-body p-0">
+      {% if handover_data %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light text-uppercase small">
+            <tr>
+              <th class="ps-4">Patient ID</th>
+              <th>Maternity / Partogram</th>
+              <th>Latest Kardex Note</th>
+              <th>Pending Care Tasks</th>
+              <th class="pe-4 text-end">Handover Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for data in handover_data %}
+            <tr>
+              <td class="ps-4">
+                <a href="{{ url_for('nursing.patient_dashboard') }}?patient_id={{ data.patient_id }}" class="fw-bold text-danger fs-6 text-decoration-none">
+                  <i class="bi bi-person-badge me-1"></i>#{{ data.patient_id }}
+                </a>
+              </td>
+              <td>
+                {% if data.partogram %}
+                <div class="p-2 bg-light rounded border border-start border-3 border-danger small">
+                  <div><strong>Cervix:</strong> {{ data.partogram.cervical_dilation }} cm</div>
+                  <div><strong>FHR:</strong> {{ data.partogram.fetal_heart_rate }} bpm</div>
+                  <div class="text-muted"><i class="bi bi-clock me-1"></i>{{ data.partogram.timestamp }}</div>
+                </div>
+                {% else %}
+                <span class="text-muted small">No active labor partogram</span>
+                {% endif %}
+              </td>
+              <td style="max-width: 280px;">
+                {% if data.note %}
+                <p class="mb-1 text-dark fw-medium small">{{ data.note.note }}</p>
+                <span class="text-muted small"><i class="bi bi-clock me-1"></i>{{ data.note.timestamp }}</span>
+                {% else %}
+                <span class="text-muted small">No recent note</span>
+                {% endif %}
+              </td>
+              <td style="max-width: 250px;">
+                {% if data.tasks %}
+                <ul class="list-unstyled mb-0 small">
+                  {% for task in data.tasks %}
+                  <li class="mb-1 text-dark">
+                    <i class="bi bi-dash-square text-danger me-1"></i>{{ task.task_description }}
+                    {% if task.priority == 'High' or task.priority == 'Emergency' %}
+                    <span class="badge bg-danger text-white rounded-pill px-2 py-0">High</span>
+                    {% endif %}
+                  </li>
+                  {% endfor %}
+                </ul>
+                {% else %}
+                <span class="badge bg-success-subtle text-success rounded-pill px-2 py-1">No pending tasks</span>
+                {% endif %}
+              </td>
+              <td class="pe-4 text-end">
+                <a href="{{ url_for('nursing.patient_dashboard', patient_id=data.patient_id) }}" class="btn btn-sm ns-btn-primary rounded-pill px-3 fw-semibold">
+                  Kardex Summary <i class="bi bi-arrow-right me-1"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-check-all display-4 d-block opacity-50 mb-2 text-danger"></i>
+        <p class="mb-0">No patient activity recorded in the last 12-24 hours for handover.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
 </div>
 {% endblock %}

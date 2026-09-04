@@ -1,6 +1,5 @@
 import logging
 import spacy
-import torch
 import unicodedata
 from typing import Union, Dict, List, Optional, Set
 import warnings
@@ -50,7 +49,7 @@ class ClinicalSummarizer:
         """
         Initialize the ClinicalSummarizer with NVIDIA NIM API.
         """
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device or "cpu"
         self._initialize_models(model_name)
         logger.info(f"HMIS Clinical Summarizer initialized on device: {self.device}")
 

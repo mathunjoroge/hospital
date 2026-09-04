@@ -11,8 +11,6 @@ from concurrent.futures import ThreadPoolExecutor
 import spacy
 import nltk
 from nltk.stem import WordNetLemmatizer
-import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import numpy as np
 
 # Local project imports
@@ -45,10 +43,6 @@ from .nvidia_client import NvidiaNIMClient, CANCER_TYPES, AMR_IPC_CATEGORIES
 # Set environment variables to avoid TensorFlow usage
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 os.environ["USE_TF"] = "0"
-
-# Ensure reproducibility
-torch.manual_seed(42)
-torch.cuda.manual_seed(42) if torch.cuda.is_available() else None
 
 # Download NLTK data
 nltk.download("wordnet", quiet=True)

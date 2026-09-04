@@ -1,137 +1,142 @@
 {% extends "base.html" %}
-
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">Admit a Patient</h2>
+<style>
+  :root { --md-primary: #e11d48; --md-primary-dark: #be123c; }
+  .md-page-header { background: linear-gradient(135deg, #881337, #be123c 60%, #e11d48); border-radius: 16px; padding: 1.75rem 2rem; color: #fff; margin-bottom: 1.5rem; box-shadow: 0 8px 24px rgba(190,18,60,0.2); }
+  .md-form-card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
+  .md-form-header { background: #f8fafc; padding: 1rem 1.5rem; border-bottom: 1px solid #e2e8f0; }
+  .md-form-body { padding: 1.5rem; }
+  .form-label { font-weight: 600; font-size: 0.88rem; color: #374151; }
+  .form-control, .form-select { border-radius: 9px; border: 1.5px solid #e2e8f0; font-size: 0.9rem; }
+  .form-control:focus, .form-select:focus { border-color: var(--md-primary); box-shadow: 0 0 0 3px rgba(225,29,72,0.1); }
+  .btn-submit { background: var(--md-primary); color: #fff; border: none; font-weight: 700; padding: 0.75rem 2rem; border-radius: 10px; }
+  .btn-submit:hover { background: var(--md-primary-dark); color: #fff; }
+  .ward-info-badge { background: #fff0f3; border: 1px solid #fecdd3; border-radius: 8px; padding: 0.4rem 0.8rem; font-size: 0.82rem; font-weight: 600; color: #be123c; }
+</style>
 
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=True) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+<div class="container-fluid px-4 py-3">
+  {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="alert alert-{{ 'danger' if category in ['error','danger'] else category }} alert-dismissible fade show rounded-3 shadow-sm mb-3">
+        <i class="bi bi-info-circle-fill me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}{% endif %}
+  {% endwith %}
 
-    <form method="POST" action="{{ url_for('medicine.admit_patient') }}">
-       
+  <div class="md-page-header">
+    <h3 class="fw-bold mb-1"><i class="bi bi-person-plus-fill me-2"></i>Admit a Patient</h3>
+    <p class="mb-0 text-white-50 fs-6">Assign a patient to a ward, room, and bed.</p>
+  </div>
 
-        <!-- Patient Select2 -->
-<div class="mb-3">
-    <label for="patient_id" class="form-label">Patient</label>
-    <select id="patient_id" name="patient_id" class="form-control select2" required>
-        <option value="">Enter patient name or number...</option>
-    </select>
-</div>
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="md-form-card">
+        <div class="md-form-header">
+          <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-hospital me-2 text-danger"></i>Admission Details</h5>
+        </div>
+        <div class="md-form-body">
+          <form method="POST" action="{{ url_for('medicine.admit_patient') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <!-- Ward Selection -->
-        <div class="mb-3">
-            <label for="ward_id" class="form-label">Ward</label>
-            <select name="ward_id" class="form-control" required onchange="fetchAvailableRooms(this.value)">
-                <option value="">Select Ward</option>
+            <!-- Patient Search -->
+            <div class="mb-4">
+              <label for="patient_id" class="form-label">Patient <span class="text-danger">*</span></label>
+              {{ form.patient_id(class="form-select", id="patient_id") }}
+              <div class="form-text">Select the patient to admit.</div>
+            </div>
+
+            <!-- Ward -->
+            <div class="mb-4">
+              <label class="form-label">Ward <span class="text-danger">*</span></label>
+              <select name="ward_id" id="ward_select" class="form-select" required onchange="fetchAvailableRooms(this.value)">
+                <option value="">— Select Ward —</option>
                 {% for ward in wards %}
                 <option value="{{ ward.id }}">
-                    {{ ward.name }} ({{ ward.sex }}) - Available Beds: {{ ward.number_of_beds - ward.occupied_beds }}
+                  {{ ward.name }} ({{ ward.sex }}) — {{ ward.number_of_beds - ward.occupied_beds }} beds free
                 </option>
                 {% endfor %}
-            </select>
+              </select>
+            </div>
+
+            <!-- Room -->
+            <div class="mb-4">
+              <label class="form-label">Room <span class="text-danger">*</span></label>
+              <select name="room_id" id="room_id" class="form-select" required onchange="fetchAvailableBeds(this.value)">
+                <option value="">— Select Ward First —</option>
+              </select>
+            </div>
+
+            <!-- Bed -->
+            <div class="mb-4">
+              <label class="form-label">Bed <span class="text-danger">*</span></label>
+              <select name="bed_id" id="bed_id" class="form-select" required>
+                <option value="">— Select Room First —</option>
+              </select>
+            </div>
+
+            <!-- Admission Criteria -->
+            <div class="mb-4">
+              <label class="form-label">Admission Criteria / Reason <span class="text-danger">*</span></label>
+              <textarea name="admission_criteria" class="form-control" rows="3" required
+                placeholder="Brief clinical reason for admission..."></textarea>
+            </div>
+
+            <input type="hidden" name="admitted_by" value="{{ current_user.id if current_user else 1 }}">
+
+            <div class="d-flex justify-content-between">
+              <a href="{{ url_for('medicine.ward_rounds') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Cancel
+              </a>
+              <button type="submit" class="btn-submit btn">
+                <i class="bi bi-check-circle me-2"></i>Admit Patient
+              </button>
+            </div>
+          </form>
         </div>
-
-        <!-- Room Selection -->
-        <div class="mb-3">
-            <label for="room_id" class="form-label">Room</label>
-            <select name="room_id" class="form-control" id="room_id" required onchange="fetchAvailableBeds(this.value)">
-                <option value="">Select Room</option>
-            </select>
-        </div>
-
-        <!-- Bed Selection -->
-        <div class="mb-3">
-            <label for="bed_id" class="form-label">Bed</label>
-            <select name="bed_id" class="form-control" id="bed_id" required>
-                <option value="">Select Bed</option>
-            </select>
-        </div>
-
-        <!-- Admission Criteria -->
-        <div class="mb-3">
-            <label for="admission_criteria" class="form-label">Admission Criteria</label>
-            <textarea name="admission_criteria" class="form-control" required></textarea>
-        </div>
-
-        <input type="hidden" name="admitted_by" value="1"> <!-- Replace with logged-in user ID -->
-
-        <button type="submit" class="btn btn-primary">Admit Patient</button>
-    </form>
+      </div>
+    </div>
+  </div>
 </div>
 
-
 <script>
-
 function fetchAvailableRooms(wardId) {
-    if (!wardId) return;
-    console.log("Fetching rooms for ward ID:", wardId);
-
-    let roomSelect = document.getElementById("room_id");
-    let bedSelect = document.getElementById("bed_id");
-    roomSelect.innerHTML = "<option value=''>Loading...</option>";
-    bedSelect.innerHTML = "<option value=''>Select Bed</option>";
-
-    fetch(`/medicine/available-rooms/${wardId}`)
-        .then(response => response.json())
-        .then(data => {
-            console.log("Rooms received:", data);
-            roomSelect.innerHTML = "<option value=''>Select Room</option>";
-
-            if (!data.rooms || data.rooms.length === 0) {
-                roomSelect.innerHTML = "<option value=''>No rooms available</option>";
-            } else {
-                data.rooms.forEach(room => {
-                    let option = document.createElement("option");
-                    option.value = room.id;
-                    option.textContent = `Room ${room.room_number}`;
-                    roomSelect.appendChild(option);
-                });
-            }
-        })
-        .catch(error => {
-            console.error("Error fetching rooms:", error);
-            roomSelect.innerHTML = "<option value=''>Error loading rooms</option>";
-        });
+  const roomSelect = document.getElementById("room_id");
+  const bedSelect = document.getElementById("bed_id");
+  if (!wardId) { roomSelect.innerHTML = "<option value=''>— Select Ward First —</option>"; return; }
+  roomSelect.innerHTML = "<option value=''>Loading...</option>";
+  bedSelect.innerHTML = "<option value=''>— Select Room First —</option>";
+  fetch(`/medicine/available-rooms/${wardId}`)
+    .then(r => r.json())
+    .then(data => {
+      roomSelect.innerHTML = "<option value=''>— Select Room —</option>";
+      (data.rooms || []).forEach(room => {
+        const opt = document.createElement("option");
+        opt.value = room.id;
+        opt.textContent = `Room ${room.room_number}`;
+        roomSelect.appendChild(opt);
+      });
+      if (!data.rooms || !data.rooms.length) roomSelect.innerHTML = "<option value=''>No rooms available</option>";
+    })
+    .catch(() => { roomSelect.innerHTML = "<option value=''>Error loading rooms</option>"; });
 }
-
 function fetchAvailableBeds(roomId) {
-    if (!roomId) return;
-    console.log("Fetching beds for room ID:", roomId);
-
-    let bedSelect = document.getElementById("bed_id");
-    bedSelect.innerHTML = "<option value=''>Loading...</option>";
-
-    fetch(`/medicine/available-beds/${roomId}`)
-        .then(response => response.json())
-        .then(data => {
-            console.log("Beds received:", data);
-            bedSelect.innerHTML = "<option value=''>Select Bed</option>";
-
-            if (!data.beds || data.beds.length === 0) {
-                bedSelect.innerHTML = "<option value=''>No beds available</option>";
-            } else {
-                data.beds.forEach(bed => {
-                    let option = document.createElement("option");
-                    option.value = bed.id;
-                    option.textContent = `Bed ${bed.bed_number}`;
-                    bedSelect.appendChild(option);
-                });
-            }
-        })
-        .catch(error => {
-            console.error("Error fetching beds:", error);
-            bedSelect.innerHTML = "<option value=''>Error loading beds</option>";
-        });
+  const bedSelect = document.getElementById("bed_id");
+  if (!roomId) { bedSelect.innerHTML = "<option value=''>— Select Room First —</option>"; return; }
+  bedSelect.innerHTML = "<option value=''>Loading...</option>";
+  fetch(`/medicine/available-beds/${roomId}`)
+    .then(r => r.json())
+    .then(data => {
+      bedSelect.innerHTML = "<option value=''>— Select Bed —</option>";
+      (data.beds || []).forEach(bed => {
+        const opt = document.createElement("option");
+        opt.value = bed.id;
+        opt.textContent = `Bed ${bed.bed_number}`;
+        bedSelect.appendChild(opt);
+      });
+      if (!data.beds || !data.beds.length) bedSelect.innerHTML = "<option value=''>No beds available</option>";
+    })
+    .catch(() => { bedSelect.innerHTML = "<option value=''>Error loading beds</option>"; });
 }
 </script>
-
 {% endblock %}

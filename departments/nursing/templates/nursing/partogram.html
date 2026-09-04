@@ -84,152 +84,219 @@
     </button>
 </div>
 
-<div class="container mt-4">
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h2 class="card-title mb-0"><i class="bi bi-clipboard-pulse me-2"></i>Record Partograph</h2>
+<style>
+  :root {
+    --ns-primary: #e11d48;
+    --ns-primary-hover: #be123c;
+    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+  }
+
+  .ns-header-card {
+    background: var(--ns-header-bg);
+    color: #ffffff;
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.3);
+  }
+
+  .ns-glass-card {
+    background: var(--bs-body-bg);
+    border: 1px solid rgba(225, 29, 72, 0.15);
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  }
+
+  .ns-card-header {
+    background: rgba(225, 29, 72, 0.06);
+    border-bottom: 1px solid rgba(225, 29, 72, 0.12);
+    border-top-left-radius: 14px !important;
+    border-top-right-radius: 14px !important;
+  }
+
+  .ns-btn-primary {
+    background-color: var(--ns-primary);
+    border-color: var(--ns-primary);
+    color: #fff;
+  }
+  .ns-btn-primary:hover {
+    background-color: var(--ns-primary-hover);
+    border-color: var(--ns-primary-hover);
+    color: #fff;
+  }
+</style>
+
+<div class="container-fluid py-4 px-4">
+
+  <!-- Header Banner -->
+  <div class="card ns-header-card mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+          <span class="badge bg-white text-danger px-3 py-2 fw-semibold rounded-pill mb-2">
+            <i class="bi bi-heart-pulse-fill me-1"></i> Maternity & Labor Suite
+          </span>
+          <h2 class="h1 fw-bold text-white mb-1">
+            <i class="bi bi-clipboard2-pulse me-2"></i>Record Partograph Chart
+          </h2>
+          <p class="text-white-50 mb-0">WHO Labor Care Guide - Fetal, Maternal & Labor Progress Monitoring.</p>
         </div>
-        <div class="card-body">
-            <form action="{{ url_for('nursing.submit_partogram') }}" method="POST" class="needs-validation" novalidate id="partogramForm">
-                <!-- Patient Information -->
-                <h4 class="mt-4 mb-3"><i class="bi bi-person-badge me-2"></i>Patient Information</h4>
-                <hr>
-                <div class="mb-4">
-                    <label for="patient_id" class="form-label"><i class="bi bi-person me-2"></i>Patient ID</label>
-                    <input type="text" id="patient_id" name="patient_id" class="form-control" placeholder="Enter Patient ID" required>
-                    <div class="invalid-feedback">Please enter a valid Patient ID.</div>
-                </div>
 
-                <!-- Fetal Conditions Section -->
-                <h4 class="mt-4 mb-3"><i class="bi bi-heart me-2"></i>Fetal Conditions</h4>
-                <hr>
-                <div class="row mb-4">
-                    <div class="col-md-4">
-                        <label for="fetal_heart_rate" class="form-label"><i class="bi bi-heart-pulse me-2"></i>Fetal Heart Rate (bpm)</label>
-                        <input type="number" id="fetal_heart_rate" name="fetal_heart_rate" class="form-control" placeholder="e.g., 140" min="60" max="200" required>
-                        <div class="invalid-feedback">Please enter a valid fetal heart rate (60-200 bpm).</div>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="amniotic_fluid" class="form-label"><i class="bi bi-droplet me-2"></i>Amniotic Fluid Status</label>
-                        <select id="amniotic_fluid" name="amniotic_fluid" class="form-select select2" required>
-                            <option value="" disabled selected>Select amniotic fluid status</option>
-                            <option value="clear">Clear</option>
-                            <option value="meconium">Meconium-stained</option>
-                            <option value="blood">Blood-stained</option>
-                            <option value="absent">Absent</option>
-                        </select>
-                        <div class="invalid-feedback">Please select the amniotic fluid status.</div>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="moulding" class="form-label"><i class="bi bi-headset me-2"></i>Moulding</label>
-                        <select id="moulding" name="moulding" class="form-select select2" required>
-                            <option value="" disabled selected>Select moulding status</option>
-                            <option value="none">None</option>
-                            <option value="1+">1+ (Bones touching)</option>
-                            <option value="2+">2+ (Bones overlapping, reducible)</option>
-                            <option value="3+">3+ (Bones overlapping, irreducible)</option>
-                        </select>
-                        <div class="invalid-feedback">Please select the moulding status.</div>
-                    </div>
-                </div>
-
-                <!-- Progress of Labour Section -->
-                <h4 class="mt-4 mb-3"><i class="bi bi-graph-up me-2"></i>Progress of Labour</h4>
-                <hr>
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <label for="cervical_dilation" class="form-label"><i class="bi bi-ruler me-2"></i>Cervical Dilation (cm)</label>
-                        <input type="number" id="cervical_dilation" name="cervical_dilation" class="form-control" placeholder="e.g., 4.0" min="0" max="10" step="0.1" required>
-                        <div class="invalid-feedback">Please enter a valid cervical dilation (0-10 cm).</div>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="time_hours" class="form-label"><i class="bi bi-clock me-2"></i>Time (hours since active labour start)</label>
-                        <input type="number" id="time_hours" name="time_hours" class="form-control" placeholder="e.g., 2.5" min="0" step="0.5" required>
-                        <div class="invalid-feedback">Please enter a valid time in hours (non-negative).</div>
-                    </div>
-                </div>
-
-                <!-- Maternal Conditions Section -->
-                <h4 class="mt-4 mb-3"><i class="bi bi-heart-pulse me-2"></i>Maternal Conditions</h4>
-                <hr>
-                <div class="row mb-4">
-                    <div class="col-md-4">
-                        <label for="contractions" class="form-label"><i class="bi bi-clock-history me-2"></i>Contractions per 10 min</label>
-                        <input type="number" id="contractions" name="contractions" class="form-control" placeholder="e.g., 3" min="0" max="5" required>
-                        <div class="invalid-feedback">Please enter a valid number of contractions (0-5).</div>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="oxytocin" class="form-label"><i class="bi bi-droplet-fill me-2"></i>Oxytocin (units)</label>
-                        <input type="number" id="oxytocin" name="oxytocin" class="form-control" placeholder="e.g., 2.5" min="0" step="0.1">
-                        <div class="invalid-feedback">Please enter a valid oxytocin amount (non-negative).</div>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="drugs" class="form-label"><i class="bi bi-capsule me-2"></i>Drugs Given</label>
-                        <input type="text" id="drugs" name="drugs" class="form-control" placeholder="e.g., Paracetamol" maxlength="100">
-                        <div class="invalid-feedback">Drugs field cannot exceed 100 characters.</div>
-                    </div>
-                </div>
-                <div class="row mb-4">
-                    <div class="col-md-4">
-                        <label for="pulse" class="form-label"><i class="bi bi-speedometer2 me-2"></i>Pulse (bpm)</label>
-                        <input type="number" id="pulse" name="pulse" class="form-control" placeholder="e.g., 72" min="40" max="200" required>
-                        <div class="invalid-feedback">Please enter a valid pulse rate (40-200 bpm).</div>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="bp" class="form-label"><i class="bi bi-heart-pulse me-2"></i>Blood Pressure (mmHg)</label>
-                        <div class="input-group">
-                            <input type="text" id="bp" name="bp" class="form-control" placeholder="e.g., 120/80" required>
-                            <span class="input-group-text">mmHg</span>
-                        </div>
-                        <div class="invalid-feedback">Please enter a valid blood pressure (e.g., 120/80, systolic: 50-200, diastolic: 30-150).</div>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="temperature" class="form-label"><i class="bi bi-thermometer-half me-2"></i>Temperature (°C)</label>
-                        <div class="input-group">
-                            <input type="number" step="0.1" id="temperature" name="temperature" class="form-control" placeholder="e.g., 36.5" min="35" max="42" required>
-                            <span class="input-group-text">°C</span>
-                        </div>
-                        <div class="invalid-feedback">Please enter a valid temperature (35-42 °C).</div>
-                    </div>
-                </div>
-                <div class="row mb-4">
-                    <div class="col-md-4">
-                        <label for="urine_protein" class="form-label"><i class="bi bi-droplet me-2"></i>Urine Protein</label>
-                        <select id="urine_protein" name="urine_protein" class="form-select select2" required>
-                            <option value="" disabled selected>Select urine protein level</option>
-                            <option value="negative">Negative</option>
-                            <option value="1+">1+</option>
-                            <option value="2+">2+</option>
-                            <option value="3+">3+</option>
-                        </select>
-                        <div class="invalid-feedback">Please select the urine protein level.</div>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="urine_volume" class="form-label"><i class="bi bi-cup me-2"></i>Urine Volume (mL)</label>
-                        <input type="number" id="urine_volume" name="urine_volume" class="form-control" placeholder="e.g., 50" min="0" required>
-                        <div class="invalid-feedback">Please enter a valid urine volume (non-negative).</div>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="urine_acetone" class="form-label"><i class="bi bi-droplet-fill me-2"></i>Urine Acetone</label>
-                        <select id="urine_acetone" name="urine_acetone" class="form-select select2" required>
-                            <option value="" disabled selected>Select urine acetone level</option>
-                            <option value="negative">Negative</option>
-                            <option value="1+">1+</option>
-                            <option value="2+">2+</option>
-                            <option value="3+">3+</option>
-                        </select>
-                        <div class="invalid-feedback">Please select the urine acetone level.</div>
-                    </div>
-                </div>
-
-                <!-- Submit Button -->
-                <div class="text-center mt-5">
-                    <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save me-2"></i>Submit Partogram</button>
-                    <button type="reset" class="btn btn-outline-secondary btn-lg ms-2"><i class="bi bi-eraser me-2"></i>Clear Form</button>
-                </div>
-            </form>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('nursing.view_partograms') }}" class="btn btn-light rounded-pill px-3 shadow-sm text-danger fw-semibold">
+            <i class="bi bi-journal-text me-1"></i> Partogram Records
+          </a>
+          <a href="{{ url_for('nursing.ward_patients') }}" class="btn btn-outline-light rounded-pill px-3 shadow-sm">
+            <i class="bi bi-arrow-left me-1"></i> Ward View
+          </a>
         </div>
+      </div>
     </div>
+  </div>
+
+  <div class="card ns-glass-card mb-4">
+    <div class="card-header ns-card-header py-3">
+      <h5 class="mb-0 text-danger fw-bold"><i class="bi bi-journal-plus me-2"></i>New Partogram Entry Form</h5>
+    </div>
+    <div class="card-body p-4">
+      <form action="{{ url_for('nursing.submit_partogram') }}" method="POST" class="needs-validation" novalidate id="partogramForm">
+        
+        <!-- Patient Information -->
+        <h6 class="text-uppercase text-danger fw-bold mb-3"><i class="bi bi-person-badge me-2"></i>1. Patient Information</h6>
+        <div class="mb-4 p-3 bg-light rounded-3 border border-danger-subtle">
+          <label for="patient_id" class="form-label fw-bold text-dark"><i class="bi bi-person me-2"></i>Patient ID <span class="text-danger">*</span></label>
+          <input type="text" id="patient_id" name="patient_id" class="form-control border-danger-subtle" placeholder="Enter Patient ID (e.g. P1000)" value="{{ request.args.get('patient_id', '') }}" required>
+          <div class="invalid-feedback">Please enter a valid Patient ID.</div>
+        </div>
+
+        <!-- Fetal Conditions Section -->
+        <h6 class="text-uppercase text-danger fw-bold mt-4 mb-3"><i class="bi bi-heart me-2"></i>2. Fetal Conditions</h6>
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label for="fetal_heart_rate" class="form-label fw-semibold"><i class="bi bi-heart-pulse me-2"></i>Fetal Heart Rate (bpm)</label>
+            <input type="number" id="fetal_heart_rate" name="fetal_heart_rate" class="form-control border-danger-subtle" placeholder="e.g., 140" min="60" max="200" required>
+            <div class="invalid-feedback">Please enter a valid fetal heart rate (60-200 bpm).</div>
+          </div>
+          <div class="col-md-4">
+            <label for="amniotic_fluid" class="form-label fw-semibold"><i class="bi bi-droplet me-2"></i>Amniotic Fluid Status</label>
+            <select id="amniotic_fluid" name="amniotic_fluid" class="form-select select2 border-danger-subtle" required>
+              <option value="" disabled selected>Select amniotic fluid status</option>
+              <option value="clear">Clear</option>
+              <option value="meconium">Meconium-stained</option>
+              <option value="blood">Blood-stained</option>
+              <option value="absent">Absent</option>
+            </select>
+            <div class="invalid-feedback">Please select the amniotic fluid status.</div>
+          </div>
+          <div class="col-md-4">
+            <label for="moulding" class="form-label fw-semibold"><i class="bi bi-headset me-2"></i>Moulding</label>
+            <select id="moulding" name="moulding" class="form-select select2 border-danger-subtle" required>
+              <option value="" disabled selected>Select moulding status</option>
+              <option value="none">None</option>
+              <option value="1+">1+ (Bones touching)</option>
+              <option value="2+">2+ (Bones overlapping, reducible)</option>
+              <option value="3+">3+ (Bones overlapping, irreducible)</option>
+            </select>
+            <div class="invalid-feedback">Please select the moulding status.</div>
+          </div>
+        </div>
+
+        <!-- Progress of Labour Section -->
+        <h6 class="text-uppercase text-danger fw-bold mt-4 mb-3"><i class="bi bi-graph-up me-2"></i>3. Progress of Labour</h6>
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <label for="cervical_dilation" class="form-label fw-semibold"><i class="bi bi-ruler me-2"></i>Cervical Dilation (cm)</label>
+            <input type="number" id="cervical_dilation" name="cervical_dilation" class="form-control border-danger-subtle" placeholder="e.g., 4.0" min="0" max="10" step="0.1" required>
+            <div class="invalid-feedback">Please enter a valid cervical dilation (0-10 cm).</div>
+          </div>
+          <div class="col-md-6">
+            <label for="time_hours" class="form-label fw-semibold"><i class="bi bi-clock me-2"></i>Time (hours in active labour)</label>
+            <input type="number" id="time_hours" name="time_hours" class="form-control border-danger-subtle" placeholder="e.g., 2.5" min="0" step="0.5" required>
+            <div class="invalid-feedback">Please enter a valid time in hours (non-negative).</div>
+          </div>
+        </div>
+
+        <!-- Maternal Conditions Section -->
+        <h6 class="text-uppercase text-danger fw-bold mt-4 mb-3"><i class="bi bi-person-pulse me-2"></i>4. Maternal Conditions</h6>
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label for="contractions" class="form-label fw-semibold"><i class="bi bi-clock-history me-2"></i>Contractions / 10 min</label>
+            <input type="number" id="contractions" name="contractions" class="form-control border-danger-subtle" placeholder="e.g., 3" min="0" max="5" required>
+            <div class="invalid-feedback">Please enter a valid number of contractions (0-5).</div>
+          </div>
+          <div class="col-md-4">
+            <label for="oxytocin" class="form-label fw-semibold"><i class="bi bi-droplet-fill me-2"></i>Oxytocin (units)</label>
+            <input type="number" id="oxytocin" name="oxytocin" class="form-control border-danger-subtle" placeholder="e.g., 2.5" min="0" step="0.1">
+            <div class="invalid-feedback">Please enter a valid oxytocin amount.</div>
+          </div>
+          <div class="col-md-4">
+            <label for="drugs" class="form-label fw-semibold"><i class="bi bi-capsule me-2"></i>Drugs Given</label>
+            <input type="text" id="drugs" name="drugs" class="form-control border-danger-subtle" placeholder="e.g., Paracetamol" maxlength="100">
+            <div class="invalid-feedback">Drugs field cannot exceed 100 characters.</div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label for="pulse" class="form-label fw-semibold"><i class="bi bi-speedometer2 me-2"></i>Pulse (bpm)</label>
+            <input type="number" id="pulse" name="pulse" class="form-control border-danger-subtle" placeholder="e.g., 72" min="40" max="200" required>
+            <div class="invalid-feedback">Please enter a valid pulse rate (40-200 bpm).</div>
+          </div>
+          <div class="col-md-4">
+            <label for="bp" class="form-label fw-semibold"><i class="bi bi-heart-pulse me-2"></i>Blood Pressure (mmHg)</label>
+            <div class="input-group">
+              <input type="text" id="bp" name="bp" class="form-control border-danger-subtle" placeholder="e.g., 120/80" required>
+              <span class="input-group-text bg-white border-danger-subtle">mmHg</span>
+            </div>
+            <div class="invalid-feedback">Please enter a valid blood pressure (e.g., 120/80).</div>
+          </div>
+          <div class="col-md-4">
+            <label for="temperature" class="form-label fw-semibold"><i class="bi bi-thermometer-half me-2"></i>Temperature (°C)</label>
+            <div class="input-group">
+              <input type="number" step="0.1" id="temperature" name="temperature" class="form-control border-danger-subtle" placeholder="e.g., 36.5" min="35" max="42" required>
+              <span class="input-group-text bg-white border-danger-subtle">°C</span>
+            </div>
+            <div class="invalid-feedback">Please enter a valid temperature (35-42 °C).</div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label for="urine_protein" class="form-label fw-semibold"><i class="bi bi-droplet me-2"></i>Urine Protein</label>
+            <select id="urine_protein" name="urine_protein" class="form-select select2 border-danger-subtle" required>
+              <option value="" disabled selected>Select urine protein level</option>
+              <option value="negative">Negative</option>
+              <option value="1+">1+</option>
+              <option value="2+">2+</option>
+              <option value="3+">3+</option>
+            </select>
+            <div class="invalid-feedback">Please select the urine protein level.</div>
+          </div>
+          <div class="col-md-4">
+            <label for="urine_volume" class="form-label fw-semibold"><i class="bi bi-cup me-2"></i>Urine Volume (mL)</label>
+            <input type="number" id="urine_volume" name="urine_volume" class="form-control border-danger-subtle" placeholder="e.g., 50" min="0" required>
+            <div class="invalid-feedback">Please enter a valid urine volume (non-negative).</div>
+          </div>
+          <div class="col-md-4">
+            <label for="urine_acetone" class="form-label fw-semibold"><i class="bi bi-droplet-fill me-2"></i>Urine Acetone</label>
+            <select id="urine_acetone" name="urine_acetone" class="form-select select2 border-danger-subtle" required>
+              <option value="" disabled selected>Select urine acetone level</option>
+              <option value="negative">Negative</option>
+              <option value="1+">1+</option>
+              <option value="2+">2+</option>
+              <option value="3+">3+</option>
+            </select>
+            <div class="invalid-feedback">Please select the urine acetone level.</div>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+          <button type="reset" class="btn btn-outline-secondary rounded-pill px-4"><i class="bi bi-eraser me-1"></i> Clear Form</button>
+          <button type="submit" class="btn ns-btn-primary rounded-pill px-4 fw-semibold"><i class="bi bi-save me-1"></i> Submit Partogram Record</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <!-- Confirmation Modal -->

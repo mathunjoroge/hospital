@@ -1,6 +1,10 @@
 import logging
 import os
+import sys
 from datetime import datetime
+
+sys.path.insert(0, '/home/mathu/projects/hospital')
+
 from departments.nlp.src.nlp import DiseasePredictor
 from departments.nlp.src.utils import generate_html_response
 

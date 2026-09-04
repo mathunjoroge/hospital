@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  :root {
+    --ns-primary: #e11d48;
+    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+    --ns-card-shadow: 0 4px 20px rgba(225, 29, 72, 0.08);
+  }
+  .nursing-header-card {
+    background: var(--ns-header-bg);
+    color: #ffffff;
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(190, 18, 60, 0.2);
+  }
+  .card-wrap {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: var(--ns-card-shadow);
+  }
+</style>
+
+<div class="container-fluid px-4 py-3">
+  <!-- Header Banner -->
+  <div class="nursing-header-card d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+    <div>
+      <h2 class="fw-bold mb-1"><i class="bi bi-droplet-half me-2"></i> Fluid Balance Chart (Intake vs. Output)</h2>
+      <p class="mb-0 text-white-50 fs-6">Patient: <strong class="text-white">{{ patient.name }}</strong> | ID: <span class="font-monospace fw-bold">{{ patient.patient_id }}</span></p>
+    </div>
+    <div class="mt-3 mt-md-0 d-flex gap-2">
+      <a href="{{ url_for('nursing.patient_dashboard', patient_id=patient.patient_id) }}" class="btn btn-light fw-bold text-danger">
+        <i class="bi bi-speedometer2 me-1"></i> Kardex Dashboard
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Log Form -->
+    <div class="col-lg-5">
+      <div class="card-wrap p-4">
+        <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-plus-circle-fill me-2 text-danger"></i> Record Fluid Entry</h5>
+        <form id="fluidForm">
+          <div class="mb-3">
+            <label class="form-label fw-bold small text-muted">Category</label>
+            <select id="fluid_type" class="form-select" required>
+              <option value="intake_oral">Intake: Oral Fluids (mL)</option>
+              <option value="intake_iv">Intake: IV Infusion / Blood (mL)</option>
+              <option value="output_urine">Output: Urine Excretion (mL)</option>
+              <option value="output_drain">Output: Surgical Drain / Vomitus (mL)</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold small text-muted">Volume (mL)</label>
+            <input type="number" id="volume_ml" class="form-control font-monospace" placeholder="e.g. 500" min="1" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold small text-muted">Fluid Description / Solution</label>
+            <input type="text" id="fluid_desc" class="form-control" placeholder="e.g. Normal Saline 0.9% / Water">
+          </div>
+          <button type="button" onclick="addFluidEntry()" class="btn btn-danger w-100 fw-bold">
+            <i class="bi bi-check-lg me-1"></i> Save Entry
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Summary & Balance Log -->
+    <div class="col-lg-7">
+      <div class="card-wrap p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-calculator me-2 text-danger"></i> 24-Hour Net Fluid Balance</h5>
+          <span id="netBalanceBadge" class="badge bg-success px-3 py-2 fs-6 fw-bold font-monospace">Net Balance: 0 mL</span>
+        </div>
+        <div class="row g-3 text-center">
+          <div class="col-6">
+            <div class="p-3 bg-light rounded-3 border">
+              <small class="text-uppercase fw-bold text-muted d-block">Total Intake</small>
+              <span id="totalIntakeText" class="fs-4 fw-bold text-success font-monospace">0 mL</span>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-3 bg-light rounded-3 border">
+              <small class="text-uppercase fw-bold text-muted d-block">Total Output</small>
+              <span id="totalOutputText" class="fs-4 fw-bold text-danger font-monospace">0 mL</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-wrap p-4">
+        <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-list-stars me-2 text-danger"></i> Fluid Log Entries</h5>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Type</th>
+                <th>Description</th>
+                <th class="text-end">Volume (mL)</th>
+              </tr>
+            </thead>
+            <tbody id="fluidLogBody">
+              <tr>
+                <td colspan="3" class="text-center py-4 text-muted">No fluid entries recorded in current shift.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let totalIntake = 0;
+  let totalOutput = 0;
+
+  function addFluidEntry() {
+    const type = document.getElementById('fluid_type').value;
+    const vol = parseInt(document.getElementById('volume_ml').value) || 0;
+    const desc = document.getElementById('fluid_desc').value || 'Standard Fluid';
+
+    if (vol <= 0) return;
+
+    const isIntake = type.startsWith('intake');
+    if (isIntake) totalIntake += vol;
+    else totalOutput += vol;
+
+    const tbody = document.getElementById('fluidLogBody');
+    if (tbody.children[0] && tbody.children[0].children.length === 1) {
+      tbody.innerHTML = '';
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="badge ${isIntake ? 'bg-success' : 'bg-danger'}">${isIntake ? 'INTAKE' : 'OUTPUT'}</span></td>
+      <td><div class="fw-bold text-dark">${desc}</div></td>
+      <td class="text-end font-monospace fw-bold ${isIntake ? 'text-success' : 'text-danger'}">${isIntake ? '+' : '-'}${vol} mL</td>
+    `;
+    tbody.prepend(tr);
+
+    document.getElementById('totalIntakeText').textContent = totalIntake + ' mL';
+    document.getElementById('totalOutputText').textContent = totalOutput + ' mL';
+
+    const net = totalIntake - totalOutput;
+    const badge = document.getElementById('netBalanceBadge');
+    badge.textContent = `Net Balance: ${net >= 0 ? '+' : ''}${net} mL`;
+    badge.className = `badge ${net >= 0 ? 'bg-success' : 'bg-danger'} px-3 py-2 fs-6 fw-bold font-monospace`;
+
+    document.getElementById('volume_ml').value = '';
+    document.getElementById('fluid_desc').value = '';
+  }
+</script>
+{% endblock %}

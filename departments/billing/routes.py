@@ -2,19 +2,20 @@ from flask import render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
 from extensions import db
 from datetime import datetime
-from decimal import Decimal, InvalidOperation  # Added InvalidOperation
+from decimal import Decimal, InvalidOperation
 from . import bp  # Import the blueprint
-from departments.models.records import Patient,ClinicBooking,Clinic  # Import Patient model
-from departments.models.billing import Billing, Charge, DrugsBill, PaidBill,LabBill, ClinicBill, TheatreBill, ImagingBill, WardBill
-from departments.models.pharmacy import Drug,DispensedDrug # Import Drug model
-from departments.models.medicine import TheatreList,TheatreProcedure,AdmittedPatient,RequestedImage,RequestedLab,LabTest,Imaging
+from departments.models.records import Patient, ClinicBooking, Clinic
+from departments.models.billing import Billing, Charge, ChargeCategory, DrugsBill, PaidBill, LabBill, ClinicBill, TheatreBill, ImagingBill, WardBill
+from departments.models.pharmacy import Drug, DispensedDrug
+from departments.models.medicine import TheatreList, TheatreProcedure, AdmittedPatient, RequestedImage, RequestedLab, LabTest, Imaging
 from sqlalchemy.orm import joinedload
-import logging  # Added for logging
+import logging
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+@bp.route('/')
 @bp.route('/index')
 @login_required
 def index():
@@ -53,6 +54,26 @@ def index():
 
     return render_template('billing/index.html', patients=patients_with_unpaid_bills)
 
+@bp.route('/billings', methods=['GET'])
+@login_required
+def list_billings():
+    """Lists all billing and invoice entries across patients."""
+    if current_user.role not in ['billing', 'admin']:
+        return redirect(url_for('login'))
+
+    billings = Billing.query.options(
+        joinedload(Billing.patient),
+        joinedload(Billing.charge)
+    ).all()
+
+    drug_bills = DrugsBill.query.options(
+        joinedload(DrugsBill.patient),
+        joinedload(DrugsBill.drug)
+    ).all()
+
+    all_billings = sorted(billings + drug_bills, key=lambda b: b.billed_at, reverse=True)
+    return render_template('billing/invoices_list.html', billings=all_billings)
+
 @bp.route('/new_drugs_billing', methods=['GET', 'POST'])
 @login_required
 def new_drugs_billing():
@@ -60,12 +81,10 @@ def new_drugs_billing():
         return redirect(url_for('login'))
 
     if request.method == 'POST':
-        # Extract form data
         patient_id = request.form.get('patient_id')
         drug_id = request.form.get('drug_id')
         quantity = request.form.get('quantity')
 
-        # Validate input
         if not patient_id or not drug_id or not quantity:
             flash('All fields are required!', 'error')
             return redirect(url_for('billing.new_drugs_billing'))
@@ -78,37 +97,32 @@ def new_drugs_billing():
             flash('Invalid quantity! Please enter a positive integer.', 'error')
             return redirect(url_for('billing.new_drugs_billing'))
 
-        # Check if the patient exists
         patient = Patient.query.filter_by(patient_id=patient_id).first()
         if not patient:
             flash(f'Patient with ID {patient_id} does not exist!', 'error')
             return redirect(url_for('billing.new_drugs_billing'))
 
-        # Check if the drug exists
         drug = Drug.query.get(drug_id)
         if not drug:
             flash(f'Drug with ID {drug_id} does not exist!', 'error')
             return redirect(url_for('billing.new_drugs_billing'))
 
-        # Calculate total cost explicitly
         total_cost = Decimal(str(quantity)) * Decimal(str(drug.selling_price))
 
-        # Create a new drugs billing entry
         new_drugs_billing = DrugsBill(
             patient_id=patient_id,
             drug_id=drug_id,
             quantity=quantity,
-            total_cost=total_cost  # Explicitly set total_cost
+            total_cost=total_cost
         )
 
         db.session.add(new_drugs_billing)
         db.session.commit()
 
-        logger.debug(f"Total Cost Calculated: {new_drugs_billing.total_cost}")  # Debugging
+        logger.debug(f"Total Cost Calculated: {new_drugs_billing.total_cost}")
         flash(f'Drugs billing created successfully for {patient.name}! Total Cost: Kshs {new_drugs_billing.total_cost}', 'success')
         return redirect(url_for('billing.index'))
 
-    # Fetch all patients and drugs for the dropdowns
     patients = Patient.query.all()
     drugs = Drug.query.all()
 
@@ -120,7 +134,6 @@ def view_billing(billing_id):
     if current_user.role not in ['billing', 'admin']:
         return redirect(url_for('login'))
 
-    # Fetch the billing entry by ID
     billing = Billing.query.options(
         joinedload(Billing.patient),
         joinedload(Billing.charge)
@@ -141,7 +154,6 @@ def update_status(billing_id):
     if current_user.role not in ['billing', 'admin']:
         return redirect(url_for('login'))
 
-    # Fetch the billing entry by ID
     billing = Billing.query.get(billing_id) or DrugsBill.query.get(billing_id)
 
     if not billing:
@@ -149,13 +161,12 @@ def update_status(billing_id):
         return redirect(url_for('billing.index'))
 
     if request.method == 'POST':
-        # Update the status
         new_status = request.form.get('status')
         if new_status not in ['Pending', 'Paid']:
             flash('Invalid status! Please select "Pending" or "Paid".', 'error')
             return redirect(url_for('billing.update_status', billing_id=billing_id))
 
-        billing.status = 1 if new_status == 'Paid' else 0  # 1 for Paid, 0 for Pending
+        billing.status = 1 if new_status == 'Paid' else 0
         db.session.commit()
 
         flash(f'Status updated successfully for Billing ID {billing_id}!', 'success')
@@ -169,10 +180,8 @@ def search_patients():
     if current_user.role not in ['billing', 'admin']:
         return jsonify({"status": "error", "message": "Unauthorized access!"}), 403
 
-    # Get the search term from the request
     search_term = request.args.get('term', '').strip()
 
-    # Query the database for matching patients
     if search_term:
         patients = Patient.query.filter(
             Patient.name.ilike(f"%{search_term}%") | Patient.patient_id.ilike(f"%{search_term}%")
@@ -180,7 +189,6 @@ def search_patients():
     else:
         patients = []
 
-    # Format the results as a list of dictionaries
     results = [
         {
             "id": patient.patient_id,
@@ -198,12 +206,10 @@ def new_billing():
         return redirect(url_for('login'))
 
     if request.method == 'POST':
-        # Extract form data
         patient_id = request.form.get('patient_id')
         charge_id = request.form.get('charge_id')
         quantity = request.form.get('quantity')
 
-        # Validate input
         if not patient_id or not charge_id or not quantity:
             flash('All fields are required!', 'error')
             return redirect(url_for('billing.new_billing'))
@@ -216,32 +222,28 @@ def new_billing():
             flash('Invalid quantity! Please enter a positive integer.', 'error')
             return redirect(url_for('billing.new_billing'))
 
-        # Check if the patient exists
         patient = Patient.query.filter_by(patient_id=patient_id).first()
         if not patient:
             flash(f'Patient with ID {patient_id} does not exist!', 'error')
             return redirect(url_for('billing.new_billing'))
 
-        # Check if the charge exists
         charge = Charge.query.get(charge_id)
         if not charge:
             flash(f'Charge with ID {charge_id} does not exist!', 'error')
             return redirect(url_for('billing.new_billing'))
 
-        # Create a new billing entry
         new_billing = Billing(
             patient_id=patient_id,
             charge_id=charge_id,
             quantity=quantity
         )
-        new_billing.calculate_total()  # Ensure this method exists in the Billing model
+        new_billing.calculate_total()
         db.session.add(new_billing)
         db.session.commit()
 
         flash(f'Billing created successfully for {patient.name}!', 'success')
         return redirect(url_for('billing.index'))
 
-    # Fetch all patients and charges for the dropdowns
     patients = Patient.query.all()
     charges = Charge.query.all()
 
@@ -250,12 +252,42 @@ def new_billing():
 @bp.route('/new_invoice', methods=['GET', 'POST'])
 @login_required
 def new_invoice():
+    """Create a new invoice / charge for a patient."""
     if current_user.role not in ['billing', 'admin']:
         return redirect(url_for('login'))
 
-    # Placeholder logic (to be implemented later)
-    flash("This feature is under development!", "info")
-    return redirect(url_for('billing.index'))
+    if request.method == 'POST':
+        patient_id = request.form.get('patient_id')
+        charge_id = request.form.get('charge_id')
+        quantity = request.form.get('quantity', 1, type=int)
+
+        if not patient_id or not charge_id:
+            flash('Patient and Charge service are required!', 'error')
+            return redirect(url_for('billing.new_invoice'))
+
+        patient = Patient.query.filter_by(patient_id=patient_id).first()
+        charge = Charge.query.get(charge_id)
+
+        if not patient or not charge:
+            flash('Invalid patient or charge selected.', 'error')
+            return redirect(url_for('billing.new_invoice'))
+
+        billing_entry = Billing(
+            patient_id=patient_id,
+            charge_id=charge_id,
+            quantity=quantity,
+            total_cost=charge.cost * quantity,
+            status=0
+        )
+        db.session.add(billing_entry)
+        db.session.commit()
+
+        flash(f'Invoice created successfully for {patient.name} (Amount: Kshs {billing_entry.total_cost})', 'success')
+        return redirect(url_for('billing.list_billings'))
+
+    patients = Patient.query.all()
+    charges = Charge.query.all()
+    return render_template('billing/new_billing.html', patients=patients, charges=charges)
 
 @bp.route('/view_unpaid_bills/<patient_id>')
 @login_required
@@ -268,11 +300,9 @@ def view_unpaid_bills(patient_id):
         flash(f'Patient with ID {patient_id} does not exist!', 'error')
         return redirect(url_for('billing.index'))
 
-    # Fetch existing unpaid bills
-    unpaid_billings = Billing.query.filter_by(patient_id=patient_id, status='Pending').all()
+    unpaid_billings = Billing.query.filter_by(patient_id=patient_id, status=0).all()
     unpaid_drug_bills = DrugsBill.query.filter_by(patient_id=patient_id, status=0).all()
 
-    # Fetch unbilled items (receipt_number IS NULL)
     dispensed_drugs = DispensedDrug.query.filter_by(patient_id=patient_id, receipt_number=None).all()
     requested_labs = RequestedLab.query.filter_by(patient_id=patient_id, status=1, receipt_number=None).all()
     clinic_bookings = ClinicBooking.query.filter_by(patient_id=patient_id, seen=1, receipt_number=None).all()
@@ -280,7 +310,6 @@ def view_unpaid_bills(patient_id):
     requested_images = RequestedImage.query.filter_by(patient_id=patient_id, status=1, receipt_number=None).all()
     admitted_patients = AdmittedPatient.query.filter_by(patient_id=patient_id, discharged_on=None, receipt_number=None).all()
 
-    # Pre-calculate ward admissions
     admitted_patients_data = []
     for admission in admitted_patients:
         days = (datetime.utcnow() - admission.admitted_on).days + 1
@@ -293,7 +322,6 @@ def view_unpaid_bills(patient_id):
             'total_cost': total_cost
         })
 
-    # Calculate totals
     totals = {
         'Dispensed Drugs': sum(Decimal(str(d.drug.selling_price or 0)) * Decimal(str(d.quantity_dispensed or 0)) for d in dispensed_drugs) if dispensed_drugs else Decimal('0'),
         'Lab Tests': sum(Decimal(str(r.lab_test.cost or 0)) for r in requested_labs) if requested_labs else Decimal('0'),
@@ -320,19 +348,18 @@ def view_unpaid_bills(patient_id):
         totals=totals,
         grand_total=grand_total
     )
+
 @bp.route('/pay_all/<patient_id>', methods=['POST'])
 @login_required
 def pay_all(patient_id):
     if current_user.role not in ['billing', 'admin']:
         return redirect(url_for('login'))
 
-    # Fetch the patient by ID
     patient = Patient.query.filter_by(patient_id=patient_id).first()
     if not patient:
         flash(f'Patient with ID {patient_id} does not exist!', 'error')
         return redirect(url_for('billing.index'))
 
-    # Fetch all unpaid billings and drug bills for the patient
     unpaid_billings = Billing.query.filter_by(patient_id=patient_id, status=0).all()
     unpaid_drug_bills = DrugsBill.query.filter_by(patient_id=patient_id, status=0).all()
 
@@ -341,11 +368,9 @@ def pay_all(patient_id):
         return redirect(url_for('billing.view_unpaid_bills', patient_id=patient_id))
 
     try:
-        # Extract form data
         amount_paid = request.form.get('amount_paid')
         payment_method = request.form.get('payment_method')
 
-        # Validate input
         if not amount_paid or not payment_method:
             flash('Amount Paid and Payment Method are required!', 'error')
             return redirect(url_for('billing.view_unpaid_bills', patient_id=patient_id))
@@ -358,21 +383,15 @@ def pay_all(patient_id):
             flash('Invalid Amount Paid! Please enter a positive number.', 'error')
             return redirect(url_for('billing.view_unpaid_bills', patient_id=patient_id))
 
-        # Calculate grand total of all unpaid bills
         grand_total = sum(Decimal(str(bill.total_cost or '0')) for bill in unpaid_billings + unpaid_drug_bills)
 
-        # Validate payment against grand total
         if amount_paid > grand_total:
             flash(f'Amount Paid cannot exceed the Grand Total (Kshs {grand_total})!', 'error')
             return redirect(url_for('billing.view_unpaid_bills', patient_id=patient_id))
 
-        # Calculate remaining balance
         balance = max(grand_total - amount_paid, Decimal('0'))
-
-        # Generate a unique receipt number
         receipt_number = PaidBill.generate_receipt_number()
 
-        # Create a new paid_bill entry
         new_paid_bill = PaidBill(
             receipt_number=receipt_number,
             patient_id=patient_id,
@@ -384,10 +403,9 @@ def pay_all(patient_id):
         )
         db.session.add(new_paid_bill)
 
-        # Mark all unpaid bills as paid and assign the receipt number
         for bill in unpaid_billings + unpaid_drug_bills:
-            bill.status = 1  # Mark as paid
-            bill.receipt_number = receipt_number  # Assign receipt number
+            bill.status = 1
+            bill.receipt_number = receipt_number
             db.session.add(bill)
 
         db.session.commit()
@@ -406,15 +424,12 @@ def paid_bills(patient_id):
     if current_user.role not in ['billing', 'admin']:
         return redirect(url_for('login'))
 
-    # Fetch the patient by ID
     patient = Patient.query.filter_by(patient_id=patient_id).first()
     if not patient:
         flash(f'Patient with ID {patient_id} does not exist!', 'error')
         return redirect(url_for('billing.index'))
 
-    # Fetch all paid bills for the patient
-    paid_bills = PaidBill.query.filter_by(patient_id=patient_id).all()
-
+    paid_bills = PaidBill.query.filter_by(patient_id=patient_id).order_by(PaidBill.paid_at.desc()).all()
     return render_template('billing/paid_bills.html', patient=patient, paid_bills=paid_bills)
 
 @bp.route('/pay_bills/<patient_id>', methods=['GET', 'POST'])
@@ -440,14 +455,7 @@ def pay_bills(patient_id):
         payment_method = request.form.get('payment_method')
         payment_reference = request.form.get('payment_reference', '')
 
-        logger.debug(f"Action: {action}, Amount Paid: {amount_paid}, Payment Method: {payment_method}, Payment Reference: {payment_reference}")
-
-        now = datetime.utcnow()
-        receipt_base = f"REC-{now.strftime('%Y%m%d')}"
-        last_bill = db.session.query(LabBill).filter(LabBill.receipt_number.like(f"{receipt_base}%")).order_by(LabBill.id.desc()).first()
-        sequence = int(last_bill.receipt_number.split('-')[-1]) + 1 if last_bill else 1
-        receipt_number = f"{receipt_base}-{sequence:03d}"
-
+        receipt_number = PaidBill.generate_receipt_number()
         logger.debug(f"Generated receipt number: {receipt_number}")
 
         all_items = {
@@ -459,19 +467,13 @@ def pay_bills(patient_id):
             'admitted_patients': AdmittedPatient.query.filter_by(patient_id=patient_id, discharged_on=None, receipt_number=None).all()
         }
 
-        logger.debug(f"Retrieved all items for patient: {patient_id}")
-
         selected_items = {}
         if action == 'pay_selected':
-            logger.debug("Processing selected items for payment")
             for category in all_items:
                 selected_ids = request.form.getlist(category)
                 selected_items[category] = [item for item in all_items[category] if str(item.id) in selected_ids]
-        else:  # pay_all
-            logger.debug("Processing all items for payment")
+        else:
             selected_items = all_items
-
-        logger.debug(f"Selected items: {selected_items}")
 
         totals = {
             'Dispensed Drugs': sum(Decimal(str(d.drug.selling_price or 0)) * Decimal(str(d.quantity_dispensed or 0)) for d in selected_items['dispensed_drugs']) if selected_items['dispensed_drugs'] else Decimal('0'),
@@ -486,24 +488,15 @@ def pay_bills(patient_id):
         }
         grand_total = sum(totals.values())
 
-        logger.debug(f"Calculated totals: {totals}, Grand Total: {grand_total}")
-
         if grand_total == 0:
-            logger.warning("No items selected for payment")
             flash('No items selected for payment!', 'warning')
             return redirect(url_for('billing.pay_bills', patient_id=patient_id))
         if amount_paid < 0:
-            logger.warning("Amount paid is negative")
             flash('Amount paid cannot be negative!', 'error')
             return redirect(url_for('billing.pay_bills', patient_id=patient_id))
-        if amount_paid < grand_total:
-            logger.warning(f"Partial payment detected: Amount paid (Kshs {amount_paid:,.2f}) is less than total (Kshs {grand_total:,.2f})")
-            flash(f'Amount paid (Kshs {amount_paid:,.2f}) is less than total (Kshs {grand_total:,.2f}). Partial payment recorded.', 'warning')
-        elif amount_paid > grand_total:
-            logger.info(f"Amount paid exceeds total: Amount paid (Kshs {amount_paid:,.2f}) exceeds total (Kshs {grand_total:,.2f})")
-            flash(f'Amount paid (Kshs {amount_paid:,.2f}) exceeds total (Kshs {grand_total:,.2f}). Change: Kshs {(amount_paid - grand_total):,.2f}', 'info')
 
-        # Prepare paid items for confirmation
+        balance = max(grand_total - amount_paid, Decimal('0'))
+
         paid_items = {}
         for category, items in selected_items.items():
             if items:
@@ -520,9 +513,20 @@ def pay_bills(patient_id):
                 elif category == 'admitted_patients':
                     paid_items['Ward Admissions'] = [f"{item.ward.name} ({(datetime.utcnow() - item.admitted_on).days + 1} days)" for item in items]
 
-        logger.debug(f"Prepared paid items: {paid_items}")
-
         try:
+            # Register master PaidBill entry for patient payment history
+            paid_bill_record = PaidBill(
+                receipt_number=receipt_number,
+                patient_id=patient_id,
+                grand_total=grand_total,
+                amount_paid=amount_paid,
+                balance=balance,
+                paid_at=datetime.utcnow(),
+                payment_method=payment_method or 'Cash'
+            )
+            db.session.add(paid_bill_record)
+
+            # Record category bills and link item receipts
             for category, items in selected_items.items():
                 if items:
                     total = totals[category.replace('_', ' ').title()]
@@ -587,6 +591,10 @@ def pay_bills(patient_id):
                         )
                         db.session.add(ward_bill)
 
+            # Update status of existing pending Billing and DrugsBill items
+            Billing.query.filter_by(patient_id=patient_id, status=0).update({'status': 1, 'receipt_number': receipt_number})
+            DrugsBill.query.filter_by(patient_id=patient_id, status=0).update({'status': 1, 'receipt_number': receipt_number})
+
             db.session.commit()
             logger.info(f"Payment processed successfully! Receipt Number: {receipt_number}")
             flash(f'Payment processed successfully! Receipt Number: {receipt_number}', 'success')
@@ -609,14 +617,13 @@ def pay_bills(patient_id):
             return redirect(url_for('billing.pay_bills', patient_id=patient_id))
 
     # GET request: Show payment form
-    logger.debug("Processing GET request")
     dispensed_drugs = DispensedDrug.query.filter_by(patient_id=patient_id, receipt_number=None).all()
     requested_labs = RequestedLab.query.filter_by(patient_id=patient_id, status=1, receipt_number=None).all()
     clinic_bookings = ClinicBooking.query.filter_by(patient_id=patient_id, seen=1, receipt_number=None).all()
     theatre_list = TheatreList.query.filter_by(patient_id=patient_id, status=1, receipt_number=None).all()
     requested_images = RequestedImage.query.filter_by(patient_id=patient_id, status=1, receipt_number=None).all()
     admitted_patients = AdmittedPatient.query.filter_by(patient_id=patient_id, discharged_on=None, receipt_number=None).all()
-    unpaid_billings = Billing.query.filter_by(patient_id=patient_id, status='Pending').all()
+    unpaid_billings = Billing.query.filter_by(patient_id=patient_id, status=0).all()
     unpaid_drug_bills = DrugsBill.query.filter_by(patient_id=patient_id, status=0).all()
 
     admitted_patients_data = []
@@ -643,8 +650,6 @@ def pay_bills(patient_id):
     }
     grand_total = sum(totals.values())
 
-    logger.debug(f"Calculated totals for GET request: {totals}, Grand Total: {grand_total}")
-
     return render_template(
         'billing/view_unpaid_bills.html',
         patient=patient,
@@ -659,4 +664,219 @@ def pay_bills(patient_id):
         unpaid_billings=unpaid_billings,
         unpaid_drug_bills=unpaid_drug_bills,
         payment_success=False
+    )
+
+
+# ─────────────────────────────────────────────
+# SERVICE CHARGES (FEE SCHEDULE CATALOG)
+# ─────────────────────────────────────────────
+@bp.route('/charges')
+@login_required
+def charges():
+    if current_user.role not in ['billing', 'admin']:
+        return redirect(url_for('login'))
+    charges_list = Charge.query.options(joinedload(Charge.category)).all()
+    categories = ChargeCategory.query.all()
+    return render_template('billing/charges_list.html', charges=charges_list, categories=categories)
+
+
+@bp.route('/charges/add', methods=['GET', 'POST'])
+@login_required
+def add_charge():
+    if current_user.role not in ['billing', 'admin']:
+        return redirect(url_for('login'))
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        category_id = request.form.get('category_id')
+        new_category_name = request.form.get('new_category_name', '').strip()
+        cost = request.form.get('cost', '').strip()
+        description = request.form.get('description', '').strip()
+
+        if not name or not cost:
+            flash('Charge name and cost are required.', 'error')
+            return redirect(url_for('billing.add_charge'))
+
+        try:
+            cost = Decimal(cost)
+            if cost < 0:
+                raise ValueError()
+        except Exception:
+            flash('Cost must be a positive number.', 'error')
+            return redirect(url_for('billing.add_charge'))
+
+        if new_category_name:
+            cat = ChargeCategory.query.filter_by(name=new_category_name).first()
+            if not cat:
+                cat = ChargeCategory(name=new_category_name)
+                db.session.add(cat)
+                db.session.commit()
+            category_id = cat.id
+
+        if not category_id:
+            flash('Please select or enter a valid category.', 'error')
+            return redirect(url_for('billing.add_charge'))
+
+        new_charge = Charge(
+            name=name,
+            category_id=int(category_id),
+            cost=cost,
+            description=description
+        )
+        db.session.add(new_charge)
+        db.session.commit()
+        flash(f'Charge "{name}" added successfully!', 'success')
+        return redirect(url_for('billing.charges'))
+
+    categories = ChargeCategory.query.all()
+    return render_template('billing/add_charge.html', categories=categories)
+
+
+@bp.route('/charges/<int:charge_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_charge(charge_id):
+    if current_user.role not in ['billing', 'admin']:
+        return redirect(url_for('login'))
+    charge = Charge.query.get_or_404(charge_id)
+    if request.method == 'POST':
+        charge.name = request.form.get('name', charge.name).strip()
+        category_id = request.form.get('category_id')
+        if category_id:
+            charge.category_id = int(category_id)
+        cost_str = request.form.get('cost', '').strip()
+        try:
+            charge.cost = Decimal(cost_str)
+        except Exception:
+            flash('Invalid cost value.', 'error')
+            return redirect(url_for('billing.edit_charge', charge_id=charge_id))
+        charge.description = request.form.get('description', charge.description).strip()
+        db.session.commit()
+        flash('Service charge updated successfully!', 'success')
+        return redirect(url_for('billing.charges'))
+
+    categories = ChargeCategory.query.all()
+    return render_template('billing/add_charge.html', charge=charge, categories=categories)
+
+
+# ─────────────────────────────────────────────
+# OFFICIAL RECEIPT & RECEIPT LOG
+# ─────────────────────────────────────────────
+@bp.route('/receipt/<receipt_number>')
+@login_required
+def official_receipt(receipt_number):
+    if current_user.role not in ['billing', 'admin']:
+        return redirect(url_for('login'))
+
+    paid_record = PaidBill.query.filter_by(receipt_number=receipt_number).first_or_404()
+    patient = Patient.query.filter_by(patient_id=paid_record.patient_id).first_or_404()
+
+    # Gather itemized records associated with this receipt_number
+    dispensed = DispensedDrug.query.filter_by(receipt_number=receipt_number).all()
+    labs = RequestedLab.query.filter_by(receipt_number=receipt_number).all()
+    clinics = ClinicBooking.query.filter_by(receipt_number=receipt_number).all()
+    theatres = TheatreList.query.filter_by(receipt_number=receipt_number).all()
+    images = RequestedImage.query.filter_by(receipt_number=receipt_number).all()
+    admissions = AdmittedPatient.query.filter_by(receipt_number=receipt_number).all()
+    billings = Billing.query.filter_by(receipt_number=receipt_number).all()
+    drugs_bills = DrugsBill.query.filter_by(receipt_number=receipt_number).all()
+
+    return render_template(
+        'billing/receipt.html',
+        paid_record=paid_record,
+        patient=patient,
+        dispensed=dispensed,
+        labs=labs,
+        clinics=clinics,
+        theatres=theatres,
+        images=images,
+        admissions=admissions,
+        billings=billings,
+        drugs_bills=drugs_bills
+    )
+
+
+@bp.route('/receipts')
+@login_required
+def receipts_list():
+    if current_user.role not in ['billing', 'admin']:
+        return redirect(url_for('login'))
+
+    q = request.args.get('q', '').strip()
+    query = PaidBill.query.options(joinedload(PaidBill.patient))
+    if q:
+        query = query.filter(
+            (PaidBill.receipt_number.ilike(f"%{q}%")) |
+            (PaidBill.patient_id.ilike(f"%{q}%"))
+        )
+    receipts = query.order_by(PaidBill.paid_at.desc()).limit(100).all()
+    return render_template('billing/receipts_list.html', receipts=receipts, search_query=q)
+
+
+# ─────────────────────────────────────────────
+# FINANCIAL REPORTS
+# ─────────────────────────────────────────────
+@bp.route('/reports/daily_revenue')
+@login_required
+def daily_revenue_report():
+    if current_user.role not in ['billing', 'admin']:
+        return redirect(url_for('login'))
+
+    from datetime import date, timedelta
+    start_str = request.args.get('start')
+    end_str = request.args.get('end')
+    try:
+        start_date = datetime.strptime(start_str, '%Y-%m-%d').date() if start_str else date.today() - timedelta(days=29)
+        end_date = datetime.strptime(end_str, '%Y-%m-%d').date() if end_str else date.today()
+    except ValueError:
+        start_date = date.today() - timedelta(days=29)
+        end_date = date.today()
+
+    paid_records = PaidBill.query.filter(
+        db.func.date(PaidBill.paid_at) >= start_date,
+        db.func.date(PaidBill.paid_at) <= end_date
+    ).options(joinedload(PaidBill.patient)).order_by(PaidBill.paid_at.desc()).all()
+
+    total_revenue = sum(r.amount_paid for r in paid_records) if paid_records else Decimal('0')
+    total_balance = sum(r.balance for r in paid_records) if paid_records else Decimal('0')
+
+    # Group revenue by payment method
+    by_method = {}
+    for r in paid_records:
+        method = r.payment_method or 'Cash'
+        by_method[method] = float(by_method.get(method, Decimal('0')) + Decimal(str(r.amount_paid or 0)))
+
+    return render_template(
+        'billing/reports_daily_revenue.html',
+        paid_records=paid_records,
+        total_revenue=total_revenue,
+        total_balance=total_balance,
+        by_method=by_method,
+        start_date=start_date,
+        end_date=end_date
+    )
+
+
+@bp.route('/reports/outstanding')
+@login_required
+def outstanding_report():
+    if current_user.role not in ['billing', 'admin']:
+        return redirect(url_for('login'))
+
+    unpaid_billings = Billing.query.filter_by(status=0).options(joinedload(Billing.patient), joinedload(Billing.charge)).all()
+    unpaid_drug_bills = DrugsBill.query.filter_by(status=0).options(joinedload(DrugsBill.patient), joinedload(DrugsBill.drug)).all()
+
+    patient_debt = {}
+    for b in unpaid_billings + unpaid_drug_bills:
+        pid = b.patient_id
+        if pid not in patient_debt:
+            patient_debt[pid] = {'patient': b.patient, 'total': Decimal('0'), 'items_count': 0}
+        patient_debt[pid]['total'] += Decimal(str(b.total_cost or 0))
+        patient_debt[pid]['items_count'] += 1
+
+    outstanding_list = sorted(patient_debt.values(), key=lambda x: x['total'], reverse=True)
+    grand_debt = sum(item['total'] for item in outstanding_list)
+
+    return render_template(
+        'billing/reports_outstanding.html',
+        outstanding_list=outstanding_list,
+        grand_debt=grand_debt
     )

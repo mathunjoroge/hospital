@@ -54,7 +54,6 @@ class Partogram(db.Model):
     # Patient and metadata
     patient_id = db.Column(db.String(50), nullable=False, index=True)  # To group entries for the same patient
     timestamp = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())  # When the entry was recorded
-    recorded_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # ID of the user who recorded it
     recorded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     # Add relationship to User

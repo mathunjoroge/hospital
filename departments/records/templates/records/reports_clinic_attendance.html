@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  :root {
+    --rc-primary: #1a56db; --rc-primary-dark: #1e3a8a;
+    --rc-header-bg: linear-gradient(135deg, #1e3a8a 0%, #1a56db 60%, #3b82f6 100%);
+    --rc-card-shadow: 0 4px 24px rgba(26,86,219,0.10);
+    --rc-border: #e0e7ff; --rc-bg: #f0f4ff;
+  }
+  body { background: var(--rc-bg); }
+  .rc-header { background: var(--rc-header-bg); border-radius:18px; padding:2rem 2.5rem; color:white; margin-bottom:2rem; box-shadow:0 8px 32px rgba(26,86,219,0.25); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
+  .rc-header h1 { font-size:1.7rem; font-weight:700; margin:0 0 .25rem; }
+  .rc-header p { margin:0; opacity:.8; }
+  .filter-form { display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; }
+  .filter-form input[type=date] { border:1.5px solid rgba(255,255,255,.4); border-radius:8px; padding:.5rem .9rem; font-size:.9rem; background:rgba(255,255,255,.15); color:white; outline:none; }
+  .filter-form input[type=date]::-webkit-calendar-picker-indicator { filter:invert(1); }
+  .filter-form label { color:rgba(255,255,255,.8); font-weight:600; font-size:.88rem; }
+  .btn-filter { background:white; color:var(--rc-primary); border:none; border-radius:8px; padding:.5rem 1.2rem; font-weight:700; font-size:.88rem; cursor:pointer; display:inline-flex; align-items:center; gap:.4rem; }
+
+  .rc-card { background:white; border-radius:16px; box-shadow:var(--rc-card-shadow); overflow:hidden; margin-bottom:1.5rem; }
+  .rc-card-header { padding:1.2rem 1.5rem; border-bottom:1px solid var(--rc-border); background:linear-gradient(135deg,#f8faff,#eff6ff); font-weight:700; color:var(--rc-primary-dark); display:flex; align-items:center; gap:.5rem; }
+  .rc-card-body { padding:1.5rem; }
+
+  .attendance-row { display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1.5fr; align-items:center; padding:1rem 1.5rem; border-bottom:1px solid #f1f5f9; gap:1rem; }
+  .attendance-row:hover { background:#f8faff; }
+  .attendance-row.header { background:linear-gradient(90deg,#1e3a8a,#1a56db); color:white; padding:.8rem 1.5rem; font-size:.78rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
+  .clinic-name { font-weight:700; color:#1e293b; }
+  .rate-bar-wrap { background:#e0e7ff; border-radius:20px; height:8px; overflow:hidden; }
+  .rate-bar { height:100%; border-radius:20px; background:linear-gradient(90deg,#1a56db,#3b82f6); transition:width .4s; }
+  .rate-bar.high { background:linear-gradient(90deg,#059669,#34d399); }
+  .rate-bar.low { background:linear-gradient(90deg,#d97706,#fbbf24); }
+  .num-seen { color:#059669; font-weight:700; }
+  .num-pending { color:#d97706; font-weight:700; }
+  .rate-text { font-size:.88rem; font-weight:700; color:var(--rc-primary); }
+</style>
+
+<div class="container-fluid px-4 py-4">
+
+  <div class="rc-header">
+    <div>
+      <h1><i class="bi bi-building-fill me-2"></i>Clinic Attendance Report</h1>
+      <p>Attendance rates per clinic for the selected period</p>
+    </div>
+    <form method="GET" class="filter-form">
+      <label>From</label>
+      <input type="date" name="start" value="{{ start_date.strftime('%Y-%m-%d') }}">
+      <label>To</label>
+      <input type="date" name="end" value="{{ end_date.strftime('%Y-%m-%d') }}">
+      <button type="submit" class="btn-filter"><i class="bi bi-funnel"></i> Filter</button>
+    </form>
+  </div>
+
+  <!-- Chart -->
+  <div class="rc-card">
+    <div class="rc-card-header"><i class="bi bi-bar-chart-horizontal"></i> Attendance Overview</div>
+    <div class="rc-card-body">
+      <canvas id="attendanceChart" height="60"></canvas>
+    </div>
+  </div>
+
+  <!-- Attendance Table -->
+  <div class="rc-card">
+    <div class="rc-card-header"><i class="bi bi-table"></i> Per-Clinic Attendance</div>
+    <div class="attendance-row header">
+      <div>Clinic</div>
+      <div>Total Bookings</div>
+      <div>Attended</div>
+      <div>Not Attended</div>
+      <div>Attendance Rate</div>
+    </div>
+    {% for item in attendance_data %}
+    <div class="attendance-row">
+      <div class="clinic-name">{{ item.clinic.name }}</div>
+      <div style="font-weight:600;">{{ item.total }}</div>
+      <div class="num-seen">{{ item.seen }}</div>
+      <div class="num-pending">{{ item.not_seen }}</div>
+      <div>
+        <div style="display:flex; align-items:center; gap:.6rem;">
+          <div class="rate-bar-wrap" style="flex:1;">
+            <div class="rate-bar {% if item.rate >= 70 %}high{% elif item.rate < 40 %}low{% endif %}" style="width:{{ item.rate }}%;"></div>
+          </div>
+          <span class="rate-text">{{ item.rate }}%</span>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div style="text-align:center; padding:3rem; color:#94a3b8;">
+      <i class="bi bi-building-x" style="font-size:2.5rem; display:block; margin-bottom:.8rem;"></i>
+      No clinic booking data for this period.
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const clinicNames = {{ attendance_data | map(attribute='clinic') | map(attribute='name') | list | tojson }};
+const seenData    = {{ attendance_data | map(attribute='seen') | list | tojson }};
+const notSeenData = {{ attendance_data | map(attribute='not_seen') | list | tojson }};
+
+new Chart(document.getElementById('attendanceChart'), {
+  type: 'bar',
+  data: {
+    labels: clinicNames,
+    datasets: [
+      { label: 'Attended', data: seenData, backgroundColor: 'rgba(5,150,105,0.75)', borderRadius: 5 },
+      { label: 'Not Attended', data: notSeenData, backgroundColor: 'rgba(217,119,6,0.65)', borderRadius: 5 }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' } },
+    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } } }
+  }
+});
+</script>
+{% endblock %}
