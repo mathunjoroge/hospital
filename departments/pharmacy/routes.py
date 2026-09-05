@@ -1444,9 +1444,9 @@ def export_analytics():
 @login_required
 @roles_required('pharmacy', 'admin')
 def ai_discovery():
-    """Renders the AI Drug Discovery page and handles form submissions for MolMIM and DiffDock."""
-    # Lazy import to avoid circular dependencies
+    """Renders the AI Drug Discovery page and handles form submissions for candidate generation and docking estimation."""
     from departments.nlp.src.nvidia_client import NvidiaNIMClient
+    from departments.pharmacy.cheminformatics import compute_molecular_properties, find_similar_drugs
     
     results = None
     tool_used = None
@@ -1459,7 +1459,13 @@ def ai_discovery():
             properties = request.form.get('target_properties', '').strip()
             if properties:
                 molecules = client.generate_molecules(properties)
-                results = {'molecules': molecules, 'properties': properties}
+                enriched_molecules = []
+                for smiles in molecules:
+                    props = compute_molecular_properties(smiles)
+                    if props:
+                        props['similar_drugs'] = find_similar_drugs(props['smiles'], top_n=3)
+                        enriched_molecules.append(props)
+                results = {'molecules': enriched_molecules, 'properties': properties}
                 tool_used = 'molmim'
             else:
                 flash('Please enter target properties.', 'error')
@@ -1468,9 +1474,20 @@ def ai_discovery():
             ligand = request.form.get('ligand_smiles', '').strip()
             protein = request.form.get('protein_sequence', '').strip()
             if ligand and protein:
-                docking_results = client.predict_docking(ligand, protein)
-                results = {'docking': docking_results, 'ligand': ligand}
-                tool_used = 'diffdock'
+                ligand_props = compute_molecular_properties(ligand)
+                if not ligand_props:
+                    flash(f"Invalid ligand SMILES: '{ligand}' could not be parsed by RDKit.", 'error')
+                else:
+                    docking_results = client.predict_docking(ligand, protein)
+                    similar_drugs = find_similar_drugs(ligand_props['smiles'], top_n=3)
+                    results = {
+                        'docking': docking_results,
+                        'ligand': ligand,
+                        'ligand_props': ligand_props,
+                        'similar_drugs': similar_drugs,
+                        'protein_length': len(protein)
+                    }
+                    tool_used = 'diffdock'
             else:
                 flash('Please provide both a ligand SMILES string and a protein sequence.', 'error')
                 

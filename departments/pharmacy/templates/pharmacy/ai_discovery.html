@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}AI Drug Discovery - {{ super() }}{% endblock %}
+{% block title %}AI-Assisted Molecule Ideation - {{ super() }}{% endblock %}
 
 {% block content %}
 <style>
   :root {
     --ai-primary: #8b5cf6;
-    --ai-secondary: #7c3aed;
+    --ai-secondary: #6d28d9;
     --ph-surface: #f4fbf8;
   }
   .ai-hero {
@@ -13,146 +13,486 @@
     color: white;
     border-radius: 12px;
     padding: 2rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
   }
   .ai-card {
     border: none;
     border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
     margin-bottom: 2rem;
+    background: #ffffff;
   }
   .ai-card-header {
     background-color: #fff;
     border-bottom: 1px solid #eaeaea;
-    padding: 1.5rem;
+    padding: 1.25rem 1.5rem;
     border-radius: 12px 12px 0 0;
   }
   .ai-card-body {
     padding: 1.5rem;
   }
+  .disclaimer-banner {
+    background-color: #fff8e6;
+    border: 1px solid #ffe58f;
+    border-left: 4px solid #faad14;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    color: #595959;
+  }
+  .prop-badge {
+    background-color: #f3f4f6;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.825rem;
+    display: inline-block;
+  }
+  .mol-viewer-container {
+    background-color: #fafafa;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    padding: 1rem;
+  }
+  .mol-3d-box {
+    height: 260px;
+    width: 100%;
+    position: relative;
+    background-color: #1a1a2e;
+    border-radius: 8px;
+  }
+  .shortlist-panel {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
 </style>
 
-  <!-- Main Content -->
-  <div class="container-fluid p-4">
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
+<!-- Load 3Dmol.js for 3D molecular visualization -->
+<script src="https://3dmol.org/build/3Dmol-min.js"></script>
 
-    <div class="ai-hero">
-      <h2 class="mb-1"><i class="bi bi-robot me-2"></i>AI Drug Discovery</h2>
-      <p class="mb-0 opacity-75">Powered by NVIDIA NIM (MolMIM & DiffDock)</p>
-    </div>
-
-    <div class="row">
-      <!-- MolMIM Section -->
-      <div class="col-md-6">
-        <div class="card ai-card h-100">
-          <div class="ai-card-header">
-            <h5 class="mb-0 fw-bold text-primary"><i class="bi bi-diagram-3 me-2"></i>MolMIM Generation</h5>
-            <small class="text-muted">Generate novel drug molecules based on desired properties.</small>
-          </div>
-          <div class="ai-card-body">
-            <form method="POST" action="{{ url_for('pharmacy.ai_discovery') }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-              <input type="hidden" name="action" value="molmim">
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Target Properties</label>
-                <textarea class="form-control" name="target_properties" rows="3" placeholder="e.g., high solubility, low toxicity inhibitor for COX-2" required></textarea>
-              </div>
-              <button type="submit" class="btn btn-primary w-100 fw-bold">Generate Molecules</button>
-            </form>
-
-            {% if tool_used == 'molmim' and results %}
-            <div class="container">
-              <h6 class="fw-bold text-success mb-2">Results for: <span class="fw-normal">{{ results.properties }}</span></h6>
-              <div class="d-flex flex-column gap-4 mt-3">
-                {% for mol in results.molecules %}
-                <div class="text-center">
-                  <canvas id="mol-canvas-{{ loop.index }}" data-smiles="{{ mol }}" width="300" height="300" style="max-width: 300px; width: 100%; height: auto; mx-auto"></canvas>
-                  <div class="text-break font-monospace small mt-2 text-muted">{{ mol }}</div>
-                </div>
-                {% endfor %}
-              </div>
-            </div>
-            {% endif %}
-          </div>
+<div class="container-fluid p-4">
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <!-- Task 1.1: Honest Hero Header -->
+  <div class="ai-hero">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h2 class="mb-1 fw-bold"><i class="bi bi-cpu me-2"></i>AI-Assisted Molecule Ideation</h2>
+        <p class="mb-0 opacity-90">LLM-generated candidate suggestions — not validated computational chemistry.</p>
       </div>
+      <button class="btn btn-light btn-sm fw-semibold text-purple" type="button" data-bs-toggle="collapse" data-bs-target="#shortlistSection">
+        <i class="bi bi-star-fill text-warning me-1"></i>Shortlist (<span id="shortlistCount">0</span>)
+      </button>
+    </div>
+  </div>
 
-      <!-- DiffDock Section -->
-      <div class="col-md-6">
-        <div class="card ai-card h-100">
-          <div class="ai-card-header">
-            <h5 class="mb-0 fw-bold text-info"><i class="bi bi-boxes me-2"></i>DiffDock Prediction</h5>
-            <small class="text-muted">Predict molecular binding interaction and affinity.</small>
+  <!-- Task 6: Shortlist & Comparison Panel -->
+  <div class="collapse shortlist-panel" id="shortlistSection">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-card-checklist me-2 text-primary"></i>Candidate Shortlist & Comparison</h5>
+      <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearShortlist()">
+        <i class="bi bi-trash me-1"></i>Clear Shortlist
+      </button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover table-bordered align-middle bg-white mb-0" id="shortlistTable">
+        <thead class="table-light">
+          <tr>
+            <th>SMILES</th>
+            <th>MW (g/mol)</th>
+            <th>LogP</th>
+            <th>TPSA (Å²)</th>
+            <th>Lipinski Status</th>
+            <th>Top Similar Drug</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="shortlistBody">
+          <tr>
+            <td colspan="7" class="text-center text-muted py-3">No candidates shortlisted yet. Click <strong>"Add to Shortlist"</strong> on any candidate below.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- MolMIM Section -->
+    <div class="col-lg-6">
+      <div class="card ai-card h-100">
+        <div class="ai-card-header">
+          <h5 class="mb-1 fw-bold text-purple"><i class="bi bi-diagram-3 me-2"></i>Candidate Generation</h5>
+          <small class="text-muted">Propose novel SMILES structures matching targeted physical & biological properties.</small>
+        </div>
+        <div class="ai-card-body">
+          <!-- Task 1.2: Persistent Disclaimer Banner -->
+          <div class="disclaimer-banner mb-3">
+            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+            <strong>AI Disclaimer:</strong> Candidate SMILES structures are proposed by LLM pattern-matching. Generated candidates must be synthesized and experimentally validated in-vitro before clinical use.
           </div>
-          <div class="ai-card-body">
-            <form method="POST" action="{{ url_for('pharmacy.ai_discovery') }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-              <input type="hidden" name="action" value="diffdock">
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Ligand (SMILES)</label>
-                <input type="text" class="form-control font-monospace text-sm" name="ligand_smiles" placeholder="e.g., CC(=O)OC1=CC=CC=C1C(=O)O" required>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Protein Target (Amino Acid Sequence)</label>
-                <textarea class="form-control font-monospace text-sm" name="protein_sequence" rows="3" placeholder="e.g., MLPAVPAAVLGIAGLAACAAARATAAATARATAAATAA" required></textarea>
-              </div>
-              <button type="submit" class="btn btn-info text-white w-100 fw-bold">Predict Docking</button>
-            </form>
 
-            {% if tool_used == 'diffdock' and results %}
-            <div class="mt-4 p-3 bg-light rounded border">
-              <h6 class="fw-bold text-success mb-2">Docking Prediction Results:</h6>
-              <div class="d-flex flex-column gap-2">
-                <div class="p-2 bg-white rounded shadow-sm border">
-                  <small class="text-muted d-block">Binding Affinity (kcal/mol)</small>
-                  <span class="fs-5 fw-bold text-dark">{{ results.docking.get('binding_affinity_kcal_mol', 'N/A') }}</span>
+          <form method="POST" action="{{ url_for('pharmacy.ai_discovery') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="action" value="molmim">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Target Properties</label>
+              <textarea class="form-control" name="target_properties" rows="3" placeholder="e.g., high solubility, low toxicity inhibitor for COX-2" required>{{ results.properties if tool_used == 'molmim' else '' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 fw-bold" style="background-color: var(--ai-primary); border-color: var(--ai-primary);">
+              <i class="bi bi-magic me-1"></i>Generate Candidates
+            </button>
+          </form>
+
+          {% if tool_used == 'molmim' and results %}
+          <div class="mt-4">
+            <h6 class="fw-bold text-success mb-3">Generated Candidates for: <span class="fw-normal text-dark">{{ results.properties }}</span></h6>
+            
+            <div class="d-flex flex-column gap-4">
+              {% for mol in results.molecules %}
+              <div class="mol-viewer-container">
+                <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                  <span class="badge bg-dark font-monospace">Candidate #{{ loop.index }}</span>
+                  <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary active" onclick="switchView({{ loop.index }}, '2d')">2D</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="switchView({{ loop.index }}, '3d')">3D</button>
+                  </div>
+                  <!-- Task 6: Add to Shortlist -->
+                  <button type="button" class="btn btn-outline-warning btn-sm fw-bold" onclick='addToShortlist({{ mol|tojson|safe }})'>
+                    <i class="bi bi-star me-1"></i>Shortlist
+                  </button>
                 </div>
-                <div class="p-2 bg-white rounded shadow-sm border">
-                  <small class="text-muted d-block">Confidence Score</small>
-                  <span class="fs-5 fw-bold text-dark">{{ results.docking.get('confidence_score', 'N/A') }}</span>
+
+                <!-- 2D View -->
+                <div id="view-2d-{{ loop.index }}" class="text-center">
+                  <canvas id="mol-canvas-{{ loop.index }}" data-smiles="{{ mol.smiles }}" width="300" height="220" style="max-width: 100%; height: auto; margin: 0 auto;"></canvas>
                 </div>
-                {% if results.docking.get('status') %}
-                <div class="p-2 bg-white rounded shadow-sm border">
-                  <small class="text-muted d-block">Status</small>
-                  <span class="fw-semibold text-secondary">{{ results.docking.get('status') }}</span>
+
+                <!-- Task 3: 3D View (hidden by default) -->
+                <div id="view-3d-{{ loop.index }}" class="d-none">
+                  <div id="mol-3d-{{ loop.index }}" class="mol-3d-box" data-molblock="{{ mol.molblock }}"></div>
+                  <small class="text-muted text-center d-block mt-1">Interactive 3D Ball & Stick model (drag to rotate, scroll to zoom)</small>
+                </div>
+
+                <div class="text-break font-monospace small my-2 p-2 bg-white rounded border text-muted">
+                  <strong>SMILES:</strong> {{ mol.smiles }}
+                </div>
+
+                <!-- Task 2: Real RDKit Molecular Properties -->
+                <div class="mb-2">
+                  <strong class="d-block small text-muted mb-1">RDKit Computed Properties:</strong>
+                  <div class="d-flex flex-wrap gap-1">
+                    <span class="prop-badge"><strong>MW:</strong> {{ mol.mw }} g/mol</span>
+                    <span class="prop-badge"><strong>LogP:</strong> {{ mol.logp }}</span>
+                    <span class="prop-badge"><strong>TPSA:</strong> {{ mol.tpsa }} Å²</span>
+                    <span class="prop-badge"><strong>HBD:</strong> {{ mol.hbd }}</span>
+                    <span class="prop-badge"><strong>HBA:</strong> {{ mol.hba }}</span>
+                    <span class="prop-badge"><strong>RotB:</strong> {{ mol.rotb }}</span>
+                  </div>
+                  <div class="mt-2">
+                    {% if mol.lipinski_pass %}
+                      <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Lipinski Rule of 5 Compliant</span>
+                    {% else %}
+                      <span class="badge bg-danger" title="{{ mol.lipinski_violations|join(', ') }}"><i class="bi bi-x-circle me-1"></i>Lipinski Violation ({{ mol.lipinski_violations_count }} rules)</span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <!-- Task 4: DrugCentral Similarity Search -->
+                {% if mol.similar_drugs %}
+                <div class="mt-2 pt-2 border-top">
+                  <strong class="d-block small text-muted mb-1"><i class="bi bi-database me-1"></i>DrugCentral Approved Analog Matches (Tanimoto):</strong>
+                  <ul class="list-group list-group-flush small">
+                    {% for sim in mol.similar_drugs %}
+                    <li class="list-group-item px-0 py-1 bg-transparent d-flex justify-content-between align-items-center">
+                      <span class="fw-semibold text-capitalize">{{ sim.name }}</span>
+                      <span class="badge {{ 'bg-primary' if sim.similarity >= 75 else 'bg-info' if sim.similarity >= 50 else 'bg-secondary' }}">
+                        {{ sim.similarity }}% match
+                      </span>
+                    </li>
+                    {% endfor %}
+                  </ul>
                 </div>
                 {% endif %}
+
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- DiffDock Section -->
+    <div class="col-lg-6">
+      <div class="card ai-card h-100">
+        <div class="ai-card-header">
+          <h5 class="mb-1 fw-bold text-info"><i class="bi bi-boxes me-2"></i>Binding Interaction Estimation</h5>
+          <small class="text-muted">Estimate ligand binding interaction score against target amino acid sequences.</small>
+        </div>
+        <div class="ai-card-body">
+          <!-- Task 1.2: Persistent Disclaimer Banner -->
+          <div class="disclaimer-banner mb-3">
+            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+            <strong>AI Disclaimer:</strong> Binding affinity (kcal/mol) and confidence values are AI heuristic estimates, not the output of a physical GPU docking simulation.
+          </div>
+
+          <form method="POST" action="{{ url_for('pharmacy.ai_discovery') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="action" value="diffdock">
+            
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Ligand (SMILES String)</label>
+              <input type="text" class="form-control font-monospace text-sm" name="ligand_smiles" placeholder="e.g., CC(=O)OC1=CC=CC=C1C(=O)O" value="{{ results.ligand if tool_used == 'diffdock' else '' }}" required>
+            </div>
+
+            <!-- Task 5: UniProt Target Presets -->
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label fw-semibold mb-0">Protein Target Sequence</label>
+                <select class="form-select form-select-sm w-auto" id="targetPresetSelect" onchange="applyTargetPreset(this)">
+                  <option value="">-- Load Target Preset --</option>
+                  <option value="EGFR">EGFR (Human - P00533)</option>
+                  <option value="BRAF">BRAF Kinase (Human - P15056)</option>
+                  <option value="COX2">COX-2 / PTGS2 (Human - P35354)</option>
+                  <option value="ACE2">ACE2 Receptor (Human - Q9BYF1)</option>
+                  <option value="HIV1_PR">HIV-1 Protease (POL - P03366)</option>
+                </select>
+              </div>
+              <textarea class="form-control font-monospace text-sm" id="protein_sequence" name="protein_sequence" rows="4" placeholder="Enter FASTA or amino acid sequence..." required></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-info text-white w-100 fw-bold">
+              <i class="bi bi-lightning-charge me-1"></i>Estimate Binding Affinity
+            </button>
+          </form>
+
+          {% if tool_used == 'diffdock' and results %}
+          <div class="mt-4 p-3 bg-light rounded border">
+            <h6 class="fw-bold text-success mb-3"><i class="bi bi-journal-check me-1"></i>Docking Estimation Results</h6>
+            
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <div class="p-3 bg-white rounded shadow-sm border text-center">
+                  <small class="text-muted d-block uppercase fw-bold" style="font-size: 0.75rem;">ESTIMATED AFFINITY</small>
+                  <span class="fs-4 fw-bold text-primary">{{ results.docking.get('binding_affinity_kcal_mol', 'N/A') }} <small class="fs-6 text-muted">kcal/mol</small></span>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="p-3 bg-white rounded shadow-sm border text-center">
+                  <small class="text-muted d-block uppercase fw-bold" style="font-size: 0.75rem;">CONFIDENCE SCORE</small>
+                  <span class="fs-4 fw-bold text-dark">{{ results.docking.get('confidence_score', 'N/A') }}</span>
+                </div>
               </div>
             </div>
+
+            {% if results.docking.get('disclaimer') %}
+            <div class="p-2 mb-3 bg-warning-subtle text-dark rounded border border-warning small">
+              <i class="bi bi-info-circle-fill me-1"></i>{{ results.docking.get('disclaimer') }}
+            </div>
             {% endif %}
+
+            {% if results.ligand_props %}
+            <div class="p-3 bg-white rounded border mb-3">
+              <strong class="d-block small text-muted mb-2">Ligand RDKit Properties:</strong>
+              <div class="d-flex flex-wrap gap-1 mb-2">
+                <span class="prop-badge"><strong>MW:</strong> {{ results.ligand_props.mw }} g/mol</span>
+                <span class="prop-badge"><strong>LogP:</strong> {{ results.ligand_props.logp }}</span>
+                <span class="prop-badge"><strong>TPSA:</strong> {{ results.ligand_props.tpsa }} Å²</span>
+              </div>
+              {% if results.ligand_props.lipinski_pass %}
+                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Lipinski Compliant</span>
+              {% else %}
+                <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Lipinski Violation</span>
+              {% endif %}
+            </div>
+            {% endif %}
+
+            {% if results.similar_drugs %}
+            <div class="p-3 bg-white rounded border">
+              <strong class="d-block small text-muted mb-2"><i class="bi bi-database me-1"></i>Top Similar DrugCentral Reference Drugs:</strong>
+              <ul class="list-group list-group-flush small mb-0">
+                {% for sim in results.similar_drugs %}
+                <li class="list-group-item px-0 py-1 bg-transparent d-flex justify-content-between align-items-center">
+                  <span class="fw-semibold text-capitalize">{{ sim.name }}</span>
+                  <span class="badge bg-primary">{{ sim.similarity }}% match</span>
+                </li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+
           </div>
+          {% endif %}
         </div>
       </div>
     </div>
   </div>
-  
-  <script src="https://unpkg.com/smiles-drawer@1.0.10/dist/smiles-drawer.min.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      if (typeof SmilesDrawer !== 'undefined') {
-        let options = { width: 300, height: 300, padding: 5 };
-        let smilesDrawer = new SmilesDrawer.Drawer(options);
-        
-        document.querySelectorAll('canvas[data-smiles]').forEach(function(canvas) {
-          let smiles = canvas.getAttribute('data-smiles');
-          SmilesDrawer.parse(smiles, function(tree) {
-            smilesDrawer.draw(tree, canvas.id, 'light', false);
-          }, function(err) {
-            console.error('Error rendering SMILES for ' + smiles, err);
-          });
-        });
+</div>
+
+<script src="https://unpkg.com/smiles-drawer@1.0.10/dist/smiles-drawer.min.js"></script>
+<script>
+  // Task 5: Target Presets Dictionary (UniProt sequences)
+  const TARGET_PRESETS = {
+    "EGFR": "MRPSGTAGAALLALLAALCPASRALEEKKVCQGTSNKLTQLGTFEDHFLSLQRMFNNCEVVLGNLEITYVQRNYDLSFLKTIQEVAGYVLIALNTVERIPLENLQIIRGNMYYENSYALAVLSNYDANKTGLKELPMRNLQEILHGAVRFSNNPALCNVESIQWRDIVSSDFLSNMSMDFQNHLGSCQKCDPSCPNGSCWGAGEENCQKLTKIICAQQCSGRCRGKSPSDCCHNQCAAGCTGPRESDCLVCRKFRDEATC",
+    "BRAF": "MAALSGGGGGGAEPGQALFNGDMEPEAGAGAGAAASSAADPAIPEEVWNIKQMIKLTQEHIEALLLDKFGGIEHNEFARIQIVMQCLKFLSLYICGEESPTQLVGCFGKSIPVIPVKWLMKVLTLVNKKVVEELQKILDKMNEESMKKSLVLLKKSNMILAEISIKLKKQ",
+    "COX2": "MLARALLLCAVLALSHTANPCCSHPCQNRGVCMSVGFDQYKCDCTRTGFYGENCTTPEFLTRIKLFLKPTPNTVHYILTHFKGFWNVVNNIPFLRNAIMSYVLTSRSHLIDSPPTYNADYGYKSWEAFSNLSYYTRALPPVPDDCPTPLGVKGKKQLPDSNEIVEKLLLRRKFIPDPQGSNMMFADFFTFQTCVMVGMEAG",
+    "ACE2": "MSSSSWLLLSLVAVTAAQSTIEEQAKTFLDKFNHEAEDLFYQSSLASWNYNTNITEENVQNMNNAGDKWSAFLKEQSTLAQMYPLQEIQNLTVKLQLQALQQNGSSVLSEDKSKRLNTILNTMSTIYSTGKVCNPDNPQECLLLEPGLNEIMANSLDYNERLWAWESWRSEVGKQLRPLYEEYVVLKNEMARANHYEDYGDYWRGDYEVNGVDGYDYSRGQLIEDVEHTFEEIKPLYEHLHAYVRAKLMNAYPSYISPIGCLPAHLLGDM",
+    "HIV1_PR": "PQITLWQRPLVTIKIGGQLKEALLDTGADDTVLEEMNLPGRWKPKMIGGIGGFIKVRQYDQILIEICGHKAIGTVLVGPTPVNIIGRNLLTQIGCTLNF"
+  };
+
+  function applyTargetPreset(selectElem) {
+    const val = selectElem.value;
+    const textarea = document.getElementById('protein_sequence');
+    if (val && TARGET_PRESETS[val]) {
+      textarea.value = TARGET_PRESETS[val];
+    }
+  }
+
+  // 2D vs 3D View Switching
+  function switchView(index, mode) {
+    const v2d = document.getElementById('view-2d-' + index);
+    const v3d = document.getElementById('view-3d-' + index);
+    const parentContainer = v2d.closest('.mol-viewer-container');
+    const buttons = parentContainer.querySelectorAll('.btn-group button');
+
+    if (mode === '2d') {
+      v2d.classList.remove('d-none');
+      v3d.classList.add('d-none');
+      buttons[0].classList.add('active');
+      buttons[1].classList.remove('active');
+    } else {
+      v2d.classList.add('d-none');
+      v3d.classList.remove('d-none');
+      buttons[0].classList.remove('active');
+      buttons[1].classList.add('active');
+
+      // Initialize 3Dmol viewer if not initialized
+      const box = document.getElementById('mol-3d-' + index);
+      if (box && !box.getAttribute('data-initialized')) {
+        box.setAttribute('data-initialized', 'true');
+        const molblock = box.getAttribute('data-molblock');
+        if (typeof $3Dmol !== 'undefined' && molblock) {
+          const viewer = $3Dmol.createViewer(box, { backgroundColor: '#1a1a2e' });
+          viewer.addModel(molblock, 'sdf');
+          viewer.setStyle({}, { stick: { radius: 0.2 }, sphere: { scale: 0.25 } });
+          viewer.zoomTo();
+          viewer.render();
+        }
       }
+    }
+  }
+
+  // Task 6: Session Shortlist logic
+  function getShortlist() {
+    return JSON.parse(sessionStorage.getItem('hims_mol_shortlist') || '[]');
+  }
+
+  function saveShortlist(list) {
+    sessionStorage.setItem('hims_mol_shortlist', JSON.stringify(list));
+    renderShortlist();
+  }
+
+  function addToShortlist(candidate) {
+    let list = getShortlist();
+    if (!list.some(item => item.smiles === candidate.smiles)) {
+      list.push(candidate);
+      saveShortlist(list);
+      
+      // Auto expand shortlist panel
+      const collapseEl = document.getElementById('shortlistSection');
+      if (collapseEl && !collapseEl.classList.contains('show')) {
+        const bsCollapse = new bootstrap.Collapse(collapseEl, { show: true });
+      }
+    }
+  }
+
+  function removeFromShortlist(index) {
+    let list = getShortlist();
+    list.splice(index, 1);
+    saveShortlist(list);
+  }
+
+  function clearShortlist() {
+    sessionStorage.removeItem('hims_mol_shortlist');
+    renderShortlist();
+  }
+
+  function renderShortlist() {
+    const list = getShortlist();
+    const countEl = document.getElementById('shortlistCount');
+    const tbody = document.getElementById('shortlistBody');
+    if (countEl) countEl.textContent = list.length;
+
+    if (!tbody) return;
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No candidates shortlisted yet. Click <strong>"Shortlist"</strong> on any candidate below.</td></tr>';
+      return;
+    }
+
+    let html = '';
+    list.forEach((item, idx) => {
+      const topDrug = (item.similar_drugs && item.similar_drugs.length > 0) 
+        ? `${item.similar_drugs[0].name} (${item.similar_drugs[0].similarity}%)` 
+        : 'N/A';
+      
+      const lipinskiBadge = item.lipinski_pass 
+        ? '<span class="badge bg-success">Pass</span>' 
+        : '<span class="badge bg-danger">Fail</span>';
+
+      html += `
+        <tr>
+          <td><code class="small">${item.smiles}</code></td>
+          <td>${item.mw}</td>
+          <td>${item.logp}</td>
+          <td>${item.tpsa}</td>
+          <td>${lipinskiBadge}</td>
+          <td class="text-capitalize small">${topDrug}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-danger" onclick="removeFromShortlist(${idx})">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </td>
+        </tr>
+      `;
     });
-  </script>
+    tbody.innerHTML = html;
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // 2D Smiles Drawer rendering
+    if (typeof SmilesDrawer !== 'undefined') {
+      let options = { width: 300, height: 220, padding: 10 };
+      let smilesDrawer = new SmilesDrawer.Drawer(options);
+      
+      document.querySelectorAll('canvas[data-smiles]').forEach(function(canvas) {
+        let smiles = canvas.getAttribute('data-smiles');
+        SmilesDrawer.parse(smiles, function(tree) {
+          smilesDrawer.draw(tree, canvas.id, 'light', false);
+        }, function(err) {
+          console.error('Error rendering SMILES for ' + smiles, err);
+        });
+      });
+    }
+
+    // Initial shortlist render
+    renderShortlist();
+  });
+</script>
 {% endblock %}
