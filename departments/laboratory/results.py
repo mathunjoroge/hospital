@@ -85,6 +85,10 @@ def process_lab_request(request_id):
             lab_request.result_id = result_id  # Link the lab request to the result via result_id
             db.session.commit()
 
+            # Trigger notification to patient that lab result is ready
+            from departments.notifications.triggers import trigger_lab_result_ready
+            trigger_lab_result_ready(lab_request)
+
             flash('Lab test results submitted successfully!', 'success')
             return redirect(url_for('laboratory.index'))  # Redirect back to the lab index page
 

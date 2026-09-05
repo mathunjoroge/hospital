@@ -74,6 +74,7 @@ from .medicine import (
     WardRound,
 )
 from .mortuary import MortuaryData
+from .notification_log import OutboundNotificationLog
 from .nursing import (
     MedicationAdmin,
     Messages,
@@ -124,7 +125,7 @@ __all__ = [
     'PrescriptionDrugDetail', 'CancerType', 'CancerStage', 'CancerTypeStage', 'CancerDetail',
     'MortuaryData',
     'NursingNote', 'NursingCareTask', 'Vitals', 'Partogram', 'MedicationAdmin',
-    'Messages', 'Notifications',
+    'Messages', 'Notifications', 'OutboundNotificationLog',
     'DrugCategory', 'Drug', 'Batch', 'Purchase', 'DispensedDrug', 'Expiry',
     'DrugRequest', 'RequestItem',
     'Patient', 'PatientWaitingList', 'Clinic', 'ClinicBooking',

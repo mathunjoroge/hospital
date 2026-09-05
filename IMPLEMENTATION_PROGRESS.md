@@ -43,9 +43,11 @@
 - [x] **4.2 Documentation** ✅ (`README.md` system architecture guide, API docs, quickstart & Docker instructions)
 - [x] **4.3 Team/process** ✅ (`CONTRIBUTING.md` developer workflow, `SECURITY.md` vulnerability reporting & DPA compliance details)
 
-## NEW EXTENSION — Phase A (Patient Self-Service Portal)
+## NEW EXTENSION — Feature Roadmap
 
 - [x] **Phase A — Patient Self-Service Portal** ✅ (PatientUser auth, login/register, dashboard, appointment booking, lab results release gating, billing history & STK push pay, profile management with audit logging - 5/5 tests passing)
+- [x] **Phase B — Outbound Patient Communication** ✅ (Flask-Mail email driver, SMS sandbox abstraction, OutboundNotificationLog delivery auditing, 5 event triggers for appointments/labs/billing/payments/claims, 24h appointment reminder scheduler - 6/6 tests passing)
+
 
 
 

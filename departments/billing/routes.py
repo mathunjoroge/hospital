@@ -289,6 +289,10 @@ def new_invoice():
         db.session.add(billing_entry)
         db.session.commit()
 
+        # Trigger invoice due notification email
+        from departments.notifications.triggers import trigger_invoice_due
+        trigger_invoice_due(billing_entry)
+
         flash(f'Invoice created successfully for {patient.name} (Amount: Kshs {billing_entry.total_cost})', 'success')
         return redirect(url_for('billing.list_billings'))
 
@@ -596,6 +600,11 @@ def pay_bills(patient_id):
             db.session.commit()
             logger.info(f"Payment processed successfully! Receipt Number: {receipt_number}")
             log_audit_event('BILL_PAYMENT', resource_type='PaidBill', resource_id=receipt_number, details={'patient_id': patient_id, 'amount_paid': str(amount_paid), 'payment_method': payment_method})
+
+            # Trigger payment receipt notification email
+            from departments.notifications.triggers import trigger_payment_received
+            trigger_payment_received(paid_bill_record)
+
             flash(f'Payment processed successfully! Receipt Number: {receipt_number}', 'success')
             return render_template(
                 'billing/view_unpaid_bills.html',

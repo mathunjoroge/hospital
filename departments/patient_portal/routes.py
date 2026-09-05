@@ -103,6 +103,10 @@ def book_appointment():
         user_id=g.current_patient_user.id,
     )
 
+    # Trigger appointment notification email
+    from departments.notifications.triggers import trigger_appointment_reminder
+    trigger_appointment_reminder(booking)
+
     flash('Appointment request submitted successfully.', 'success')
     return redirect(url_for('patient_portal.appointments'))
 

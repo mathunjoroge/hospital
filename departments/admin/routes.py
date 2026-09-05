@@ -468,3 +468,54 @@ def export_audit_trail():
         "count": len(logs),
         "audit_logs": [log_item.to_dict() for log_item in logs]
     })
+
+
+@bp.route('/admin/outbound-notifications', methods=['GET'])
+@bp.route('/outbound-notifications', methods=['GET'])
+@login_required
+@roles_required('admin')
+def outbound_notifications():
+    """Admin dashboard view for outbound patient notification logs."""
+    from flask import jsonify
+
+    from departments.models.notification_log import OutboundNotificationLog
+
+    page = request.args.get('page', 1, type=int)
+    event_filter = request.args.get('event_type', '').strip()
+    status_filter = request.args.get('status', '').strip()
+    recipient_filter = request.args.get('recipient', '').strip()
+
+    query = OutboundNotificationLog.query
+
+    if event_filter:
+        query = query.filter(OutboundNotificationLog.event_type.ilike(f"%{event_filter}%"))
+    if status_filter:
+        query = query.filter(OutboundNotificationLog.status == status_filter.upper())
+    if recipient_filter:
+        query = query.filter(OutboundNotificationLog.recipient.ilike(f"%{recipient_filter}%"))
+
+    pagination = query.order_by(OutboundNotificationLog.created_at.desc()).paginate(page=page, per_page=30, error_out=False)
+
+    if request.args.get('format') == 'json':
+        return jsonify({
+            "total": pagination.total,
+            "page": page,
+            "pages": pagination.pages,
+            "logs": [
+                {
+                    "id": log.id,
+                    "patient_id": log.patient_id,
+                    "recipient": log.recipient,
+                    "channel": log.channel,
+                    "event_type": log.event_type,
+                    "subject": log.subject,
+                    "status": log.status,
+                    "error_message": log.error_message,
+                    "sent_at": log.sent_at.isoformat() if log.sent_at else None,
+                    "created_at": log.created_at.isoformat() if log.created_at else None,
+                }
+                for log in pagination.items
+            ]
+        })
+
+    return render_template('admin/logs.html', logs=pagination.items)
