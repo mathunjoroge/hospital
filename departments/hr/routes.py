@@ -5,7 +5,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from io import StringIO
 
-import pandas as pd
+
 from flask import (
     flash,
     make_response,
@@ -684,23 +684,26 @@ def export_payroll_pdf():
 @login_required
 @roles_required('hr', 'admin')
 def export_payroll_excel():
-    """Export payroll report as Excel."""
+    """Export payroll report as CSV (Excel-compatible)."""
 
     payrolls = Payroll.query.join(Employee).all()
 
-    data = {
-        'Employee': [payroll.employee.name for payroll in payrolls],
-        'Month': [payroll.month for payroll in payrolls],
-        'Gross Pay': [payroll.gross_pay for payroll in payrolls],
-        'Deductions': [payroll.total_deductions for payroll in payrolls],
-        'Net Pay': [payroll.net_pay for payroll in payrolls]
-    }
-    df = pd.DataFrame(data)
+    si = StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['Employee', 'Month', 'Gross Pay', 'Deductions', 'Net Pay'])
+    for payroll in payrolls:
+        writer.writerow([
+            payroll.employee.name,
+            payroll.month,
+            payroll.gross_pay,
+            payroll.total_deductions,
+            payroll.net_pay,
+        ])
 
-    buffer = io.BytesIO()
-    df.to_excel(buffer, index=False)
-    buffer.seek(0)
-    return send_file(buffer, as_attachment=True, download_name='payroll_report.xlsx', mimetype='application/vnd.ms-excel')
+    output = make_response(si.getvalue())
+    output.headers['Content-Disposition'] = 'attachment; filename=payroll_report.csv'
+    output.headers['Content-type'] = 'text/csv'
+    return output
 
 def send_email(subject, recipient, body):
     """Send an email notification."""
