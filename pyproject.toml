@@ -2,3 +2,14 @@
 testpaths = ["tests"]
 norecursedirs = ["unsloth", "venv", ".git"]
 addopts = "--cov=departments --cov=app --cov-fail-under=25"
+
+[tool.ruff]
+exclude = ["venv", "migrations", "unsloth"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "config", "extensions", "departments"]
+known-third-party = [
+    "dotenv", "flask", "flask_apscheduler", "flask_login", "flask_mail",
+    "flask_migrate", "flask_session", "markupsafe", "pyotp", "redis",
+    "sqlalchemy", "werkzeug", "pydicom",
+]
