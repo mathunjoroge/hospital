@@ -17,7 +17,8 @@ from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 
-from departments.models.medicine import Imaging, ImagingResult, RequestedImage
+from departments.models.imaging import ImagingResult
+from departments.models.medicine import Imaging, RequestedImage
 from departments.nlp.src.nvidia_client import NvidiaNIMClient
 from departments.rbac import roles_required
 from extensions import db, socketio
