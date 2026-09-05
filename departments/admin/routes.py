@@ -21,7 +21,8 @@ ROLES = [
     ('records', 'Records'),
     ('nursing', 'Nursing'),
     ('pharmacy', 'Pharmacy'),
-    ('stores', 'Stores')
+    ('stores', 'Stores'),
+    ('mortuary', 'Mortuary')
 ]
 
 class AddUserForm(FlaskForm):
@@ -36,6 +37,7 @@ class EditUserForm(FlaskForm):
     submit = SubmitField('Update User')    
 
 @bp.route('/admin/switch_user', methods=['POST'])
+@bp.route('/switch_user', methods=['POST'])
 @login_required
 def switch_user():
     if current_user.role != 'admin':
@@ -43,7 +45,7 @@ def switch_user():
         return redirect(url_for('home'))
 
     new_role = request.form.get('role')
-    allowed_roles = ['records', 'billing', 'nursing', 'laboratory', 'imaging', 'pharmacy', 'medicine', 'stores', 'hr', 'admin']
+    allowed_roles = ['records', 'billing', 'nursing', 'laboratory', 'imaging', 'pharmacy', 'medicine', 'stores', 'hr', 'mortuary', 'admin']
 
     if new_role not in allowed_roles:
         flash('Invalid role selected.', 'danger')
@@ -63,6 +65,7 @@ def switch_user():
         'medicine': 'medicine.index',
         'stores': 'stores.index',
         'hr': 'hr.index',
+        'mortuary': 'mortuary.index',
         'admin': 'admin.index'
     }
 

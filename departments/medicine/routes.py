@@ -63,7 +63,10 @@ socketio = SocketIO()
 prescription_id = str(uuid.uuid4())
 csrf = CSRFProtect()
 
-Summarizer = UniversalClinicalSummarizer(gemini_api_key="[REDACTED_GEMINI_KEY]")
+gemini_api_key = os.environ.get("GEMINI_API_KEY")
+if not gemini_api_key:
+    raise RuntimeError("GEMINI_API_KEY environment variable must be set.")
+Summarizer = UniversalClinicalSummarizer(gemini_api_key=gemini_api_key)
 
 
 from flask import make_response

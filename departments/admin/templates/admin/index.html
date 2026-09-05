@@ -141,13 +141,14 @@
         {% set role_items = [
           ('records', 'Records', 'bi-folder2-open', '#475569'),
           ('billing', 'Billing', 'bi-cash-coin', '#16a34a'),
-          ('nursing', 'Nursing', 'bi-heart-pulse', '#e11d48'),
+          ('nursing', 'Nursing', 'bi-heart-pulse', '#0e7490'),
           ('laboratory', 'Laboratory', 'bi-flask', '#0891b2'),
           ('imaging', 'Imaging', 'bi-camera', '#7c3aed'),
           ('pharmacy', 'Pharmacy', 'bi-capsule', '#0d9488'),
           ('medicine', 'Medicine', 'bi-capsule-pill', '#2563eb'),
           ('stores', 'Stores', 'bi-box-seam', '#d97706'),
-          ('hr', 'HR', 'bi-people', '#6b21a8')
+          ('hr', 'HR', 'bi-people', '#6b21a8'),
+          ('mortuary', 'Mortuary', 'bi-building', '#64748b')
         ] %}
 
         <div class="row g-2">
@@ -181,51 +182,61 @@
 
     <!-- Department Buttons Grid -->
     <div class="row g-3">
-      <div class="col-md-4 col-sm-6">
+      <div class="col-md-3 col-sm-6">
         <a href="{{ url_for('records.index') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: var(--dept-records);">
           <i class="bi bi-folder2-open me-2 fs-4"></i> Records
         </a>
       </div>
-      <div class="col-md-4 col-sm-6">
+      <div class="col-md-3 col-sm-6">
         <a href="{{ url_for('billing.index') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: var(--dept-billing);">
           <i class="bi bi-cash-coin me-2 fs-4"></i> Billing
         </a>
       </div>
-      <div class="col-md-4 col-sm-6">
+      <div class="col-md-3 col-sm-6">
         <a href="{{ url_for('nursing.view_notes') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: var(--dept-nursing);">
           <i class="bi bi-heart-pulse me-2 fs-4"></i> Nursing
         </a>
       </div>
-
-      <div class="col-md-4 col-sm-6">
+      <div class="col-md-3 col-sm-6">
         <a href="{{ url_for('laboratory.lab_tests') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: var(--dept-laboratory);">
           <i class="bi bi-flask me-2 fs-4"></i> Laboratory
         </a>
       </div>
-      <div class="col-md-4 col-sm-6">
+
+      <div class="col-md-3 col-sm-6">
         <a href="{{ url_for('imaging.index') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: var(--dept-imaging);">
           <i class="bi bi-camera me-2 fs-4"></i> Imaging
         </a>
       </div>
-      <div class="col-md-4 col-sm-6">
+      <div class="col-md-3 col-sm-6">
         <a href="{{ url_for('pharmacy.index') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: var(--dept-pharmacy);">
           <i class="bi bi-capsule me-2 fs-4"></i> Pharmacy
         </a>
       </div>
-
-      <div class="col-md-4 col-sm-6">
+      <div class="col-md-3 col-sm-6">
+        <a href="{{ url_for('medicine.index') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: var(--dept-medicine);">
+          <i class="bi bi-capsule-pill me-2 fs-4"></i> Medicine
+        </a>
+      </div>
+      <div class="col-md-3 col-sm-6">
         <a href="{{ url_for('stores.index') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: var(--dept-stores);">
           <i class="bi bi-box-seam me-2 fs-4"></i> Store / Inventory
+        </a>
+      </div>
+
+      <div class="col-md-4 col-sm-6">
+        <a href="{{ url_for('hr.index') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: var(--dept-hr);">
+          <i class="bi bi-people me-2 fs-4"></i> HR / Staff
+        </a>
+      </div>
+      <div class="col-md-4 col-sm-6">
+        <a href="{{ url_for('mortuary.index') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: #64748b;">
+          <i class="bi bi-building me-2 fs-4"></i> Mortuary
         </a>
       </div>
       <div class="col-md-4 col-sm-6">
         <a href="{{ url_for('admin.add_user') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: var(--dept-admin);">
           <i class="bi bi-person-plus me-2 fs-4"></i> Add User
-        </a>
-      </div>
-      <div class="col-md-4 col-sm-6">
-        <a href="{{ url_for('medicine.index') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: var(--dept-medicine);">
-          <i class="bi bi-capsule-pill me-2 fs-4"></i> Medicine
         </a>
       </div>
     </div>

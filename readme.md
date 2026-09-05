@@ -30,6 +30,11 @@ A modern hospital management system designed to simplify administrative tasks, m
     ```bash
     pip install -r requirements.txt
     ```
+5. Copy environment template and configure keys:
+    ```bash
+    cp .env.example .env
+    ```
+    Edit `.env` to set your `SECRET_KEY`, `GEMINI_API_KEY`, and `NVIDIA_API_KEY`.
 
 ## Usage
 
