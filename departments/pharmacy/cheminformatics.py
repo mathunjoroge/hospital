@@ -1,148 +1,179 @@
-import time
+"""
+departments/pharmacy/cheminformatics.py
+───────────────────────────────────────────
+Deterministic Cheminformatics Engine using RDKit.
+Provides SMILES validation, Lipinski Rule of 5 analysis,
+3D conformation generation, and Tanimoto similarity scoring.
+"""
+
 import logging
-import psycopg2
-from typing import Dict, List, Optional, Any
-from rdkit import Chem
-from rdkit.Chem import Descriptors, AllChem, rdFingerprintGenerator, DataStructs
+from rdkit import Chem, DataStructs
+from rdkit.Chem import Descriptors, AllChem, rdMolDescriptors
 
-logger = logging.getLogger("HIMS-Cheminformatics")
+logger = logging.getLogger(__name__)
 
-from departments.shared.drugcentral import DRUGCENTRAL_DB_PARAMS as DB_PARAMS
-
-
-# Fallback reference drugs if DB connection is unavailable
-FALLBACK_DRUGS = [
-    ("Aspirin", "CC(=O)OC1=CC=CC=C1C(=O)O"),
-    ("Paracetamol", "CC(=O)NC1=CC=C(O)C=C1"),
-    ("Ibuprofen", "CC(C)CC1=CC=C(C=C1)C(C)C(=O)O"),
-    ("Naproxen", "CC(C1=CC2=C(C=C1)C=C(C=C2)OC)C(=O)O"),
-    ("Metformin", "CN(C)C(=N)N=C(N)N"),
-    ("Amoxicillin", "CC1(C(N2C(S1)C(C2=O)NC(=O)C(C3=CC=C(C=C3)O)N)C(=O)O)C"),
-    ("Atorvastatin", "CC(C)C1=C(C(=C(N1CCC(CC(CC(=O)O)O)O)C2=CC=C(C=C2)F)C3=CC=CC=C3)C(=O)NC4=CC=CC=C4"),
-    ("Omeprazole", "CC1=CN=C(C(=C1OC)C)CS(=O)C2=NC3=C(N2)C=CC(=C3)OC"),
-    ("Ciprofloxacin", "C1CC1N2C=C(C(=O)C3=CC(=C(C=C32)N4CCNCC4)F)C(=O)O"),
-    ("Metoprolol", "CC(C)NCC(COC1=CC=C(C=C1)CCOC)O"),
-    ("Losartan", "CCCCC1=NC(=C(N1CC2=CC=C(C=C2)C3=CC=CC=C3C4=NNN=N4)CO)Cl"),
-    ("Salbutamol", "CC(C)(C)NCC(C1=CC(=C(C=C1)O)CO)O"),
-    ("Morphine", "CN1CCC23C4C1CC5=C2C(=C(C=C5)O)OC3C(C=C4)O"),
-    ("Warfarin", "CC(=O)CC(C1=CC=CC=C1)C2=C(C3=CC=CC=C3OC2=O)O"),
-    ("Methotrexate", "CN(CC1=CN=C2C(=N1)C(=NC(=N2)N)N)C3=CC=C(C=C3)C(=O)NC(CCC(=O)O)C(=O)O")
+# Reference Drug Library for Similarity Benchmarking
+REFERENCE_DRUGS = [
+    {"name": "Aspirin", "smiles": "CC(=O)Oc1ccccc1C(=O)O", "category": "NSAID / Analgesic"},
+    {"name": "Ibuprofen", "smiles": "CC(C)Cc1ccc(cc1)C(C)C(=O)O", "category": "NSAID"},
+    {"name": "Paracetamol", "smiles": "CC(=O)Nc1ccc(O)cc1", "category": "Analgesic / Antipyretic"},
+    {"name": "Metformin", "smiles": "CN(C)C(=N)NC(=N)N", "category": "Antidiabetic"},
+    {"name": "Amoxicillin", "smiles": "CC1(C(N2C(S1)C(C2=O)NC(=O)C(c3ccc(cc3)O)N)C(=O)O)C", "category": "Antibiotic (Beta-lactam)"},
+    {"name": "Ciprofloxacin", "smiles": "C1CC1n2cc(c(=O)c3cc(c(cc23)N4CCNCC4)F)C(=O)O", "category": "Antibiotic (Fluoroquinolone)"},
+    {"name": "Atorvastatin", "smiles": "CC(C)c1c(c(c(n1CCC(CC(CC(=O)O)O)O)c2ccc(cc2)F)c3ccccc3)C(=O)Nc4ccccc4", "category": "Statin / Antihyperlipidemic"},
+    {"name": "Omeprazole", "smiles": "CC1=CN=C(C(=C1OC)C)CS(=O)C2=NC3=C(N2)C=CC(=C3)OC", "category": "Proton Pump Inhibitor"},
+    {"name": "Artemether", "smiles": "CC1CCC2C(C(C3C4(C(O3)OO2)C(CCC4C)C)OC)OC1", "category": "Antimalarial"},
+    {"name": "Dexamethasone", "smiles": "CC1CC2C3CCC4=CC(=O)C=CC4(C3(C(CC2(C1(C(=O)CO)O)C)O)F)C", "category": "Corticosteroid"}
 ]
 
-_CACHED_DRUGCENTRAL_FP: Optional[List[tuple]] = None
 
-def get_drugcentral_fingerprints() -> List[tuple]:
-    """Retrieve and cache Morgan fingerprints for DrugCentral approved structures."""
-    global _CACHED_DRUGCENTRAL_FP
-    if _CACHED_DRUGCENTRAL_FP is not None:
-        return _CACHED_DRUGCENTRAL_FP
+def validate_and_analyze_smiles(smiles: str) -> dict:
+    """
+    Sanitize and calculate deterministic physical descriptors for a SMILES string using RDKit.
+    Returns property dictionary or error dict if invalid.
+    """
+    if not smiles or not isinstance(smiles, str):
+        return {"is_valid": False, "error": "Empty or non-string SMILES provided."}
 
-    gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
-    fps = []
-    
+    clean_smiles = smiles.strip()
+    mol = Chem.MolFromSmiles(clean_smiles)
+
+    if mol is None:
+        logger.warning(f"Invalid SMILES provided to RDKit validator: '{smiles}'")
+        return {
+            "is_valid": False,
+            "smiles": clean_smiles,
+            "error": "Invalid chemical SMILES syntax (RDKit parse failed)."
+        }
+
     try:
-        conn = psycopg2.connect(**DB_PARAMS)
-        cur = conn.cursor()
-        cur.execute("SELECT name, smiles FROM structures WHERE smiles IS NOT NULL AND name IS NOT NULL LIMIT 5000")
-        rows = cur.fetchall()
-        conn.close()
-        for name, smiles in rows:
-            m = Chem.MolFromSmiles(smiles)
-            if m:
-                fp = gen.GetFingerprint(m)
-                fps.append((name, smiles, fp))
-        logger.info(f"Loaded and cached {len(fps)} structure fingerprints from DrugCentral.")
-    except Exception as e:
-        logger.warning(f"Could not load DrugCentral structures ({e}). Utilizing built-in fallback drug dataset.")
-        for name, smiles in FALLBACK_DRUGS:
-            m = Chem.MolFromSmiles(smiles)
-            if m:
-                fp = gen.GetFingerprint(m)
-                fps.append((name, smiles, fp))
-                
-    _CACHED_DRUGCENTRAL_FP = fps
-    return _CACHED_DRUGCENTRAL_FP
+        canonical_smiles = Chem.MolToSmiles(mol, canonical=True)
+        formula = rdMolDescriptors.CalcMolFormula(mol)
+        mw = float(Descriptors.MolWt(mol))
+        logp = float(Descriptors.MolLogP(mol))
+        hbd = int(Descriptors.NumHDonors(mol))
+        hba = int(Descriptors.NumHAcceptors(mol))
+        tpsa = float(Descriptors.TPSA(mol))
+        rotatable_bonds = int(Descriptors.NumRotatableBonds(mol))
 
-def compute_molecular_properties(smiles: str) -> Optional[Dict[str, Any]]:
-    """Compute molecular properties, Lipinski rules, and 3D molblock for a given SMILES string."""
-    if not smiles or not smiles.strip():
+        # Lipinski Rule of 5 Violations
+        violations = []
+        if mw > 500:
+            violations.append("MW > 500 Da")
+        if logp > 5.0:
+            violations.append("LogP > 5.0")
+        if hbd > 5:
+            violations.append("HBD > 5")
+        if hba > 10:
+            violations.append("HBA > 10")
+
+        return {
+            "is_valid": True,
+            "smiles": clean_smiles,
+            "canonical_smiles": canonical_smiles,
+            "formula": formula,
+            "mw": round(mw, 2),
+            "logp": round(logp, 2),
+            "hbd": hbd,
+            "hba": hba,
+            "tpsa": round(tpsa, 2),
+            "rotatable_bonds": rotatable_bonds,
+            "lipinski_pass": len(violations) == 0,
+            "lipinski_violations": violations,
+            "lipinski_violations_count": len(violations),
+            "error": None
+        }
+    except Exception as e:
+        logger.error(f"Error computing RDKit descriptors for '{smiles}': {e}", exc_info=True)
+        return {
+            "is_valid": False,
+            "smiles": clean_smiles,
+            "error": f"Descriptor calculation failed: {str(e)}"
+        }
+
+
+def generate_3d_molblock(smiles: str) -> str | None:
+    """
+    Generate 3D atomic coordinates and MMFF energy minimized MolBlock for 3Dmol.js rendering.
+    """
+    if not smiles:
         return None
-        
+
     mol = Chem.MolFromSmiles(smiles.strip())
-    if not mol:
+    if mol is None:
         return None
 
-    # Canonical SMILES
-    canonical_smiles = Chem.MolToSmiles(mol)
-
-    # 3D conformation generation
-    molblock = ""
     try:
-        mol_h = Chem.AddHs(mol)
-        res = AllChem.EmbedMolecule(mol_h, AllChem.ETKDG())
+        mol3d = Chem.AddHs(mol)
+        res = AllChem.EmbedMolecule(mol3d, AllChem.ETKDG())
+        if res != 0:
+            # Fallback to standard embedding if ETKDG fails
+            res = AllChem.EmbedMolecule(mol3d, useRandomCoords=True)
+        
         if res == 0:
-            AllChem.MMFFOptimizeMolecule(mol_h, maxIters=200)
-            molblock = Chem.MolToMolBlock(mol_h)
+            try:
+                AllChem.MMFFOptimizeMolecule(mol3d, maxIters=200)
+            except Exception:
+                pass  # Use unoptimized 3D coords if MMFF fails
+            return Chem.MolToMolBlock(mol3d)
         else:
-            # Fall back to 2D coordinates in molblock format if 3D embedding fails
-            AllChem.Compute2DCoords(mol)
-            molblock = Chem.MolToMolBlock(mol)
+            return Chem.MolToMolBlock(mol)
     except Exception as e:
-        logger.debug(f"3D embedding warning for SMILES {smiles}: {e}")
-        AllChem.Compute2DCoords(mol)
-        molblock = Chem.MolToMolBlock(mol)
+        logger.error(f"Failed to generate 3D MolBlock for '{smiles}': {e}")
+        return None
 
-    mw = round(Descriptors.MolWt(mol), 2)
-    logp = round(Descriptors.MolLogP(mol), 2)
-    tpsa = round(Descriptors.TPSA(mol), 2)
-    hbd = int(Descriptors.NumHDonors(mol))
-    hba = int(Descriptors.NumHAcceptors(mol))
-    rotb = int(Descriptors.NumRotatableBonds(mol))
 
-    # Lipinski Rule of 5 check
-    violations = []
-    if mw > 500:
-        violations.append(f"MW {mw} > 500")
-    if logp > 5:
-        violations.append(f"LogP {logp} > 5")
-    if hbd > 5:
-        violations.append(f"HBD {hbd} > 5")
-    if hba > 10:
-        violations.append(f"HBA {hba} > 10")
+def calculate_tanimoto_similarity(smiles1: str, smiles2: str) -> float:
+    """
+    Calculate Tanimoto similarity score (0.0 to 1.0) using Morgan Fingerprints (radius=2).
+    """
+    mol1 = Chem.MolFromSmiles(smiles1.strip()) if smiles1 else None
+    mol2 = Chem.MolFromSmiles(smiles2.strip()) if smiles2 else None
 
-    return {
-        "smiles": canonical_smiles,
-        "raw_smiles": smiles,
-        "mw": mw,
-        "logp": logp,
-        "tpsa": tpsa,
-        "hbd": hbd,
-        "hba": hba,
-        "rotb": rotb,
-        "lipinski_violations_count": len(violations),
-        "lipinski_violations": violations,
-        "lipinski_pass": len(violations) <= 1,
-        "molblock": molblock
-    }
+    if not mol1 or not mol2:
+        return 0.0
 
-def find_similar_drugs(smiles: str, top_n: int = 3) -> List[Dict[str, Any]]:
-    """Perform Tanimoto similarity search against cached DrugCentral structures."""
-    mol = Chem.MolFromSmiles(smiles)
-    if not mol:
+    try:
+        fp1 = rdMolDescriptors.GetMorganFingerprintAsBitVect(mol1, 2, nBits=2048)
+        fp2 = rdMolDescriptors.GetMorganFingerprintAsBitVect(mol2, 2, nBits=2048)
+        return round(float(DataStructs.TanimotoSimilarity(fp1, fp2)), 3)
+    except Exception as e:
+        logger.error(f"Tanimoto calculation failed: {e}")
+        return 0.0
+
+
+def find_closest_reference_drugs(smiles: str, top_n: int = 3) -> list[dict]:
+    """
+    Find closest reference drugs in library based on Tanimoto Morgan Fingerprint similarity.
+    """
+    query_mol = Chem.MolFromSmiles(smiles.strip()) if smiles else None
+    if not query_mol:
         return []
 
-    gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
-    query_fp = gen.GetFingerprint(mol)
-    db_fps = get_drugcentral_fingerprints()
+    try:
+        query_fp = rdMolDescriptors.GetMorganFingerprintAsBitVect(query_mol, 2, nBits=2048)
+        matches = []
 
-    results = []
-    for name, d_smiles, fp in db_fps:
-        sim = DataStructs.TanimotoSimilarity(query_fp, fp)
-        results.append({
-            "name": name,
-            "smiles": d_smiles,
-            "similarity": round(sim * 100, 1)
-        })
+        for ref in REFERENCE_DRUGS:
+            ref_mol = Chem.MolFromSmiles(ref["smiles"])
+            if ref_mol:
+                ref_fp = rdMolDescriptors.GetMorganFingerprintAsBitVect(ref_mol, 2, nBits=2048)
+                sim = float(DataStructs.TanimotoSimilarity(query_fp, ref_fp))
+                matches.append({
+                    "name": ref["name"],
+                    "smiles": ref["smiles"],
+                    "category": ref["category"],
+                    "similarity": round(sim, 3),
+                    "similarity_pct": round(sim * 100, 1)
+                })
 
-    results.sort(key=lambda x: x["similarity"], reverse=True)
-    return results[:top_n]
+        matches.sort(key=lambda x: x["similarity"], reverse=True)
+        return matches[:top_n]
+    except Exception as e:
+        logger.error(f"Reference drug similarity search failed for '{smiles}': {e}")
+        return []
+
+
+# Function Aliases for API compatibility
+compute_molecular_properties = validate_and_analyze_smiles
+find_similar_drugs = find_closest_reference_drugs

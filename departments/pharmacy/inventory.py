@@ -42,7 +42,8 @@ def index():
             .all()
         return render_template('pharmacy/index.html', prescriptions=[(p, pt) for p, pt in pending_prescriptions])
     except Exception as e:
-        flash(f'Error fetching prescriptions: {str(e)}', 'error')
+        logger.error(f'Error fetching pending prescriptions: {e}', exc_info=True)
+        flash('Unable to load prescriptions. Please try again.', 'error')
         return redirect(url_for('pharmacy.index'))
     
 #fech expiries
@@ -559,6 +560,6 @@ def get_all_batches():
         return jsonify(batch_list), 200
 
     except Exception as e:
-        print(f"❌ ERROR: {e}")  # Debugging
-        return jsonify({'error': f'Error fetching batches: {str(e)}'}), 500
+        logger.error(f'Error in get_all_batches: {e}', exc_info=True)
+        return jsonify({'error': 'Failed to fetch drug batches. Please try again.'}), 500
 

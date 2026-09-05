@@ -232,7 +232,7 @@
 
                 <!-- Task 3: 3D View -->
                 <div id="view-3d-{{ loop.index }}" class="d-none">
-                  <div id="mol-3d-{{ loop.index }}" class="mol-3d-box" data-molblock="{{ mol.molblock }}"></div>
+                  <div id="mol-3d-{{ loop.index }}" class="mol-3d-box" data-molblock="{{ mol.molblock_3d or mol.molblock }}"></div>
                   <small class="text-muted text-center d-block mt-1">Interactive 3D Ball & Stick model (drag to rotate, scroll to zoom)</small>
                 </div>
 

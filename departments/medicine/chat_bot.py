@@ -49,6 +49,7 @@ from flask import Response, stream_with_context, request
 import time
 from departments.nlp.logging_setup import get_logger
 from flask.sessions import SecureCookieSessionInterface
+from departments.api.ai_audit import log_ai_call, validate_ai_input, AIMode, AITimer, AIInputValidationError
 logger = get_logger()
 import PyPDF2  # For PDF processing
 from docx import Document  # For DOCX processing
@@ -216,6 +217,17 @@ def chatbot_interface():
                     status=400
                 )
 
+            # Validate combined input length before processing
+            combined_check = (input_note or '') + (file_content or '')
+            try:
+                validate_ai_input(combined_check, feature='clinical_chatbot')
+            except AIInputValidationError as ve:
+                logger.warning(f"Chatbot input validation failed: {ve}")
+                return Response(
+                    Summarizer._format_output(str(ve), is_error=True).encode('utf-8'),
+                    status=400
+                )
+
             def generate():
                 try:
                     # Assemble full context (past turns + new input + file content)
@@ -227,14 +239,27 @@ def chatbot_interface():
 
                     logger.info(f"Processing input ({len(combined_input)} chars) for session {session_id}")
 
-                    # Generate AI summary
-                    summary_html = Summarizer.answer(combined_input, conversation_history=conversation_context)
+                    # Generate AI summary with latency tracking
+                    with AITimer() as timer:
+                        summary_html = Summarizer.answer(combined_input, conversation_history=conversation_context)
 
-                    # Extract plain text for storage
+                    # Determine mode based on API key availability
+                    ai_mode = AIMode.LIVE_LLM if (gemini_api_key or nvidia_api_key) else AIMode.OFFLINE_FALLBACK
+
+                    # Extract plain text for storage and audit
                     raw_text_response = bleach.clean(summary_html, tags=[], strip=True)
                     raw_text_response = re.sub(r'Response generated on.*', '', raw_text_response, flags=re.DOTALL)
                     raw_text_response = re.sub(r'Powered by Gemini AI.*', '', raw_text_response, flags=re.DOTALL)
                     raw_text_response = re.sub(r'\s{2,}', ' ', raw_text_response).strip()
+
+                    # Audit log this AI call
+                    log_ai_call(
+                        feature='clinical_chatbot',
+                        mode=ai_mode,
+                        input_summary=combined_input[:200],
+                        output_summary=raw_text_response[:200],
+                        latency_ms=timer.elapsed_ms
+                    )
 
                     # Store both user and model messages
                     session['conversation'].append({'role': 'user', 'content': combined_input})
@@ -258,6 +283,13 @@ def chatbot_interface():
 
                 except Exception as e:
                     logger.error(f"Error generating AI response: {e}", exc_info=True)
+                    log_ai_call(
+                        feature='clinical_chatbot',
+                        mode=AIMode.OFFLINE_FALLBACK,
+                        input_summary=(input_note or '')[:200],
+                        output_summary='',
+                        error='Internal error during inference'
+                    )
                     yield Summarizer._format_output(
                         "An error occurred while processing your request. Please try again.",
                         is_error=True

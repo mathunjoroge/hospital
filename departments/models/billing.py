@@ -255,6 +255,29 @@ class Invoice(db.Model):
     payments       = db.relationship('Payment', back_populates='invoice',
                                      cascade='all, delete-orphan', lazy='dynamic')
 
+    def __init__(self, **kwargs):
+        if 'total_amount' in kwargs:
+            kwargs['grand_total'] = kwargs.pop('total_amount')
+        if 'balance_due' in kwargs:
+            kwargs['balance'] = kwargs.pop('balance_due')
+        super().__init__(**kwargs)
+
+    @property
+    def total_amount(self):
+        return self.grand_total
+
+    @total_amount.setter
+    def total_amount(self, value):
+        self.grand_total = value
+
+    @property
+    def balance_due(self):
+        return self.balance
+
+    @balance_due.setter
+    def balance_due(self, value):
+        self.balance = value
+
     @staticmethod
     def generate_invoice_number():
         """Generate sequential invoice number INV-YYYYMMDD-NNNN."""
@@ -304,6 +327,22 @@ class InvoiceLineItem(db.Model):
     charge_id   = db.Column(db.Integer, db.ForeignKey('charges.id'), nullable=True)
 
     invoice     = db.relationship('Invoice', back_populates='line_items')
+
+    def __init__(self, **kwargs):
+        if 'amount' in kwargs:
+            val = kwargs.pop('amount')
+            kwargs['unit_price'] = val
+            kwargs['total'] = val
+        super().__init__(**kwargs)
+
+    @property
+    def amount(self):
+        return self.total
+
+    @amount.setter
+    def amount(self, value):
+        self.unit_price = value
+        self.total = value
 
     def calculate_total(self):
         self.total = (self.unit_price * self.quantity) - self.discount

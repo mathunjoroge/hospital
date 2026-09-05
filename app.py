@@ -3,7 +3,7 @@ import os
 import time
 import redis
 from datetime import datetime, timedelta, timezone
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_session import Session
 from flask_login import login_user, current_user, logout_user, login_required
 from flask_migrate import Migrate
@@ -260,9 +260,51 @@ def logout():
         db.session.commit()
         logger.error(f"Logout error: {e}", exc_info=True)
         flash('Something went wrong. Please try again.', 'error')
-        return redirect(url_for('login'))
+import shutil
+
+@app.route('/healthz', methods=['GET'])
+def healthz():
+    """
+    Production Health Check Endpoint.
+    Verifies DB connectivity, disk space availability, and system status.
+    """
+    db_status = "connected"
+    http_code = 200
+
+    # 1. Test database ping query
+    try:
+        db.session.execute(db.text("SELECT 1"))
+    except Exception as e:
+        db_status = f"disconnected: {e}"
+        http_code = 503
+
+    # 2. Check disk space
+    try:
+        total, used, free = shutil.disk_usage(".")
+        total_gb = round(total / (1024 ** 3), 2)
+        free_gb = round(free / (1024 ** 3), 2)
+        percent_free = round((free / total) * 100, 1)
+    except Exception:
+        total_gb, free_gb, percent_free = 0, 0, 0
+
+    status_str = "ok" if http_code == 200 else "degraded"
+
+    return jsonify({
+        "status": status_str,
+        "system": "HMIS",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "checks": {
+            "database": db_status,
+            "disk": {
+                "total_gb": total_gb,
+                "free_gb": free_gb,
+                "percent_free": percent_free
+            }
+        }
+    }), http_code
 
 from departments.records import bp as records_bp
+
 from departments.billing import bp as billing_bp
 from departments.pharmacy import bp as pharmacy_bp
 from departments.medicine import bp as medicine_bp
@@ -275,6 +317,14 @@ from departments.hr import bp as hr_bp
 from departments.mortuary import bp as mortuary_bp
 from departments.api import bp as api_bp
 from departments.billing.mpesa import mpesa_bp
+from departments.nursing.triage import triage_bp
+from departments.medicine.prescribe import prescribe_bp
+from departments.pharmacy.fefo import fefo_bp
+from departments.laboratory.panic_alerts import lis_bp
+from departments.imaging.dicom import dicom_bp
+from departments.nursing.mar import mar_bp
+from departments.api.fhir import fhir_bp
+from departments.api.dhis2_exporter import khis_bp
 
 app.register_blueprint(records_bp, url_prefix='/records')
 app.register_blueprint(billing_bp, url_prefix='/billing')
@@ -289,6 +339,14 @@ app.register_blueprint(hr_bp, url_prefix='/hr')
 app.register_blueprint(mortuary_bp, url_prefix='/mortuary')
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(mpesa_bp)
+app.register_blueprint(triage_bp)
+app.register_blueprint(prescribe_bp)
+app.register_blueprint(fefo_bp)
+app.register_blueprint(lis_bp)
+app.register_blueprint(dicom_bp)
+app.register_blueprint(mar_bp)
+app.register_blueprint(fhir_bp, url_prefix='/api/fhir/R4')
+app.register_blueprint(khis_bp, url_prefix='/api/khis')
 
 if __name__ == '__main__':
     debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"

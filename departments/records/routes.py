@@ -16,6 +16,7 @@ from datetime import datetime, date, timedelta
 from extensions import db
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, extract
+from departments.api.audit import log_audit_event
 
 
 # ─────────────────────────────────────────────
@@ -138,6 +139,7 @@ def new_patient():
         db.session.commit()
 
         flash(f'Patient {new_p.name} registered successfully with ID: {new_p.patient_id}!', 'success')
+        log_audit_event('PATIENT_CREATE', resource_type='Patient', resource_id=new_p.patient_id, details={'name': new_p.name})
         return redirect(url_for('records.patient_profile', patient_id=new_p.patient_id))
 
     return render_template('records/new_patient.html')
@@ -151,6 +153,7 @@ def new_patient():
 @roles_required('records', 'admin')
 def patient_profile(patient_id):
     patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
+    log_audit_event('PATIENT_VIEW', resource_type='Patient', resource_id=patient_id)
     return render_template('records/patient_profile.html', patient=patient)
 
 
@@ -185,6 +188,7 @@ def edit_patient(patient_id):
         patient.employer_name = request.form.get('employer_name')
         patient.emergency_contact = request.form['emergency_contact']
         db.session.commit()
+        log_audit_event('PATIENT_UPDATE', resource_type='Patient', resource_id=patient_id)
         flash('Patient details updated successfully!', 'success')
         return redirect(url_for('records.patient_profile', patient_id=patient_id))
 

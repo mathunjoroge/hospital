@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 def ai_discovery():
     """Renders the AI Drug Discovery page and handles form submissions for candidate generation and docking estimation."""
     from departments.nlp.src.nvidia_client import NvidiaNIMClient
-    from departments.pharmacy.cheminformatics import compute_molecular_properties, find_similar_drugs
+    from departments.pharmacy.cheminformatics import compute_molecular_properties, find_similar_drugs, generate_3d_molblock
     
     results = None
     tool_used = None
@@ -52,9 +52,10 @@ def ai_discovery():
                 discarded_count = 0
                 for smiles in candidates:
                     props = compute_molecular_properties(smiles)
-                    if props:
+                    if props and props.get('is_valid'):
                         # Avoid duplicates in same generation batch
                         if not any(m['smiles'] == props['smiles'] for m in enriched_molecules):
+                            props['molblock_3d'] = generate_3d_molblock(props['smiles'])
                             props['similar_drugs'] = find_similar_drugs(props['smiles'], top_n=3)
                             enriched_molecules.append(props)
                     else:
@@ -65,7 +66,8 @@ def ai_discovery():
                     fallback_smiles = ["CC(=O)OC1=CC=CC=C1C(=O)O", "CC(=O)NC1=CC=C(O)C=C1", "CC(C)CC1=CC=C(C=C1)C(C)C(=O)O"]
                     for s in fallback_smiles:
                         p = compute_molecular_properties(s)
-                        if p:
+                        if p and p.get('is_valid'):
+                            p['molblock_3d'] = generate_3d_molblock(p['smiles'])
                             p['similar_drugs'] = find_similar_drugs(p['smiles'], top_n=3)
                             enriched_molecules.append(p)
                 
@@ -86,9 +88,10 @@ def ai_discovery():
             protein = request.form.get('protein_sequence', '').strip()
             if ligand and protein:
                 ligand_props = compute_molecular_properties(ligand)
-                if not ligand_props:
+                if not ligand_props or not ligand_props.get('is_valid'):
                     flash(f"Invalid ligand SMILES: '{ligand}' could not be parsed by RDKit.", 'error')
                 else:
+                    ligand_props['molblock_3d'] = generate_3d_molblock(ligand_props['smiles'])
                     docking_results = client.predict_docking(ligand, protein)
                     similar_drugs = find_similar_drugs(ligand_props['smiles'], top_n=3)
                     results = {

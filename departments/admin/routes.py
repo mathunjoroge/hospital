@@ -117,18 +117,11 @@ def index():
         db.session.commit()
         return redirect(url_for('login'))
 import pyotp
-import qrcode
-import io
-import base64
+from departments.api.security import validate_password_strength
 
 def validate_password_complexity(password):
-    if len(password) < 12:
-        return False, "Password must be at least 12 characters long."
-    if not any(c.isdigit() for c in password):
-        return False, "Password must contain at least one digit."
-    if not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password):
-        return False, "Password must contain at least one special character."
-    return True, ""
+    return validate_password_strength(password)
+
 
 @bp.route('/add_user', methods=['GET', 'POST'])
 @login_required
@@ -406,3 +399,56 @@ def mfa_setup():
             flash('Invalid MFA verification code. Please try again.', 'error')
 
     return render_template('admin/mfa_setup.html', secret=secret, qr_b64=qr_b64)
+
+
+@bp.route('/admin/audit-trail', methods=['GET'])
+@bp.route('/audit-trail', methods=['GET'])
+@login_required
+@roles_required('admin')
+def audit_trail():
+    """Admin dashboard view for persistent system audit logs."""
+    from departments.models.compliance import AuditLog
+
+    page = request.args.get('page', 1, type=int)
+    action_filter = request.args.get('action', '').strip()
+    username_filter = request.args.get('username', '').strip()
+    resource_type_filter = request.args.get('resource_type', '').strip()
+
+    query = AuditLog.query
+
+    if action_filter:
+        query = query.filter(AuditLog.action.ilike(f"%{action_filter}%"))
+    if username_filter:
+        query = query.filter(AuditLog.username.ilike(f"%{username_filter}%"))
+    if resource_type_filter:
+        query = query.filter(AuditLog.resource_type.ilike(f"%{resource_type_filter}%"))
+
+    pagination = query.order_by(AuditLog.timestamp.desc()).paginate(page=page, per_page=30, error_out=False)
+
+    if request.args.get('format') == 'json':
+        return {
+            "total": pagination.total,
+            "page": page,
+            "pages": pagination.pages,
+            "logs": [log.to_dict() for log in pagination.items]
+        }
+
+    return render_template('admin/audit_trail.html', pagination=pagination, logs=pagination.items)
+
+
+@bp.route('/audit-trail/export', methods=['GET'])
+@login_required
+@roles_required('admin')
+def export_audit_trail():
+
+    """Export system audit logs as structured JSON for SIEM integration."""
+    from departments.models.compliance import AuditLog
+    from flask import jsonify
+
+    logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(1000).all()
+    return jsonify({
+        "system": "HMIS",
+        "exported_at": datetime.now().isoformat(),
+        "count": len(logs),
+        "audit_logs": [l.to_dict() for l in logs]
+    })

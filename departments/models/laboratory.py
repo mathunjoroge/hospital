@@ -29,11 +29,17 @@ class LabResult(db.Model):
     result_id = db.Column(db.String, unique=True, nullable=False)  # Unique identifier for result
     result = db.Column(db.Text, nullable=True)  # Stores the test result
     updated_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Who updated the result
+    status = db.Column(db.String(30), default="PENDING_VERIFICATION")
+    panic_status = db.Column(db.String(30), default="NORMAL")
+    panic_message = db.Column(db.Text, nullable=True)
+    verified_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    verified_at = db.Column(db.DateTime, nullable=True)
 
     # Relationships (if needed)
     patient = db.relationship('Patient', backref=db.backref('lab_results', lazy=True))
     lab_test = db.relationship('LabTest', backref=db.backref('lab_results', lazy=True))
-    updated_by_user = db.relationship('User', backref=db.backref('updated_results', lazy=True))
+    updated_by_user = db.relationship('User', foreign_keys=[updated_by], backref=db.backref('updated_results', lazy=True))
+    verifier = db.relationship('User', foreign_keys=[verified_by], backref=db.backref('verified_results', lazy=True))
 
     def __repr__(self):
         return f"<LabResult {self.id} - Patient {self.patient_id}, Test {self.lab_test_id}>"  

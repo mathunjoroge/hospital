@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}System Audit Trail | HMIS Admin{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 font-weight-bold text-gray-800 mb-1">
+                <i class="bi bi-shield-check text-primary me-2"></i>System Audit Trail
+            </h2>
+            <p class="text-muted mb-0">Statutory clinical access & administrative action log (Data Protection Act 2019 compliance)</p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.export_audit_trail') }}" class="btn btn-outline-primary shadow-sm me-2" target="_blank">
+                <i class="bi bi-download me-1"></i> Export SIEM JSON
+            </a>
+            <a href="{{ url_for('admin.index') }}" class="btn btn-secondary shadow-sm">
+                <i class="bi bi-arrow-left me-1"></i> Admin Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body bg-light rounded">
+            <form method="GET" action="{{ url_for('admin.audit_trail') }}" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label font-weight-bold small text-muted">Action</label>
+                    <input type="text" name="action" class="form-control form-control-sm" placeholder="e.g. PATIENT_VIEW" value="{{ request.args.get('action', '') }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label font-weight-bold small text-muted">User / Username</label>
+                    <input type="text" name="username" class="form-control form-control-sm" placeholder="e.g. admin" value="{{ request.args.get('username', '') }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label font-weight-bold small text-muted">Resource Type</label>
+                    <input type="text" name="resource_type" class="form-control form-control-sm" placeholder="e.g. Patient, Invoice" value="{{ request.args.get('resource_type', '') }}">
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary flex-fill">
+                        <i class="bi bi-filter me-1"></i> Filter
+                    </button>
+                    <a href="{{ url_for('admin.audit_trail') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Audit Logs Table -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 border-0">
+            <h6 class="m-0 font-weight-bold text-primary">Audit Log Entries (Total: {{ pagination.total }})</h6>
+        </div>
+        <div class="card-body p-0">
+            {% if logs %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Timestamp (UTC)</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Resource</th>
+                            <th>Resource ID</th>
+                            <th>IP Address</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td class="text-nowrap small text-muted">
+                                <i class="bi bi-clock me-1"></i>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else 'N/A' }}
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary text-white">{{ log.username or 'system' }}</span>
+                                {% if log.user_id %}<span class="small text-muted ms-1">#{{ log.user_id }}</span>{% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-primary px-2 py-1">{{ log.action }}</span>
+                            </td>
+                            <td>
+                                {% if log.resource_type %}
+                                <span class="badge bg-info text-dark">{{ log.resource_type }}</span>
+                                {% else %}
+                                <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                            <td><code>{{ log.resource_id or '-' }}</code></td>
+                            <td><small class="text-monospace text-muted">{{ log.ip_address or '-' }}</small></td>
+                            <td style="max-width: 280px;" class="text-truncate small text-muted" title="{{ log.details }}">
+                                {{ log.details or '-' }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-5 text-center text-muted">
+                <i class="bi bi-journal-x display-4 mb-3 d-block"></i>
+                <p class="mb-0">No audit log entries found matching criteria.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if pagination.pages > 1 %}
+        <div class="card-footer bg-white border-0 py-3">
+            <nav aria-label="Audit pagination">
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if pagination.has_prev %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('admin.audit_trail', page=pagination.prev_num, action=request.args.get('action',''), username=request.args.get('username',''), resource_type=request.args.get('resource_type','')) }}">Previous</a></li>
+                    {% endif %}
+                    
+                    <li class="page-item disabled"><span class="page-link">Page {{ pagination.page }} of {{ pagination.pages }}</span></li>
+
+                    {% if pagination.has_next %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('admin.audit_trail', page=pagination.next_num, action=request.args.get('action',''), username=request.args.get('username',''), resource_type=request.args.get('resource_type','')) }}">Next</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

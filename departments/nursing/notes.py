@@ -154,36 +154,38 @@ def shift_handover():
         flash(f'Error fetching shift handover data: {str(e)}', 'error')
         return redirect(url_for('nursing.index'))
 
+@bp.route('/communicate-doctor', methods=['GET', 'POST'])
 @bp.route('/patient/<string:patient_id>/communicate-doctor', methods=['GET', 'POST'])
 @login_required
-@roles_required('nursing')
-def communicate_doctor(patient_id):
+@roles_required('nursing', 'admin')
+def communicate_doctor(patient_id=None):
     if request.method == 'POST':
         try:
             message_text = request.form.get('message')
             doctor_id = request.form.get('doctor_id')
+            p_id = request.form.get('patient_id', patient_id)
             if not message_text or not doctor_id:
                 flash('Message and doctor selection are required.', 'error')
-                return redirect(url_for('nursing.communicate_doctor', patient_id=patient_id))
+                return redirect(url_for('nursing.communicate_doctor', patient_id=p_id) if p_id else url_for('nursing.communicate_doctor'))
 
             new_message = Messages(
                 sender_id=current_user.id,
                 receiver_id=int(doctor_id),
-                patient_id=patient_id,
+                patient_id=p_id or '',
                 message=message_text,
                 timestamp=datetime.utcnow()
             )
             db.session.add(new_message)
             db.session.commit()
             flash('Message sent to doctor.', 'success')
-            return redirect(url_for('nursing.communicate_doctor', patient_id=patient_id))
+            return redirect(url_for('nursing.communicate_doctor', patient_id=p_id) if p_id else url_for('nursing.communicate_doctor'))
         except ValueError:
             flash('Invalid doctor selection.', 'error')
-            return redirect(url_for('nursing.communicate_doctor', patient_id=patient_id))
+            return redirect(url_for('nursing.communicate_doctor', patient_id=patient_id) if patient_id else url_for('nursing.communicate_doctor'))
         except Exception as e:
             db.session.rollback()
             flash(f'Error sending message: {str(e)}', 'error')
-            return redirect(url_for('nursing.communicate_doctor', patient_id=patient_id))
+            return redirect(url_for('nursing.communicate_doctor', patient_id=patient_id) if patient_id else url_for('nursing.communicate_doctor'))
     
     try:
         doctors = User.query.filter(User.role.in_(['doctor', 'medicine'])).all()
@@ -195,7 +197,8 @@ def communicate_doctor(patient_id):
         flash(f'Error fetching doctors: {str(e)}', 'error')
         return redirect(url_for('nursing.index'))
 
-@bp.route('/get-notifications')
+@bp.route('/notifications', endpoint='notifications')
+@bp.route('/get-notifications', endpoint='get_notifications')
 @login_required
 @roles_required('nursing', 'admin', 'medicine')
 def get_notifications():
