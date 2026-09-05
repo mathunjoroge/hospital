@@ -992,19 +992,8 @@ def inject_unmatched_count():
     """Inject the unmatched count into the template context."""
     return dict(unmatched_count=get_unmatched_count()) 
 
-db_params = {
-    'dbname': os.environ.get('DRUGCENTRAL_DB', 'drugcentral'),
-    'user': os.environ.get('DRUGCENTRAL_USER', 'drugman'),
-    'password': os.environ.get('DRUGCENTRAL_PASSWORD', 'dosage'),
-    'host': os.environ.get('DRUGCENTRAL_HOST', 'unmtid-dbs.net'),
-    'port': os.environ.get('DRUGCENTRAL_PORT', '5433')
-}
+from departments.shared.drugcentral import DRUGCENTRAL_DB_PARAMS as db_params, get_drugcentral_connection as get_db_connection
 
-
-
-def get_db_connection():
-    """Get database connection with context management."""
-    return psycopg2.connect(**db_params)
 
 
 def fetch_drugs_data(search_query: Optional[str] = None) -> List[Dict[str, Any]]:

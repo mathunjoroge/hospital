@@ -72,10 +72,12 @@
   }
 </style>
 
-<!-- Load 3Dmol.js for 3D molecular visualization -->
-<script src="https://3dmol.org/build/3Dmol-min.js"></script>
+<!-- Task Fix 3: SRI-protected versioned 3Dmol.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.0.5/3Dmol-min.js" integrity="sha384-B6Rulu4VMJud/dtkpC7vF36Mm3dZ0A3+9zowoIOGtabN9MqVK9eJ3PcQ7hueOUuE" crossorigin="anonymous"></script>
 
 <div class="container-fluid p-4">
+  <input type="hidden" id="global_csrf_token" value="{{ csrf_token() }}"/>
+
   <!-- Flash Messages -->
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
@@ -95,16 +97,17 @@
         <h2 class="mb-1 fw-bold"><i class="bi bi-cpu me-2"></i>AI-Assisted Molecule Ideation</h2>
         <p class="mb-0 opacity-90">LLM-generated candidate suggestions — not validated computational chemistry.</p>
       </div>
+      <!-- Task Fix 4: Flask Server Session Shortlist Toggle -->
       <button class="btn btn-light btn-sm fw-semibold text-purple" type="button" data-bs-toggle="collapse" data-bs-target="#shortlistSection">
-        <i class="bi bi-star-fill text-warning me-1"></i>Shortlist (<span id="shortlistCount">0</span>)
+        <i class="bi bi-star-fill text-warning me-1"></i>Shortlist (<span id="shortlistCount">{{ shortlist|length }}</span>)
       </button>
     </div>
   </div>
 
-  <!-- Task 6: Shortlist & Comparison Panel -->
-  <div class="collapse shortlist-panel" id="shortlistSection">
+  <!-- Task Fix 4: Server-Side Session Shortlist & Comparison Panel -->
+  <div class="collapse shortlist-panel {{ 'show' if shortlist|length > 0 else '' }}" id="shortlistSection">
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-card-checklist me-2 text-primary"></i>Candidate Shortlist & Comparison</h5>
+      <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-card-checklist me-2 text-primary"></i>Candidate Shortlist & Comparison (Flask Session)</h5>
       <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearShortlist()">
         <i class="bi bi-trash me-1"></i>Clear Shortlist
       </button>
@@ -123,9 +126,39 @@
           </tr>
         </thead>
         <tbody id="shortlistBody">
-          <tr>
-            <td colspan="7" class="text-center text-muted py-3">No candidates shortlisted yet. Click <strong>"Add to Shortlist"</strong> on any candidate below.</td>
-          </tr>
+          {% if shortlist %}
+            {% for item in shortlist %}
+            <tr>
+              <td><code class="small">{{ item.smiles }}</code></td>
+              <td>{{ item.mw }}</td>
+              <td>{{ item.logp }}</td>
+              <td>{{ item.tpsa }}</td>
+              <td>
+                {% if item.lipinski_pass %}
+                  <span class="badge bg-success">Pass</span>
+                {% else %}
+                  <span class="badge bg-danger">Fail</span>
+                {% endif %}
+              </td>
+              <td class="text-capitalize small">
+                {% if item.similar_drugs and item.similar_drugs|length > 0 %}
+                  {{ item.similar_drugs[0].name }} ({{ item.similar_drugs[0].similarity }}%)
+                {% else %}
+                  N/A
+                {% endif %}
+              </td>
+              <td>
+                <button class="btn btn-sm btn-outline-danger" onclick="removeFromShortlist({{ loop.index0 }})">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-3">No candidates shortlisted yet. Click <strong>"Shortlist"</strong> on any candidate below.</td>
+            </tr>
+          {% endif %}
         </tbody>
       </table>
     </div>
@@ -160,7 +193,22 @@
 
           {% if tool_used == 'molmim' and results %}
           <div class="mt-4">
-            <h6 class="fw-bold text-success mb-3">Generated Candidates for: <span class="fw-normal text-dark">{{ results.properties }}</span></h6>
+            <!-- Task Fix 5.2: Offline Demo Mode Badge -->
+            {% if results.is_offline %}
+            <div class="badge bg-secondary mb-3 p-2 w-100 text-center fs-6">
+              <i class="bi bi-wifi-off me-1"></i>Offline demo mode — showing static reference candidates
+            </div>
+            {% endif %}
+
+            <h6 class="fw-bold text-success mb-2">Generated Candidates for: <span class="fw-normal text-dark">{{ results.properties }}</span></h6>
+
+            <!-- Task Fix 5.1: Discarded Candidate Count Note -->
+            {% if results.discarded_count and results.discarded_count > 0 %}
+            <div class="alert alert-info py-2 px-3 small mb-3">
+              <i class="bi bi-info-circle-fill me-1"></i>
+              <strong>{{ results.molecules|length }} of {{ results.total_generated }}</strong> candidates shown — <strong>{{ results.discarded_count }}</strong> discarded as invalid SMILES strings.
+            </div>
+            {% endif %}
             
             <div class="d-flex flex-column gap-4">
               {% for mol in results.molecules %}
@@ -171,7 +219,7 @@
                     <button type="button" class="btn btn-outline-secondary active" onclick="switchView({{ loop.index }}, '2d')">2D</button>
                     <button type="button" class="btn btn-outline-secondary" onclick="switchView({{ loop.index }}, '3d')">3D</button>
                   </div>
-                  <!-- Task 6: Add to Shortlist -->
+                  <!-- Task Fix 4: Server Session Shortlist Button -->
                   <button type="button" class="btn btn-outline-warning btn-sm fw-bold" onclick='addToShortlist({{ mol|tojson|safe }})'>
                     <i class="bi bi-star me-1"></i>Shortlist
                   </button>
@@ -182,7 +230,7 @@
                   <canvas id="mol-canvas-{{ loop.index }}" data-smiles="{{ mol.smiles }}" width="300" height="220" style="max-width: 100%; height: auto; margin: 0 auto;"></canvas>
                 </div>
 
-                <!-- Task 3: 3D View (hidden by default) -->
+                <!-- Task 3: 3D View -->
                 <div id="view-3d-{{ loop.index }}" class="d-none">
                   <div id="mol-3d-{{ loop.index }}" class="mol-3d-box" data-molblock="{{ mol.molblock }}"></div>
                   <small class="text-muted text-center d-block mt-1">Interactive 3D Ball & Stick model (drag to rotate, scroll to zoom)</small>
@@ -284,6 +332,13 @@
 
           {% if tool_used == 'diffdock' and results %}
           <div class="mt-4 p-3 bg-light rounded border">
+            <!-- Task Fix 5.2: Offline Demo Mode Badge -->
+            {% if results.is_offline %}
+            <div class="badge bg-secondary mb-3 p-2 w-100 text-center fs-6">
+              <i class="bi bi-wifi-off me-1"></i>Offline demo mode — showing static reference estimation
+            </div>
+            {% endif %}
+
             <h6 class="fw-bold text-success mb-3"><i class="bi bi-journal-check me-1"></i>Docking Estimation Results</h6>
             
             <div class="row g-2 mb-3">
@@ -345,7 +400,9 @@
   </div>
 </div>
 
-<script src="https://unpkg.com/smiles-drawer@1.0.10/dist/smiles-drawer.min.js"></script>
+<!-- Task Fix 3: SRI-protected versioned SmilesDrawer CDN -->
+<script src="https://cdn.jsdelivr.net/npm/smiles-drawer@1.0.10/dist/smiles-drawer.min.js" integrity="sha384-LsHRQgIqDJsteBHSHx10/K+a2djfZVoSm9pAOlub5DS63vr+8GOA2HpgLoq1Y/84" crossorigin="anonymous"></script>
+
 <script>
   // Task 5: Target Presets Dictionary (UniProt sequences)
   const TARGET_PRESETS = {
@@ -398,81 +455,62 @@
     }
   }
 
-  // Task 6: Session Shortlist logic
-  function getShortlist() {
-    return JSON.parse(sessionStorage.getItem('hims_mol_shortlist') || '[]');
-  }
-
-  function saveShortlist(list) {
-    sessionStorage.setItem('hims_mol_shortlist', JSON.stringify(list));
-    renderShortlist();
+  // Task Fix 4: Server-side Session Shortlist calls via fetch()
+  function getCsrfToken() {
+    return document.getElementById('global_csrf_token').value;
   }
 
   function addToShortlist(candidate) {
-    let list = getShortlist();
-    if (!list.some(item => item.smiles === candidate.smiles)) {
-      list.push(candidate);
-      saveShortlist(list);
-      
-      // Auto expand shortlist panel
-      const collapseEl = document.getElementById('shortlistSection');
-      if (collapseEl && !collapseEl.classList.contains('show')) {
-        const bsCollapse = new bootstrap.Collapse(collapseEl, { show: true });
+    fetch("{{ url_for('pharmacy.ai_discovery_shortlist_add') }}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCsrfToken()
+      },
+      body: JSON.stringify({ candidate: candidate })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        window.location.reload();
       }
-    }
+    })
+    .catch(err => console.error("Error adding to shortlist:", err));
   }
 
   function removeFromShortlist(index) {
-    let list = getShortlist();
-    list.splice(index, 1);
-    saveShortlist(list);
+    fetch("{{ url_for('pharmacy.ai_discovery_shortlist_remove') }}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCsrfToken()
+      },
+      body: JSON.stringify({ index: index })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        window.location.reload();
+      }
+    })
+    .catch(err => console.error("Error removing from shortlist:", err));
   }
 
   function clearShortlist() {
-    sessionStorage.removeItem('hims_mol_shortlist');
-    renderShortlist();
-  }
-
-  function renderShortlist() {
-    const list = getShortlist();
-    const countEl = document.getElementById('shortlistCount');
-    const tbody = document.getElementById('shortlistBody');
-    if (countEl) countEl.textContent = list.length;
-
-    if (!tbody) return;
-
-    if (list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No candidates shortlisted yet. Click <strong>"Shortlist"</strong> on any candidate below.</td></tr>';
-      return;
-    }
-
-    let html = '';
-    list.forEach((item, idx) => {
-      const topDrug = (item.similar_drugs && item.similar_drugs.length > 0) 
-        ? `${item.similar_drugs[0].name} (${item.similar_drugs[0].similarity}%)` 
-        : 'N/A';
-      
-      const lipinskiBadge = item.lipinski_pass 
-        ? '<span class="badge bg-success">Pass</span>' 
-        : '<span class="badge bg-danger">Fail</span>';
-
-      html += `
-        <tr>
-          <td><code class="small">${item.smiles}</code></td>
-          <td>${item.mw}</td>
-          <td>${item.logp}</td>
-          <td>${item.tpsa}</td>
-          <td>${lipinskiBadge}</td>
-          <td class="text-capitalize small">${topDrug}</td>
-          <td>
-            <button class="btn btn-sm btn-outline-danger" onclick="removeFromShortlist(${idx})">
-              <i class="bi bi-x-lg"></i>
-            </button>
-          </td>
-        </tr>
-      `;
-    });
-    tbody.innerHTML = html;
+    fetch("{{ url_for('pharmacy.ai_discovery_shortlist_clear') }}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCsrfToken()
+      }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        window.location.reload();
+      }
+    })
+    .catch(err => console.error("Error clearing shortlist:", err));
   }
 
   document.addEventListener('DOMContentLoaded', function() {
@@ -490,9 +528,6 @@
         });
       });
     }
-
-    // Initial shortlist render
-    renderShortlist();
   });
 </script>
 {% endblock %}

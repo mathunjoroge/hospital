@@ -538,24 +538,22 @@ class NvidiaNIMClient:
         )
         response_str = self._call_chat_completion(prompt, system_message="You are a cheminformatics assistant.")
         
-        valid_smiles = []
+        candidates = []
         if response_str:
             lines = [s.strip().strip('`').strip('"').strip("'") for s in response_str.split('\n') if s.strip()]
             for line in lines:
                 # Clean up any bullet points or numbers
                 if '. ' in line and line.split('. ', 1)[0].isdigit():
                     line = line.split('. ', 1)[1].strip()
-                mol = Chem.MolFromSmiles(line)
-                if mol:
-                    canonical = Chem.MolToSmiles(mol)
-                    if canonical not in valid_smiles:
-                        valid_smiles.append(canonical)
+                if line:
+                    candidates.append(line)
 
-        if not valid_smiles:
-            logger.warning("LLM generated 0 valid RDKit SMILES. Falling back to reference candidates.")
+        if not candidates:
+            logger.warning("LLM generated 0 candidate strings. Falling back to reference candidates.")
             return fallback_smiles[:3]
 
-        return valid_smiles
+        return candidates
+
 
     def predict_docking(self, ligand_smiles: str, protein_sequence: str) -> Dict[str, any]:
         """Estimate molecular binding interaction between a ligand and a target protein sequence.

@@ -7,13 +7,8 @@ from rdkit.Chem import Descriptors, AllChem, rdFingerprintGenerator, DataStructs
 
 logger = logging.getLogger("HIMS-Cheminformatics")
 
-DB_PARAMS = {
-    'dbname': 'drugcentral',
-    'user': 'drugman',
-    'password': 'dosage',
-    'host': 'unmtid-dbs.net',
-    'port': 5433
-}
+from departments.shared.drugcentral import DRUGCENTRAL_DB_PARAMS as DB_PARAMS
+
 
 # Fallback reference drugs if DB connection is unavailable
 FALLBACK_DRUGS = [

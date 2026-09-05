@@ -24,3 +24,5 @@ scipy==1.13.0
 pydicom==2.4.4
 reportlab==4.1.0
 bleach==6.4.0
+rdkit==2026.3.6
+
