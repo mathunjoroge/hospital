@@ -136,6 +136,261 @@ class NvidiaNIMClient:
         # --- Rule-Based Offline Fallback ---
         return self._offline_amr_ipc_fallback(text)
 
+    def answer_clinical_question(self, text: str) -> str:
+        """Provide a rule-based clinical response when no LLM API is available.
+        
+        Uses keyword matching against a clinical knowledge base to generate
+        structured differential diagnoses and management guidance.
+        """
+        text_lower = text.lower()
+
+        # Clinical knowledge base: symptom patterns → structured responses
+        clinical_rules = [
+            {
+                "keywords": ["rash", "fever"],
+                "title": "Fever with Rash — Differential Diagnosis",
+                "content": (
+                    "**Overview**: Fever with diffuse rash is a common presentation with a broad differential "
+                    "spanning infectious, autoimmune, and drug-related etiologies.\n\n"
+                    "**Key Differential Diagnoses** (by likelihood in adults):\n"
+                    "1. **Viral exanthem** — measles, rubella, EBV, parvovirus B19, dengue, Zika\n"
+                    "2. **Drug reaction** — morbilliform drug eruption, DRESS syndrome, SJS/TEN\n"
+                    "3. **Bacterial** — secondary syphilis, scarlet fever, meningococcemia, typhoid (rose spots)\n"
+                    "4. **Rickettsial** — Rocky Mountain spotted fever, typhus\n"
+                    "5. **Autoimmune** — adult-onset Still's disease, SLE, vasculitis\n\n"
+                    "**Diagnostic Workup**:\n"
+                    "- CBC with differential, CRP/ESR, blood cultures\n"
+                    "- LFTs (for DRESS), coagulation panel (for meningococcemia/dengue)\n"
+                    "- Serology: EBV, CMV, HIV, syphilis (RPR/VDRL), dengue NS1/IgM if endemic\n"
+                    "- Skin biopsy if persistent or atypical\n"
+                    "- Medication review (timeline of new drugs vs. rash onset)\n\n"
+                    "**Red Flags** 🚩:\n"
+                    "- Petechial/purpuric rash + fever → rule out meningococcemia (medical emergency)\n"
+                    "- Mucosal involvement + skin sloughing → consider SJS/TEN\n"
+                    "- Eosinophilia + organ involvement → consider DRESS\n\n"
+                    "**Initial Management**:\n"
+                    "- Supportive care (antipyretics, hydration)\n"
+                    "- Discontinue suspected offending drugs\n"
+                    "- Empiric antibiotics if bacterial etiology suspected\n"
+                    "- Urgent dermatology consult for blistering or mucosal involvement"
+                ),
+            },
+            {
+                "keywords": ["chest pain"],
+                "title": "Chest Pain — Clinical Assessment",
+                "content": (
+                    "**Overview**: Chest pain requires urgent risk stratification to exclude life-threatening causes.\n\n"
+                    "**Key Differential Diagnoses**:\n"
+                    "1. **Cardiac**: ACS (STEMI/NSTEMI/UA), pericarditis, myocarditis, aortic dissection\n"
+                    "2. **Pulmonary**: PE, pneumothorax, pneumonia, pleuritis\n"
+                    "3. **GI**: GERD, esophageal spasm, Boerhaave syndrome\n"
+                    "4. **MSK**: Costochondritis, rib fracture\n"
+                    "5. **Other**: Anxiety/panic disorder, herpes zoster\n\n"
+                    "**Immediate Workup**:\n"
+                    "- 12-lead ECG within 10 minutes\n"
+                    "- Troponin (serial at 0h and 3h), CBC, BMP, coagulation\n"
+                    "- CXR, D-dimer if PE suspected (Wells score)\n"
+                    "- CT angiography if dissection or PE suspected\n\n"
+                    "**Red Flags** 🚩:\n"
+                    "- Tearing pain radiating to back → aortic dissection\n"
+                    "- ST elevation on ECG → STEMI (activate cath lab)\n"
+                    "- Hypotension + JVD + muffled heart sounds → tamponade"
+                ),
+            },
+            {
+                "keywords": ["headache"],
+                "title": "Headache — Differential Diagnosis",
+                "content": (
+                    "**Overview**: Most headaches are primary (migraine, tension-type, cluster), but secondary "
+                    "causes must be excluded.\n\n"
+                    "**Key Differential Diagnoses**:\n"
+                    "1. **Primary**: Migraine (with/without aura), tension-type, cluster headache\n"
+                    "2. **Secondary — urgent**: SAH, meningitis/encephalitis, cerebral venous thrombosis\n"
+                    "3. **Secondary — subacute**: Idiopathic intracranial hypertension, temporal arteritis (GCA), "
+                    "mass lesion\n\n"
+                    "**Red Flags (SNOOP mnemonic)** 🚩:\n"
+                    "- **S**ystemic symptoms (fever, weight loss)\n"
+                    "- **N**eurological deficits\n"
+                    "- **O**nset sudden (thunderclap) → SAH until proven otherwise\n"
+                    "- **O**lder age (>50, new-onset) → consider GCA\n"
+                    "- **P**ositional, progressive, or papilledema\n\n"
+                    "**Workup**:\n"
+                    "- Neurological exam, fundoscopy\n"
+                    "- CT head (non-contrast) → LP if SAH suspected and CT negative\n"
+                    "- ESR/CRP if GCA suspected (>50 years)\n"
+                    "- MRI/MRV if venous thrombosis suspected"
+                ),
+            },
+            {
+                "keywords": ["cough", "shortness of breath"],
+                "title": "Cough with Dyspnea — Differential Diagnosis",
+                "content": (
+                    "**Overview**: Cough with shortness of breath suggests pulmonary or cardiac pathology.\n\n"
+                    "**Key Differential Diagnoses**:\n"
+                    "1. **Infectious**: Pneumonia (CAP, atypical), TB, COVID-19\n"
+                    "2. **Obstructive**: Asthma exacerbation, COPD exacerbation\n"
+                    "3. **Cardiac**: Heart failure (acute decompensation)\n"
+                    "4. **Vascular**: Pulmonary embolism\n"
+                    "5. **Other**: Pleural effusion, interstitial lung disease, lung malignancy\n\n"
+                    "**Workup**:\n"
+                    "- SpO2, ABG, CBC, CRP/procalcitonin, BNP/NT-proBNP\n"
+                    "- CXR (consolidation, effusion, cardiomegaly)\n"
+                    "- Sputum culture, blood cultures if febrile\n"
+                    "- CT-PA if PE suspected\n"
+                    "- Spirometry if stable (asthma/COPD)\n\n"
+                    "**Initial Management**:\n"
+                    "- Supplemental O₂ to maintain SpO₂ ≥ 94%\n"
+                    "- Empiric antibiotics if pneumonia suspected\n"
+                    "- Bronchodilators for obstructive presentations\n"
+                    "- Diuretics if heart failure"
+                ),
+            },
+            {
+                "keywords": ["diabetes", "sugar", "glucose", "hba1c"],
+                "title": "Diabetes Management — Clinical Overview",
+                "content": (
+                    "**Overview**: Diabetes mellitus requires systematic metabolic control and complication screening.\n\n"
+                    "**Diagnostic Criteria** (ADA 2024):\n"
+                    "- Fasting glucose ≥ 126 mg/dL (7.0 mmol/L)\n"
+                    "- HbA1c ≥ 6.5%\n"
+                    "- 2-hour OGTT ≥ 200 mg/dL\n"
+                    "- Random glucose ≥ 200 mg/dL + classic symptoms\n\n"
+                    "**Management (T2DM)**:\n"
+                    "- First-line: Metformin + lifestyle modification\n"
+                    "- If HbA1c > 1.5% above target: consider dual therapy\n"
+                    "- With CVD/CKD: prefer SGLT2i or GLP-1 RA\n"
+                    "- Insulin if marked hyperglycemia or failure of oral agents\n\n"
+                    "**Monitoring**:\n"
+                    "- HbA1c every 3-6 months (target typically < 7%)\n"
+                    "- Annual: renal function (eGFR, UACR), lipid panel, retinal exam, foot exam\n"
+                    "- BP target: < 130/80 mmHg"
+                ),
+            },
+            {
+                "keywords": ["abdominal pain", "stomach pain", "belly pain"],
+                "title": "Abdominal Pain — Differential Diagnosis",
+                "content": (
+                    "**Overview**: Abdominal pain differential is guided by location, onset, and associated symptoms.\n\n"
+                    "**By Location**:\n"
+                    "- **RUQ**: Cholecystitis, hepatitis, biliary colic\n"
+                    "- **Epigastric**: PUD, pancreatitis, GERD, MI (inferior)\n"
+                    "- **LUQ**: Splenic pathology, pancreatitis\n"
+                    "- **RLQ**: Appendicitis, ovarian torsion, ectopic pregnancy\n"
+                    "- **LLQ**: Diverticulitis, IBD, ovarian pathology\n"
+                    "- **Diffuse**: Peritonitis, bowel obstruction, mesenteric ischemia, DKA\n\n"
+                    "**Workup**:\n"
+                    "- CBC, BMP, LFTs, lipase, urinalysis, lactate\n"
+                    "- Pregnancy test (all women of childbearing age)\n"
+                    "- Imaging: US (RUQ pain), CT abdomen/pelvis (most others)\n"
+                    "- ECG (epigastric pain in elderly — rule out inferior MI)\n\n"
+                    "**Red Flags** 🚩:\n"
+                    "- Rigid abdomen → peritonitis (surgical emergency)\n"
+                    "- Pain out of proportion to exam → mesenteric ischemia\n"
+                    "- Hemodynamic instability → ruptured AAA or ectopic"
+                ),
+            },
+            {
+                "keywords": ["hypertension", "high blood pressure", "bp high"],
+                "title": "Hypertension — Clinical Management",
+                "content": (
+                    "**Overview**: Hypertension classification and management per ACC/AHA 2017 guidelines.\n\n"
+                    "**Classification**:\n"
+                    "- Normal: < 120/80 mmHg\n"
+                    "- Elevated: 120-129 / < 80 mmHg\n"
+                    "- Stage 1: 130-139 / 80-89 mmHg\n"
+                    "- Stage 2: ≥ 140/90 mmHg\n"
+                    "- Hypertensive crisis: > 180/120 mmHg\n\n"
+                    "**Initial Workup**:\n"
+                    "- BMP (creatinine, K+), urinalysis, lipid panel, fasting glucose/HbA1c\n"
+                    "- ECG (LVH screening)\n"
+                    "- Consider secondary causes if resistant or age < 30\n\n"
+                    "**First-Line Agents**:\n"
+                    "- ACEi/ARB (preferred if DM, CKD, HF)\n"
+                    "- CCB (amlodipine — preferred in Black patients)\n"
+                    "- Thiazide diuretic (chlorthalidone preferred)\n"
+                    "- Target: < 130/80 for most patients\n\n"
+                    "**Hypertensive Emergency**:\n"
+                    "- IV labetalol, nicardipine, or nitroprusside\n"
+                    "- Reduce MAP by ~25% in first hour"
+                ),
+            },
+            {
+                "keywords": ["diarrhea", "loose stool", "watery stool"],
+                "title": "Diarrhea — Differential Diagnosis",
+                "content": (
+                    "**Overview**: Classified as acute (< 14 days) or chronic (> 4 weeks).\n\n"
+                    "**Acute Diarrhea**:\n"
+                    "- **Infectious**: Viral (norovirus, rotavirus), bacterial (Salmonella, Shigella, C. diff, "
+                    "E. coli), parasitic (Giardia)\n"
+                    "- **Non-infectious**: Medication-related (antibiotics, metformin), food intolerance\n\n"
+                    "**Chronic Diarrhea**:\n"
+                    "- **Inflammatory**: IBD (Crohn's, UC), microscopic colitis\n"
+                    "- **Malabsorptive**: Celiac disease, pancreatic insufficiency\n"
+                    "- **Functional**: IBS-D\n"
+                    "- **Endocrine**: Hyperthyroidism, carcinoid\n\n"
+                    "**Workup**:\n"
+                    "- Stool studies: C. diff toxin, O&P, culture, calprotectin\n"
+                    "- CBC, BMP (electrolytes), celiac panel (tTG-IgA)\n"
+                    "- Colonoscopy if chronic, bloody, or alarm features\n\n"
+                    "**Management**:\n"
+                    "- Oral rehydration therapy\n"
+                    "- Avoid empiric antibiotics unless dysentery or traveler's diarrhea\n"
+                    "- C. diff: oral vancomycin or fidaxomicin"
+                ),
+            },
+            {
+                "keywords": ["anemia", "low hemoglobin", "low hb", "pale"],
+                "title": "Anemia — Diagnostic Approach",
+                "content": (
+                    "**Overview**: Classify by MCV (microcytic, normocytic, macrocytic) to guide workup.\n\n"
+                    "**Microcytic (MCV < 80)**:\n"
+                    "- Iron deficiency (most common), thalassemia, chronic disease, sideroblastic\n\n"
+                    "**Normocytic (MCV 80-100)**:\n"
+                    "- Anemia of chronic disease, acute blood loss, hemolytic anemia, renal failure\n\n"
+                    "**Macrocytic (MCV > 100)**:\n"
+                    "- B12/folate deficiency, MDS, liver disease, hypothyroidism, medications\n\n"
+                    "**Workup**:\n"
+                    "- CBC with indices, reticulocyte count, peripheral smear\n"
+                    "- Iron studies (ferritin, TIBC, serum iron, transferrin sat)\n"
+                    "- B12, folate levels\n"
+                    "- LDH, haptoglobin, direct Coombs (if hemolysis suspected)\n\n"
+                    "**Management**:\n"
+                    "- Iron deficiency: oral ferrous sulfate 325 mg TID, or IV iron if intolerant\n"
+                    "- B12 deficiency: IM cyanocobalamin 1000 mcg or high-dose oral\n"
+                    "- Transfuse if Hb < 7 g/dL (or < 8 g/dL with cardiac disease)"
+                ),
+            },
+        ]
+
+        # Match against clinical rules
+        best_match = None
+        best_score = 0
+        for rule in clinical_rules:
+            score = sum(1 for kw in rule["keywords"] if kw in text_lower)
+            if score > best_score:
+                best_score = score
+                best_match = rule
+
+        if best_match and best_score > 0:
+            return f"**{best_match['title']}**\n\n{best_match['content']}"
+
+        # Generic clinical response for unmatched queries
+        return (
+            f"**Clinical Assessment for: \"{text.strip()}\"**\n\n"
+            "No specific clinical rule matched your query. A systematic approach is recommended:\n\n"
+            "**Suggested Approach**:\n"
+            "1. **History**: Obtain detailed HPI (onset, duration, severity, aggravating/relieving factors, "
+            "associated symptoms)\n"
+            "2. **Examination**: Focused physical exam based on presenting complaint\n"
+            "3. **Investigations**: Basic workup — CBC, BMP, CRP/ESR, urinalysis; imaging as indicated\n"
+            "4. **Differential Diagnosis**: Generate based on history and exam findings\n"
+            "5. **Management**: Supportive care pending results; urgent referral if red flags present\n\n"
+            "For a more detailed AI-powered clinical analysis, please configure an NVIDIA API key "
+            "(NVIDIA_API_KEY) or Gemini API key (GEMINI_API_KEY) in your environment.\n\n"
+            "**⚠️ This is a rule-based offline response. For comprehensive clinical guidance, "
+            "an AI backend must be configured.**"
+        )
+
     def summarize_note(self, text: str) -> str:
         """Summarize clinical note using NVIDIA NIM LLM with offline fallback."""
         if not text or not text.strip():
@@ -152,9 +407,10 @@ class NvidiaNIMClient:
             return summary
 
         # --- Rule-Based Offline Fallback ---
+        # For short inputs (likely questions), use clinical Q&A fallback
         sentences = [s.strip() for s in text.replace("\n", " ").split(".") if s.strip()]
         if len(sentences) <= 2:
-            return text
+            return self.answer_clinical_question(text)
         return ". ".join(sentences[:2]) + "."
 
     def _offline_cancer_risk_fallback(self, text: str) -> Dict[str, float]:

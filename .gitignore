@@ -1,6 +1,6 @@
 # Environment and secrets
 .env
-departments/nlp/.env
+**/.env
 *.env
 
 # SQLite and local databases
