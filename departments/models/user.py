@@ -7,3 +7,8 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=False)
     role = db.Column(db.String(50), nullable=False)  # e.g., 'records', 'nursing', etc.
+    failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    totp_secret = db.Column(db.String(64), nullable=True)
+    mfa_enabled = db.Column(db.Boolean, default=False, nullable=False)
+

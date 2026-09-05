@@ -1,5 +1,5 @@
 from extensions import db 
-from datetime import datetime
+from datetime import datetime, date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from departments.models.user import User
@@ -365,7 +365,7 @@ class OncologyNote(db.Model):
     __tablename__ = 'oncology_notes'
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.String(10), db.ForeignKey('patients.patient_id'), nullable=False, index=True)
-    note_date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    note_date = db.Column(db.Date, nullable=False, default=date.today)
     note_content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

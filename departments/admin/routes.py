@@ -106,7 +106,7 @@ def index():
         db.session.commit()
         return render_template('admin/index.html', users=users, department=department)
     except Exception as e:
-        flash(f'Error loading dashboard: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         logger.error(f"Error in admin.index: {e}", exc_info=True)
         db.session.add(Log(
             level='ERROR',
@@ -116,6 +116,13 @@ def index():
         ))
         db.session.commit()
         return redirect(url_for('login'))
+import pyotp
+from departments.api.security import validate_password_strength
+
+def validate_password_complexity(password):
+    return validate_password_strength(password)
+
+
 @bp.route('/add_user', methods=['GET', 'POST'])
 @login_required
 @roles_required('admin')
@@ -125,6 +132,11 @@ def add_user():
     form = AddUserForm()
     if form.validate_on_submit():
         try:
+            valid_pwd, pwd_msg = validate_password_complexity(form.password.data)
+            if not valid_pwd:
+                flash(pwd_msg, 'error')
+                return render_template('admin/add_user.html', form=form)
+
             if User.query.filter_by(username=form.username.data).first():
                 flash('Username already exists.', 'error')
                 logger.warning(f"Duplicate username attempt: {form.username.data} by admin {current_user.id}")
@@ -142,6 +154,7 @@ def add_user():
                 password=generate_password_hash(form.password.data, method='pbkdf2:sha256'),
                 role=form.role.data
             )
+
             db.session.add(new_user)
             db.session.commit()
             logger.info(f"Admin {current_user.id} added user {new_user.username}")
@@ -157,7 +170,7 @@ def add_user():
 
         except Exception as e:
             db.session.rollback()
-            flash(f'Error adding user: {e}', 'error')
+            flash('Something went wrong. Please try again.', 'error')
             logger.error(f"Error in admin.add_user: {e}", exc_info=True)
             db.session.add(Log(
                 level='ERROR',
@@ -188,7 +201,7 @@ def manage_users():
         db.session.commit()
         return render_template('admin/manage_users.html', users=users)
     except Exception as e:
-        flash(f'Error loading users: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         logger.error(f"Error in admin.manage_users: {e}", exc_info=True)
         db.session.add(Log(
             level='ERROR',
@@ -238,7 +251,7 @@ def edit_user(user_id):
             return redirect(url_for('admin.manage_users'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Error updating user: {e}', 'error')
+            flash('Something went wrong. Please try again.', 'error')
             logger.error(f"Error in admin.edit_user: {e}", exc_info=True)
             db.session.add(Log(
                 level='ERROR',
@@ -285,7 +298,7 @@ def delete_user(user_id):
         return redirect(url_for('admin.manage_users'))
     except Exception as e:
         db.session.rollback()
-        flash(f'Error deleting user: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         logger.error(f"Error in admin.delete_user: {e}", exc_info=True)
         db.session.add(Log(
             level='ERROR',
@@ -315,7 +328,7 @@ def system_overview():
         db.session.commit()
         return render_template('admin/system_overview.html', user_count=user_count)
     except Exception as e:
-        flash(f'Error loading overview: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         logger.error(f"Error in admin.system_overview: {e}", exc_info=True)
         db.session.add(Log(
             level='ERROR',
@@ -344,7 +357,7 @@ def logs():
         db.session.commit()
         return render_template('admin/logs.html', logs=logs)
     except Exception as e:
-        flash(f'Error loading logs: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         logger.error(f"Error in admin.logs: {e}", exc_info=True)
         db.session.add(Log(
             level='ERROR',
@@ -354,3 +367,88 @@ def logs():
         ))
         db.session.commit()
         return redirect(url_for('admin.index'))
+
+@bp.route('/mfa/setup', methods=['GET', 'POST'])
+@login_required
+@roles_required('admin')
+def mfa_setup():
+    user = current_user
+    secret = session.get('mfa_setup_secret')
+    if not secret:
+        secret = pyotp.random_base32()
+        session['mfa_setup_secret'] = secret
+
+    totp = pyotp.TOTP(secret)
+    provisioning_uri = totp.provisioning_uri(name=user.username, issuer_name="HMIS Hospital")
+
+    img = qrcode.make(provisioning_uri)
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    qr_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+
+    if request.method == 'POST':
+        code = request.form.get('code', '').strip()
+        if totp.verify(code):
+            user.totp_secret = secret
+            user.mfa_enabled = True
+            db.session.commit()
+            session.pop('mfa_setup_secret', None)
+            flash('MFA has been successfully enabled for your account!', 'success')
+            return redirect(url_for('admin.index'))
+        else:
+            flash('Invalid MFA verification code. Please try again.', 'error')
+
+    return render_template('admin/mfa_setup.html', secret=secret, qr_b64=qr_b64)
+
+
+@bp.route('/admin/audit-trail', methods=['GET'])
+@bp.route('/audit-trail', methods=['GET'])
+@login_required
+@roles_required('admin')
+def audit_trail():
+    """Admin dashboard view for persistent system audit logs."""
+    from departments.models.compliance import AuditLog
+
+    page = request.args.get('page', 1, type=int)
+    action_filter = request.args.get('action', '').strip()
+    username_filter = request.args.get('username', '').strip()
+    resource_type_filter = request.args.get('resource_type', '').strip()
+
+    query = AuditLog.query
+
+    if action_filter:
+        query = query.filter(AuditLog.action.ilike(f"%{action_filter}%"))
+    if username_filter:
+        query = query.filter(AuditLog.username.ilike(f"%{username_filter}%"))
+    if resource_type_filter:
+        query = query.filter(AuditLog.resource_type.ilike(f"%{resource_type_filter}%"))
+
+    pagination = query.order_by(AuditLog.timestamp.desc()).paginate(page=page, per_page=30, error_out=False)
+
+    if request.args.get('format') == 'json':
+        return {
+            "total": pagination.total,
+            "page": page,
+            "pages": pagination.pages,
+            "logs": [log.to_dict() for log in pagination.items]
+        }
+
+    return render_template('admin/audit_trail.html', pagination=pagination, logs=pagination.items)
+
+
+@bp.route('/audit-trail/export', methods=['GET'])
+@login_required
+@roles_required('admin')
+def export_audit_trail():
+
+    """Export system audit logs as structured JSON for SIEM integration."""
+    from departments.models.compliance import AuditLog
+    from flask import jsonify
+
+    logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(1000).all()
+    return jsonify({
+        "system": "HMIS",
+        "exported_at": datetime.now().isoformat(),
+        "count": len(logs),
+        "audit_logs": [l.to_dict() for l in logs]
+    })

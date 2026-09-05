@@ -48,7 +48,7 @@ class Purchase(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     drug_id = db.Column(db.Integer, db.ForeignKey('drugs.id'), nullable=False)  # Links to Drug
     batch_id = db.Column(db.Integer, db.ForeignKey('batches.id'), nullable=False)  # Links to Batch
-    purchase_date = db.Column(db.Date, default=datetime.today().date(), nullable=False)
+    purchase_date = db.Column(db.Date, default=date.today, nullable=False)
     quantity_purchased = db.Column(db.Integer, nullable=False)
     unit_cost = db.Column(db.Float, nullable=False)
     total_cost = db.Column(db.Float, nullable=False)

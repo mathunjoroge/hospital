@@ -117,3 +117,32 @@ class Notifications(db.Model):
     is_read = db.Column(db.Boolean, default=False)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     receiver = db.relationship('User', backref='notifications')
+
+
+class TriageAssessment(db.Model):
+    """
+    Emergency Severity Index (ESI 1-5) Triage Assessment.
+    Level 1: Resuscitation (Immediate life-saving intervention)
+    Level 2: Emergent (High risk, severe pain/distress, confused)
+    Level 3: Urgent (Needs 2+ resources, vitals stable)
+    Level 4: Less Urgent (Needs 1 resource)
+    Level 5: Non-Urgent (Needs 0 resources)
+    """
+    __tablename__ = 'triage_assessments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.String(50), db.ForeignKey('patients.patient_id'), nullable=False, index=True)
+    nurse_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    esi_level = db.Column(db.Integer, nullable=False)  # 1 to 5
+    chief_complaint = db.Column(db.String(255), nullable=False)
+
+    vitals_id = db.Column(db.Integer, db.ForeignKey('vitals.id'), nullable=True)
+    is_pediatric = db.Column(db.Boolean, default=False)
+    vitals_warning = db.Column(db.Text, nullable=True)
+    priority_status = db.Column(db.String(30), default="WAITING")  # WAITING, SEEN, ESCALATED
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    nurse = db.relationship('User', backref='triage_assessments')
+    patient = db.relationship('Patient', backref=db.backref('triage_history', lazy='dynamic'))
+    vitals = db.relationship('Vitals', backref='triage_assessment', uselist=False)

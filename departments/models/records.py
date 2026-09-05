@@ -11,14 +11,28 @@ class Patient(db.Model):
     sex = db.Column(db.String(10), nullable=False)  # e.g., 'Male', 'Female', 'Other'
     date_of_birth = db.Column(db.Date, nullable=False)
     marital_status = db.Column(db.String(20), nullable=False)  # e.g., 'Single', 'Married'
-    blood_group = db.Column(db.String(5), nullable=False)  # e.g., 'A+', 'O-'
+    blood_group = db.Column(db.String(5), nullable=True)  # e.g., 'A+', 'O-' (optional)
     contact = db.Column(db.String(15), nullable=False)  # Phone number, e.g., '+1234567890'
     next_of_kin = db.Column(db.String(100), nullable=False)  # e.g., 'Jane Doe'
     relationship_with_next_of_kin = db.Column(db.String(50), nullable=False)  # e.g., 'Spouse'
     next_of_kin_contact = db.Column(db.String(15), nullable=False)  # Next of kin's phone number
-    national_id = db.Column(db.String(50), unique=True, nullable=False, index=True)  # National ID
+    national_id = db.Column(db.String(50), unique=True, nullable=True, index=True)  # National ID (optional)
     emergency_contact = db.Column(db.String(15), nullable=False)  # Emergency contact number
     date_registered = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+
+    # Optional demographic / insurance fields
+    insurance_provider = db.Column(db.String(100), nullable=True)
+    insurance_policy_number = db.Column(db.String(100), nullable=True)
+    occupation = db.Column(db.String(100), nullable=True)
+    employer_name = db.Column(db.String(100), nullable=True)
+
+    # Soft delete and audit metadata
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    updated_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
     def generate_patient_id(self):
         """Generate a unique patient ID with concurrency handling."""
@@ -32,8 +46,42 @@ class Patient(db.Model):
             new_number = last_number + 1
             return f"{prefix}{new_number:04d}"  # Format as P0001, P0002, etc.
 
+    @classmethod
+    def active_patients(cls):
+        """Return a query pre-filtered to active (non-deleted) patients."""
+        return cls.query.filter_by(is_active=True)
+
+    def soft_delete(self):
+        """Mark this patient as deleted without removing the DB row."""
+        self.is_active = False
+        self.deleted_at = datetime.utcnow()
+
     def __repr__(self):
         return f"<Patient {self.patient_id}: {self.name}>"
+
+class PatientIdentifier(db.Model):
+    """Alternate patient identifiers (Birth Certificate, Passport, Emergency Temp ID, etc.)."""
+    __tablename__ = 'patient_identifiers'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)
+    identifier_type = db.Column(db.String(50), nullable=False)  # e.g. Passport, Birth Notification, Refugee ID
+    identifier_value = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    patient = db.relationship('Patient', backref=db.backref('alternate_identifiers', lazy=True))
+
+class PatientMerge(db.Model):
+    """Audit log of merged patient records."""
+    __tablename__ = 'patient_merges'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    source_patient_id = db.Column(db.String(20), nullable=False)
+    target_patient_id = db.Column(db.String(20), nullable=False)
+    merged_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    merged_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+
     
 class PatientWaitingList(db.Model):
     """Represents a waiting list for patients."""
@@ -72,7 +120,7 @@ class ClinicBooking(db.Model):
     id = db.Column(db.Integer, primary_key=True)  # Primary key
     patient_id = db.Column(db.String(10), db.ForeignKey('patients.patient_id'), nullable=False)  # Foreign key to patients
     clinic_id = db.Column(db.Integer, db.ForeignKey('clinics.clinic_id'), nullable=False)  # Foreign key to clinics
-    created_on = db.Column(db.Date, default=datetime.utcnow().date(), nullable=False)  # Booking creation date
+    created_on = db.Column(db.Date, default=date.today, nullable=False)  # Booking creation date
     clinic_date = db.Column(db.Date, nullable=False)  # Date the patient is supposed to come
     seen = db.Column(db.Integer, default=0, nullable=False)  # Status: 0 = Not seen, 1 = Seen
     receipt_number = db.Column(db.String(255), nullable=True)  # Added for billing integration

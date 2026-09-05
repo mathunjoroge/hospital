@@ -6,9 +6,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-print("Loaded POSTGRES_DB from .env:", os.getenv('POSTGRES_DB'))
-print("Loaded SQLALCHEMY_DATABASE_URI from .env:", os.getenv('SQLALCHEMY_DATABASE_URI'))
-print("Loaded CACHE_DIR from .env:", os.getenv('CACHE_DIR'))
+import logging as _cfg_log
+_cfg_log.getLogger(__name__).debug("POSTGRES_DB=%s", os.getenv('POSTGRES_DB'))
+_cfg_log.getLogger(__name__).debug("DATABASE_URI=%s", os.getenv('SQLALCHEMY_DATABASE_URI'))
 
 # PostgreSQL Configuration for hospital_umls
 POSTGRES_HOST = os.getenv('POSTGRES_HOST', 'localhost')
@@ -18,8 +18,14 @@ POSTGRES_USER = os.getenv('POSTGRES_USER', 'postgres')
 POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD', 'postgres')
 LOCAL_TERMINOLOGY_PATH = "postgresql://user:password@localhost:5432/hospital_umls"
 
-# SQLAlchemy Database URI Configuration (for SQLite hims.db)
-SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI', 'sqlite:///hims.db')
+# SQLAlchemy Database URI Configuration
+# Defaults to PostgreSQL. SQLite is only used when FLASK_ENV=testing.
+_default_db_uri = (
+    'sqlite:///hims.db'
+    if os.getenv('FLASK_ENV') == 'testing'
+    else 'postgresql://hospital:hospital@localhost:5432/hospital_core'
+)
+SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI', _default_db_uri)
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 # Cache Directory
@@ -38,8 +44,10 @@ CONFIDENCE_THRESHOLD = float(os.getenv('CONFIDENCE_THRESHOLD', 0.85))
 MIN_CONFIDENCE_THRESHOLD = float(os.getenv('MIN_CONFIDENCE_THRESHOLD', 0.6))
 
 class Config:
-    SECRET_KEY = os.getenv('SECRET_KEY', 'your-default-secret-key')
+    SECRET_KEY = os.getenv('SECRET_KEY')
+    ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY')
     SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI
+
     SQLALCHEMY_TRACK_MODIFICATIONS = SQLALCHEMY_TRACK_MODIFICATIONS
     POSTGRES_HOST = POSTGRES_HOST
     POSTGRES_PORT = POSTGRES_PORT

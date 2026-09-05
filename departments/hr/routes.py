@@ -57,7 +57,7 @@ def index():
         )
 
     except Exception as e:
-        flash(f'Error loading HR dashboard: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         print(f"Debug: Error in hr.index: {e}")
         return redirect(url_for('home'))
 
@@ -73,7 +73,7 @@ def employee_list():
         return render_template('hr/employee_list.html', employees=employees)
 
     except Exception as e:
-        flash(f'Error fetching employee list: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         print(f"Debug: Error in hr.employee_list: {e}")
         return redirect(url_for('home'))
 
@@ -137,7 +137,7 @@ def new_employee():
         return render_template('hr/new_employee.html', allowances=allowances, deductions=deductions)
 
     except Exception as e:
-        flash(f'Error adding employee: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         print(f"Debug: Error in hr.new_employee: {e}")
         db.session.rollback()
         return redirect(url_for('hr.index'))
@@ -177,7 +177,7 @@ def update_employee(employee_id):
         return render_template('hr/update_employee.html', employee=employee)
 
     except Exception as e:
-        flash(f'Error updating employee: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         print(f"Debug: Error in hr.update_employee: {e}")
         db.session.rollback()
         return redirect(url_for('hr.employee_list'))
@@ -200,7 +200,7 @@ def delete_employee(employee_id):
         return redirect(url_for('hr.employee_list'))
 
     except Exception as e:
-        flash(f'Error deleting employee: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         print(f"Debug: Error in hr.delete_employee: {e}")
         db.session.rollback()
         return redirect(url_for('hr.employee_list'))
@@ -301,7 +301,7 @@ def rota_management():
         )
 
     except Exception as e:
-        flash(f'Error generating rota: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         print(f"Debug: Error in hr.rota_management: {e}")
         db.session.rollback()
         return redirect(url_for('hr.index'))
@@ -340,7 +340,7 @@ def department_reports():
         )
 
     except Exception as e:
-        flash(f'Error generating department reports: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         print(f"Debug: Error in hr.department_reports: {e}")
         return redirect(url_for('hr.index'))
 
@@ -389,7 +389,7 @@ def export_department_reports():
         return output
 
     except Exception as e:
-        flash(f'Error exporting department reports: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         print(f"Debug: Error in hr.export_department_reports: {e}")
         return redirect(url_for('hr.department_reports'))
 

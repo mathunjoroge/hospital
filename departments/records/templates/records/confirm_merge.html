@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  :root { --rc-primary:#1a56db; --rc-border:#e0e7ff; --rc-bg:#f0f4ff; }
+  body { background:var(--rc-bg); }
+  .page-header { background:linear-gradient(135deg,#7f1d1d,#dc2626 60%,#ef4444); border-radius:16px; padding:1.8rem 2rem; color:white; margin-bottom:1.5rem; box-shadow:0 8px 32px rgba(220,38,38,.25); }
+  .page-header h1 { font-size:1.5rem; font-weight:700; margin:0 0 .3rem; }
+  .patient-card { background:white; border-radius:14px; box-shadow:0 4px 18px rgba(26,86,219,.09); padding:1.5rem; }
+  .patient-card h5 { font-weight:700; color:#1e293b; margin-bottom:.8rem; }
+  .patient-card dl { margin:0; }
+  .patient-card dt { font-size:.75rem; text-transform:uppercase; color:#94a3b8; font-weight:600; letter-spacing:.04em; }
+  .patient-card dd { color:#1e293b; font-weight:500; margin-bottom:.6rem; }
+  .arrow-col { display:flex; align-items:center; justify-content:center; font-size:2.5rem; color:#dc2626; }
+  .warn-box { background:#fff7ed; border:1.5px solid #fed7aa; border-radius:12px; padding:1rem 1.3rem; color:#92400e; margin-bottom:1.5rem; }
+  .btn-confirm { background:#dc2626; color:white; border:none; border-radius:9px; padding:.65rem 1.5rem; font-weight:700; font-size:.95rem; transition:opacity .15s; }
+  .btn-confirm:hover { opacity:.88; color:white; }
+</style>
+
+<div class="container-fluid px-4 py-4" style="max-width:900px; margin:auto;">
+  <div class="page-header">
+    <h1><i class="bi bi-exclamation-triangle"></i> Confirm Patient Merge</h1>
+    <p class="mb-0" style="opacity:.85;">The source record will be soft-deleted and its ID flagged as merged. This action cannot be undone.</p>
+  </div>
+
+  <div class="warn-box">
+    <i class="bi bi-info-circle-fill me-2"></i>
+    <strong>Source patient</strong> <code>{{ source.patient_id }}</code> will be marked inactive.
+    All future lookups should use <strong>target patient</strong> <code>{{ target.patient_id }}</code>.
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-5">
+      <div class="patient-card" style="border-top:4px solid #dc2626;">
+        <h5><i class="bi bi-person-x text-danger me-2"></i>Source (will be deactivated)</h5>
+        <dl>
+          <dt>Name</dt><dd>{{ source.name }}</dd>
+          <dt>Patient ID</dt><dd><code>{{ source.patient_id }}</code></dd>
+          <dt>Date of Birth</dt><dd>{{ source.date_of_birth.strftime('%d %b %Y') }}</dd>
+          <dt>Contact</dt><dd>{{ source.contact }}</dd>
+          <dt>National ID</dt><dd>{{ source.national_id or '—' }}</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="col-md-2 arrow-col">
+      <i class="bi bi-arrow-right-circle-fill"></i>
+    </div>
+    <div class="col-md-5">
+      <div class="patient-card" style="border-top:4px solid #059669;">
+        <h5><i class="bi bi-person-check text-success me-2"></i>Target (kept active)</h5>
+        <dl>
+          <dt>Name</dt><dd>{{ target.name }}</dd>
+          <dt>Patient ID</dt><dd><code>{{ target.patient_id }}</code></dd>
+          <dt>Date of Birth</dt><dd>{{ target.date_of_birth.strftime('%d %b %Y') }}</dd>
+          <dt>Contact</dt><dd>{{ target.contact }}</dd>
+          <dt>National ID</dt><dd>{{ target.national_id or '—' }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <form method="POST"
+        action="{{ url_for('records.merge_patient', patient_id=source.patient_id) }}?target_id={{ target.patient_id }}">
+    <div class="mb-3">
+      <label class="form-label fw-semibold">Merge Notes (optional)</label>
+      <textarea name="notes" class="form-control" rows="2"
+                placeholder="Reason for merge, e.g. 'Duplicate registration at OPD on 2026-09-05'"></textarea>
+    </div>
+    <div class="d-flex gap-3">
+      <button type="submit" class="btn-confirm">
+        <i class="bi bi-check2-circle me-1"></i>Confirm Merge
+      </button>
+      <a href="{{ url_for('records.patient_duplicates', patient_id=source.patient_id) }}"
+         class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

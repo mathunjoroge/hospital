@@ -186,3 +186,194 @@ class ImagingBill(db.Model):
 
  
         
+
+# ═══════════════════════════════════════════════════════
+# UNIFIED BILLING — Task 2.2
+# Invoice / InvoiceLineItem / Payment
+# Legacy tables above are kept for zero-breakage backcompat.
+# All new billing code should write to these models.
+# ═══════════════════════════════════════════════════════
+
+import enum
+
+class InvoiceStatus(str, enum.Enum):
+    DRAFT    = 'draft'
+    ISSUED   = 'issued'
+    PARTIAL  = 'partial'
+    PAID     = 'paid'
+    VOID     = 'void'
+
+
+class PaymentMethod(str, enum.Enum):
+    CASH      = 'cash'
+    MPESA     = 'mpesa'
+    INSURANCE = 'insurance'
+    BANK      = 'bank'
+    WAIVER    = 'waiver'
+    OTHER     = 'other'
+
+
+class Invoice(db.Model):
+    """
+    Single unified invoice per patient encounter.
+    Replaces the 6 legacy *Bill tables for new encounters.
+    """
+    __tablename__ = 'invoices'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    invoice_number = db.Column(db.String(30), unique=True, nullable=False, index=True)
+    patient_id     = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False, index=True)
+
+    status         = db.Column(db.Enum(InvoiceStatus), nullable=False, default=InvoiceStatus.DRAFT)
+    issued_at      = db.Column(db.DateTime, nullable=True)
+    due_date       = db.Column(db.Date, nullable=True)
+
+    # Totals (denormalised for query performance)
+    subtotal       = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    discount       = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    grand_total    = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    amount_paid    = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    balance        = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    # Insurance
+    insurance_scheme_id = db.Column(db.Integer, nullable=True)   # FK added by 2.3
+    insurance_claim_ref = db.Column(db.String(100), nullable=True)
+
+    # Audit
+    created_by     = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at     = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at     = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    notes          = db.Column(db.Text, nullable=True)
+
+    # Legacy source tracking (to link backfilled records)
+    legacy_source  = db.Column(db.String(30), nullable=True)  # e.g. 'drugs_bill', 'ward_bill'
+    legacy_id      = db.Column(db.Integer, nullable=True)
+
+    patient        = db.relationship('Patient', backref=db.backref('invoices', lazy='dynamic'))
+    line_items     = db.relationship('InvoiceLineItem', back_populates='invoice',
+                                     cascade='all, delete-orphan', lazy='dynamic')
+    payments       = db.relationship('Payment', back_populates='invoice',
+                                     cascade='all, delete-orphan', lazy='dynamic')
+
+    def __init__(self, **kwargs):
+        if 'total_amount' in kwargs:
+            kwargs['grand_total'] = kwargs.pop('total_amount')
+        if 'balance_due' in kwargs:
+            kwargs['balance'] = kwargs.pop('balance_due')
+        super().__init__(**kwargs)
+
+    @property
+    def total_amount(self):
+        return self.grand_total
+
+    @total_amount.setter
+    def total_amount(self, value):
+        self.grand_total = value
+
+    @property
+    def balance_due(self):
+        return self.balance
+
+    @balance_due.setter
+    def balance_due(self, value):
+        self.balance = value
+
+    @staticmethod
+    def generate_invoice_number():
+        """Generate sequential invoice number INV-YYYYMMDD-NNNN."""
+        now = datetime.utcnow()
+        prefix = f"INV-{now.strftime('%Y%m%d')}"
+        last = Invoice.query.filter(
+            Invoice.invoice_number.like(f"{prefix}-%")
+        ).order_by(Invoice.id.desc()).first()
+        seq = 1
+        if last:
+            try:
+                seq = int(last.invoice_number.rsplit('-', 1)[-1]) + 1
+            except ValueError:
+                pass
+        return f"{prefix}-{seq:04d}"
+
+    def recalculate(self):
+        """Recompute subtotal, grand_total, amount_paid, balance from child records."""
+        self.subtotal    = sum(li.total for li in self.line_items)
+        self.grand_total = self.subtotal - self.discount
+        self.amount_paid = sum(p.amount for p in self.payments)
+        self.balance     = self.grand_total - self.amount_paid
+        if self.balance <= 0:
+            self.status = InvoiceStatus.PAID
+        elif self.amount_paid > 0:
+            self.status = InvoiceStatus.PARTIAL
+
+    def __repr__(self):
+        return f"<Invoice {self.invoice_number} [{self.status}]>"
+
+
+class InvoiceLineItem(db.Model):
+    """A single charge line on an invoice (drug, lab, ward, etc.)."""
+    __tablename__ = 'invoice_line_items'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    invoice_id  = db.Column(db.Integer, db.ForeignKey('invoices.id'), nullable=False, index=True)
+
+    description = db.Column(db.String(255), nullable=False)
+    category    = db.Column(db.String(50), nullable=False)    # drug / lab / ward / theatre / imaging / consult / other
+    quantity    = db.Column(db.Numeric(10, 3), nullable=False, default=1)
+    unit_price  = db.Column(db.Numeric(12, 2), nullable=False)
+    discount    = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    total       = db.Column(db.Numeric(12, 2), nullable=False)
+
+    # Optional FK back to source domain tables
+    charge_id   = db.Column(db.Integer, db.ForeignKey('charges.id'), nullable=True)
+
+    invoice     = db.relationship('Invoice', back_populates='line_items')
+
+    def __init__(self, **kwargs):
+        if 'amount' in kwargs:
+            val = kwargs.pop('amount')
+            kwargs['unit_price'] = val
+            kwargs['total'] = val
+        super().__init__(**kwargs)
+
+    @property
+    def amount(self):
+        return self.total
+
+    @amount.setter
+    def amount(self, value):
+        self.unit_price = value
+        self.total = value
+
+    def calculate_total(self):
+        self.total = (self.unit_price * self.quantity) - self.discount
+
+    def __repr__(self):
+        return f"<LineItem {self.description} x{self.quantity} = {self.total}>"
+
+
+class Payment(db.Model):
+    """A single payment transaction applied to an invoice (supports partial payments)."""
+    __tablename__ = 'payments'
+
+    id              = db.Column(db.Integer, primary_key=True)
+    invoice_id      = db.Column(db.Integer, db.ForeignKey('invoices.id'), nullable=False, index=True)
+    patient_id      = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False, index=True)
+
+    amount          = db.Column(db.Numeric(12, 2), nullable=False)
+    method          = db.Column(db.Enum(PaymentMethod), nullable=False, default=PaymentMethod.CASH)
+    reference       = db.Column(db.String(100), nullable=True)   # M-Pesa receipt, bank ref, etc.
+    receipt_number  = db.Column(db.String(30), unique=True, nullable=True)
+
+    paid_at         = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    recorded_by     = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    notes           = db.Column(db.Text, nullable=True)
+
+    # M-Pesa specific (populated by Task 2.4 Daraja integration)
+    mpesa_checkout_id   = db.Column(db.String(100), nullable=True)
+    mpesa_result_code   = db.Column(db.Integer, nullable=True)
+
+    invoice  = db.relationship('Invoice', back_populates='payments')
+    patient  = db.relationship('Patient', backref=db.backref('unified_payments', lazy='dynamic'))
+
+    def __repr__(self):
+        return f"<Payment {self.receipt_number} {self.amount} via {self.method}>"

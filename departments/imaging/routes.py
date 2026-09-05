@@ -506,7 +506,7 @@ def process_imaging_request(request_id):
         imaging_request=imaging_request,
         imaging=imaging,
         draft_report=draft_report,
-        ai_enabled=models['image_model'] is not None
+        ai_enabled=nim_client is not None
     )
 @bp.route('/view_result/<string:result_id>', methods=['GET'])
 @login_required
@@ -681,7 +681,7 @@ def index():
         return render_template(
             'imaging/index.html',
             pending_requests=pending_requests or [],
-            models_loaded=bool(models['image_model'])
+            models_loaded=nim_client is not None
         )
     except Exception as e:
         flash(f'Database error: {str(e)}', 'error')

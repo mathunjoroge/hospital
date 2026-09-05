@@ -11,6 +11,7 @@ from departments.models.medicine import TheatreList, TheatreProcedure, AdmittedP
 from sqlalchemy.orm import joinedload
 import logging
 from departments.rbac import roles_required
+from departments.api.audit import log_audit_event
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -398,7 +399,7 @@ def pay_all(patient_id):
 
     except Exception as e:
         db.session.rollback()
-        flash(f'An error occurred while marking bills as paid: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         return redirect(url_for('billing.view_unpaid_bills', patient_id=patient_id))
 
 @bp.route('/paid_bills/<patient_id>')
@@ -575,6 +576,7 @@ def pay_bills(patient_id):
 
             db.session.commit()
             logger.info(f"Payment processed successfully! Receipt Number: {receipt_number}")
+            log_audit_event('BILL_PAYMENT', resource_type='PaidBill', resource_id=receipt_number, details={'patient_id': patient_id, 'amount_paid': str(amount_paid), 'payment_method': payment_method})
             flash(f'Payment processed successfully! Receipt Number: {receipt_number}', 'success')
             return render_template(
                 'billing/view_unpaid_bills.html',
@@ -590,8 +592,8 @@ def pay_bills(patient_id):
 
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error processing payment: {str(e)}")
-            flash(f'Error processing payment: {str(e)}', 'error')
+            logger.error(f"Error processing payment for patient {patient_id}: {e}", exc_info=True)
+            flash('Payment processing failed. Please try again or contact support.', 'error')
             return redirect(url_for('billing.pay_bills', patient_id=patient_id))
 
     # GET request: Show payment form

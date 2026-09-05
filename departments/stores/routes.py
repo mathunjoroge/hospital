@@ -247,7 +247,7 @@ def manage_reagent_requests():
 
     except Exception as e:
         db.session.rollback()
-        flash(f"Error managing commodity requests: {e}", "error")
+        flash('Something went wrong. Please try again.', 'error')
         print(f"Debug: Error in stores.manage_reagent_requests: {e}")
         return redirect(url_for('stores.index'))
 

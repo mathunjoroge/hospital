@@ -1,0 +1,38 @@
+# ---- builder ----
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential gcc libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY departments/nlp/src/requirements.txt ./nlp-requirements.txt 2>/dev/null || true
+COPY requirements.txt .
+# Install only what the NLP service needs
+RUN pip install --no-cache-dir --prefix=/install \
+        fastapi uvicorn[standard] slowapi pydantic \
+        nltk spacy torch transformers \
+        psycopg2-binary python-dotenv bleach requests
+
+# ---- runtime ----
+FROM python:3.12-slim
+
+WORKDIR /nlp
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /install /usr/local
+COPY departments/nlp/ .
+
+RUN adduser --disabled-password --gecos "" nlpuser \
+    && chown -R nlpuser:nlpuser /nlp
+USER nlpuser
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+EXPOSE 8000
+
+CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
