@@ -1,0 +1,35 @@
+{% extends "patient_portal/layout.html" %}
+
+{% block title %}Verified Lab Results{% endblock %}
+
+{% block content %}
+<h2>Verified Laboratory Results</h2>
+<p style="color: var(--text-muted);">Only lab results that have been formally reviewed and released by clinical staff are displayed below.</p>
+
+<div class="card">
+    {% if labs %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Date Requested</th>
+                    <th>Lab Test Name</th>
+                    <th>Status</th>
+                    <th>Result / Summary</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lab in labs %}
+                <tr>
+                    <td>{{ lab.created_at.strftime('%Y-%m-%d %H:%M') if lab.created_at else 'N/A' }}</td>
+                    <td><strong>{{ lab.test_name or 'Laboratory Exam' }}</strong></td>
+                    <td><span class="badge badge-success">{{ lab.status }}</span></td>
+                    <td>{{ lab.result_summary or lab.findings or 'Verified — No abnormal findings.' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p style="color: var(--text-muted); padding: 1rem 0;">No verified or released laboratory results are available at this time. Results will appear here once reviewed by your doctor.</p>
+    {% endif %}
+</div>
+{% endblock %}

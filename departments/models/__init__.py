@@ -83,6 +83,7 @@ from .nursing import (
     Partogram,
     Vitals,
 )
+from .patient_user import PatientUser
 from .pharmacy import (
     Batch,
     DispensedDrug,
@@ -129,5 +130,5 @@ __all__ = [
     'Patient', 'PatientWaitingList', 'Clinic', 'ClinicBooking',
     'PatientIdentifier', 'PatientMerge',
     'NonPharmCategory', 'NonPharmItem', 'OtherOrder',
-    'User'
+    'User', 'PatientUser'
 ]

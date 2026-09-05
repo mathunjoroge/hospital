@@ -1,0 +1,47 @@
+{% extends "patient_portal/layout.html" %}
+
+{% block title %}Register Account{% endblock %}
+
+{% block content %}
+<div style="max-width: 500px; margin: 2rem auto;">
+    <div class="card">
+        <h2>Register Patient Portal Account</h2>
+        <p style="color: var(--text-muted);">Connect your existing hospital medical record to an online account.</p>
+
+        <form action="{{ url_for('patient_portal.register') }}" method="POST">
+            <div class="form-group">
+                <label for="national_id">National ID or Passport Number</label>
+                <input type="text" id="national_id" name="national_id" class="form-control" placeholder="e.g. 12345678">
+            </div>
+
+            <div class="form-group">
+                <label for="patient_id">Or Hospital Patient ID (MRN)</label>
+                <input type="text" id="patient_id" name="patient_id" class="form-control" placeholder="e.g. 101">
+            </div>
+
+            <hr style="border-color: var(--border); margin: 1rem 0;">
+
+            <div class="form-group">
+                <label for="username">Choose Username</label>
+                <input type="text" id="username" name="username" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password (min. 8 characters)</label>
+                <input type="password" id="password" name="password" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
+            </div>
+
+            <button type="submit" class="btn" style="width: 100%;">Create Account</button>
+        </form>
+
+        <p style="text-align: center; color: var(--text-muted); margin-top: 1rem;">
+            Already registered? <a href="{{ url_for('patient_portal.login') }}" style="color: var(--primary);">Log in</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

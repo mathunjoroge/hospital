@@ -1,0 +1,71 @@
+{% extends "patient_portal/layout.html" %}
+
+{% block title %}Insurance & Claims{% endblock %}
+
+{% block content %}
+<h2>Insurance & Claims (SHA / SHIF)</h2>
+
+<div class="card">
+    <h3>Active Insurance Coverages</h3>
+    {% if policies %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Scheme Name</th>
+                    <th>Policy / Membership #</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pol in policies %}
+                <tr>
+                    <td>{{ pol.scheme.name if pol.scheme else 'SHA/SHIF Scheme' }}</td>
+                    <td>{{ pol.policy_number or 'N/A' }}</td>
+                    <td><span class="badge badge-success">{{ 'Active' if pol.is_active else 'Inactive' }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p style="color: var(--text-muted);">No active insurance policies linked to your patient profile.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3>Submitted Insurance Claims</h3>
+    {% if claims %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Claim #</th>
+                    <th>Date Submitted</th>
+                    <th>Claimed Amount</th>
+                    <th>Approved Amount</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in claims %}
+                <tr>
+                    <td>#{{ c.id }}</td>
+                    <td>{{ c.created_at.strftime('%Y-%m-%d') if c.created_at else '-' }}</td>
+                    <td>KES {{ "%.2f"|format(c.claimed_amount or 0.0) }}</td>
+                    <td>KES {{ "%.2f"|format(c.approved_amount or 0.0) }}</td>
+                    <td>
+                        {% if c.status == 'APPROVED' %}
+                            <span class="badge badge-success">APPROVED</span>
+                        {% elif c.status == 'REJECTED' %}
+                            <span class="badge badge-danger">REJECTED</span>
+                        {% else %}
+                            <span class="badge badge-warning">{{ c.status }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p style="color: var(--text-muted);">No insurance claims submitted.</p>
+    {% endif %}
+</div>
+{% endblock %}

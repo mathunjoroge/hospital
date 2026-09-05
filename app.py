@@ -345,6 +345,7 @@ from departments.mortuary import bp as mortuary_bp  # noqa: E402
 from departments.nursing import bp as nursing_bp  # noqa: E402
 from departments.nursing.mar import mar_bp  # noqa: E402
 from departments.nursing.triage import triage_bp  # noqa: E402
+from departments.patient_portal import patient_portal_bp  # noqa: E402
 from departments.pharmacy import bp as pharmacy_bp  # noqa: E402
 from departments.pharmacy.fefo import fefo_bp  # noqa: E402
 from departments.records import bp as records_bp  # noqa: E402
@@ -362,6 +363,7 @@ app.register_blueprint(nursing_bp, url_prefix='/nursing')
 app.register_blueprint(hr_bp, url_prefix='/hr')
 app.register_blueprint(mortuary_bp, url_prefix='/mortuary')
 app.register_blueprint(api_bp, url_prefix='/api')
+app.register_blueprint(patient_portal_bp, url_prefix='/portal')
 app.register_blueprint(mpesa_bp)
 app.register_blueprint(triage_bp)
 app.register_blueprint(prescribe_bp)

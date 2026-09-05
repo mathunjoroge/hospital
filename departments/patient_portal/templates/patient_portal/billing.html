@@ -1,0 +1,75 @@
+{% extends "patient_portal/layout.html" %}
+
+{% block title %}Billing & Invoices{% endblock %}
+
+{% block content %}
+<h2>Billing & Payment History</h2>
+
+<div class="card">
+    <h3>Invoices</h3>
+    {% if invoices %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Invoice #</th>
+                    <th>Date</th>
+                    <th>Total Amount</th>
+                    <th>Paid Amount</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in invoices %}
+                <tr>
+                    <td>#{{ inv.id }}</td>
+                    <td>{{ inv.created_at.strftime('%Y-%m-%d') if inv.created_at else '-' }}</td>
+                    <td>KES {{ "%.2f"|format(inv.total_amount or 0.0) }}</td>
+                    <td>KES {{ "%.2f"|format(inv.paid_amount or 0.0) }}</td>
+                    <td>
+                        {% if inv.status == 'PAID' %}
+                            <span class="badge badge-success">PAID</span>
+                        {% elif inv.status == 'PARTIAL' %}
+                            <span class="badge badge-warning">PARTIAL</span>
+                        {% else %}
+                            <span class="badge badge-info">{{ inv.status }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p style="color: var(--text-muted);">No invoices on record.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3>Payments Received</h3>
+    {% if payments %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Payment #</th>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Method</th>
+                    <th>Reference</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in payments %}
+                <tr>
+                    <td>#{{ p.id }}</td>
+                    <td>{{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '-' }}</td>
+                    <td>KES {{ "%.2f"|format(p.amount or 0.0) }}</td>
+                    <td>{{ p.payment_method or 'Cash/M-Pesa' }}</td>
+                    <td>{{ p.transaction_reference or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p style="color: var(--text-muted);">No payment transactions recorded.</p>
+    {% endif %}
+</div>
+{% endblock %}

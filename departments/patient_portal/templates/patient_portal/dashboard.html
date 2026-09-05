@@ -1,0 +1,93 @@
+{% extends "patient_portal/layout.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h2>Welcome, {{ patient.name }}</h2>
+<p style="color: var(--text-muted);">Patient ID: #{{ patient.id }} | National ID: {{ patient.national_id or 'N/A' }} | Gender: {{ patient.gender or 'N/A' }}</p>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+    <div>
+        <div class="card">
+            <h3>Upcoming Appointments</h3>
+            {% if upcoming_bookings %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Clinic</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in upcoming_bookings %}
+                        <tr>
+                            <td>{{ b.booking_date }}</td>
+                            <td>{{ b.clinic.name if b.clinic else 'General Clinic' }}</td>
+                            <td><span class="badge badge-info">{{ b.status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p style="color: var(--text-muted);">No upcoming appointments scheduled.</p>
+            {% endif %}
+            <a href="{{ url_for('patient_portal.appointments') }}" class="btn" style="margin-top: 1rem;">Book New Appointment</a>
+        </div>
+
+        <div class="card">
+            <h3>Recent Verified Lab Results</h3>
+            {% if released_labs %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Lab Test</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lab in released_labs %}
+                        <tr>
+                            <td>{{ lab.created_at.strftime('%Y-%m-%d') if lab.created_at else 'N/A' }}</td>
+                            <td>{{ lab.test_name or 'Lab Test' }}</td>
+                            <td><span class="badge badge-success">{{ lab.status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p style="color: var(--text-muted);">No released lab results available at this time.</p>
+            {% endif %}
+            <a href="{{ url_for('patient_portal.lab_results') }}" style="color: var(--primary); display: inline-block; margin-top: 0.5rem;">View All Verified Results &rarr;</a>
+        </div>
+    </div>
+
+    <div>
+        <div class="card">
+            <h3>Contact Information</h3>
+            <form action="{{ url_for('patient_portal.update_profile') }}" method="POST">
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="text" id="phone" name="phone" value="{{ patient.phone or '' }}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" value="{{ patient.email or '' }}" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="address">Address</label>
+                    <input type="text" id="address" name="address" value="{{ patient.address or '' }}" class="form-control">
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Update Details</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3>Billing Quick Status</h3>
+            <p>Recent Invoices: <strong>{{ recent_invoices|length }}</strong></p>
+            <a href="{{ url_for('patient_portal.billing') }}" class="btn" style="width: 100%; text-align: center; box-sizing: border-box;">View Invoices & Payments</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
