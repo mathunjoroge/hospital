@@ -1,7 +1,7 @@
-from extensions import db 
-from datetime import datetime
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+
+
+from extensions import db
+
 
 # Imaging Results Table
 class ImagingResult(db.Model):

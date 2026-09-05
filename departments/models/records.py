@@ -1,5 +1,8 @@
-from extensions import db  # Use absolute import for db
 from datetime import date, datetime
+
+from extensions import db  # Use absolute import for db
+
+
 class Patient(db.Model):
     """Represents a patient."""
     __tablename__ = 'patients'
@@ -62,7 +65,7 @@ class Patient(db.Model):
 class PatientIdentifier(db.Model):
     """Alternate patient identifiers (Birth Certificate, Passport, Emergency Temp ID, etc.)."""
     __tablename__ = 'patient_identifiers'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)
     identifier_type = db.Column(db.String(50), nullable=False)  # e.g. Passport, Birth Notification, Refugee ID
@@ -74,7 +77,7 @@ class PatientIdentifier(db.Model):
 class PatientMerge(db.Model):
     """Audit log of merged patient records."""
     __tablename__ = 'patient_merges'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     source_patient_id = db.Column(db.String(20), nullable=False)
     target_patient_id = db.Column(db.String(20), nullable=False)
@@ -82,11 +85,11 @@ class PatientMerge(db.Model):
     merged_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     notes = db.Column(db.Text, nullable=True)
 
-    
+
 class PatientWaitingList(db.Model):
     """Represents a waiting list for patients."""
     __tablename__ = 'patient_waiting_list'
-    
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)  # Primary key with autoincrement
     patient_id = db.Column(db.String(10), db.ForeignKey('patients.patient_id'), nullable=False)  # Foreign key to Patient
     seen = db.Column(db.Integer, default=0, nullable=False)  # Whether the patient has been seen (0 = No, 1 = Yes)
@@ -109,7 +112,7 @@ class Clinic(db.Model):
 
     def __repr__(self):
         return f"<Clinic {self.name}>"
-    
+
 
 
 
@@ -134,4 +137,3 @@ class ClinicBooking(db.Model):
 
 
 
-    

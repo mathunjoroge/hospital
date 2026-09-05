@@ -1,5 +1,7 @@
 from flask_login import UserMixin
+
 from extensions import db  # Import db from extensions
+
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'

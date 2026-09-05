@@ -1,11 +1,13 @@
-from extensions import db  # Use absolute import for db
-from departments.models.pharmacy import Drug
+import enum
 from datetime import datetime
+
+from extensions import db  # Use absolute import for db
+
 
 class ChargeCategory(db.Model):
     """Categories of charges (Consultation, Lab, Surgery, etc.)."""
     __tablename__ = 'charge_categories'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
 
@@ -184,8 +186,8 @@ class ImagingBill(db.Model):
         return f"<ImagingBill(id={self.id}, patient_id={self.patient_id}, total_paid={self.total_paid}, receipt_number={self.receipt_number})>"
 
 
- 
-        
+
+
 
 # ═══════════════════════════════════════════════════════
 # UNIFIED BILLING — Task 2.2
@@ -193,8 +195,6 @@ class ImagingBill(db.Model):
 # Legacy tables above are kept for zero-breakage backcompat.
 # All new billing code should write to these models.
 # ═══════════════════════════════════════════════════════
-
-import enum
 
 class InvoiceStatus(str, enum.Enum):
     DRAFT    = 'draft'
@@ -309,7 +309,7 @@ class Invoice(db.Model):
         sub = sum(float(li.total) for li in self.line_items)
         disc = float(self.discount or 0)
         paid = sum(float(p.amount) for p in self.payments)
-        
+
         if sub > 0:
             self.subtotal = sub
             self.grand_total = sub - disc

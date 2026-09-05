@@ -1,9 +1,11 @@
-from extensions import db 
-from sqlalchemy.orm import column_property
-from datetime import date,datetime
-from sqlalchemy import Column, Integer, String, Date, Float, ForeignKey
-from sqlalchemy.orm import relationship
 import uuid
+from datetime import date, datetime
+
+from sqlalchemy.orm import relationship
+
+from extensions import db
+
+
 class DrugCategory(db.Model):
     __tablename__ = 'drugs_category'
     id = db.Column(db.Integer, primary_key=True)
@@ -22,13 +24,13 @@ class Drug(db.Model):
     selling_price = db.Column(db.Float, nullable=False)
     quantity_in_stock = db.Column(db.Integer, default=0, nullable=False)  # Sum of batch quantities
     reorder_level = db.Column(db.Integer)
-    
+
     # Relationship
     category = db.relationship('DrugCategory', backref=db.backref('drugs', lazy=True))
 
 class Batch(db.Model):
     __tablename__ = 'batches'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     drug_id = db.Column(db.Integer, db.ForeignKey('drugs.id'), nullable=False)
     batch_number = db.Column(db.String(100), nullable=True)
@@ -37,7 +39,7 @@ class Batch(db.Model):
 
     # Relationship
     drug = db.relationship('Drug', backref=db.backref('batches', lazy=True))
-    
+
     def __repr__(self):
         return f"<Batch {self.batch_number} - Drug {self.drug.generic_name}>"
 
@@ -77,7 +79,7 @@ class DispensedDrug(db.Model):
 
     def __repr__(self):
         return f"<DispensedDrug {self.drug_id} - {self.quantity_dispensed} dispensed for Patient {self.patient_id}>"
-        
+
 class Expiry(db.Model):
     __tablename__ = 'expiries'
     id = db.Column(db.Integer, primary_key=True)
@@ -105,6 +107,5 @@ class RequestItem(db.Model):
     quantity_requested = db.Column(db.Integer, nullable=False)
     quantity_issued = db.Column(db.Integer, nullable=False, default=0)
     comments = db.Column(db.Text)
-    drug = db.relationship('Drug', backref='request_items')     
+    drug = db.relationship('Drug', backref='request_items')
 
-             

@@ -1,6 +1,7 @@
-from extensions import db 
-from datetime import datetime
-from sqlalchemy.orm import relationship
+
+
+from extensions import db
+
 
 class LabResultTemplate(db.Model):
     __tablename__ = 'labresults_templates'
@@ -15,7 +16,7 @@ class LabResultTemplate(db.Model):
 
     def __repr__(self):
         return f"<LabResultTemplate {self.parameter_name} for Test {self.test_id}>"
-    
+
 class LabResult(db.Model):
     __tablename__ = 'lab_results'
 
@@ -42,5 +43,5 @@ class LabResult(db.Model):
     verifier = db.relationship('User', foreign_keys=[verified_by], backref=db.backref('verified_results', lazy=True))
 
     def __repr__(self):
-        return f"<LabResult {self.id} - Patient {self.patient_id}, Test {self.lab_test_id}>"  
+        return f"<LabResult {self.id} - Patient {self.patient_id}, Test {self.lab_test_id}>"
 

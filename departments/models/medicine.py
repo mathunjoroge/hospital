@@ -1,8 +1,10 @@
-from extensions import db 
-from datetime import datetime, date
+from datetime import date, datetime
+
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from departments.models.user import User
+
+from extensions import db
+
+
 class SOAPNote(db.Model):
     __tablename__ = 'soap_notes'
 
@@ -42,7 +44,7 @@ class Medicine(db.Model):
 
 class PrescribedMedicine(db.Model):
     __tablename__ = 'prescribed_medicines'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Text, db.ForeignKey('patients.patient_id'), nullable=False)
     medicine_id = db.Column(db.Integer, db.ForeignKey('medicines.id'), nullable=False)
@@ -85,7 +87,7 @@ class LabTest(db.Model):
 
 class RequestedLab(db.Model):
     __tablename__ = 'requested_labs'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)
     lab_test_id = db.Column(db.Integer, db.ForeignKey('labtests.id'), nullable=False)
@@ -102,7 +104,6 @@ class RequestedLab(db.Model):
         return f'<RequestedLab {self.lab_test_id} for Patient {self.patient_id}>'
 
 
-from departments.models.imaging import ImagingResult
 
 
 # Imaging Tests Table
@@ -116,7 +117,7 @@ class Imaging(db.Model):
     requested_images = db.relationship('RequestedImage', backref='imaging', lazy=True)
 
     def __repr__(self):
-        return f"<Imaging {self.imaging_type}>"    
+        return f"<Imaging {self.imaging_type}>"
 
 
 # Imaging Requests Table
@@ -150,7 +151,7 @@ class UnmatchedImagingRequest(db.Model):
 
     def __repr__(self):
         return f"<UnmatchedImagingRequest for Patient {self.patient_id}: {self.description}>"
-    
+
 #table theater procedures
 class TheatreProcedure(db.Model):
     __tablename__ = 'theatre_procedures'
@@ -165,7 +166,7 @@ class TheatreProcedure(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):
-        return f"<TheatreProcedure(id={self.id}, name={self.name}, type={self.type}, cost={self.cost})>"   
+        return f"<TheatreProcedure(id={self.id}, name={self.name}, type={self.type}, cost={self.cost})>"
 class TheatreList(db.Model):
     __tablename__ = 'theatre_list'
 
@@ -187,7 +188,7 @@ class TheatreList(db.Model):
     procedure = db.relationship('TheatreProcedure', backref='theatre_procedures')
 
     def __repr__(self):
-        return f"<TheatreList(id={self.id}, patient_id={self.patient_id}, procedure={self.procedure_id}, status={self.status})>"  
+        return f"<TheatreList(id={self.id}, patient_id={self.patient_id}, procedure={self.procedure_id}, status={self.status})>"
 
 class Ward(db.Model):
     """Model for hospital wards."""
@@ -228,9 +229,9 @@ class AdmittedPatient(db.Model):
     ward = db.relationship("Ward", backref="admitted_patients")
     patient = db.relationship("Patient", backref=db.backref("admitted_records", lazy=True))
 
-    
+
     def __repr__(self):
-        return f"<AdmittedPatient {self.patient_id} - Ward: {self.ward_id} - Admitted On: {self.admitted_on}>"  
+        return f"<AdmittedPatient {self.patient_id} - Ward: {self.ward_id} - Admitted On: {self.admitted_on}>"
 
 class WardBedHistory(db.Model):
     """Tracks changes in bed usage for wards."""
@@ -248,7 +249,7 @@ class WardBedHistory(db.Model):
 
     def __repr__(self):
         return f"<BedHistory {self.action} - Ward: {self.ward_id} - Patient: {self.patient_id}>"
-    
+
 class WardRoom(db.Model):
     """Model to track individual rooms in a ward."""
     __tablename__ = "ward_rooms"
@@ -288,7 +289,7 @@ class WardRound(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationship
-    doctor = db.relationship("User", backref="ward_rounds")    
+    doctor = db.relationship("User", backref="ward_rounds")
 
 
 class Disease(db.Model):
@@ -301,7 +302,7 @@ class Disease(db.Model):
     keywords = db.relationship('DiseaseKeyword', backref='disease', lazy=True)
     symptoms = db.relationship('Symptom', secondary='disease_symptoms', back_populates='diseases')
     management_plan = db.relationship('DiseaseManagementPlan', backref='disease', uselist=False, lazy=True)
-    
+
     # New relationship for lab tests
     lab_tests = db.relationship('DiseaseLab', backref='disease', lazy=True)
 
@@ -356,7 +357,7 @@ class OncoPatient(db.Model):
     cancer_type = db.Column(db.String(100), nullable=False)  # e.g., 'Breast', 'Lung', 'Prostate'
     stage = db.Column(db.String(20), nullable=False)  # e.g., 'Stage I', 'Stage II'
     date_enrolled = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    status = db.Column(db.String(20), default='Active', nullable=False) 
+    status = db.Column(db.String(20), default='Active', nullable=False)
     patient = db.relationship('Patient', backref=db.backref('oncology_records', lazy='dynamic', cascade='all, delete-orphan'))
     def __repr__(self):
         return f"<OncoPatient {self.patient_id}: {self.diagnosis}>"
@@ -372,7 +373,7 @@ class OncologyNote(db.Model):
     patient = db.relationship('Patient', backref=db.backref('oncology_notes', lazy='dynamic', cascade='all, delete-orphan'))
 
     def __repr__(self):
-        return f"<OncologyNote for patient_id={self.patient_id} on {self.note_date}>"    
+        return f"<OncologyNote for patient_id={self.patient_id} on {self.note_date}>"
 
 class OncoDrugCategory(db.Model):
     __tablename__ = 'onco_drug_categories'
@@ -519,7 +520,7 @@ class OncologyBooking(db.Model):
     patient = db.relationship('Patient', backref='oncology_bookings')
 
     def __repr__(self):
-        return f"<OncologyBooking {self.purpose} for patient_id={self.patient_id}>" 
+        return f"<OncologyBooking {self.purpose} for patient_id={self.patient_id}>"
 class PrescriptionDrugDetail(db.Model):
     __tablename__ = 'prescription_drug_details'
     id = db.Column(db.Integer, primary_key=True)
@@ -534,10 +535,10 @@ class PrescriptionDrugDetail(db.Model):
     drug = db.relationship('OncologyDrug', backref=db.backref('prescription_details', lazy='dynamic'))
 
     def __repr__(self):
-        return f"<PrescriptionDrugDetail prescription_id={self.prescription_id}, drug_id={self.drug_id}>" 
+        return f"<PrescriptionDrugDetail prescription_id={self.prescription_id}, drug_id={self.drug_id}>"
 class CancerType(db.Model):
     __tablename__ = 'cancer_types'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(50), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
@@ -561,7 +562,7 @@ class CancerType(db.Model):
 
 class CancerStage(db.Model):
     __tablename__ = 'cancer_stages'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(50), unique=True, nullable=False)
     label = db.Column(db.String(100), nullable=False)
@@ -580,7 +581,7 @@ class CancerStage(db.Model):
 
 class CancerTypeStage(db.Model):
     __tablename__ = 'cancer_type_stages'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     cancer_type_id = db.Column(db.Integer, db.ForeignKey('cancer_types.id'), nullable=False)
     cancer_stage_id = db.Column(db.Integer, db.ForeignKey('cancer_stages.id'), nullable=False)
@@ -593,7 +594,7 @@ class CancerTypeStage(db.Model):
         return f"<CancerTypeStage {self.cancer_type.name} - {self.cancer_stage.label}>"
 class CancerDetail(db.Model):
     __tablename__ = 'cancer_details'
-    
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     cancer_type_id = db.Column(db.Integer, db.ForeignKey('cancer_types.id'), nullable=False)
     description = db.Column(db.Text, nullable=False)
@@ -601,13 +602,13 @@ class CancerDetail(db.Model):
     management = db.Column(db.Text, nullable=False)
     risk_factors = db.Column(db.Text, nullable=True)
     epidemiology = db.Column(db.Text, nullable=True)
-    
+
     # Relationship to CancerType
     cancer_type = db.relationship('CancerType', backref=db.backref('details', lazy=True, cascade="all, delete-orphan"))
-    
+
     def __repr__(self):
         return f'<CancerDetail {self.id} for CancerType {self.cancer_type_id}>'
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -619,6 +620,6 @@ class CancerDetail(db.Model):
             'epidemiology': self.epidemiology,
             'cancer_type_code': self.cancer_type.code if self.cancer_type else None,
             'cancer_type_name': self.cancer_type.name if self.cancer_type else None
-        }         
+        }
 
-  
+

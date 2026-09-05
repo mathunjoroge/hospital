@@ -1,6 +1,7 @@
-from extensions import db
-from sqlalchemy.orm import relationship
 from datetime import datetime
+
+from extensions import db
+
 
 # Rota Table
 class Rota(db.Model):
@@ -37,7 +38,7 @@ class Employee(db.Model):
 
     def __repr__(self):
         return f"<Employee {self.name} - ID: {self.employee_id}>"
-    
+
 class Allowance(db.Model):
     """Represents an allowance for a specific job group."""
     __tablename__ = 'allowances'
@@ -76,7 +77,7 @@ class Deduction(db.Model):
     is_percentage = db.Column(db.Boolean, default=False)  # Whether the value is a percentage
 
     def __repr__(self):
-        return f"<Deduction {self.name} - Value: {self.value}>"    
+        return f"<Deduction {self.name} - Value: {self.value}>"
 class Leave(db.Model):
     __tablename__ = 'leaves'
     id = db.Column(db.Integer, primary_key=True)
@@ -84,7 +85,7 @@ class Leave(db.Model):
     start_date = db.Column(db.DateTime, nullable=False)
     end_date = db.Column(db.DateTime, nullable=False)
     type = db.Column(db.String(50), nullable=False)  # e.g., sick leave, vacation
-    status = db.Column(db.String(20), default='Pending')  # e.g., Pending, Approved, Rejected  
+    status = db.Column(db.String(20), default='Pending')  # e.g., Pending, Approved, Rejected
 class CustomRule(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)
@@ -92,13 +93,13 @@ class CustomRule(db.Model):
     type = db.Column(db.String(50), nullable=False)  # e.g., deduction, allowance
     name = db.Column(db.String(100), nullable=False)
     value = db.Column(db.Float, nullable=False)
-    is_percentage = db.Column(db.Boolean, default=False)   
+    is_percentage = db.Column(db.Boolean, default=False)
 class AuditLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     action = db.Column(db.String(100), nullable=False)  # e.g., "Added Deduction", "Updated Employee"
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    details = db.Column(db.Text, nullable=False)  # JSON or text description of the change       
+    details = db.Column(db.Text, nullable=False)  # JSON or text description of the change
 
 
 

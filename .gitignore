@@ -53,7 +53,7 @@ static/dicom_Uploads/*
 flask_session/
 
 # Ignore downloaded model files and weights
-models/
+/models/
 *.bin
 *.pt
 *.pth

@@ -1,5 +1,7 @@
-from extensions import db
 from datetime import datetime
+
+from extensions import db
+
 
 class NursingNote(db.Model):
     __tablename__ = 'nursing_notes'
@@ -81,7 +83,7 @@ class Partogram(db.Model):
     urine_volume = db.Column(db.Integer, nullable=False)  # In mL
     urine_acetone = db.Column(db.String(10), nullable=False)  # e.g., 'negative', '1+', '2+', '3+'
     # Patient and metadata
-   
+
     timestamp = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp(), index=True)
 
     def __repr__(self):

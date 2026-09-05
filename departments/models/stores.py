@@ -1,6 +1,8 @@
-from extensions import db 
-from sqlalchemy.orm import column_property
-from datetime import date,datetime
+
+
+from extensions import db
+
+
 class NonPharmCategory(db.Model):
     __tablename__ = 'non_pharm_categories'
     id = db.Column(db.Integer, primary_key=True)
@@ -16,7 +18,7 @@ class NonPharmItem(db.Model):
     unit = db.Column(db.String(20), nullable=False)   # e.g., "pieces", "kg", "liters"
     unit_cost = db.Column(db.Float, nullable=False, default=0.0)  # Cost per unit
     stock_level = db.Column(db.Integer, nullable=False, default=0)
-    in_dispensing = db.Column(db.Integer, nullable=False, default=0) 
+    in_dispensing = db.Column(db.Integer, nullable=False, default=0)
     # Relationship
     category = db.relationship('NonPharmCategory', backref='items')
     # Index for faster lookups
@@ -24,7 +26,7 @@ class NonPharmItem(db.Model):
 
     def __repr__(self):
         return f"<NonPharmItem {self.name} ({self.category.name})>"
-    
+
 class OtherOrder(db.Model):
     __tablename__ = 'other_orders'
     id = db.Column(db.Integer, primary_key=True)
@@ -39,4 +41,4 @@ class OtherOrder(db.Model):
     item = db.relationship('NonPharmItem', backref='orders')
 
     def __repr__(self):
-        return f"<OtherOrder {self.id} for {self.item.name}>"    
+        return f"<OtherOrder {self.id} for {self.item.name}>"
