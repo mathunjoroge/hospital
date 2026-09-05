@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .analytics-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0284c7 100%);
+    border-radius: 16px;
+    padding: 28px 36px;
+    color: #ffffff;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
+    margin-bottom: 28px;
+  }
+
+  .kpi-card {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .kpi-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.12);
+  }
+
+  .chart-card {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06);
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+</style>
+
+<div class="container-fluid py-4 px-4">
+  <!-- Analytics Banner -->
+  <div class="analytics-header d-flex justify-content-between align-items-center">
+    <div>
+      <h2 class="fw-bold mb-1"><i class="bi bi-graph-up-arrow me-2"></i>Executive Analytics Dashboard</h2>
+      <p class="mb-0 text-white-50">Hospital-wide operational metrics, bed occupancy, admission trends, and financial performance</p>
+    </div>
+    <a href="{{ url_for('admin.analytics', format='json') }}" target="_blank" class="btn btn-light fw-bold text-primary px-4 py-2 shadow-sm">
+      <i class="bi bi-filetype-json me-2"></i>Export JSON
+    </a>
+  </div>
+
+  <!-- KPI Top Metric Cards -->
+  <div class="row g-4 mb-4">
+    <!-- Bed Occupancy Rate -->
+    <div class="col-md-3">
+      <div class="kpi-card p-4 border-start border-4 border-primary">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="text-muted fw-semibold small text-uppercase"><i class="bi bi-hospital me-1 text-primary"></i> Bed Occupancy Rate</span>
+          <span class="badge bg-primary-subtle text-primary rounded-pill px-3">{{ kpis.bed_occupancy.occupancy_rate }}%</span>
+        </div>
+        <h2 class="fw-bold text-dark mb-1">{{ kpis.bed_occupancy.occupied_beds }} / {{ kpis.bed_occupancy.total_beds }}</h2>
+        <small class="text-muted">{{ kpis.bed_occupancy.available_beds }} beds currently available</small>
+      </div>
+    </div>
+
+    <!-- Active Inpatients -->
+    <div class="col-md-3">
+      <div class="kpi-card p-4 border-start border-4 border-info">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="text-muted fw-semibold small text-uppercase"><i class="bi bi-person-workspace me-1 text-info"></i> Active Inpatients</span>
+          <span class="badge bg-info-subtle text-info rounded-pill px-3">Admitted</span>
+        </div>
+        <h2 class="fw-bold text-dark mb-1">{{ kpis.bed_occupancy.occupied_beds }}</h2>
+        <small class="text-muted">Currently admitted patients</small>
+      </div>
+    </div>
+
+    <!-- Total Revenue Collected -->
+    <div class="col-md-3">
+      <div class="kpi-card p-4 border-start border-4 border-success">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="text-muted fw-semibold small text-uppercase"><i class="bi bi-cash-stack me-1 text-success"></i> Total Revenue</span>
+          <span class="badge bg-success-subtle text-success rounded-pill px-3">KES</span>
+        </div>
+        <h2 class="fw-bold text-dark mb-1">KES {{ "{:,.2f}".format(kpis.revenue_summary.total_collected) }}</h2>
+        <small class="text-muted">Collected across payment channels</small>
+      </div>
+    </div>
+
+    <!-- Insurance Claim Approval Rate -->
+    <div class="col-md-3">
+      <div class="kpi-card p-4 border-start border-4 border-warning">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="text-muted fw-semibold small text-uppercase"><i class="bi bi-shield-check me-1 text-warning"></i> Claims Approval Rate</span>
+          <span class="badge bg-warning-subtle text-warning rounded-pill px-3">{{ kpis.claims_stats.approval_rate }}%</span>
+        </div>
+        <h2 class="fw-bold text-dark mb-1">{{ kpis.claims_stats.approved_claims }} / {{ kpis.claims_stats.total_claims }}</h2>
+        <small class="text-muted">Claims approved or paid</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row 1: Admission Trend & Ward Occupancy -->
+  <div class="row g-4 mb-4">
+    <!-- Inpatient Admission Trend (30 Days) -->
+    <div class="col-lg-8">
+      <div class="chart-card h-100">
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+          <h5 class="fw-bold text-dark mb-0"><i class="bi bi-graph-up me-2 text-primary"></i>30-Day Inpatient Admission Trend</h5>
+          <span class="badge bg-light text-dark border">Daily Count</span>
+        </div>
+        <div style="height: 320px;">
+          <canvas id="admissionTrendChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ward Capacity & Occupancy Breakdown -->
+    <div class="col-lg-4">
+      <div class="chart-card h-100">
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+          <h5 class="fw-bold text-dark mb-0"><i class="bi bi-pie-chart me-2 text-info"></i>Ward Occupancy</h5>
+          <span class="badge bg-light text-dark border">Beds per Ward</span>
+        </div>
+        <div style="height: 320px;">
+          <canvas id="wardOccupancyChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row 2: Revenue Distribution & Insurance Claim Status -->
+  <div class="row g-4 mb-4">
+    <!-- Revenue Channels Distribution -->
+    <div class="col-md-6">
+      <div class="chart-card">
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+          <h5 class="fw-bold text-dark mb-0"><i class="bi bi-wallet2 me-2 text-success"></i>Revenue by Payment Channel</h5>
+          <span class="badge bg-light text-dark border">Payment Methods</span>
+        </div>
+        <div style="height: 280px;">
+          <canvas id="revenueChannelChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Insurance Claim Lifecycle Status -->
+    <div class="col-md-6">
+      <div class="chart-card">
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+          <h5 class="fw-bold text-dark mb-0"><i class="bi bi-file-earmark-medical me-2 text-warning"></i>Insurance Claims Status Ratio</h5>
+          <span class="badge bg-light text-dark border">Claims Breakdown</span>
+        </div>
+        <div style="height: 280px;">
+          <canvas id="claimsStatusChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+  const kpiData = {{ kpis | tojson }};
+
+  // 1. Admission Trend Chart (Line)
+  const trendLabels = kpiData.admission_trends.map(item => item.date);
+  const trendValues = kpiData.admission_trends.map(item => item.admissions);
+
+  new Chart(document.getElementById('admissionTrendChart'), {
+    type: 'line',
+    data: {
+      labels: trendLabels,
+      datasets: [{
+        label: 'Admissions',
+        data: trendValues,
+        borderColor: '#0284c7',
+        backgroundColor: 'rgba(2, 132, 199, 0.15)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4,
+        pointBackgroundColor: '#0284c7'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+        x: { ticks: { maxTicksLimit: 10 } }
+      }
+    }
+  });
+
+  // 2. Ward Occupancy Chart (Bar)
+  const wardLabels = kpiData.bed_occupancy.ward_breakdown.map(w => w.ward_name);
+  const wardOccupied = kpiData.bed_occupancy.ward_breakdown.map(w => w.occupied);
+  const wardAvailable = kpiData.bed_occupancy.ward_breakdown.map(w => w.available);
+
+  new Chart(document.getElementById('wardOccupancyChart'), {
+    type: 'bar',
+    data: {
+      labels: wardLabels.length ? wardLabels : ['No Wards Configured'],
+      datasets: [
+        {
+          label: 'Occupied',
+          data: wardOccupied.length ? wardOccupied : [0],
+          backgroundColor: '#ef4444'
+        },
+        {
+          label: 'Available',
+          data: wardAvailable.length ? wardAvailable : [0],
+          backgroundColor: '#22c55e'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+    }
+  });
+
+  // 3. Revenue Channel Chart (Doughnut)
+  const revMethods = Object.keys(kpiData.revenue_summary.by_method);
+  const revAmounts = Object.values(kpiData.revenue_summary.by_method);
+
+  new Chart(document.getElementById('revenueChannelChart'), {
+    type: 'doughnut',
+    data: {
+      labels: revMethods.length ? revMethods : ['No Revenue Records'],
+      datasets: [{
+        data: revAmounts.length ? revAmounts : [1],
+        backgroundColor: ['#16a34a', '#2563eb', '#7c3aed', '#d97706', '#64748b']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+
+  // 4. Claims Status Chart (Doughnut)
+  const claimStatuses = Object.keys(kpiData.claims_stats.by_status);
+  const claimCounts = Object.values(kpiData.claims_stats.by_status);
+
+  new Chart(document.getElementById('claimsStatusChart'), {
+    type: 'doughnut',
+    data: {
+      labels: claimStatuses.length ? claimStatuses : ['No Claims'],
+      datasets: [{
+        data: claimCounts.length ? claimCounts : [1],
+        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+</script>
+{% endblock %}

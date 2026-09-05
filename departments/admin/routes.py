@@ -519,3 +519,21 @@ def outbound_notifications():
         })
 
     return render_template('admin/logs.html', logs=pagination.items)
+
+
+@bp.route('/admin/analytics', methods=['GET'])
+@bp.route('/analytics', methods=['GET'])
+@login_required
+@roles_required('admin')
+def analytics():
+    """Admin dashboard view for hospital-wide executive KPIs and analytics."""
+    from flask import jsonify
+
+    from departments.admin.analytics import get_executive_kpi_summary
+
+    kpis = get_executive_kpi_summary()
+
+    if request.args.get('format') == 'json':
+        return jsonify(kpis)
+
+    return render_template('admin/analytics.html', kpis=kpis)

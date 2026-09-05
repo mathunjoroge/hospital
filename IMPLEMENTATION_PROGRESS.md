@@ -47,6 +47,7 @@
 
 - [x] **Phase A — Patient Self-Service Portal** ✅ (PatientUser auth, login/register, dashboard, appointment booking, lab results release gating, billing history & STK push pay, profile management with audit logging - 5/5 tests passing)
 - [x] **Phase B — Outbound Patient Communication** ✅ (Flask-Mail email driver, SMS sandbox abstraction, OutboundNotificationLog delivery auditing, 5 event triggers for appointments/labs/billing/payments/claims, 24h appointment reminder scheduler - 6/6 tests passing)
+- [x] **Phase C — Hospital-wide Analytics Dashboard** ✅ (`departments/admin/analytics.py` service, `/admin/analytics` HTML/JSON view, Chart.js executive dashboard for Bed Occupancy, 30-day Admission Trends, Revenue Breakdown by channel, and Insurance Claims approval ratios - 6/6 tests passing)
 
 
 
