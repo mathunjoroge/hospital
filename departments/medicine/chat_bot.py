@@ -1,74 +1,49 @@
-import requests 
-import pickle
-import re
-from flask import render_template, redirect, url_for, request, flash, jsonify,session
-from flask_wtf import FlaskForm
-from sqlalchemy import func
-from wtforms import SelectField
-from wtforms.validators import DataRequired
-from sqlalchemy import text
-import json
-from contextlib import contextmanager
-from typing import Optional, List, Dict, Any
-import psycopg2
-from datetime import date
-from psycopg2.extras import RealDictCursor
-from flask import current_app
-from flask_login import login_required, current_user
-from departments.rbac import roles_required, get_effective_role
-from flask_wtf.csrf import CSRFProtect,CSRFError
-from scipy.spatial.distance import cosine
-from extensions import db
-from flask import session
-from flask_socketio import SocketIO
-import uuid
-from uuid import uuid4
-from sqlalchemy.orm import joinedload
-import bleach 
-from . import bp
-from departments.forms import PatientSearchForm, OncoPatientForm, OncologyNoteForm, AdmitPatientForm
+import csv
 import os
-from datetime import datetime
-from departments.models.laboratory import LabResult,LabResultTemplate
-from departments.models.records import PatientWaitingList, Patient
-from departments.models.medicine import (
-    SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, 
-    RequestedImage, UnmatchedImagingRequest, TheatreProcedure, TheatreList, 
-    Ward, AdmittedPatient, SpecialWarning,RegimenDrugAssociation, 
-    OncologyBooking, OncoDrugCategory, RegimenCategory, 
-    WardBedHistory, WardRoom, Bed, WardRound,Disease, 
-    DiseaseManagementPlan, DiseaseLab, OncoPatient, 
-    OncologyDrug, OncologyRegimen, OncoPrescription, 
-    OncoTreatmentRecord,PrescriptionDrugDetail,OncologyNote,
-    CancerType, CancerStage, CancerTypeStage, CancerDetail
-)
-from departments.nlp.chatbot import UniversalClinicalSummarizer
-import logging
-import json
-from flask import Response, stream_with_context, request
+import re
 import time
-from departments.nlp.logging_setup import get_logger
-from flask.sessions import SecureCookieSessionInterface
-from departments.api.ai_audit import log_ai_call, validate_ai_input, AIMode, AITimer, AIInputValidationError
-logger = get_logger()
-import PyPDF2  # For PDF processing
-from docx import Document  # For DOCX processing
-import pytesseract  # For OCR on images
-from PIL import Image  # For image handling
-import csv  #
+from uuid import uuid4
+
+import bleach
+import PyPDF2
+import pytesseract
+from docx import Document
+from flask import (
+    Response,
+    current_app,
+    redirect,
+    render_template,
+    request,
+    session,
+    stream_with_context,
+)
+from flask_login import login_required
+from flask_wtf import FlaskForm
+from flask_wtf.csrf import CSRFError
+from PIL import Image
 from werkzeug.utils import secure_filename
 
+from departments.api.ai_audit import (
+    AIInputValidationError,
+    AIMode,
+    AITimer,
+    log_ai_call,
+    validate_ai_input,
+)
+from departments.nlp.chatbot import UniversalClinicalSummarizer
+from departments.nlp.logging_setup import get_logger
+
+from . import bp
+
+logger = get_logger()
+
 # Instantiate the summarizer for use in chatbot_interface
-
-
-from extensions import csrf
 
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
 nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
 Summarizer = UniversalClinicalSummarizer(gemini_api_key=gemini_api_key, nvidia_api_key=nvidia_api_key)
 
 
-from flask import make_response
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'txt', 'csv', 'docx'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB max file size
@@ -88,7 +63,7 @@ def extract_file_content(file):
             img = Image.open(file.stream)
             text = pytesseract.image_to_string(img)
             return text.strip() or "No text could be extracted from the image."
-        
+
         elif extension == 'pdf':
             # Extract text from PDF
             reader = PyPDF2.PdfReader(file.stream)
@@ -96,12 +71,12 @@ def extract_file_content(file):
             for page in reader.pages:
                 text += page.extract_text() or ''
             return text.strip() or "No text could be extracted from the PDF."
-        
+
         elif extension == 'txt':
             # Read plain text
             text = file.stream.read().decode('utf-8')
             return text.strip()
-        
+
         elif extension == 'csv':
             # Read CSV content
             text = ''
@@ -109,16 +84,16 @@ def extract_file_content(file):
             for row in reader:
                 text += ' '.join(row) + '\n'
             return text.strip()
-        
+
         elif extension == 'docx':
             # Extract text from DOCX
             doc = Document(file.stream)
             text = '\n'.join([para.text for para in doc.paragraphs])
             return text.strip() or "No text could be extracted from the DOCX."
-        
+
         else:
             return "Unsupported file type."
-    
+
     except Exception as e:
         logger.error(f"Error extracting content from file {filename}: {e}")
         return f"Error processing file: {str(e)}"
@@ -189,7 +164,7 @@ def chatbot_interface():
                         ).encode('utf-8'),
                         status=400
                     )
-                
+
                 # Check file size
                 file.stream.seek(0, os.SEEK_END)
                 file_size = file.stream.tell()
@@ -318,7 +293,7 @@ def chatbot_interface():
     logger.debug(f"Rendering chatbot template for session {session_id}")
     return render_template(
         'medicine/chat_bot.html',
-        conversation=[{'question': entry['content'], 'response': Summarizer._format_output(entry['content'])} 
+        conversation=[{'question': entry['content'], 'response': Summarizer._format_output(entry['content'])}
                       for entry in current_history if entry['role'] == 'user'],
         input_note='',
         form=ChatForm(),

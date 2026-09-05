@@ -4,19 +4,17 @@ tests/test_triage_esi.py
 Unit tests for Task 3.1: Emergency Severity Index (ESI 1-5) & Triage Workflow
 """
 
-import pytest
 from datetime import date
+
+import pytest
+
 try:
     from extensions import db
 except ImportError:
     from extensions import db
 
 from departments.models.records import Patient
-from departments.models.nursing import TriageAssessment, Vitals
-from departments.nursing.triage import (
-    validate_vitals,
-    calculate_esi_level
-)
+from departments.nursing.triage import calculate_esi_level, validate_vitals
 
 
 @pytest.fixture

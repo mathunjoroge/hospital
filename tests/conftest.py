@@ -1,4 +1,5 @@
 import os
+
 import pytest
 
 # ── Set test environment BEFORE any app imports ──
@@ -7,8 +8,8 @@ os.environ['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'  # in-memory
 os.environ.setdefault('SECRET_KEY', 'testing_secret_key_1234567890')
 os.environ.setdefault('SECURITY_PASSWORD_SALT', 'testing_salt_1234567890')
 
-from app import app as flask_app
-from extensions import db, limiter
+from app import app as flask_app  # noqa: E402
+from extensions import db, limiter  # noqa: E402
 
 
 @pytest.fixture(autouse=True)

@@ -10,16 +10,17 @@ Features:
 
 import logging
 from datetime import datetime
-from flask import Blueprint, request, jsonify
+
+from flask import Blueprint, jsonify, request
 
 try:
     from extensions import db
 except ImportError:
     from extensions import db
 
-from departments.models.medicine import Ward, AdmittedPatient, WardBedHistory
-from departments.models.nursing import MedicationAdmin
 from departments.models.billing import Invoice, InvoiceLineItem, InvoiceStatus
+from departments.models.medicine import AdmittedPatient, Ward
+from departments.models.nursing import MedicationAdmin
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ def get_ward_occupancy():
     """Real-time Ward & Bed Occupancy Dashboard data."""
     wards = Ward.query.all()
     occupancy_data = []
-    
+
     for ward in wards:
         occupancy_data.append({
             "ward_id": ward.id,
@@ -40,7 +41,7 @@ def get_ward_occupancy():
             "available_beds": ward.available_beds(),
             "daily_charge": float(ward.daily_charge)
         })
-        
+
     return jsonify({"occupancy": occupancy_data, "count": len(occupancy_data)}), 200
 
 
@@ -52,10 +53,10 @@ def chart_medication():
     medication = data.get('medication')
     dosage = data.get('dosage')
     nurse_id = data.get('nurse_id')
-    
+
     if not all([patient_id, medication, dosage, nurse_id]):
         return jsonify({"error": "Missing required fields"}), 400
-        
+
     admin_record = MedicationAdmin(
         patient_id=patient_id,
         medication=medication,
@@ -65,7 +66,7 @@ def chart_medication():
     )
     db.session.add(admin_record)
     db.session.commit()
-    
+
     return jsonify({
         "success": True,
         "message": "Medication administration recorded successfully.",
@@ -79,12 +80,12 @@ def trigger_daily_billing():
     admitted = AdmittedPatient.query.filter(AdmittedPatient.discharged_on.is_(None)).all()
     billed_count = 0
     total_amount = 0.0
-    
+
     for admission in admitted:
         ward = Ward.query.get(admission.ward_id)
         if not ward:
             continue
-            
+
         # Check if an invoice already exists for this patient, otherwise create one
         invoice = Invoice.query.filter_by(patient_id=admission.patient_id, status=InvoiceStatus.DRAFT).first()
         if not invoice:
@@ -99,7 +100,7 @@ def trigger_daily_billing():
             )
             db.session.add(invoice)
             db.session.flush() # To get invoice ID
-            
+
         # Add daily ward charge
         line_item = InvoiceLineItem(
             invoice_id=invoice.id,
@@ -113,12 +114,12 @@ def trigger_daily_billing():
         invoice.grand_total = float(invoice.grand_total) + float(ward.daily_charge)
         invoice.balance = float(invoice.balance) + float(ward.daily_charge)
         db.session.add(line_item)
-        
+
         billed_count += 1
         total_amount += float(ward.daily_charge)
-        
+
     db.session.commit()
-    
+
     return jsonify({
         "success": True,
         "patients_billed": billed_count,

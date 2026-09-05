@@ -1,25 +1,27 @@
-from flask import render_template, redirect, url_for, request, flash, jsonify, abort
-from flask_login import login_required, current_user
+import os
+from datetime import datetime
+
+from flask import flash, redirect, render_template, request, url_for
+from flask_login import login_required
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
-from datetime import datetime
-import os
 
-from extensions import db
-from . import bp  # Import the blueprint
-from departments.models.pharmacy import Drug, Batch, DrugRequest, RequestItem
+from departments.models.pharmacy import Batch, Drug, DrugRequest, RequestItem
 from departments.models.stores import NonPharmCategory, NonPharmItem, OtherOrder
 from departments.models.user import User  # Import User model
+from departments.rbac import roles_required
+from extensions import db
+
+from . import bp  # Import the blueprint
 
 # Get the filename for error reporting
 FILE_NAME = os.path.basename(__file__)
 
-from departments.rbac import roles_required
 
 @bp.route('/', methods=['GET'])
 @login_required
 @roles_required('store', 'stores', 'admin')
-def index():  
+def index():
 
     try:
         # Fetch submitted and pending drug requests
@@ -38,8 +40,8 @@ def index():
             requester_name = user_name_map.get(req.requested_by, 'Unknown')
             print(f"Debug: Request ID {req.id}, Requested by {requester_name}")
 
-        return render_template('stores/index.html', 
-                             pending_requests=pending_requests, 
+        return render_template('stores/index.html',
+                             pending_requests=pending_requests,
                              user_name_map=user_name_map)
     except Exception as e:
         error_message = f"[{FILE_NAME} -> index()] Error loading dashboard: {e}"
@@ -170,7 +172,7 @@ def issue_request(request_id):
         flash("Unexpected error occurred", "error")
         print(f"[issue_request] Unexpected error for request {request_id}: {str(e)}")
         return redirect(url_for('stores.list_issue_requests')), 500
-    
+
 @bp.route('/non_pharms', methods=['GET'])
 @login_required
 @roles_required('store', 'stores', 'nursing', 'kitchen', 'laundry', 'admin')
@@ -207,7 +209,7 @@ def non_pharms():
         error_message = f"[{FILE_NAME} -> non_pharms()] Error loading items: {e}"
         flash(error_message, 'error')
         print(f"Debug: {error_message}")
-        return redirect(url_for('stores.index'))    
+        return redirect(url_for('stores.index'))
 
 @bp.route('/manage_reagent_requests', methods=['GET', 'POST'])
 @login_required

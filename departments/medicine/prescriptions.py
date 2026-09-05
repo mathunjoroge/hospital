@@ -1,73 +1,43 @@
-import requests 
-import pickle
-import re
-from flask import render_template, redirect, url_for, request, flash, jsonify,session
-from flask_wtf import FlaskForm
-from sqlalchemy import func
-from wtforms import SelectField
-from wtforms.validators import DataRequired
-from sqlalchemy import text
-import json
-from contextlib import contextmanager
-from typing import Optional, List, Dict, Any
-import psycopg2
-from datetime import date
-from psycopg2.extras import RealDictCursor
-from flask import current_app
-from flask_login import login_required, current_user
-from departments.rbac import roles_required, get_effective_role
-from flask_wtf.csrf import CSRFProtect,CSRFError
-from scipy.spatial.distance import cosine
-from extensions import db
-from flask import session
-from flask_socketio import SocketIO
-import uuid
-from uuid import uuid4
-from sqlalchemy.orm import joinedload
-import bleach 
-from . import bp
-from departments.forms import PatientSearchForm, OncoPatientForm, OncologyNoteForm, AdmitPatientForm
 import os
+import uuid
 from datetime import datetime
-from departments.models.laboratory import LabResult,LabResultTemplate
-from departments.models.records import PatientWaitingList, Patient
+
+from flask import flash, redirect, render_template, request, session, url_for
+from flask_login import login_required
+from psycopg2.extras import RealDictCursor
+
+from departments.medicine.orders import fetch_drugs_data
 from departments.models.medicine import (
-    SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, 
-    RequestedImage, UnmatchedImagingRequest, TheatreProcedure, TheatreList, 
-    Ward, AdmittedPatient, SpecialWarning,RegimenDrugAssociation, 
-    OncologyBooking, OncoDrugCategory, RegimenCategory, 
-    WardBedHistory, WardRoom, Bed, WardRound,Disease, 
-    DiseaseManagementPlan, DiseaseLab, OncoPatient, 
-    OncologyDrug, OncologyRegimen, OncoPrescription, 
-    OncoTreatmentRecord,PrescriptionDrugDetail,OncologyNote,
-    CancerType, CancerStage, CancerTypeStage, CancerDetail
+    AdmittedPatient,
+    Medicine,
+    OncologyBooking,
+    OncologyDrug,
+    OncologyRegimen,
+    OncoPrescription,
+    PrescribedMedicine,
+    PrescriptionDrugDetail,
+    RegimenDrugAssociation,
 )
+from departments.models.records import Patient, PatientWaitingList
 from departments.nlp.chatbot import UniversalClinicalSummarizer
-import logging
-import json
-from flask import Response, stream_with_context, request
-import time
 from departments.nlp.logging_setup import get_logger
-from flask.sessions import SecureCookieSessionInterface
+from departments.rbac import roles_required
+from departments.shared.drugcentral import get_drugcentral_connection as get_db_connection
+from extensions import db
+
+from . import bp
+
 logger = get_logger()
-import PyPDF2  # For PDF processing
-from docx import Document  # For DOCX processing
-import pytesseract  # For OCR on images
-from PIL import Image  # For image handling
-import csv  #
-from werkzeug.utils import secure_filename
 
 # Instantiate the summarizer for use in chatbot_interface
 
 
-from extensions import csrf
 
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
 nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
 Summarizer = UniversalClinicalSummarizer(gemini_api_key=gemini_api_key, nvidia_api_key=nvidia_api_key)
 
 
-from flask import make_response
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'txt', 'csv', 'docx'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB max file size
@@ -142,7 +112,7 @@ def prescribe_drugs(patient_id):
 
             try:
                 db.session.commit()
-   
+
             except Exception as e:
                 db.session.rollback()
                 logger.error(f"Database commit failed: {e}")
@@ -163,7 +133,7 @@ def prescribe_drugs(patient_id):
             dept=dept
         )
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         logger.exception("Unexpected error in prescribe_drugs")
         flash('Something went wrong. Please try again.', 'error')
@@ -214,7 +184,7 @@ def edit_prescribed_medicine(medicine_id):
             dept=dept
         )
 
-    except Exception as e:
+    except Exception:
         logger.exception("Error editing prescribed medicine")
         flash('Something went wrong. Please try again.', 'error')
         return redirect(url_for('medicine.index'))
@@ -268,7 +238,7 @@ def save_prescription(prescription_id, patient_id):
     except Exception as e:
         logger.error(f"Error finalizing prescription: {e}")
         flash('Something went wrong. Please try again.', 'error')
-        return redirect(url_for('medicine.prescribe_drugs', patient_id=patient_id, dept=dept))  
+        return redirect(url_for('medicine.prescribe_drugs', patient_id=patient_id, dept=dept))
 @bp.route('/get_edit_form', methods=['GET'])
 @login_required
 @roles_required('medicine', 'admin')
@@ -283,7 +253,7 @@ def get_edit_form():
         )
     except Exception as e:
         print(f"Debug: Error in medicine.get_edit_form: {e}")
-        return "Error loading edit form."                 
+        return "Error loading edit form."
 
 
 @bp.route('/drugs-ref/search', methods=['GET'])
@@ -291,8 +261,8 @@ def drugs_ref():
     """Drugs reference route with search functionality."""
     search_query = request.args.get('search', '').strip()
     drugs_data = fetch_drugs_data(search_query)
-    
-    return render_template('medicine/drugs_ref.html', drugs_data=drugs_data, search_query=search_query)     
+
+    return render_template('medicine/drugs_ref.html', drugs_data=drugs_data, search_query=search_query)
 
 @bp.route('/drugs-ref/details/<drug>', methods=['GET'])
 def drug_details(drug: str):
@@ -338,49 +308,49 @@ def drug_details(drug: str):
 
             # Step 2: Fetch data from all tables using struct_id
             query = """
-                SELECT 'active_ingredient' AS table_name, struct_id::TEXT, substance_name::TEXT, quantity::TEXT, unit::TEXT, NULL::TEXT 
+                SELECT 'active_ingredient' AS table_name, struct_id::TEXT, substance_name::TEXT, quantity::TEXT, unit::TEXT, NULL::TEXT
                 FROM active_ingredient WHERE struct_id = %s
                 UNION ALL
-                SELECT 'approval' AS table_name, struct_id::TEXT, approval::TEXT, applicant::TEXT, type::TEXT, orphan::TEXT 
+                SELECT 'approval' AS table_name, struct_id::TEXT, approval::TEXT, applicant::TEXT, type::TEXT, orphan::TEXT
                 FROM approval WHERE struct_id = %s
                 UNION ALL
-                SELECT 'faers_male' AS table_name, struct_id::TEXT, meddra_name::TEXT, drug_ae::TEXT, llr_threshold::TEXT, level::TEXT 
+                SELECT 'faers_male' AS table_name, struct_id::TEXT, meddra_name::TEXT, drug_ae::TEXT, llr_threshold::TEXT, level::TEXT
                 FROM faers_male WHERE struct_id = %s
                 UNION ALL
-                SELECT 'faers_ped' AS table_name, struct_id::TEXT, meddra_name::TEXT, drug_ae::TEXT, llr_threshold::TEXT, level::TEXT 
+                SELECT 'faers_ped' AS table_name, struct_id::TEXT, meddra_name::TEXT, drug_ae::TEXT, llr_threshold::TEXT, level::TEXT
                 FROM faers_ped WHERE struct_id = %s
                 UNION ALL
-                SELECT 'omop_relationship' AS table_name, struct_id::TEXT, concept_name::TEXT, cui_semantic_type::TEXT, relationship_name::TEXT, umls_cui::TEXT 
+                SELECT 'omop_relationship' AS table_name, struct_id::TEXT, concept_name::TEXT, cui_semantic_type::TEXT, relationship_name::TEXT, umls_cui::TEXT
                 FROM omop_relationship WHERE struct_id = %s
                 UNION ALL
-                SELECT 'faers' AS table_name, struct_id::TEXT, meddra_name::TEXT, drug_ae::TEXT, llr_threshold::TEXT, level::TEXT 
+                SELECT 'faers' AS table_name, struct_id::TEXT, meddra_name::TEXT, drug_ae::TEXT, llr_threshold::TEXT, level::TEXT
                 FROM faers WHERE struct_id = %s
                 UNION ALL
-                SELECT 'atc_ddd' AS table_name, struct_id::TEXT, atc_code::TEXT, route::TEXT, ddd::TEXT, unit_type::TEXT 
+                SELECT 'atc_ddd' AS table_name, struct_id::TEXT, atc_code::TEXT, route::TEXT, ddd::TEXT, unit_type::TEXT
                 FROM atc_ddd WHERE struct_id = %s
                 UNION ALL
-                SELECT 'faers_female' AS table_name, struct_id::TEXT, meddra_name::TEXT, drug_ae::TEXT, llr_threshold::TEXT, level::TEXT 
+                SELECT 'faers_female' AS table_name, struct_id::TEXT, meddra_name::TEXT, drug_ae::TEXT, llr_threshold::TEXT, level::TEXT
                 FROM faers_female WHERE struct_id = %s
                 UNION ALL
-                SELECT 'faers_ger' AS table_name, struct_id::TEXT, meddra_name::TEXT, drug_ae::TEXT, llr_threshold::TEXT, level::TEXT 
+                SELECT 'faers_ger' AS table_name, struct_id::TEXT, meddra_name::TEXT, drug_ae::TEXT, llr_threshold::TEXT, level::TEXT
                 FROM faers_ger WHERE struct_id = %s
                 UNION ALL
-                SELECT 'struct2obprod' AS table_name, struct_id::TEXT, prod_id::TEXT, strength::TEXT, NULL::TEXT, NULL::TEXT 
+                SELECT 'struct2obprod' AS table_name, struct_id::TEXT, prod_id::TEXT, strength::TEXT, NULL::TEXT, NULL::TEXT
                 FROM struct2obprod WHERE struct_id = %s
                 UNION ALL
-                SELECT 'pdb' AS table_name, struct_id::TEXT, pdb::TEXT, ligand_id::TEXT, accession::TEXT, pubmed_id::TEXT 
+                SELECT 'pdb' AS table_name, struct_id::TEXT, pdb::TEXT, ligand_id::TEXT, accession::TEXT, pubmed_id::TEXT
                 FROM pdb WHERE struct_id = %s
                 UNION ALL
-                SELECT 'pharma_class' AS table_name, struct_id::TEXT, class_code::TEXT, source::TEXT, name::TEXT, NULL::TEXT 
+                SELECT 'pharma_class' AS table_name, struct_id::TEXT, class_code::TEXT, source::TEXT, name::TEXT, NULL::TEXT
                 FROM pharma_class WHERE struct_id = %s
                 UNION ALL
-                SELECT 'pka' AS table_name, struct_id::TEXT, value::TEXT, pka_type::TEXT, pka_level::TEXT, NULL::TEXT 
+                SELECT 'pka' AS table_name, struct_id::TEXT, value::TEXT, pka_type::TEXT, pka_level::TEXT, NULL::TEXT
                 FROM pka WHERE struct_id = %s
                 UNION ALL
-                SELECT 'ob_exclusivity_view' AS table_name, struct_id::TEXT, appl_no::TEXT, trade_name::TEXT, exclusivity_date::TEXT, description::TEXT 
+                SELECT 'ob_exclusivity_view' AS table_name, struct_id::TEXT, appl_no::TEXT, trade_name::TEXT, exclusivity_date::TEXT, description::TEXT
                 FROM ob_exclusivity_view WHERE struct_id = %s
                 UNION ALL
-                SELECT 'ob_patent_view' AS table_name, struct_id::TEXT, appl_no::TEXT, trade_name::TEXT, patent_no::TEXT, patent_expire_date::TEXT 
+                SELECT 'ob_patent_view' AS table_name, struct_id::TEXT, appl_no::TEXT, trade_name::TEXT, patent_no::TEXT, patent_expire_date::TEXT
                 FROM ob_patent_view WHERE struct_id = %s;
             """
             cur.execute(query, [struct_id] * 15)  # struct_id is used 15 times in the query
@@ -414,8 +384,8 @@ def drug_details(drug: str):
             # Ensure uniqueness using Python (removes duplicates missed by DISTINCT)
             additional_details = list({frozenset(item.items()): item for item in additional_details}.values())
 
-            return render_template('medicine/drug_details.html', 
-                                 drug=drug, 
+            return render_template('medicine/drug_details.html',
+                                 drug=drug,
                                  additional_details=additional_details,
                                  grouped_data=grouped_data,
                                  struct_id=struct_id)

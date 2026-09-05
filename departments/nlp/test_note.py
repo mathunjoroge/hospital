@@ -1,5 +1,4 @@
 import logging
-import os
 import sys
 from datetime import datetime
 
@@ -19,7 +18,7 @@ logger = logging.getLogger("HIMS-NLP-TEST")
 def test_process_soap_note():
     """Test the processing of a sample SOAP note."""
     logger.info("Starting test_process_soap_note...")
-    
+
     # Initialize DiseasePredictor
     try:
         DiseasePredictor.initialize()
@@ -27,7 +26,7 @@ def test_process_soap_note():
     except Exception as e:
         logger.error(f"Failed to initialize DiseasePredictor: {e}", exc_info=True)
         raise
-    
+
     sample_note = {
         "id": 1001,  # Integer primary key
         "patient_id": "P1000",
@@ -46,14 +45,14 @@ def test_process_soap_note():
         "ai_analysis": "",  # Initially empty, to be populated by NLP pipeline
         "file_path": "/home/mathu/projects/hospital/uploads/P1000_note_1001.pdf"  # Example path
     }
-    
+
     # Process the note
     predictor = DiseasePredictor()
     logger.info(f"Processing SOAP note ID {sample_note['id']}...")
     start_time = datetime.now()
     result = predictor.process_soap_note(sample_note)
     processing_time = (datetime.now() - start_time).total_seconds()
-    
+
     # Validate result
     assert "error" not in result, f"Processing failed: {result.get('details', 'Unknown error')}"
     assert result.get("note_id") == sample_note["id"], "Note ID mismatch"
@@ -62,24 +61,24 @@ def test_process_soap_note():
     assert "differential_diagnoses" in result, "Differential diagnoses missing"
     assert "amr_ipc_probabilities" in result, "AMR/IPC probabilities missing"
     assert "amr_ipc_recommendations" in result, "AMR/IPC recommendations missing"
-    
+
     logger.info(f"Processing completed in {processing_time:.3f} seconds.")
     logger.info(f"AMR/IPC Probabilities: {result['amr_ipc_probabilities']}")
     logger.info(f"AMR/IPC Recommendations: {result['amr_ipc_recommendations']}")
-    
+
     # Generate HTML report
     logger.info("Generating HTML report...")
     html_output = generate_html_response(result)
-    
+
     # Save HTML output
     output_file = "test_note_output.html"
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(html_output)
     logger.info(f"HTML report saved to {output_file}")
-    
+
     # Verify AMR/IPC content in HTML
     assert any(term in html_output.lower() for term in ["amr/ipc analysis", "amr_high", "ipc_adequate"]), "AMR/IPC content missing in HTML"
-    
+
     logger.info("All tests passed successfully!")
 
 if __name__ == "__main__":

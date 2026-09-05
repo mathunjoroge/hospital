@@ -1,73 +1,38 @@
-import requests 
-import pickle
-import re
-from flask import render_template, redirect, url_for, request, flash, jsonify,session
-from flask_wtf import FlaskForm
-from sqlalchemy import func
-from wtforms import SelectField
-from wtforms.validators import DataRequired
-from sqlalchemy import text
-import json
-from contextlib import contextmanager
-from typing import Optional, List, Dict, Any
-import psycopg2
-from datetime import date
-from psycopg2.extras import RealDictCursor
-from flask import current_app
-from flask_login import login_required, current_user
-from departments.rbac import roles_required, get_effective_role
-from flask_wtf.csrf import CSRFProtect,CSRFError
-from scipy.spatial.distance import cosine
-from extensions import db
-from flask import session
-from flask_socketio import SocketIO
-import uuid
-from uuid import uuid4
-from sqlalchemy.orm import joinedload
-import bleach 
-from . import bp
-from departments.forms import PatientSearchForm, OncoPatientForm, OncologyNoteForm, AdmitPatientForm
 import os
 from datetime import datetime
-from departments.models.laboratory import LabResult,LabResultTemplate
-from departments.models.records import PatientWaitingList, Patient
+
+from flask import flash, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+
+from departments.forms import AdmitPatientForm
 from departments.models.medicine import (
-    SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, 
-    RequestedImage, UnmatchedImagingRequest, TheatreProcedure, TheatreList, 
-    Ward, AdmittedPatient, SpecialWarning,RegimenDrugAssociation, 
-    OncologyBooking, OncoDrugCategory, RegimenCategory, 
-    WardBedHistory, WardRoom, Bed, WardRound,Disease, 
-    DiseaseManagementPlan, DiseaseLab, OncoPatient, 
-    OncologyDrug, OncologyRegimen, OncoPrescription, 
-    OncoTreatmentRecord,PrescriptionDrugDetail,OncologyNote,
-    CancerType, CancerStage, CancerTypeStage, CancerDetail
+    AdmittedPatient,
+    Bed,
+    TheatreList,
+    TheatreProcedure,
+    Ward,
+    WardBedHistory,
+    WardRoom,
+    WardRound,
 )
+from departments.models.records import Patient
 from departments.nlp.chatbot import UniversalClinicalSummarizer
-import logging
-import json
-from flask import Response, stream_with_context, request
-import time
 from departments.nlp.logging_setup import get_logger
-from flask.sessions import SecureCookieSessionInterface
+from extensions import db
+
+from . import bp
+
 logger = get_logger()
-import PyPDF2  # For PDF processing
-from docx import Document  # For DOCX processing
-import pytesseract  # For OCR on images
-from PIL import Image  # For image handling
-import csv  #
-from werkzeug.utils import secure_filename
 
 # Instantiate the summarizer for use in chatbot_interface
 
 
-from extensions import csrf
 
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
 nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
 Summarizer = UniversalClinicalSummarizer(gemini_api_key=gemini_api_key, nvidia_api_key=nvidia_api_key)
 
 
-from flask import make_response
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'txt', 'csv', 'docx'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB max file size
@@ -201,7 +166,7 @@ def update_post_op(entry_id):
         db.session.rollback()
         flash(f"An error occurred: {str(e)}", "danger")
         return redirect(url_for('medicine.get_theatre_list'))
-    
+
 @bp.route('/admit-patient', methods=['GET', 'POST'])
 
 @login_required
@@ -348,7 +313,7 @@ def ward_bed_history(ward_id):
     except Exception as e:
         flash(f"Error: {str(e)}", "danger")
         return redirect(url_for('medicine.view_admitted_patients'))
-    
+
 # ✅ Fetch available rooms in a ward
 @bp.route('/available-rooms/<int:ward_id>', methods=['GET'])
 @login_required
@@ -367,17 +332,17 @@ def available_beds(room_id):
         beds = Bed.query.filter_by(room_id=room_id, occupied=False).all()
         return jsonify({"beds": [{"id": bed.id, "bed_number": bed.bed_number} for bed in beds]})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500    
-    
+        return jsonify({"error": str(e)}), 500
+
  # ✅ View Inpatients List
 @bp.route('/inpatients', methods=['GET'])
 @login_required
 def view_inpatients():
     """Show all admitted patients for ward rounds."""
     admitted_patients = AdmittedPatient.query.join(Patient).add_columns(
-        AdmittedPatient.id, 
-        Patient.name.label("patient_name"), 
-        AdmittedPatient.ward_id, 
+        AdmittedPatient.id,
+        Patient.name.label("patient_name"),
+        AdmittedPatient.ward_id,
         AdmittedPatient.admitted_on
     ).order_by(AdmittedPatient.admitted_on.desc()).all()
 
@@ -467,5 +432,5 @@ def add_ward_round():
     except Exception as e:
         db.session.rollback()
         flash(f"Error: {str(e)}", "danger")
-        return redirect(url_for('medicine.view_ward_rounds', admission_id=admission_id))     
+        return redirect(url_for('medicine.view_ward_rounds', admission_id=admission_id))
         #diseases

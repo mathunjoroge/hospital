@@ -1,9 +1,11 @@
-import os
-from dotenv import load_dotenv
-from departments.nlp.resources.priority_symptoms import PRIORITY_SYMPTOMS
 import logging
 import multiprocessing
+import os
+
 import pytz
+from dotenv import load_dotenv
+
+from departments.nlp.resources.priority_symptoms import PRIORITY_SYMPTOMS
 
 logger = logging.getLogger("HIMS-NLP")
 
@@ -13,7 +15,7 @@ load_dotenv()
 class AppConfig:
     """Application configuration management."""
     _config = None
-    
+
     @classmethod
     def load(cls) -> dict:
         """Load and validate configuration from environment variables."""

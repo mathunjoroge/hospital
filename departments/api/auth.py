@@ -9,10 +9,9 @@ Endpoints (registered on the `api` blueprint, prefix /api):
 """
 
 import logging
-from datetime import timezone
 from functools import wraps
 
-from flask import jsonify, request, g
+from flask import g, jsonify, request
 from flask_jwt_extended import (
     create_access_token,
     get_jwt_identity,

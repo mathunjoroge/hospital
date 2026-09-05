@@ -1,28 +1,24 @@
-from flask import render_template, redirect, url_for, request, flash, jsonify, Response, session
-from sqlalchemy import text
-from extensions import db 
-import logging
-from sqlalchemy.sql import func
-from flask_login import login_required, current_user
-from departments.models.user import User 
-from . import bp  # Import the blueprint
-from departments.rbac import roles_required
-from departments.models.records import PatientWaitingList,Patient
-from departments.models.medicine import PrescribedMedicine
-from sqlalchemy.orm import joinedload
-from sqlalchemy.sql import text  # Import the text function
-from datetime import timedelta,datetime
-from flask import render_template, redirect, url_for, flash
-from flask_login import login_required, current_user
-from departments.models.pharmacy import Drug,Batch,Purchase,DispensedDrug, Expiry,DrugRequest, RequestItem # Import PatientWaitingList and Patient models
-from departments.models.billing import DrugsBill
-from sqlalchemy.orm import joinedload
-import os
-import csv
-from io import StringIO
-import uuid  # Import the uuid module
-from collections import defaultdict, Counter
 import json
+import logging
+from collections import defaultdict
+from datetime import datetime
+
+from flask import flash, jsonify, redirect, render_template, request, url_for
+from flask_login import login_required
+from sqlalchemy.orm import joinedload
+
+from departments.models.medicine import PrescribedMedicine
+from departments.models.pharmacy import (  # Import PatientWaitingList and Patient models
+    Batch,
+    DispensedDrug,
+    Drug,
+)
+from departments.models.records import Patient
+from departments.rbac import roles_required
+from extensions import db
+
+from . import bp  # Import the blueprint
+
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -48,9 +44,8 @@ def prescriptions():
     except Exception as e:
         flash('Something went wrong. Please try again.', 'error')
         print(f"Debug: Error in pharmacy.prescriptions: {e}")
-        return redirect(url_for('pharmacy.index'))    
+        return redirect(url_for('pharmacy.index'))
 #record purchase
-from datetime import datetime
 
 
 @bp.route('/view_prescriptions/<string:patient_id>', methods=['GET'])
@@ -103,7 +98,7 @@ def view_prescriptions(patient_id):
         print(f"Debug: Error fetching prescriptions: {e}")
         flash('Something went wrong. Please try again.', 'error')
         return redirect(url_for('/'))
-    
+
 @bp.route('/dispense/<string:prescription_id>', methods=['GET'])
 @login_required
 @roles_required('pharmacy', 'admin')
@@ -140,7 +135,7 @@ def dispense_prescription(prescription_id):
             dispensed_drugs=dispensed_drugs
         )
 
-    except Exception as e:
+    except Exception:
         flash('Something went wrong. Please try again.', 'error')
 
         return redirect(url_for('pharmacy.index'))
@@ -167,7 +162,7 @@ def delete_dispensed_drug(dispensed_drug_id):
 
         flash("Dispensed drug deleted successfully!", "success")
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         flash('Something went wrong. Please try again.', 'error')
 
@@ -448,9 +443,9 @@ def save_prescription(prescription_id):
         flash('Something went wrong. Please try again.', 'error')
         print(f"Debug: Error in pharmacy.save_prescription: {e}")
         db.session.rollback()  # Rollback changes in case of error
-        return redirect(url_for('pharmacy.view_prescriptions', patient_id=request.form.get('patient_id')))    
+        return redirect(url_for('pharmacy.view_prescriptions', patient_id=request.form.get('patient_id')))
 
- 
+
 @bp.route('/remove_dispensed/<int:dispense_id>', methods=['POST'])
 @login_required
 @roles_required('pharmacy', 'admin')
@@ -480,7 +475,7 @@ def remove_dispensed(dispense_id):
         flash('Something went wrong. Please try again.', 'error')
         print(f"Debug: Error in pharmacy.remove_dispensed: {e}")  # Debugging
         db.session.rollback()
-        return redirect(url_for('pharmacy.dispense_prescription', prescription_id=request.form.get('prescription_id'))) 
+        return redirect(url_for('pharmacy.dispense_prescription', prescription_id=request.form.get('prescription_id')))
 
 @bp.route('/dispense/process/<string:prescription_id>', methods=['POST'])
 @login_required
@@ -614,8 +609,17 @@ def process_dispense(prescription_id):
 @login_required
 def patient_history():
     """API endpoint to retrieve patient history by patient_id with clinical data."""
-    from departments.models.medicine import SOAPNote, RequestedLab, LabTest, RequestedImage, Imaging, AdmittedPatient
+    from departments.models.billing import Billing
+    from departments.models.imaging import ImagingResult
+    from departments.models.laboratory import LabResult, LabResultTemplate
+    from departments.models.medicine import (
+        AdmittedPatient,
+        RequestedImage,
+        RequestedLab,
+        SOAPNote,
+    )
     from departments.models.nursing import Vitals
+    from departments.models.records import ClinicBooking
 
     if request.method == 'POST':
         if request.is_json:
@@ -699,7 +703,7 @@ def patient_history():
             },
             'prescribed_meds': [{'id': m.id, 'medicine': m.medicine.generic_name if m.medicine else 'N/A', 'dosage': m.dosage, 'frequency': m.frequency} for m in prescribed_meds],
             'dispensed_drugs': [{'id': d.id, 'drug': d.drug.generic_name if d.drug else 'N/A', 'quantity': d.quantity_dispensed, 'date': d.date_dispensed.strftime('%Y-%m-%d')} for d in dispensed_drugs],
-            'requested_labs': [{'id': l.id, 'test_name': l.lab_test.test_name if l.lab_test else 'N/A', 'status': l.status} for l in requested_labs],
+            'requested_labs': [{'id': req_lab.id, 'test_name': req_lab.lab_test.test_name if req_lab.lab_test else 'N/A', 'status': req_lab.status} for req_lab in requested_labs],
             'lab_results': test_presentations,
             'requested_images': [{'id': i.id, 'type': i.imaging.imaging_type if i.imaging else 'N/A', 'status': i.status} for i in requested_images],
             'imaging_results': [{'id': ir.id, 'type': ir.imaging.imaging_type if ir.imaging else 'N/A', 'findings': ir.ai_findings} for ir in imaging_results],

@@ -1,73 +1,46 @@
-import requests 
-import pickle
-import re
-from flask import render_template, redirect, url_for, request, flash, jsonify,session
-from flask_wtf import FlaskForm
-from sqlalchemy import func
-from wtforms import SelectField
-from wtforms.validators import DataRequired
-from sqlalchemy import text
 import json
-from contextlib import contextmanager
-from typing import Optional, List, Dict, Any
-import psycopg2
-from datetime import date
-from psycopg2.extras import RealDictCursor
-from flask import current_app
-from flask_login import login_required, current_user
-from departments.rbac import roles_required, get_effective_role
-from flask_wtf.csrf import CSRFProtect,CSRFError
-from scipy.spatial.distance import cosine
-from extensions import db
-from flask import session
-from flask_socketio import SocketIO
-import uuid
-from uuid import uuid4
-from sqlalchemy.orm import joinedload
-import bleach 
-from . import bp
-from departments.forms import PatientSearchForm, OncoPatientForm, OncologyNoteForm, AdmitPatientForm
 import os
-from datetime import datetime
-from departments.models.laboratory import LabResult,LabResultTemplate
-from departments.models.records import PatientWaitingList, Patient
+from datetime import date, datetime
+
+from flask import flash, jsonify, redirect, render_template, request, url_for
+from flask_login import login_required
+from sqlalchemy import func
+
+from departments.forms import OncologyNoteForm, OncoPatientForm, PatientSearchForm
+from departments.models.laboratory import LabResultTemplate
 from departments.models.medicine import (
-    SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, 
-    RequestedImage, UnmatchedImagingRequest, TheatreProcedure, TheatreList, 
-    Ward, AdmittedPatient, SpecialWarning,RegimenDrugAssociation, 
-    OncologyBooking, OncoDrugCategory, RegimenCategory, 
-    WardBedHistory, WardRoom, Bed, WardRound,Disease, 
-    DiseaseManagementPlan, DiseaseLab, OncoPatient, 
-    OncologyDrug, OncologyRegimen, OncoPrescription, 
-    OncoTreatmentRecord,PrescriptionDrugDetail,OncologyNote,
-    CancerType, CancerStage, CancerTypeStage, CancerDetail
+    CancerType,
+    CancerTypeStage,
+    Disease,
+    DiseaseLab,
+    DiseaseManagementPlan,
+    OncoDrugCategory,
+    OncologyBooking,
+    OncologyDrug,
+    OncologyNote,
+    OncologyRegimen,
+    OncoPatient,
+    RegimenCategory,
+    SpecialWarning,
 )
+from departments.models.records import Patient
 from departments.nlp.chatbot import UniversalClinicalSummarizer
-import logging
-import json
-from flask import Response, stream_with_context, request
-import time
 from departments.nlp.logging_setup import get_logger
-from flask.sessions import SecureCookieSessionInterface
+from extensions import db
+
+from . import bp
+
 logger = get_logger()
-import PyPDF2  # For PDF processing
-from docx import Document  # For DOCX processing
-import pytesseract  # For OCR on images
-from PIL import Image  # For image handling
-import csv  #
-from werkzeug.utils import secure_filename
 
 # Instantiate the summarizer for use in chatbot_interface
 
 
-from extensions import csrf
 
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
 nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
 Summarizer = UniversalClinicalSummarizer(gemini_api_key=gemini_api_key, nvidia_api_key=nvidia_api_key)
 
 
-from flask import make_response
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'txt', 'csv', 'docx'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB max file size
@@ -79,7 +52,7 @@ def list_diseases():
     page = request.args.get('page', default=1, type=int)
     per_page = 10
     diseases = Disease.query.paginate(page=page, per_page=per_page, error_out=False)
-    return render_template('medicine/diseases/index.html', diseases=diseases)        
+    return render_template('medicine/diseases/index.html', diseases=diseases)
 @bp.route('/diseases/<int:disease_id>')
 @login_required
 def view_disease(disease_id):
@@ -130,7 +103,7 @@ def add_disease():
 
     return render_template('medicine/diseases/add_disease.html')
 
-@bp.route('/diseases/edit/<int:disease_id>', methods=['GET', 'POST'])  
+@bp.route('/diseases/edit/<int:disease_id>', methods=['GET', 'POST'])
 @login_required
 def edit_disease(disease_id):
     disease = Disease.query.get_or_404(disease_id)
@@ -150,7 +123,7 @@ def edit_disease(disease_id):
         lab_test_names = request.form.getlist('lab_test_name')
         lab_test_descriptions = request.form.getlist('lab_test_description')
 
-        existing_lab_test_ids = [t.id for t in lab_tests]
+        [t.id for t in lab_tests]
 
         for idx, test_id in enumerate(lab_test_ids):
             name = lab_test_names[idx]
@@ -203,10 +176,10 @@ def oncology():
         patient_id = search_form.patient_id.data
         selected_patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
         bookings = OncologyBooking.query.filter_by(patient_id=selected_patient.patient_id).all()
-        
+
         if not bookings:
             flash('No oncology bookings found for this patient.', 'info')
-        
+
         # Redirect to encounter route
         return redirect(url_for('medicine.oncology_encounter', patient_id=selected_patient.patient_id))
 
@@ -329,7 +302,7 @@ def add_onco_patient():
 def edit_note(note_id):
     note = OncologyNote.query.get_or_404(note_id)
     patient = Patient.query.filter_by(patient_id=note.patient_id).first_or_404()
-    
+
     form = OncologyNoteForm()
     if form.validate_on_submit() and form.submit_note.data:
         note.note_date = form.note_date.data
@@ -337,11 +310,11 @@ def edit_note(note_id):
         db.session.commit()
         flash('Oncology note updated successfully.', 'success')
         return redirect(url_for('medicine.oncology_encounter', patient_id=patient.patient_id))
-    
+
     if request.method == 'GET':
         form.note_date.data = note.note_date
         form.note_content.data = note.note_content
-    
+
     return render_template(
         'medicine/oncology/edit_note.html',
         form=form,
@@ -427,25 +400,25 @@ def warnings():
 def bookings():
     status = request.args.get('status', type=str)
     purpose = request.args.get('purpose', type=str)
-    
+
     # Build query with join to Patient
     query = OncologyBooking.query.join(Patient, OncologyBooking.patient_id == Patient.patient_id)
-    
+
     # Apply filters
     if status in ['Scheduled', 'Completed', 'Cancelled']:
         query = query.filter(OncologyBooking.status == status)
     if purpose in ['Consultation', 'Chemotherapy', 'Follow-up', 'Radiation', 'Surgery']:
         query = query.filter(OncologyBooking.purpose == purpose)
-    
+
     bookings = query.all()
-    
+
     # Stats bar calculations
     booking_count = OncologyBooking.query.count()
     scheduled_booking_count = OncologyBooking.query.filter_by(status='Scheduled').count()
     chemotherapy_booking_count = OncologyBooking.query.filter_by(purpose='Chemotherapy').count()
     current_month = datetime.now().strftime('%Y-%m')
     new_booking_count = OncologyBooking.query.filter(func.strftime('%Y-%m', OncologyBooking.created_at) == current_month).count()
-    
+
     return render_template(
         'medicine/oncology/bookings.html',
         bookings=bookings,
@@ -466,10 +439,10 @@ def new_booking():
         purpose = request.form.get('purpose')
         status = request.form.get('status')
         notes = request.form.get('notes', '').strip() or None
-        
+
         # Log form data for debugging
         print(f"Form data: patient_id={patient_id}, booking_date={booking_date}, purpose={purpose}, status={status}, notes={notes}")
-        
+
         # Validate required fields
         if not patient_id:
             flash('Patient selection is required.', 'danger')
@@ -483,13 +456,13 @@ def new_booking():
         if not status:
             flash('Status is required.', 'danger')
             return redirect(url_for('medicine.new_booking'))
-        
+
         # Validate patient exists
         patient = Patient.query.filter_by(patient_id=patient_id).first()
         if not patient:
             flash('Selected patient does not exist.', 'danger')
             return redirect(url_for('medicine.new_booking'))
-        
+
         # Validate purpose and status
         valid_purposes = ['Consultation', 'Chemotherapy', 'Follow-up', 'Radiation', 'Surgery']
         valid_statuses = ['Scheduled', 'Completed', 'Cancelled']
@@ -499,7 +472,7 @@ def new_booking():
         if status not in valid_statuses:
             flash(f'Invalid status selected. Choose from: {", ".join(valid_statuses)}', 'danger')
             return redirect(url_for('medicine.new_booking'))
-        
+
         # Parse booking_date
         try:
             booking_date = datetime.strptime(booking_date, '%Y-%m-%d').date()
@@ -507,7 +480,7 @@ def new_booking():
             print(f"Date parsing error: {e}")
             flash('Invalid date format. Use YYYY-MM-DD.', 'danger')
             return redirect(url_for('medicine.new_booking'))
-        
+
         # Create new booking
         new_booking = OncologyBooking(
             patient_id=patient_id,
@@ -522,7 +495,7 @@ def new_booking():
         db.session.commit()
         flash('Booking created successfully!', 'success')
         return redirect(url_for('medicine.bookings'))
-    
+
     patients = Patient.query.all()
     if not patients:
         flash('No patients available. Please add a patient first.', 'danger')

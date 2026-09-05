@@ -1,16 +1,19 @@
 import logging
 import time
-from typing import List, Dict
-from sqlalchemy.sql import text
-from cachetools import LRUCache
-from threading import Lock
 from collections import defaultdict
+from threading import Lock
+from typing import Dict, List
+
+from cachetools import LRUCache
+from sqlalchemy.sql import text
+
+from departments.nlp.resources.common_fallbacks import SYMPTOM_NORMALIZATIONS
+from departments.nlp.resources.common_terms import common_terms
+
+from .config import get_config
 
 # Local project imports
 from .database import UMLSSession
-from .config import get_config
-from departments.nlp.resources.common_terms import common_terms
-from departments.nlp.resources.common_fallbacks import SYMPTOM_NORMALIZATIONS
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -20,11 +23,11 @@ HIMS_CONFIG = get_config()
 class UMLSMapper:
     """
     Maps clinical terms to UMLS CUIs with a unified cache and comprehensive lookups.
-    
+
     This optimized version uses a single, shared LRUCache for both single and
     batch lookups, and retrieves all possible CUIs for a term instead of just one.
     """
-    
+
     _instance = None
     _lock = Lock()
 
@@ -36,41 +39,41 @@ class UMLSMapper:
                 if cls._instance is None:
                     cls._instance = cls()
         return cls._instance
-    
+
     def __init__(self):
         if hasattr(self, '_initialized') and self._initialized:
             return
-        
+
         # Use a single, instance-level cache. This is essential for the batch
         # function to correctly identify which terms are already cached.
         self.term_cache: LRUCache[str, List[str]] = LRUCache(maxsize=10000)
-        
+
         # Directly assign constants instead of using a wrapper method.
         self.symptom_normalizations = SYMPTOM_NORMALIZATIONS
-        
+
         # Pre-warm the cache with common terms on initialization.
         self.map_terms_to_cuis_batch(common_terms)
         self._initialized = True
         logger.info("UMLSMapper initialized with a unified cache.")
-    
+
     def normalize_symptom(self, symptom: str) -> str:
         """Normalizes a symptom string to its canonical form."""
         symptom_lower = symptom.lower().strip()
         return self.symptom_normalizations.get(symptom_lower, symptom_lower)
-    
+
     def map_term_to_cui(self, term: str) -> List[str]:
         """
         Maps a single normalized term to a list of CUIs.
-        
+
         This method no longer uses @lru_cache, relying on the shared self.term_cache.
         It now fetches ALL matching CUIs, not just the first one.
         """
         normalized_term = self.normalize_symptom(term)
-        
+
         # Check the single, shared cache first.
         if normalized_term in self.term_cache:
             return self.term_cache[normalized_term]
-        
+
         try:
             with UMLSSession() as session:
                 query = text("""
@@ -88,7 +91,7 @@ class UMLSMapper:
                         'trusted_sources': tuple(HIMS_CONFIG["TRUSTED_SOURCES"])
                     }
                 ).fetchall()
-                
+
                 # Retrieve all CUIs, not just one.
                 cuis = [row[0] for row in results]
                 self.term_cache[normalized_term] = cuis
@@ -98,7 +101,7 @@ class UMLSMapper:
             # Cache the failure to prevent repeated failed lookups for the same term.
             self.term_cache[normalized_term] = []
             return []
-    
+
     def map_terms_to_cuis_batch(self, terms: List[str]) -> Dict[str, List[str]]:
         """Efficiently maps a batch of terms to their CUIs using a single query."""
         start_time = time.time()
@@ -107,7 +110,7 @@ class UMLSMapper:
 
         results: Dict[str, List[str]] = {}
         uncached_normalized_terms = set()
-        
+
         # Create a map from original terms to their normalized form.
         norm_map = {orig: self.normalize_symptom(orig) for orig in terms}
 
@@ -117,7 +120,7 @@ class UMLSMapper:
                 results[normalized_term] = self.term_cache[normalized_term]
             else:
                 uncached_normalized_terms.add(normalized_term)
-        
+
         # Second pass: query the database for all uncached terms in one go.
         if uncached_normalized_terms:
             try:
@@ -137,11 +140,11 @@ class UMLSMapper:
                             'trusted_sources': tuple(HIMS_CONFIG["TRUSTED_SOURCES"])
                         }
                     ).fetchall()
-                    
+
                     term_map = defaultdict(list)
                     for row in db_results:
                         term_map[row.term_str].append(row.cui)
-                    
+
                     # Populate cache and results for terms found in the DB.
                     for term in uncached_normalized_terms:
                         cuis = term_map.get(term, [])
@@ -152,10 +155,10 @@ class UMLSMapper:
                 # Fallback: if batch query fails, process one-by-one.
                 for term in uncached_normalized_terms:
                     results[term] = self.map_term_to_cui(term)
-        
+
         # Map the results from normalized terms back to the original input terms.
         final_results = {orig_term: results.get(norm_term, []) for orig_term, norm_term in norm_map.items()}
-        
+
         duration = time.time() - start_time
         logger.debug(f"Batch UMLS mapping for {len(terms)} terms took {duration:.3f} seconds.")
         return final_results

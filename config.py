@@ -1,12 +1,13 @@
 # config.py
+import logging as _cfg_log
 import os
+
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
 
-import logging as _cfg_log
 _cfg_log.getLogger(__name__).debug("POSTGRES_DB=%s", os.getenv('POSTGRES_DB'))
 _cfg_log.getLogger(__name__).debug("DATABASE_URI=%s", os.getenv('SQLALCHEMY_DATABASE_URI'))
 

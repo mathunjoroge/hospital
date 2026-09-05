@@ -1,28 +1,36 @@
-from flask import render_template, redirect, url_for, request, flash, jsonify, Response, session
-from sqlalchemy import text
-from extensions import db 
 import logging
-from sqlalchemy.sql import func
-from flask_login import login_required, current_user
-from departments.models.user import User 
-from . import bp  # Import the blueprint
-from departments.rbac import roles_required
-from departments.models.records import PatientWaitingList,Patient
-from departments.models.medicine import PrescribedMedicine
-from sqlalchemy.orm import joinedload
-from sqlalchemy.sql import text  # Import the text function
-from datetime import timedelta,datetime
-from flask import render_template, redirect, url_for, flash
-from flask_login import login_required, current_user
-from departments.models.pharmacy import Drug,Batch,Purchase,DispensedDrug, Expiry,DrugRequest, RequestItem # Import PatientWaitingList and Patient models
-from departments.models.billing import DrugsBill
-from sqlalchemy.orm import joinedload
-import os
-import csv
-from io import StringIO
 import uuid  # Import the uuid module
-from collections import defaultdict, Counter
-import json
+from datetime import datetime, timedelta
+
+from flask import (
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
+from flask_login import current_user, login_required
+from sqlalchemy.sql import (
+    func,  # Import the text function
+)
+
+from departments.models.medicine import PrescribedMedicine
+from departments.models.pharmacy import (  # Import PatientWaitingList and Patient models
+    Batch,
+    Drug,
+    DrugRequest,
+    Expiry,
+    Purchase,
+    RequestItem,
+)
+from departments.models.records import Patient
+from departments.models.user import User
+from departments.rbac import roles_required
+from extensions import db
+
+from . import bp  # Import the blueprint
+
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -45,7 +53,7 @@ def index():
         logger.error(f'Error fetching pending prescriptions: {e}', exc_info=True)
         flash('Unable to load prescriptions. Please try again.', 'error')
         return redirect(url_for('pharmacy.index'))
-    
+
 #fech expiries
 @bp.route('/expiries', methods=['GET'])
 @login_required
@@ -284,7 +292,7 @@ def record_purchase():
         flash('Something went wrong. Please try again.', 'error')
         db.session.rollback()  # Rollback changes in case of error
         print(f"Debug: Error in pharmacy.record_purchase: {e}")  # Debugging
-        return redirect(url_for('pharmacy.index'))   
+        return redirect(url_for('pharmacy.index'))
     #view prescription
 
 
@@ -330,7 +338,6 @@ def low_stock():
         flash('Something went wrong. Please try again.', 'error')
         print(f"Debug: Error in pharmacy.low_stock: {e}")
         return redirect(url_for('pharmacy.index'))
-import uuid
 
 @bp.route('/drug-requests', methods=['GET', 'POST'])
 @login_required
@@ -447,7 +454,7 @@ def pending_requests():
 
         return render_template('pharmacy/pending_requests.html', pending_requests=pending_requests)
 
-    except Exception as e:
+    except Exception:
         flash('Something went wrong. Please try again.', 'error')
         return redirect(url_for('pharmacy.index'))
 #pending requests details
@@ -468,7 +475,7 @@ def pending_request_details(request_id):
     drug_request = request_details.DrugRequest  # This is the actual model instance
     requested_by = request_details.requested_by  # Extract the username
 
-    return render_template('pharmacy/pending_request_details.html', drug_request=drug_request, requested_by=requested_by)    
+    return render_template('pharmacy/pending_request_details.html', drug_request=drug_request, requested_by=requested_by)
 
 
 @bp.route('/served-requests', methods=['GET', 'POST'])
@@ -500,7 +507,7 @@ def served_requests():
 
         return render_template('pharmacy/served_requests.html', served_requests=served_requests)
 
-    except Exception as e:
+    except Exception:
         flash('Something went wrong. Please try again.', 'error')
         return redirect(url_for('pharmacy.index'))
 

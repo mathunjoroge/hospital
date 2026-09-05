@@ -1,26 +1,17 @@
-from flask import  render_template, redirect, url_for, request, flash
-from flask import Response
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from flask_login import login_required, current_user
-from extensions import db
-from flask import session
-from datetime import datetime,date
-import uuid
-import json
-from uuid import uuid4
-from sqlalchemy.orm import joinedload
-from . import bp  # Import the blueprint
-import os 
+from datetime import date, datetime
+
+from flask import flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
 from flask_socketio import SocketIO
-from departments.rbac import roles_required
-from departments.models.records import PatientWaitingList,Patient
-from departments.models.medicine import (LabTest,RequestedLab
-)
-from departments.models.stores import (NonPharmCategory,NonPharmItem,OtherOrder
-)
-from departments.models.laboratory import LabResultTemplate,LabResult
+from sqlalchemy.orm import joinedload
+
+from departments.models.stores import NonPharmItem, OtherOrder
 from departments.models.user import User
+from departments.rbac import roles_required
+from extensions import db
+
+from . import bp  # Import the blueprint
+
 socketio = SocketIO()
  # Generate a UUID and convert it to a string
 

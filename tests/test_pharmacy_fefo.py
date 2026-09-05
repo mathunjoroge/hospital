@@ -4,19 +4,21 @@ tests/test_pharmacy_fefo.py
 Unit tests for Task 3.3: Pharmacy FEFO & Inventory Management
 """
 
-import pytest
 from datetime import date, timedelta
+
+import pytest
+
 try:
     from extensions import db
 except ImportError:
     from extensions import db
 
-from departments.models.pharmacy import DrugCategory, Drug, Batch, DispensedDrug
+from departments.models.pharmacy import Batch, DispensedDrug, Drug, DrugCategory
 from departments.models.records import Patient
 from departments.pharmacy.fefo import (
     allocate_drug_fefo,
+    check_pharmacy_inventory_alerts,
     dispense_medication_fefo,
-    check_pharmacy_inventory_alerts
 )
 
 

@@ -9,20 +9,20 @@ Features:
   - Real-time panic alert notifications dispatch to ordering clinicians
 """
 
-import uuid
 import logging
+import uuid
 from datetime import datetime, timezone
-from flask import Blueprint, request, jsonify, current_app
+
+from flask import Blueprint, jsonify, request
 
 try:
     from extensions import db
 except ImportError:
     from extensions import db
 
-from departments.models.records import Patient
 from departments.models.laboratory import LabResult
-from departments.models.medicine import LabTest, RequestedLab
 from departments.models.nursing import Notifications
+from departments.models.records import Patient
 
 logger = logging.getLogger(__name__)
 

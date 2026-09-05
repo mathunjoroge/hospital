@@ -10,15 +10,16 @@ Features:
 """
 
 import logging
-from datetime import datetime, date, timedelta, timezone
-from flask import Blueprint, request, jsonify, current_app
+from datetime import date, timedelta
+
+from flask import Blueprint, jsonify, request
 
 try:
     from extensions import db
 except ImportError:
     from extensions import db
 
-from departments.models.pharmacy import Drug, Batch, DispensedDrug
+from departments.models.pharmacy import Batch, DispensedDrug, Drug
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ def allocate_drug_fefo(drug_id: int, quantity_requested: int) -> list[dict]:
     for b in available_batches:
         if remaining_to_allocate <= 0:
             break
-        
+
         take = min(b.quantity_in_stock, remaining_to_allocate)
         allocations.append({
             "batch_id": b.id,
@@ -80,7 +81,7 @@ def dispense_medication_fefo(patient_id: str, drug_id: int, quantity: int, presc
 
         # Deduct from batch
         batch.quantity_in_stock -= take_qty
-        
+
         # Deduct from total drug stock
         drug.quantity_in_stock -= take_qty
 

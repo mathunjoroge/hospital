@@ -1,18 +1,18 @@
-import re
-import html
 import hashlib
-import time
+import html
 import logging
-from typing import Dict, List, Any
+import time
 from collections import defaultdict
 from datetime import datetime
 from textwrap import shorten
-import pytz
-from departments.nlp.summarizer import ClinicalSummarizer
-from .database import get_sqlite_connection
-from .config import TIME_ZONE, BOOTSTRAP_CLASSES  # Import from config.py
-from departments.nlp.resources.priority_symptoms import PRIORITY_SYMPTOMS
+from typing import Any, Dict, List
+
 from departments.nlp.resources.common_fallbacks import fallback_management_plans
+from departments.nlp.resources.priority_symptoms import PRIORITY_SYMPTOMS
+from departments.nlp.summarizer import ClinicalSummarizer
+
+from .config import BOOTSTRAP_CLASSES, TIME_ZONE  # Import from config.py
+from .database import get_sqlite_connection
 
 logger = logging.getLogger("HIMS-NLP")
 
@@ -91,12 +91,12 @@ def generate_summary(text: str = "", soap_note: Dict[str, str] = None, max_sente
     """Generate a concise and natural clinical summary using ClinicalSummarizer."""
     if soap_note is None:
         soap_note = {}
-        
+
     if not text.strip() and not soap_note:
         return "No summary available."
 
     start_time = time.time()
-    
+
     # Prepare text from all relevant SOAP note fields if text is not provided
     if not text.strip() and soap_note:
         text_parts = [
@@ -120,20 +120,20 @@ def generate_summary(text: str = "", soap_note: Dict[str, str] = None, max_sente
     # Initialize ClinicalSummarizer
     summarizer = ClinicalSummarizer(model_name="google/pegasus-pubmed")
 
-    # Generate summary using transformer model. 
+    # Generate summary using transformer model.
     # This returns the full, formatted output (Summary + Suggestions).
     summary = summarizer.summarize(text, max_length=200, min_length=30)
-    
+
     # --- Truncation Logic REMOVED ---
-    
+
     logger.debug(f"Summary generation took {time.time() - start_time:.3f} seconds.")
 
     # Fallback if summarizer returns an empty or failure state
     if not summary or "No summary could be generated." in summary:
         return shorten(text, width=250, placeholder="...")
-    
+
     # Return the full, structured output from the ClinicalSummarizer
-    return summary 
+    return summary
 # --- HTML REPORT GENERATION ---
 
 def _generate_component_html(title: str, icon_class: str, content: str, is_visible: bool = True) -> str:
@@ -189,14 +189,14 @@ def generate_entities_html(entities: list) -> str:
     """Generate HTML for extracted entities."""
     if not entities:
         return ""
-    
+
     entity_cards = []
     for text, label, context in entities:
         entity_id = hashlib.md5(f"{text}{label}".encode()).hexdigest()[:8]
         is_priority = text.lower() in PRIORITY_SYMPTOMS
         priority_badge = f'<span class="{BOOTSTRAP_CLASSES["badge_priority"]}">Priority</span>' if is_priority else ''
         card_border_class = 'border-danger' if is_priority else ''
-        
+
         severity_str = html.escape(str(context.get("severity", "N/A")))
         temporal_str = html.escape(str(context.get("temporal", "N/A")))
 
@@ -208,7 +208,7 @@ def generate_entities_html(entities: list) -> str:
                     <span class="{BOOTSTRAP_CLASSES['badge_primary']}">{html.escape(label)}</span>
                     {priority_badge}
                 </div>
-                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" 
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse"
                         data-bs-target="#entity-{entity_id}" aria-expanded="false">
                     Details
                 </button>
@@ -236,13 +236,13 @@ def generate_management_plans_html(management_plans: dict) -> str:
                 for t in lab_tests
             )
             lab_tests_html = f'<h6>Recommended Lab Tests</h6><ul class="list-group list-group-flush">{items}</ul>'
-        
+
         # Include cancer_follow_up and lab_follow_up if present
         cancer_follow_up = html.escape(data.get('cancer_follow_up', '')) if data.get('cancer_follow_up') else ''
         cancer_follow_up_html = f'<p><strong>Cancer Follow-Up:</strong> {cancer_follow_up}</p>' if cancer_follow_up else ''
         lab_follow_up = html.escape(data.get('lab_follow_up', '')) if data.get('lab_follow_up') else ''
         lab_follow_up_html = f'<p><strong>Lab Follow-Up:</strong> {lab_follow_up}</p>' if lab_follow_up else ''
-        
+
         risk_factors_html = ""
         if risk_factors := data.get('risk_factors'):
             items = "".join(
@@ -250,7 +250,7 @@ def generate_management_plans_html(management_plans: dict) -> str:
                 for rf in risk_factors
             )
             risk_factors_html = f'<h6>Risk Factors</h6><ul class="list-group list-group-flush">{items}</ul>'
-        
+
         plan_cards.append(f"""
         <div class="{BOOTSTRAP_CLASSES['card']}">
             <div class="{BOOTSTRAP_CLASSES['card_header']}">
@@ -292,7 +292,7 @@ def generate_amr_ipc_html(amr_ipc_probabilities: dict, amr_ipc_recommendations: 
     """Generate HTML for AMR/IPC probabilities and recommendations."""
     if not amr_ipc_probabilities and not amr_ipc_recommendations:
         return ""
-    
+
     # Generate probabilities table
     prob_rows = "".join(
         f'<tr><td>{html.escape(category)}</td><td>{prob:.2f}</td></tr>'
@@ -307,7 +307,7 @@ def generate_amr_ipc_html(amr_ipc_probabilities: dict, amr_ipc_recommendations: 
         <tbody>{prob_rows}</tbody>
     </table>
     """
-    
+
     # Generate recommendations
     rec_html = ""
     if amr_ipc_recommendations:
@@ -323,11 +323,11 @@ def generate_amr_ipc_html(amr_ipc_probabilities: dict, amr_ipc_recommendations: 
         """
     else:
         rec_html = '<p class="text-muted">No AMR/IPC recommendations available.</p>'
-    
+
     return f"""
     <div class="{BOOTSTRAP_CLASSES['card']} filterable-section">
         <div class="{BOOTSTRAP_CLASSES['card_header']}">
-            
+
         </div>
         <div class="{BOOTSTRAP_CLASSES['card_body']}">
             {prob_html}
@@ -412,23 +412,23 @@ def generate_html_response(data: Dict, status_code: int = 200) -> str:
 
         metadata_html = generate_metadata_html(note_id, patient_id, processed_at, data.get("processing_time", 0.0))
         primary_dx_html = generate_primary_diagnosis_html(data.get("primary_diagnosis", {}))
-        
+
         diff_dx_html = _generate_component_html("Differential Diagnoses", "bi-list-ul",
             generate_differential_diagnoses_html(data.get("differential_diagnoses", [])),
             is_visible=bool(data.get("differential_diagnoses")))
-        
+
         entities_html = _generate_component_html("Extracted Clinical Entities", "bi-card-list",
             generate_entities_html(data.get("entities", [])),
             is_visible=bool(data.get("entities")))
-            
+
         management_html = _generate_component_html("Management Plans", "bi-prescription",
             generate_management_plans_html(data.get("management_plans", {})),
             is_visible=bool(data.get("management_plans")))
-            
+
         summary_html = _generate_component_html("Clinical Summary", "bi-file-text-fill",
             f"{data.get('summary', '')}",
             is_visible=bool(data.get('summary')))
-        
+
         amr_ipc_html = _generate_component_html("AMR/IPC Analysis", "bi-shield-fill-exclamation",
             generate_amr_ipc_html(data.get("amr_ipc_probabilities", {}), data.get("amr_ipc_recommendations", {})),
             is_visible=bool(data.get("amr_ipc_probabilities") or data.get("amr_ipc_recommendations")))

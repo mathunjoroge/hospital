@@ -5,21 +5,23 @@ Unit tests for Task 2.6: Data Protection Act 2019 Compliance
 (Consent tracking, Subject Access Requests, Anonymization)
 """
 
-import pytest
 from datetime import date
+
+import pytest
+
 try:
     from extensions import db
 except ImportError:
     from extensions import db
 
-from departments.models.records import Patient
 from departments.models.billing import Invoice
 from departments.models.compliance import (
     PatientConsent,
-    grant_patient_consent,
+    anonymize_patient_data,
     export_patient_sar_data,
-    anonymize_patient_data
+    grant_patient_consent,
 )
+from departments.models.records import Patient
 
 
 @pytest.fixture

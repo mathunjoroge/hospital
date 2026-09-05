@@ -29,8 +29,8 @@ Usage:
 
 import logging
 import time
-from enum import Enum
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Optional
 
 from flask_login import current_user

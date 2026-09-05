@@ -1,8 +1,10 @@
 from datetime import date
+
 import pytest
-from extensions import db
+
 from departments.models.records import Patient
-from departments.models.user import User
+from extensions import db
+
 
 def test_patient_registration_happy_path(app):
     with app.app_context():

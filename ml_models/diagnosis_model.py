@@ -2,6 +2,7 @@
 import joblib
 from sklearn.ensemble import RandomForestClassifier
 
+
 def train_diagnosis_model():
     from sklearn.datasets import load_iris
     data = load_iris()

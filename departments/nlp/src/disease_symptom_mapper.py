@@ -1,17 +1,19 @@
-from functools import lru_cache
 import logging
-from typing import List, Dict, Tuple, FrozenSet
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 from threading import Lock
-from sqlalchemy.sql import text
-from sqlalchemy.orm import Session
+from typing import Dict, FrozenSet, List, Tuple
 
-# Local project imports
-from .database import get_sqlite_connection, UMLSSession
-from .config import get_config
+from sqlalchemy.sql import text
+
 from departments.nlp.resources.cancer_diseases import cancer_diseases
 from departments.nlp.resources.common_fallbacks import COMMON_SYMPTOM_DISEASE_MAP
+
+from .config import get_config
+
+# Local project imports
+from .database import UMLSSession, get_sqlite_connection
 from .umls_mapper import UMLSMapper
 
 # Setup logging
@@ -29,7 +31,7 @@ SYMPTOM_RELATIONSHIPS: FrozenSet[str] = frozenset([
 class DiseaseSymptomMapper:
     """
     Maps diseases to symptoms and vice versa using UMLS relationships.
-    
+
     This optimized version uses parameterized SQL queries for performance and
     security, and refactors duplicated logic into a shared helper method.
     """
@@ -54,20 +56,18 @@ class DiseaseSymptomMapper:
     def _query_umls_relations(self, cui: str, direction: str) -> List[Dict]:
         """
         Private helper to query UMLS for related concepts, avoiding code duplication.
-        
+
         Args:
             cui: The Concept Unique Identifier to query for.
-            direction: 'symptoms' (finds symptoms for a disease) or 
+            direction: 'symptoms' (finds symptoms for a disease) or
                        'diseases' (finds diseases for a symptom).
         """
         if direction == 'symptoms':
             cui1_col, cui2_col = 'r.cui1', 'r.cui2'
             name_col, result_cui_col = 'c2.str', 'c2.cui'
-            result_keys = ('symptom_name', 'symptom_cui')
         elif direction == 'diseases':
             cui1_col, cui2_col = 'r.cui1', 'r.cui2'
             name_col, result_cui_col = 'c1.str', 'c1.cui'
-            result_keys = ('disease_name', 'disease_cui')
         else:
             raise ValueError("Invalid direction specified.")
 
@@ -86,7 +86,7 @@ class DiseaseSymptomMapper:
                 AND c1.sab IN :trusted_sources
                 AND c2.sab IN :trusted_sources
         """)
-        
+
         try:
             with UMLSSession() as session:
                 results = session.execute(
@@ -98,7 +98,7 @@ class DiseaseSymptomMapper:
                         'trusted_sources': tuple(HIMS_CONFIG["TRUSTED_SOURCES"])
                     }
                 ).fetchall()
-                
+
                 logger.debug(f"Found {len(results)} {direction} for CUI {cui}")
                 return [{'name': row.name, 'cui': row.cui} for row in results]
         except Exception as e:
@@ -109,16 +109,16 @@ class DiseaseSymptomMapper:
     def get_disease_symptoms(self, disease_cui: str) -> List[Dict]:
         """Gets symptoms for a given disease CUI."""
         return self._query_umls_relations(disease_cui, 'symptoms')
-    
+
     @lru_cache(maxsize=1000)
     def get_symptom_diseases(self, symptom_cui: str) -> List[Dict]:
         """Gets diseases for a given symptom CUI."""
         return self._query_umls_relations(symptom_cui, 'diseases')
-    
+
     def get_symptom_diseases_fallback(self, symptom_text: str) -> List[str]:
         normalized = self.umls_mapper.normalize_symptom(symptom_text)
         return COMMON_SYMPTOM_DISEASE_MAP.get(normalized, [])
-    
+
     def build_disease_signatures(self) -> Dict[str, set]:
         disease_signatures = defaultdict(set)
         try:
@@ -126,28 +126,28 @@ class DiseaseSymptomMapper:
                 cursor = conn.cursor()
                 cursor.execute("SELECT id, name FROM diseases")
                 diseases = cursor.fetchall()
-            
+
             with ThreadPoolExecutor(max_workers=4) as executor:
                 # Pass the mapper instance to avoid repeated `get_instance` calls
                 futures = [
                     executor.submit(self._process_disease_signature, disease_id, disease_name, self.umls_mapper)
                     for disease_id, disease_name in diseases
                 ]
-                
+
                 for future in futures:
                     disease_name, symptoms = future.result()
                     if symptoms:
                         disease_signatures[disease_name] = symptoms
-            
+
             for disease, data in cancer_diseases.items():
                 disease_signatures[disease].update(data['symptoms'])
-            
+
             logger.info(f"Built disease signatures for {len(disease_signatures)} diseases")
             return disease_signatures
         except Exception as e:
             logger.error(f"Error building disease signatures: {e}")
             return {}
-    
+
     def _process_disease_signature(self, disease_id: int, disease_name: str, umls_mapper: UMLSMapper) -> Tuple[str, set]:
         symptoms = set()
         try:
@@ -160,20 +160,20 @@ class DiseaseSymptomMapper:
                 row = cursor.fetchone()
                 if row:
                     disease_cui = row['cui']
-                
+
                 if not disease_cui:
                     disease_cuis = umls_mapper.map_term_to_cui(disease_name)
                     if disease_cuis:
                         disease_cui = disease_cuis[0]
-                
+
                 if disease_cui:
                     symptom_data = self.get_disease_symptoms(disease_cui)
                     symptoms.update(symptom['name'].lower() for symptom in symptom_data)
-                
+
                 # Fallback to local DB mapping if UMLS yields no results
                 if not symptoms:
                     cursor.execute("""
-                        SELECT s.name 
+                        SELECT s.name
                         FROM disease_symptoms ds
                         JOIN symptoms s ON ds.symptom_id = s.id
                         WHERE ds.disease_id = ?
@@ -181,5 +181,5 @@ class DiseaseSymptomMapper:
                     symptoms.update(row['name'].lower() for row in cursor.fetchall())
         except Exception as e:
             logger.error(f"Error processing disease signature for {disease_name}: {e}")
-        
+
         return disease_name, symptoms

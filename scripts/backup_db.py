@@ -6,11 +6,11 @@ Automated Database Backup Utility for HMIS.
 Creates timestamped hot backups of SQLite database with rotation policy.
 """
 
-import os
-import sys
 import glob
-import sqlite3
 import logging
+import os
+import sqlite3
+import sys
 from datetime import datetime, timezone
 
 # Add project root directory to sys.path

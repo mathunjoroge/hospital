@@ -39,7 +39,7 @@ DEFAULT_DISEASE_KEYWORDS = {
     "mumps": "C0026764",
     "rubella": "C0035799",
     "zika virus infection": "C4321343",
-    
+
     # Respiratory / Cardiovascular
     "asthma": "C0004096",
     "acute asthma exacerbation": "C0152023",

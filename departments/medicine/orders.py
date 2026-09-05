@@ -1,73 +1,39 @@
-import requests 
-import pickle
-import re
-from flask import render_template, redirect, url_for, request, flash, jsonify,session
-from flask_wtf import FlaskForm
-from sqlalchemy import func
-from wtforms import SelectField
-from wtforms.validators import DataRequired
-from sqlalchemy import text
-import json
-from contextlib import contextmanager
-from typing import Optional, List, Dict, Any
-import psycopg2
-from datetime import date
-from psycopg2.extras import RealDictCursor
-from flask import current_app
-from flask_login import login_required, current_user
-from departments.rbac import roles_required, get_effective_role
-from flask_wtf.csrf import CSRFProtect,CSRFError
-from scipy.spatial.distance import cosine
-from extensions import db
-from flask import session
-from flask_socketio import SocketIO
-import uuid
-from uuid import uuid4
-from sqlalchemy.orm import joinedload
-import bleach 
-from . import bp
-from departments.forms import PatientSearchForm, OncoPatientForm, OncologyNoteForm, AdmitPatientForm
 import os
-from datetime import datetime
-from departments.models.laboratory import LabResult,LabResultTemplate
-from departments.models.records import PatientWaitingList, Patient
+import uuid
+from typing import Any, Dict, List, Optional
+
+from flask import flash, redirect, render_template, request, url_for
+from flask_login import login_required
+from psycopg2.extras import RealDictCursor
+from sqlalchemy.orm import joinedload
+
 from departments.models.medicine import (
-    SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, 
-    RequestedImage, UnmatchedImagingRequest, TheatreProcedure, TheatreList, 
-    Ward, AdmittedPatient, SpecialWarning,RegimenDrugAssociation, 
-    OncologyBooking, OncoDrugCategory, RegimenCategory, 
-    WardBedHistory, WardRoom, Bed, WardRound,Disease, 
-    DiseaseManagementPlan, DiseaseLab, OncoPatient, 
-    OncologyDrug, OncologyRegimen, OncoPrescription, 
-    OncoTreatmentRecord,PrescriptionDrugDetail,OncologyNote,
-    CancerType, CancerStage, CancerTypeStage, CancerDetail
+    Imaging,
+    LabTest,
+    RequestedImage,
+    RequestedLab,
+    SOAPNote,
+    UnmatchedImagingRequest,
 )
+from departments.models.records import Patient, PatientWaitingList
 from departments.nlp.chatbot import UniversalClinicalSummarizer
-import logging
-import json
-from flask import Response, stream_with_context, request
-import time
 from departments.nlp.logging_setup import get_logger
-from flask.sessions import SecureCookieSessionInterface
+from departments.rbac import roles_required
+from extensions import db, socketio
+
+from . import bp
+
 logger = get_logger()
-import PyPDF2  # For PDF processing
-from docx import Document  # For DOCX processing
-import pytesseract  # For OCR on images
-from PIL import Image  # For image handling
-import csv  #
-from werkzeug.utils import secure_filename
 
 # Instantiate the summarizer for use in chatbot_interface
 
 
-from extensions import csrf
 
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
 nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
 Summarizer = UniversalClinicalSummarizer(gemini_api_key=gemini_api_key, nvidia_api_key=nvidia_api_key)
 
 
-from flask import make_response
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'txt', 'csv', 'docx'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB max file size
@@ -260,7 +226,7 @@ def unmatched_imaging():
                     description=unmatched_request.description
                 )
                 db.session.add(requested_imaging)
-                
+
                 # Remove from unmatched list
                 db.session.delete(unmatched_request)
                 db.session.commit()
@@ -289,7 +255,7 @@ def unmatched_imaging():
 
     return render_template(
         'unmatched_imaging.html',
-        unmatched_requests=unmatched_requests, 
+        unmatched_requests=unmatched_requests,
         imaging_options=imaging_options,
         patient_name=patient_name,
         start_date=start_date,
@@ -311,10 +277,11 @@ def get_unmatched_count():
 @bp.context_processor
 def inject_unmatched_count():
     """Inject the unmatched count into the template context."""
-    return dict(unmatched_count=get_unmatched_count()) 
+    return dict(unmatched_count=get_unmatched_count())
 
-from departments.shared.drugcentral import DRUGCENTRAL_DB_PARAMS as db_params, get_drugcentral_connection as get_db_connection
-
+from departments.shared.drugcentral import (  # noqa: E402
+    get_drugcentral_connection as get_db_connection,
+)
 
 
 def fetch_drugs_data(search_query: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -325,15 +292,15 @@ def fetch_drugs_data(search_query: Optional[str] = None) -> List[Dict[str, Any]]
                 SELECT DISTINCT generic_name, product_name, route, form
                 FROM product
             """
-            
+
             params = []
             if search_query:
                 search_param = f"%{search_query}%"
                 base_query += """
                     WHERE generic_name ILIKE %s OR product_name ILIKE %s
-                """  
+                """
                 params = [search_param] * 2  # 2 parameters now
-            
+
             base_query += " ORDER BY generic_name"
             cur.execute(base_query, params)
             return cur.fetchall()

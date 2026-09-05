@@ -1,9 +1,10 @@
-from datetime import datetime
 import json
-import pytest
-from extensions import db
-from departments.models.medicine import LabTest, RequestedLab
+from datetime import datetime
+
 from departments.models.laboratory import LabResult
+from departments.models.medicine import LabTest, RequestedLab
+from extensions import db
+
 
 def test_lab_flow_request_to_result(app):
     with app.app_context():

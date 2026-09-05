@@ -6,12 +6,13 @@ timestamps, nullable optional fields, PatientIdentifier, PatientMerge,
 duplicate detection, and the merge helper.
 """
 from datetime import date, datetime
+
 import pytest
-from extensions import db
+
 from departments.models.records import Patient, PatientIdentifier, PatientMerge
 from departments.models.user import User
 from departments.records.merge import find_duplicate_candidates, merge_patient_records
-
+from extensions import db
 
 # ─────────────────────────────────────────────
 # Helpers

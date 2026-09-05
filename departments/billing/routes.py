@@ -1,17 +1,36 @@
-from flask import render_template, redirect, url_for, request, flash, jsonify
-from flask_login import login_required, current_user
-from extensions import db
+import logging
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from . import bp  # Import the blueprint
-from departments.models.records import Patient, ClinicBooking, Clinic
-from departments.models.billing import Billing, Charge, ChargeCategory, DrugsBill, PaidBill, LabBill, ClinicBill, TheatreBill, ImagingBill, WardBill
-from departments.models.pharmacy import Drug, DispensedDrug
-from departments.models.medicine import TheatreList, TheatreProcedure, AdmittedPatient, RequestedImage, RequestedLab, LabTest, Imaging
+
+from flask import flash, jsonify, redirect, render_template, request, url_for
+from flask_login import login_required
 from sqlalchemy.orm import joinedload
-import logging
-from departments.rbac import roles_required
+
 from departments.api.audit import log_audit_event
+from departments.models.billing import (
+    Billing,
+    Charge,
+    ChargeCategory,
+    ClinicBill,
+    DrugsBill,
+    ImagingBill,
+    LabBill,
+    PaidBill,
+    TheatreBill,
+    WardBill,
+)
+from departments.models.medicine import (
+    AdmittedPatient,
+    RequestedImage,
+    RequestedLab,
+    TheatreList,
+)
+from departments.models.pharmacy import DispensedDrug, Drug
+from departments.models.records import ClinicBooking, Patient
+from departments.rbac import roles_required
+from extensions import db
+
+from . import bp  # Import the blueprint
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -397,7 +416,7 @@ def pay_all(patient_id):
         flash(f'Payment recorded successfully for {patient.name}! Receipt Number: {receipt_number}, Amount Paid: Kshs {amount_paid}, Remaining Balance: Kshs {balance}', 'success')
         return redirect(url_for('billing.view_unpaid_bills', patient_id=patient_id))
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         flash('Something went wrong. Please try again.', 'error')
         return redirect(url_for('billing.view_unpaid_bills', patient_id=patient_id))

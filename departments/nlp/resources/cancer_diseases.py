@@ -1,3 +1,5 @@
+import os
+
 cancer_diseases = {
     'prostate cancer': {
         'cui': 'C0376358',
@@ -12,7 +14,7 @@ cancer_diseases = {
             '5yr_survival': '~99% (localized)'
         }
     },
-    
+
     'lymphoma': {
         'cui': 'C0024299',
         'symptoms': {'night sweats', 'weight loss', 'fatigue', 'lymphadenopathy', 'fever', 'pruritus', 'splenomegaly', 'chest pain'},
@@ -25,7 +27,7 @@ cancer_diseases = {
         'treatments': {'chemotherapy (ABVD/R-CHOP)', 'immunotherapy', 'radiation', 'stem cell transplant', 'CAR-T therapy'},
         'emerging_targets': {'CD30', 'PD-1/PD-L1'}
     },
-    
+
     'leukemia': {
         'cui': 'C0023418',
         'symptoms': {'fatigue', 'weight loss', 'fever', 'easy bruising', 'recurrent infections', 'bone pain', 'pallor', 'splenomegaly'},
@@ -38,7 +40,7 @@ cancer_diseases = {
         'treatments': {'chemotherapy', 'targeted therapy (TKIs)', 'stem cell transplant', 'immunotherapy', 'CAR-T cells'},
         'prognostic_markers': {'FLT3 mutations', 'Philadelphia chromosome', 'TP53 status'}
     },
-    
+
     'lung cancer': {
         'cui': 'C0242379',
         'symptoms': {'cough', 'weight loss', 'chest pain', 'hemoptysis', 'dyspnea', 'hoarseness', 'bone pain', 'superior vena cava syndrome'},
@@ -51,7 +53,7 @@ cancer_diseases = {
         'treatments': {'lobectomy', 'SBRT', 'chemotherapy', 'immunotherapy', 'targeted therapy (EGFR/ALK)'},
         'screening_criteria': {'55-80 yrs', '30 pack-year history'}
     },
-    
+
     'colorectal cancer': {
         'cui': 'C0009402',
         'symptoms': {'abdominal pain', 'weight loss', 'rectal bleeding', 'change in bowel habits', 'iron-deficiency anemia', 'tenesmus', 'incomplete evacuation'},
@@ -61,7 +63,7 @@ cancer_diseases = {
         'treatments': {'colectomy', 'neoadjuvant chemoradiation', 'FOLFOX/FOLFIRI', 'anti-EGFR therapy', 'immunotherapy for MSI-H'},
         'prevention': {'aspirin chemoprevention', 'polyp removal'}
     },
-    
+
     'ovarian cancer': {
         'cui': 'C0029925',
         'symptoms': {'abdominal bloating', 'weight loss', 'pelvic pain', 'early satiety', 'urinary frequency', 'back pain', 'constipation'},
@@ -71,7 +73,7 @@ cancer_diseases = {
         'treatments': {'debulking surgery', 'platinum-based chemo', 'PARP inhibitors', 'anti-angiogenics'},
         'screening_controversy': 'No effective screening for general population'
     },
-    
+
     'pancreatic cancer': {
         'cui': 'C0235974',
         'symptoms': {'weight loss', 'jaundice', 'abdominal pain', 'Courvoisier sign', 'new-onset diabetes', 'steatorrhea', 'Trousseau sign'},
@@ -81,7 +83,7 @@ cancer_diseases = {
         'treatments': {'Whipple procedure', 'FOLFIRINOX', 'gemcitabine/nab-paclitaxel', 'palliative stenting'},
         'prognosis': {'5yr_survival': '<10%', 'reasons': 'late presentation, aggressive biology'}
     },
-    
+
     'liver cancer': {
         'cui': 'C2239176',
         'symptoms': {'weight loss', 'jaundice', 'abdominal pain', 'ascites', 'hepatomegaly', 'caput medusae', 'hepatic encephalopathy'},
@@ -91,7 +93,7 @@ cancer_diseases = {
         'treatments': {'ablation', 'TACE', 'sorafenib', 'liver transplant', 'immunotherapy'},
         'surveillance_protocol': {'Ultrasound + AFP q6mo for cirrhotics'}
     },
-    
+
     'breast cancer': {
         'cui': 'C0006142',
         'symptoms': {'breast lump', 'weight loss', 'nipple discharge', 'skin dimpling', 'nipple retraction', 'peau d\'orange', 'axillary lymphadenopathy'},
@@ -101,7 +103,7 @@ cancer_diseases = {
         'treatments': {'lumpectomy', 'mastectomy', 'radiation', 'endocrine therapy', 'HER2-targeted agents'},
         'prevention': {'tamoxifen/raloxifene', 'prophylactic mastectomy'}
     },
-    
+
     # Additional cancers
     'melanoma': {
         'cui': 'C0025202',
@@ -111,7 +113,7 @@ cancer_diseases = {
         'treatments': {'wide excision', 'sentinel lymph node biopsy', 'immunotherapy', 'targeted therapy (BRAF/MEK)'},
         'prevention': {'ABCDE rule', 'sun protection'}
     },
-    
+
     'glioblastoma': {
         'cui': 'C0017636',
         'symptoms': {'headache', 'seizures', 'neurological deficits', 'nausea', 'personality changes'},
@@ -119,7 +121,7 @@ cancer_diseases = {
         'treatments': {'maximal safe resection', 'temozolomide', 'TTFields', 'bevacizumab'},
         'prognosis': {'median_survival': '15 months'}
     },
-    
+
     'cervical cancer': {
         'cui': 'C0007862',
         'symptoms': {'postcoital bleeding', 'abnormal discharge', 'pelvic pain', 'dysuria'},
@@ -693,6 +695,5 @@ CANCER_PLANS = {
 
 
 # ~/projects/hospital/departments/nlp/resources/cancer_diseases.py
-import os
 
 CANCER_KEYWORDS_FILE = os.path.join(os.path.dirname(__file__), "cancer_keywords.json")

@@ -1,12 +1,11 @@
 import sys
-import os
 import unittest
 
 sys.path.insert(0, '/home/mathu/projects/hospital')
 
-from departments.nlp.src.nvidia_client import NvidiaNIMClient, CANCER_TYPES, AMR_IPC_CATEGORIES
+from departments.nlp.src.nvidia_client import NvidiaNIMClient
 from departments.nlp.summarizer import ClinicalSummarizer
-from departments.nlp.src.nlp import DiseasePredictor
+
 
 class TestNvidiaNIMClient(unittest.TestCase):
 
@@ -22,7 +21,7 @@ class TestNvidiaNIMClient(unittest.TestCase):
         """Test offline rule-based fallback for cancer risk prediction."""
         note_text = "Patient presents with a persistent lump in breast, nipple discharge, and abnormal mammogram."
         res = self.client.predict_cancer_risk(note_text)
-        
+
         self.assertIsInstance(res, dict)
         self.assertIn("breast cancer", res)
         # Breast cancer probability should be highest among all cancer types

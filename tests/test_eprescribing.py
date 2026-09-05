@@ -4,21 +4,19 @@ tests/test_eprescribing.py
 Unit tests for Task 3.2: Clinical Consultation & E-Prescribing System
 """
 
-import pytest
 from datetime import date
+
+import pytest
+
 try:
     from extensions import db
 except ImportError:
     from extensions import db
 
-from departments.models.records import Patient
-from departments.models.nursing import NursingNote
-from departments.models.medicine import PrescribedMedicine, SOAPNote
+from departments.medicine.prescribe import check_drug_safety, search_icd10
 from departments.models.billing import Invoice
-from departments.medicine.prescribe import (
-    search_icd10,
-    check_drug_safety
-)
+from departments.models.nursing import NursingNote
+from departments.models.records import Patient
 
 
 @pytest.fixture

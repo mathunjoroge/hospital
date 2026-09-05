@@ -1,8 +1,9 @@
 from datetime import date
-import pytest
-from extensions import db
-from departments.models.records import Patient
+
 from departments.models.admin import Log
+from departments.models.records import Patient
+from extensions import db
+
 
 def test_audit_logging_on_patient_crud(app):
     with app.app_context():

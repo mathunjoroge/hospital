@@ -1,11 +1,12 @@
 # test_summarizer.py
 from departments.nlp.summarizer import ClinicalSummarizer
 
+
 def test_clinical_summarizer():
     print("=== Testing ClinicalSummarizer ===")
-    
+
     summarizer = ClinicalSummarizer()
-    
+
     # Test with a structured dictionary
     sample_note = {
         "hpi": "Patient is a 60-year-old woman presenting with chest pain and shortness of breath for 2 days.",
@@ -13,7 +14,7 @@ def test_clinical_summarizer():
         "assessment": "Likely unstable angina. Needs further evaluation.",
         "recommendation": "Admit to hospital. Start aspirin, oxygen, and monitor vitals. Order ECG and troponin levels."
     }
-    
+
     print("\n--- Test with structured dict ---")
     summary1 = summarizer.summarize(sample_note)
     print(summary1)
@@ -24,7 +25,7 @@ def test_clinical_summarizer():
         "Past history includes diabetes and hypertension. Assessment: possible viral infection. "
         "Plan: order influenza test and provide supportive care."
     )
-    
+
     print("\n--- Test with plain text ---")
     summary2 = summarizer.summarize(sample_text)
     print(summary2)

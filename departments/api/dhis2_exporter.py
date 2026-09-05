@@ -13,20 +13,21 @@ Blueprint endpoints (registered under /api/khis):
 import csv
 import io
 import logging
-from datetime import datetime, timezone, date
 from calendar import monthrange
+from datetime import date, datetime, timezone
 
-from flask import Blueprint, jsonify, request, Response, render_template, flash, redirect, url_for
-from flask_login import current_user
+from flask import (
+    Blueprint,
+    Response,
+    jsonify,
+    request,
+)
+
 from departments.api.auth import jwt_or_session_required
-from sqlalchemy import func
-
-from extensions import db
-from departments.rbac import roles_required
-from departments.models.records import Patient
-from departments.models.medicine import SOAPNote, AdmittedPatient, PrescribedMedicine
-from departments.models.nursing import Vitals
 from departments.models.laboratory import LabResult
+from departments.models.medicine import AdmittedPatient, PrescribedMedicine, SOAPNote
+from departments.models.records import Patient
+from departments.rbac import roles_required
 
 logger = logging.getLogger(__name__)
 

@@ -4,19 +4,14 @@ tests/test_encryption.py
 Unit tests for Task 2.5: Encryption at Rest (EncryptedString & Fernet crypto)
 """
 
-import pytest
 from sqlalchemy import Column, Integer
+
 try:
     from extensions import db
 except ImportError:
     from extensions import db
 
-from departments.crypto import (
-    encrypt_value,
-    decrypt_value,
-    EncryptedString,
-    get_fernet_key
-)
+from departments.crypto import EncryptedString, decrypt_value, encrypt_value
 
 
 # Test Model using EncryptedString

@@ -1,6 +1,6 @@
-import pytest
+from departments.models.billing import Billing, Charge, ChargeCategory
 from extensions import db
-from departments.models.billing import ChargeCategory, Charge, Billing
+
 
 def test_create_and_verify_billing_record(app):
     with app.app_context():

@@ -1,8 +1,9 @@
 import sys
-import os
+
 sys.path.append('/home/mathu/projects/hospital')
 
 from departments.nlp.src.nlp import DiseasePredictor
+
 
 def test_amr_prediction():
     predictor = DiseasePredictor()

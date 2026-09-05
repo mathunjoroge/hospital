@@ -1,11 +1,13 @@
 import unittest
-from datetime import datetime, date
-from app import app, db
-from departments.models.user import User
-from departments.models.records import Patient
-from departments.models.nursing import Vitals
-from departments.models.medicine import SOAPNote, PrescribedMedicine
+from datetime import date, datetime
+
 from werkzeug.security import generate_password_hash
+
+from app import app, db
+from departments.models.medicine import SOAPNote
+from departments.models.nursing import Vitals
+from departments.models.records import Patient
+from departments.models.user import User
 
 
 class TestFHIRAndDHIS2Exporter(unittest.TestCase):
@@ -106,7 +108,7 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         """Test GET /api/fhir/R4/Patient/<patient_id>."""
         self.client.post('/login', data={'username': 'test_admin_fhir', 'password': 'password123'})
         res = self.client.get(f'/api/fhir/R4/Patient/{self.patient_id}')
-        
+
         self.assertEqual(res.status_code, 200)
         data = res.json
         self.assertEqual(data["resourceType"], "Patient")
@@ -118,7 +120,7 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         """Test GET /api/fhir/R4/Observation?patient=<patient_id>."""
         self.client.post('/login', data={'username': 'test_admin_fhir', 'password': 'password123'})
         res = self.client.get(f'/api/fhir/R4/Observation?patient={self.patient_id}')
-        
+
         self.assertEqual(res.status_code, 200)
         data = res.json
         self.assertEqual(data["resourceType"], "Bundle")
@@ -129,7 +131,7 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         """Test GET /api/fhir/R4/Condition?patient=<patient_id>."""
         self.client.post('/login', data={'username': 'test_admin_fhir', 'password': 'password123'})
         res = self.client.get(f'/api/fhir/R4/Condition?patient={self.patient_id}')
-        
+
         self.assertEqual(res.status_code, 200)
         data = res.json
         self.assertEqual(data["resourceType"], "Bundle")
@@ -140,7 +142,7 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         """Test GET /api/khis/export/dhis2_json."""
         self.client.post('/login', data={'username': 'test_admin_fhir', 'password': 'password123'})
         res = self.client.get('/api/khis/export/dhis2_json')
-        
+
         self.assertEqual(res.status_code, 200)
         data = res.json
         self.assertEqual(data["dataSet"], "MOH_MONTHLY_SUMMARY_V2")
@@ -151,7 +153,7 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         """Test GET /api/khis/export/csv."""
         self.client.post('/login', data={'username': 'test_admin_fhir', 'password': 'password123'})
         res = self.client.get('/api/khis/export/csv')
-        
+
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.mimetype, "text/csv")
         self.assertIn(b"dataElement,period,orgUnit", res.data)

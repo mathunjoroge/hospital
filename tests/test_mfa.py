@@ -1,8 +1,10 @@
 import pyotp
 from werkzeug.security import generate_password_hash
-from extensions import db
-from departments.models.user import User
+
 from departments.admin.routes import validate_password_complexity
+from departments.models.user import User
+from extensions import db
+
 
 def test_password_complexity_rules():
     assert validate_password_complexity("short")[0] is False

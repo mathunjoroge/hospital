@@ -1,28 +1,36 @@
-from flask import render_template, redirect, url_for, request, flash, jsonify
-from flask_login import login_required, current_user
-from . import bp
-from departments.models.records import (
-    Patient, Clinic, ClinicBooking, PatientWaitingList,
-    PatientIdentifier, PatientMerge
-)
-from departments.models.medicine import (
-    SOAPNote, PrescribedMedicine, Medicine, RequestedLab, LabTest,
-    RequestedImage, Imaging, AdmittedPatient, Ward
-)
-from departments.models.nursing import Vitals, NursingNote
-from departments.models.laboratory import LabResult
-from departments.records.merge import find_duplicate_candidates, merge_patient_records
-from datetime import datetime, date, timedelta
-from extensions import db
-from sqlalchemy.orm import joinedload
-from sqlalchemy import func, extract
-from departments.api.audit import log_audit_event
+from datetime import date, datetime, timedelta
 
+from flask import flash, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+from sqlalchemy import extract, func
+from sqlalchemy.orm import joinedload
+
+from departments.api.audit import log_audit_event
+from departments.models.laboratory import LabResult
+from departments.models.medicine import (
+    AdmittedPatient,
+    PrescribedMedicine,
+    RequestedImage,
+    RequestedLab,
+    SOAPNote,
+)
+from departments.models.nursing import NursingNote, Vitals
+from departments.models.records import (
+    Clinic,
+    ClinicBooking,
+    Patient,
+    PatientWaitingList,
+)
 
 # ─────────────────────────────────────────────
 # INDEX — Patient List
 # ─────────────────────────────────────────────
 from departments.rbac import roles_required
+from departments.records.merge import find_duplicate_candidates, merge_patient_records
+from extensions import db
+
+from . import bp
+
 
 @bp.route('/index')
 @login_required

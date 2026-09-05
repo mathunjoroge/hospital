@@ -1,10 +1,11 @@
-import unittest
 import json
-from app import app, db
-from departments.models.user import User
-from departments.models.compliance import AuditLog
-from departments.api.audit import log_audit_event
+import unittest
+
 from werkzeug.security import generate_password_hash
+
+from app import app, db
+from departments.api.audit import log_audit_event
+from departments.models.user import User
 
 
 class TestAuditAndPWA(unittest.TestCase):

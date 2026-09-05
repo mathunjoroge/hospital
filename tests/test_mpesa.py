@@ -4,18 +4,20 @@ tests/test_mpesa.py
 Unit tests for Task 2.4: Safaricom Daraja M-Pesa Integration
 """
 
+from datetime import date
+
 import pytest
-from datetime import date, datetime, timezone
-from extensions import db
-from departments.models.billing import Invoice, InvoiceLineItem, Payment, InvoiceStatus
-from departments.models.records import Patient
+
 from departments.billing.mpesa import (
     format_phone_number,
     generate_stk_password,
     initiate_stk_push,
     process_mpesa_callback,
-    reconcile_pending_mpesa_payments
+    reconcile_pending_mpesa_payments,
 )
+from departments.models.billing import Invoice, InvoiceLineItem, InvoiceStatus, Payment
+from departments.models.records import Patient
+from extensions import db
 
 
 @pytest.fixture

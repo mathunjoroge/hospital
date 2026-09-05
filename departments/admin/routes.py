@@ -1,15 +1,24 @@
-from flask import Blueprint, render_template, flash, redirect, url_for, request, session
-from extensions import db 
-from flask_login import login_required, current_user
-from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SelectField, SubmitField
-from wtforms.validators import DataRequired, Length
-from werkzeug.security import generate_password_hash
-from . import bp  # Import the blueprint
-from departments.models.user import User  # Import User model
-from departments.models.admin import Log  # Corrected to use Log model from log module
-import logging
+import base64
 from datetime import datetime
+import io
+import logging
+
+from flask import flash, redirect, render_template, request, session, url_for
+from flask_login import current_user, login_required
+from flask_wtf import FlaskForm
+import pyotp
+import qrcode
+from werkzeug.security import generate_password_hash
+from wtforms import PasswordField, SelectField, StringField, SubmitField
+from wtforms.validators import DataRequired, Length
+
+from departments.api.security import validate_password_strength
+from departments.models.admin import Log  # Corrected to use Log model from log module
+from departments.models.user import User  # Import User model
+from departments.rbac import roles_required
+from extensions import db
+
+from . import bp  # Import the blueprint
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -34,9 +43,8 @@ class AddUserForm(FlaskForm):
 class EditUserForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=80)])
     role = SelectField('Role', choices=ROLES, validators=[DataRequired()])
-    submit = SubmitField('Update User')    
+    submit = SubmitField('Update User')
 
-from departments.rbac import roles_required
 
 @bp.route('/admin/switch_user', methods=['POST'])
 @bp.route('/switch_user', methods=['POST'])
@@ -84,7 +92,7 @@ def revert_user():
 def get_effective_role():
     if current_user.is_authenticated and current_user.role == 'admin' and 'switched_user' in session:
         return session['switched_user']
-    return current_user.role if current_user.is_authenticated else None   
+    return current_user.role if current_user.is_authenticated else None
 
 @bp.route('/index', methods=['GET'])
 @bp.route('/', methods=['GET'])  # Add this to handle /admin directly
@@ -116,8 +124,7 @@ def index():
         ))
         db.session.commit()
         return redirect(url_for('login'))
-import pyotp
-from departments.api.security import validate_password_strength
+
 
 def validate_password_complexity(password):
     return validate_password_strength(password)
@@ -442,13 +449,14 @@ def audit_trail():
 def export_audit_trail():
 
     """Export system audit logs as structured JSON for SIEM integration."""
-    from departments.models.compliance import AuditLog
     from flask import jsonify
+
+    from departments.models.compliance import AuditLog
 
     logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(1000).all()
     return jsonify({
         "system": "HMIS",
         "exported_at": datetime.now().isoformat(),
         "count": len(logs),
-        "audit_logs": [l.to_dict() for l in logs]
+        "audit_logs": [log_item.to_dict() for log_item in logs]
     })

@@ -1,9 +1,10 @@
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import inch
-from reportlab.lib import colors
 from datetime import datetime
-import os
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
+
 
 def create_lab_report_pdf(filename="sample_lab_report.pdf"):
     # Create a PDF canvas
@@ -73,7 +74,7 @@ def create_lab_report_pdf(filename="sample_lab_report.pdf"):
     # Footer
     c.setFont("Helvetica", 8)
     c.drawString(margin, margin, "Confidential: For authorized medical use only.")
-    
+
     # Save the PDF
     c.save()
     print(f"Lab report PDF created: {filename}")

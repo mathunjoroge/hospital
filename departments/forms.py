@@ -1,18 +1,21 @@
+from datetime import date
+
 from flask_wtf import FlaskForm
 from wtforms import (
-    StringField,
-    FloatField,
     BooleanField,
-    SubmitField,
     DateField,
+    FloatField,
+    HiddenField,
     SelectField,
+    StringField,
+    SubmitField,
     TextAreaField,
-    HiddenField
 )
 from wtforms.validators import DataRequired, Email, Length
+
+from departments.models.medicine import CancerStage, CancerType
 from departments.models.records import Patient
-from departments.models.medicine import CancerType, CancerStage, CancerTypeStage
-from datetime import datetime, date
+
 
 class AdmitPatientForm(FlaskForm):
     patient_id = SelectField('Patient', choices=[], validators=[DataRequired()])
@@ -20,7 +23,7 @@ class AdmitPatientForm(FlaskForm):
     room_id = SelectField('Room', choices=[], validators=[DataRequired()])
     bed_id = SelectField('Bed', choices=[], validators=[DataRequired()])
     admission_criteria = TextAreaField('Admission Criteria', validators=[DataRequired()])
-    admitted_by = HiddenField() 
+    admitted_by = HiddenField()
 class AddDeductionForm(FlaskForm):
     name = StringField('Deduction Name', validators=[DataRequired()])
     value = FloatField('Value', validators=[DataRequired()])
@@ -44,7 +47,7 @@ class UpdateProfileForm(FlaskForm):
     phone = StringField('Phone', validators=[DataRequired()])
     bank_name = StringField('Bank Name', validators=[DataRequired()])
     bank_account = StringField('Bank Account', validators=[DataRequired()])
-    submit = SubmitField('Update Profile')    
+    submit = SubmitField('Update Profile')
 class PatientSearchForm(FlaskForm):
     patient_id = SelectField('Patient', validators=[DataRequired(message="Please select a patient.")])
     submit_search = SubmitField('Search')
@@ -89,4 +92,4 @@ class OncologyNoteForm(FlaskForm):
     note_date = DateField('Note Date', validators=[DataRequired()], format='%Y-%m-%d', default=date.today)
     note_content = TextAreaField('Note Content', validators=[DataRequired(), Length(min=1, max=1000)])
     submit_note = SubmitField('Add Note')
-  
+

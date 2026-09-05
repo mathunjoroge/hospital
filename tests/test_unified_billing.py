@@ -5,16 +5,18 @@ Unit tests for Task 2.2: Unified Invoice / InvoiceLineItem / Payment models.
 Legacy billing tables are not tested here — they are already covered by
 tests/test_billing.py.
 """
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
-import pytest
-from extensions import db
-from departments.models.records import Patient
-from departments.models.billing import (
-    Invoice, InvoiceLineItem, Payment,
-    InvoiceStatus, PaymentMethod
-)
 
+from departments.models.billing import (
+    Invoice,
+    InvoiceLineItem,
+    InvoiceStatus,
+    Payment,
+    PaymentMethod,
+)
+from departments.models.records import Patient
+from extensions import db
 
 # ─────────────────────────────────────────────
 # Helpers
@@ -103,7 +105,7 @@ class TestInvoiceCreation:
 
     def test_invoice_links_to_patient(self, app):
         with app.app_context():
-            p = _make_patient("INV003")
+            _make_patient("INV003")
             inv = _make_invoice("INV003")
             loaded = db.session.get(Invoice, inv.id)
             assert loaded.patient_id == "INV003"

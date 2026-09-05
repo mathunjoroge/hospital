@@ -1,24 +1,57 @@
-from flask import render_template, redirect, url_for, request, flash, make_response, session, send_file
-from flask_login import login_required, current_user
-from . import bp  # Import the blueprint
-from departments.rbac import roles_required
-from departments.models.hr import Employee, Rota, Payroll, Allowance, Deduction, Leave, CustomRule, AuditLog
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
-from reportlab.lib.units import inch
-from extensions import db
-from datetime import datetime, timedelta
-from collections import defaultdict
-import random
-from flask_mail import Message, Mail
 import csv
-from io import StringIO
-import pandas as pd
-from reportlab.pdfgen import canvas
 import io
-from departments.forms import AddAllowanceForm, AddDeductionForm, LeaveRequestForm, UpdateProfileForm
+import random
+from collections import defaultdict
+from datetime import datetime, timedelta
+from io import StringIO
+
+import pandas as pd
+from flask import (
+    flash,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    session,
+    url_for,
+)
+from flask_login import current_user, login_required
+from flask_mail import Mail, Message
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
+from reportlab.platypus import (
+    Image,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
+
+from departments.forms import (
+    AddAllowanceForm,
+    AddDeductionForm,
+    LeaveRequestForm,
+    UpdateProfileForm,
+)
+from departments.models.hr import (
+    Allowance,
+    AuditLog,
+    Deduction,
+    Employee,
+    Leave,
+    Payroll,
+    Rota,
+)
+from departments.rbac import roles_required
+from extensions import db
+
+from . import bp  # Import the blueprint
+
 
 # Define get_effective_role to support role switching
 def get_effective_role():

@@ -1,7 +1,9 @@
 from datetime import datetime
-from extensions import db
-from departments.models.records import Patient, PatientMerge
+
 from departments.models.admin import Log
+from departments.models.records import Patient, PatientMerge
+from extensions import db
+
 
 def find_duplicate_candidates(patient):
     """
@@ -14,7 +16,7 @@ def find_duplicate_candidates(patient):
 
     query = Patient.query.filter(
         Patient.id != patient.id,
-        Patient.is_active == True
+        Patient.is_active.is_(True)
     )
 
     candidates = []
@@ -23,7 +25,7 @@ def find_duplicate_candidates(patient):
 
     for cand in dob_matches:
         cand_phone = "".join(filter(str.isdigit, cand.contact or ""))
-        
+
         # Phone + DOB match
         if normalized_phone and cand_phone and normalized_phone[-9:] == cand_phone[-9:]:
             candidates.append({

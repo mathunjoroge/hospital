@@ -7,8 +7,9 @@ Provides SMILES validation, Lipinski Rule of 5 analysis,
 """
 
 import logging
+
 from rdkit import Chem, DataStructs
-from rdkit.Chem import Descriptors, AllChem, rdMolDescriptors
+from rdkit.Chem import AllChem, Descriptors, rdMolDescriptors
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +110,7 @@ def generate_3d_molblock(smiles: str) -> str | None:
         if res != 0:
             # Fallback to standard embedding if ETKDG fails
             res = AllChem.EmbedMolecule(mol3d, useRandomCoords=True)
-        
+
         if res == 0:
             try:
                 AllChem.MMFFOptimizeMolecule(mol3d, maxIters=200)

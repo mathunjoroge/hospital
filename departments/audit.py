@@ -1,20 +1,27 @@
-from datetime import datetime
 import logging
+from datetime import datetime
+
 from flask import has_request_context
 from flask_login import current_user
 from sqlalchemy import event
-from extensions import db
+
 from departments.models.admin import Log
 
 logger = logging.getLogger(__name__)
 
 def register_audit_listeners():
     """Register automatic audit logging event listeners on key models."""
-    from departments.models.records import Patient
-    from departments.models.billing import Billing, DrugsBill, PaidBill, LabBill, ImagingBill
-    from departments.models.pharmacy import DispensedDrug
+    from departments.models.billing import (
+        Billing,
+        DrugsBill,
+        ImagingBill,
+        LabBill,
+        PaidBill,
+    )
     from departments.models.laboratory import LabResult
     from departments.models.medicine import Imaging, PrescribedMedicine
+    from departments.models.pharmacy import DispensedDrug
+    from departments.models.records import Patient
 
     audited_models = [Patient, Billing, DrugsBill, PaidBill, LabBill, ImagingBill, DispensedDrug, LabResult, Imaging, PrescribedMedicine]
 

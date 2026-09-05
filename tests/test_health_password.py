@@ -1,6 +1,6 @@
 import os
 import unittest
-import json
+
 from app import app, db
 from departments.api.security import validate_password_strength
 from scripts.backup_db import perform_backup

@@ -198,7 +198,7 @@ fallback_management_plans = {
 # Common Symptom-Disease Associations
 COMMON_SYMPTOM_DISEASE_MAP = {
     "fever": [
-        "Malaria", "Influenza", "Pneumonia", "COVID-19", 
+        "Malaria", "Influenza", "Pneumonia", "COVID-19",
         "Urinary Tract Infection", "Sepsis", "Tuberculosis", "Typhoid Fever"
     ],
     "chills": [
@@ -210,11 +210,11 @@ COMMON_SYMPTOM_DISEASE_MAP = {
         "Hepatitis", "Inflammatory Bowel Disease", "Anorexia Nervosa"
     ],
     "nausea": [
-        "Gastroenteritis", "Migraine", "Food Poisoning", 
+        "Gastroenteritis", "Migraine", "Food Poisoning",
         "Pregnancy", "Pancreatitis", "Peptic Ulcer", "Hyperemesis Gravidarum"
     ],
     "headache": [
-        "Migraine", "Tension Headache", "Sinusitis", 
+        "Migraine", "Tension Headache", "Sinusitis",
         "Hypertension", "Meningitis", "Subarachnoid Hemorrhage"
     ]
 }
@@ -334,7 +334,6 @@ SYMPTOM_NORMALIZATIONS =  {
         "joint soreness": "joint pain",
 
         # Fatigue
-        "fatigue": "fatigue",
         "tired": "fatigue",
         "exhaustion": "fatigue",
         "lethargy": "fatigue",
@@ -346,7 +345,6 @@ SYMPTOM_NORMALIZATIONS =  {
         "sore neck": "sore throat",
 
         # Polyuria
-        "polyuria": "polyuria",
         "excessive urination": "polyuria",
         "too much urine": "polyuria",
 

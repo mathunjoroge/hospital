@@ -4,16 +4,20 @@ tests/test_insurance_claims.py
 Unit tests for Task 2.3: InsuranceScheme, PatientInsurance, Claim models
 and the Claim lifecycle state machine.
 """
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
+
 import pytest
-from extensions import db
-from departments.models.records import Patient
+
 from departments.models.billing import Invoice, InvoiceStatus
 from departments.models.insurance import (
-    InsuranceScheme, PatientInsurance, Claim, ClaimStatus
+    Claim,
+    ClaimStatus,
+    InsuranceScheme,
+    PatientInsurance,
 )
-
+from departments.models.records import Patient
+from extensions import db
 
 # ─────────────────────────────────────────────
 # Helpers
@@ -83,7 +87,7 @@ def _make_claim(invoice, patient_id, scheme_id, amount=5000):
 class TestInsuranceScheme:
     def test_create_sha_scheme(self, app):
         with app.app_context():
-            s = _make_scheme("SHA", "Social Health Authority")
+            _make_scheme("SHA", "Social Health Authority")
             saved = InsuranceScheme.query.filter_by(code="SHA").first()
             assert saved is not None
             assert saved.scheme_type == "public"

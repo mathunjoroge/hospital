@@ -14,17 +14,16 @@ Blueprint endpoints (registered under /api/fhir/R4):
 
 import logging
 from datetime import datetime
-from flask import Blueprint, jsonify, request, abort, url_for
-from flask_login import current_user
-from departments.api.auth import jwt_or_session_required
 
-from extensions import db
-from departments.rbac import roles_required
-from departments.models.records import Patient
-from departments.models.nursing import Vitals
-from departments.models.laboratory import LabResult
+from flask import Blueprint, jsonify, request
+
+from departments.api.auth import jwt_or_session_required
 from departments.models.imaging import ImagingResult
-from departments.models.medicine import SOAPNote, PrescribedMedicine
+from departments.models.laboratory import LabResult
+from departments.models.medicine import PrescribedMedicine, SOAPNote
+from departments.models.nursing import Vitals
+from departments.models.records import Patient
+from departments.rbac import roles_required
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +162,7 @@ def search_fhir_observations():
         return jsonify({"resourceType": "OperationOutcome", "issue": [{"severity": "error", "code": "required", "diagnostics": "Query parameter 'patient' is required."}]}), 400
 
     vitals_records = Vitals.query.filter_by(patient_id=patient_id).order_by(Vitals.timestamp.desc()).all()
-    
+
     entries = []
     for v in vitals_records:
         for obs in vitals_to_fhir_observations(v):

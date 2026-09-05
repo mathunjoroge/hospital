@@ -1,7 +1,9 @@
 import pytest
+
 from app import app
-from extensions import db
 from departments.models.user import User
+from extensions import db
+
 
 @pytest.fixture
 def client():

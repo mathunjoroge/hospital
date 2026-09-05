@@ -4,12 +4,14 @@ tests/test_jwt_api.py
 Test suite for JWT authentication & dual auth (JWT + Session) on API endpoints.
 """
 
-import pytest
 from datetime import date
+
+import pytest
 from werkzeug.security import generate_password_hash
-from extensions import db
-from departments.models.user import User
+
 from departments.models.records import Patient
+from departments.models.user import User
+from extensions import db
 
 
 @pytest.fixture

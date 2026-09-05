@@ -11,18 +11,18 @@ Features:
 """
 
 import logging
-from datetime import datetime, timezone
-from flask import Blueprint, request, jsonify, current_app
+
+from flask import Blueprint, jsonify, request
 
 try:
     from extensions import db
 except ImportError:
     from extensions import db
 
-from departments.models.records import Patient
-from departments.models.medicine import PrescribedMedicine, Medicine, SOAPNote
-from departments.models.nursing import NursingNote
 from departments.models.billing import Invoice, InvoiceLineItem
+from departments.models.medicine import Medicine, PrescribedMedicine, SOAPNote
+from departments.models.nursing import NursingNote
+from departments.models.records import Patient
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +152,7 @@ def handle_soap_consultation():
     """Save structured SOAP consultation note."""
     data = request.get_json() or {}
     patient_id = data.get('patient_id')
-    doctor_id = data.get('doctor_id', 1)
+    data.get('doctor_id', 1)
 
     subjective = data.get('subjective', '')
     objective = data.get('objective', '')
@@ -188,10 +188,10 @@ def handle_prescription_signoff():
     import uuid
     data = request.get_json() or {}
     patient_id = data.get('patient_id')
-    doctor_id = data.get('doctor_id', 1)
+    data.get('doctor_id', 1)
     prescriptions = data.get('prescriptions', [])  # list of dicts: {name, dosage, frequency, duration, cost}
     override_warning = data.get('override_warning', False)
-    override_reason = data.get('override_reason', '')
+    data.get('override_reason', '')
 
     med_names = [p.get('name') for p in prescriptions if p.get('name')]
     safety_check = check_drug_safety(patient_id, med_names)

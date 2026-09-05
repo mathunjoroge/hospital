@@ -8,7 +8,7 @@ Supports helper function `log_audit_event` and route decorator `@audited`.
 import json
 import logging
 from functools import wraps
-from typing import Optional, Union, Any
+from typing import Optional, Union
 
 from flask import request
 from flask_login import current_user

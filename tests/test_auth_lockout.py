@@ -1,7 +1,9 @@
 import pytest
+
 from app import app
-from extensions import db, limiter
 from departments.models.user import User
+from extensions import db, limiter
+
 
 @pytest.fixture
 def client():
@@ -11,13 +13,13 @@ def client():
     limiter.enabled = True
     if hasattr(limiter, '_storage') and hasattr(limiter._storage, 'reset'):
         limiter._storage.reset()
-    
+
     with app.app_context():
         db.create_all()
         user = User(id=999, username='testuser', password='pbkdf2:sha256:600000$P98G$2b2d2f2...', role='admin')
         db.session.add(user)
         db.session.commit()
-        
+
         with app.test_client() as client:
             yield client
         db.session.remove()
@@ -39,7 +41,7 @@ def test_login_rate_limiting(client):
     user = User(id=888, username='rateuser', password='pwd', role='admin')
     db.session.add(user)
     db.session.commit()
-    
+
     for i in range(6):
         resp = client.post('/login', data={'username': 'rateuser', 'password': 'pwd'})
         if i == 5:

@@ -1,20 +1,19 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash,jsonify
-from flask_login import login_required, current_user
-from departments.rbac import roles_required
-from extensions import db
-from departments.models.nursing import (
-    NursingNote, NursingCareTask, Vitals, Partogram,
-    MedicationAdmin, Messages, Notifications
-)
-from departments.models.records import Patient,PatientWaitingList
-from departments.models.user import User
-from departments.models.medicine import Ward, AdmittedPatient
-from departments.models.admin import Log
-from sqlalchemy.orm import joinedload
 import logging
 import sqlite3  # Import sqlite3 module
+from datetime import datetime
+
+from flask import flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload
+
+from departments.models.admin import Log
+from departments.models.nursing import Partogram, Vitals
+from departments.models.records import Patient, PatientWaitingList
+from departments.rbac import roles_required
+from extensions import db
+
 from . import bp
-from datetime import datetime, timedelta
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -203,7 +202,7 @@ def submit_partogram():
                 contractions = int(contractions)
                 oxytocin = float(oxytocin) if oxytocin else 0.0
                 pulse = int(pulse)
-                if not '/' in bp:
+                if '/' not in bp:
                     errors.append("Blood Pressure must be in the format 'systolic/diastolic' (e.g., 120/80).")
                 else:
                     bp_systolic, bp_diastolic = map(int, bp.split('/'))
@@ -317,7 +316,7 @@ def view_partogram(patient_id):
     try:
         # Fetch partogram records for the specified patient
         cursor.execute('''
-            SELECT 
+            SELECT
                 time_hours,
                 cervical_dilation,
                 fetal_heart_rate,
@@ -419,7 +418,7 @@ def view_partograms():
         if patient_id:
             count_query += ' WHERE patient_id = ?'
             count_params.append(patient_id)
-        
+
         cursor.execute(count_query, count_params)
         total_records = cursor.fetchone()[0]
 
@@ -557,14 +556,14 @@ def vital_signs():
             db.session.commit()
             flash('Vital signs recorded.', 'success')
             return redirect(url_for('nursing.vital_signs'))
-        except ValueError as e:
+        except ValueError:
             flash('Invalid input: Please ensure numeric fields contain valid numbers.', 'error')
             return redirect(url_for('nursing.vital_signs'))
         except Exception as e:
             db.session.rollback()
             flash(f'Error recording vital signs: {str(e)}', 'error')
             return redirect(url_for('nursing.vital_signs'))
-    
+
     return render_template('nursing/vital_signs.html')
 
 

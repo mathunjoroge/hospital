@@ -1,8 +1,11 @@
-from flask import request, jsonify
-from . import bp  # ✅ Import the API blueprint
-from departments.models.records import Patient
+from flask import jsonify, request
+
 from departments.api.auth import jwt_or_session_required
+from departments.models.records import Patient
 from extensions import limiter
+
+from . import bp  # ✅ Import the API blueprint
+
 
 @bp.route('/patients/search', methods=['GET'])
 @jwt_or_session_required

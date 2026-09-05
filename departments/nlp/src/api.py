@@ -1,17 +1,19 @@
-from fastapi import FastAPI, Request, Response, Depends
+import logging
+from typing import List, Optional
+
+import bleach
+import uvicorn
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import List, Optional
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-import uvicorn
+from slowapi.util import get_remote_address
+
+from .config import get_config
+from .database import fetch_single_soap_note, update_ai_analysis
 from .nlp import DiseasePredictor
 from .utils import generate_html_response
-from .database import fetch_single_soap_note, update_ai_analysis
-from .config import get_config
-import logging
-import bleach
 
 logger = logging.getLogger("HIMS-NLP")
 HIMS_CONFIG = get_config()
@@ -96,7 +98,7 @@ async def predict(request: Request, payload: PredictionRequest, predictor: Disea
 async def process_note(request: Request, payload: ProcessNoteRequest, predictor: DiseasePredictor = Depends(get_disease_predictor)):
     """Process a SOAP note by ID."""
     import time
-    start_time = time.time()
+    time.time()
     note = fetch_single_soap_note(payload.note_id)
     if not note:
         return Response(
@@ -104,7 +106,7 @@ async def process_note(request: Request, payload: ProcessNoteRequest, predictor:
             status_code=404,
             media_type="text/html"
         )
-    
+
     result = predictor.process_soap_note(note)
     if "error" in result:
         return Response(
@@ -112,10 +114,10 @@ async def process_note(request: Request, payload: ProcessNoteRequest, predictor:
             status_code=400,
             media_type="text/html"
         )
-    
+
     html_content = generate_html_response(result, 200)
     update_ai_analysis(note["id"], html_content, result['summary'])
-    
+
     return Response(
         content=html_content,
         status_code=200,

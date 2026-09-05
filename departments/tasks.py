@@ -3,12 +3,14 @@ try:
 except ImportError:
     def shared_task(func):
         return func
+import logging
+
 from flask import current_app
+
 from departments.models.medicine import SOAPNote
 from departments.models.records import Patient
 from departments.nlp.summarizer import ClinicalSummarizer
 from extensions import db
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +19,7 @@ def update_ai_note(note_id, patient_id):
     with current_app.app_context():
         try:
             note = SOAPNote.query.get(note_id)
-            patient = Patient.query.get(patient_id)
+            Patient.query.get(patient_id)
             if note:
                 text_content = f"{note.situation or ''} {note.hpi or ''} {note.assessment or ''} {note.recommendation or ''}".strip()
                 if text_content:

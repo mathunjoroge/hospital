@@ -1,7 +1,8 @@
 from datetime import date, datetime
-import pytest
+
+from departments.models.pharmacy import Batch, DispensedDrug, Drug, DrugCategory
 from extensions import db
-from departments.models.pharmacy import DrugCategory, Drug, Batch, DispensedDrug
+
 
 def test_pharmacy_dispensing_decrements_stock(app):
     with app.app_context():

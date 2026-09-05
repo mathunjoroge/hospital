@@ -1,12 +1,15 @@
-from flask import render_template, redirect, url_for, request, flash
-from flask_login import login_required, current_user
-from extensions import db
+from datetime import datetime
+
+from flask import flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+
 from departments.models.mortuary import MortuaryData
 from departments.models.records import Patient
-from datetime import datetime
+from departments.rbac import roles_required
+from extensions import db
+
 from . import bp
 
-from departments.rbac import roles_required
 
 @bp.route('/', methods=['GET', 'POST'])
 @login_required

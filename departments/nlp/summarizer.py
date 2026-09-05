@@ -1,11 +1,12 @@
 import logging
-import spacy
-import unicodedata
-from typing import Union, Dict, List, Optional, Set
-import warnings
 import re
+import unicodedata
+import warnings
 from datetime import datetime
+from typing import Dict, List, Optional, Set, Union
+
 import bleach
+import spacy
 
 from departments.nlp.src.nvidia_client import NvidiaNIMClient
 
@@ -118,8 +119,8 @@ class ClinicalSummarizer:
 
         if isinstance(note, dict):
             text = ". ".join(
-                f"{k.replace('_', ' ').title()}: {v}" 
-                for k, v in note.items() 
+                f"{k.replace('_', ' ').title()}: {v}"
+                for k, v in note.items()
                 if v and isinstance(v, (str, int, float))
             )
         elif isinstance(note, str):
@@ -129,7 +130,7 @@ class ClinicalSummarizer:
 
         # Normalize text
         text = unicodedata.normalize('NFKC', text)
-        
+
         # Basic abbreviation expansion
         text = re.sub(r'°C', 'degrees Celsius', text)
         text = re.sub(r'\bBP\b', 'blood pressure', text)
@@ -145,7 +146,7 @@ class ClinicalSummarizer:
             summary = self._nvidia_client.summarize_note(text)
             logger.info("Summary generated successfully via NVIDIA NIM")
             return summary
-            
+
         except Exception as e:
             logger.error(f"HMIS summary generation failed: {e}")
             raise
@@ -167,9 +168,9 @@ class ClinicalSummarizer:
             if not filtered_sentences:
                 logger.warning("No clinically relevant sentences found after filtering")
                 return "Unable to generate reliable clinical summary due to insufficient specific medical information"
-            
+
             return " ".join(filtered_sentences).strip()
-            
+
         except Exception as e:
             logger.error(f"HMIS summary verification failed: {e}")
             return summary
@@ -179,7 +180,7 @@ class ClinicalSummarizer:
         entities = set()
         for ent in doc.ents:
             entity_text = ent.text.lower().strip()
-            if (entity_text and 
+            if (entity_text and
                 entity_text not in self.GENERIC_TERMS and
                 len(entity_text) > 2 and
                 not entity_text.isnumeric()):
@@ -199,12 +200,12 @@ class ClinicalSummarizer:
         for sentence in sentences:
             sentence_doc = self._nlp(sentence.lower())
             sentence_entities = self._extract_medical_entities(sentence_doc)
-            
-            if (sentence_entities and 
-                (sentence_entities.intersection(input_entities) or 
+
+            if (sentence_entities and
+                (sentence_entities.intersection(input_entities) or
                  self._is_clinically_relevant(sentence))):
                 filtered.append(sentence)
-                
+
         return filtered
 
     def _is_clinically_relevant(self, sentence: str) -> bool:
@@ -219,7 +220,7 @@ class ClinicalSummarizer:
         """Generate clinical insights using spaCy and keyword-based logic."""
         try:
             text_lower = input_text.lower()
-            summary_doc = self._nlp(summary_text.lower())
+            self._nlp(summary_text.lower())
             input_doc = self._nlp(text_lower)
             entities = self._extract_medical_entities(input_doc)
 
@@ -276,10 +277,10 @@ class ClinicalSummarizer:
                 "critical_considerations": considerations,
                 "detected_entities": list(entities)
             }
-            
+
             logger.info(f"Generated insights with entities: {entities}")
             return insights
-            
+
         except Exception as e:
             logger.error(f"Insight generation failed: {e}")
             return self._get_fallback_insights()
@@ -311,14 +312,14 @@ class ClinicalSummarizer:
                 <p>Please contact technical support if this error persists.</p>
             </div>
             """
-        
+
         output_parts = [
             '<div class="hmis-clinical-summary">',
             '<div class="summary-section">',
             '<h3>Clinical Summary</h3>',
             '<div class="summary-content">'
         ]
-        
+
         sentences = self._split_sentences(summary)
         if sentences:
             output_parts.append('<ul>')
@@ -327,9 +328,9 @@ class ClinicalSummarizer:
             output_parts.append('</ul>')
         else:
             output_parts.append('<p>No summary generated.</p>')
-            
+
         output_parts.append('</div>')
-        
+
         if sanitized_insights.get('primary_diagnoses'):
             output_parts.extend([
                 '<div class="insights-section">',
@@ -338,7 +339,7 @@ class ClinicalSummarizer:
             ])
             output_parts.extend(f'<li>{dx}</li>' for dx in sanitized_insights['primary_diagnoses'])
             output_parts.append('</ul></div>')
-        
+
         if sanitized_insights.get('management_recommendations'):
             output_parts.extend([
                 '<div class="insights-section">',
@@ -347,7 +348,7 @@ class ClinicalSummarizer:
             ])
             output_parts.extend(f'<li>{rec}</li>' for rec in sanitized_insights['management_recommendations'])
             output_parts.append('</ul></div>')
-        
+
         if sanitized_insights.get('diagnostic_suggestions'):
             output_parts.extend([
                 '<div class="insights-section">',
@@ -356,7 +357,7 @@ class ClinicalSummarizer:
             ])
             output_parts.extend(f'<li>{sug}</li>' for sug in sanitized_insights['diagnostic_suggestions'])
             output_parts.append('</ul></div>')
-        
+
         if sanitized_insights.get('critical_considerations'):
             output_parts.extend([
                 '<div class="critical-section">',
@@ -365,7 +366,7 @@ class ClinicalSummarizer:
             ])
             output_parts.extend(f'<li>{cons}</li>' for cons in sanitized_insights['critical_considerations'])
             output_parts.append('</ul></div>')
-        
+
         output_parts.extend([
             '<div class="hmis-disclaimer">',
             '<hr>',
@@ -377,7 +378,7 @@ class ClinicalSummarizer:
             '</div>',
             '</div>'
         ])
-        
+
         return '\n'.join(output_parts)
 
     def _format_hmis_error(self, message: str) -> str:

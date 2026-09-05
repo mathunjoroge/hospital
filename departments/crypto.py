@@ -10,12 +10,13 @@ Features:
   - Backward compatible: legacy unencrypted plaintext values fall back gracefully
 """
 
-import os
 import base64
 import logging
+import os
+
 from cryptography.fernet import Fernet, InvalidToken
-from sqlalchemy.types import TypeDecorator, String
 from flask import current_app
+from sqlalchemy.types import String, TypeDecorator
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ def encrypt_value(value: str) -> str:
         return None
     if not isinstance(value, str):
         value = str(value)
-    
+
     key = get_fernet_key()
     f = Fernet(key)
     encrypted_bytes = f.encrypt(value.encode('utf-8'))

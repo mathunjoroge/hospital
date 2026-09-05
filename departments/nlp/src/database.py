@@ -1,12 +1,14 @@
+import logging
 import sqlite3
 from contextlib import contextmanager
-from tenacity import retry, stop_after_attempt, wait_exponential
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from departments.nlp.src.config import get_config
-import logging
 
 logger = logging.getLogger("HIMS-NLP")
 HIMS_CONFIG = get_config()
@@ -69,7 +71,7 @@ def update_ai_analysis(note_id: int, ai_analysis_html: str, summary: str) -> boo
             if not cursor.fetchone():
                 logger.warning(f"Note ID {note_id} not found for AI analysis update")
                 return False
-            
+
             cursor.execute(
                 "UPDATE soap_notes SET ai_analysis = ?, ai_notes = ? WHERE id = ?",
                 (ai_analysis_html, summary, note_id)

@@ -1,19 +1,19 @@
-import logging
-import re
-import bleach
-import time
-from datetime import datetime
-from typing import Dict, List, Optional, Any
-import aiohttp
 import asyncio
-import json
-import os
-import spacy
-import pdfplumber
-from PIL import Image
-import pytesseract
-from docx import Document
 import csv
+import logging
+import os
+import re
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import aiohttp
+import bleach
+import pdfplumber
+import pytesseract
+import spacy
+from docx import Document
+from PIL import Image
+
 from departments.nlp.src.nvidia_client import NvidiaNIMClient
 
 # --- Logging Configuration ---
@@ -47,7 +47,7 @@ def allowed_file(filename: str) -> bool:
 # --- Universal Clinical Summarizer Class ---
 class UniversalClinicalSummarizer:
     """A medical chatbot using NVIDIA NIM and Gemini API for detailed, clinician-focused responses."""
-    
+
     SAFETY_FILTERS: Dict[str, Any] = {
         "dangerous_advice": [
             r"self-diagnose", r"self-treat", r"stop taking", r"ignore.*doctor",
@@ -74,10 +74,10 @@ class UniversalClinicalSummarizer:
     async def _query_gemini_async(self, contents: List[Dict[str, Any]], max_tokens: int = 3000, max_retries: int = 5) -> Dict[str, Any]:
         """Query Gemini API asynchronously with Google Search grounding and exponential backoff."""
         url = f"{API_BASE_URL}/{GEMINI_MODEL}:generateContent?key={self.gemini_api_key}"
-        
+
         # Detect specialty from the latest user query
         specialty = self.detect_specialty(contents[-1]["parts"][0]["text"]) if contents else "general"
-        
+
         system_instruction = f"""
         You are an **evidence-based clinical AI assistant** designed to support clinicians with precise, technical, and comprehensive medical information. Your purpose is to assist doctors by providing detailed clinical insights, including pathophysiology, differential diagnoses, diagnostic workup, evidence-based management, and patient counseling strategies.
 
@@ -113,7 +113,7 @@ class UniversalClinicalSummarizer:
 
         **NOTE**: Responses must be complete, accurate, and never truncated. If the query involves a medical emergency, prioritize urgent action recommendations.
         """
-        
+
         if specialty != "general":
             system_instruction += f"\nTailor the response for a {specialty} specialist, using relevant terminology and focusing on specialty-specific guidelines."
 
@@ -126,16 +126,16 @@ class UniversalClinicalSummarizer:
             },
             "tools": [{"google_search": {}}],
         }
-        
+
         headers = {'Content-Type': 'application/json'}
-        
+
         async with aiohttp.ClientSession() as session:
             for attempt in range(max_retries):
                 try:
                     async with session.post(url, headers=headers, json=payload, timeout=30) as response:
                         response.raise_for_status()
                         result = await response.json()
-                        
+
                         if 'promptFeedback' in result and result['promptFeedback'].get('blockReason'):
                             logger.warning(f"Response blocked: {result['promptFeedback']['blockReason']}")
                             return {"text": "", "sources": []}
@@ -150,7 +150,7 @@ class UniversalClinicalSummarizer:
                         candidate = result['candidates'][0]
                         text = candidate['content']['parts'][0]['text'].strip()
                         sources: List[Dict[str, str]] = []
-                        
+
                         grounding_metadata = candidate.get('groundingMetadata')
                         if grounding_metadata and grounding_metadata.get('groundingAttributions'):
                             for attribution in grounding_metadata['groundingAttributions']:
@@ -159,7 +159,7 @@ class UniversalClinicalSummarizer:
                                         "uri": attribution['web'].get('uri', 'N/A'),
                                         "title": attribution['web'].get('title', 'N/A')
                                     })
-                        
+
                         logger.info(f"API response received. Length: {len(text)} characters")
                         return {"text": text, "sources": sources}
 
@@ -170,7 +170,7 @@ class UniversalClinicalSummarizer:
                     else:
                         logger.error("Max retries reached. Failing the API call.")
                         return {"text": "", "sources": []}
-        
+
         return {"text": "", "sources": []}
 
     def _query_gemini(self, contents: List[Dict[str, Any]], max_tokens: int = 3000, max_retries: int = 5) -> Dict[str, Any]:
@@ -199,14 +199,14 @@ class UniversalClinicalSummarizer:
             labs = clinical_data.get('labs', {})
             history = clinical_data.get('history', '')
 
-            context = f"Patient Context:\n"
+            context = "Patient Context:\n"
             if vitals:
                 context += f"- Vitals: {', '.join([f'{k}: {v}' for k, v in vitals.items()])}\n"
             if labs:
                 context += f"- Labs: {', '.join([f'{k}: {v}' for k, v in labs.items()])}\n"
             if history:
                 context += f"- Medical History: {history}\n"
-            
+
             logger.info("Parsed clinical data successfully.")
             return context
         except Exception as e:
@@ -217,24 +217,24 @@ class UniversalClinicalSummarizer:
         """Extract text from a file stream based on its type."""
         try:
             extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
-            
+
             if extension in ['png', 'jpg', 'jpeg', 'gif']:
                 img = Image.open(file_stream)
                 text = pytesseract.image_to_string(img)
                 logger.info(f"Extracted text from image: {filename}")
                 return text.strip() or "No text could be extracted from the image."
-            
+
             elif extension == 'pdf':
                 with pdfplumber.open(file_stream) as pdf:
                     text = "".join(page.extract_text() for page in pdf.pages if page.extract_text())
                 logger.info(f"Extracted text from PDF: {filename}")
                 return text.strip() or "No text could be extracted from the PDF."
-            
+
             elif extension == 'txt':
                 text = file_stream.read().decode('utf-8')
                 logger.info(f"Extracted text from TXT: {filename}")
                 return text.strip()
-            
+
             elif extension == 'csv':
                 text = ''
                 reader = csv.reader(file_stream.read().decode('utf-8').splitlines())
@@ -242,17 +242,17 @@ class UniversalClinicalSummarizer:
                     text += ' '.join(row) + '\n'
                 logger.info(f"Extracted text from CSV: {filename}")
                 return text.strip()
-            
+
             elif extension == 'docx':
                 doc = Document(file_stream)
                 text = '\n'.join([para.text for para in doc.paragraphs])
                 logger.info(f"Extracted text from DOCX: {filename}")
                 return text.strip() or "No text could be extracted from the DOCX."
-            
+
             else:
                 logger.warning(f"Unsupported file type: {filename}")
                 return "Unsupported file type."
-        
+
         except Exception as e:
             logger.error(f"Error extracting content from file {filename}: {e}")
             return f"Error processing file: {str(e)}"
@@ -308,7 +308,7 @@ This chatbot provides general, educational information only.
         for rule, pattern in self.SAFETY_FILTERS["clinical_rules"].items():
             if re.search(pattern, response_lower, re.IGNORECASE):
                 logger.warning(f"Clinical inaccuracy detected: {rule}")
-                return f"Response may contain outdated or incorrect clinical advice. Please refer to current guidelines (e.g., ADA, AHA) or consult a specialist."
+                return "Response may contain outdated or incorrect clinical advice. Please refer to current guidelines (e.g., ADA, AHA) or consult a specialist."
 
         return response
 
@@ -317,15 +317,15 @@ This chatbot provides general, educational information only.
         try:
             if not question and not file_stream:
                 return self._format_output(
-                    "Hello! I'm here to help with medical questions or file analysis. Please provide a question or upload a file.", 
-                    question="Greeting", 
+                    "Hello! I'm here to help with medical questions or file analysis. Please provide a question or upload a file.",
+                    question="Greeting",
                     sources=[]
                 )
-            
+
             emergency_response = self._check_emergency(question) if question else None
             if emergency_response:
                 return self._format_output(emergency_response, question=question, is_error=True)
-            
+
             # Build the native contents list
             llm_contents = []
             if conversation_history:
@@ -354,7 +354,7 @@ This chatbot provides general, educational information only.
                             question=question,
                             is_error=True
                         )
-                    
+
                     # Check file size
                     file_stream.seek(0, os.SEEK_END)
                     file_size = file_stream.tell()
@@ -366,7 +366,7 @@ This chatbot provides general, educational information only.
                             question=question,
                             is_error=True
                         )
-                    
+
                     file_content = self.extract_text_from_file(file_stream, filename)
                     if file_content.startswith("Error") or file_content == "Unsupported file type.":
                         return self._format_output(
@@ -375,7 +375,7 @@ This chatbot provides general, educational information only.
                             is_error=True
                         )
                     context += f"File Content [{filename}]:\n{file_content}\n"
-                
+
                 if context:
                     combined_input = f"{context}\nQuestion: {combined_input}" if question else context
 
@@ -391,9 +391,9 @@ This chatbot provides general, educational information only.
                 "role": "user",
                 "parts": [{"text": combined_input}]
             })
-            
+
             logger.info(f"Sending {len(llm_contents)} total history entries to model.")
-            
+
             if self.nvidia_client.is_available():
                 logger.info("Querying NVIDIA NIM API for clinical response...")
                 resp_text = self.nvidia_client._call_chat_completion(combined_input, system_message="You are an evidence-based clinical AI assistant designed to support clinicians with technical medical information.")
@@ -416,16 +416,16 @@ This chatbot provides general, educational information only.
             if not response:
                 logger.warning("Gemini API returned empty response after retries.")
                 return self._format_output(self._safe_fallback_response(question or "File analysis"), question=question, sources=[])
-            
+
             logger.info(f"Successfully generated response of {len(response)} characters")
             response = self._verify_response(response)
-            
+
             if "disclaimer" not in response.lower() and "consult" not in response.lower():
                 response += "\n\n---"
                 response += "\n**MANDATORY DISCLAIMER:** \n This information is for educational purposes only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of a qualified healthcare provider for any health concerns or before starting a new treatment."
-            
+
             return self._format_output(response, question=question or f"Analysis of {filename}", sources=sources)
-        
+
         except Exception as e:
             logger.error(f"Critical error processing question or file: {e}")
             return self._format_output(self._safe_fallback_response(question or "File analysis"), question=question, sources=[])
@@ -453,9 +453,9 @@ This chatbot provides general, educational information only.
                 <p>{response_clean}</p>
             </div>
             """
-        
+
         display_question = bleach.clean(question) if question else "Starting our conversation"
-        
+
         html = f"""
         <div class="container">
             <div class="response-header">

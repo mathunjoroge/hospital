@@ -1,23 +1,35 @@
 import logging
 import os
-import time
-import redis
+import shutil
 from datetime import datetime, timedelta, timezone
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
-from flask_session import Session
-from flask_login import login_user, current_user, logout_user, login_required
-from flask_migrate import Migrate
-from flask_mail import Mail
-from flask_socketio import SocketIO
-from flask_apscheduler import APScheduler
-from werkzeug.security import check_password_hash
-from config import Config
-from extensions import db, login_manager, socketio, jwt
-from departments.models.user import User
-from departments.models.admin import Log
-from departments.models.nursing import Notifications
 
 import dotenv
+import pyotp
+import redis
+from flask import (
+    Flask,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+from flask_apscheduler import APScheduler
+from flask_login import current_user, login_required, login_user, logout_user
+from flask_mail import Mail
+from flask_migrate import Migrate
+from markupsafe import Markup, escape
+from werkzeug.security import check_password_hash
+
+from config import Config
+from departments.models.admin import Log
+from departments.models.nursing import Notifications
+from departments.models.user import User
+from extensions import csrf, db, jwt, limiter, login_manager, socketio
+from flask_session import Session
+
 dotenv.load_dotenv()
 
 # Initialize Flask app
@@ -76,24 +88,22 @@ except redis.ConnectionError as e:
         temp_logger.info(f"Using Filesystem sessions at: {filesystem_session_dir}")
 
 Session(app)
-   
+
 
 # Ensure DICOM upload folder exists
 os.makedirs(app.config['DICOM_UPLOAD_FOLDER'], exist_ok=True)
 
 
 
-from extensions import db, login_manager, socketio, csrf, limiter, jwt
-from markupsafe import Markup, escape
-
 # Initialize extensions
 db.init_app(app)
-import departments.models  # Ensures all SQLAlchemy models are registered in metadata
-from departments.audit import register_audit_listeners
+from departments.audit import register_audit_listeners  # noqa: E402
+
 register_audit_listeners()
 csrf.init_app(app)
 # Exempt the JWT token endpoint from CSRF — API clients don't carry CSRF cookies
-from departments.api.auth import get_token as _api_get_token
+from departments.api.auth import get_token as _api_get_token  # noqa: E402
+
 csrf.exempt(_api_get_token)
 
 limiter.init_app(app)
@@ -230,7 +240,6 @@ def login():
             flash('Something went wrong. Please try again.', 'error')
     return render_template('login.html')
 
-import pyotp
 
 @app.route('/mfa_verify', methods=['GET', 'POST'])
 def mfa_verify():
@@ -276,7 +285,7 @@ def logout():
         db.session.commit()
         logger.error(f"Logout error: {e}", exc_info=True)
         flash('Something went wrong. Please try again.', 'error')
-import shutil
+
 
 @app.route('/healthz', methods=['GET'])
 def healthz():
@@ -319,28 +328,27 @@ def healthz():
         }
     }), http_code
 
-from departments.records import bp as records_bp
-
-from departments.billing import bp as billing_bp
-from departments.pharmacy import bp as pharmacy_bp
-from departments.medicine import bp as medicine_bp
-from departments.laboratory import bp as laboratory_bp
-from departments.imaging import bp as imaging_bp
-from departments.stores import bp as stores_bp
-from departments.admin import bp as admin_bp
-from departments.nursing import bp as nursing_bp
-from departments.hr import bp as hr_bp
-from departments.mortuary import bp as mortuary_bp
-from departments.api import bp as api_bp
-from departments.billing.mpesa import mpesa_bp
-from departments.nursing.triage import triage_bp
-from departments.medicine.prescribe import prescribe_bp
-from departments.pharmacy.fefo import fefo_bp
-from departments.laboratory.panic_alerts import lis_bp
-from departments.imaging.dicom import dicom_bp
-from departments.nursing.mar import mar_bp
-from departments.api.fhir import fhir_bp
-from departments.api.dhis2_exporter import khis_bp
+from departments.admin import bp as admin_bp  # noqa: E402
+from departments.api import bp as api_bp  # noqa: E402
+from departments.api.dhis2_exporter import khis_bp  # noqa: E402
+from departments.api.fhir import fhir_bp  # noqa: E402
+from departments.billing import bp as billing_bp  # noqa: E402
+from departments.billing.mpesa import mpesa_bp  # noqa: E402
+from departments.hr import bp as hr_bp  # noqa: E402
+from departments.imaging import bp as imaging_bp  # noqa: E402
+from departments.imaging.dicom import dicom_bp  # noqa: E402
+from departments.laboratory import bp as laboratory_bp  # noqa: E402
+from departments.laboratory.panic_alerts import lis_bp  # noqa: E402
+from departments.medicine import bp as medicine_bp  # noqa: E402
+from departments.medicine.prescribe import prescribe_bp  # noqa: E402
+from departments.mortuary import bp as mortuary_bp  # noqa: E402
+from departments.nursing import bp as nursing_bp  # noqa: E402
+from departments.nursing.mar import mar_bp  # noqa: E402
+from departments.nursing.triage import triage_bp  # noqa: E402
+from departments.pharmacy import bp as pharmacy_bp  # noqa: E402
+from departments.pharmacy.fefo import fefo_bp  # noqa: E402
+from departments.records import bp as records_bp  # noqa: E402
+from departments.stores import bp as stores_bp  # noqa: E402
 
 app.register_blueprint(records_bp, url_prefix='/records')
 app.register_blueprint(billing_bp, url_prefix='/billing')
@@ -366,11 +374,11 @@ app.register_blueprint(khis_bp, url_prefix='/api/khis')
 
 if __name__ == '__main__':
     with app.app_context():
-        import departments.models
         try:
             db.create_all()
-            from departments.models.user import User
             from werkzeug.security import generate_password_hash
+
+            from departments.models.user import User
             if not User.query.filter_by(username='admin').first():
                 admin = User(
                     username='admin',

@@ -11,16 +11,17 @@ Features:
 """
 
 import logging
-from datetime import datetime, date, timezone
-from flask import Blueprint, request, jsonify, current_app
+from datetime import date, datetime
+
+from flask import Blueprint, jsonify, request
 
 try:
     from extensions import db
 except ImportError:
     from extensions import db
 
+from departments.models.nursing import Notifications, TriageAssessment, Vitals
 from departments.models.records import Patient
-from departments.models.nursing import Vitals, TriageAssessment, Notifications
 
 logger = logging.getLogger(__name__)
 

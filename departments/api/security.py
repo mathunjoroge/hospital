@@ -8,7 +8,6 @@ Enforces statutory password complexity rules for user accounts.
 import re
 from typing import Tuple
 
-
 MIN_PASSWORD_LENGTH = 8
 
 

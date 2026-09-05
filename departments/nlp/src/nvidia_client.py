@@ -1,8 +1,9 @@
-import os
 import json
 import logging
-import requests
+import os
 from typing import Dict, List, Optional
+
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -138,7 +139,7 @@ class NvidiaNIMClient:
 
     def answer_clinical_question(self, text: str) -> str:
         """Provide a rule-based clinical response when no LLM API is available.
-        
+
         Uses keyword matching against a clinical knowledge base to generate
         structured differential diagnoses and management guidance.
         """
@@ -416,7 +417,7 @@ class NvidiaNIMClient:
     def _offline_cancer_risk_fallback(self, text: str) -> Dict[str, float]:
         text_lower = text.lower()
         scores = {}
-        
+
         keywords_map = {
             "breast cancer": ["breast", "mammo", "nipple", "lump in breast", "mastectomy"],
             "lung cancer": ["lung", "hemoptysis", "coughing blood", "pulmonary nodule"],
@@ -511,15 +512,14 @@ class NvidiaNIMClient:
     def generate_molecules(self, target_properties: str) -> List[str]:
         """Generate drug-like candidate molecules based on desired properties using LLM prompting
         validated via RDKit cheminformatics.
-        
+
         Args:
             target_properties: Description of desired molecular properties (e.g., 'high solubility, low toxicity inhibitor')
-            
+
         Returns:
             List of valid canonical SMILES strings representing generated candidate molecules.
         """
-        from rdkit import Chem
-        
+
         fallback_smiles = [
             "CC(=O)OC1=CC=CC=C1C(=O)O",  # Aspirin
             "CC(=O)NC1=CC=C(O)C=C1",     # Paracetamol
@@ -537,7 +537,7 @@ class NvidiaNIMClient:
             f"IMPORTANT: Output ONLY valid, syntactically correct SMILES strings, one per line. Do not include markdown or explanations."
         )
         response_str = self._call_chat_completion(prompt, system_message="You are a cheminformatics assistant.")
-        
+
         candidates = []
         if response_str:
             lines = [s.strip().strip('`').strip('"').strip("'") for s in response_str.split('\n') if s.strip()]
@@ -557,16 +557,16 @@ class NvidiaNIMClient:
 
     def predict_docking(self, ligand_smiles: str, protein_sequence: str) -> Dict[str, any]:
         """Estimate molecular binding interaction between a ligand and a target protein sequence.
-        
+
         Args:
             ligand_smiles: SMILES string of the drug candidate.
             protein_sequence: Amino acid sequence of the target receptor.
-            
+
         Returns:
             Dictionary containing AI-estimated binding affinity, confidence score, and disclaimer.
         """
         from rdkit import Chem
-        
+
         # Validate ligand SMILES first
         mol = Chem.MolFromSmiles(ligand_smiles.strip() if ligand_smiles else "")
         if not mol:
@@ -597,7 +597,7 @@ class NvidiaNIMClient:
                 return data
             except Exception as e:
                 logger.error(f"Error parsing AI docking response: {e}")
-                
+
         return {
             "binding_affinity_kcal_mol": -7.9,
             "confidence_score": 0.82,

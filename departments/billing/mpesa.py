@@ -11,18 +11,18 @@ Features:
   - Pending payment reconciliation task
 """
 
-import os
 import base64
 import logging
-import requests
 from datetime import datetime, timezone
-from flask import Blueprint, request, jsonify, current_app
+
+import requests
+from flask import Blueprint, current_app, jsonify, request
 
 try:
     from extensions import db
 except ImportError:
     from extensions import db
-from departments.models.billing import Invoice, Payment
+from departments.models.billing import Payment
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ def initiate_stk_push(phone_number: str, amount: float, account_reference: str, 
     if current_app.config.get('TESTING') or cfg['env'] == 'test':
         checkout_id = f"ws_CO_{timestamp}_{invoice_id or 1}"
         merchant_id = f"29182-1000000-{invoice_id or 1}"
-        
+
         # Pre-create pending Payment record
         if invoice_id:
             payment = Payment(
@@ -119,7 +119,7 @@ def initiate_stk_push(phone_number: str, amount: float, account_reference: str, 
 
     url = f"https://{'sandbox' if cfg['env'] == 'sandbox' else 'api'}.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    
+
     payload = {
         "BusinessShortCode": cfg['shortcode'],
         "Password": password,
@@ -166,7 +166,7 @@ def process_mpesa_callback(callback_data: dict) -> dict:
         stk_callback = callback_data.get('Body', {}).get('stkCallback', {})
         result_code = stk_callback.get('ResultCode')
         result_desc = stk_callback.get('ResultDesc')
-        merchant_request_id = stk_callback.get('MerchantRequestID')
+        stk_callback.get('MerchantRequestID')
         checkout_request_id = stk_callback.get('CheckoutRequestID')
 
         payment = Payment.query.filter_by(payment_reference=checkout_request_id).first()
@@ -175,7 +175,7 @@ def process_mpesa_callback(callback_data: dict) -> dict:
             # Payment Successful
             items = stk_callback.get('CallbackMetadata', {}).get('Item', [])
             meta = {item.get('Name'): item.get('Value') for item in items if 'Name' in item}
-            
+
             mpesa_receipt = meta.get('MpesaReceiptNumber', checkout_request_id)
             paid_amount = float(meta.get('Amount', 0))
             phone = str(meta.get('PhoneNumber', ''))
@@ -185,7 +185,7 @@ def process_mpesa_callback(callback_data: dict) -> dict:
                 payment.amount = paid_amount if paid_amount > 0 else payment.amount
                 payment.is_reconciled = True
                 payment.notes = f"M-Pesa Paid: {mpesa_receipt} from {phone}"
-                
+
                 # Recalculate invoice totals and status
                 if payment.invoice:
                     payment.invoice.recalculate()
@@ -215,17 +215,17 @@ def reconcile_pending_mpesa_payments() -> int:
     and update them as timed out.
     Returns count of reconciled payments.
     """
-    cutoff = datetime.now(timezone.utc)
+    datetime.now(timezone.utc)
     pending = Payment.query.filter(
         Payment.payment_method == "mpesa",
-        Payment.is_reconciled == False,
+        Payment.is_reconciled.is_(False),
         Payment.payment_reference.like('ws_CO_%')
     ).all()
 
     reconciled_count = 0
     for p in pending:
         # Mark timed out
-        p.notes = f"M-Pesa STK push timed out / expired."
+        p.notes = "M-Pesa STK push timed out / expired."
         reconciled_count += 1
 
     if reconciled_count > 0:
@@ -265,6 +265,6 @@ def handle_callback_route():
     """Receive callback from Safaricom Daraja API."""
     data = request.get_json() or {}
     logger.info(f"Received M-Pesa Callback: {data}")
-    res = process_mpesa_callback(data)
+    process_mpesa_callback(data)
     # Daraja expects HTTP 200 with ResultCode 0 response
     return jsonify({"ResultCode": 0, "ResultDesc": "Accepted"}), 200

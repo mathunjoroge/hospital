@@ -1,13 +1,12 @@
 """baseline schema
 
 Revision ID: bb45ec7f300c
-Revises: 
+Revises:
 Create Date: 2026-09-05 15:57:12.488159
 
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'bb45ec7f300c'

@@ -1,6 +1,7 @@
 import os
+from typing import Any, Dict
+
 import psycopg2
-from typing import Dict, Any
 
 DRUGCENTRAL_DB_PARAMS: Dict[str, Any] = {
     'dbname': os.environ.get('DRUGCENTRAL_DB', 'drugcentral'),

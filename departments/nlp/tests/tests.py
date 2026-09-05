@@ -1,40 +1,40 @@
-import unittest
+import logging
 import multiprocessing
 import time
-import requests
+import unittest
 from unittest.mock import patch
+
+import nltk
+import requests
 from fastapi.testclient import TestClient
 from src.api import app, start_server
+from src.config import get_config
 from src.database import setup_test_database
 from src.nlp import DiseasePredictor
-from src.config import get_config
-import nltk
-import logging
 
 logger = logging.getLogger("HIMS-NLP")
 HIMS_CONFIG = get_config()
 
 class TestNLPApi(unittest.TestCase):
     """Unit tests for the Clinical NLP API."""
-    
+
     server_process = None
 
     @classmethod
     def setUpClass(cls):
         """Start the server and set up test database."""
-        from src.database import get_sqlite_connection
         cls.test_db = setup_test_database()
         def mock_sqlite_connection():
             return cls.test_db
         globals()['get_sqlite_connection'] = mock_sqlite_connection
-        
+
         nltk.download('wordnet', quiet=True)
         DiseasePredictor.initialize()
-        
+
         cls.server_process = multiprocessing.Process(target=start_server)
         cls.server_process.start()
         time.sleep(2)
-        
+
         cls.client = TestClient(app)
 
     @classmethod

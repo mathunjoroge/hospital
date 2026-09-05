@@ -1,73 +1,67 @@
-import requests 
-import pickle
-import re
-from flask import render_template, redirect, url_for, request, flash, jsonify,session
-from flask_wtf import FlaskForm
-from sqlalchemy import func
-from wtforms import SelectField
-from wtforms.validators import DataRequired
-from sqlalchemy import text
 import json
-from contextlib import contextmanager
-from typing import Optional, List, Dict, Any
-import psycopg2
-from datetime import date
-from psycopg2.extras import RealDictCursor
-from flask import current_app
-from flask_login import login_required, current_user
-from departments.rbac import roles_required, get_effective_role
-from flask_wtf.csrf import CSRFProtect,CSRFError
-from scipy.spatial.distance import cosine
-from extensions import db
-from flask import session
-from flask_socketio import SocketIO
-import uuid
-from uuid import uuid4
-from sqlalchemy.orm import joinedload
-import bleach 
-from . import bp
-from departments.forms import PatientSearchForm, OncoPatientForm, OncologyNoteForm, AdmitPatientForm
 import os
 from datetime import datetime
-from departments.models.laboratory import LabResult,LabResultTemplate
-from departments.models.records import PatientWaitingList, Patient
-from departments.models.medicine import (
-    SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, 
-    RequestedImage, UnmatchedImagingRequest, TheatreProcedure, TheatreList, 
-    Ward, AdmittedPatient, SpecialWarning,RegimenDrugAssociation, 
-    OncologyBooking, OncoDrugCategory, RegimenCategory, 
-    WardBedHistory, WardRoom, Bed, WardRound,Disease, 
-    DiseaseManagementPlan, DiseaseLab, OncoPatient, 
-    OncologyDrug, OncologyRegimen, OncoPrescription, 
-    OncoTreatmentRecord,PrescriptionDrugDetail,OncologyNote,
-    CancerType, CancerStage, CancerTypeStage, CancerDetail
+
+import requests
+from flask import (
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
 )
+from flask_login import login_required
+from sqlalchemy.orm import joinedload
+
+from departments.models.laboratory import LabResult
+from departments.models.medicine import (
+    AdmittedPatient,
+    Imaging,
+    LabTest,
+    Medicine,
+    PrescribedMedicine,
+    RequestedImage,
+    RequestedLab,
+    SOAPNote,
+    TheatreList,
+    UnmatchedImagingRequest,
+)
+from departments.models.records import Patient, PatientWaitingList
 from departments.nlp.chatbot import UniversalClinicalSummarizer
-import logging
-import json
-from flask import Response, stream_with_context, request
-import time
 from departments.nlp.logging_setup import get_logger
-from flask.sessions import SecureCookieSessionInterface
+from departments.rbac import roles_required
+from extensions import db
+
+from . import bp
+
 logger = get_logger()
-import PyPDF2  # For PDF processing
-from docx import Document  # For DOCX processing
-import pytesseract  # For OCR on images
-from PIL import Image  # For image handling
-import csv  #
-from werkzeug.utils import secure_filename
+
+
+def notify_admin(message):
+    """Send notification to admin about unmatched requests."""
+    logger.info(f"Admin notification: {message}")
+
+
+def process_lab_result(lab_result, test_name):
+    """Process a lab result into a presentation dictionary."""
+    return {
+        'test_name': test_name,
+        'result_value': getattr(lab_result, 'result_value', 'N/A'),
+        'reference_range': getattr(lab_result, 'reference_range', 'N/A'),
+        'unit': getattr(lab_result, 'unit', ''),
+        'date': getattr(lab_result, 'date_completed', None),
+    }
 
 # Instantiate the summarizer for use in chatbot_interface
 
 
-from extensions import csrf
 
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
 nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
 Summarizer = UniversalClinicalSummarizer(gemini_api_key=gemini_api_key, nvidia_api_key=nvidia_api_key)
 
 
-from flask import make_response
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'txt', 'csv', 'docx'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB max file size
@@ -133,22 +127,22 @@ def submit_soap_notes(patient_id):
 
         db.session.add(new_soap_note)
         db.session.commit()
-        
+
         # ⭐ --- START: TRIGGER FASTAPI NLP SERVICE --- ⭐
         try:
             # The note_id is now available on the new_soap_note object
             note_id = new_soap_note.id
-            
+
             # This URL should ideally be stored in your Flask app's configuration
             nlp_api_url = 'http://127.0.0.1:8000/process_note'
             payload = {'note_id': note_id}
-            
+
             # Send the request to the FastAPI service
             response = requests.post(nlp_api_url, json=payload, timeout=30)
-            
+
             # This will raise an HTTPError if the HTTP request returned an unsuccessful status code
             response.raise_for_status()
-            
+
             logger.info(f"Successfully triggered AI analysis for SOAP note ID: {note_id}")
 
         except requests.exceptions.RequestException as e:
@@ -205,14 +199,14 @@ def submit_soap_notes(patient_id):
         db.session.rollback()
         logger.error(f"Critical error in submit_soap_notes for patient {patient_id}: {str(e)}", exc_info=True)
         return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
-@bp.route('/notes/<string:patient_id>', methods=['GET']) 
+@bp.route('/notes/<string:patient_id>', methods=['GET'])
 @login_required
 @roles_required('medicine', 'admin')
 def notes(patient_id):
     """Displays SOAP notes for a patient."""
     patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
     last_soap_note = SOAPNote.query.filter_by(patient_id=patient_id).order_by(SOAPNote.created_at.desc()).first()
-    return render_template('medicine/notes.html', patient=patient, soap_notes=last_soap_note)      
+    return render_template('medicine/notes.html', patient=patient, soap_notes=last_soap_note)
 @bp.route('/notes/<int:note_id>/reprocess', methods=['POST'])
 @login_required
 def reprocess_note(note_id):
@@ -239,7 +233,7 @@ def index():
 
         # KPI stats for dashboard
         try:
-            total_inpatients = AdmittedPatient.query.filter(AdmittedPatient.discharged_on == None).count()
+            total_inpatients = AdmittedPatient.query.filter(AdmittedPatient.discharged_on is None).count()
             pending_labs = RequestedLab.query.filter_by(status='pending').count()
             pending_imaging = RequestedImage.query.filter_by(status='pending').count()
             theatre_pending = TheatreList.query.filter_by(status=0).count()
@@ -277,7 +271,8 @@ def soap_notes(patient_id):
         patient = patient_entry.patient
 
         # Generate a unique prescription_id for the form
-        
+        import uuid
+        prescription_id = str(uuid.uuid4())
 
         # Fetch existing SOAP notes and other related data
         soap_notes = SOAPNote.query.filter_by(patient_id=patient_id).all()

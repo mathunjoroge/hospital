@@ -1,28 +1,33 @@
-from flask import render_template, redirect, url_for, request, flash, jsonify, Response, session
-from sqlalchemy import text
-from extensions import db 
-import logging
-from sqlalchemy.sql import func
-from flask_login import login_required, current_user
-from departments.models.user import User 
-from . import bp  # Import the blueprint
-from departments.rbac import roles_required
-from departments.models.records import PatientWaitingList,Patient
-from departments.models.medicine import PrescribedMedicine
-from sqlalchemy.orm import joinedload
-from sqlalchemy.sql import text  # Import the text function
-from datetime import timedelta,datetime
-from flask import render_template, redirect, url_for, flash
-from flask_login import login_required, current_user
-from departments.models.pharmacy import Drug,Batch,Purchase,DispensedDrug, Expiry,DrugRequest, RequestItem # Import PatientWaitingList and Patient models
-from departments.models.billing import DrugsBill
-from sqlalchemy.orm import joinedload
-import os
 import csv
-from io import StringIO
-import uuid  # Import the uuid module
-from collections import defaultdict, Counter
 import json
+import logging
+from collections import Counter
+from datetime import datetime, timedelta
+from io import StringIO
+
+from flask import (
+    Response,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+from flask_login import login_required
+
+from departments.models.billing import DrugsBill
+from departments.models.pharmacy import (  # Import PatientWaitingList and Patient models
+    Batch,
+    DispensedDrug,
+    Drug,
+    Expiry,
+)
+from departments.rbac import roles_required
+from extensions import db
+
+from . import bp  # Import the blueprint
+
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -202,7 +207,7 @@ def export_analytics():
     writer.writerow(['Date', 'Sales'])
     for date, total in sales_data.items():
         writer.writerow([date, total])
-    
+
     return Response(
         output.getvalue(),
         mimetype='text/csv',

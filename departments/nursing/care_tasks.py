@@ -1,20 +1,19 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash,jsonify
-from flask_login import login_required, current_user
+import logging
+from datetime import datetime
+
+from flask import flash, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload
+
+from departments.models.admin import Log
+from departments.models.medicine import AdmittedPatient, Ward
+from departments.models.nursing import MedicationAdmin, NursingCareTask, NursingNote
+from departments.models.records import Patient
 from departments.rbac import roles_required
 from extensions import db
-from departments.models.nursing import (
-    NursingNote, NursingCareTask, Vitals, Partogram,
-    MedicationAdmin, Messages, Notifications
-)
-from departments.models.records import Patient,PatientWaitingList
-from departments.models.user import User
-from departments.models.medicine import Ward, AdmittedPatient
-from departments.models.admin import Log
-from sqlalchemy.orm import joinedload
-import logging
-import sqlite3  # Import sqlite3 module
+
 from . import bp
-from datetime import datetime, timedelta
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -48,7 +47,7 @@ def search_patients():
     except Exception as e:
         print(f"Debug: Error in search_patients: {e}")
         return jsonify({"error": "Failed to fetch patient data."}), 500
-#search ward 
+#search ward
 @bp.route("/search_wards", methods=["GET"])
 @login_required
 def search_wards():
@@ -154,7 +153,7 @@ def care_summary():
         ))
         db.session.commit()
         return redirect(url_for('home'))
-    
+
 
 @bp.route('/medication_admin', methods=['GET', 'POST'])
 @login_required
@@ -185,7 +184,7 @@ def medication_admin():
             db.session.rollback()
             flash(f'Error recording medication: {str(e)}', 'error')
             return redirect(url_for('nursing.medication_admin'))
-    
+
     return render_template('nursing/medication_admin.html')
 
 

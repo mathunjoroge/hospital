@@ -8,11 +8,11 @@ Features:
   - Structured radiologist reporting workflow
 """
 
-import os
-import uuid
 import logging
+import os
 from datetime import datetime
-from flask import Blueprint, request, jsonify, current_app, send_from_directory
+
+from flask import Blueprint, jsonify, request, send_from_directory
 
 try:
     from extensions import db
@@ -32,7 +32,7 @@ def get_modality_worklist():
     """Get DICOM Modality Worklist (MWL) for pending orders."""
     pending_orders = RequestedImage.query.filter_by(status=0).all()
     mwl_items = []
-    
+
     for order in pending_orders:
         patient = Patient.query.filter_by(patient_id=order.patient_id).first()
         mwl_items.append({
@@ -47,7 +47,7 @@ def get_modality_worklist():
             "ScheduledProcedureStepStartTime": order.date_requested.strftime('%H%M%S'),
             "Modality": "UNKNOWN" # Typically mapped from imaging type
         })
-        
+
     return jsonify({"mwl": mwl_items, "count": len(mwl_items)}), 200
 
 
@@ -57,10 +57,10 @@ def viewer_attachment(result_id):
     result = ImagingResult.query.filter_by(result_id=result_id).first()
     if not result:
         return jsonify({"error": "Result not found"}), 404
-        
+
     file_paths = result.dicom_file_path.split(',') if result.dicom_file_path else []
     attachments = []
-    
+
     for idx, path in enumerate(file_paths):
         if os.path.exists(path):
             attachments.append({
@@ -68,7 +68,7 @@ def viewer_attachment(result_id):
                 "filename": os.path.basename(path),
                 "url": f"/imaging/dicom/download/{result_id}/{idx}"
             })
-            
+
     return jsonify({
         "result_id": result_id,
         "patient_id": result.patient_id,
@@ -83,7 +83,7 @@ def download_dicom(result_id, file_index):
     result = ImagingResult.query.filter_by(result_id=result_id).first()
     if not result:
         return jsonify({"error": "Result not found"}), 404
-        
+
     file_paths = result.dicom_file_path.split(',') if result.dicom_file_path else []
     if 0 <= file_index < len(file_paths):
         file_path = file_paths[file_index]
@@ -91,7 +91,7 @@ def download_dicom(result_id, file_index):
             directory = os.path.dirname(file_path)
             filename = os.path.basename(file_path)
             return send_from_directory(directory, filename, as_attachment=False)
-            
+
     return jsonify({"error": "File not found"}), 404
 
 
@@ -103,29 +103,29 @@ def save_structured_report():
     findings = data.get('findings')
     impression = data.get('impression')
     radiologist_id = data.get('radiologist_id')
-    
+
     if not all([result_id, findings, impression]):
         return jsonify({"error": "Missing required fields"}), 400
-        
+
     result = ImagingResult.query.filter_by(result_id=result_id).first()
     if not result:
         return jsonify({"error": "Result not found"}), 404
-        
+
     structured_report = (
         f"**Findings:**\n{findings}\n\n"
         f"**Impression:**\n{impression}\n"
     )
-    
+
     result.result_notes = structured_report
     result.updated_by = radiologist_id
-    
+
     # Mark RequestedImage as processed
     request_obj = RequestedImage.query.filter_by(result_id=result_id).first()
     if request_obj:
         request_obj.status = 1  # Processed
-        
+
     db.session.commit()
-    
+
     return jsonify({
         "success": True,
         "result_id": result_id,

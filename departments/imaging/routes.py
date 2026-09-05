@@ -1,19 +1,28 @@
+import logging
 import os
 import uuid
-import logging
-import numpy as np
 from datetime import datetime
+
 import pydicom
-from flask import flash, redirect, render_template, request, url_for, current_app, send_from_directory
-from flask_login import login_required, current_user
-from werkzeug.utils import secure_filename
-from extensions import db
-from departments.models.medicine import RequestedImage, Imaging, ImagingResult, SOAPNote
-from departments.nlp.src.nvidia_client import NvidiaNIMClient
+from flask import (
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    url_for,
+)
+from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
-from . import bp
-from extensions import socketio
+from werkzeug.utils import secure_filename
+
+from departments.models.medicine import Imaging, ImagingResult, RequestedImage
+from departments.nlp.src.nvidia_client import NvidiaNIMClient
 from departments.rbac import roles_required
+from extensions import db, socketio
+
+from . import bp
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -109,7 +118,7 @@ def analyze_dicom(dicom_path, description="", symptoms=""):
 def generate_report(analysis_results, patient_id, result_id, description=None, symptoms=None, custom_findings=None, custom_impression=None):
     """
     Generate a structured radiology report for any body part and imaging modality, avoiding false positives.
-    
+
     Args:
         analysis_results (list): List of analysis results for each DICOM file, supporting multiple predictions.
         patient_id (str): Unique identifier for the patient.
@@ -118,7 +127,7 @@ def generate_report(analysis_results, patient_id, result_id, description=None, s
         symptoms (str, optional): Patient-reported symptoms.
         custom_findings (list, optional): User-provided findings to override AI results.
         custom_impression (list, optional): User-provided impression to override default.
-    
+
     Returns:
         str: Generated radiology report.
     """
@@ -172,7 +181,7 @@ def generate_report(analysis_results, patient_id, result_id, description=None, s
     modality_techniques = {
         'MRI': {
             'default': f"Multiplanar, multisequence MRI of the {body_part.lower()} performed without intravenous contrast, including T1-weighted, T2-weighted, and STIR sequences.",
-            'head': f"Multiplanar, multisequence MRI of the head performed without intravenous contrast, including T1-weighted, T2-weighted, FLAIR, and gradient-echo (GRE) sequences."
+            'head': "Multiplanar, multisequence MRI of the head performed without intravenous contrast, including T1-weighted, T2-weighted, FLAIR, and gradient-echo (GRE) sequences."
         },
         'CT Scan': f"Non-contrast CT scan of the {body_part.lower()} performed with 1 mm slice thickness in axial, coronal, and sagittal reconstructions.",
         'X-ray': f"Standard posteroanterior and lateral radiographic views of the {body_part.lower()} obtained.",
@@ -557,7 +566,7 @@ def imaging_results():
     try:
         results = ImagingResult.query.order_by(ImagingResult.test_date.desc()).all()
         logger.debug(f"Retrieved {len(results)} imaging results from database")
-        
+
         return render_template(
             'imaging/imaging_results.html',
             results=results
@@ -578,7 +587,7 @@ def view_imaging_results(result_id):
         imaging = Imaging.query.get(imaging_result.imaging_id) if imaging_result.imaging_id else None
         if not imaging:
             logger.warning(f"No Imaging record found for imaging_id={imaging_result.imaging_id}")
-        
+
         logger.debug(f"Found imaging_result: result_id={imaging_result.result_id}, patient_id={imaging_result.patient_id}")
 
         file_paths = imaging_result.dicom_file_path.split(',') if imaging_result.dicom_file_path else []
@@ -614,7 +623,7 @@ def view_imaging_results(result_id):
         lines = ai_findings.split('\n')
         current_section = None
         current_modality = None
-        
+
         for line in lines:
             line = line.strip()
             if not line:

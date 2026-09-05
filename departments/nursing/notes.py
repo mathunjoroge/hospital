@@ -1,20 +1,24 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash,jsonify
-from flask_login import login_required, current_user
+import logging
+from datetime import datetime, timedelta
+
+from flask import flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+
+from departments.models.admin import Log
+from departments.models.nursing import (
+    Messages,
+    Notifications,
+    NursingCareTask,
+    NursingNote,
+    Partogram,
+)
+from departments.models.records import Patient
+from departments.models.user import User
 from departments.rbac import roles_required
 from extensions import db
-from departments.models.nursing import (
-    NursingNote, NursingCareTask, Vitals, Partogram,
-    MedicationAdmin, Messages, Notifications
-)
-from departments.models.records import Patient,PatientWaitingList
-from departments.models.user import User
-from departments.models.medicine import Ward, AdmittedPatient
-from departments.models.admin import Log
-from sqlalchemy.orm import joinedload
-import logging
-import sqlite3  # Import sqlite3 module
+
 from . import bp
-from datetime import datetime, timedelta
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -64,7 +68,6 @@ def add_note():
             shift_update = request.form.get('shift_update', '')
 
             # Combine into note if not storing separately
-            full_note = f"Observation: {note}\nAllergies: {allergies}\nCode Status: {code_status}\nMedications: {medications}\nShift Update: {shift_update}"
 
             new_note = NursingNote(
                 patient_id=patient_id,
@@ -140,15 +143,15 @@ def shift_handover():
     try:
         recent_time = datetime.utcnow() - timedelta(hours=12)
         patients = db.session.query(Partogram.patient_id).filter(Partogram.timestamp > recent_time).distinct().all()
-        
+
         handover_data = []
         for (patient_id,) in patients:
             partogram = Partogram.query.filter_by(patient_id=patient_id).order_by(Partogram.timestamp.desc()).first()
             note = NursingNote.query.filter_by(patient_id=patient_id).order_by(NursingNote.timestamp.desc()).first()
             tasks = NursingCareTask.query.filter_by(patient_id=patient_id, status='Pending').order_by(NursingCareTask.created_at.desc()).all()
-            
+
             handover_data.append({'patient_id': patient_id, 'partogram': partogram, 'note': note, 'tasks': tasks})
-        
+
         return render_template('nursing/shift_handover.html', handover_data=handover_data)
     except Exception as e:
         flash(f'Error fetching shift handover data: {str(e)}', 'error')
@@ -186,7 +189,7 @@ def communicate_doctor(patient_id=None):
             db.session.rollback()
             flash(f'Error sending message: {str(e)}', 'error')
             return redirect(url_for('nursing.communicate_doctor', patient_id=patient_id) if patient_id else url_for('nursing.communicate_doctor'))
-    
+
     try:
         doctors = User.query.filter(User.role.in_(['doctor', 'medicine'])).all()
         if not doctors:
@@ -227,7 +230,7 @@ def mark_notification_read(notification_id):
     except Exception as e:
         db.session.rollback()
         flash(f'Error marking notification as read: {str(e)}', 'error')
-        return redirect(url_for('nursing.notifications'))    
+        return redirect(url_for('nursing.notifications'))
 
 @bp.route('/get-messages/<string:patient_id>', methods=['GET'])
 @login_required

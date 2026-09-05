@@ -1,13 +1,15 @@
 import unittest
+
+from werkzeug.security import generate_password_hash
+
 from app import app, db
 from departments.models.user import User
 from departments.pharmacy.cheminformatics import (
-    validate_and_analyze_smiles,
-    generate_3d_molblock,
     calculate_tanimoto_similarity,
-    find_closest_reference_drugs
+    find_closest_reference_drugs,
+    generate_3d_molblock,
+    validate_and_analyze_smiles,
 )
-from werkzeug.security import generate_password_hash
 
 
 class TestAIDiscoveryCheminformatics(unittest.TestCase):
@@ -39,7 +41,7 @@ class TestAIDiscoveryCheminformatics(unittest.TestCase):
         """Test RDKit descriptor calculation for valid Aspirin SMILES."""
         aspirin_smiles = "CC(=O)Oc1ccccc1C(=O)O"
         res = validate_and_analyze_smiles(aspirin_smiles)
-        
+
         self.assertTrue(res["is_valid"])
         self.assertEqual(res["canonical_smiles"], "CC(=O)Oc1ccccc1C(=O)O")
         self.assertAlmostEqual(res["mw"], 180.16, places=1)
@@ -53,7 +55,7 @@ class TestAIDiscoveryCheminformatics(unittest.TestCase):
         """Test RDKit validation for invalid SMILES string."""
         invalid_smiles = "INVALID_CHEMICAL_STRING_123"
         res = validate_and_analyze_smiles(invalid_smiles)
-        
+
         self.assertFalse(res["is_valid"])
         self.assertIsNotNone(res["error"])
 
@@ -61,7 +63,7 @@ class TestAIDiscoveryCheminformatics(unittest.TestCase):
         """Test 3D Molblock coordinate generation."""
         aspirin_smiles = "CC(=O)Oc1ccccc1C(=O)O"
         molblock = generate_3d_molblock(aspirin_smiles)
-        
+
         self.assertIsNotNone(molblock)
         self.assertIn("END", molblock)
         self.assertTrue(len(molblock.splitlines()) > 10)
@@ -70,7 +72,7 @@ class TestAIDiscoveryCheminformatics(unittest.TestCase):
         """Test Morgan Fingerprint Tanimoto similarity score."""
         smiles1 = "CC(=O)Oc1ccccc1C(=O)O"  # Aspirin
         smiles2 = "CC(=O)Oc1ccccc1C(=O)O"  # Aspirin self match
-        
+
         sim_self = calculate_tanimoto_similarity(smiles1, smiles2)
         self.assertEqual(sim_self, 1.0)
 
@@ -83,7 +85,7 @@ class TestAIDiscoveryCheminformatics(unittest.TestCase):
         """Test reference drug matching library."""
         aspirin_smiles = "CC(=O)Oc1ccccc1C(=O)O"
         matches = find_closest_reference_drugs(aspirin_smiles, top_n=3)
-        
+
         self.assertTrue(len(matches) > 0)
         self.assertEqual(matches[0]["name"], "Aspirin")
         self.assertEqual(matches[0]["similarity"], 1.0)
@@ -92,7 +94,7 @@ class TestAIDiscoveryCheminformatics(unittest.TestCase):
         """Test GET /pharmacy/ai_discovery endpoint."""
         self.client.post('/login', data={'username': 'test_pharmacy_user', 'password': 'password123'})
         response = self.client.get('/pharmacy/ai_discovery')
-        
+
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"AI-Assisted Molecule Ideation", response.data)
 
@@ -103,7 +105,7 @@ class TestAIDiscoveryCheminformatics(unittest.TestCase):
             'action': 'molmim',
             'target_properties': 'high solubility COX-2 inhibitor'
         })
-        
+
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Generated Candidates for", response.data)
         self.assertIn(b"RDKit Computed Properties", response.data)
@@ -111,7 +113,7 @@ class TestAIDiscoveryCheminformatics(unittest.TestCase):
     def test_ai_discovery_shortlist_session(self):
         """Test adding, removing, and clearing shortlist items in Flask session."""
         self.client.post('/login', data={'username': 'test_pharmacy_user', 'password': 'password123'})
-        
+
         candidate = {
             'smiles': 'CC(=O)Oc1ccccc1C(=O)O',
             'mw': 180.16,

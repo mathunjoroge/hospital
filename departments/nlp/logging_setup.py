@@ -2,6 +2,7 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
+
 class ThirdPartyFilter(logging.Filter):
     """Filter to suppress verbose third-party logs."""
     def filter(self, record):

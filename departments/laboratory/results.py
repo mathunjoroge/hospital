@@ -1,26 +1,22 @@
-from flask import  render_template, redirect, url_for, request, flash
-from flask import Response
+import json
+import uuid
+from datetime import datetime
+
+from flask import Response, flash, redirect, render_template, request, session, url_for
+from flask_login import current_user, login_required
+from flask_socketio import SocketIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from flask_login import login_required, current_user
-from extensions import db
-from flask import session
-from datetime import datetime,date
-import uuid
-import json
-from uuid import uuid4
 from sqlalchemy.orm import joinedload
-from . import bp  # Import the blueprint
-import os 
-from flask_socketio import SocketIO
+
+from departments.models.laboratory import LabResult, LabResultTemplate
+from departments.models.medicine import LabTest, RequestedLab
+from departments.models.records import Patient
 from departments.rbac import roles_required
-from departments.models.records import PatientWaitingList,Patient
-from departments.models.medicine import (LabTest,RequestedLab
-)
-from departments.models.stores import (NonPharmCategory,NonPharmItem,OtherOrder
-)
-from departments.models.laboratory import LabResultTemplate,LabResult
-from departments.models.user import User
+from extensions import db
+
+from . import bp  # Import the blueprint
+
 socketio = SocketIO()
  # Generate a UUID and convert it to a string
 
@@ -128,7 +124,7 @@ def view_lab_results(result_id):
         try:
             results_dict = json.loads(lab_result.result) if lab_result.result else {}
             print(f"Debug: Parsed Results Dictionary: {results_dict}")  # Debug
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             flash('Something went wrong. Please try again.', 'warning')
             results_dict = {}  # Fallback to an empty dictionary if parsing fails
 
@@ -194,7 +190,7 @@ def pending_lab_results():
     try:
         # Fetch all pending lab test requests
         pending_lab_requests = RequestedLab.query.filter_by(status=0).options(
-            joinedload(RequestedLab.patient), 
+            joinedload(RequestedLab.patient),
             joinedload(RequestedLab.lab_test)
         ).all()
 
@@ -285,17 +281,17 @@ def search_patient():
         if search_query:
             # Search for patients by ID or Name (case insensitive)
             patients = Patient.query.filter(
-                (Patient.patient_id.ilike(f"%{search_query}%")) | 
+                (Patient.patient_id.ilike(f"%{search_query}%")) |
                 (Patient.name.ilike(f"%{search_query}%"))
             ).all()
 
             if patients:
                 # Only fetch lab history if a patient is selected
                 selected_patient_id = request.form.get('selected_patient_id')
-                
+
                 if selected_patient_id:
                     selected_patient = Patient.query.filter_by(patient_id=selected_patient_id).first()
-                    
+
                     if selected_patient:
                         lab_results = db.session.query(
                             LabResult.id,
@@ -338,7 +334,7 @@ def abnormal_results():
             try:
                 result_data = json.loads(result.result)  # Convert stored JSON result back to dictionary
                 abnormal_parameters = []
-                
+
                 # Check each parameter against its normal range
                 for param_id, value in result_data.items():
                     param = LabResultTemplate.query.get(param_id)
@@ -349,7 +345,7 @@ def abnormal_results():
                             'normal_range': f"{param.normal_range_low} - {param.normal_range_high}",
                             'unit': param.unit
                         })
-                
+
                 if abnormal_parameters:
                     flagged_results.append({
                         'id': result.id,
