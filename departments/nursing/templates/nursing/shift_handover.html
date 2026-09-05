@@ -4,9 +4,9 @@
 {% block content %}
 <style>
   :root {
-    --ns-primary: #e11d48;
-    --ns-primary-hover: #be123c;
-    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+    --ns-primary: #0e7490;
+    --ns-primary-hover: #155e75;
+    --ns-header-bg: linear-gradient(135deg, #164e63 0%, #0e7490 60%, #06b6d4 100%);
   }
 
   .ns-header-card {
@@ -14,19 +14,19 @@
     color: #ffffff;
     border: none;
     border-radius: 16px;
-    box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.3);
+    box-shadow: 0 10px 25px -5px rgba(14, 116, 144, 0.3);
   }
 
   .ns-glass-card {
     background: var(--bs-body-bg);
-    border: 1px solid rgba(225, 29, 72, 0.15);
+    border: 1px solid rgba(14, 116, 144, 0.15);
     border-radius: 14px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   }
 
   .ns-card-header {
-    background: rgba(225, 29, 72, 0.06);
-    border-bottom: 1px solid rgba(225, 29, 72, 0.12);
+    background: rgba(14, 116, 144, 0.06);
+    border-bottom: 1px solid rgba(14, 116, 144, 0.12);
     border-top-left-radius: 14px !important;
     border-top-right-radius: 14px !important;
   }
@@ -41,6 +41,9 @@
     border-color: var(--ns-primary-hover);
     color: #fff;
   }
+  .text-ns-primary {
+    color: var(--ns-primary) !important;
+  }
 </style>
 
 <div class="container-fluid py-4 px-4">
@@ -50,7 +53,7 @@
     <div class="card-body p-4">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div>
-          <span class="badge bg-white text-danger px-3 py-2 fw-semibold rounded-pill mb-2">
+          <span class="badge bg-white text-ns-primary px-3 py-2 fw-semibold rounded-pill mb-2">
             <i class="bi bi-arrow-repeat me-1"></i> SBAR Shift Handover Report
           </span>
           <h2 class="h1 fw-bold text-white mb-1">
@@ -60,7 +63,7 @@
         </div>
 
         <div class="d-flex gap-2">
-          <a href="{{ url_for('nursing.ward_patients') }}" class="btn btn-light rounded-pill px-3 shadow-sm text-danger fw-semibold">
+          <a href="{{ url_for('nursing.ward_patients') }}" class="btn btn-light rounded-pill px-3 shadow-sm text-ns-primary fw-semibold">
             <i class="bi bi-hospital me-1"></i> Ward View
           </a>
           <a href="{{ url_for('nursing.index') }}" class="btn btn-outline-light rounded-pill px-3 shadow-sm">
@@ -73,7 +76,7 @@
 
   <div class="card ns-glass-card mb-4">
     <div class="card-header ns-card-header py-3 d-flex align-items-center justify-content-between">
-      <h5 class="mb-0 text-danger fw-bold"><i class="bi bi-people-fill me-2"></i>Shift Patients Overview ({{ handover_data|length if handover_data else 0 }})</h5>
+      <h5 class="mb-0 text-ns-primary fw-bold"><i class="bi bi-people-fill me-2"></i>Shift Patients Overview ({{ handover_data|length if handover_data else 0 }})</h5>
     </div>
     <div class="card-body p-0">
       {% if handover_data %}
@@ -92,13 +95,13 @@
             {% for data in handover_data %}
             <tr>
               <td class="ps-4">
-                <a href="{{ url_for('nursing.patient_dashboard') }}?patient_id={{ data.patient_id }}" class="fw-bold text-danger fs-6 text-decoration-none">
+                <a href="{{ url_for('nursing.patient_dashboard') }}?patient_id={{ data.patient_id }}" class="fw-bold text-ns-primary fs-6 text-decoration-none">
                   <i class="bi bi-person-badge me-1"></i>#{{ data.patient_id }}
                 </a>
               </td>
               <td>
                 {% if data.partogram %}
-                <div class="p-2 bg-light rounded border border-start border-3 border-danger small">
+                <div class="p-2 bg-light rounded border border-start border-3 border-info small">
                   <div><strong>Cervix:</strong> {{ data.partogram.cervical_dilation }} cm</div>
                   <div><strong>FHR:</strong> {{ data.partogram.fetal_heart_rate }} bpm</div>
                   <div class="text-muted"><i class="bi bi-clock me-1"></i>{{ data.partogram.timestamp }}</div>
@@ -120,7 +123,7 @@
                 <ul class="list-unstyled mb-0 small">
                   {% for task in data.tasks %}
                   <li class="mb-1 text-dark">
-                    <i class="bi bi-dash-square text-danger me-1"></i>{{ task.task_description }}
+                    <i class="bi bi-dash-square text-ns-primary me-1"></i>{{ task.task_description }}
                     {% if task.priority == 'High' or task.priority == 'Emergency' %}
                     <span class="badge bg-danger text-white rounded-pill px-2 py-0">High</span>
                     {% endif %}
@@ -143,8 +146,8 @@
       </div>
       {% else %}
       <div class="text-center py-5 text-muted">
-        <i class="bi bi-check-all display-4 d-block opacity-50 mb-2 text-danger"></i>
-        <p class="mb-0">No patient activity recorded in the last 12-24 hours for handover.</p>
+        <i class="bi bi-person-workspace display-4 d-block opacity-50 mb-2 text-ns-primary"></i>
+        <p class="mb-0">No active patient handovers for the current shift.</p>
       </div>
       {% endif %}
     </div>

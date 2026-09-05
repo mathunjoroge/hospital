@@ -4,9 +4,10 @@
 
 <style>
   :root {
-    --ns-primary: #e11d48;
-    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
-    --ns-card-shadow: 0 4px 20px rgba(225, 29, 72, 0.08);
+    --ns-primary: #0e7490;
+    --ns-primary-dark: #155e75;
+    --ns-header-bg: linear-gradient(135deg, #164e63 0%, #0e7490 60%, #06b6d4 100%);
+    --ns-card-shadow: 0 4px 20px rgba(14, 116, 144, 0.08);
   }
   .nursing-header-card {
     background: var(--ns-header-bg);
@@ -14,7 +15,7 @@
     border-radius: 16px;
     padding: 2rem;
     margin-bottom: 2rem;
-    box-shadow: 0 10px 30px rgba(190, 18, 60, 0.2);
+    box-shadow: 0 10px 30px rgba(14, 116, 144, 0.25);
   }
   .card-wrap {
     background: #ffffff;
@@ -30,6 +31,9 @@
     color: #475569;
     font-weight: 700;
   }
+  .text-ns-primary {
+    color: var(--ns-primary) !important;
+  }
 </style>
 
 <div class="container-fluid px-4 py-3">
@@ -40,7 +44,7 @@
       <p class="mb-0 text-white-50 fs-6">Patient: <strong class="text-white">{{ patient.name }}</strong> | ID: <span class="font-monospace fw-bold">{{ patient.patient_id }}</span></p>
     </div>
     <div class="mt-3 mt-md-0 d-flex gap-2">
-      <a href="{{ url_for('nursing.patient_dashboard', patient_id=patient.patient_id) }}" class="btn btn-light fw-bold text-danger">
+      <a href="{{ url_for('nursing.patient_dashboard', patient_id=patient.patient_id) }}" class="btn btn-light fw-bold text-ns-primary">
         <i class="bi bi-speedometer2 me-1"></i> Kardex Dashboard
       </a>
       <a href="{{ url_for('nursing.vital_signs') }}" class="btn btn-outline-light fw-bold">
@@ -51,7 +55,7 @@
 
   <!-- Chart Card -->
   <div class="card-wrap p-4 mb-4">
-    <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-heart-pulse-fill text-danger me-2"></i> Physiological Trend Graph</h5>
+    <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-heart-pulse-fill text-ns-primary me-2"></i> Physiological Trend Graph</h5>
     <div style="height: 350px;" class="position-relative">
       <canvas id="vitalsTrendChart"></canvas>
     </div>
@@ -59,7 +63,7 @@
 
   <!-- History Table -->
   <div class="card-wrap p-4">
-    <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-clock-history me-2 text-danger"></i> Vitals Observation Log</h5>
+    <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-clock-history me-2 text-ns-primary"></i> Vitals Observation Log</h5>
     <div class="table-responsive">
       <table class="table table-custom table-hover align-middle mb-0">
         <thead>
@@ -111,8 +115,8 @@
         {
           label: 'Temperature (°C)',
           data: temps,
-          borderColor: '#e11d48',
-          backgroundColor: 'rgba(225, 29, 72, 0.1)',
+          borderColor: '#0e7490',
+          backgroundColor: 'rgba(14, 116, 144, 0.1)',
           tension: 0.3,
           yAxisID: 'y'
         },

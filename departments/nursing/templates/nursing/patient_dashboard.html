@@ -4,9 +4,9 @@
 {% block content %}
 <style>
   :root {
-    --ns-primary: #e11d48;
-    --ns-primary-hover: #be123c;
-    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+    --ns-primary: #0e7490;
+    --ns-primary-hover: #155e75;
+    --ns-header-bg: linear-gradient(135deg, #164e63 0%, #0e7490 60%, #06b6d4 100%);
   }
 
   .ns-header-card {
@@ -14,23 +14,23 @@
     color: #ffffff;
     border: none;
     border-radius: 16px;
-    box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.3);
+    box-shadow: 0 10px 25px -5px rgba(14, 116, 144, 0.3);
   }
 
   .ns-glass-card {
     background: var(--bs-body-bg);
-    border: 1px solid rgba(225, 29, 72, 0.15);
+    border: 1px solid rgba(14, 116, 144, 0.15);
     border-radius: 14px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
   .ns-glass-card:hover {
-    box-shadow: 0 8px 25px rgba(225, 29, 72, 0.12);
+    box-shadow: 0 8px 25px rgba(14, 116, 144, 0.12);
   }
 
   .ns-card-header {
-    background: rgba(225, 29, 72, 0.06);
-    border-bottom: 1px solid rgba(225, 29, 72, 0.12);
+    background: rgba(14, 116, 144, 0.06);
+    border-bottom: 1px solid rgba(14, 116, 144, 0.12);
     border-top-left-radius: 14px !important;
     border-top-right-radius: 14px !important;
   }
@@ -47,8 +47,8 @@
   }
 
   .ns-badge-high {
-    background-color: rgba(225, 29, 72, 0.15);
-    color: #e11d48;
+    background-color: rgba(14, 116, 144, 0.15);
+    color: #0e7490;
     font-weight: 600;
   }
   .ns-badge-medium {
@@ -61,6 +61,20 @@
     color: #059669;
     font-weight: 600;
   }
+  .text-ns-primary {
+    color: var(--ns-primary) !important;
+  }
+  .bg-ns-primary {
+    background-color: var(--ns-primary) !important;
+  }
+  .btn-outline-ns-primary {
+    color: var(--ns-primary);
+    border-color: var(--ns-primary);
+  }
+  .btn-outline-ns-primary:hover {
+    background-color: var(--ns-primary);
+    color: #ffffff;
+  }
 </style>
 
 <div class="container-fluid py-4 px-4">
@@ -70,7 +84,7 @@
     <div class="card-body p-4">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div>
-          <span class="badge bg-white text-danger px-3 py-2 fw-semibold rounded-pill mb-2">
+          <span class="badge bg-white text-ns-primary px-3 py-2 fw-semibold rounded-pill mb-2">
             <i class="bi bi-person-badge-fill me-1"></i> Patient Kardex & Care Summary
           </span>
           <h2 class="h1 fw-bold text-white mb-1">
@@ -80,7 +94,7 @@
         </div>
 
         <div class="d-flex flex-wrap gap-2">
-          <a href="{{ url_for('nursing.vitals', patient_id=patient_id) }}" class="btn btn-light rounded-pill px-3 shadow-sm text-danger fw-semibold">
+          <a href="{{ url_for('nursing.vitals', patient_id=patient_id) }}" class="btn btn-light rounded-pill px-3 shadow-sm text-ns-primary fw-semibold">
             <i class="bi bi-heart-pulse-fill me-1"></i> Log Vitals
           </a>
           <a href="{{ url_for('nursing.vitals_chart', patient_id=patient_id) }}" class="btn btn-outline-light rounded-pill px-3 shadow-sm">
@@ -107,7 +121,7 @@
       <!-- Latest Partogram Card -->
       <div class="card ns-glass-card mb-4">
         <div class="card-header ns-card-header py-3 d-flex align-items-center justify-content-between">
-          <h5 class="mb-0 text-danger fw-bold"><i class="bi bi-clipboard2-pulse me-2"></i>Latest Partogram Record</h5>
+          <h5 class="mb-0 text-ns-primary fw-bold"><i class="bi bi-clipboard2-pulse me-2"></i>Latest Partogram Record</h5>
           {% if partogram %}
           <a href="{{ url_for('nursing.view_partogram', patient_id=patient_id) }}" class="btn btn-sm ns-btn-primary rounded-pill px-3">
             <i class="bi bi-eye me-1"></i> View Full Chart
@@ -124,7 +138,7 @@
             <div class="col-6 col-sm-4">
               <div class="p-3 bg-light rounded-3 text-center border">
                 <div class="text-muted small fw-semibold">Cervical Dilation</div>
-                <div class="fs-4 fw-bold text-danger mt-1">{{ partogram.cervical_dilation }} cm</div>
+                <div class="fs-4 fw-bold text-ns-primary mt-1">{{ partogram.cervical_dilation }} cm</div>
               </div>
             </div>
             <div class="col-6 col-sm-4">
@@ -161,7 +175,7 @@
           </div>
 
           <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
-            <span class="badge bg-danger-subtle text-danger px-3 py-2 rounded-pill fw-semibold">
+            <span class="badge bg-info-subtle text-info-emphasis px-3 py-2 rounded-pill fw-semibold">
               Status: {{ partogram.labour_status or 'Active Labour' }}
             </span>
             <small class="text-muted"><i class="bi bi-clock me-1"></i>Recorded: {{ partogram.timestamp }}</small>
@@ -178,8 +192,8 @@
       <!-- Pending Care Tasks -->
       <div class="card ns-glass-card mb-4">
         <div class="card-header ns-card-header py-3 d-flex align-items-center justify-content-between">
-          <h5 class="mb-0 text-danger fw-bold"><i class="bi bi-check2-square me-2"></i>Pending Nursing Tasks</h5>
-          <a href="{{ url_for('nursing.care_tasks') }}" class="btn btn-sm btn-outline-danger rounded-pill px-3">Manage Tasks</a>
+          <h5 class="mb-0 text-ns-primary fw-bold"><i class="bi bi-check2-square me-2"></i>Pending Nursing Tasks</h5>
+          <a href="{{ url_for('nursing.care_tasks') }}" class="btn btn-sm btn-outline-ns-primary rounded-pill px-3">Manage Tasks</a>
         </div>
         <div class="card-body p-0">
           {% if tasks %}
@@ -230,7 +244,7 @@
     <div class="col-lg-6">
       <div class="card ns-glass-card mb-4 h-100">
         <div class="card-header ns-card-header py-3 d-flex align-items-center justify-content-between">
-          <h5 class="mb-0 text-danger fw-bold"><i class="bi bi-journal-medical me-2"></i>Kardex Nursing Notes</h5>
+          <h5 class="mb-0 text-ns-primary fw-bold"><i class="bi bi-journal-medical me-2"></i>Kardex Nursing Notes</h5>
           <a href="{{ url_for('nursing.add_note') }}?patient_id={{ patient_id }}" class="btn btn-sm ns-btn-primary rounded-pill px-3">
             <i class="bi bi-pencil-square me-1"></i> Add Note
           </a>
@@ -239,9 +253,9 @@
           {% if notes %}
           <div class="d-flex flex-column gap-3">
             {% for note in notes %}
-            <div class="p-3 bg-light rounded-3 border border-start border-4 border-danger">
+            <div class="p-3 bg-light rounded-3 border border-start border-4 border-info">
               <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="fw-bold text-dark"><i class="bi bi-person-circle me-1 text-danger"></i>Nurse {{ note.nurse.username if note.nurse else 'Staff' }}</span>
+                <span class="fw-bold text-dark"><i class="bi bi-person-circle me-1 text-ns-primary"></i>Nurse {{ note.nurse.username if note.nurse else 'Staff' }}</span>
                 <small class="text-muted"><i class="bi bi-clock me-1"></i>{{ note.timestamp }}</small>
               </div>
               <p class="mb-2 text-dark fs-6">{{ note.note }}</p>
@@ -249,7 +263,7 @@
               {% if note.allergies or note.code_status or note.medications or note.shift_update %}
               <div class="mt-2 pt-2 border-top small text-secondary">
                 {% if note.allergies %}
-                <div><strong class="text-danger">Allergies:</strong> {{ note.allergies }}</div>
+                <div><strong class="text-ns-primary">Allergies:</strong> {{ note.allergies }}</div>
                 {% endif %}
                 {% if note.code_status %}
                 <div><strong>Code Status:</strong> <span class="badge bg-warning text-dark">{{ note.code_status }}</span></div>

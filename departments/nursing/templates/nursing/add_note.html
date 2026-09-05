@@ -4,9 +4,9 @@
 {% block content %}
 <style>
   :root {
-    --ns-primary: #e11d48;
-    --ns-primary-hover: #be123c;
-    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+    --ns-primary: #0e7490;
+    --ns-primary-hover: #155e75;
+    --ns-header-bg: linear-gradient(135deg, #164e63 0%, #0e7490 60%, #06b6d4 100%);
   }
 
   .ns-header-card {
@@ -14,19 +14,19 @@
     color: #ffffff;
     border: none;
     border-radius: 16px;
-    box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.3);
+    box-shadow: 0 10px 25px -5px rgba(14, 116, 144, 0.3);
   }
 
   .ns-glass-card {
     background: var(--bs-body-bg);
-    border: 1px solid rgba(225, 29, 72, 0.15);
+    border: 1px solid rgba(14, 116, 144, 0.15);
     border-radius: 14px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   }
 
   .ns-card-header {
-    background: rgba(225, 29, 72, 0.06);
-    border-bottom: 1px solid rgba(225, 29, 72, 0.12);
+    background: rgba(14, 116, 144, 0.06);
+    border-bottom: 1px solid rgba(14, 116, 144, 0.12);
     border-top-left-radius: 14px !important;
     border-top-right-radius: 14px !important;
   }
@@ -41,6 +41,12 @@
     border-color: var(--ns-primary-hover);
     color: #fff;
   }
+  .text-ns-primary {
+    color: var(--ns-primary) !important;
+  }
+  .border-ns-subtle {
+    border-color: rgba(14, 116, 144, 0.25) !important;
+  }
 </style>
 
 <div class="container-fluid py-4 px-4">
@@ -50,7 +56,7 @@
     <div class="card-body p-4">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div>
-          <span class="badge bg-white text-danger px-3 py-2 fw-semibold rounded-pill mb-2">
+          <span class="badge bg-white text-ns-primary px-3 py-2 fw-semibold rounded-pill mb-2">
             <i class="bi bi-journal-medical me-1"></i> Nursing Kardex System
           </span>
           <h2 class="h1 fw-bold text-white mb-1">
@@ -60,7 +66,7 @@
         </div>
 
         <div class="d-flex gap-2">
-          <a href="{{ url_for('nursing.view_notes') }}" class="btn btn-light rounded-pill px-3 shadow-sm text-danger fw-semibold">
+          <a href="{{ url_for('nursing.view_notes') }}" class="btn btn-light rounded-pill px-3 shadow-sm text-ns-primary fw-semibold">
             <i class="bi bi-journal-text me-1"></i> View Notes Log
           </a>
           <a href="{{ url_for('nursing.ward_patients') }}" class="btn btn-outline-light rounded-pill px-3 shadow-sm">
@@ -75,15 +81,15 @@
     <div class="col-lg-10">
       <div class="card ns-glass-card">
         <div class="card-header ns-card-header py-3">
-          <h5 class="mb-0 text-danger fw-bold"><i class="bi bi-file-earmark-medical me-2"></i>New Clinical Observation Entry</h5>
+          <h5 class="mb-0 text-ns-primary fw-bold"><i class="bi bi-file-earmark-medical me-2"></i>New Clinical Observation Entry</h5>
         </div>
         <div class="card-body p-4">
           <form method="POST">
             
             <!-- Patient Selection -->
-            <div class="mb-4 p-3 bg-light rounded-3 border border-danger-subtle">
-              <label for="patient_id" class="form-label fw-bold text-danger">Select Patient <span class="text-danger">*</span></label>
-              <select class="form-select border-danger-subtle" id="patient_id" name="patient_id" required>
+            <div class="mb-4 p-3 bg-light rounded-3 border border-ns-subtle">
+              <label for="patient_id" class="form-label fw-bold text-ns-primary">Select Patient <span class="text-danger">*</span></label>
+              <select class="form-select border-ns-subtle" id="patient_id" name="patient_id" required>
                 <option value="" disabled selected>-- Choose Patient from Ward / Triage --</option>
                 {% if patients %}
                   {% for p in patients %}
@@ -100,11 +106,11 @@
             <div class="row g-3 mb-4">
               <div class="col-md-6">
                 <label for="allergies" class="form-label fw-semibold">Allergies / Hypersensitivities</label>
-                <input type="text" class="form-control border-danger-subtle" id="allergies" name="allergies" placeholder="e.g. Penicillin, Latex, NSAIDs">
+                <input type="text" class="form-control border-ns-subtle" id="allergies" name="allergies" placeholder="e.g. Penicillin, Latex, NSAIDs">
               </div>
               <div class="col-md-6">
                 <label for="code_status" class="form-label fw-semibold">Resuscitation / Code Status</label>
-                <select class="form-select border-danger-subtle" id="code_status" name="code_status">
+                <select class="form-select border-ns-subtle" id="code_status" name="code_status">
                   <option value="">Select Code Status</option>
                   <option value="Full Code">Full Code</option>
                   <option value="DNR">DNR (Do Not Resuscitate)</option>
@@ -118,7 +124,7 @@
             <h6 class="text-uppercase text-muted fw-bold small mb-3"><i class="bi bi-capsule me-1"></i> 2. Current Medications & Orders</h6>
             <div class="mb-4">
               <label for="medications" class="form-label fw-semibold">Active Medications & Dosages</label>
-              <textarea class="form-control border-danger-subtle" id="medications" name="medications" rows="2" placeholder="e.g., Paracetamol 1g IV Q8H, Ceftriaxone 1g IV OD"></textarea>
+              <textarea class="form-control border-ns-subtle" id="medications" name="medications" rows="2" placeholder="e.g., Paracetamol 1g IV Q8H, Ceftriaxone 1g IV OD"></textarea>
             </div>
 
             <!-- Nursing Observation & Shift Response -->
@@ -126,11 +132,11 @@
             <div class="row g-3 mb-4">
               <div class="col-md-6">
                 <label for="note" class="form-label fw-semibold">Nursing Observation / Assessment <span class="text-danger">*</span></label>
-                <textarea class="form-control border-danger-subtle" id="note" name="note" rows="4" required placeholder="Detailed clinical evaluation, symptoms, vitals baseline, wound care, or mental state..."></textarea>
+                <textarea class="form-control border-ns-subtle" id="note" name="note" rows="4" required placeholder="Detailed clinical evaluation, symptoms, vitals baseline, wound care, or mental state..."></textarea>
               </div>
               <div class="col-md-6">
                 <label for="shift_update" class="form-label fw-semibold">Patient Response / Shift Handover Note</label>
-                <textarea class="form-control border-danger-subtle" id="shift_update" name="shift_update" rows="4" placeholder="Response to therapy, fluid intake tolerance, ambulatory progress, or pending lab results..."></textarea>
+                <textarea class="form-control border-ns-subtle" id="shift_update" name="shift_update" rows="4" placeholder="Response to therapy, fluid intake tolerance, ambulatory progress, or pending lab results..."></textarea>
               </div>
             </div>
 
@@ -147,6 +153,5 @@
       </div>
     </div>
   </div>
-
 </div>
 {% endblock %}

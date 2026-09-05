@@ -86,9 +86,9 @@
 
 <style>
   :root {
-    --ns-primary: #e11d48;
-    --ns-primary-hover: #be123c;
-    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+    --ns-primary: #0e7490;
+    --ns-primary-hover: #155e75;
+    --ns-header-bg: linear-gradient(135deg, #164e63 0%, #0e7490 60%, #06b6d4 100%);
   }
 
   .ns-header-card {
@@ -96,19 +96,19 @@
     color: #ffffff;
     border: none;
     border-radius: 16px;
-    box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.3);
+    box-shadow: 0 10px 25px -5px rgba(14, 116, 144, 0.3);
   }
 
   .ns-glass-card {
     background: var(--bs-body-bg);
-    border: 1px solid rgba(225, 29, 72, 0.15);
+    border: 1px solid rgba(14, 116, 144, 0.15);
     border-radius: 14px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   }
 
   .ns-card-header {
-    background: rgba(225, 29, 72, 0.06);
-    border-bottom: 1px solid rgba(225, 29, 72, 0.12);
+    background: rgba(14, 116, 144, 0.06);
+    border-bottom: 1px solid rgba(14, 116, 144, 0.12);
     border-top-left-radius: 14px !important;
     border-top-right-radius: 14px !important;
   }
@@ -123,6 +123,12 @@
     border-color: var(--ns-primary-hover);
     color: #fff;
   }
+  .text-ns-primary {
+    color: var(--ns-primary) !important;
+  }
+  .border-ns-subtle {
+    border-color: rgba(14, 116, 144, 0.25) !important;
+  }
 </style>
 
 <div class="container-fluid py-4 px-4">
@@ -132,7 +138,7 @@
     <div class="card-body p-4">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div>
-          <span class="badge bg-white text-danger px-3 py-2 fw-semibold rounded-pill mb-2">
+          <span class="badge bg-white text-ns-primary px-3 py-2 fw-semibold rounded-pill mb-2">
             <i class="bi bi-heart-pulse-fill me-1"></i> Maternity & Labor Suite
           </span>
           <h2 class="h1 fw-bold text-white mb-1">
@@ -142,7 +148,7 @@
         </div>
 
         <div class="d-flex gap-2">
-          <a href="{{ url_for('nursing.view_partograms') }}" class="btn btn-light rounded-pill px-3 shadow-sm text-danger fw-semibold">
+          <a href="{{ url_for('nursing.view_partograms') }}" class="btn btn-light rounded-pill px-3 shadow-sm text-ns-primary fw-semibold">
             <i class="bi bi-journal-text me-1"></i> Partogram Records
           </a>
           <a href="{{ url_for('nursing.ward_patients') }}" class="btn btn-outline-light rounded-pill px-3 shadow-sm">
@@ -155,30 +161,30 @@
 
   <div class="card ns-glass-card mb-4">
     <div class="card-header ns-card-header py-3">
-      <h5 class="mb-0 text-danger fw-bold"><i class="bi bi-journal-plus me-2"></i>New Partogram Entry Form</h5>
+      <h5 class="mb-0 text-ns-primary fw-bold"><i class="bi bi-journal-plus me-2"></i>New Partogram Entry Form</h5>
     </div>
     <div class="card-body p-4">
       <form action="{{ url_for('nursing.submit_partogram') }}" method="POST" class="needs-validation" novalidate id="partogramForm">
         
         <!-- Patient Information -->
-        <h6 class="text-uppercase text-danger fw-bold mb-3"><i class="bi bi-person-badge me-2"></i>1. Patient Information</h6>
-        <div class="mb-4 p-3 bg-light rounded-3 border border-danger-subtle">
+        <h6 class="text-uppercase text-ns-primary fw-bold mb-3"><i class="bi bi-person-badge me-2"></i>1. Patient Information</h6>
+        <div class="mb-4 p-3 bg-light rounded-3 border border-ns-subtle">
           <label for="patient_id" class="form-label fw-bold text-dark"><i class="bi bi-person me-2"></i>Patient ID <span class="text-danger">*</span></label>
-          <input type="text" id="patient_id" name="patient_id" class="form-control border-danger-subtle" placeholder="Enter Patient ID (e.g. P1000)" value="{{ request.args.get('patient_id', '') }}" required>
+          <input type="text" id="patient_id" name="patient_id" class="form-control border-ns-subtle" placeholder="Enter Patient ID (e.g. P1000)" value="{{ request.args.get('patient_id', '') }}" required>
           <div class="invalid-feedback">Please enter a valid Patient ID.</div>
         </div>
 
         <!-- Fetal Conditions Section -->
-        <h6 class="text-uppercase text-danger fw-bold mt-4 mb-3"><i class="bi bi-heart me-2"></i>2. Fetal Conditions</h6>
+        <h6 class="text-uppercase text-ns-primary fw-bold mt-4 mb-3"><i class="bi bi-heart me-2"></i>2. Fetal Conditions</h6>
         <div class="row g-3 mb-4">
           <div class="col-md-4">
             <label for="fetal_heart_rate" class="form-label fw-semibold"><i class="bi bi-heart-pulse me-2"></i>Fetal Heart Rate (bpm)</label>
-            <input type="number" id="fetal_heart_rate" name="fetal_heart_rate" class="form-control border-danger-subtle" placeholder="e.g., 140" min="60" max="200" required>
+            <input type="number" id="fetal_heart_rate" name="fetal_heart_rate" class="form-control border-ns-subtle" placeholder="e.g., 140" min="60" max="200" required>
             <div class="invalid-feedback">Please enter a valid fetal heart rate (60-200 bpm).</div>
           </div>
           <div class="col-md-4">
             <label for="amniotic_fluid" class="form-label fw-semibold"><i class="bi bi-droplet me-2"></i>Amniotic Fluid Status</label>
-            <select id="amniotic_fluid" name="amniotic_fluid" class="form-select select2 border-danger-subtle" required>
+            <select id="amniotic_fluid" name="amniotic_fluid" class="form-select select2 border-ns-subtle" required>
               <option value="" disabled selected>Select amniotic fluid status</option>
               <option value="clear">Clear</option>
               <option value="meconium">Meconium-stained</option>

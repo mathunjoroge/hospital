@@ -4,9 +4,9 @@
 {% block content %}
 <style>
   :root {
-    --ns-primary: #e11d48;
-    --ns-primary-hover: #be123c;
-    --ns-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
+    --ns-primary: #0e7490;
+    --ns-primary-hover: #155e75;
+    --ns-header-bg: linear-gradient(135deg, #164e63 0%, #0e7490 60%, #06b6d4 100%);
   }
 
   .ns-header-card {
@@ -14,19 +14,19 @@
     color: #ffffff;
     border: none;
     border-radius: 16px;
-    box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.3);
+    box-shadow: 0 10px 25px -5px rgba(14, 116, 144, 0.3);
   }
 
   .ns-glass-card {
     background: var(--bs-body-bg);
-    border: 1px solid rgba(225, 29, 72, 0.15);
+    border: 1px solid rgba(14, 116, 144, 0.15);
     border-radius: 14px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   }
 
   .ns-card-header {
-    background: rgba(225, 29, 72, 0.06);
-    border-bottom: 1px solid rgba(225, 29, 72, 0.12);
+    background: rgba(14, 116, 144, 0.06);
+    border-bottom: 1px solid rgba(14, 116, 144, 0.12);
     border-top-left-radius: 14px !important;
     border-top-right-radius: 14px !important;
   }
@@ -43,12 +43,18 @@
   }
 
   .accordion-button:not(.collapsed) {
-    background-color: rgba(225, 29, 72, 0.08);
-    color: #be123c;
+    background-color: rgba(14, 116, 144, 0.08);
+    color: #0e7490;
     font-weight: 600;
   }
   .accordion-button:focus {
     box-shadow: none;
+  }
+  .text-ns-primary {
+    color: var(--ns-primary) !important;
+  }
+  .border-ns-subtle {
+    border-color: rgba(14, 116, 144, 0.25) !important;
   }
 </style>
 
@@ -59,7 +65,7 @@
     <div class="card-body p-4">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div>
-          <span class="badge bg-white text-danger px-3 py-2 fw-semibold rounded-pill mb-2">
+          <span class="badge bg-white text-ns-primary px-3 py-2 fw-semibold rounded-pill mb-2">
             <i class="bi bi-heart-pulse-fill me-1"></i> Patient Vital Signs Logging
           </span>
           <h2 class="h1 fw-bold text-white mb-1">
@@ -69,7 +75,7 @@
         </div>
 
         <div class="d-flex flex-wrap gap-2">
-          <a href="{{ url_for('nursing.vitals_chart', patient_id=patient_id) }}" class="btn btn-light rounded-pill px-3 shadow-sm text-danger fw-semibold">
+          <a href="{{ url_for('nursing.vitals_chart', patient_id=patient_id) }}" class="btn btn-light rounded-pill px-3 shadow-sm text-ns-primary fw-semibold">
             <i class="bi bi-graph-up-arrow me-1"></i> Visual Trend Chart
           </a>
           <a href="{{ url_for('nursing.patient_dashboard') }}?patient_id={{ patient_id }}" class="btn btn-outline-light rounded-pill px-3 shadow-sm">
@@ -88,7 +94,7 @@
     <div class="col-lg-7">
       <div class="card ns-glass-card">
         <div class="card-header ns-card-header py-3">
-          <h5 class="mb-0 text-danger fw-bold"><i class="bi bi-clipboard2-pulse me-2"></i>Record Clinical Vitals</h5>
+          <h5 class="mb-0 text-ns-primary fw-bold"><i class="bi bi-clipboard2-pulse me-2"></i>Record Clinical Vitals</h5>
         </div>
         <div class="card-body p-4">
           <form method="POST">
@@ -97,7 +103,7 @@
               <!-- Cardiovascular -->
               <div class="accordion-item border rounded-3 mb-3 overflow-hidden">
                 <h2 class="accordion-header" id="headingCardio">
-                  <button class="accordion-button fw-bold text-danger" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCardio" aria-expanded="true">
+                  <button class="accordion-button fw-bold text-ns-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCardio" aria-expanded="true">
                     <i class="bi bi-heart-pulse me-2"></i> 1. Cardiovascular System
                   </button>
                 </h2>
@@ -106,7 +112,7 @@
                     <div class="row g-3">
                       <div class="col-md-6">
                         <label for="pulse" class="form-label fw-semibold">Pulse Rate (bpm)</label>
-                        <input type="number" class="form-control border-danger-subtle" id="pulse" name="pulse" value="{{ vitals.pulse if vitals else '' }}" placeholder="Normal: 60-100">
+                        <input type="number" class="form-control border-ns-subtle" id="pulse" name="pulse" value="{{ vitals.pulse if vitals else '' }}" placeholder="Normal: 60-100">
                       </div>
                       <div class="col-md-6">
                         <label class="form-label fw-semibold">Blood Pressure (mmHg)</label>
