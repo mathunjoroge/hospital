@@ -5,8 +5,10 @@ Central model exports for departments.models
 from .admin import Log
 from .billing import (
     ChargeCategory, Charge, Billing, DrugsBill, PaidBill, WardBill,
-    LabBill, ClinicBill, TheatreBill, ImagingBill
+    LabBill, ClinicBill, TheatreBill, ImagingBill,
+    Invoice, InvoiceLineItem, Payment, InvoiceStatus, PaymentMethod
 )
+from .insurance import InsuranceScheme, PatientInsurance, Claim, ClaimStatus
 from .hr import (
     Rota, Employee, Allowance, Payroll, Deduction, Leave, CustomRule, AuditLog
 )
@@ -31,7 +33,10 @@ from .pharmacy import (
     DrugCategory, Drug, Batch, Purchase, DispensedDrug, Expiry,
     DrugRequest, RequestItem
 )
-from .records import Patient, PatientWaitingList, Clinic, ClinicBooking
+from .records import (
+    Patient, PatientWaitingList, Clinic, ClinicBooking,
+    PatientIdentifier, PatientMerge
+)
 from .stores import NonPharmCategory, NonPharmItem, OtherOrder
 from .user import User
 
@@ -39,6 +44,8 @@ __all__ = [
     'Log',
     'ChargeCategory', 'Charge', 'Billing', 'DrugsBill', 'PaidBill', 'WardBill',
     'LabBill', 'ClinicBill', 'TheatreBill', 'ImagingBill',
+    'Invoice', 'InvoiceLineItem', 'Payment', 'InvoiceStatus', 'PaymentMethod',
+    'InsuranceScheme', 'PatientInsurance', 'Claim', 'ClaimStatus',
     'Rota', 'Employee', 'Allowance', 'Payroll', 'Deduction', 'Leave', 'CustomRule', 'AuditLog',
     'ImagingResult',
     'LabResultTemplate', 'LabResult',
@@ -56,6 +63,7 @@ __all__ = [
     'DrugCategory', 'Drug', 'Batch', 'Purchase', 'DispensedDrug', 'Expiry',
     'DrugRequest', 'RequestItem',
     'Patient', 'PatientWaitingList', 'Clinic', 'ClinicBooking',
+    'PatientIdentifier', 'PatientMerge',
     'NonPharmCategory', 'NonPharmItem', 'OtherOrder',
     'User'
 ]

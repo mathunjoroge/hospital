@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  :root { --rc-primary:#1a56db; --rc-border:#e0e7ff; --rc-bg:#f0f4ff; }
+  body { background:var(--rc-bg); }
+  .page-header { background:linear-gradient(135deg,#1e3a8a,#1a56db 60%,#3b82f6); border-radius:16px; padding:1.8rem 2rem; color:white; margin-bottom:1.5rem; box-shadow:0 8px 32px rgba(26,86,219,.2); }
+  .page-header h1 { font-size:1.5rem; font-weight:700; margin:0 0 .3rem; }
+  .card-dup { background:white; border-radius:14px; box-shadow:0 4px 18px rgba(26,86,219,.09); overflow:hidden; margin-bottom:1rem; border-left:4px solid #e2e8f0; transition:transform .15s; }
+  .card-dup:hover { transform:translateY(-2px); }
+  .card-dup.high { border-left-color:#dc2626; }
+  .card-dup.medium { border-left-color:#d97706; }
+  .dup-body { padding:1.2rem 1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+  .dup-info h5 { font-weight:700; color:#1e293b; margin:0 0 .2rem; }
+  .dup-info p { margin:0; font-size:.85rem; color:#64748b; }
+  .conf-badge { border-radius:20px; padding:.25rem .9rem; font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+  .conf-high { background:#fee2e2; color:#991b1b; }
+  .conf-medium { background:#fef3c7; color:#92400e; }
+  .btn-merge { background:linear-gradient(135deg,#1e3a8a,#1a56db); color:white; border:none; border-radius:9px; padding:.5rem 1.1rem; font-weight:600; font-size:.85rem; text-decoration:none; transition:opacity .15s; }
+  .btn-merge:hover { opacity:.88; color:white; }
+  .empty-state { text-align:center; padding:3rem; color:#94a3b8; }
+  .empty-state i { font-size:3rem; margin-bottom:.8rem; display:block; }
+</style>
+
+<div class="container-fluid px-4 py-4">
+  <div class="page-header">
+    <h1><i class="bi bi-people"></i> Duplicate Detection — {{ patient.name }}</h1>
+    <p class="mb-0" style="opacity:.85;">Patient ID: <strong>{{ patient.patient_id }}</strong> · DOB: {{ patient.date_of_birth.strftime('%d %b %Y') }}</p>
+  </div>
+
+  <a href="{{ url_for('records.patient_profile', patient_id=patient.patient_id) }}" class="btn btn-outline-secondary btn-sm mb-3">
+    <i class="bi bi-arrow-left"></i> Back to Profile
+  </a>
+
+  {% if candidates %}
+    <p class="text-muted mb-3">Found <strong>{{ candidates|length }}</strong> potential duplicate(s). Review before merging.</p>
+
+    {% for item in candidates %}
+    {% set cand = item.patient %}
+    <div class="card-dup {{ item.confidence | lower }}">
+      <div class="dup-body">
+        <div class="dup-info">
+          <h5>{{ cand.name }}
+            <span class="conf-badge conf-{{ item.confidence | lower }} ms-2">{{ item.confidence }}</span>
+          </h5>
+          <p>
+            <strong>ID:</strong> {{ cand.patient_id }} &nbsp;·&nbsp;
+            <strong>DOB:</strong> {{ cand.date_of_birth.strftime('%d %b %Y') }} &nbsp;·&nbsp;
+            <strong>Contact:</strong> {{ cand.contact }}
+          </p>
+          <p class="mt-1"><em>Reason: {{ item.reason }}</em></p>
+        </div>
+        <div class="d-flex gap-2 flex-shrink-0">
+          <a href="{{ url_for('records.patient_profile', patient_id=cand.patient_id) }}"
+             class="btn btn-sm btn-outline-secondary">View</a>
+          <a href="{{ url_for('records.merge_patient', patient_id=patient.patient_id, target_id=cand.patient_id) }}"
+             class="btn-merge">Merge into this record</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+  {% else %}
+    <div class="empty-state">
+      <i class="bi bi-check-circle-fill text-success"></i>
+      <h5>No Duplicates Found</h5>
+      <p>No matching records were detected based on date of birth, phone, or name similarity.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -12,7 +12,7 @@ from wtforms import (
 from wtforms.validators import DataRequired, Email, Length
 from departments.models.records import Patient
 from departments.models.medicine import CancerType, CancerStage, CancerTypeStage
-from datetime import datetime
+from datetime import datetime, date
 
 class AdmitPatientForm(FlaskForm):
     patient_id = SelectField('Patient', choices=[], validators=[DataRequired()])
@@ -86,7 +86,7 @@ class OncoPatientForm(FlaskForm):
             (st.id, st.label) for st in CancerStage.query.order_by(CancerStage.id).all()
         ]
 class OncologyNoteForm(FlaskForm):
-    note_date = DateField('Note Date', validators=[DataRequired()], format='%Y-%m-%d', default=datetime.utcnow().date)
+    note_date = DateField('Note Date', validators=[DataRequired()], format='%Y-%m-%d', default=date.today)
     note_content = TextAreaField('Note Content', validators=[DataRequired(), Length(min=1, max=1000)])
     submit_note = SubmitField('Add Note')
   

@@ -398,7 +398,7 @@ def pay_all(patient_id):
 
     except Exception as e:
         db.session.rollback()
-        flash(f'An error occurred while marking bills as paid: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         return redirect(url_for('billing.view_unpaid_bills', patient_id=patient_id))
 
 @bp.route('/paid_bills/<patient_id>')

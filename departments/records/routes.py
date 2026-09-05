@@ -1,13 +1,17 @@
 from flask import render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
 from . import bp
-from departments.models.records import Patient, Clinic, ClinicBooking, PatientWaitingList
+from departments.models.records import (
+    Patient, Clinic, ClinicBooking, PatientWaitingList,
+    PatientIdentifier, PatientMerge
+)
 from departments.models.medicine import (
     SOAPNote, PrescribedMedicine, Medicine, RequestedLab, LabTest,
     RequestedImage, Imaging, AdmittedPatient, Ward
 )
 from departments.models.nursing import Vitals, NursingNote
 from departments.models.laboratory import LabResult
+from departments.records.merge import find_duplicate_candidates, merge_patient_records
 from datetime import datetime, date, timedelta
 from extensions import db
 from sqlalchemy.orm import joinedload
@@ -490,3 +494,72 @@ def registration_report():
                            sex_data=sex_data,
                            year=year,
                            available_years=available_years)
+
+
+# ─────────────────────────────────────────────
+# PATIENT MERGE — Duplicate Detection & Merge
+# ─────────────────────────────────────────────
+
+@bp.route('/patient/<patient_id>/duplicates')
+@login_required
+@roles_required('records', 'admin')
+def patient_duplicates(patient_id):
+    """Show potential duplicate records for a given patient."""
+    patient = Patient.query.filter_by(patient_id=patient_id, is_active=True).first_or_404()
+    candidates = find_duplicate_candidates(patient)
+    return render_template('records/patient_duplicates.html',
+                           patient=patient,
+                           candidates=candidates)
+
+
+@bp.route('/patient/<patient_id>/merge', methods=['GET', 'POST'])
+@login_required
+@roles_required('records', 'admin')
+def merge_patient(patient_id):
+    """
+    GET  – Show confirmation page before merging source into target.
+    POST – Execute the merge: soft-delete source, attach audit log.
+
+    Query param `target_id` required for both methods.
+    """
+    source = Patient.query.filter_by(patient_id=patient_id, is_active=True).first_or_404()
+    target_id = request.args.get('target_id') or request.form.get('target_id')
+    if not target_id:
+        flash('Target patient ID is required for a merge.', 'danger')
+        return redirect(url_for('records.patient_duplicates', patient_id=patient_id))
+
+    target = Patient.query.filter_by(patient_id=target_id, is_active=True).first_or_404()
+
+    if request.method == 'POST':
+        notes = request.form.get('notes', '').strip()
+        try:
+            merge_patient_records(
+                source_patient_id=patient_id,
+                target_patient_id=target_id,
+                user_id=current_user.id,
+                notes=notes or None
+            )
+            flash(
+                f'Patient {source.name} ({patient_id}) merged into '
+                f'{target.name} ({target_id}) successfully.',
+                'success'
+            )
+            return redirect(url_for('records.patient_profile', patient_id=target_id))
+        except ValueError as e:
+            flash(str(e), 'danger')
+            return redirect(url_for('records.patient_duplicates', patient_id=patient_id))
+
+    return render_template('records/confirm_merge.html',
+                           source=source,
+                           target=target)
+
+
+@bp.route('/api/patient/<patient_id>/soft-delete', methods=['POST'])
+@login_required
+@roles_required('admin')
+def soft_delete_patient(patient_id):
+    """Soft-delete a patient record (admin-only JSON endpoint)."""
+    patient = Patient.query.filter_by(patient_id=patient_id, is_active=True).first_or_404()
+    patient.soft_delete()
+    db.session.commit()
+    return jsonify({'status': 'ok', 'message': f'Patient {patient_id} soft-deleted.'})

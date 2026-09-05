@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 500px;">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Setup Multi-Factor Authentication (MFA)</h5>
+        </div>
+        <div class="card-body text-center">
+            <p>Scan the QR code below using your authenticator app (Google Authenticator, Authy, 1Password, etc.):</p>
+            <div class="my-3">
+                <img src="data:image/png;base64,{{ qr_b64 }}" alt="MFA QR Code" class="img-fluid border p-2 rounded">
+            </div>
+            <p class="small text-muted">Or enter secret key manually: <code>{{ secret }}</code></p>
+            <hr>
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="mb-3">
+                    <label for="code" class="form-label">Enter 6-Digit Code to Confirm:</label>
+                    <input type="text" name="code" id="code" class="form-control text-center fs-5" placeholder="123456" maxlength="6" required>
+                </div>
+                <button type="submit" class="btn btn-success w-100">Enable MFA</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

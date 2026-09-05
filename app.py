@@ -2,7 +2,7 @@ import logging
 import os
 import time
 import redis
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_session import Session
 from flask_login import login_user, current_user, logout_user, login_required
@@ -17,6 +17,9 @@ from departments.models.user import User
 from departments.models.admin import Log
 from departments.models.nursing import Notifications
 
+import dotenv
+dotenv.load_dotenv()
+
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -30,8 +33,9 @@ app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2 GB file limit
 secret_key = os.environ.get('SECRET_KEY')
 if not secret_key:
     if os.environ.get('FLASK_ENV') == 'production':
-        raise RuntimeError("SECRET_KEY environment variable must be set in production.")
-    secret_key = 'dev-secret-key-change-in-production'
+        raise RuntimeError("SECRET_KEY environment variable must be set in production mode.")
+    secret_key = 'dev-secret-key-for-local-development-only'
+    logging.warning("SECRET_KEY environment variable not found; using development fallback key.")
 
 app.config['SECRET_KEY'] = secret_key
 app.config['SESSION_TYPE'] = 'redis'
@@ -79,12 +83,18 @@ os.makedirs(app.config['DICOM_UPLOAD_FOLDER'], exist_ok=True)
 
 
 
-from extensions import db, login_manager, socketio, csrf
+from extensions import db, login_manager, socketio, csrf, limiter
 from markupsafe import Markup, escape
 
 # Initialize extensions
 db.init_app(app)
+from departments.audit import register_audit_listeners
+register_audit_listeners()
 csrf.init_app(app)
+limiter.init_app(app)
+if app.config.get('TESTING'):
+    limiter.enabled = False
+
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 mail = Mail(app)
@@ -160,30 +170,78 @@ def home():
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute", methods=["POST"])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         try:
             user = User.query.filter_by(username=username).first()
-            if user and check_password_hash(user.password, password):
-                login_user(user)
-                db.session.add(Log(level='INFO', message=f"User {user.username} (ID: {user.id}) logged in", user_id=user.id, source='auth'))
-                db.session.commit()
-                logger.info(f"User {user.id} ({user.username}) logged in")
-                return redirect(url_for(f'{user.role}.index'))
-            else:
-                db.session.add(Log(level='WARNING', message=f"Failed login attempt: {username}", source='auth'))
-                db.session.commit()
-                logger.warning(f"Failed login attempt for {username}")
-                flash('Invalid credentials', 'error')
+            if user:
+                if user.locked_until and user.locked_until.replace(tzinfo=timezone.utc) > datetime.now(timezone.utc):
+                    flash('Account locked due to too many failed attempts. Please try again later.', 'error')
+                    return render_template('login.html')
+
+                if check_password_hash(user.password, password):
+                    user.failed_login_attempts = 0
+                    user.locked_until = None
+                    db.session.commit()
+
+                    if user.mfa_enabled or (user.role == 'admin' and user.totp_secret):
+                        session['mfa_pending_user_id'] = user.id
+                        return redirect(url_for('mfa_verify'))
+
+                    login_user(user)
+                    db.session.add(Log(level='INFO', message=f"User {user.username} (ID: {user.id}) logged in", user_id=user.id, source='auth'))
+                    db.session.commit()
+                    logger.info(f"User {user.id} ({user.username}) logged in")
+                    return redirect(url_for(f'{user.role}.index'))
+                else:
+                    user.failed_login_attempts += 1
+                    if user.failed_login_attempts >= 5:
+                        user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
+                    db.session.commit()
+
+            db.session.add(Log(level='WARNING', message=f"Failed login attempt: {username}", source='auth'))
+            db.session.commit()
+            logger.warning(f"Failed login attempt for {username}")
+            flash('Invalid credentials', 'error')
         except Exception as e:
             db.session.rollback()
             db.session.add(Log(level='ERROR', message=f"Login error: {e}", source='auth'))
             db.session.commit()
             logger.error(f"Login error: {e}", exc_info=True)
-            flash(f'Login error: {e}', 'error')
+            flash('Something went wrong. Please try again.', 'error')
     return render_template('login.html')
+
+import pyotp
+
+@app.route('/mfa_verify', methods=['GET', 'POST'])
+def mfa_verify():
+    user_id = session.get('mfa_pending_user_id')
+    if not user_id:
+        return redirect(url_for('login'))
+
+    user = db.session.get(User, user_id)
+    if not user or not user.totp_secret:
+        session.pop('mfa_pending_user_id', None)
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        code = request.form.get('code', '').strip()
+        totp = pyotp.TOTP(user.totp_secret)
+        if totp.verify(code):
+            session.pop('mfa_pending_user_id', None)
+            login_user(user)
+            db.session.add(Log(level='INFO', message=f"User {user.username} (ID: {user.id}) logged in with MFA", user_id=user.id, source='auth'))
+            db.session.commit()
+            logger.info(f"User {user.id} ({user.username}) logged in with MFA")
+            return redirect(url_for(f'{user.role}.index'))
+        else:
+            flash('Invalid MFA verification code. Please try again.', 'error')
+
+    return render_template('mfa_verify.html', username=user.username)
+
 
 @app.route('/logout')
 @login_required
@@ -201,7 +259,7 @@ def logout():
         db.session.add(Log(level='ERROR', message=f"Logout error: {e}", source='auth'))
         db.session.commit()
         logger.error(f"Logout error: {e}", exc_info=True)
-        flash(f'Logout error: {e}', 'error')
+        flash('Something went wrong. Please try again.', 'error')
         return redirect(url_for('login'))
 
 from departments.records import bp as records_bp
@@ -216,6 +274,7 @@ from departments.nursing import bp as nursing_bp
 from departments.hr import bp as hr_bp
 from departments.mortuary import bp as mortuary_bp
 from departments.api import bp as api_bp
+from departments.billing.mpesa import mpesa_bp
 
 app.register_blueprint(records_bp, url_prefix='/records')
 app.register_blueprint(billing_bp, url_prefix='/billing')
@@ -229,11 +288,9 @@ app.register_blueprint(nursing_bp, url_prefix='/nursing')
 app.register_blueprint(hr_bp, url_prefix='/hr')
 app.register_blueprint(mortuary_bp, url_prefix='/mortuary')
 app.register_blueprint(api_bp, url_prefix='/api')
+app.register_blueprint(mpesa_bp)
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-
     debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
     socketio.run(app, debug=debug_mode)
 

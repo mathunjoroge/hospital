@@ -1,0 +1,342 @@
+import requests 
+import pickle
+import re
+from flask import render_template, redirect, url_for, request, flash, jsonify,session
+from flask_wtf import FlaskForm
+from sqlalchemy import func
+from wtforms import SelectField
+from wtforms.validators import DataRequired
+from sqlalchemy import text
+import json
+from contextlib import contextmanager
+from typing import Optional, List, Dict, Any
+import psycopg2
+from datetime import date
+from psycopg2.extras import RealDictCursor
+from flask import current_app
+from flask_login import login_required, current_user
+from departments.rbac import roles_required, get_effective_role
+from flask_wtf.csrf import CSRFProtect,CSRFError
+from scipy.spatial.distance import cosine
+from extensions import db
+from flask import session
+from flask_socketio import SocketIO
+import uuid
+from uuid import uuid4
+from sqlalchemy.orm import joinedload
+import bleach 
+from . import bp
+from departments.forms import PatientSearchForm, OncoPatientForm, OncologyNoteForm, AdmitPatientForm
+import os
+from datetime import datetime
+from departments.models.laboratory import LabResult,LabResultTemplate
+from departments.models.records import PatientWaitingList, Patient
+from departments.models.medicine import (
+    SOAPNote, LabTest, Imaging, Medicine, PrescribedMedicine, RequestedLab, 
+    RequestedImage, UnmatchedImagingRequest, TheatreProcedure, TheatreList, 
+    Ward, AdmittedPatient, SpecialWarning,RegimenDrugAssociation, 
+    OncologyBooking, OncoDrugCategory, RegimenCategory, 
+    WardBedHistory, WardRoom, Bed, WardRound,Disease, 
+    DiseaseManagementPlan, DiseaseLab, OncoPatient, 
+    OncologyDrug, OncologyRegimen, OncoPrescription, 
+    OncoTreatmentRecord,PrescriptionDrugDetail,OncologyNote,
+    CancerType, CancerStage, CancerTypeStage, CancerDetail
+)
+from departments.nlp.chatbot import UniversalClinicalSummarizer
+import logging
+import json
+from flask import Response, stream_with_context, request
+import time
+from departments.nlp.logging_setup import get_logger
+from flask.sessions import SecureCookieSessionInterface
+logger = get_logger()
+import PyPDF2  # For PDF processing
+from docx import Document  # For DOCX processing
+import pytesseract  # For OCR on images
+from PIL import Image  # For image handling
+import csv  #
+from werkzeug.utils import secure_filename
+
+# Instantiate the summarizer for use in chatbot_interface
+
+
+from extensions import csrf
+
+gemini_api_key = os.environ.get("GEMINI_API_KEY")
+nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
+Summarizer = UniversalClinicalSummarizer(gemini_api_key=gemini_api_key, nvidia_api_key=nvidia_api_key)
+
+
+from flask import make_response
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'txt', 'csv', 'docx'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB max file size
+
+
+@bp.route('/request_lab_tests/<patient_id>', methods=['GET', 'POST'])
+@login_required
+@roles_required('medicine', 'admin')
+def request_lab_tests(patient_id):
+    """Handles lab test requests."""
+    try:
+        dept = request.args.get('dept')  # ✅ Capture dept from query string
+
+        # Fetch patient from waiting list
+        patient_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).options(
+            joinedload(PatientWaitingList.patient)
+        ).first()
+        if not patient_entry or not patient_entry.patient:
+            flash(f'Patient with ID {patient_id} not found in the waiting list!', 'error')
+            return redirect(url_for('medicine.index'))
+
+        patient = patient_entry.patient
+        lab_tests = LabTest.query.all()
+
+        if request.method == 'POST':
+            lab_test_ids = request.form.getlist('lab_tests[]')
+            if not lab_test_ids:
+                flash('No lab tests selected!', 'error')
+                return render_template(
+                    'medicine/request_lab_tests.html',
+                    patient=patient,
+                    lab_tests=lab_tests,
+                    dept=dept
+                )
+
+            descriptions = {}
+            for key, value in request.form.items():
+                if key.startswith('descriptions['):
+                    lab_id = key.split('[')[1].split(']')[0]
+                    descriptions[lab_id] = value.strip() if value else ''
+
+            for lab_test_id in lab_test_ids:
+                description = descriptions.get(str(lab_test_id), '').strip()
+
+                if len(description) > 500:
+                    flash(f'Description for lab test ID {lab_test_id} exceeds 500 characters.', 'error')
+                    return render_template(
+                        'medicine/request_lab_tests.html',
+                        patient=patient,
+                        lab_tests=lab_tests,
+                        dept=dept
+                    )
+
+                result_id = str(uuid.uuid4())
+
+                new_lab_request = RequestedLab(
+                    patient_id=patient_id,
+                    lab_test_id=lab_test_id,
+                    result_id=result_id,
+                    description=description or None
+                )
+                db.session.add(new_lab_request)
+
+            db.session.commit()
+            flash('Lab tests requested successfully!', 'success')
+
+            # ✅ Redirect accordingly
+            if dept == '1':
+                return redirect(url_for('medicine.ward_rounds'))
+            else:
+                return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
+
+        # GET request
+        return render_template(
+            'medicine/request_lab_tests.html',
+            patient=patient,
+            lab_tests=lab_tests,
+            dept=dept
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in medicine.request_lab_tests: {e}", exc_info=True)
+        flash('Something went wrong. Please try again.', 'error')
+        return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
+
+@bp.route('/request_imaging/<patient_id>', methods=['GET', 'POST'])
+@login_required
+@roles_required('medicine', 'admin')
+def request_imaging(patient_id):
+    """Handles imaging requests."""
+    try:
+        dept = request.args.get('dept')  # ✅ Capture dept from query string
+
+        # Fetch patient from waiting list
+        patient_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).options(
+            joinedload(PatientWaitingList.patient)
+        ).first()
+        if not patient_entry or not patient_entry.patient:
+            flash(f'Patient with ID {patient_id} not found in the waiting list!', 'error')
+            return redirect(url_for('medicine.index'))
+
+        patient = patient_entry.patient
+        soap_notes = SOAPNote.query.filter_by(patient_id=patient_id).order_by(SOAPNote.created_at.desc()).first()
+        imaging_types = Imaging.query.all()
+
+        if request.method == 'POST':
+            imaging_ids = request.form.getlist('imaging_types[]')
+
+            if not imaging_ids:
+                flash('No imaging types selected!', 'error')
+                return render_template(
+                    'medicine/request_imaging.html',
+                    patient=patient,
+                    soap_notes=soap_notes,
+                    imaging_types=imaging_types,
+                    dept=dept
+                )
+
+            descriptions = {}
+            for key, value in request.form.items():
+                if key.startswith('descriptions['):
+                    imaging_id = key.split('[')[1].split(']')[0]
+                    descriptions[imaging_id] = value.strip() if value else ''
+
+            for imaging_id in imaging_ids:
+                description = descriptions.get(str(imaging_id), '').strip()
+
+                if len(description) > 500:
+                    flash(f'Description for imaging ID {imaging_id} exceeds 500 characters.', 'error')
+                    return render_template(
+                        'medicine/request_imaging.html',
+                        patient=patient,
+                        soap_notes=soap_notes,
+                        imaging_types=imaging_types,
+                        dept=dept
+                    )
+
+                result_id = str(uuid.uuid4())
+                new_image_request = RequestedImage(
+                    patient_id=patient_id,
+                    imaging_id=imaging_id,
+                    result_id=result_id,
+                    description=description or None
+                )
+                db.session.add(new_image_request)
+
+            db.session.commit()
+            flash('Imaging requested successfully!', 'success')
+
+            # ✅ Redirect based on dept
+            if dept == '1':
+                return redirect(url_for('medicine.ward_rounds'))
+            else:
+                return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
+
+        # GET: Render form
+        return render_template(
+            'medicine/request_imaging.html',
+            patient=patient,
+            soap_notes=soap_notes,
+            imaging_types=imaging_types,
+            dept=dept
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error in medicine.request_imaging: {e}", exc_info=True)
+        flash('Something went wrong. Please try again.', 'error')
+        return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
+
+
+@bp.route('/unmatched_imaging', methods=['GET', 'POST'])
+@login_required
+@roles_required('medicine', 'admin')
+def unmatched_imaging():
+    """Medicine panel to match unmatched imaging requests."""
+    # Handle form submission (matching requests)
+    if request.method == 'POST':
+        unmatched_id = request.form.get('unmatched_id')
+        imaging_id = request.form.get('imaging_id')
+
+        if unmatched_id and imaging_id:
+            unmatched_request = UnmatchedImagingRequest.query.get(unmatched_id)
+            if unmatched_request:
+                # Move to requested_images table
+                requested_imaging = RequestedImage(
+                    patient_id=unmatched_request.patient_id,
+                    imaging_id=imaging_id,
+                    description=unmatched_request.description
+                )
+                db.session.add(requested_imaging)
+                
+                # Remove from unmatched list
+                db.session.delete(unmatched_request)
+                db.session.commit()
+                flash('Imaging request successfully matched!', 'success')
+            else:
+                flash('Invalid request!', 'error')
+
+    # Get filtering parameters
+    patient_name = request.args.get('patient_name', '').strip()
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+
+    # Base query for unmatched imaging requests
+    unmatched_requests = UnmatchedImagingRequest.query.join(Patient).order_by(UnmatchedImagingRequest.date_requested.desc())
+
+    # Apply filters if provided
+    if patient_name:
+        unmatched_requests = unmatched_requests.filter(Patient.name.ilike(f"%{patient_name}%"))
+    if start_date:
+        unmatched_requests = unmatched_requests.filter(UnmatchedImagingRequest.date_requested >= start_date)
+    if end_date:
+        unmatched_requests = unmatched_requests.filter(UnmatchedImagingRequest.date_requested <= end_date)
+
+    unmatched_requests = unmatched_requests.all()
+    imaging_options = Imaging.query.all()
+
+    return render_template(
+        'unmatched_imaging.html',
+        unmatched_requests=unmatched_requests, 
+        imaging_options=imaging_options,
+        patient_name=patient_name,
+        start_date=start_date,
+        end_date=end_date
+    )
+
+@bp.route('/unmatched_imaging/notify', methods=['GET', 'POST'])
+@login_required
+def notify_admin():
+    """Notify medicine users by updating badge count via SocketIO."""
+    count = UnmatchedImagingRequest.query.count()
+    socketio.emit('update_badge', {'count': count}, namespace='/medicine')  # Updated namespace
+    return '', 204  # Return a success response without content
+
+def get_unmatched_count():
+    """Get the number of unmatched imaging requests."""
+    return UnmatchedImagingRequest.query.count()
+
+@bp.context_processor
+def inject_unmatched_count():
+    """Inject the unmatched count into the template context."""
+    return dict(unmatched_count=get_unmatched_count()) 
+
+from departments.shared.drugcentral import DRUGCENTRAL_DB_PARAMS as db_params, get_drugcentral_connection as get_db_connection
+
+
+
+def fetch_drugs_data(search_query: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Fetch distinct product data with optional search by generic name or brand name."""
+    try:
+        with get_db_connection() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+            base_query = """
+                SELECT DISTINCT generic_name, product_name, route, form
+                FROM product
+            """
+            
+            params = []
+            if search_query:
+                search_param = f"%{search_query}%"
+                base_query += """
+                    WHERE generic_name ILIKE %s OR product_name ILIKE %s
+                """  
+                params = [search_param] * 2  # 2 parameters now
+            
+            base_query += " ORDER BY generic_name"
+            cur.execute(base_query, params)
+            return cur.fetchall()
+    except Exception as e:
+        print(f"Database error: {str(e)}")
+        return []
