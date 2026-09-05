@@ -3,6 +3,7 @@ Central model exports for departments.models
 """
 
 from .admin import Log
+from .break_glass import BreakGlassAccessLog
 from .billing import (
     Billing,
     Charge,
@@ -131,5 +132,6 @@ __all__ = [
     'Patient', 'PatientWaitingList', 'Clinic', 'ClinicBooking',
     'PatientIdentifier', 'PatientMerge',
     'NonPharmCategory', 'NonPharmItem', 'OtherOrder',
-    'User', 'PatientUser'
+    'User', 'PatientUser',
+    'BreakGlassAccessLog',
 ]

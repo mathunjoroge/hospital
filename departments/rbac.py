@@ -9,8 +9,11 @@ def get_effective_user():
     api_user = getattr(g, 'api_user', None)
     if api_user:
         return api_user
-    if current_user.is_authenticated:
-        return current_user
+    try:
+        if current_user and current_user.is_authenticated:
+            return current_user
+    except (AttributeError, RuntimeError):
+        pass
     return None
 
 def get_effective_role():

@@ -15,6 +15,7 @@ EVENT_LAB_RESULT_READY = 'lab_result_ready'
 EVENT_INVOICE_DUE = 'invoice_due'
 EVENT_PAYMENT_RECEIVED = 'payment_received'
 EVENT_CLAIM_STATUS_CHANGED = 'claim_status_changed'
+EVENT_BREAK_GLASS = 'break_glass_invoked'     # Phase D: emergency override alert
 
 
 class BaseChannel:
