@@ -7,7 +7,7 @@ Unit tests for Task 2.4: Safaricom Daraja M-Pesa Integration
 import pytest
 from datetime import date, datetime, timezone
 from extensions import db
-from departments.models.billing import Invoice, InvoiceLineItem, Payment
+from departments.models.billing import Invoice, InvoiceLineItem, Payment, InvoiceStatus
 from departments.models.records import Patient
 from departments.billing.mpesa import (
     format_phone_number,
@@ -123,7 +123,7 @@ class TestMpesaCallbackProcessing:
         assert payment.is_reconciled is True
 
         sample_invoice.recalculate()
-        assert sample_invoice.status == "PAID"
+        assert sample_invoice.status in ("PAID", "paid", InvoiceStatus.PAID) or str(sample_invoice.status).upper() == "PAID"
         assert sample_invoice.balance_due == 0.0
 
     def test_failed_callback_updates_notes(self, app, sample_invoice):

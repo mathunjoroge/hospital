@@ -10,7 +10,7 @@ from datetime import date
 try:
     from extensions import db
 except ImportError:
-    from departments.extensions import db
+    from extensions import db
 
 from departments.models.records import Patient
 from departments.models.billing import Invoice
@@ -72,7 +72,7 @@ class TestSubjectAccessRequest:
     def test_export_patient_sar_data(self, app, sample_patient):
         # Grant consent & create invoice
         grant_patient_consent(sample_patient.patient_id, "data_sharing")
-        inv = Invoice(patient_id=sample_patient.id, total_amount=5000.0, balance_due=5000.0)
+        inv = Invoice(patient_id=sample_patient.patient_id, total_amount=5000.0, balance_due=5000.0)
         db.session.add(inv)
         db.session.commit()
 

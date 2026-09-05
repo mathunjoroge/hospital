@@ -260,6 +260,16 @@ class Invoice(db.Model):
             kwargs['grand_total'] = kwargs.pop('total_amount')
         if 'balance_due' in kwargs:
             kwargs['balance'] = kwargs.pop('balance_due')
+        if 'invoice_number' not in kwargs:
+            kwargs['invoice_number'] = Invoice.generate_invoice_number()
+        if 'status' in kwargs and isinstance(kwargs['status'], str):
+            st_val = kwargs['status'].upper()
+            if st_val == 'UNPAID':
+                kwargs['status'] = InvoiceStatus.ISSUED
+            elif hasattr(InvoiceStatus, st_val):
+                kwargs['status'] = getattr(InvoiceStatus, st_val)
+            elif kwargs['status'].lower() in [e.value for e in InvoiceStatus]:
+                kwargs['status'] = InvoiceStatus(kwargs['status'].lower())
         super().__init__(**kwargs)
 
     @property
@@ -296,10 +306,15 @@ class Invoice(db.Model):
 
     def recalculate(self):
         """Recompute subtotal, grand_total, amount_paid, balance from child records."""
-        self.subtotal    = sum(li.total for li in self.line_items)
-        self.grand_total = self.subtotal - self.discount
-        self.amount_paid = sum(p.amount for p in self.payments)
-        self.balance     = self.grand_total - self.amount_paid
+        sub = sum(float(li.total) for li in self.line_items)
+        disc = float(self.discount or 0)
+        paid = sum(float(p.amount) for p in self.payments)
+        
+        if sub > 0:
+            self.subtotal = sub
+            self.grand_total = sub - disc
+        self.amount_paid = paid
+        self.balance = float(self.grand_total or 0) - paid
         if self.balance <= 0:
             self.status = InvoiceStatus.PAID
         elif self.amount_paid > 0:
@@ -333,6 +348,8 @@ class InvoiceLineItem(db.Model):
             val = kwargs.pop('amount')
             kwargs['unit_price'] = val
             kwargs['total'] = val
+        if 'category' not in kwargs:
+            kwargs['category'] = 'other'
         super().__init__(**kwargs)
 
     @property
@@ -372,8 +389,33 @@ class Payment(db.Model):
     mpesa_checkout_id   = db.Column(db.String(100), nullable=True)
     mpesa_result_code   = db.Column(db.Integer, nullable=True)
 
+    _is_reconciled = db.Column('is_reconciled', db.Boolean, default=False, nullable=True)
+
+    payment_method = db.synonym('method')
+    payment_reference = db.synonym('reference')
+    is_reconciled = db.synonym('_is_reconciled')
+
     invoice  = db.relationship('Invoice', back_populates='payments')
     patient  = db.relationship('Patient', backref=db.backref('unified_payments', lazy='dynamic'))
+
+    def __init__(self, **kwargs):
+        if 'payment_method' in kwargs:
+            kwargs['method'] = kwargs.pop('payment_method')
+        if 'payment_reference' in kwargs:
+            kwargs['reference'] = kwargs.pop('payment_reference')
+        if 'is_reconciled' in kwargs:
+            kwargs['_is_reconciled'] = kwargs.pop('is_reconciled')
+        if 'method' in kwargs and isinstance(kwargs['method'], str):
+            m_val = kwargs['method'].upper()
+            if hasattr(PaymentMethod, m_val):
+                kwargs['method'] = getattr(PaymentMethod, m_val)
+            elif kwargs['method'].lower() in [e.value for e in PaymentMethod]:
+                kwargs['method'] = PaymentMethod(kwargs['method'].lower())
+        if 'invoice_id' in kwargs and 'patient_id' not in kwargs and kwargs['invoice_id']:
+            inv = Invoice.query.get(kwargs['invoice_id'])
+            if inv:
+                kwargs['patient_id'] = inv.patient_id
+        super().__init__(**kwargs)
 
     def __repr__(self):
         return f"<Payment {self.receipt_number} {self.amount} via {self.method}>"

@@ -17,7 +17,7 @@ from flask import Blueprint, request, jsonify, current_app
 try:
     from extensions import db
 except ImportError:
-    from departments.extensions import db
+    from extensions import db
 
 from departments.models.records import Patient
 from departments.models.medicine import PrescribedMedicine, Medicine, SOAPNote

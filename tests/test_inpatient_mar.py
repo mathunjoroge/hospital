@@ -9,7 +9,7 @@ from datetime import datetime
 try:
     from extensions import db
 except ImportError:
-    from departments.extensions import db
+    from extensions import db
 
 from departments.models.records import Patient
 from departments.models.medicine import Ward, AdmittedPatient

@@ -9,7 +9,7 @@ from sqlalchemy import Column, Integer
 try:
     from extensions import db
 except ImportError:
-    from departments.extensions import db
+    from extensions import db
 
 from departments.crypto import (
     encrypt_value,

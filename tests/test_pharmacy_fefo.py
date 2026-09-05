@@ -9,7 +9,7 @@ from datetime import date, timedelta
 try:
     from extensions import db
 except ImportError:
-    from departments.extensions import db
+    from extensions import db
 
 from departments.models.pharmacy import DrugCategory, Drug, Batch, DispensedDrug
 from departments.models.records import Patient

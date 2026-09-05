@@ -22,6 +22,7 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         self.client = app.test_client()
         self.app_context = app.app_context()
         self.app_context.push()
+        db.create_all()
 
 
 
