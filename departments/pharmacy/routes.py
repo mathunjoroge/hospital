@@ -1437,3 +1437,41 @@ def export_analytics():
         mimetype='text/csv',
         headers={"Content-Disposition": f"attachment;filename=analytics_sales_{start_date}_to_{end_date}.csv"}
     )
+
+# --- AI Drug Discovery Routes ---
+
+@bp.route('/ai_discovery', methods=['GET', 'POST'])
+@login_required
+@roles_required('pharmacy', 'admin')
+def ai_discovery():
+    """Renders the AI Drug Discovery page and handles form submissions for MolMIM and DiffDock."""
+    # Lazy import to avoid circular dependencies
+    from departments.nlp.src.nvidia_client import NvidiaNIMClient
+    
+    results = None
+    tool_used = None
+    
+    if request.method == 'POST':
+        client = NvidiaNIMClient()
+        action = request.form.get('action')
+        
+        if action == 'molmim':
+            properties = request.form.get('target_properties', '').strip()
+            if properties:
+                molecules = client.generate_molecules(properties)
+                results = {'molecules': molecules, 'properties': properties}
+                tool_used = 'molmim'
+            else:
+                flash('Please enter target properties.', 'error')
+                
+        elif action == 'diffdock':
+            ligand = request.form.get('ligand_smiles', '').strip()
+            protein = request.form.get('protein_sequence', '').strip()
+            if ligand and protein:
+                docking_results = client.predict_docking(ligand, protein)
+                results = {'docking': docking_results, 'ligand': ligand}
+                tool_used = 'diffdock'
+            else:
+                flash('Please provide both a ligand SMILES string and a protein sequence.', 'error')
+                
+    return render_template('pharmacy/ai_discovery.html', results=results, tool_used=tool_used)

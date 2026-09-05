@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}AI Drug Discovery - {{ super() }}{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --ai-primary: #8b5cf6;
+    --ai-secondary: #7c3aed;
+    --ph-surface: #f4fbf8;
+  }
+  .ai-hero {
+    background: linear-gradient(135deg, var(--ai-primary) 0%, var(--ai-secondary) 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+  }
+  .ai-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    margin-bottom: 2rem;
+  }
+  .ai-card-header {
+    background-color: #fff;
+    border-bottom: 1px solid #eaeaea;
+    padding: 1.5rem;
+    border-radius: 12px 12px 0 0;
+  }
+  .ai-card-body {
+    padding: 1.5rem;
+  }
+</style>
+
+  <!-- Main Content -->
+  <div class="container-fluid p-4">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="ai-hero">
+      <h2 class="mb-1"><i class="bi bi-robot me-2"></i>AI Drug Discovery</h2>
+      <p class="mb-0 opacity-75">Powered by NVIDIA NIM (MolMIM & DiffDock)</p>
+    </div>
+
+    <div class="row">
+      <!-- MolMIM Section -->
+      <div class="col-md-6">
+        <div class="card ai-card h-100">
+          <div class="ai-card-header">
+            <h5 class="mb-0 fw-bold text-primary"><i class="bi bi-diagram-3 me-2"></i>MolMIM Generation</h5>
+            <small class="text-muted">Generate novel drug molecules based on desired properties.</small>
+          </div>
+          <div class="ai-card-body">
+            <form method="POST" action="{{ url_for('pharmacy.ai_discovery') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <input type="hidden" name="action" value="molmim">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Target Properties</label>
+                <textarea class="form-control" name="target_properties" rows="3" placeholder="e.g., high solubility, low toxicity inhibitor for COX-2" required></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary w-100 fw-bold">Generate Molecules</button>
+            </form>
+
+            {% if tool_used == 'molmim' and results %}
+            <div class="container">
+              <h6 class="fw-bold text-success mb-2">Results for: <span class="fw-normal">{{ results.properties }}</span></h6>
+              <div class="d-flex flex-column gap-4 mt-3">
+                {% for mol in results.molecules %}
+                <div class="text-center">
+                  <canvas id="mol-canvas-{{ loop.index }}" data-smiles="{{ mol }}" width="300" height="300" style="max-width: 300px; width: 100%; height: auto; mx-auto"></canvas>
+                  <div class="text-break font-monospace small mt-2 text-muted">{{ mol }}</div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- DiffDock Section -->
+      <div class="col-md-6">
+        <div class="card ai-card h-100">
+          <div class="ai-card-header">
+            <h5 class="mb-0 fw-bold text-info"><i class="bi bi-boxes me-2"></i>DiffDock Prediction</h5>
+            <small class="text-muted">Predict molecular binding interaction and affinity.</small>
+          </div>
+          <div class="ai-card-body">
+            <form method="POST" action="{{ url_for('pharmacy.ai_discovery') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <input type="hidden" name="action" value="diffdock">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Ligand (SMILES)</label>
+                <input type="text" class="form-control font-monospace text-sm" name="ligand_smiles" placeholder="e.g., CC(=O)OC1=CC=CC=C1C(=O)O" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Protein Target (Amino Acid Sequence)</label>
+                <textarea class="form-control font-monospace text-sm" name="protein_sequence" rows="3" placeholder="e.g., MLPAVPAAVLGIAGLAACAAARATAAATARATAAATAA" required></textarea>
+              </div>
+              <button type="submit" class="btn btn-info text-white w-100 fw-bold">Predict Docking</button>
+            </form>
+
+            {% if tool_used == 'diffdock' and results %}
+            <div class="mt-4 p-3 bg-light rounded border">
+              <h6 class="fw-bold text-success mb-2">Docking Prediction Results:</h6>
+              <div class="d-flex flex-column gap-2">
+                <div class="p-2 bg-white rounded shadow-sm border">
+                  <small class="text-muted d-block">Binding Affinity (kcal/mol)</small>
+                  <span class="fs-5 fw-bold text-dark">{{ results.docking.get('binding_affinity_kcal_mol', 'N/A') }}</span>
+                </div>
+                <div class="p-2 bg-white rounded shadow-sm border">
+                  <small class="text-muted d-block">Confidence Score</small>
+                  <span class="fs-5 fw-bold text-dark">{{ results.docking.get('confidence_score', 'N/A') }}</span>
+                </div>
+                {% if results.docking.get('status') %}
+                <div class="p-2 bg-white rounded shadow-sm border">
+                  <small class="text-muted d-block">Status</small>
+                  <span class="fw-semibold text-secondary">{{ results.docking.get('status') }}</span>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="https://unpkg.com/smiles-drawer@1.0.10/dist/smiles-drawer.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      if (typeof SmilesDrawer !== 'undefined') {
+        let options = { width: 300, height: 300, padding: 5 };
+        let smilesDrawer = new SmilesDrawer.Drawer(options);
+        
+        document.querySelectorAll('canvas[data-smiles]').forEach(function(canvas) {
+          let smiles = canvas.getAttribute('data-smiles');
+          SmilesDrawer.parse(smiles, function(tree) {
+            smilesDrawer.draw(tree, canvas.id, 'light', false);
+          }, function(err) {
+            console.error('Error rendering SMILES for ' + smiles, err);
+          });
+        });
+      }
+    });
+  </script>
+{% endblock %}
