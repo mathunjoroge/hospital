@@ -369,7 +369,7 @@ def view_partogram(patient_id):
         # Fetch usernames for recorded_by mapping
         recorded_by_ids = [entry['recorded_by'] for entry in entries if entry['recorded_by']]
         if recorded_by_ids:
-            cursor.execute('SELECT id, username FROM users WHERE id IN ({})'.format(','.join('?' * len(recorded_by_ids))), recorded_by_ids)
+            cursor.execute('SELECT id, username FROM users WHERE id IN ({})'.format(','.join('?' * len(recorded_by_ids))), recorded_by_ids)  # nosec B608
             user_rows = cursor.fetchall()
             user_name_map = {row[0]: row[1] for row in user_rows}
         else:

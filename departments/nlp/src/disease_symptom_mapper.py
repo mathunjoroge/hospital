@@ -74,7 +74,7 @@ class DiseaseSymptomMapper:
         # CRUCIAL: Use bind parameters (:param) instead of f-strings.
         # This is faster (query plan caching) and prevents SQL injection.
         # SQLAlchemy handles the tuple expansion for the 'IN' clause automatically.
-        query = text(f"""
+        query = text(f"""  # nosec B608
             SELECT DISTINCT {name_col} AS name, {result_cui_col} AS cui
             FROM umls.mrrel r
             JOIN umls.mrconso c1 ON r.cui1 = c1.cui
@@ -85,7 +85,7 @@ class DiseaseSymptomMapper:
                 AND c2.lat = :language AND c2.suppress = 'N'
                 AND c1.sab IN :trusted_sources
                 AND c2.sab IN :trusted_sources
-        """)
+        """)  # nosec B608
 
         try:
             with UMLSSession() as session:

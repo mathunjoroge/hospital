@@ -192,7 +192,7 @@ def generate_entities_html(entities: list) -> str:
 
     entity_cards = []
     for text, label, context in entities:
-        entity_id = hashlib.md5(f"{text}{label}".encode()).hexdigest()[:8]
+        entity_id = hashlib.sha256(f"{text}{label}".encode()).hexdigest()[:8]
         is_priority = text.lower() in PRIORITY_SYMPTOMS
         priority_badge = f'<span class="{BOOTSTRAP_CLASSES["badge_priority"]}">Priority</span>' if is_priority else ''
         card_border_class = 'border-danger' if is_priority else ''

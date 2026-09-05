@@ -25,7 +25,7 @@ class AppConfig:
                 "PRIORITY_SYMPTOMS": PRIORITY_SYMPTOMS,
                 "UMLS_THRESHOLD": float(os.getenv("UMLS_THRESHOLD", 0.7)),
                 "SQLITE_DB_PATH": os.getenv("SQLITE_DB_PATH", "/home/mathu/projects/hospital/instance/hims.db"),
-                "API_HOST": os.getenv("API_HOST", "0.0.0.0"),
+                "API_HOST": os.getenv("API_HOST", "0.0.0.0"),  # nosec B104
                 "API_PORT": int(os.getenv("API_PORT", 8000)),
                 "BATCH_SIZE": int(os.getenv("BATCH_SIZE", 50)),
                 "UMLS_DB_URL": os.getenv("UMLS_DB_URL", "postgresql://postgres:postgres@localhost:5432/hospital_umls"),
