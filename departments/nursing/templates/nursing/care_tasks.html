@@ -90,6 +90,7 @@
         </div>
         <div class="card-body p-4">
           <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="mb-3">
               <label for="patient_id" class="form-label fw-semibold">Patient ID <span class="text-danger">*</span></label>
               <input type="text" class="form-control border-ns-subtle" id="patient_id" name="patient_id" required placeholder="e.g. P1000">

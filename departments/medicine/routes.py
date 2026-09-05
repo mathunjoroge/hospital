@@ -15,6 +15,7 @@ from datetime import date
 from psycopg2.extras import RealDictCursor
 from flask import current_app
 from flask_login import login_required, current_user
+from departments.rbac import roles_required, get_effective_role
 from flask_wtf.csrf import CSRFProtect,CSRFError
 from scipy.spatial.distance import cosine
 from extensions import db
@@ -59,14 +60,11 @@ from werkzeug.utils import secure_filename
 # Instantiate the summarizer for use in chatbot_interface
 
 
-socketio = SocketIO()
-prescription_id = str(uuid.uuid4())
-csrf = CSRFProtect()
+from extensions import csrf
 
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
-if not gemini_api_key:
-    raise RuntimeError("GEMINI_API_KEY environment variable must be set.")
-Summarizer = UniversalClinicalSummarizer(gemini_api_key=gemini_api_key)
+nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
+Summarizer = UniversalClinicalSummarizer(gemini_api_key=gemini_api_key, nvidia_api_key=nvidia_api_key)
 
 
 from flask import make_response
@@ -311,11 +309,8 @@ def clear_conversation():
 
 @bp.route('/submit_soap_notes/<patient_id>', methods=['POST'])
 @login_required
+@roles_required('medicine', 'admin')
 def submit_soap_notes(patient_id):
-    if current_user.role not in ['medicine', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
-
     try:
         # --- Form Data Retrieval ---
         situation = request.form.get('situation')
@@ -446,33 +441,24 @@ def submit_soap_notes(patient_id):
         return redirect(url_for('medicine.soap_notes', patient_id=patient_id))
 @bp.route('/notes/<string:patient_id>', methods=['GET']) 
 @login_required
+@roles_required('medicine', 'admin')
 def notes(patient_id):
     """Displays SOAP notes for a patient."""
-    if current_user.role not in ['medicine', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('medicine.index'))
-
     patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
     last_soap_note = SOAPNote.query.filter_by(patient_id=patient_id).order_by(SOAPNote.created_at.desc()).first()
     return render_template('medicine/notes.html', patient=patient, soap_notes=last_soap_note)      
 @bp.route('/notes/<int:note_id>/reprocess', methods=['POST'])
 @login_required
 def reprocess_note(note_id):
-    if current_user.role not in ['medicine', 'admin']:
-        flash('You do not have permission to perform this action.', 'error')
-        return redirect(url_for('medicine.index'))
-
     return redirect(url_for('medicine.notes', patient_id=SOAPNote.query.get(note_id).patient_id))
 
 
 # Display the medicine waiting list
 @bp.route('/')
 @login_required
+@roles_required('medicine', 'admin')
 def index():
     """Display the medicine waiting list."""
-    if current_user.role not in ['medicine', 'admin']: 
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))  # Redirect to home if role is invalid
     try:
         # Fetch all patients in the medicine waiting list who are not yet seen
         waiting_list = PatientWaitingList.query.filter_by(seen=4).options(
@@ -511,11 +497,9 @@ def index():
 # View or submit SOAP notes for a specific patient
 @bp.route('/soap_notes/<patient_id>', methods=['GET'])
 @login_required
+@roles_required('medicine', 'admin')
 def soap_notes(patient_id):
     """View or submit SOAP notes for a specific patient."""
-    if current_user.role not in ['medicine', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))  # Redirect to home if role is invalid
     try:
         # Fetch the patient from the waiting list
         patient_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).options(
@@ -559,12 +543,9 @@ def soap_notes(patient_id):
 
 @bp.route('/request_lab_tests/<patient_id>', methods=['GET', 'POST'])
 @login_required
+@roles_required('medicine', 'admin')
 def request_lab_tests(patient_id):
     """Handles lab test requests."""
-    if current_user.role not in ['medicine', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
-
     try:
         dept = request.args.get('dept')  # ✅ Capture dept from query string
 
@@ -643,12 +624,9 @@ def request_lab_tests(patient_id):
 
 @bp.route('/request_imaging/<patient_id>', methods=['GET', 'POST'])
 @login_required
+@roles_required('medicine', 'admin')
 def request_imaging(patient_id):
     """Handles imaging requests."""
-    if current_user.role not in ['medicine', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
-
     try:
         dept = request.args.get('dept')  # ✅ Capture dept from query string
 
@@ -731,12 +709,9 @@ def request_imaging(patient_id):
 
 @bp.route('/prescribe_drugs/<patient_id>', methods=['GET', 'POST'])
 @login_required
+@roles_required('medicine', 'admin')
 def prescribe_drugs(patient_id):
     """Handles drug prescription requests for admitted and waiting list patients."""
-
-    if current_user.role not in ['medicine', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
 
     try:
         patient_id = str(patient_id).strip()
@@ -829,12 +804,9 @@ def prescribe_drugs(patient_id):
         return redirect(url_for('medicine.index'))
 @bp.route('/edit_prescribed_medicine/<medicine_id>', methods=['GET', 'POST'])
 @login_required
+@roles_required('medicine', 'admin')
 def edit_prescribed_medicine(medicine_id):
     """Handles editing a prescribed medicine."""
-    if current_user.role not in ['medicine', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
-
     try:
         # Get dept from either GET or POST
         dept = request.args.get('dept') or request.form.get('dept')
@@ -883,12 +855,9 @@ def edit_prescribed_medicine(medicine_id):
 
 @bp.route('/delete_prescribed_medicine/<medicine_id>', methods=['POST'])
 @login_required
+@roles_required('medicine', 'admin')
 def delete_prescribed_medicine(medicine_id):
     """Handles deleting a prescribed medicine."""
-    if current_user.role not in ['medicine', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
-
     # Get from GET or POST
     prescription_id = request.args.get('prescription_id') or request.form.get('prescription_id')
     dept = request.args.get('dept') or request.form.get('dept')
@@ -910,12 +879,9 @@ def delete_prescribed_medicine(medicine_id):
 
 @bp.route('/save_prescription/<prescription_id>/<patient_id>', methods=['POST'])
 @login_required
+@roles_required('medicine', 'admin')
 def save_prescription(prescription_id, patient_id):
     """Finalize the prescription and redirect appropriately based on dept."""
-    if current_user.role not in ['medicine', 'admin']:
-        flash('You do not have permission to perform this action.', 'error')
-        return redirect(url_for('home'))
-
     try:
         # Get optional dept from query or form
         dept = request.args.get('dept') or request.form.get('dept')
@@ -939,12 +905,9 @@ def save_prescription(prescription_id, patient_id):
         return redirect(url_for('medicine.prescribe_drugs', patient_id=patient_id, dept=dept))  
 @bp.route('/get_edit_form', methods=['GET'])
 @login_required
+@roles_required('medicine', 'admin')
 def get_edit_form():
     """Serves the edit form for a prescribed medicine."""
-    if current_user.role not in ['medicine', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
-
     try:
         medicine_id = request.args.get('medicine_id')
         prescribed_medicine = PrescribedMedicine.query.get_or_404(medicine_id)
@@ -958,12 +921,9 @@ def get_edit_form():
 
 @bp.route('/unmatched_imaging', methods=['GET', 'POST'])
 @login_required
+@roles_required('medicine', 'admin')
 def unmatched_imaging():
     """Medicine panel to match unmatched imaging requests."""
-    if current_user.role not in ['medicine', 'admin']:  # Now only 'medicine' role can access
-        flash('Unauthorized access!', 'error')
-        return redirect(url_for('home'))
-
     # Handle form submission (matching requests)
     if request.method == 'POST':
         unmatched_id = request.form.get('unmatched_id')
@@ -1033,11 +993,11 @@ def inject_unmatched_count():
     return dict(unmatched_count=get_unmatched_count()) 
 
 db_params = {
-    'dbname': 'drugcentral',
-    'user': 'drugman',
-    'password': 'dosage',
-    'host': 'unmtid-dbs.net',
-    'port': '5433'
+    'dbname': os.environ.get('DRUGCENTRAL_DB', 'drugcentral'),
+    'user': os.environ.get('DRUGCENTRAL_USER', 'drugman'),
+    'password': os.environ.get('DRUGCENTRAL_PASSWORD', 'dosage'),
+    'host': os.environ.get('DRUGCENTRAL_HOST', 'unmtid-dbs.net'),
+    'port': os.environ.get('DRUGCENTRAL_PORT', '5433')
 }
 
 

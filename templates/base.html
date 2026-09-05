@@ -14,10 +14,10 @@
   <!-- Favicon -->
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
   <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" integrity="sha384-4LISF5TTJX/fLmGSxO53rV4ASGI8XwKaE508f7k1k18k32b9C650a2b724b0b14c" crossorigin="anonymous">
   <!-- Select2 CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" integrity="sha512-nMNlpuaDPrqlEls3IX/Q56H36qvEX3jCVEXPPUX093DBLy5NvoRSvSeMOhWVRFlkYH7PhgXA0ypC73PB62MXRA==" crossorigin="anonymous">
   <!-- Fix Select2 Width -->
   <style>
     .select2-container {
@@ -71,10 +71,11 @@
       --dept-stores: #d97706;
       --dept-hr: #6b21a8;
       --dept-admin: #4338ca;
+      --dept-mortuary: #be123c;
     }
 
     /* Primary Enterprise Theme Configurations */
-    body, .theme-blue, .theme-clinical {
+    body, .theme-blue {
       --primary-color: #2563eb;
       --secondary-color: #f1f5f9;
       --hover-color: #1d4ed8;
@@ -107,38 +108,14 @@
       --text-color: #f3f4f6;
     }
 
-    /* Fallbacks for Legacy Theme Switches */
-    .theme-green, .theme-teal, .theme-lime {
-      --primary-color: #0d9488;
-      --secondary-color: #f0fdf4;
-      --hover-color: #0f766e;
-      --sidebar-bg: #115e59;
-      --navbar-bg: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
-      --card-bg: #ffffff;
-      --content-bg: #f8fafc;
-      --text-color: #334155;
-    }
-
-    .theme-purple, .theme-ruby, .theme-orchid, .theme-mocha {
-      --primary-color: #7c3aed;
-      --secondary-color: #f5f3ff;
-      --hover-color: #6d28d9;
-      --sidebar-bg: #4c1d95;
-      --navbar-bg: linear-gradient(135deg, #581c87 0%, #4c1d95 100%);
-      --card-bg: #ffffff;
-      --content-bg: #f8fafc;
-      --text-color: #334155;
-    }
-
-    .theme-orange, .theme-sunny, .theme-cream, .theme-ocean, .theme-clay {
-      --primary-color: #d97706;
-      --secondary-color: #fffbeb;
-      --hover-color: #b45309;
-      --sidebar-bg: #78350f;
-      --navbar-bg: linear-gradient(135deg, #92400e 0%, #78350f 100%);
-      --card-bg: #ffffff;
-      --content-bg: #f8fafc;
-      --text-color: #334155;
+    /* Dark Theme WCAG AA Contrast Overrides */
+    .theme-slate .text-muted,
+    .theme-slate .text-secondary,
+    .theme-slate .text-body-secondary,
+    .theme-dark .text-muted,
+    .theme-dark .text-secondary,
+    .theme-dark .text-body-secondary {
+      color: #9ca3af !important;
     }
 
     /* Theme Option Modal Styling */
@@ -647,6 +624,7 @@
               <li><h6 class="dropdown-header text-uppercase fw-bold text-muted px-2 py-1 mb-1 small"><i class="bi bi-arrow-repeat me-1"></i> Switch Active Role</h6></li>
               
               <form id="navSwitchRoleForm" action="{{ url_for('admin.switch_user') }}" method="POST" style="display:none;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="role" id="navSwitchRoleInput" value="">
               </form>
 
@@ -794,10 +772,6 @@
             </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-primary">Apply Theme</button>
-        </div>
       </div>
     </div>
   </div>
@@ -845,57 +819,12 @@
       background-color: #0d6efd;
     }
 
-    .theme-green .theme-color {
-      background-color: #198754;
-    }
-
-    .theme-teal .theme-color {
-      background-color: #20c997;
-    }
-
-    .theme-purple .theme-color {
-      background-color: #6f42c1;
-    }
-
-    .theme-orange .theme-color {
-      background-color: #fd7e14;
+    .theme-slate .theme-color {
+      background-color: #334155;
     }
 
     .theme-dark .theme-color {
       background-color: #212529;
-    }
-
-    .theme-mocha .theme-color {
-      background-color: #6d4c41;
-    }
-
-    .theme-sunny .theme-color {
-      background-color: #ffc107;
-    }
-
-    .theme-ruby .theme-color {
-      background-color: #dc3545;
-    }
-
-    .theme-cream .theme-color {
-      background-color: #f8f9fa;
-      border: 1px solid #ddd;
-    }
-
-    .theme-orchid .theme-color {
-      background-color: #da70d6;
-    }
-
-    .theme-lime .theme-color {
-      background-color: #a4c639;
-    }
-
-    .theme-ocean .theme-color {
-      background-color: #0077b6;
-    }
-
-    .theme-clay .theme-color {
-      background-color: #b5651d;
     }
   </style>
 
@@ -924,6 +853,7 @@
         </div>
         <!-- Form posts to book_clinic route -->
         <form id="bookClinicForm" method="POST" action="{{ url_for('records.book_clinic') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <div class="modal-body">
             <!-- 🔹 Patient search -->
             <div class="mb-3">
@@ -954,11 +884,11 @@
   {% endif %}
 
   <!-- jQuery (required for Select2) -->
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
   <!-- Bootstrap JS (required for dropdowns and modals) -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
   <!-- Select2 JS -->
-  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" integrity="sha512-9bbEVWeVRvh1tNQzg1nm5SpNnHAh8D53XMlaqvFOh+VKUX/46PjTOZGHxy6uuhwg17JC1nAL3gFOHi83bMvhQ==" crossorigin="anonymous"></script>
 
   <script>
     $(document).ready(function () {

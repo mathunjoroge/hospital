@@ -4,6 +4,7 @@
     <h2 class="mb-4 text-center">Add New Employee</h2>
 
     <form method="POST" action="{{ url_for('hr.new_employee') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <!-- Name -->
         <div class="mb-3">
             <label for="name" class="form-label fw-bold">Name:</label>

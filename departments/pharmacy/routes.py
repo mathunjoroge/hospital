@@ -6,6 +6,7 @@ from sqlalchemy.sql import func
 from flask_login import login_required, current_user
 from departments.models.user import User 
 from . import bp  # Import the blueprint
+from departments.rbac import roles_required
 from departments.models.records import PatientWaitingList,Patient
 from departments.models.medicine import PrescribedMedicine
 from sqlalchemy.orm import joinedload
@@ -28,10 +29,8 @@ logger = logging.getLogger(__name__)
 
 @bp.route('/')
 @login_required
+@roles_required('pharmacy', 'admin')
 def index():
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
 
     try:
         # Fetch pending prescriptions (status=0) and join with Patient
@@ -48,12 +47,9 @@ def index():
 #fech expiries
 @bp.route('/expiries', methods=['GET'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def expiries():
     """Displays only expired medications in the inventory."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
-
     try:
         today = datetime.today().date()
 
@@ -87,12 +83,9 @@ def expiries():
 
 @bp.route('/remove_batch/<int:batch_id>', methods=['GET'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def remove_batch(batch_id):
     """Removes a batch from inventory and logs it in expiries."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('Unauthorized access.', 'error')
-        return redirect(url_for('login'))
-
     try:
         batch = Batch.query.get_or_404(batch_id)
         drug = Drug.query.get(batch.drug_id)
@@ -125,12 +118,9 @@ def remove_batch(batch_id):
 
 @bp.route('/remove_all_expiries', methods=['GET'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def remove_all_expiries():
     """Removes all expired batches from inventory and logs them in expiries."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('Unauthorized access.', 'error')
-        return redirect(url_for('login'))
-
     try:
         today = datetime.today().date()
 
@@ -172,12 +162,9 @@ def remove_all_expiries():
 #expires report
 @bp.route('/expiries_report', methods=['GET', 'POST'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def expiries_report():
     """Generates a report of expired batches removed within a date range."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
-
     try:
         # Default date range: last 30 days
         default_end = datetime.today().date()
@@ -229,12 +216,9 @@ def expiries_report():
 
 @bp.route('/inventory', methods=['GET'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def inventory():
     """Displays the full inventory with expiry categories."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
-
     try:
         # Define a threshold for near expiry (e.g., within 30 days)
         today = datetime.today().date()
@@ -284,12 +268,9 @@ def inventory():
     #prescriptions
 @bp.route('/prescriptions', methods=['GET'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def prescriptions():
     """Displays all active prescriptions."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
-
     try:
         # Fetch all active prescriptions
         active_prescriptions = PrescribedMedicine.query.filter(PrescribedMedicine.num_days > 0).options(
@@ -311,12 +292,9 @@ from datetime import datetime
 
 @bp.route('/record_purchase', methods=['GET', 'POST'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def record_purchase():
     """Handles recording a new purchase of medications."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
-
     try:
         if request.method == 'POST':
             # Extract form data
@@ -386,12 +364,9 @@ def record_purchase():
 
 @bp.route('/view_prescriptions/<string:patient_id>', methods=['GET'])
 @login_required
+@roles_required('medicine', 'pharmacy', 'admin')
 def view_prescriptions(patient_id):
     """Displays all prescribed medicines for a specific patient, grouped by prescription."""
-    if current_user.role not in ['medicine', 'pharmacy','admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
-
     try:
         # Debug: Print the patient_id being fetched
         print(f"Debug: Fetching prescriptions for patient_id: {patient_id}")
@@ -440,12 +415,9 @@ def view_prescriptions(patient_id):
     
 @bp.route('/dispense/<string:prescription_id>', methods=['GET'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def dispense_prescription(prescription_id):
     """Displays prescribed medicines with status='0' and available stock for dispensing."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
-
     try:
         # Filter prescribed medicines by prescription_id and status='0'
         prescribed_medicines = PrescribedMedicine.query.filter_by(
@@ -707,12 +679,9 @@ def save_dispensed_drugs():
 
 @bp.route('/save_prescription/<string:prescription_id>', methods=['POST'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def save_prescription(prescription_id):
     """Save dispensed drugs for a specific prescription."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
-
     try:
         # Extract form data
         drug_ids = request.form.getlist('drugs[]')  # List of selected drug IDs
@@ -790,12 +759,9 @@ def save_prescription(prescription_id):
  
 @bp.route('/remove_dispensed/<int:dispense_id>', methods=['POST'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def remove_dispensed(dispense_id):
     """Remove a dispensed drug entry."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to perform this action.', 'error')
-        return redirect(url_for('home'))
-
     try:
         # Fetch the dispensed drug entry by ID
         dispensed_drug = DispensedDrug.query.get(dispense_id)
@@ -823,12 +789,9 @@ def remove_dispensed(dispense_id):
         return redirect(url_for('pharmacy.dispense_prescription', prescription_id=request.form.get('prescription_id'))) 
 @bp.route('/low_stock', methods=['GET'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def low_stock():
     """Displays drugs with stock levels below their reorder threshold."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
-
     try:
         # Subquery to identify drugs with total stock below reorder_level
         total_stock_subquery = db.session.query(
@@ -869,12 +832,9 @@ import uuid
 
 @bp.route('/drug-requests', methods=['GET', 'POST'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def drug_requests():
     """Handles drug requests from the store (only latest request shown)."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
-
     try:
         if request.method == 'POST':
             drug_id = request.form.get('drug_id')
@@ -934,12 +894,9 @@ def drug_requests():
 #save order
 @bp.route('/save-order', methods=['GET'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def save_order():
     """Finalizes the current drug request and redirects to the dashboard."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to perform this action.', 'error')
-        return redirect(url_for('pharmacy.index'))
-
     try:
         # Get the latest pending request for the user
         latest_request = DrugRequest.query.filter_by(
@@ -961,12 +918,9 @@ def save_order():
         return redirect(url_for('pharmacy.index'))
 @bp.route('/pending-requests', methods=['GET', 'POST'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def pending_requests():
     """Displays pending drug requests with date range filtering."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('pharmacy.index'))
-
     try:
         # Query with User's username instead of ID
         query = db.session.query(
@@ -997,12 +951,9 @@ def pending_requests():
 #pending requests details
 @bp.route('/pending-request-details/<int:request_id>', methods=['GET'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def pending_request_details(request_id):
     """Displays the details of a pending drug request."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('pharmacy.index'))
-
     # Fetch request details with username
     request_details = db.session.query(
         DrugRequest,
@@ -1020,12 +971,9 @@ def pending_request_details(request_id):
 
 @bp.route('/served-requests', methods=['GET', 'POST'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def served_requests():
     """Displays served drug requests with date range filtering."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('pharmacy.index'))
-
     try:
         # Query with User's username instead of ID
         query = db.session.query(
@@ -1058,12 +1006,9 @@ def served_requests():
 # Served Request Details Route
 @bp.route('/served-request-details/<int:request_id>', methods=['GET'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def served_requests_details(request_id):
     """Displays the details of a served drug request."""
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('pharmacy.index'))
-
     # Fetch request details with username
     request_details = db.session.query(
         DrugRequest,
@@ -1118,15 +1063,12 @@ def get_all_batches():
 
 @bp.route('/dispense/process/<string:prescription_id>', methods=['POST'])
 @login_required
+@roles_required('pharmacy', 'admin')
 def process_dispense(prescription_id):
     """
     Handles dispensing of drugs, updates stock, and renders the dispense prescription page with dispensed drug details.
     """
     # Check user permissions
-    if current_user.role not in ['pharmacy', 'admin']:
-        flash('Access denied.', 'error')
-        return redirect(url_for('home'))
-
     try:
         # Extract form data
         drug_id = request.form.get('drug_id')

@@ -54,6 +54,7 @@
     {% endwith %}
 
     <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <!-- Select Patient -->
       <div class="mb-4">
         <label for="patient_id" class="form-label fw-bold text-dark"><i class="bi bi-person me-1 text-success"></i> Select Patient <span class="text-danger">*</span></label>

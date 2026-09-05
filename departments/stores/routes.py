@@ -14,15 +14,12 @@ from departments.models.user import User  # Import User model
 # Get the filename for error reporting
 FILE_NAME = os.path.basename(__file__)
 
+from departments.rbac import roles_required
+
 @bp.route('/', methods=['GET'])
 @login_required
-def index():
-    """Store dashboard showing pending drug requests."""
-    FILE_NAME = "stores/routes.py"  # Ensure this is defined
-
-    if current_user.role.lower() not in ['store', 'stores', 'admin']:
-        flash('Unauthorized access. Store staff only.', 'error')
-        return redirect(url_for('login'))  
+@roles_required('store', 'stores', 'admin')
+def index():  
 
     try:
         # Fetch submitted and pending drug requests
@@ -53,11 +50,8 @@ def index():
 
 @bp.route('/inventory', methods=['GET'])
 @login_required
+@roles_required('store', 'stores', 'admin')
 def inventory():
-    """Displays the store's drug inventory."""
-    if current_user.role.lower() not in ['store', 'stores', 'admin']:
-        flash('Unauthorized access. Store staff only.', 'error')
-        return redirect(url_for('login'))
 
     try:
         drugs = Drug.query.order_by(Drug.generic_name).all()
@@ -71,14 +65,8 @@ def inventory():
 
 @bp.route('/issue_request', methods=['GET'])
 @login_required
+@roles_required('store', 'stores', 'admin')
 def list_issue_requests():
-    """
-    Lists all pending/submitted drug requests for issuance.
-    Accessible only to store staff.
-    """
-    # Check authorization first
-    if current_user.role.lower() not in ['store', 'stores', 'admin']: 
-        abort(403, description="Access restricted to store staff only")
 
     try:
         pending_requests = (
@@ -103,14 +91,8 @@ def list_issue_requests():
 
 @bp.route('/issue_request/<int:request_id>', methods=['GET', 'POST'])
 @login_required
+@roles_required('store', 'stores', 'admin')
 def issue_request(request_id):
-    """
-    Allows store staff to view and issue drugs for a specific request.
-    Handles quantity issuance input and updates stock in stores & pharmacy.
-    """
-    if current_user.role.lower() not in ['store', 'stores', 'admin']:
-        flash("Access restricted to store staff only", "error")
-        return redirect(url_for('login')), 403
 
     try:
         drug_request = (
@@ -191,13 +173,8 @@ def issue_request(request_id):
     
 @bp.route('/non_pharms', methods=['GET'])
 @login_required
+@roles_required('store', 'stores', 'nursing', 'kitchen', 'laundry', 'admin')
 def non_pharms():
-    """Display all non-pharmaceutical items grouped by category."""
-    FILE_NAME = "stores/routes.py"
-
-    if current_user.role.lower() not in ['store', 'stores', 'nursing', 'kitchen', 'laundry', 'admin']:
-        flash('Unauthorized access. Authorized staff only.', 'error')
-        return redirect(url_for('login'))
 
     try:
         # Fetch all categories and items
@@ -234,11 +211,8 @@ def non_pharms():
 
 @bp.route('/manage_reagent_requests', methods=['GET', 'POST'])
 @login_required
+@roles_required('store', 'stores', 'admin')
 def manage_reagent_requests():
-    """Handles approving or rejecting non-pharm commodity requests (e.g. lab reagents, nursing supplies)."""
-    if current_user.role.lower() not in ['store', 'stores', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
 
     try:
         if request.method == 'POST':

@@ -17,6 +17,7 @@
 
     <!-- Update Salary Form -->
     <form method="POST" action="{{ url_for('hr.new_salary', employee_id=employee.employee_id) }}" class="row g-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <!-- Basic Salary -->
         <div class="col-md-6">
             <label for="basic_salary" class="form-label fw-bold">Basic Salary:</label>

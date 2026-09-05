@@ -337,7 +337,7 @@
                   <span class="fw-bold text-secondary">AI Analysis:</span>
                   <div>
                     {% if note.ai_analysis %}
-                      {{ note.ai_analysis.replace('\\n', '<br>') | safe }} 
+                      {{ note.ai_analysis | nl2br_safe }}
                     {% else %}
                       <span class="text-muted">No AI analysis available.</span>
                     {% endif %}

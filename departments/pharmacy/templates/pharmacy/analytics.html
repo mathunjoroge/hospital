@@ -119,6 +119,7 @@
   <!-- ── Filter Zone ── -->
   <div class="filter-zone animate-fade-in">
     <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="row g-3 align-items-end">
         <div class="col-md-3">
           <label for="start_date">From Date</label>

@@ -101,6 +101,7 @@
     {% else %}
         <!-- Form for Payment Actions -->
         <form method="POST" action="{{ url_for('billing.pay_bills', patient_id=patient.patient_id) }}" id="paymentForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <!-- Dispensed Drugs -->
             <div class="card billing-card mb-4">
                 <div class="card-body">

@@ -14,6 +14,7 @@ from PIL import Image
 import pytesseract
 from docx import Document
 import csv
+from departments.nlp.src.nvidia_client import NvidiaNIMClient
 
 # --- Logging Configuration ---
 logging.basicConfig(
@@ -45,7 +46,7 @@ def allowed_file(filename: str) -> bool:
 
 # --- Universal Clinical Summarizer Class ---
 class UniversalClinicalSummarizer:
-    """A medical chatbot using Gemini API for detailed, clinician-focused responses."""
+    """A medical chatbot using NVIDIA NIM and Gemini API for detailed, clinician-focused responses."""
     
     SAFETY_FILTERS: Dict[str, Any] = {
         "dangerous_advice": [
@@ -62,13 +63,13 @@ class UniversalClinicalSummarizer:
         }
     }
 
-    def __init__(self, gemini_api_key: str, user_type: str = "doctor"):
-        """Initialize the chatbot with a Gemini API key and user type."""
-        if not gemini_api_key:
-            raise ValueError("Gemini API key is required to connect to the service.")
-        self.gemini_api_key = gemini_api_key
+    def __init__(self, gemini_api_key: Optional[str] = None, nvidia_api_key: Optional[str] = None, user_type: str = "doctor"):
+        """Initialize the chatbot with optional NVIDIA NIM or Gemini API key and user type."""
+        self.gemini_api_key = gemini_api_key or os.environ.get("GEMINI_API_KEY")
+        self.nvidia_api_key = nvidia_api_key or os.environ.get("NVIDIA_API_KEY")
         self.user_type = user_type.lower()
-        logger.info(f"MedicalChatbot initialized with model: {GEMINI_MODEL}, user_type: {user_type}")
+        self.nvidia_client = NvidiaNIMClient(api_key=self.nvidia_api_key)
+        logger.info(f"UniversalClinicalSummarizer initialized (NVIDIA NIM active: {self.nvidia_client.is_available()}, Gemini active: {bool(self.gemini_api_key)})")
 
     async def _query_gemini_async(self, contents: List[Dict[str, Any]], max_tokens: int = 3000, max_retries: int = 5) -> Dict[str, Any]:
         """Query Gemini API asynchronously with Google Search grounding and exponential backoff."""
@@ -391,9 +392,24 @@ This chatbot provides general, educational information only.
                 "parts": [{"text": combined_input}]
             })
             
-            logger.info(f"Sending {len(llm_contents)} total history entries to Gemini.")
+            logger.info(f"Sending {len(llm_contents)} total history entries to model.")
             
-            api_result = self._query_gemini(llm_contents, max_tokens=3000)
+            if self.nvidia_client.is_available():
+                logger.info("Querying NVIDIA NIM API for clinical response...")
+                resp_text = self.nvidia_client._call_chat_completion(combined_input, system_message="You are an evidence-based clinical AI assistant designed to support clinicians with technical medical information.")
+                if resp_text:
+                    api_result = {"text": resp_text, "sources": []}
+                elif self.gemini_api_key:
+                    api_result = self._query_gemini(llm_contents, max_tokens=3000)
+                else:
+                    api_result = {"text": self.nvidia_client.summarize_note(combined_input), "sources": []}
+            elif self.gemini_api_key:
+                logger.info("Querying Gemini API for clinical response...")
+                api_result = self._query_gemini(llm_contents, max_tokens=3000)
+            else:
+                logger.info("Using offline rule-based fallback summarization...")
+                api_result = {"text": self.nvidia_client.summarize_note(combined_input), "sources": []}
+
             response = api_result['text']
             sources = api_result['sources']
 

@@ -17,11 +17,12 @@ from sqlalchemy import func, extract
 # ─────────────────────────────────────────────
 # INDEX — Patient List
 # ─────────────────────────────────────────────
+from departments.rbac import roles_required
+
 @bp.route('/index')
 @login_required
+@roles_required('records', 'admin')
 def index():
-    if current_user.role not in ['records', 'admin']:
-        return redirect(url_for('login'))
     patients = Patient.query.order_by(Patient.date_registered.desc()).all()
     clinics = Clinic.query.all()
     today = date.today()
@@ -53,9 +54,8 @@ def search_clinics():
 
 @bp.route('/search_patients', methods=['GET'])
 @login_required
+@roles_required('records', 'admin')
 def search_patients():
-    if current_user.role not in ['records', 'admin']:
-        return jsonify({"status": "error", "message": "Unauthorized access!"}), 403
     search_term = request.args.get('term', '').strip()
     if search_term:
         patients = Patient.query.filter(
@@ -72,9 +72,8 @@ def search_patients():
 # ─────────────────────────────────────────────
 @bp.route('/new_patient', methods=['GET', 'POST'])
 @login_required
+@roles_required('records', 'admin')
 def new_patient():
-    if current_user.role not in ['records', 'admin']:
-        return redirect(url_for('login'))
 
     if request.method == 'POST':
         name = request.form['name']
@@ -145,9 +144,8 @@ def new_patient():
 # ─────────────────────────────────────────────
 @bp.route('/patient/<patient_id>')
 @login_required
+@roles_required('records', 'admin')
 def patient_profile(patient_id):
-    if current_user.role not in ['records', 'admin']:
-        return redirect(url_for('login'))
     patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
     return render_template('records/patient_profile.html', patient=patient)
 
@@ -157,9 +155,8 @@ def patient_profile(patient_id):
 # ─────────────────────────────────────────────
 @bp.route('/patient/<patient_id>/edit', methods=['GET', 'POST'])
 @login_required
+@roles_required('records', 'admin')
 def edit_patient(patient_id):
-    if current_user.role not in ['records', 'admin']:
-        return redirect(url_for('login'))
     patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
 
     if request.method == 'POST':
@@ -195,9 +192,8 @@ def edit_patient(patient_id):
 # ─────────────────────────────────────────────
 @bp.route('/patient/<patient_id>/history')
 @login_required
+@roles_required('records', 'admin')
 def patient_history(patient_id):
-    if current_user.role not in ['records', 'admin']:
-        return redirect(url_for('login'))
     patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
 
     soap_notes = SOAPNote.query.filter_by(patient_id=patient_id).order_by(SOAPNote.created_at.desc()).all()
@@ -236,18 +232,16 @@ def patient_history(patient_id):
 # ─────────────────────────────────────────────
 @bp.route('/clinics')
 @login_required
+@roles_required('records', 'admin')
 def clinics():
-    if current_user.role not in ['records', 'admin']:
-        return redirect(url_for('login'))
     clinics = Clinic.query.all()
     return render_template('records/clinics_list.html', clinics=clinics)
 
 
 @bp.route('/clinics/add', methods=['GET', 'POST'])
 @login_required
+@roles_required('records', 'admin')
 def add_clinic():
-    if current_user.role not in ['records', 'admin']:
-        return redirect(url_for('login'))
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         fee = request.form.get('fee', '').strip()
@@ -269,9 +263,8 @@ def add_clinic():
 
 @bp.route('/clinics/<int:clinic_id>/edit', methods=['GET', 'POST'])
 @login_required
+@roles_required('records', 'admin')
 def edit_clinic(clinic_id):
-    if current_user.role not in ['records', 'admin']:
-        return redirect(url_for('login'))
     clinic = Clinic.query.get_or_404(clinic_id)
     if request.method == 'POST':
         clinic.name = request.form.get('name', clinic.name).strip()
@@ -291,9 +284,8 @@ def edit_clinic(clinic_id):
 # ─────────────────────────────────────────────
 @bp.route('/bookings')
 @login_required
+@roles_required('records', 'admin')
 def bookings():
-    if current_user.role not in ['records', 'admin']:
-        return redirect(url_for('login'))
     bookings = db.session.query(ClinicBooking).options(
         joinedload(ClinicBooking.patient),
         joinedload(ClinicBooking.clinic)
@@ -303,9 +295,8 @@ def bookings():
 
 @bp.route('/book_clinic', methods=['POST'])
 @login_required
+@roles_required('records', 'admin')
 def book_clinic():
-    if current_user.role not in ['records', 'admin']:
-        return jsonify({"status": "error", "message": "Unauthorized access!"}), 403
 
     patient_id = request.form.get('patient_id')
     clinic_id = request.form.get('clinic_id')
@@ -355,9 +346,8 @@ def book_clinic():
 # ─────────────────────────────────────────────
 @bp.route('/waiting_list')
 @login_required
+@roles_required('records', 'admin')
 def waiting_list():
-    if current_user.role not in ['records', 'admin']:
-        return redirect(url_for('login'))
     waiting_list = db.session.query(PatientWaitingList, Patient).join(
         Patient, PatientWaitingList.patient_id == Patient.patient_id
     ).all()
@@ -369,9 +359,8 @@ def waiting_list():
 # ─────────────────────────────────────────────
 @bp.route('/reports/daily_opd')
 @login_required
+@roles_required('records', 'admin')
 def daily_opd_report():
-    if current_user.role not in ['records', 'admin']:
-        return redirect(url_for('login'))
 
     # Date range filter
     start_str = request.args.get('start')
@@ -417,9 +406,8 @@ def daily_opd_report():
 
 @bp.route('/reports/clinic_attendance')
 @login_required
+@roles_required('records', 'admin')
 def clinic_attendance_report():
-    if current_user.role not in ['records', 'admin']:
-        return redirect(url_for('login'))
 
     start_str = request.args.get('start')
     end_str = request.args.get('end')
@@ -460,9 +448,8 @@ def clinic_attendance_report():
 
 @bp.route('/reports/registrations')
 @login_required
+@roles_required('records', 'admin')
 def registration_report():
-    if current_user.role not in ['records', 'admin']:
-        return redirect(url_for('login'))
 
     year_str = request.args.get('year')
     try:

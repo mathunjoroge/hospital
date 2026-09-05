@@ -5,6 +5,7 @@
     <h2 class="mb-4 text-center"><i class="bi bi-search"></i> Search for a Patient</h2>
 
 <form method="POST" action="{{ url_for('laboratory.search_patient') }}" class="mb-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <div class="d-flex align-items-center">
         <!-- Search Input -->
         <select id="patient_id" name="search_query" class="form-control select2 flex-grow-1 me-2 me-md-3" required>
@@ -43,6 +44,7 @@
                         <td>{{ patient.patient_id }}</td>
                         <td>
                             <form method="POST" action="{{ url_for('laboratory.search_patient') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <input type="hidden" name="search_query" value="{{ patient.patient_id }}">
                                 <input type="hidden" name="selected_patient_id" value="{{ patient.patient_id }}">
                                 <button type="submit" class="btn btn-sm btn-outline-success" id="view_history" onload="click()">

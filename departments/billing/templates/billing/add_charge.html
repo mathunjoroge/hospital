@@ -57,6 +57,7 @@
     {% endwith %}
 
     <form method="POST" action="{{ url_for('billing.edit_charge', charge_id=charge.id) if charge else url_for('billing.add_charge') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="mb-3">
         <label for="name" class="form-label fw-bold text-dark">Service / Charge Name <span class="text-danger">*</span></label>
         <input type="text" id="name" name="name" class="form-control form-control-lg" placeholder="e.g., Outpatient Consultation Fee" value="{{ charge.name if charge else '' }}" required>

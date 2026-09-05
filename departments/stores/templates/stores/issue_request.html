@@ -18,6 +18,7 @@
 
     {% if drug_request.items %}
         <form action="{{ url_for('stores.issue_request', request_id=drug_request.id) }}" method="post">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="table-responsive">
                 <table class="table table-striped">
                     <thead class="table-dark">

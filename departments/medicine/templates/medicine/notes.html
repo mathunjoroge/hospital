@@ -110,7 +110,7 @@
       {% if soap_notes.ai_analysis %}
       <div class="ai-block">
         <div class="fw-bold text-info small mb-2">🧠 AI Analysis</div>
-        <div>{{ soap_notes.ai_analysis.replace('\n', '<br>') | safe }}</div>
+        <div>{{ soap_notes.ai_analysis | nl2br_safe }}</div>
       </div>
       {% endif %}
     </div>

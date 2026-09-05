@@ -22,6 +22,7 @@
                 {% endwith %}
                 
                 <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <div class="mb-3">
                         <label for="patient_id" class="form-label">Patient</label>
                         <select name="patient_id" id="patient_id" class="form-select" required>

@@ -4,6 +4,7 @@
     <h2 class="mb-4 text-center">Edit Lab Test: {{ lab_test.test_name }}</h2>
 
     <form method="POST" action="{{ url_for('laboratory.edit_lab_test', test_id=lab_test.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <!-- Test Name -->
         <div class="mb-3">
             <label for="test_name" class="form-label fw-bold">Test Name:</label>

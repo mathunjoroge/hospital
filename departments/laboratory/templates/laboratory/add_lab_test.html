@@ -3,6 +3,7 @@
 <div class="container mt-5">
     <h2 class="mb-4 text-center">Add New Lab Test</h2>
     <form method="POST" action="{{ url_for('laboratory.add_lab_test') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <!-- Test Name -->
         <div class="mb-3">
             <label for="test_name" class="form-label fw-bold">Test Name:</label>

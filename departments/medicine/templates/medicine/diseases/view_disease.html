@@ -7,7 +7,7 @@
 <p>{{ disease.description }}</p>
 
 <h4>Management Plan</h4>
-<p>{{ disease.management_plan.plan | replace('\n', '<br>') | safe }}</p>
+<p>{{ disease.management_plan.plan | nl2br_safe }}</p>
 
 <h4>Symptoms</h4>
 <ul>

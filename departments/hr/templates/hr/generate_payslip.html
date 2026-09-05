@@ -17,6 +17,7 @@
 
     <!-- Generate Payslip Form -->
     <form method="POST" action="{{ url_for('hr.generate_payslip', employee_id=employee.employee_id) }}" class="row g-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <!-- Pay Month -->
         <div class="col-md-6">
             <label for="pay_month" class="form-label fw-bold">Pay Month:</label>

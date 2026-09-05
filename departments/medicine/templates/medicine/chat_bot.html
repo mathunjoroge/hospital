@@ -77,8 +77,8 @@
 
     <div id="chat-body" class="chat-body">
       {% for entry in conversation %}
-        <div class="msg user"><strong>You:</strong> {{ entry.question | safe }}</div>
-        <div class="msg bot response-content">{{ entry.response | safe }}</div>
+        <div class="msg user"><strong>You:</strong> {{ entry.question }}</div>
+        <div class="msg bot response-content">{{ entry.response | nl2br_safe }}</div>
       {% endfor %}
     </div>
 

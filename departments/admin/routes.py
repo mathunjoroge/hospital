@@ -36,13 +36,13 @@ class EditUserForm(FlaskForm):
     role = SelectField('Role', choices=ROLES, validators=[DataRequired()])
     submit = SubmitField('Update User')    
 
+from departments.rbac import roles_required
+
 @bp.route('/admin/switch_user', methods=['POST'])
 @bp.route('/switch_user', methods=['POST'])
 @login_required
+@roles_required('admin')
 def switch_user():
-    if current_user.role != 'admin':
-        flash('Unauthorized access.', 'danger')
-        return redirect(url_for('home'))
 
     new_role = request.form.get('role')
     allowed_roles = ['records', 'billing', 'nursing', 'laboratory', 'imaging', 'pharmacy', 'medicine', 'stores', 'hr', 'mortuary', 'admin']
@@ -74,10 +74,8 @@ def switch_user():
 
 @bp.route('/admin/revert_user')
 @login_required
+@roles_required('admin')
 def revert_user():
-    if current_user.role != 'admin':
-        flash('Unauthorized access.', 'danger')
-        return redirect(url_for('home'))
 
     session.pop('switched_user', None)
     flash('Reverted to admin role.', 'success')
@@ -91,19 +89,9 @@ def get_effective_role():
 @bp.route('/index', methods=['GET'])
 @bp.route('/', methods=['GET'])  # Add this to handle /admin directly
 @login_required
+@roles_required('admin')
 def index():
     """Admin dashboard showing all users."""
-    if current_user.role != 'admin':
-        flash('Unauthorized access. Admin only.', 'error')
-        logger.warning(f"Unauthorized access attempt to /admin/index by user {current_user.id}")
-        db.session.add(Log(
-            level='WARNING',
-            message=f"Unauthorized access attempt to /admin/index by user {current_user.id}",
-            user_id=current_user.id,
-            source='admin'
-        ))
-        db.session.commit()
-        return redirect(url_for(f'{current_user.role}.index'))  # Redirect to role-specific index
 
     try:
         department = request.args.get('department', 'admin')  # Get department from query parameter
@@ -130,19 +118,9 @@ def index():
         return redirect(url_for('login'))
 @bp.route('/add_user', methods=['GET', 'POST'])
 @login_required
+@roles_required('admin')
 def add_user():
     """Allows admin to add a new user."""
-    if current_user.role != 'admin':
-        flash('Unauthorized access. Admin only.', 'error')
-        logger.warning(f"Unauthorized access attempt to /admin/add_user by user {current_user.id}")
-        db.session.add(Log(
-            level='WARNING',
-            message=f"Unauthorized access attempt to /admin/add_user by user {current_user.id}",
-            user_id=current_user.id,
-            source='admin'
-        ))
-        db.session.commit()
-        return redirect(url_for('login'))
 
     form = AddUserForm()
     if form.validate_on_submit():
@@ -194,19 +172,9 @@ def add_user():
 
 @bp.route('/manage_users', methods=['GET'])
 @login_required
+@roles_required('admin')
 def manage_users():
     """Admin page to manage existing users."""
-    if current_user.role != 'admin':
-        flash('Unauthorized access. Admin only.', 'error')
-        logger.warning(f"Unauthorized access attempt to /admin/manage_users by user {current_user.id}")
-        db.session.add(Log(
-            level='WARNING',
-            message=f"Unauthorized access attempt to /admin/manage_users by user {current_user.id}",
-            user_id=current_user.id,
-            source='admin'
-        ))
-        db.session.commit()
-        return redirect(url_for('login'))
 
     try:
         users = User.query.order_by(User.username).all()
@@ -232,19 +200,9 @@ def manage_users():
         return redirect(url_for('login'))
 @bp.route('/edit_user/<int:user_id>', methods=['GET', 'POST'])
 @login_required
+@roles_required('admin')
 def edit_user(user_id):
     """Admin page to edit an existing user."""
-    if current_user.role != 'admin':
-        flash('Unauthorized access. Admin only.', 'error')
-        logger.warning(f"Unauthorized access attempt to /admin/edit_user/{user_id} by user {current_user.id}")
-        db.session.add(Log(
-            level='WARNING',
-            message=f"Unauthorized access attempt to /admin/edit_user/{user_id} by user {current_user.id}",
-            user_id=current_user.id,
-            source='admin'
-        ))
-        db.session.commit()
-        return redirect(url_for('login'))
 
     user = User.query.get_or_404(user_id)
     form = EditUserForm(obj=user)  # Prepopulate form with user data
@@ -295,19 +253,9 @@ def edit_user(user_id):
 
 @bp.route('/delete_user/<int:user_id>', methods=['POST'])
 @login_required
+@roles_required('admin')
 def delete_user(user_id):
     """Admin action to delete a user."""
-    if current_user.role != 'admin':
-        flash('Unauthorized access. Admin only.', 'error')
-        logger.warning(f"Unauthorized access attempt to /admin/delete_user/{user_id} by user {current_user.id}")
-        db.session.add(Log(
-            level='WARNING',
-            message=f"Unauthorized access attempt to /admin/delete_user/{user_id} by user {current_user.id}",
-            user_id=current_user.id,
-            source='admin'
-        ))
-        db.session.commit()
-        return redirect(url_for('login'))
 
     try:
         user = User.query.get_or_404(user_id)
@@ -351,19 +299,9 @@ def delete_user(user_id):
 
 @bp.route('/system_overview', methods=['GET'])
 @login_required
+@roles_required('admin')
 def system_overview():
     """Admin page showing system stats."""
-    if current_user.role != 'admin':
-        flash('Unauthorized access. Admin only.', 'error')
-        logger.warning(f"Unauthorized access attempt to /admin/system_overview by user {current_user.id}")
-        db.session.add(Log(
-            level='WARNING',
-            message=f"Unauthorized access attempt to /admin/system_overview by user {current_user.id}",
-            user_id=current_user.id,
-            source='admin'
-        ))
-        db.session.commit()
-        return redirect(url_for('login'))
 
     try:
         user_count = User.query.count()
@@ -390,19 +328,9 @@ def system_overview():
 
 @bp.route('/logs', methods=['GET'])
 @login_required
+@roles_required('admin')
 def logs():
     """Admin page showing system logs."""
-    if current_user.role != 'admin':
-        flash('Unauthorized access. Admin only.', 'error')
-        logger.warning(f"Unauthorized access attempt to /admin/logs by user {current_user.id}")
-        db.session.add(Log(
-            level='WARNING',
-            message=f"Unauthorized access attempt to /admin/logs by user {current_user.id}",
-            user_id=current_user.id,
-            source='admin'
-        ))
-        db.session.commit()
-        return redirect(url_for('login'))
 
     try:
         logs = Log.query.order_by(Log.timestamp.desc()).limit(100).all()  # Last 100 logs

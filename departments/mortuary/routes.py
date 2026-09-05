@@ -6,12 +6,12 @@ from departments.models.records import Patient
 from datetime import datetime
 from . import bp
 
+from departments.rbac import roles_required
+
 @bp.route('/', methods=['GET', 'POST'])
 @login_required
+@roles_required('mortuary', 'admin')
 def index():
-    if current_user.role not in ['mortuary', 'admin']:
-        flash("Unauthorized access to Mortuary Department.", "danger")
-        return redirect(url_for('home'))
 
     if request.method == 'POST':
         deceased_id = request.form.get('deceased_id', '').strip()

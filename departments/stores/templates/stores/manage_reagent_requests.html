@@ -24,6 +24,7 @@
             <td>{{ request.quantity_requested }}</td>
             <td>
                 <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" name="request_id" value="{{ request.id }}">
                     <button type="submit" name="action" value="approve" class="btn btn-success btn-sm">Approve</button>
                     <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm">Reject</button>

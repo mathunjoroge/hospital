@@ -4,6 +4,7 @@
     <p>{{ count }} SOAP notes are missing AI summaries.</p>
     {% if count > 0 %}
     <form method="POST" action="{{ url_for('medicine.update_missing_ai_summaries') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="submit" value="Generate Missing Summaries">
     </form>
     {% endif %}

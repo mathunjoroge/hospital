@@ -30,6 +30,7 @@
                                 <a href="{{ url_for('laboratory.view_lab_test', test_id=test.id) }}" class="btn btn-info btn-sm me-2">View</a>
                                 <a href="{{ url_for('laboratory.edit_lab_test', test_id=test.id) }}" class="btn btn-warning btn-sm me-2">Edit</a>
                                 <form action="{{ url_for('laboratory.delete_lab_test', test_id=test.id) }}" method="POST" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this lab test?')">Delete</button>
                                 </form>
                             </div>

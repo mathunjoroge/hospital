@@ -4,6 +4,7 @@
     <h2 class="mb-4 text-center">Record Purchase</h2>
 
     <form method="POST" action="{{ url_for('pharmacy.record_purchase') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <!-- Drug Selection -->
         <table class="table table-striped">
             <thead class="table-dark">

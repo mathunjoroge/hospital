@@ -10,6 +10,7 @@ from departments.models.pharmacy import Drug, DispensedDrug
 from departments.models.medicine import TheatreList, TheatreProcedure, AdmittedPatient, RequestedImage, RequestedLab, LabTest, Imaging
 from sqlalchemy.orm import joinedload
 import logging
+from departments.rbac import roles_required
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -18,9 +19,8 @@ logger = logging.getLogger(__name__)
 @bp.route('/')
 @bp.route('/index')
 @login_required
+@roles_required('billing', 'admin')
 def index():
-    if current_user.role not in ['billing', 'admin']:     
-        return redirect(url_for('login'))
 
     # Fetch all unpaid billings and drug bills with related data (eager loading)
     unpaid_billings = Billing.query.filter_by(status=0).options(
@@ -56,10 +56,9 @@ def index():
 
 @bp.route('/billings', methods=['GET'])
 @login_required
+@roles_required('billing', 'admin')
 def list_billings():
     """Lists all billing and invoice entries across patients."""
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
 
     billings = Billing.query.options(
         joinedload(Billing.patient),
@@ -76,10 +75,8 @@ def list_billings():
 
 @bp.route('/new_drugs_billing', methods=['GET', 'POST'])
 @login_required
+@roles_required('billing', 'admin')
 def new_drugs_billing():
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
-
     if request.method == 'POST':
         patient_id = request.form.get('patient_id')
         drug_id = request.form.get('drug_id')
@@ -130,10 +127,8 @@ def new_drugs_billing():
 
 @bp.route('/view/<int:billing_id>')
 @login_required
+@roles_required('billing', 'admin')
 def view_billing(billing_id):
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
-
     billing = Billing.query.options(
         joinedload(Billing.patient),
         joinedload(Billing.charge)
@@ -150,10 +145,8 @@ def view_billing(billing_id):
 
 @bp.route('/update_status/<int:billing_id>', methods=['GET', 'POST'])
 @login_required
+@roles_required('billing', 'admin')
 def update_status(billing_id):
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
-
     billing = Billing.query.get(billing_id) or DrugsBill.query.get(billing_id)
 
     if not billing:
@@ -176,10 +169,8 @@ def update_status(billing_id):
 
 @bp.route('/search_patients', methods=['GET'])
 @login_required
+@roles_required('billing', 'admin')
 def search_patients():
-    if current_user.role not in ['billing', 'admin']:
-        return jsonify({"status": "error", "message": "Unauthorized access!"}), 403
-
     search_term = request.args.get('term', '').strip()
 
     if search_term:
@@ -201,10 +192,8 @@ def search_patients():
 
 @bp.route('/new_billing', methods=['GET', 'POST'])
 @login_required
+@roles_required('billing', 'admin')
 def new_billing():
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
-
     if request.method == 'POST':
         patient_id = request.form.get('patient_id')
         charge_id = request.form.get('charge_id')
@@ -251,11 +240,9 @@ def new_billing():
 
 @bp.route('/new_invoice', methods=['GET', 'POST'])
 @login_required
+@roles_required('billing', 'admin')
 def new_invoice():
     """Create a new invoice / charge for a patient."""
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
-
     if request.method == 'POST':
         patient_id = request.form.get('patient_id')
         charge_id = request.form.get('charge_id')
@@ -291,10 +278,8 @@ def new_invoice():
 
 @bp.route('/view_unpaid_bills/<patient_id>')
 @login_required
+@roles_required('billing', 'admin')
 def view_unpaid_bills(patient_id):
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
-
     patient = Patient.query.filter_by(patient_id=patient_id).first()
     if not patient:
         flash(f'Patient with ID {patient_id} does not exist!', 'error')
@@ -351,10 +336,8 @@ def view_unpaid_bills(patient_id):
 
 @bp.route('/pay_all/<patient_id>', methods=['POST'])
 @login_required
+@roles_required('billing', 'admin')
 def pay_all(patient_id):
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
-
     patient = Patient.query.filter_by(patient_id=patient_id).first()
     if not patient:
         flash(f'Patient with ID {patient_id} does not exist!', 'error')
@@ -420,10 +403,8 @@ def pay_all(patient_id):
 
 @bp.route('/paid_bills/<patient_id>')
 @login_required
+@roles_required('billing', 'admin')
 def paid_bills(patient_id):
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
-
     patient = Patient.query.filter_by(patient_id=patient_id).first()
     if not patient:
         flash(f'Patient with ID {patient_id} does not exist!', 'error')
@@ -434,13 +415,10 @@ def paid_bills(patient_id):
 
 @bp.route('/pay_bills/<patient_id>', methods=['GET', 'POST'])
 @login_required
+@roles_required('billing', 'admin')
 def pay_bills(patient_id):
     """Handle billing for a patient's unpaid items, including partial payments and selected items."""
     logger.debug(f"Entering pay_bills function for patient_id: {patient_id}")
-
-    if current_user.role not in ['billing', 'admin']:
-        logger.warning(f"Unauthorized access attempt by user: {current_user.id}")
-        return redirect(url_for('login'))
 
     patient = Patient.query.filter_by(patient_id=patient_id).first()
     if not patient:
@@ -672,9 +650,8 @@ def pay_bills(patient_id):
 # ─────────────────────────────────────────────
 @bp.route('/charges')
 @login_required
+@roles_required('billing', 'admin')
 def charges():
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
     charges_list = Charge.query.options(joinedload(Charge.category)).all()
     categories = ChargeCategory.query.all()
     return render_template('billing/charges_list.html', charges=charges_list, categories=categories)
@@ -682,9 +659,8 @@ def charges():
 
 @bp.route('/charges/add', methods=['GET', 'POST'])
 @login_required
+@roles_required('billing', 'admin')
 def add_charge():
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         category_id = request.form.get('category_id')
@@ -733,9 +709,8 @@ def add_charge():
 
 @bp.route('/charges/<int:charge_id>/edit', methods=['GET', 'POST'])
 @login_required
+@roles_required('billing', 'admin')
 def edit_charge(charge_id):
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
     charge = Charge.query.get_or_404(charge_id)
     if request.method == 'POST':
         charge.name = request.form.get('name', charge.name).strip()
@@ -762,10 +737,8 @@ def edit_charge(charge_id):
 # ─────────────────────────────────────────────
 @bp.route('/receipt/<receipt_number>')
 @login_required
+@roles_required('billing', 'admin')
 def official_receipt(receipt_number):
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
-
     paid_record = PaidBill.query.filter_by(receipt_number=receipt_number).first_or_404()
     patient = Patient.query.filter_by(patient_id=paid_record.patient_id).first_or_404()
 
@@ -796,10 +769,8 @@ def official_receipt(receipt_number):
 
 @bp.route('/receipts')
 @login_required
+@roles_required('billing', 'admin')
 def receipts_list():
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
-
     q = request.args.get('q', '').strip()
     query = PaidBill.query.options(joinedload(PaidBill.patient))
     if q:
@@ -816,10 +787,8 @@ def receipts_list():
 # ─────────────────────────────────────────────
 @bp.route('/reports/daily_revenue')
 @login_required
+@roles_required('billing', 'admin')
 def daily_revenue_report():
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
-
     from datetime import date, timedelta
     start_str = request.args.get('start')
     end_str = request.args.get('end')
@@ -857,10 +826,8 @@ def daily_revenue_report():
 
 @bp.route('/reports/outstanding')
 @login_required
+@roles_required('billing', 'admin')
 def outstanding_report():
-    if current_user.role not in ['billing', 'admin']:
-        return redirect(url_for('login'))
-
     unpaid_billings = Billing.query.filter_by(status=0).options(joinedload(Billing.patient), joinedload(Billing.charge)).all()
     unpaid_drug_bills = DrugsBill.query.filter_by(status=0).options(joinedload(DrugsBill.patient), joinedload(DrugsBill.drug)).all()
 

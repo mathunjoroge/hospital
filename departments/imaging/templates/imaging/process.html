@@ -28,6 +28,7 @@
     </div>
 
     <form method="POST" action="{{ url_for('imaging.process_imaging_request', request_id=imaging_request.id) }}" enctype="multipart/form-data" id="uploadForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <!-- Imaging Request Description -->
         <div class="mb-3">
             <label for="description" class="form-label fw-bold">Imaging Request Description:</label>

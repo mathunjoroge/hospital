@@ -10,6 +10,7 @@
 
         <div class="card-body">
             <form method="POST" action="{{ url_for('medicine.request_imaging', patient_id=patient.patient_id ) }}" id="imagingForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="mb-4">
                     <label for="imaging_types" class="form-label">
                         Imaging Type <span class="required-asterisk">*</span>

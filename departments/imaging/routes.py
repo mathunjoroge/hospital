@@ -13,6 +13,7 @@ from departments.nlp.src.nvidia_client import NvidiaNIMClient
 from sqlalchemy.orm import joinedload
 from . import bp
 from extensions import socketio
+from departments.rbac import roles_required
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -356,13 +357,10 @@ def get_specialist(body_part):
 
 @bp.route('/process_imaging_request/<int:request_id>', methods=['GET', 'POST'])
 @login_required
+@roles_required('imaging', 'admin')
 def process_imaging_request(request_id):
     """Process an imaging request by analyzing uploaded DICOM files."""
     logger.debug(f"User {current_user.id} processing imaging request {request_id}")
-    if current_user.role not in ['imaging', 'admin']:
-        logger.debug(f"Permission denied for user {current_user.id}")
-        flash('Permission denied', 'error')
-        return redirect(url_for('home'))
 
     try:
         imaging_request = RequestedImage.query.get_or_404(request_id)
@@ -512,13 +510,10 @@ def process_imaging_request(request_id):
     )
 @bp.route('/view_result/<string:result_id>', methods=['GET'])
 @login_required
+@roles_required('imaging', 'admin')
 def view_result(result_id):
     """View the imaging result for a given result_id."""
     logger.debug(f"Viewing result {result_id} for user {current_user.id}")
-    if current_user.role not in ['imaging', 'admin']:
-        flash('Permission denied', 'error')
-        logger.debug(f"Permission denied for user {current_user.id}")
-        return redirect(url_for('home'))
 
     try:
         imaging_result = ImagingResult.query.filter_by(result_id=result_id).first_or_404()
@@ -539,12 +534,10 @@ def view_result(result_id):
 
 @bp.route('/download/<string:result_id>/<path:filename>', methods=['GET'])
 @login_required
+@roles_required('imaging', 'admin')
 def download_file(result_id, filename):
     """Serve a DICOM file for download."""
     logger.debug(f"Download request for result_id={result_id}, filename={filename} by user {current_user.id}")
-    if current_user.role not in ['imaging', 'admin']:
-        flash('Permission denied', 'error')
-        return redirect(url_for('home'))
 
     upload_dir = os.path.join(current_app.config['DICOM_UPLOAD_FOLDER'], result_id)
     try:
@@ -556,14 +549,10 @@ def download_file(result_id, filename):
 
 @bp.route('/results', methods=['GET'])  # Changed from '/imaging_results'
 @login_required
+@roles_required('medicine', 'imaging', 'admin')
 def imaging_results():
     """Display a list of all processed imaging results."""
     logger.debug(f"Accessing imaging results list for user {current_user.id}")
-    
-    if current_user.role not in ['medicine', 'imaging', 'admin']:
-        flash('Permission denied', 'error')
-        logger.debug(f"Permission denied for user {current_user.id}, role={current_user.role}")
-        return redirect(url_for('home'))
 
     try:
         results = ImagingResult.query.order_by(ImagingResult.test_date.desc()).all()
@@ -580,14 +569,9 @@ def imaging_results():
 
 @bp.route('/view_imaging_results/<string:result_id>', methods=['GET'])
 @login_required
+@roles_required('medicine', 'imaging', 'admin')
 def view_imaging_results(result_id):
     logger.debug(f"User {current_user.id} viewing results for result_id={result_id}")
-
-    allowed_roles = {'medicine', 'imaging', 'admin'}
-    if current_user.role not in allowed_roles:
-        logger.debug(f"Permission denied for user {current_user.id}, role={current_user.role}")
-        flash('You do not have permission to view imaging results.', 'error')
-        return redirect(url_for('home'))
 
     try:
         imaging_result = ImagingResult.query.filter_by(result_id=result_id).first_or_404()
@@ -684,11 +668,9 @@ def view_imaging_results(result_id):
         return redirect(url_for('imaging.index'))
 @bp.route('/', methods=['GET'])
 @login_required
+@roles_required('imaging', 'admin')
 def index():
     """Display imaging waiting list"""
-    if current_user.role not in ['imaging', 'admin']: 
-        flash('Permission denied', 'error')
-        return redirect(url_for('home'))
 
     try:
         pending_requests = RequestedImage.query.filter_by(status=0).options(

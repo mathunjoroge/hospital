@@ -135,6 +135,7 @@
         <li><h6 class="dropdown-header text-uppercase fw-bold text-muted px-2 py-1 mb-2 small"><i class="bi bi-arrow-repeat me-1"></i> Choose Role to Switch To</h6></li>
         
         <form id="adminPageSwitchRoleForm" action="{{ url_for('admin.switch_user') }}" method="POST" style="display:none;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <input type="hidden" name="role" id="adminPageSwitchRoleInput" value="">
         </form>
 
@@ -230,7 +231,7 @@
         </a>
       </div>
       <div class="col-md-4 col-sm-6">
-        <a href="{{ url_for('mortuary.index') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: #64748b;">
+        <a href="{{ url_for('mortuary.index') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: var(--dept-mortuary);">
           <i class="bi bi-building me-2 fs-4"></i> Mortuary
         </a>
       </div>

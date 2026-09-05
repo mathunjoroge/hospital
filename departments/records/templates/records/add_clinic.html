@@ -42,6 +42,7 @@
   <div class="rc-form-card">
     <div class="rc-section-header"><i class="bi bi-hospital"></i> Clinic Details</div>
     <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="row g-3">
         <div class="col-md-8">
           <label class="form-label">Clinic Name <span class="required-star">*</span></label>

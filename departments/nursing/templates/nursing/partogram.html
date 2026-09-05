@@ -165,6 +165,7 @@
     </div>
     <div class="card-body p-4">
       <form action="{{ url_for('nursing.submit_partogram') }}" method="POST" class="needs-validation" novalidate id="partogramForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         
         <!-- Patient Information -->
         <h6 class="text-uppercase text-ns-primary fw-bold mb-3"><i class="bi bi-person-badge me-2"></i>1. Patient Information</h6>
@@ -325,8 +326,6 @@
 </div>
 
 <!-- Scripts -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     $(document).ready(function() {
         // Initialize Select2

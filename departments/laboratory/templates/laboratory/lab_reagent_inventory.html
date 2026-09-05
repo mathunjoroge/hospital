@@ -39,6 +39,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('laboratory.request_reagent_restock') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="modal-body">
                     <input type="hidden" name="item_id" id="modalItemId">
                     <div class="mb-3">

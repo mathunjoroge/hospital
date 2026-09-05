@@ -85,6 +85,7 @@
         </div>
         <div class="card-body p-4">
           <form method="POST" action="{{ url_for('nursing.medication_admin') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             
             <div class="mb-4 p-3 bg-light rounded-3 border border-ns-subtle">
               <label for="patient_id" class="form-label fw-bold text-ns-primary">Patient Identifier <span class="text-danger">*</span></label>

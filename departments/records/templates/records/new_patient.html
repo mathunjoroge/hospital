@@ -114,6 +114,7 @@
   </div>
 
   <form method="POST" novalidate>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
     <!-- Personal Information -->
     <div class="rc-form-card">

@@ -66,6 +66,7 @@
     {% endwith %}
 
     <form method="POST" action="{{ url_for('nursing.vital_signs') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <!-- Patient Selection -->
       <div class="mb-4">
         <label for="patient_id" class="form-label fw-bold text-dark"><i class="bi bi-person me-1 text-ns-primary"></i> Patient ID <span class="text-danger">*</span></label>

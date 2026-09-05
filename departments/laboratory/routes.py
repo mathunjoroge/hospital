@@ -13,6 +13,7 @@ from sqlalchemy.orm import joinedload
 from . import bp  # Import the blueprint
 import os 
 from flask_socketio import SocketIO
+from departments.rbac import roles_required
 from departments.models.records import PatientWaitingList,Patient
 from departments.models.medicine import (LabTest,RequestedLab
 )
@@ -26,11 +27,9 @@ socketio = SocketIO()
 # Display the lab waiting list
 @bp.route('/')
 @login_required
+@roles_required('laboratory', 'admin')
 def index():
     """Displays the laboratory waiting list with pending lab test requests."""
-    if current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
 
     try:
         # Fetch all requested lab tests with status=0 (pending)
@@ -58,11 +57,9 @@ def index():
 #display available lab tests
 @bp.route('/lab_tests', methods=['GET'])
 @login_required
+@roles_required('laboratory', 'admin')
 def lab_tests():
     """Displays a list of available lab tests."""
-    if current_user.role not in ['laboratory', 'admin']: 
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('laboratory.index'))  
 
     try:
         # Fetch all lab tests from the database
@@ -82,11 +79,9 @@ def lab_tests():
 #edit labtest
 @bp.route('/edit_lab_test/<int:test_id>', methods=['GET', 'POST'])
 @login_required
+@roles_required('laboratory', 'admin', 'medicine')
 def edit_lab_test(test_id):
     """Handles editing a specific lab test."""
-    if current_user.role != 'medicine' and current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('laboratory.index'))
 
     try:
         # Fetch the lab test by ID
@@ -176,11 +171,9 @@ def edit_lab_test(test_id):
 #delete test
 @bp.route('/delete_lab_test/<test_id>', methods=['POST'])
 @login_required
+@roles_required('laboratory', 'admin')
 def delete_lab_test(test_id):
     """Handles deleting a lab test."""
-    if current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('laboratory.index'))
 
     try:
         # Fetch the lab test by ID
@@ -200,11 +193,9 @@ def delete_lab_test(test_id):
 #add lab test
 @bp.route('/add_lab_test', methods=['GET', 'POST'])
 @login_required
+@roles_required('laboratory', 'admin')
 def add_lab_test():
     """Handles adding a new lab test."""
-    if current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('laboratory.index'))
 
     try:
         if request.method == 'POST':
@@ -242,11 +233,9 @@ from sqlalchemy.orm import joinedload
 
 @bp.route('/view_lab_test/<int:test_id>', methods=['GET'])
 @login_required
+@roles_required('laboratory', 'admin', 'medicine')
 def view_lab_test(test_id):
     """Displays detailed information about a specific lab test."""
-    if current_user.role != 'medicine' and current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('laboratory.index'))
 
     try:
         # Perform the join and fetch the required columns
@@ -286,11 +275,9 @@ def view_lab_test(test_id):
 #process lab results
 @bp.route('/process_lab_request/<int:request_id>', methods=['GET', 'POST'])
 @login_required
+@roles_required('laboratory', 'admin')
 def process_lab_request(request_id):
     """Handles processing a lab test request."""
-    if current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('laboratory.index'))
 
     try:
         # Fetch the requested lab test by ID
@@ -373,11 +360,9 @@ def process_lab_request(request_id):
 #view lab results
 @bp.route('/view_lab_results/<int:result_id>', methods=['GET'])
 @login_required
+@roles_required('laboratory', 'admin')
 def view_lab_results(result_id):
     """Displays lab test results in a structured format."""
-    if current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('laboratory.index'))
 
     try:
         # Fetch the lab result by ID
@@ -449,11 +434,9 @@ def view_lab_results(result_id):
     #order for reagets
 @bp.route('/reagents_order', methods=['GET', 'POST'])
 @login_required
+@roles_required('laboratory', 'admin')
 def reagents_order():
     """Handles ordering of lab reagents."""
-    if current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
 
     try:
         if request.method == 'POST':
@@ -533,11 +516,9 @@ def reagents_order():
 
 @bp.route('/pending_lab_results')
 @login_required
+@roles_required('laboratory', 'admin')
 def pending_lab_results():
     """Displays pending lab test requests."""
-    if current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
 
     try:
         # Fetch all pending lab test requests
@@ -557,11 +538,9 @@ def pending_lab_results():
         return redirect(url_for('laboratory.index'))
 @bp.route('/processed_lab_results')
 @login_required
+@roles_required('laboratory', 'admin')
 def processed_lab_results():
     """Displays processed lab test results."""
-    if current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
 
     try:
         # Fetch processed lab results where updated_by is NOT NULL
@@ -602,11 +581,9 @@ def processed_lab_results():
 #inventory, to be edited later
 @bp.route('/lab_reagent_inventory')
 @login_required
+@roles_required('laboratory', 'admin')
 def lab_reagent_inventory():
     """Displays available lab reagents and stock levels."""
-    if current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
 
     try:
         # Fetch all reagents where category_id = 6
@@ -623,11 +600,9 @@ def lab_reagent_inventory():
         return redirect(url_for('laboratory.index'))
 @bp.route('/request_reagent_restock', methods=['POST'])
 @login_required
+@roles_required('laboratory', 'admin')
 def request_reagent_restock():
     """Handles reagent restock requests."""
-    if current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
 
     try:
         item_id = request.form.get('item_id')
@@ -656,13 +631,11 @@ def request_reagent_restock():
         print(f"Debug: Error in laboratory.request_reagent_restock: {e}")
         return redirect(url_for('laboratory.lab_reagent_inventory'))
 #########
-bp.route('/generate_lab_report/<int:result_id>')
+@bp.route('/generate_lab_report/<int:result_id>')
 @login_required
+@roles_required('laboratory', 'admin')
 def generate_lab_report(result_id):
     """Generates a PDF lab test report."""
-    if current_user.role not in ['laboratory', 'admin']:
-        flash("You don't have permission to access this page.", "error")
-        return redirect(url_for('home'))
 
     result = LabResult.query.get_or_404(result_id)
 
@@ -680,11 +653,9 @@ def generate_lab_report(result_id):
     return response
 @bp.route('/search-patient', methods=['GET', 'POST'])
 @login_required
+@roles_required('laboratory', 'admin')
 def search_patient():
     """Search for a patient and fetch their lab history on the same page."""
-    if current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('laboratory.index'))
 
     patients = []
     lab_results = []
@@ -731,11 +702,9 @@ def search_patient():
 #abnormal results
 @bp.route('/abnormal_results')
 @login_required
+@roles_required('laboratory', 'admin')
 def abnormal_results():
     """Displays lab test results that are outside normal ranges."""
-    if current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
 
     try:
         abnormal_results = db.session.query(
@@ -783,11 +752,9 @@ def abnormal_results():
 #dashboard
 @bp.route('/dashboard')
 @login_required
+@roles_required('laboratory', 'admin')
 def dashboard():
     """Displays key lab statistics and trends."""
-    if current_user.role not in ['laboratory', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('home'))
 
     total_tests = LabResult.query.count()
     pending_tests = RequestedLab.query.filter_by(status=0).count()

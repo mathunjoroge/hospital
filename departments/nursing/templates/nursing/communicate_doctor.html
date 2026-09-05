@@ -85,6 +85,7 @@
         </div>
         <div class="card-body p-4">
           <form method="POST" action="{{ url_for('nursing.communicate_doctor') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             
             <div class="row g-3 mb-4">
               <div class="col-md-6">

@@ -267,6 +267,7 @@
             <h3 class="card-title">Payment Summary</h3>
             <p><strong>Grand Total: Kshs {{ grand_total }}</strong></p>
             <form method="POST" action="{{ url_for('billing.pay_all', patient_id=patient.patient_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="mb-3">
                     <label for="amount_paid" class="form-label">Amount Paid (Kshs):</label>
                     <input type="number" id="amount_paid" name="amount_paid" class="form-control" step="0.01" min="0" max="{{ grand_total }}" required>

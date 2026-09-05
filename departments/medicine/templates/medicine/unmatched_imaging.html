@@ -43,6 +43,7 @@
                     <td>{{ request.date_requested.strftime('%Y-%m-%d %H:%M') }}</td>
                     <td>
                         <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <input type="hidden" name="unmatched_id" value="{{ request.id }}">
                             <select name="imaging_id" class="form-select select2" required>
                                 <option value="">Select Imaging</option>

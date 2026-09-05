@@ -17,6 +17,7 @@
 
     <!-- Rota Form -->
     <form method="POST" action="{{ url_for('hr.rota_management') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <!-- Select Week Range -->
         <div class="mb-3">
             <label for="week_range" class="form-label fw-bold">Select Week Range:</label>

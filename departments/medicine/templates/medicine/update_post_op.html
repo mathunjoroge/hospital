@@ -17,6 +17,7 @@
     {% endwith %}
 
     <form method="POST" action="{{ url_for('medicine.update_post_op', entry_id=entry.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="mb-3">
             <label for="notes_on_post_op" class="form-label">Post-Op Notes</label>
             <textarea name="notes_on_post_op" class="form-control" rows="4" required>{{ entry.notes_on_post_op or '' }}</textarea>

@@ -27,9 +27,17 @@ app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['DICOM_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'dicom_Uploads')
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2 GB file limit
 
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
+secret_key = os.environ.get('SECRET_KEY')
+if not secret_key:
+    if os.environ.get('FLASK_ENV') == 'production':
+        raise RuntimeError("SECRET_KEY environment variable must be set in production.")
+    secret_key = 'dev-secret-key-change-in-production'
+
+app.config['SECRET_KEY'] = secret_key
 app.config['SESSION_TYPE'] = 'redis'
-app.config['SESSION_REDIS'] = redis.Redis(host='localhost', port=6379, db=0)
+redis_host = os.environ.get('REDIS_HOST', 'localhost')
+redis_port = int(os.environ.get('REDIS_PORT', 6379))
+app.config['SESSION_REDIS'] = redis.Redis(host=redis_host, port=redis_port, db=0)
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -71,8 +79,12 @@ os.makedirs(app.config['DICOM_UPLOAD_FOLDER'], exist_ok=True)
 
 
 
+from extensions import db, login_manager, socketio, csrf
+from markupsafe import Markup, escape
+
 # Initialize extensions
 db.init_app(app)
+csrf.init_app(app)
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 mail = Mail(app)
@@ -97,6 +109,12 @@ logger = logging.getLogger(__name__)
 logger.debug(f"Final Session configuration: TYPE={app.config['SESSION_TYPE']}, REDIS={app.config.get('SESSION_REDIS', 'Filesystem')}")
 
 # Jinja filters
+@app.template_filter('nl2br_safe')
+def nl2br_safe(text):
+    if text is None:
+        return ''
+    return Markup('<br>'.join(escape(str(text)).split('\n')))
+
 @app.template_filter('parse_iso')
 def parse_iso(timestamp):
     try:
@@ -216,6 +234,6 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
 
-    scheduler.start()
-    socketio.run(app, debug=True)
+    debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+    socketio.run(app, debug=debug_mode)
 

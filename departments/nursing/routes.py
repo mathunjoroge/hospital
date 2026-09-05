@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash,jsonify
 from flask_login import login_required, current_user
+from departments.rbac import roles_required
 from extensions import db
 from departments.models.nursing import (
     NursingNote, NursingCareTask, Vitals, Partogram,
@@ -19,12 +20,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 @bp.route('/')
 @login_required
+@roles_required('nursing', 'medicine', 'admin')
 def index():
     """Display the nursing waiting list."""
-    if current_user.role not in ['nursing', 'medicine', 'admin']: 
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
-
     try:
         # Fetch all patients in the nursing waiting list who are not yet seen
         nursing_waiting_list = PatientWaitingList.query.filter_by(seen=4).options(
@@ -46,19 +44,9 @@ def index():
     #vitals
 @bp.route('/vitals/<patient_id>', methods=['GET', 'POST'])  # Removed <int:>
 @login_required
+@roles_required('nursing', 'admin')
 def vitals(patient_id):
     """Manage vital signs for a patient."""
-    if current_user.role not in ['nursing', 'admin']:
-        flash('Unauthorized access. Nursing staff only.', 'error')
-        logger.warning(f"Unauthorized access attempt to /nursing/vitals/{patient_id} by user {current_user.id}")
-        db.session.add(Log(
-            level='WARNING',
-            message=f"Unauthorized access attempt to /nursing/vitals/{patient_id} by user {current_user.id}",
-            user_id=current_user.id,
-            source='nursing'
-        ))
-        db.session.commit()
-        return redirect(url_for('login'))
     if request.method == 'POST':
         try:
             vitals_data = Vitals(
@@ -134,19 +122,9 @@ def vitals(patient_id):
 
 @bp.route('/view_notes', methods=['GET'])
 @login_required
+@roles_required('nursing', 'medicine', 'admin')
 def view_notes():
     """View all nursing notes for patients."""
-    if current_user.role not in ['nursing', 'medicine', 'admin']: 
-        flash('Unauthorized access. Nursing staff only.', 'error')
-        logger.warning(f"Unauthorized access attempt to /nursing/view_notes by user {current_user.id}")
-        db.session.add(Log(
-            level='WARNING',
-            message=f"Unauthorized access attempt to /nursing/view_notes by user {current_user.id}",
-            user_id=current_user.id,
-            source='nursing'
-        ))
-        db.session.commit()
-        return redirect(url_for('login'))
 
     try:
         notes = NursingNote.query.order_by(NursingNote.timestamp.desc()).all()
@@ -173,19 +151,9 @@ def view_notes():
 
 @bp.route('/add_note', methods=['GET', 'POST'])
 @login_required
+@roles_required('nursing', 'admin')
 def add_note():
     """Add a new nursing note for a patient with Kardex details."""
-    if current_user.role not in ['nursing', 'admin']:
-        flash('Unauthorized access. Nursing staff only.', 'error')
-        logger.warning(f"Unauthorized access attempt to /nursing/add_note by user {current_user.id}")
-        db.session.add(Log(
-            level='WARNING',
-            message=f"Unauthorized access attempt to /nursing/add_note by user {current_user.id}",
-            user_id=current_user.id,
-            source='nursing'
-        ))
-        db.session.commit()
-        return redirect(url_for('login'))
 
     if request.method == 'POST':
         try:
@@ -287,19 +255,9 @@ def search_wards():
 
 @bp.route('/care_tasks', methods=['GET', 'POST'])
 @login_required
+@roles_required('nursing', 'admin')
 def care_tasks():
     """Manage nursing care tasks."""
-    if current_user.role not in ['nursing', 'admin']:
-        flash('Unauthorized access. Nursing staff only.', 'error')
-        logger.warning(f"Unauthorized access attempt to /nursing/care_tasks by user {current_user.id}")
-        db.session.add(Log(
-            level='WARNING',
-            message=f"Unauthorized access attempt to /nursing/care_tasks by user {current_user.id}",
-            user_id=current_user.id,
-            source='nursing'
-        ))
-        db.session.commit()
-        return redirect(url_for('login'))
 
     if request.method == 'POST':
         try:
@@ -360,19 +318,9 @@ def care_tasks():
 
 @bp.route('/care_summary', methods=['GET'])
 @login_required
+@roles_required('nursing', 'admin')
 def care_summary():
     """View a summary of nursing care for patients."""
-    if current_user.role not in ['nursing', 'admin']:
-        flash('Unauthorized access. Nursing staff only.', 'error')
-        logger.warning(f"Unauthorized access attempt to /nursing/care_summary by user {current_user.id}")
-        db.session.add(Log(
-            level='WARNING',
-            message=f"Unauthorized access attempt to /nursing/care_summary by user {current_user.id}",
-            user_id=current_user.id,
-            source='nursing'
-        ))
-        db.session.commit()
-        return redirect(url_for('login'))
 
     try:
         notes = NursingNote.query.filter_by(nurse_id=current_user.id).order_by(NursingNote.timestamp.desc()).all()
@@ -412,12 +360,9 @@ def check_alert_action(dilation, time_hours):
 # Route to display the Partogram form
 @bp.route("/partogram", methods=["GET"])
 @login_required
+@roles_required('nursing', 'admin')
 def record_partogram():
     """Displays the partogram form for recording patient data."""
-    if current_user.role not in ['nursing', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
-
     try:
         return render_template("nursing/partogram.html")
     except Exception as e:
@@ -428,10 +373,9 @@ def record_partogram():
 # Route to submit the Partogram form
 @bp.route("/submit_partogram", methods=["POST"])
 @login_required
+@roles_required('nursing', 'admin')
 def submit_partogram():
     """Handles submission of the partogram form and saves to the database."""
-    if current_user.role not in ['nursing', 'admin']:
-        return render_template('nursing/error.html', errors=['You do not have permission to access this page.'])
 
     errors = []
 
@@ -588,12 +532,9 @@ def submit_partogram():
 
 @bp.route('/view_partogram/<patient_id>', methods=['GET'])
 @login_required
+@roles_required('nursing', 'admin')
 def view_partogram(patient_id):
     """Displays partogram records for a specific patient, including graphs."""
-    if current_user.role not in ['nursing', 'admin']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
-
     conn = db.engine.raw_connection()
     cursor = conn.cursor()
 
@@ -679,9 +620,8 @@ def view_partogram(patient_id):
 # Route to view all partograms (paginated)
 @bp.route("/view_partograms")
 @login_required
+@roles_required('nursing', 'admin')
 def view_partograms():
-    if current_user.role not in ['nursing', 'admin']:
-        return render_template('nursing/error.html', errors=['You do not have permission to access this page.'])
 
     # Get query parameters
     patient_id = request.args.get('patient_id', '').strip()
@@ -796,14 +736,12 @@ def view_partograms():
     finally:
         cursor.close()
         conn.close()
-@bp.route('/patient_dashboard')
-@login_required
-def patient_dashboard():
-    if current_user.role not in ['nursing', 'admin', 'medicine']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
 
-    patient_id = request.args.get('patient_id', '').strip()
+@bp.route('/patient/<string:patient_id>')
+@login_required
+@roles_required('nursing', 'medicine', 'admin')
+def patient_dashboard(patient_id):
+
     try:
         partogram = Partogram.query.filter_by(patient_id=patient_id).order_by(Partogram.timestamp.desc()).first()
         notes = NursingNote.query.filter_by(patient_id=patient_id).order_by(NursingNote.timestamp.desc()).limit(5).all()
@@ -812,12 +750,18 @@ def patient_dashboard():
     except Exception as e:
         flash(f'Error fetching patient dashboard data: {str(e)}', 'error')
         return redirect(url_for('nursing.index'))
+
+@bp.route('/patient/<string:patient_id>/add-note', methods=['GET', 'POST'])
+@login_required
+@roles_required('nursing', 'admin')
+def add_patient_note(patient_id):
+    # Logic for adding note would go here
+    return "Note added"
+
 @bp.route('/medication_admin', methods=['GET', 'POST'])
 @login_required
+@roles_required('nursing', 'admin', 'medicine')
 def medication_admin():
-    if current_user.role not in ['nursing', 'admin', 'medicine']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
 
     if request.method == 'POST':
         try:
@@ -848,10 +792,8 @@ def medication_admin():
 
 @bp.route('/vital_signs', methods=['GET', 'POST'])
 @login_required
+@roles_required('nursing', 'admin', 'medicine')
 def vital_signs():
-    if current_user.role not in ['nursing', 'admin', 'medicine']:
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
 
     if request.method == 'POST':
         try:
@@ -903,10 +845,8 @@ def vital_signs():
 
 @bp.route('/shift_handover')
 @login_required
+@roles_required('nursing', 'admin', 'medicine', 'doctor')
 def shift_handover():
-    if current_user.role not in ['nursing', 'admin', 'medicine', 'doctor']:
-        flash('Unauthorized access. Nursing and clinical staff only.', 'error')
-        return redirect(url_for('login'))
 
     try:
         recent_time = datetime.utcnow() - timedelta(hours=12)
@@ -925,21 +865,17 @@ def shift_handover():
         flash(f'Error fetching shift handover data: {str(e)}', 'error')
         return redirect(url_for('nursing.index'))
 
-@bp.route('/communicate_doctor', methods=['GET', 'POST'])
+@bp.route('/patient/<string:patient_id>/communicate-doctor', methods=['GET', 'POST'])
 @login_required
-def communicate_doctor():
-    if current_user.role not in ['nursing', 'admin', 'medicine', 'doctor']:
-        flash('Unauthorized access. Nursing and clinical staff only.', 'error')
-        return redirect(url_for('login'))
-
+@roles_required('nursing')
+def communicate_doctor(patient_id):
     if request.method == 'POST':
         try:
-            patient_id = request.form.get('patient_id')
             message_text = request.form.get('message')
             doctor_id = request.form.get('doctor_id')
             if not message_text or not doctor_id:
                 flash('Message and doctor selection are required.', 'error')
-                return redirect(url_for('nursing.communicate_doctor'))
+                return redirect(url_for('nursing.communicate_doctor', patient_id=patient_id))
 
             new_message = Messages(
                 sender_id=current_user.id,
@@ -951,32 +887,29 @@ def communicate_doctor():
             db.session.add(new_message)
             db.session.commit()
             flash('Message sent to doctor.', 'success')
-            return redirect(url_for('nursing.communicate_doctor'))
+            return redirect(url_for('nursing.communicate_doctor', patient_id=patient_id))
         except ValueError:
             flash('Invalid doctor selection.', 'error')
-            return redirect(url_for('nursing.communicate_doctor'))
+            return redirect(url_for('nursing.communicate_doctor', patient_id=patient_id))
         except Exception as e:
             db.session.rollback()
             flash(f'Error sending message: {str(e)}', 'error')
-            return redirect(url_for('nursing.communicate_doctor'))
+            return redirect(url_for('nursing.communicate_doctor', patient_id=patient_id))
     
     try:
         doctors = User.query.filter(User.role.in_(['doctor', 'medicine'])).all()
         if not doctors:
             doctors = User.query.filter(User.role.in_(['doctor', 'medicine', 'admin'])).all()
-        return render_template('nursing/communicate_doctor.html', doctors=doctors)
+        return render_template('nursing/communicate_doctor.html', doctors=doctors, patient_id=patient_id)
     except Exception as e:
         logger.error(f"Error fetching doctors in communicate_doctor: {e}", exc_info=True)
         flash(f'Error fetching doctors: {str(e)}', 'error')
         return redirect(url_for('nursing.index'))
 
-@bp.route('/notifications')
+@bp.route('/get-notifications')
 @login_required
-def notifications():
-    if current_user.role != 'nursing':
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
-
+@roles_required('nursing', 'admin', 'medicine')
+def get_notifications():
     try:
         notifications = Notifications.query.filter_by(receiver_id=current_user.id, is_read=False).order_by(Notifications.timestamp.desc()).all()
         return render_template('nursing/notifications.html', notifications=notifications)
@@ -986,10 +919,8 @@ def notifications():
 
 @bp.route('/mark_notification_read/<int:notification_id>', methods=['GET'])
 @login_required
+@roles_required('nursing')
 def mark_notification_read(notification_id):
-    if current_user.role != 'nursing':
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
 
     try:
         notification = Notifications.query.filter_by(id=notification_id, receiver_id=current_user.id).first()
@@ -1007,10 +938,8 @@ def mark_notification_read(notification_id):
         return redirect(url_for('nursing.notifications'))    
 @bp.route('/mark_task_completed/<int:task_id>')
 @login_required
+@roles_required('nursing')
 def mark_task_completed(task_id):
-    if current_user.role != 'nursing':
-        flash('You do not have permission to access this page.', 'error')
-        return redirect(url_for('login'))
 
     patient_id = request.args.get('patient_id', '').strip()
     if not patient_id:
@@ -1037,13 +966,10 @@ def mark_task_completed(task_id):
 # ─────────────────────────────────────────────
 # WARD INPATIENTS MONITORING
 # ─────────────────────────────────────────────
-@bp.route('/ward_patients')
+@bp.route('/ward-patients')
 @login_required
+@roles_required('nursing', 'admin')
 def ward_patients():
-    if current_user.role not in ['nursing', 'admin', 'medicine']:
-        flash('Unauthorized access.', 'error')
-        return redirect(url_for('login'))
-
     admissions = AdmittedPatient.query.filter_by(discharged_on=None).options(
         joinedload(AdmittedPatient.patient),
         joinedload(AdmittedPatient.ward)
@@ -1057,10 +983,8 @@ def ward_patients():
 # ─────────────────────────────────────────────
 @bp.route('/vitals_chart/<patient_id>')
 @login_required
+@roles_required('nursing', 'admin', 'medicine')
 def vitals_chart(patient_id):
-    if current_user.role not in ['nursing', 'admin', 'medicine']:
-        flash('Unauthorized access.', 'error')
-        return redirect(url_for('login'))
 
     patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
     vitals_history = Vitals.query.filter_by(patient_id=patient_id).order_by(Vitals.timestamp.asc()).all()
@@ -1088,13 +1012,16 @@ def vitals_chart(patient_id):
 # ─────────────────────────────────────────────
 # FLUID BALANCE CHART
 # ─────────────────────────────────────────────
+@bp.route('/get-messages/<string:patient_id>', methods=['GET'])
+@login_required
+@roles_required('nursing')
+def get_messages(patient_id):
+    pass
+
 @bp.route('/fluid_balance/<patient_id>', methods=['GET', 'POST'])
 @login_required
+@roles_required('nursing', 'admin', 'medicine')
 def fluid_balance(patient_id):
-    if current_user.role not in ['nursing', 'admin', 'medicine']:
-        flash('Unauthorized access.', 'error')
-        return redirect(url_for('login'))
 
     patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
     return render_template('nursing/fluid_balance.html', patient=patient)
-        

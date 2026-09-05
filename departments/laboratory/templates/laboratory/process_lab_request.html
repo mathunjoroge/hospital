@@ -25,6 +25,7 @@
         </div>
         <div class="card-body">
             <form method="POST" action="{{ url_for('laboratory.process_lab_request', request_id=lab_request.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <!-- Hidden Input for result_id -->
                 <input type="hidden" name="result_id" value="{{ result_id }}">
 

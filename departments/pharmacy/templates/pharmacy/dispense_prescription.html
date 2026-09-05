@@ -199,6 +199,7 @@
 
   <!-- ── Dispensing Form ── -->
   <form method="POST" action="{{ url_for('pharmacy.process_dispense', prescription_id=prescription_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <input type="hidden" name="prescription_id" value="{{ prescription_id }}">
     <div class="dispense-form-zone animate-fade-in">
       <h6 class="fw-bold mb-3" style="color:#0e7c61;"><i class="bi bi-plus-circle me-2"></i>Add Drug to Dispense</h6>
@@ -235,6 +236,7 @@
     </div>
     <div class="card-body p-0">
       <form method="POST" action="{{ url_for('pharmacy.save_dispensed_drugs') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="hidden" name="prescription_id" value="{{ prescription_id }}">
         <div class="table-responsive">
           <table class="table ph-table mb-0">
