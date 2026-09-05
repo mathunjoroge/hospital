@@ -20,6 +20,7 @@ from flask_apscheduler import APScheduler
 from flask_login import current_user, login_required, login_user, logout_user
 from flask_mail import Mail
 from flask_migrate import Migrate
+from flask_session import Session
 from markupsafe import Markup, escape
 from werkzeug.security import check_password_hash
 
@@ -28,7 +29,6 @@ from departments.models.admin import Log
 from departments.models.nursing import Notifications
 from departments.models.user import User
 from extensions import csrf, db, jwt, limiter, login_manager, socketio
-from flask_session import Session
 
 dotenv.load_dotenv()
 
@@ -395,5 +395,4 @@ if __name__ == '__main__':
 
     debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
     socketio.run(app, debug=debug_mode)
-
 
