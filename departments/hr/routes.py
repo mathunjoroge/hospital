@@ -5,7 +5,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from io import StringIO
 
-
 from flask import (
     flash,
     make_response,
