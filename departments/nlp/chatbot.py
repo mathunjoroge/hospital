@@ -6,9 +6,13 @@ import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import aiohttp
 import bleach
 from PIL import Image
+
+try:
+    import aiohttp
+except ImportError:
+    aiohttp = None
 
 try:
     import pdfplumber
@@ -145,6 +149,10 @@ class UniversalClinicalSummarizer:
         }
 
         headers = {'Content-Type': 'application/json'}
+
+        if not aiohttp:
+            logger.warning("aiohttp is not installed. Gemini async query unavailable.")
+            return {"text": "", "sources": []}
 
         async with aiohttp.ClientSession() as session:
             for attempt in range(max_retries):
