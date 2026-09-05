@@ -6,12 +6,14 @@ Unit tests for Task 2.5: Encryption at Rest (EncryptedString & Fernet crypto)
 
 from sqlalchemy import Column, Integer
 
-try:
-    from extensions import db
-except ImportError:
-    from extensions import db
-
 from departments.crypto import EncryptedString, decrypt_value, encrypt_value
+from extensions import db
+
+try:
+    import cryptography  # noqa: F401
+except ImportError:
+    import pytest
+    pytest.skip("cryptography not installed", allow_module_level=True)
 
 
 # Test Model using EncryptedString

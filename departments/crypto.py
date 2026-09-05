@@ -14,7 +14,12 @@ import base64
 import logging
 import os
 
-from cryptography.fernet import Fernet, InvalidToken
+try:
+    from cryptography.fernet import Fernet, InvalidToken
+except ImportError:
+    Fernet = None
+    InvalidToken = Exception
+
 from flask import current_app
 from sqlalchemy.types import String, TypeDecorator
 
@@ -45,7 +50,8 @@ def get_fernet_key() -> bytes:
 
     # Ensure key is valid 32-byte base64 URL-safe key
     try:
-        Fernet(key_bytes)
+        if Fernet:
+            Fernet(key_bytes)
         return key_bytes
     except Exception:
         # If raw 32-byte string was passed, base64 encode it
@@ -58,6 +64,10 @@ def encrypt_value(value: str) -> str:
         return None
     if not isinstance(value, str):
         value = str(value)
+
+    if not Fernet:
+        logger.warning("cryptography library not available, returning plaintext")
+        return value
 
     key = get_fernet_key()
     f = Fernet(key)
@@ -75,6 +85,9 @@ def decrypt_value(token: str) -> str:
     # Check if value has encryption prefix
     if not token.startswith("enc_v1:"):
         return token  # Legacy plaintext
+
+    if not Fernet:
+        return token
 
     raw_token = token[7:]  # Strip 'enc_v1:' prefix
     key = get_fernet_key()
