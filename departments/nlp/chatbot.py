@@ -8,11 +8,27 @@ from typing import Any, Dict, List, Optional
 
 import aiohttp
 import bleach
-import pdfplumber
-import pytesseract
-import spacy
-from docx import Document
 from PIL import Image
+
+try:
+    import pdfplumber
+except ImportError:
+    pdfplumber = None
+
+try:
+    import pytesseract
+except ImportError:
+    pytesseract = None
+
+try:
+    import spacy
+except ImportError:
+    spacy = None
+
+try:
+    from docx import Document
+except ImportError:
+    Document = None
 
 from departments.nlp.src.nvidia_client import NvidiaNIMClient
 
@@ -30,11 +46,12 @@ GEMINI_MODEL = "gemini-2.5-flash-preview-05-20"
 API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
 # --- Load SpaCy for NLP Tasks ---
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    logger.error("SpaCy model 'en_core_web_sm' not found. Please install with: python -m spacy download en_core_web_sm")
-    raise
+nlp = None
+if spacy:
+    try:
+        nlp = spacy.load("en_core_web_sm")
+    except Exception as e:
+        logger.warning(f"SpaCy model 'en_core_web_sm' not available: {e}")
 
 # --- Allowed File Types ---
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'txt', 'csv', 'docx'}
@@ -178,8 +195,17 @@ class UniversalClinicalSummarizer:
         return asyncio.run(self._query_gemini_async(contents, max_tokens, max_retries))
 
     def detect_specialty(self, question: str) -> str:
-        """Detect the medical specialty from the question using SpaCy."""
-        doc = nlp(question.lower())
+        """Detect the medical specialty from the question using SpaCy if available."""
+        question_lower = question.lower()
+        if nlp:
+            try:
+                doc = nlp(question_lower)
+                q_text = doc.text
+            except Exception:
+                q_text = question_lower
+        else:
+            q_text = question_lower
+
         specialty_keywords = {
             "cardiology": ["heart", "chest pain", "arrhythmia", "hypertension"],
             "neurology": ["headache", "seizure", "stroke", "numbness"],
@@ -188,7 +214,7 @@ class UniversalClinicalSummarizer:
             "gastroenterology": ["abdominal pain", "diarrhea", "nausea", "ulcer"],
         }
         for specialty, keywords in specialty_keywords.items():
-            if any(keyword in doc.text for keyword in keywords):
+            if any(keyword in q_text for keyword in keywords):
                 return specialty
         return "general"
 
@@ -219,12 +245,16 @@ class UniversalClinicalSummarizer:
             extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
 
             if extension in ['png', 'jpg', 'jpeg', 'gif']:
+                if not pytesseract:
+                    return "OCR capability (pytesseract) is not installed."
                 img = Image.open(file_stream)
                 text = pytesseract.image_to_string(img)
                 logger.info(f"Extracted text from image: {filename}")
                 return text.strip() or "No text could be extracted from the image."
 
             elif extension == 'pdf':
+                if not pdfplumber:
+                    return "PDF extraction capability (pdfplumber) is not installed."
                 with pdfplumber.open(file_stream) as pdf:
                     text = "".join(page.extract_text() for page in pdf.pages if page.extract_text())
                 logger.info(f"Extracted text from PDF: {filename}")
@@ -244,6 +274,8 @@ class UniversalClinicalSummarizer:
                 return text.strip()
 
             elif extension == 'docx':
+                if not Document:
+                    return "DOCX extraction capability (docx) is not installed."
                 doc = Document(file_stream)
                 text = '\n'.join([para.text for para in doc.paragraphs])
                 logger.info(f"Extracted text from DOCX: {filename}")
@@ -259,8 +291,16 @@ class UniversalClinicalSummarizer:
 
     def _check_emergency(self, question: str) -> Optional[str]:
         """Check if the question indicates a medical emergency using NLP."""
-        doc = nlp(question.lower())
-        emergency_entities = [ent.text for ent in doc.ents if ent.label_ in ["SYMPTOM", "CONDITION"]]
+        question_lower = question.lower()
+        if nlp:
+            try:
+                doc = nlp(question_lower)
+                emergency_entities = [ent.text for ent in doc.ents if ent.label_ in ["SYMPTOM", "CONDITION"]]
+            except Exception:
+                emergency_entities = [question_lower]
+        else:
+            emergency_entities = [question_lower]
+
         for condition in self.SAFETY_FILTERS["emergency_conditions"]:
             if any(condition in entity for entity in emergency_entities):
                 return self._format_emergency_response(condition)

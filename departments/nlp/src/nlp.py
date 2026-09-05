@@ -8,9 +8,24 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Tuple
 
 import bleach
-import nltk
-import spacy
-from nltk.stem import WordNetLemmatizer
+
+try:
+    import nltk
+    nltk.download("wordnet", quiet=True)
+    nltk.download("omw-1.4", quiet=True)
+    from nltk.stem import WordNetLemmatizer
+    lemmatizer = WordNetLemmatizer()
+except Exception:
+    nltk = None
+    class DummyLemmatizer:
+        def lemmatize(self, word):
+            return word
+    lemmatizer = DummyLemmatizer()
+
+try:
+    import spacy
+except ImportError:
+    spacy = None
 
 from departments.nlp.resources.cancer_diseases import (
     BREAST_CANCER_KEYWORD_CUIS,
@@ -45,31 +60,37 @@ from .utils import generate_summary, prepare_note_for_nlp
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 os.environ["USE_TF"] = "0"
 
-# Download NLTK data
-nltk.download("wordnet", quiet=True)
-nltk.download("omw-1.4", quiet=True)
-
 # Setup logging
+log_handlers = [logging.StreamHandler()]
+try:
+    log_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'logs'))
+    os.makedirs(log_dir, exist_ok=True)
+    log_handlers.append(logging.FileHandler(os.path.join(log_dir, 'hims_nlp.log')))
+except Exception:
+    pass
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('/home/mathu/projects/hospital/logs/hims_nlp.log'),
-        logging.StreamHandler()
-    ]
+    handlers=log_handlers
 )
 logger = logging.getLogger("HIMS-NLP")
 HIMS_CONFIG = get_config()
 
 # Initialize spaCy with fallback
-try:
-    nlp = spacy.load("en_core_sci_sm", disable=["ner"])
-    nlp.add_pipe("sentencizer")
-except Exception as e:
-    logger.warning(f"Failed to load en_core_sci_sm: {e}. Falling back to en_core_web_sm.")
-    nlp = spacy.load("en_core_web_sm", disable=["ner"])
-    nlp.add_pipe("sentencizer")
-lemmatizer = WordNetLemmatizer()
+nlp = None
+if spacy:
+    try:
+        nlp = spacy.load("en_core_sci_sm", disable=["ner"])
+        nlp.add_pipe("sentencizer")
+    except Exception as e:
+        logger.warning(f"Failed to load en_core_sci_sm: {e}. Falling back to en_core_web_sm.")
+        try:
+            nlp = spacy.load("en_core_web_sm", disable=["ner"])
+            nlp.add_pipe("sentencizer")
+        except Exception as e2:
+            logger.warning(f"Failed to load en_core_web_sm: {e2}.")
+            nlp = None
 
 # Initialize NVIDIA NIM Client for AI Model Inferences
 nvidia_client = NvidiaNIMClient()

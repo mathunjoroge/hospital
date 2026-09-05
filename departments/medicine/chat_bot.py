@@ -5,9 +5,22 @@ import time
 from uuid import uuid4
 
 import bleach
-import PyPDF2
-import pytesseract
-from docx import Document
+
+try:
+    import PyPDF2
+except ImportError:
+    PyPDF2 = None
+
+try:
+    import pytesseract
+except ImportError:
+    pytesseract = None
+
+try:
+    from docx import Document
+except ImportError:
+    Document = None
+
 from flask import (
     Response,
     current_app,
@@ -60,12 +73,16 @@ def extract_file_content(file):
     try:
         if extension in ['png', 'jpg', 'jpeg', 'gif']:
             # Extract text from images using OCR
+            if not pytesseract:
+                return "OCR capability (pytesseract) is not installed."
             img = Image.open(file.stream)
             text = pytesseract.image_to_string(img)
             return text.strip() or "No text could be extracted from the image."
 
         elif extension == 'pdf':
             # Extract text from PDF
+            if not PyPDF2:
+                return "PDF extraction capability (PyPDF2) is not installed."
             reader = PyPDF2.PdfReader(file.stream)
             text = ''
             for page in reader.pages:
@@ -87,6 +104,8 @@ def extract_file_content(file):
 
         elif extension == 'docx':
             # Extract text from DOCX
+            if not Document:
+                return "DOCX extraction capability (docx) is not installed."
             doc = Document(file.stream)
             text = '\n'.join([para.text for para in doc.paragraphs])
             return text.strip() or "No text could be extracted from the DOCX."
