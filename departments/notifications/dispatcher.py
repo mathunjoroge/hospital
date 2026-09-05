@@ -1,11 +1,11 @@
-from datetime import datetime
 import logging
+from datetime import datetime
 
 from flask import current_app
 from flask_mail import Message
 
-from extensions import db
 from departments.models.notification_log import OutboundNotificationLog
+from extensions import db
 
 logger = logging.getLogger(__name__)
 

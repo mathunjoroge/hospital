@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from unittest.mock import patch
-import pytest
 
+import pytest
 from werkzeug.security import generate_password_hash
 
 from departments.models.billing import Invoice, PaidBill, Payment

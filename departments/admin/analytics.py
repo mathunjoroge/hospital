@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta
+
 from sqlalchemy import func
 
-from extensions import db
 from departments.models.billing import PaidBill
 from departments.models.insurance import Claim
 from departments.models.medicine import AdmittedPatient, Bed, Ward
+from extensions import db
 
 
 def get_bed_occupancy_stats():

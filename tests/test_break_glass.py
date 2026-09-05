@@ -35,7 +35,6 @@ from departments.models.records import Patient
 from departments.models.user import User
 from extensions import db
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Fixtures
 # ─────────────────────────────────────────────────────────────────────────────

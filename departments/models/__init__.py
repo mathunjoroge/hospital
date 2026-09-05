@@ -3,7 +3,6 @@ Central model exports for departments.models
 """
 
 from .admin import Log
-from .break_glass import BreakGlassAccessLog
 from .billing import (
     Billing,
     Charge,
@@ -21,6 +20,7 @@ from .billing import (
     TheatreBill,
     WardBill,
 )
+from .break_glass import BreakGlassAccessLog
 from .hr import (
     Allowance,
     AuditLog,
