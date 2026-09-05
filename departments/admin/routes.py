@@ -3,6 +3,8 @@ import io
 import logging
 from datetime import datetime
 
+import pyotp
+import qrcode
 from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
@@ -10,16 +12,12 @@ from werkzeug.security import generate_password_hash
 from wtforms import PasswordField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Length
 
-import pyotp
-import qrcode
-
-from departments.api.security import validate_password_strength
-from departments.models.admin import Log  # Corrected to use Log model from log module
-from departments.models.user import User  # Import User model
+from departments.models.admin import Log
+from departments.models.user import User
 from departments.rbac import roles_required
 from extensions import db
 
-from . import bp  # Import the blueprint
+from . import bp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -128,7 +126,16 @@ def index():
 
 
 def validate_password_complexity(password):
-    return validate_password_strength(password)
+    """Validate password strength based on security requirements."""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+    if not any(char.isupper() for char in password):
+        return False, "Password must contain at least one uppercase letter."
+    if not any(char.isdigit() for char in password):
+        return False, "Password must contain at least one digit."
+    if not any(char in "!@#$%^&*()-_+=[]{}|;:,.<>?" for char in password):
+        return False, "Password must contain at least one special character."
+    return True, "Password is strong."
 
 
 @bp.route('/add_user', methods=['GET', 'POST'])
