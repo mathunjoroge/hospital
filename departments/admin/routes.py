@@ -1,16 +1,17 @@
 import base64
-from datetime import datetime
 import io
 import logging
+from datetime import datetime
 
 from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
-import pyotp
-import qrcode
 from werkzeug.security import generate_password_hash
 from wtforms import PasswordField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Length
+
+import pyotp
+import qrcode
 
 from departments.api.security import validate_password_strength
 from departments.models.admin import Log  # Corrected to use Log model from log module
