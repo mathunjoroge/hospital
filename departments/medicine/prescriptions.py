@@ -22,7 +22,9 @@ from departments.models.records import Patient, PatientWaitingList
 from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.nlp.logging_setup import get_logger
 from departments.rbac import roles_required
-from departments.shared.drugcentral import get_drugcentral_connection as get_db_connection
+from departments.shared.drugcentral import (
+    get_drugcentral_connection as get_db_connection,
+)
 from extensions import db
 
 from . import bp
