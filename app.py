@@ -12,7 +12,7 @@ from flask_socketio import SocketIO
 from flask_apscheduler import APScheduler
 from werkzeug.security import check_password_hash
 from config import Config
-from extensions import db, login_manager, socketio
+from extensions import db, login_manager, socketio, jwt
 from departments.models.user import User
 from departments.models.admin import Log
 from departments.models.nursing import Notifications
@@ -83,20 +83,33 @@ os.makedirs(app.config['DICOM_UPLOAD_FOLDER'], exist_ok=True)
 
 
 
-from extensions import db, login_manager, socketio, csrf, limiter
+from extensions import db, login_manager, socketio, csrf, limiter, jwt
 from markupsafe import Markup, escape
 
 # Initialize extensions
 db.init_app(app)
+import departments.models  # Ensures all SQLAlchemy models are registered in metadata
 from departments.audit import register_audit_listeners
 register_audit_listeners()
 csrf.init_app(app)
+# Exempt the JWT token endpoint from CSRF — API clients don't carry CSRF cookies
+from departments.api.auth import get_token as _api_get_token
+csrf.exempt(_api_get_token)
+
 limiter.init_app(app)
 if app.config.get('TESTING'):
     limiter.enabled = False
 
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+# JWT configuration — shares SECRET_KEY; tokens expire after 24 h
+app.config['JWT_SECRET_KEY'] = secret_key
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
+app.config['JWT_TOKEN_LOCATION'] = ['headers']
+app.config['JWT_HEADER_NAME'] = 'Authorization'
+app.config['JWT_HEADER_TYPE'] = 'Bearer'
+jwt.init_app(app)
 mail = Mail(app)
 migrate = Migrate(app, db)
 socketio.init_app(app)
@@ -208,8 +221,11 @@ def login():
             flash('Invalid credentials', 'error')
         except Exception as e:
             db.session.rollback()
-            db.session.add(Log(level='ERROR', message=f"Login error: {e}", source='auth'))
-            db.session.commit()
+            try:
+                db.session.add(Log(level='ERROR', message=f"Login error: {e}", source='auth'))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
             logger.error(f"Login error: {e}", exc_info=True)
             flash('Something went wrong. Please try again.', 'error')
     return render_template('login.html')
@@ -349,6 +365,27 @@ app.register_blueprint(fhir_bp, url_prefix='/api/fhir/R4')
 app.register_blueprint(khis_bp, url_prefix='/api/khis')
 
 if __name__ == '__main__':
+    with app.app_context():
+        import departments.models
+        try:
+            db.create_all()
+            from departments.models.user import User
+            from werkzeug.security import generate_password_hash
+            if not User.query.filter_by(username='admin').first():
+                admin = User(
+                    username='admin',
+                    password=generate_password_hash('AdminPassword123!', method='pbkdf2:sha256'),
+                    role='admin'
+                )
+                db.session.add(admin)
+                db.session.commit()
+                print("✅ Database tables verified & default admin user created (admin / AdminPassword123!)")
+            else:
+                print("✅ Database connection verified & schema ready.")
+        except Exception as exc:
+            print(f"⚠️ Database auto-initialization note: {exc}")
+
     debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
     socketio.run(app, debug=debug_mode)
+
 

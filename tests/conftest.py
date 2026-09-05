@@ -17,6 +17,7 @@ def app():
     flask_app.config['TESTING'] = True
     flask_app.config['WTF_CSRF_ENABLED'] = False
     flask_app.config['RATELIMIT_ENABLED'] = False
+    flask_app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     limiter.enabled = False
     with flask_app.app_context():
         db.create_all()

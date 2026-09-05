@@ -17,7 +17,8 @@ from datetime import datetime, timezone, date
 from calendar import monthrange
 
 from flask import Blueprint, jsonify, request, Response, render_template, flash, redirect, url_for
-from flask_login import login_required, current_user
+from flask_login import current_user
+from departments.api.auth import jwt_or_session_required
 from sqlalchemy import func
 
 from extensions import db
@@ -147,7 +148,7 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
 
 
 @khis_bp.route('/export/dhis2_json', methods=['GET'])
-@login_required
+@jwt_or_session_required
 @roles_required('admin', 'records', 'medicine', 'hr', 'api')
 def export_dhis2_json():
     """Export monthly aggregated values formatted as standard DHIS2 dataValueSets JSON."""
@@ -178,7 +179,7 @@ def export_dhis2_json():
 
 
 @khis_bp.route('/export/csv', methods=['GET'])
-@login_required
+@jwt_or_session_required
 @roles_required('admin', 'records', 'medicine', 'hr', 'api')
 def export_dhis2_csv():
     """Export monthly aggregated values formatted as downloadable CSV for KHIS upload."""
@@ -201,7 +202,7 @@ def export_dhis2_csv():
 
 
 @khis_bp.route('/reports/monthly', methods=['GET'])
-@login_required
+@jwt_or_session_required
 @roles_required('admin', 'records', 'medicine', 'hr', 'api')
 def khis_monthly_report_dashboard():
     """Render preview dashboard for KHIS / DHIS2 monthly reporting metrics."""

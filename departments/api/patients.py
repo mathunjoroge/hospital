@@ -1,11 +1,11 @@
 from flask import request, jsonify
 from . import bp  # ✅ Import the API blueprint
 from departments.models.records import Patient
-from flask_login import login_required
+from departments.api.auth import jwt_or_session_required
 from extensions import limiter
 
 @bp.route('/patients/search', methods=['GET'])
-@login_required
+@jwt_or_session_required
 @limiter.limit("20 per minute")
 def search_patients():
     """API endpoint to search for patients using Select2."""

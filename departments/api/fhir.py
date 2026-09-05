@@ -15,7 +15,8 @@ Blueprint endpoints (registered under /api/fhir/R4):
 import logging
 from datetime import datetime
 from flask import Blueprint, jsonify, request, abort, url_for
-from flask_login import login_required, current_user
+from flask_login import current_user
+from departments.api.auth import jwt_or_session_required
 
 from extensions import db
 from departments.rbac import roles_required
@@ -144,7 +145,7 @@ def vitals_to_fhir_observations(vitals: Vitals) -> list[dict]:
 
 
 @fhir_bp.route('/Patient/<string:patient_id>', methods=['GET'])
-@login_required
+@jwt_or_session_required
 @roles_required('admin', 'records', 'medicine', 'nursing', 'pharmacy', 'laboratory', 'imaging', 'api')
 def get_fhir_patient(patient_id):
     """Retrieve FHIR R4 Patient resource by patient_id."""
@@ -153,7 +154,7 @@ def get_fhir_patient(patient_id):
 
 
 @fhir_bp.route('/Observation', methods=['GET'])
-@login_required
+@jwt_or_session_required
 @roles_required('admin', 'records', 'medicine', 'nursing', 'pharmacy', 'laboratory', 'imaging', 'api')
 def search_fhir_observations():
     """Search FHIR R4 Observations for a patient (Vitals & Labs)."""
@@ -178,7 +179,7 @@ def search_fhir_observations():
 
 
 @fhir_bp.route('/Condition', methods=['GET'])
-@login_required
+@jwt_or_session_required
 @roles_required('admin', 'records', 'medicine', 'nursing', 'api')
 def search_fhir_conditions():
     """Search FHIR R4 Conditions (ICD-10 Diagnoses from SOAP notes)."""
@@ -224,7 +225,7 @@ def search_fhir_conditions():
 
 
 @fhir_bp.route('/DiagnosticReport', methods=['GET'])
-@login_required
+@jwt_or_session_required
 @roles_required('admin', 'records', 'medicine', 'nursing', 'laboratory', 'imaging', 'api')
 def search_fhir_diagnostic_reports():
     """Search FHIR R4 DiagnosticReport resources (Lab & Imaging)."""
@@ -284,7 +285,7 @@ def search_fhir_diagnostic_reports():
 
 
 @fhir_bp.route('/MedicationRequest', methods=['GET'])
-@login_required
+@jwt_or_session_required
 @roles_required('admin', 'records', 'medicine', 'nursing', 'pharmacy', 'api')
 def search_fhir_medication_requests():
     """Search FHIR R4 MedicationRequest resources (Prescriptions)."""
