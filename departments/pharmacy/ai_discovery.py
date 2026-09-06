@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 @roles_required('pharmacy', 'admin')
 def ai_discovery():
     """Renders the AI Drug Discovery page and handles form submissions for candidate generation and docking estimation."""
+    from departments.models.compliance import has_ai_consent
     from departments.nlp.src.nvidia_client import NvidiaNIMClient
     from departments.pharmacy.cheminformatics import (
         compute_molecular_properties,
@@ -29,6 +30,13 @@ def ai_discovery():
     tool_used = None
 
     if request.method == 'POST':
+        patient_id = (request.form.get('patient_id') or request.args.get('patient_id') or '').strip()
+        if patient_id and not has_ai_consent(patient_id):
+            return jsonify({
+                'error': 'AI-assisted drug discovery unavailable: patient has not consented to AI processing.',
+                'code': 'AI_CONSENT_REQUIRED'
+            }), 403
+
         client = NvidiaNIMClient()
         action = request.form.get('action')
         is_offline = not client.is_available()

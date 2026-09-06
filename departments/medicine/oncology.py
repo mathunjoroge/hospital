@@ -7,6 +7,7 @@ from flask_login import login_required
 from sqlalchemy import func
 
 from departments.forms import OncologyNoteForm, OncoPatientForm, PatientSearchForm
+from departments.models.compliance import has_ai_consent
 from departments.models.laboratory import LabResultTemplate
 from departments.models.medicine import (
     CancerType,
@@ -26,6 +27,7 @@ from departments.models.medicine import (
 from departments.models.records import Patient
 from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.nlp.logging_setup import get_logger
+from departments.api.audit import log_audit_event
 from extensions import db
 
 from . import bp
@@ -33,8 +35,6 @@ from . import bp
 logger = get_logger()
 
 # Instantiate the summarizer for use in chatbot_interface
-
-
 
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
 nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
@@ -272,6 +272,34 @@ def oncology_encounter(patient_id):
         bookings=bookings,
         notes=notes
     )
+
+
+@bp.route('/oncology/ai_summary/<patient_id>', methods=['GET', 'POST'])
+@login_required
+def oncology_ai_summary(patient_id):
+    """Generates AI clinical summary for an oncology patient, gated by DPA 2019 AI consent."""
+    if not has_ai_consent(patient_id):
+        log_audit_event(
+            action='AI_CONSENT_REFUSED',
+            resource_type='Patient',
+            resource_id=patient_id,
+            details={'feature': 'oncology_ai_summary', 'reason': 'Missing or revoked ai_diagnosis consent'}
+        )
+        return jsonify({
+            'error': 'AI-assisted summary unavailable: patient has not consented to AI processing of clinical notes.',
+            'code': 'AI_CONSENT_REQUIRED'
+        }), 403
+
+    selected_patient = Patient.query.filter_by(patient_id=patient_id).first()
+    if not selected_patient:
+        return jsonify({'error': 'Patient not found'}), 404
+    notes = OncologyNote.query.filter_by(patient_id=selected_patient.patient_id).all()
+    notes_text = " ".join([n.note_content for n in notes if n.note_content]) or "Patient enrolled in oncology care."
+    summary = Summarizer.answer(notes_text)
+    return jsonify({
+        'patient_id': patient_id,
+        'summary': summary
+    })
 
 @bp.route('/oncology/add', methods=['GET', 'POST'])
 @login_required
