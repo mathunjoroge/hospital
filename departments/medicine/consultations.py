@@ -233,11 +233,13 @@ def index():
 
         # KPI stats for dashboard
         try:
-            total_inpatients = AdmittedPatient.query.filter(AdmittedPatient.discharged_on is None).count()
-            pending_labs = RequestedLab.query.filter_by(status='pending').count()
-            pending_imaging = RequestedImage.query.filter_by(status='pending').count()
+            total_inpatients = AdmittedPatient.query.filter(AdmittedPatient.discharged_on.is_(None)).count()
+            pending_labs = RequestedLab.query.filter_by(status=0).count()
+            pending_imaging = RequestedImage.query.filter_by(status=0).count()
             theatre_pending = TheatreList.query.filter_by(status=0).count()
-        except Exception:
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error calculating dashboard KPIs: {e}")
             total_inpatients = pending_labs = pending_imaging = theatre_pending = 0
 
         return render_template(
@@ -249,9 +251,17 @@ def index():
             theatre_pending=theatre_pending,
         )
     except Exception as e:
-        flash('Something went wrong. Please try again.', 'error')
-        print(f"Debug: Error in medicine.index: {e}")  # Debugging
-        return redirect(url_for('medicine.index'))  # Redirect to home on error
+        db.session.rollback()
+        logger.error(f"Error in medicine.index: {e}")
+        flash('Something went wrong loading the clinical dashboard.', 'error')
+        return render_template(
+            'medicine/index.html',
+            waiting_list=[],
+            total_inpatients=0,
+            pending_labs=0,
+            pending_imaging=0,
+            theatre_pending=0,
+        )
 
 
 # View or submit SOAP notes for a specific patient
