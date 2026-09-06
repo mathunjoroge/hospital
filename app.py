@@ -368,6 +368,7 @@ from departments.pharmacy.fefo import fefo_bp  # noqa: E402
 from departments.pharmacy.po_routes import po_bp  # noqa: E402
 from departments.records import bp as records_bp  # noqa: E402
 from departments.stores import bp as stores_bp  # noqa: E402
+from departments.stores.transfer_routes import transfer_bp  # noqa: E402
 from departments.telemedicine import bp as telemedicine_bp  # noqa: E402
 
 app.register_blueprint(records_bp, url_prefix='/records')
@@ -377,7 +378,9 @@ app.register_blueprint(medicine_bp, url_prefix='/medicine')
 app.register_blueprint(laboratory_bp, url_prefix='/laboratory')
 app.register_blueprint(imaging_bp, url_prefix='/imaging')
 app.register_blueprint(stores_bp, url_prefix='/stores')
+app.register_blueprint(transfer_bp)  # Phase E: mounts /stores/transfers/*
 app.register_blueprint(admin_bp, url_prefix='/admin')
+
 app.register_blueprint(nursing_bp, url_prefix='/nursing')
 app.register_blueprint(hr_bp, url_prefix='/hr')
 app.register_blueprint(mortuary_bp, url_prefix='/mortuary')

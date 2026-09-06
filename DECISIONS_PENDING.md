@@ -68,3 +68,22 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
   1. **Provider Selection**: Should storage use AWS S3, self-hosted MinIO, or Cloudflare R2?
   2. **Data Residency Compliance**: Under the Kenya Data Protection Act (2019), health data must comply with strict data localization guidelines. Is hosting on a local cloud provider or self-hosted MinIO within Kenya mandatory, or is an AWS/R2 regional bucket acceptable?
 
+---
+
+## 8. Supply Chain — Single-Facility vs Multi-Facility Deployment Architecture (Phase B.2 — HARD STOP)
+
+* **Context**: The `Facility` model provides a foundation for identifying the home institution and counterparty institutions.
+* **Questions / Decisions Required**:
+  1. **Deployment Architecture**: Is this HMIS deployed as a single-facility system for one hospital (where transfers to/from external facilities are recorded as one-sided dispatch/receipt transactions), or a multi-facility shared system across a health network (where transfers operate as two-sided transactions in a single shared database)?
+  2. **Phase E Dependency**: Phase E (Inter-Facility Transfer) implementation depends on this architecture decision.
+
+---
+
+## 9. Supply Chain — Budget & Vote-Head Procurement Control Scope (Phase D.1 — HARD STOP)
+
+* **Context**: Government institutional LPO generation typically requires budget vote-head validation before LPO approval.
+* **Questions / Decisions Required**:
+  1. **Vote-Head Structure**: Does the facility track formal vote-head/budget allocations per department or item category within the HMIS, or is budget management handled externally?
+  2. **Control Enforcement**: Should LPO approval block if requested line items exceed an allocated vote-head budget cap?
+
+

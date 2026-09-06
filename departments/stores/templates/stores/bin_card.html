@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-card-checklist text-primary"></i> Digital Bin Card Ledger</h2>
+        <a href="{{ url_for('stores.get_reconciliation_report') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-shield-check"></i> Reconciliation Report
+        </a>
+    </div>
+
+    <!-- Summary Header Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Item #: {{ item_id }} ({{ item_type }})</h5>
+            {% if reconciliation.match %}
+                <span class="badge bg-success"><i class="bi bi-check-circle"></i> Ledger Balance Reconciled</span>
+            {% else %}
+                <span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Discrepancy Flagged: {{ reconciliation.variance }}</span>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <h6 class="text-muted">Ledger Balance (Sum)</h6>
+                    <h3 class="fw-bold text-primary">{{ reconciliation.ledger_balance }}</h3>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="text-muted">Cached Stock Level</h6>
+                    <h3 class="fw-bold text-info">{{ reconciliation.cached_balance }}</h3>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="text-muted">Variance</h6>
+                    <h3 class="fw-bold {{ 'text-success' if reconciliation.match else 'text-danger' }}">
+                        {{ reconciliation.variance }}
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Append-only Movement History Table -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="card-title mb-0"><i class="bi bi-journal-text"></i> Movement Ledger Audit Trail</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Timestamp</th>
+                            <th>Movement Type</th>
+                            <th>Quantity Delta</th>
+                            <th>Balance After</th>
+                            <th>Reference</th>
+                            <th>User ID</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in movements %}
+                        <tr>
+                            <td>{{ m.id }}</td>
+                            <td>{{ m.created_at.strftime('%Y-%m-%d %H:%M') if m.created_at else 'N/A' }}</td>
+                            <td>
+                                {% if m.movement_type == 'RECEIVED' %}
+                                    <span class="badge bg-success">RECEIVED</span>
+                                {% elif m.movement_type == 'ISSUED' %}
+                                    <span class="badge bg-warning text-dark">ISSUED</span>
+                                {% elif m.movement_type == 'TRANSFER_OUT' or m.movement_type == 'TRANSFER_IN' %}
+                                    <span class="badge bg-info text-dark">{{ m.movement_type }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ m.movement_type }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold {{ 'text-success' if m.quantity_delta > 0 else 'text-danger' }}">
+                                {{ '+' if m.quantity_delta > 0 else '' }}{{ m.quantity_delta }}
+                            </td>
+                            <td class="fw-bold">{{ m.balance_after }}</td>
+                            <td>
+                                <small class="text-muted">{{ m.reference_type or '' }}</small>
+                                <div><code>{{ m.reference_id or 'N/A' }}</code></div>
+                            </td>
+                            <td>{{ m.user_id or 'System' }}</td>
+                            <td><small>{{ m.notes or '-' }}</small></td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">No stock movements recorded for this item.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

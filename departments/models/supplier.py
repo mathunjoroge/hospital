@@ -64,6 +64,11 @@ class PurchaseOrder(db.Model):
         index=True,
     )  # DRAFT, ORDERED, RECEIVED, CANCELLED
 
+    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    received_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    sod_warning = db.Column(db.Boolean, default=False, nullable=False)
+
     total_cost = db.Column(db.Numeric(10, 2), default=0.0, nullable=False)
     notes = db.Column(db.Text, nullable=True)
 
@@ -76,6 +81,9 @@ class PurchaseOrder(db.Model):
     received_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     items = db.relationship('PurchaseOrderItem', backref='purchase_order', cascade='all, delete-orphan')
+    creator = db.relationship('User', foreign_keys=[created_by_id], backref=db.backref('created_pos', lazy='dynamic'))
+    approver = db.relationship('User', foreign_keys=[approved_by_id], backref=db.backref('approved_pos', lazy='dynamic'))
+    receiver = db.relationship('User', foreign_keys=[received_by_id], backref=db.backref('received_pos', lazy='dynamic'))
 
     def __repr__(self):
         return f"<PurchaseOrder po_number='{self.po_number}' status='{self.status}' total={self.total_cost}>"
@@ -92,6 +100,10 @@ class PurchaseOrder(db.Model):
             'supplier_id': self.supplier_id,
             'supplier_name': self.supplier.name if self.supplier else None,
             'status': self.status,
+            'created_by_id': self.created_by_id,
+            'approved_by_id': self.approved_by_id,
+            'received_by_id': self.received_by_id,
+            'sod_warning': self.sod_warning,
             'total_cost': float(self.total_cost),
             'notes': self.notes,
             'created_at': self.created_at.isoformat() if self.created_at else None,
@@ -102,25 +114,41 @@ class PurchaseOrder(db.Model):
 
 
 class PurchaseOrderItem(db.Model):
-    """Line item in a Purchase Order referencing a specific drug."""
+    """Line item in a Purchase Order referencing a drug or non-pharm item."""
     __tablename__ = 'purchase_order_items'
 
     id = db.Column(db.Integer, primary_key=True)
     po_id = db.Column(db.Integer, db.ForeignKey('purchase_orders.id'), nullable=False, index=True)
-    drug_id = db.Column(db.Integer, db.ForeignKey('drugs.id'), nullable=False, index=True)
+    item_type = db.Column(db.String(20), default='DRUG', nullable=False)  # DRUG | NON_PHARM
+    drug_id = db.Column(db.Integer, db.ForeignKey('drugs.id'), nullable=True, index=True)
+    non_pharm_item_id = db.Column(db.Integer, db.ForeignKey('non_pharm_items.id'), nullable=True, index=True)
+    vote_head_id = db.Column(db.Integer, db.ForeignKey('vote_heads.id'), nullable=True, index=True)
 
     quantity_ordered = db.Column(db.Integer, nullable=False)
     unit_cost = db.Column(db.Numeric(10, 2), nullable=False)
     quantity_received = db.Column(db.Integer, default=0, nullable=False)
 
     drug = db.relationship('Drug')
+    non_pharm_item = db.relationship('NonPharmItem')
+    vote_head = db.relationship('VoteHead')
+
+
+    @property
+    def item_name(self) -> str:
+        if self.item_type == 'NON_PHARM' and self.non_pharm_item:
+            return self.non_pharm_item.name
+        elif self.drug:
+            return self.drug.generic_name
+        return f"Item #{self.id}"
 
     def to_dict(self) -> dict:
         return {
             'id': self.id,
             'po_id': self.po_id,
+            'item_type': self.item_type,
             'drug_id': self.drug_id,
-            'drug_name': self.drug.generic_name if self.drug else None,
+            'non_pharm_item_id': self.non_pharm_item_id,
+            'item_name': self.item_name,
             'quantity_ordered': self.quantity_ordered,
             'unit_cost': float(self.unit_cost),
             'quantity_received': self.quantity_received,

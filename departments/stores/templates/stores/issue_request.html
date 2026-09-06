@@ -29,6 +29,8 @@
                             <th>Strength</th>
                             <th>Quantity Requested</th>
                             <th>Quantity Issued</th>
+                            <th>Expiry Date *</th>
+                            <th>Batch Number</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -48,9 +50,22 @@
                                        max="{{ item.quantity_requested }}" 
                                        required>
                             </td>
+                            <td>
+                                <input type="date"
+                                       name="expiry_date_{{ item.id }}"
+                                       class="form-control"
+                                       required>
+                            </td>
+                            <td>
+                                <input type="text"
+                                       name="batch_number_{{ item.id }}"
+                                       class="form-control"
+                                       placeholder="REQ-{{ drug_request.id }}-{{ item.id }}">
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
+
                 </table>
             </div>
 
