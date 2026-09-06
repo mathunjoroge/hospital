@@ -65,6 +65,18 @@
 - [x] **5.8 Load & Stress Baseline Metrics** ✅ (Executed `scripts/load_test_baseline.py`, verified 1,200 req/sec on `/healthz` & Flask-Limiter lockout, authored `docs/load_test_results.md`)
 - [x] **5.9 External Validation Preparation** ✅ (Produced `docs/security_audit_readiness.md`, `docs/clinical_safety_review_packaging.md`, and `docs/accessibility_audit_report.md`)
 
+## PHASE 6 — Must-Have Before First Real Patient
+
+- [x] **6.1 Patient Global Allergy Registry** ✅ (`PatientAllergy` model, prescribing safety check integration - 2/2 tests passing)
+- [x] **6.2 Active Clinical Problem List** ✅ (`PatientProblem` model, chart view & REST APIs - 2/2 tests passing)
+- [x] **6.3 Real ICD-10 Database Staging** ✅ (Expanded 50+ item multi-department diagnosis catalog, WHO API credential requirement documented in `DECISIONS_PENDING.md`)
+- [x] **6.4 Staff Credential & License Expiry Tracking** ✅ (`StaffCredential` model, admin view & warning alerts - 1/1 test passing)
+- [x] **6.5 Celery Async Task Queue** ✅ (`celery==5.4.0` integration, `celery_app.py`, worker container in `docker-compose.yml`)
+- [x] **6.6 Hot-Path Load Benchmarking** ✅ (Patient registration, prescription sign-off, billing payment benchmarked with 0.0% error rate in `docs/load_test_results.md`)
+- [x] **6.7 Phase B Hard Stop Decision Gates** ✅ (Controlled Drug Register, eTIMS tax compliance, File storage backend & DPA 2019 data residency logged to `DECISIONS_PENDING.md`)
+- [x] **6.8 Phase C Accessibility & Audit Preparation** ✅ (Updated `docs/accessibility_audit_report.md`, `docs/security_audit_readiness.md`, `docs/clinical_safety_review_packaging.md`)
+
+
 
 
 
