@@ -242,3 +242,26 @@ def test_bin_card_and_reconciliation_report_apis(client, app, user_approver, tes
     assert "drugs" in json_rr
     assert "non_pharm" in json_rr
     assert "has_discrepancies" in json_rr
+
+
+def test_suppliers_directory_ui_view(client, user_approver, test_setup):
+    """Test GET /stores/suppliers renders suppliers directory UI page."""
+    client.post("/login", data={"username": "sc_approver_user", "password": "Password123!"})
+    res = client.get("/stores/suppliers")
+    assert res.status_code == 200
+    assert b"Suppliers &amp; Vendors Directory" in res.data or b"Suppliers & Vendors Directory" in res.data
+    assert b"Pharma Supply Co" in res.data
+
+
+def test_inter_facility_transfers_ui_views(client, user_approver):
+    """Test GET /stores/transfers and /stores/transfers/new UI routes."""
+    client.post("/login", data={"username": "sc_approver_user", "password": "Password123!"})
+
+    res_list = client.get("/stores/transfers")
+    assert res_list.status_code == 200
+    assert b"Inter-Facility Stock Transfers" in res_list.data
+
+    res_new = client.get("/stores/transfers/new")
+    assert res_new.status_code == 200
+    assert b"Initiate Inter-Facility Transfer" in res_new.data
+

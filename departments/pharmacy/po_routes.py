@@ -332,7 +332,7 @@ def receive_po_shipment(po_id):
 
 @po_bp.route('/pharmacy/receipt/direct', methods=['POST'])
 @login_required
-@roles_required('Admin', 'Pharmacist', 'Storekeeper')
+@roles_required('pharmacy', 'admin', 'stores', 'Storekeeper', 'Admin', 'Pharmacist')
 def record_direct_receipt():
     """
     Record direct receipt of supplies from a supplier without a prior Purchase Order.

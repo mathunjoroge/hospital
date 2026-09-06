@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 font-weight-bold text-gray-800 mb-1"><i class="bi bi-box-arrow-up-right text-primary me-2"></i>Initiate Inter-Facility Transfer</h2>
+            <p class="text-muted small mb-0">Create a new commodity transfer request from <strong>{{ home_facility.name }}</strong> to a partner branch/facility.</p>
+        </div>
+        <a href="{{ url_for('stores.list_transfers_view') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Transfers Log
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-journal-plus me-1"></i> Transfer Request Details</h6>
+        </div>
+        <div class="card-body">
+            <div id="transferAlert" class="alert alert-danger d-none" role="alert"></div>
+
+            <form id="createTransferForm">
+                <!-- Target Facility & Notes -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label for="targetFacilitySelect" class="form-label fw-bold">Destination Facility <span class="text-danger">*</span></label>
+                        <select class="form-select" id="targetFacilitySelect" required>
+                            <option value="" selected disabled>-- Select Destination Facility --</option>
+                            {% for f in target_facilities %}
+                            <option value="{{ f.id }}">{{ f.name }} ({{ f.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="transferNotes" class="form-label fw-bold">Transfer Purpose / Notes</label>
+                        <input type="text" class="form-control" id="transferNotes" placeholder="e.g. Stock balancing, Emergency resupply">
+                    </div>
+                </div>
+
+                <!-- Line Items Table -->
+                <h6 class="fw-bold mb-3"><i class="bi bi-boxes me-1"></i> Commodities to Transfer</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered align-middle" id="transferItemsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 140px;">Category</th>
+                                <th>Item / Commodity <span class="text-danger">*</span></th>
+                                <th style="width: 150px;">Quantity Requested <span class="text-danger">*</span></th>
+                                <th style="width: 60px;" class="text-center"><i class="bi bi-trash"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody id="transferItemsTbody">
+                            <!-- Dynamic rows injected here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mb-4">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="addTransferRowBtn">
+                        <i class="bi bi-plus-circle me-1"></i> Add Commodity
+                    </button>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                    <a href="{{ url_for('stores.list_transfers_view') }}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" id="submitTransferBtn" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg me-1"></i> Create Draft Transfer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const DRUGS_LIST = [
+    {% for d in drugs %}
+    { id: {{ d.id }}, name: {{ (d.generic_name ~ " (Available Stock: " ~ d.quantity_in_stock ~ ")")|tojson }} },
+    {% endfor %}
+];
+
+const NON_PHARM_LIST = [
+    {% for np in non_pharms %}
+    { id: {{ np.id }}, name: {{ (np.name ~ " [" ~ np.unit ~ "] (Available Stock: " ~ np.stock_level ~ ")")|tojson }} },
+    {% endfor %}
+];
+
+document.addEventListener('DOMContentLoaded', function() {
+    const tbody = document.getElementById('transferItemsTbody');
+    const addBtn = document.getElementById('addTransferRowBtn');
+    const form = document.getElementById('createTransferForm');
+    const alertBox = document.getElementById('transferAlert');
+    const submitBtn = document.getElementById('submitTransferBtn');
+
+    function createRow() {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <select class="form-select form-select-sm item-type-select">
+                    <option value="DRUG" selected>Drug</option>
+                    <option value="NON_PHARM">Non-Pharm</option>
+                </select>
+            </td>
+            <td>
+                <select class="form-select form-select-sm item-id-select" required>
+                    <option value="" disabled selected>-- Select Item --</option>
+                </select>
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm item-qty" min="1" value="1" required>
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-row-btn">&times;</button>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+
+        const typeSelect = tr.querySelector('.item-type-select');
+        const itemSelect = tr.querySelector('.item-id-select');
+        const removeBtn = tr.querySelector('.remove-row-btn');
+
+        function populateItems() {
+            const type = typeSelect.value;
+            itemSelect.innerHTML = '<option value="" disabled selected>-- Select Item --</option>';
+            const list = (type === 'DRUG') ? DRUGS_LIST : NON_PHARM_LIST;
+            list.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = item.name;
+                itemSelect.appendChild(opt);
+            });
+        }
+
+        typeSelect.addEventListener('change', populateItems);
+        populateItems();
+
+        removeBtn.addEventListener('click', function() {
+            if (tbody.querySelectorAll('tr').length > 1) {
+                tr.remove();
+            } else {
+                alert('At least one line item is required.');
+            }
+        });
+    }
+
+    createRow();
+    addBtn.addEventListener('click', createRow);
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        alertBox.classList.add('d-none');
+
+        const targetFacilityId = document.getElementById('targetFacilitySelect').value;
+        const notes = document.getElementById('transferNotes').value.trim() || 'Inter-facility commodity stock transfer';
+
+        if (!targetFacilityId) {
+            alertBox.textContent = 'Please select a destination facility.';
+            alertBox.classList.remove('d-none');
+            return;
+        }
+
+        const items = [];
+        let isValid = true;
+
+        document.querySelectorAll('#transferItemsTbody tr').forEach(tr => {
+            const type = tr.querySelector('.item-type-select').value;
+            const id = tr.querySelector('.item-id-select').value;
+            const qty = parseInt(tr.querySelector('.item-qty').value, 10);
+
+            if (!id || isNaN(qty) || qty <= 0) {
+                isValid = false;
+            }
+
+            const itemPayload = {
+                item_type: type,
+                quantity_requested: qty
+            };
+            if (type === 'DRUG') {
+                itemPayload.drug_id = parseInt(id, 10);
+            } else {
+                itemPayload.non_pharm_item_id = parseInt(id, 10);
+            }
+            items.push(itemPayload);
+        });
+
+        if (!isValid || items.length === 0) {
+            alertBox.textContent = 'Please select valid items and quantities for all rows.';
+            alertBox.classList.remove('d-none');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Submitting...';
+
+        try {
+            const response = await fetch('/stores/transfers/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    target_facility_id: parseInt(targetFacilityId, 10),
+                    notes: notes,
+                    items: items
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                window.location.href = "{{ url_for('stores.list_transfers_view') }}";
+            } else {
+                alertBox.textContent = data.error || 'Failed to create transfer request.';
+                alertBox.classList.remove('d-none');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Create Draft Transfer';
+            }
+        } catch (err) {
+            alertBox.textContent = 'Network or server error occurred.';
+            alertBox.classList.remove('d-none');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Create Draft Transfer';
+        }
+    });
+});
+</script>
+{% endblock %}

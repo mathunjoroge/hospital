@@ -14,6 +14,7 @@ from flask_login import current_user, login_required
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
+from departments.models.facility import Facility, get_home_facility
 from departments.models.pharmacy import Batch, Drug, DrugRequest, RequestItem
 from departments.models.stock_movement import (
     StockMovement,
@@ -22,6 +23,7 @@ from departments.models.stock_movement import (
 )
 from departments.models.stores import NonPharmCategory, NonPharmItem, OtherOrder
 from departments.models.supplier import PurchaseOrder, Supplier
+from departments.models.transfer import TransferOrder
 from departments.models.user import User  # Import User model
 from departments.rbac import roles_required
 from extensions import db
@@ -399,6 +401,78 @@ def receipt_history():
         PurchaseOrder.status.in_(['RECEIVED', 'PARTIALLY_RECEIVED'])
     ).order_by(PurchaseOrder.received_at.desc()).all()
     return render_template('stores/receipt_history.html', received_pos=received_pos)
+
+
+@bp.route('/suppliers', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def list_suppliers_view():
+    """Render Suppliers directory and management page."""
+    suppliers = Supplier.query.order_by(Supplier.name).all()
+    active_count = sum(1 for s in suppliers if s.is_active)
+    avg_lead_time = (sum(s.lead_time_days for s in suppliers) / len(suppliers)) if suppliers else 0
+    return render_template(
+        'stores/suppliers.html',
+        suppliers=suppliers,
+        active_count=active_count,
+        avg_lead_time=round(avg_lead_time, 1),
+    )
+
+
+@bp.route('/transfers', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def list_transfers_view():
+    """Render inter-facility transfers hub page."""
+    home_facility = get_home_facility()
+    transfers = TransferOrder.query.order_by(TransferOrder.created_at.desc()).all()
+    outward_transfers = [t for t in transfers if t.source_facility_id == home_facility.id]
+    inward_transfers = [t for t in transfers if t.target_facility_id == home_facility.id]
+    return render_template(
+        'stores/transfers_list.html',
+        home_facility=home_facility,
+        all_transfers=transfers,
+        outward_transfers=outward_transfers,
+        inward_transfers=inward_transfers,
+    )
+
+
+@bp.route('/transfers/new', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def new_transfer_view():
+    """Render form to create new inter-facility stock transfer request."""
+    home_facility = get_home_facility()
+    target_facilities = Facility.query.filter(Facility.id != home_facility.id, Facility.is_active.is_(True)).all()
+    drugs = Drug.query.order_by(Drug.generic_name).all()
+    non_pharms = NonPharmItem.query.order_by(NonPharmItem.name).all()
+    return render_template(
+        'stores/transfer_create.html',
+        home_facility=home_facility,
+        target_facilities=target_facilities,
+        drugs=drugs,
+        non_pharms=non_pharms,
+    )
+
+
+@bp.route('/transfers/<int:transfer_id>', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def view_transfer_detail(transfer_id):
+    """Render details page for a specific inter-facility transfer."""
+    home_facility = get_home_facility()
+    transfer = db.session.get(TransferOrder, transfer_id)
+    if not transfer:
+        flash("Transfer order not found", 'error')
+        return redirect(url_for('stores.list_transfers_view'))
+    is_outward = (transfer.source_facility_id == home_facility.id)
+    return render_template(
+        'stores/transfer_detail.html',
+        transfer=transfer,
+        home_facility=home_facility,
+        is_outward=is_outward,
+    )
+
 
 
 

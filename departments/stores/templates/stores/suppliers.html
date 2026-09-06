@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid py-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 font-weight-bold text-gray-800 mb-1"><i class="bi bi-truck text-primary me-2"></i>Suppliers & Vendors Directory</h2>
+            <p class="text-muted small mb-0">Manage pharmaceutical and non-pharmaceutical vendor directory, lead times, and contact information.</p>
+        </div>
+        <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
+            <i class="bi bi-plus-lg me-1"></i> Register New Supplier
+        </button>
+    </div>
+
+    <!-- Summary Metrics -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 bg-primary text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-white-50 small fw-bold text-uppercase d-block">Total Suppliers</span>
+                            <h3 class="mb-0 font-weight-bold">{{ suppliers|length }}</h3>
+                        </div>
+                        <i class="bi bi-building fs-1 text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 bg-success text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-white-50 small fw-bold text-uppercase d-block">Active Vendors</span>
+                            <h3 class="mb-0 font-weight-bold">{{ active_count }}</h3>
+                        </div>
+                        <i class="bi bi-check-circle fs-1 text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 bg-info text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-white-50 small fw-bold text-uppercase d-block">Avg Lead Time</span>
+                            <h3 class="mb-0 font-weight-bold">{{ avg_lead_time }} Days</h3>
+                        </div>
+                        <i class="bi bi-hourglass-split fs-1 text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suppliers Table Card -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-list-ul me-1"></i> Registered Vendor Directory</h6>
+            <input type="text" id="supplierSearch" class="form-control form-control-sm w-auto" placeholder="Search suppliers...">
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="suppliersTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Supplier Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Lead Time</th>
+                            <th>Status</th>
+                            <th>Total Purchase Orders</th>
+                            <th class="text-end pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if suppliers %}
+                            {% for supplier in suppliers %}
+                            <tr>
+                                <td class="ps-3 fw-bold text-primary">
+                                    <i class="bi bi-building me-1 text-secondary"></i> {{ supplier.name }}
+                                </td>
+                                <td>{{ supplier.contact_email or '—' }}</td>
+                                <td>{{ supplier.phone or '—' }}</td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">
+                                        <i class="bi bi-clock me-1"></i>{{ supplier.lead_time_days }} day(s)
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if supplier.is_active %}
+                                        <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary rounded-pill">{{ supplier.purchase_orders.count() }} orders</span>
+                                </td>
+                                <td class="text-end pe-3">
+                                    <a href="{{ url_for('stores.list_purchase_orders') }}?supplier={{ supplier.id }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-journal-text me-1"></i> View Orders
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                                    No suppliers registered yet. Click "Register New Supplier" above to add one.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add Supplier -->
+<div class="modal fade" id="addSupplierModal" tabindex="-1" aria-labelledby="addSupplierModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="addSupplierModalLabel"><i class="bi bi-building-add me-2"></i>Register New Supplier</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addSupplierForm">
+                <div class="modal-body">
+                    <div id="supplierModalAlert" class="alert alert-danger d-none" role="alert"></div>
+
+                    <div class="mb-3">
+                        <label for="supplierName" class="form-label fw-bold">Supplier Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="supplierName" required placeholder="e.g. KEMSA, MEDS, LabChem Ltd">
+                    </div>
+                    <div class="mb-3">
+                        <label for="supplierEmail" class="form-label">Contact Email</label>
+                        <input type="email" class="form-control" id="supplierEmail" placeholder="orders@supplier.co.ke">
+                    </div>
+                    <div class="mb-3">
+                        <label for="supplierPhone" class="form-label">Phone Number</label>
+                        <input type="text" class="form-control" id="supplierPhone" placeholder="+254 700 000 000">
+                    </div>
+                    <div class="mb-3">
+                        <label for="supplierAddress" class="form-label">Physical Address</label>
+                        <input type="text" class="form-control" id="supplierAddress" placeholder="Nairobi Industrial Area">
+                    </div>
+                    <div class="mb-3">
+                        <label for="supplierLeadTime" class="form-label fw-bold">Expected Lead Time (Days) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="supplierLeadTime" value="3" min="1" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" id="saveSupplierBtn" class="btn btn-primary px-4">
+                        <i class="bi bi-save me-1"></i> Register Supplier
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Quick search filter
+    const searchInput = document.getElementById('supplierSearch');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function() {
+            const query = this.value.toLowerCase();
+            document.querySelectorAll('#suppliersTable tbody tr').forEach(tr => {
+                const text = tr.textContent.toLowerCase();
+                tr.style.display = text.includes(query) ? '' : 'none';
+            });
+        });
+    }
+
+    // Modal submit handler
+    const form = document.getElementById('addSupplierForm');
+    if (form) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const alertBox = document.getElementById('supplierModalAlert');
+            const submitBtn = document.getElementById('saveSupplierBtn');
+            alertBox.classList.add('d-none');
+
+            const payload = {
+                name: document.getElementById('supplierName').value.trim(),
+                contact_email: document.getElementById('supplierEmail').value.trim(),
+                phone: document.getElementById('supplierPhone').value.trim(),
+                address: document.getElementById('supplierAddress').value.trim(),
+                lead_time_days: parseInt(document.getElementById('supplierLeadTime').value, 10)
+            };
+
+            if (!payload.name) {
+                alertBox.textContent = 'Supplier name is required.';
+                alertBox.classList.remove('d-none');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Saving...';
+
+            try {
+                const response = await fetch('/pharmacy/suppliers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alertBox.textContent = data.error || 'Failed to create supplier.';
+                    alertBox.classList.remove('d-none');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bi bi-save me-1"></i> Register Supplier';
+                }
+            } catch (err) {
+                alertBox.textContent = 'Network or server error occurred.';
+                alertBox.classList.remove('d-none');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-save me-1"></i> Register Supplier';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

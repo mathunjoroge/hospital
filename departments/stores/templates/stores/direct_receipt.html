@@ -78,13 +78,13 @@
 // Available items datasets from server
 const DRUGS_LIST = [
     {% for d in drugs %}
-    { id: {{ d.id }}, name: "{{ d.generic_name|escapejs }} (Stock: {{ d.quantity_in_stock }})" },
+    { id: {{ d.id }}, name: {{ (d.generic_name ~ " (Stock: " ~ d.quantity_in_stock ~ ")")|tojson }} },
     {% endfor %}
 ];
 
 const NON_PHARM_LIST = [
     {% for np in non_pharms %}
-    { id: {{ np.id }}, name: "{{ np.name|escapejs }} [{{ np.unit|escapejs }}] (Stock: {{ np.stock_level }})" },
+    { id: {{ np.id }}, name: {{ (np.name ~ " [" ~ np.unit ~ "] (Stock: " ~ np.stock_level ~ ")")|tojson }} },
     {% endfor %}
 ];
 

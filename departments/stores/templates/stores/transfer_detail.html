@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 font-weight-bold text-gray-800 mb-1">
+                <i class="bi bi-arrow-left-right text-primary me-2"></i>Transfer #{{ transfer.transfer_number }}
+            </h2>
+            <p class="text-muted small mb-0">Inter-facility commodity stock transfer details and lifecycle actions.</p>
+        </div>
+        <a href="{{ url_for('stores.list_transfers_view') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Transfers Log
+        </a>
+    </div>
+
+    <!-- Header Summary Card -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <div class="row align-items-center g-3">
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Source Facility</span>
+                    <strong class="fs-6 text-primary"><i class="bi bi-hospital me-1"></i>{{ transfer.source_facility.name if transfer.source_facility else 'Facility #' ~ transfer.source_facility_id }}</strong>
+                </div>
+                <div class="col-md-1 text-center d-none d-md-block">
+                    <i class="bi bi-arrow-right fs-3 text-muted"></i>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Destination Facility</span>
+                    <strong class="fs-6 text-success"><i class="bi bi-hospital me-1"></i>{{ transfer.target_facility.name if transfer.target_facility else 'Facility #' ~ transfer.target_facility_id }}</strong>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Transfer Status</span>
+                    {% if transfer.status == 'DRAFT' %}
+                        <span class="badge bg-warning text-dark fs-6"><i class="bi bi-pencil me-1"></i>DRAFT</span>
+                    {% elif transfer.status == 'DISPATCHED' %}
+                        <span class="badge bg-info text-white fs-6"><i class="bi bi-truck me-1"></i>DISPATCHED (In Transit)</span>
+                    {% elif transfer.status == 'RECEIVED' %}
+                        <span class="badge bg-success fs-6"><i class="bi bi-check-circle me-1"></i>RECEIVED</span>
+                    {% else %}
+                        <span class="badge bg-secondary fs-6">{{ transfer.status }}</span>
+                    {% endif %}
+                </div>
+                <div class="col-md-2 text-end">
+                    <span class="text-muted small d-block">Created Date</span>
+                    <span class="small text-dark">{{ transfer.created_at.strftime('%Y-%m-%d') if transfer.created_at else 'N/A' }}</span>
+                </div>
+            </div>
+            {% if transfer.notes %}
+            <div class="mt-3 pt-3 border-top text-muted small">
+                <strong>Notes:</strong> {{ transfer.notes }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Items Table & Actions Card -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-box-seam me-1"></i> Commodities Line Items</h6>
+        </div>
+        <div class="card-body">
+            <div id="actionAlert" class="alert alert-danger d-none" role="alert"></div>
+
+            <form id="transferActionForm">
+                <div class="table-responsive mb-4">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Category</th>
+                                <th>Item Name</th>
+                                <th>Requested Qty</th>
+                                <th>Dispatched Qty</th>
+                                <th>Received Qty</th>
+                                <th>Batch #</th>
+                                <th>Expiry Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for toi in transfer.items %}
+                            <tr data-item-id="{{ toi.id }}" data-drug-id="{{ toi.drug_id or '' }}" data-non-pharm-id="{{ toi.non_pharm_item_id or '' }}">
+                                <td>
+                                    {% if toi.item_type == 'NON_PHARM' %}
+                                        <span class="badge bg-purple text-white" style="background-color: #6f42c1;">Non-Pharm</span>
+                                    {% else %}
+                                        <span class="badge bg-primary">Drug</span>
+                                    {% endif %}
+                                </td>
+                                <td><strong>{{ toi.item_name }}</strong></td>
+                                <td><span class="badge bg-light text-dark border fs-6">{{ toi.quantity_requested }}</span></td>
+                                <td>
+                                    {% if transfer.status == 'DRAFT' and is_outward %}
+                                        <input type="number" class="form-control form-control-sm item-dispatched-qty" min="1" value="{{ toi.quantity_requested }}" style="width: 100px;" required>
+                                    {% else %}
+                                        <span class="badge bg-info text-white fs-6">{{ toi.quantity_dispatched or 0 }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if transfer.status == 'DISPATCHED' and not is_outward %}
+                                        <input type="number" class="form-control form-control-sm item-received-qty" min="1" value="{{ toi.quantity_dispatched or toi.quantity_requested }}" style="width: 100px;" required>
+                                    {% else %}
+                                        <span class="badge bg-success fs-6">{{ toi.quantity_received or 0 }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if transfer.status == 'DRAFT' and is_outward %}
+                                        <input type="text" class="form-control form-control-sm item-batch" placeholder="Auto if empty" style="width: 140px;">
+                                    {% else %}
+                                        <span class="small text-muted">{{ toi.batch_number or '—' }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if transfer.status == 'DRAFT' and is_outward %}
+                                        <input type="date" class="form-control form-control-sm item-expiry" style="width: 150px;">
+                                    {% else %}
+                                        <span class="small text-muted">{{ toi.expiry_date.strftime('%Y-%m-%d') if toi.expiry_date else '—' }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                    <a href="{{ url_for('stores.list_transfers_view') }}" class="btn btn-secondary">Back</a>
+
+                    {% if transfer.status == 'DRAFT' %}
+                        <button type="button" id="dispatchBtn" class="btn btn-warning text-dark px-4">
+                            <i class="bi bi-box-arrow-right me-1"></i> Dispatch Outward Stock
+                        </button>
+                    {% elif transfer.status == 'DISPATCHED' %}
+                        <button type="button" id="receiveBtn" class="btn btn-success px-4">
+                            <i class="bi bi-box-arrow-in-down me-1"></i> Confirm Inward Stock Receipt
+                        </button>
+                    {% else %}
+                        <span class="btn btn-outline-success disabled"><i class="bi bi-check-all me-1"></i> Transfer Completed</span>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const alertBox = document.getElementById('actionAlert');
+    const dispatchBtn = document.getElementById('dispatchBtn');
+    const receiveBtn = document.getElementById('receiveBtn');
+
+    if (dispatchBtn) {
+        dispatchBtn.addEventListener('click', async function() {
+            alertBox.classList.add('d-none');
+            const items = [];
+
+            document.querySelectorAll('tbody tr').forEach(tr => {
+                const itemId = tr.getAttribute('data-item-id');
+                const drugId = tr.getAttribute('data-drug-id');
+                const nonPharmId = tr.getAttribute('data-non-pharm-id');
+                const qtyInput = tr.querySelector('.item-dispatched-qty');
+                const batchInput = tr.querySelector('.item-batch');
+                const expiryInput = tr.querySelector('.item-expiry');
+
+                if (qtyInput) {
+                    items.push({
+                        item_id: parseInt(itemId, 10),
+                        drug_id: drugId ? parseInt(drugId, 10) : null,
+                        non_pharm_item_id: nonPharmId ? parseInt(nonPharmId, 10) : null,
+                        quantity_dispatched: parseInt(qtyInput.value, 10) || 1,
+                        batch_number: batchInput ? batchInput.value.trim() : '',
+                        expiry_date: expiryInput ? expiryInput.value : ''
+                    });
+                }
+            });
+
+            dispatchBtn.disabled = true;
+            dispatchBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Dispatching...';
+
+            try {
+                const response = await fetch(`/stores/transfers/{{ transfer.id }}/dispatch`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ items: items })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alertBox.textContent = data.error || 'Failed to dispatch transfer.';
+                    alertBox.classList.remove('d-none');
+                    dispatchBtn.disabled = false;
+                    dispatchBtn.innerHTML = '<i class="bi bi-box-arrow-right me-1"></i> Dispatch Outward Stock';
+                }
+            } catch (err) {
+                alertBox.textContent = 'Network or server error occurred.';
+                alertBox.classList.remove('d-none');
+                dispatchBtn.disabled = false;
+                dispatchBtn.innerHTML = '<i class="bi bi-box-arrow-right me-1"></i> Dispatch Outward Stock';
+            }
+        });
+    }
+
+    if (receiveBtn) {
+        receiveBtn.addEventListener('click', async function() {
+            alertBox.classList.add('d-none');
+            const items = [];
+
+            document.querySelectorAll('tbody tr').forEach(tr => {
+                const itemId = tr.getAttribute('data-item-id');
+                const drugId = tr.getAttribute('data-drug-id');
+                const nonPharmId = tr.getAttribute('data-non-pharm-id');
+                const qtyInput = tr.querySelector('.item-received-qty');
+
+                if (qtyInput) {
+                    items.push({
+                        item_id: parseInt(itemId, 10),
+                        drug_id: drugId ? parseInt(drugId, 10) : null,
+                        non_pharm_item_id: nonPharmId ? parseInt(nonPharmId, 10) : null,
+                        quantity_received: parseInt(qtyInput.value, 10) || 1
+                    });
+                }
+            });
+
+            receiveBtn.disabled = true;
+            receiveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Receiving...';
+
+            try {
+                const response = await fetch(`/stores/transfers/{{ transfer.id }}/receive`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ items: items })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alertBox.textContent = data.error || 'Failed to receive transfer.';
+                    alertBox.classList.remove('d-none');
+                    receiveBtn.disabled = false;
+                    receiveBtn.innerHTML = '<i class="bi bi-box-arrow-in-down me-1"></i> Confirm Inward Stock Receipt';
+                }
+            } catch (err) {
+                alertBox.textContent = 'Network or server error occurred.';
+                alertBox.classList.remove('d-none');
+                receiveBtn.disabled = false;
+                receiveBtn.innerHTML = '<i class="bi bi-box-arrow-in-down me-1"></i> Confirm Inward Stock Receipt';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

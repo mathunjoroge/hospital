@@ -3,8 +3,10 @@
 <a href="{{ url_for('stores.inventory') }}"><i class="bi bi-boxes me-2"></i> Drug Inventory</a>
 <a href="{{ url_for('stores.non_pharms') }}"><i class="bi bi-box-seam me-2"></i> Non-Pharm Supplies</a>
 <hr class="my-2 text-secondary">
+<a href="{{ url_for('stores.list_suppliers_view') }}"><i class="bi bi-truck me-2"></i> Suppliers Directory</a>
 <a href="{{ url_for('stores.list_purchase_orders') }}"><i class="bi bi-journal-text me-2"></i> Purchase Orders</a>
 <a href="{{ url_for('stores.view_direct_receipt') }}"><i class="bi bi-plus-circle me-2"></i> Record Direct Receipt</a>
 <a href="{{ url_for('stores.receipt_history') }}"><i class="bi bi-clock-history me-2"></i> Receipt History</a>
 <hr class="my-2 text-secondary">
+<a href="{{ url_for('stores.list_transfers_view') }}"><i class="bi bi-arrow-left-right me-2"></i> Inter-Facility Transfers</a>
 <a href="{{ url_for('stores.get_reconciliation_report') }}"><i class="bi bi-file-earmark-check me-2"></i> Stock Reconciliation</a>
