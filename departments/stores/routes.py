@@ -1,52 +1,50 @@
 import os
 from datetime import datetime
 
-from flask import flash, redirect, render_template, request, url_for
-from flask_login import login_required
+from flask import current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
 from departments.models.pharmacy import Batch, Drug, DrugRequest, RequestItem
+from departments.models.stock_movement import StockMovement, record_movement, reconcile_stock_balance
 from departments.models.stores import NonPharmCategory, NonPharmItem, OtherOrder
+
 from departments.models.user import User  # Import User model
 from departments.rbac import roles_required
 from extensions import db
 
 from . import bp  # Import the blueprint
 
-# Get the filename for error reporting
 FILE_NAME = os.path.basename(__file__)
+
 
 
 @bp.route('/', methods=['GET'])
 @login_required
 @roles_required('store', 'stores', 'admin')
 def index():
-
     try:
         # Fetch submitted and pending drug requests
         pending_requests = DrugRequest.query.filter(
             DrugRequest.status.in_(['Submitted', 'Pending'])
         ).order_by(DrugRequest.request_date.desc()).all()
 
-        # Get user IDs from the requests
-        user_ids = [req.requested_by for req in pending_requests]  # List of requested_by IDs
-        users = User.query.filter(User.id.in_(user_ids)).all()  # Fetch users in one query
-        user_name_map = {user.id: user.username for user in users}  # Map user IDs to names
+        user_ids = [req.requested_by for req in pending_requests]
+        users = User.query.filter(User.id.in_(user_ids)).all()
+        user_name_map = {user.id: user.username for user in users}
 
-        # Debugging output
-        print(f"Debug: Found {len(pending_requests)} pending requests")
-        for req in pending_requests:
-            requester_name = user_name_map.get(req.requested_by, 'Unknown')
-            print(f"Debug: Request ID {req.id}, Requested by {requester_name}")
-
+        current_app.logger.debug("[%s -> index()] Found %d pending requests", FILE_NAME, len(pending_requests))
         return render_template('stores/index.html',
                              pending_requests=pending_requests,
                              user_name_map=user_name_map)
+    except SQLAlchemyError as e:
+        current_app.logger.error("[%s -> index()] Database error: %s", FILE_NAME, str(e), exc_info=True)
+        flash("Database error occurred while loading dashboard", 'error')
+        return redirect(url_for('stores.index'))
     except Exception as e:
-        error_message = f"[{FILE_NAME} -> index()] Error loading dashboard: {e}"
-        flash(error_message, 'error')
-        print(f"Debug: {error_message}")
+        current_app.logger.error("[%s -> index()] Unexpected error: %s", FILE_NAME, str(e), exc_info=True)
+        flash("An unexpected error occurred loading dashboard", 'error')
         return redirect(url_for('stores.index'))
 
 
@@ -54,14 +52,16 @@ def index():
 @login_required
 @roles_required('store', 'stores', 'admin')
 def inventory():
-
     try:
         drugs = Drug.query.order_by(Drug.generic_name).all()
         return render_template('stores/inventory.html', drugs=drugs)
+    except SQLAlchemyError as e:
+        current_app.logger.error("[%s -> inventory()] Database error: %s", FILE_NAME, str(e), exc_info=True)
+        flash("Database error fetching inventory", 'error')
+        return redirect(url_for('stores.index'))
     except Exception as e:
-        error_message = f"[{FILE_NAME} -> inventory()] Error fetching inventory: {e}"
-        flash(error_message, 'error')
-        print(f"Debug: {error_message}")
+        current_app.logger.error("[%s -> inventory()] Error fetching inventory: %s", FILE_NAME, str(e), exc_info=True)
+        flash("Unexpected error fetching inventory", 'error')
         return redirect(url_for('stores.index'))
 
 
@@ -69,7 +69,6 @@ def inventory():
 @login_required
 @roles_required('store', 'stores', 'admin')
 def list_issue_requests():
-
     try:
         pending_requests = (
             DrugRequest.query
@@ -83,19 +82,19 @@ def list_issue_requests():
             title="Pending Drug Requests"
         )
     except SQLAlchemyError as e:
+        current_app.logger.error("[%s -> list_issue_requests()] Database error: %s", FILE_NAME, str(e), exc_info=True)
         flash("Database error occurred while fetching requests", "error")
-        print(f"[list_issue_requests] Database error: {str(e)}")
         return redirect(url_for('stores.index')), 500
     except Exception as e:
+        current_app.logger.error("[%s -> list_issue_requests()] Unexpected error: %s", FILE_NAME, str(e), exc_info=True)
         flash("Unexpected error occurred", "error")
-        print(f"[list_issue_requests] Unexpected error: {str(e)}")
         return redirect(url_for('stores.index')), 500
+
 
 @bp.route('/issue_request/<int:request_id>', methods=['GET', 'POST'])
 @login_required
 @roles_required('store', 'stores', 'admin')
 def issue_request(request_id):
-
     try:
         drug_request = (
             db.session.query(DrugRequest)
@@ -109,7 +108,7 @@ def issue_request(request_id):
 
         if request.method == 'POST':
             try:
-                # Process submitted quantities
+                # Process submitted quantities, expiry dates, and batch numbers
                 for item in drug_request.items:
                     field_name = f"quantity_issued_{item.id}"
                     quantity_issued = request.form.get(field_name, type=int)
@@ -124,23 +123,59 @@ def issue_request(request_id):
                     item.quantity_issued = quantity_issued
 
                     if quantity_issued > 0:
+                        expiry_date_str = request.form.get(f"expiry_date_{item.id}") or request.form.get("expiry_date")
+                        batch_number_str = request.form.get(f"batch_number_{item.id}") or request.form.get("batch_number") or f"REQ-{drug_request.id}"
+
+                        if not expiry_date_str:
+                            flash(f"Expiry date (YYYY-MM-DD) is required for issued drug {item.drug.generic_name}", "error")
+                            return render_template(
+                                'stores/issue_request.html',
+                                drug_request=drug_request,
+                                title=f"Issue Request #{request_id}"
+                            ), 400
+
+                        try:
+                            expiry_date = datetime.strptime(expiry_date_str.strip(), "%Y-%m-%d").date()
+                        except ValueError:
+                            flash(f"Invalid expiry date format for {item.drug.generic_name}. Use YYYY-MM-DD.", "error")
+                            return render_template(
+                                'stores/issue_request.html',
+                                drug_request=drug_request,
+                                title=f"Issue Request #{request_id}"
+                            ), 400
+
                         # Deduct from Store stock
                         item.drug.quantity_in_stock = max(0, item.drug.quantity_in_stock - quantity_issued)
 
-                        # Create/update Pharmacy Batch so Pharmacy receives the issued stock
-                        batch = Batch.query.filter_by(drug_id=item.drug_id, batch_number=f"REQ-{drug_request.id}").first()
+                        # Create/update Pharmacy Batch so Pharmacy receives the issued stock with actual expiry date
+                        batch = Batch.query.filter_by(drug_id=item.drug_id, batch_number=batch_number_str).first()
                         if not batch:
                             batch = Batch(
                                 drug_id=item.drug_id,
-                                batch_number=f"REQ-{drug_request.id}",
+                                batch_number=batch_number_str,
                                 quantity_in_stock=quantity_issued,
-                                expiry_date=datetime.today().date().replace(year=datetime.today().year + 2)
+                                expiry_date=expiry_date
                             )
                             db.session.add(batch)
                         else:
                             batch.quantity_in_stock += quantity_issued
+                            batch.expiry_date = expiry_date
 
-                # Update status if all items have quantities set
+                        db.session.flush()
+                        user_id = current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
+                        record_movement(
+                            item_type='DRUG',
+                            item_id=item.drug_id,
+                            batch_id=batch.id,
+                            movement_type='ISSUED',
+                            quantity_delta=-quantity_issued,
+                            balance_after=item.drug.quantity_in_stock,
+                            reference_type='DRUG_REQUEST',
+                            reference_id=str(drug_request.id),
+                            user_id=user_id,
+                        )
+
+
                 if all(item.quantity_issued is not None for item in drug_request.items):
                     drug_request.status = 'Completed'
                 db.session.commit()
@@ -149,15 +184,14 @@ def issue_request(request_id):
 
             except SQLAlchemyError as e:
                 db.session.rollback()
+                current_app.logger.error("[%s -> issue_request()] Database error for request %d: %s", FILE_NAME, request_id, str(e), exc_info=True)
                 flash("Error updating request quantities", "error")
-                print(f"[issue_request] Database error for request {request_id}: {str(e)}")
                 return render_template(
                     'stores/issue_request.html',
                     drug_request=drug_request,
                     title=f"Issue Request #{request_id}"
                 ), 500
 
-        # GET request - show the form
         return render_template(
             'stores/issue_request.html',
             drug_request=drug_request,
@@ -165,25 +199,23 @@ def issue_request(request_id):
         )
 
     except SQLAlchemyError as e:
+        current_app.logger.error("[%s -> issue_request()] Database query error for request %d: %s", FILE_NAME, request_id, str(e), exc_info=True)
         flash("Database error occurred while fetching request", "error")
-        print(f"[issue_request] Database error for request {request_id}: {str(e)}")
         return redirect(url_for('stores.list_issue_requests')), 500
     except Exception as e:
+        current_app.logger.error("[%s -> issue_request()] Unexpected error for request %d: %s", FILE_NAME, request_id, str(e), exc_info=True)
         flash("Unexpected error occurred", "error")
-        print(f"[issue_request] Unexpected error for request {request_id}: {str(e)}")
         return redirect(url_for('stores.list_issue_requests')), 500
+
 
 @bp.route('/non_pharms', methods=['GET'])
 @login_required
 @roles_required('store', 'stores', 'nursing', 'kitchen', 'laundry', 'admin')
 def non_pharms():
-
     try:
-        # Fetch all categories and items
         categories = NonPharmCategory.query.order_by(NonPharmCategory.name).all()
         items = NonPharmItem.query.order_by(NonPharmItem.category_id, NonPharmItem.name).all()
 
-        # Group items by category_id
         items_by_category = {}
         for item in items:
             category_id = item.category_id
@@ -191,31 +223,26 @@ def non_pharms():
                 items_by_category[category_id] = []
             items_by_category[category_id].append(item)
 
-        # Map category IDs to names for easier template use
         category_name_map = {cat.id: cat.name for cat in categories}
-
-        # Debugging
-        print(f"Debug: Found {len(items)} non-pharm items across {len(categories)} categories")
-        for cat_id, cat_items in items_by_category.items():
-            cat_name = category_name_map.get(cat_id, 'Unknown')
-            print(f"Debug: Category {cat_name} has {len(cat_items)} items")
-            for item in cat_items:
-                print(f"  - {item.name}, Unit: {item.unit}, Cost: ${item.unit_cost}, Stock: {item.stock_level}")
+        current_app.logger.debug("[%s -> non_pharms()] Loaded %d non-pharm items across %d categories", FILE_NAME, len(items), len(categories))
 
         return render_template('stores/non_pharms.html',
                              items_by_category=items_by_category,
                              category_name_map=category_name_map)
-    except Exception as e:
-        error_message = f"[{FILE_NAME} -> non_pharms()] Error loading items: {e}"
-        flash(error_message, 'error')
-        print(f"Debug: {error_message}")
+    except SQLAlchemyError as e:
+        current_app.logger.error("[%s -> non_pharms()] Database error: %s", FILE_NAME, str(e), exc_info=True)
+        flash("Database error loading items", 'error')
         return redirect(url_for('stores.index'))
+    except Exception as e:
+        current_app.logger.error("[%s -> non_pharms()] Error loading items: %s", FILE_NAME, str(e), exc_info=True)
+        flash("Error loading non-pharmaceutical items", 'error')
+        return redirect(url_for('stores.index'))
+
 
 @bp.route('/manage_reagent_requests', methods=['GET', 'POST'])
 @login_required
 @roles_required('store', 'stores', 'admin')
 def manage_reagent_requests():
-
     try:
         if request.method == 'POST':
             request_id = request.form.get('request_id')
@@ -226,7 +253,6 @@ def manage_reagent_requests():
             if action == "approve":
                 reagent = NonPharmItem.query.get(reagent_request.item_id)
                 if reagent:
-                    # Deduct from Store stock and issue to requesting department
                     reagent.stock_level = max(0, reagent.stock_level - reagent_request.quantity_requested)
                     reagent.in_dispensing += reagent_request.quantity_requested
                 reagent_request.status = "Approved"
@@ -240,16 +266,78 @@ def manage_reagent_requests():
 
             return redirect(url_for('stores.manage_reagent_requests'))
 
-        # Fetch all pending restock requests
         requests = OtherOrder.query.filter_by(status="Pending").options(
             joinedload(OtherOrder.item)
         ).all()
 
         return render_template('stores/manage_reagent_requests.html', requests=requests)
 
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error("[%s -> manage_reagent_requests()] DB error: %s", FILE_NAME, str(e), exc_info=True)
+        flash('Database error handling request.', 'error')
+        return redirect(url_for('stores.index'))
     except Exception as e:
         db.session.rollback()
+        current_app.logger.error("[%s -> manage_reagent_requests()] Unexpected error: %s", FILE_NAME, str(e), exc_info=True)
         flash('Something went wrong. Please try again.', 'error')
-        print(f"Debug: Error in stores.manage_reagent_requests: {e}")
         return redirect(url_for('stores.index'))
+
+
+@bp.route('/bin-card/<string:item_type>/<int:item_id>', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin')
+def get_bin_card(item_type, item_id):
+    """Phase F — Bin Card ledger view for a specific drug or non-pharm item."""
+    item_type_upper = item_type.upper()
+    if item_type_upper not in ('DRUG', 'NON_PHARM'):
+        return jsonify({'error': 'Invalid item_type. Must be DRUG or NON_PHARM.'}), 400
+
+    movements = StockMovement.query.filter_by(
+        item_type=item_type_upper,
+        item_id=item_id
+    ).order_by(StockMovement.created_at.asc()).all()
+
+    reconciliation = reconcile_stock_balance(item_type_upper, item_id)
+
+    if request.headers.get('Accept') == 'application/json' or request.is_json:
+        return jsonify({
+            'item_type': item_type_upper,
+            'item_id': item_id,
+            'movements': [m.to_dict() for m in movements],
+            'reconciliation': reconciliation,
+        })
+
+    return render_template(
+        'stores/bin_card.html',
+        item_type=item_type_upper,
+        item_id=item_id,
+        movements=movements,
+        reconciliation=reconciliation
+    )
+
+
+@bp.route('/reconciliation-report', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin')
+def get_reconciliation_report():
+    """Phase F — Discrepancy report comparing stock balances against append-only ledger sum."""
+    drug_ids = [d.id for d in Drug.query.with_entities(Drug.id).all()]
+    non_pharm_ids = [n.id for n in NonPharmItem.query.with_entities(NonPharmItem.id).all()]
+
+    report = {
+        'drugs': [reconcile_stock_balance('DRUG', did) for did in drug_ids],
+        'non_pharm': [reconcile_stock_balance('NON_PHARM', nid) for nid in non_pharm_ids],
+    }
+
+    discrepancies = [r for r in report['drugs'] + report['non_pharm'] if not r['match']]
+    report['has_discrepancies'] = len(discrepancies) > 0
+    report['discrepancy_count'] = len(discrepancies)
+
+    if request.headers.get('Accept') == 'application/json' or request.is_json:
+        return jsonify(report)
+
+    return render_template('stores/reconciliation_report.html', report=report)
+
+
 

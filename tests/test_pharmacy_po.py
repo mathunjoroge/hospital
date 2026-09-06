@@ -27,6 +27,19 @@ def pharmacy_user(app):
 
 
 @pytest.fixture
+def approver_user(app):
+    with app.app_context():
+        u = User(
+            username="pharmacy_approver_user",
+            password=generate_password_hash("Password123!", method="pbkdf2:sha256"),
+            role="pharmacy",
+        )
+        db.session.add(u)
+        db.session.commit()
+        yield u
+
+
+@pytest.fixture
 def sample_supplier(app):
     with app.app_context():
         s = Supplier(
@@ -38,6 +51,7 @@ def sample_supplier(app):
         db.session.add(s)
         db.session.commit()
         yield s
+
 
 
 @pytest.fixture
@@ -95,7 +109,7 @@ def test_low_stock_inventory_scan(client, pharmacy_user, low_stock_drug):
     assert any(d["name"] == low_stock_drug.generic_name for d in data["drugs"])
 
 
-def test_auto_generate_po_and_lifecycle(client, app, pharmacy_user, sample_supplier, low_stock_drug):
+def test_auto_generate_po_and_lifecycle(client, app, pharmacy_user, approver_user, sample_supplier, low_stock_drug):
     """POST /pharmacy/po/auto-generate creates draft PO, orders, and receives shipment."""
     client.post("/login", data={"username": pharmacy_user.username, "password": "Password123!"})
 
@@ -110,13 +124,28 @@ def test_auto_generate_po_and_lifecycle(client, app, pharmacy_user, sample_suppl
     assert po_data["status"] == "DRAFT"
     assert len(po_data["items"]) >= 1
 
-    # 2. Submit order
+    # 2. Submit order as a different user to satisfy Segregation of Duties
+    client.post("/login", data={"username": approver_user.username, "password": "Password123!"})
     order_resp = client.post(f"/pharmacy/po/{po_id}/order")
     assert order_resp.status_code == 200
     assert order_resp.get_json()["purchase_order"]["status"] == "ORDERED"
 
+
     # 3. Receive shipment
-    rec_resp = client.post(f"/pharmacy/po/{po_id}/receive")
+    item_id = po_data["items"][0]["drug_id"]
+    rec_resp = client.post(
+        f"/pharmacy/po/{po_id}/receive",
+        json={
+            "items": [
+                {
+                    "drug_id": item_id,
+                    "quantity_received": po_data["items"][0]["quantity_ordered"],
+                    "expiry_date": "2027-12-31",
+                    "batch_number": f"B-PO-{po_id}-{item_id}"
+                }
+            ]
+        }
+    )
     assert rec_resp.status_code == 200
     assert rec_resp.get_json()["purchase_order"]["status"] == "RECEIVED"
 

@@ -76,7 +76,10 @@
 - [x] **6.7 Phase B Hard Stop Decision Gates** ✅ (Controlled Drug Register, eTIMS tax compliance, File storage backend & DPA 2019 data residency logged to `DECISIONS_PENDING.md`)
 - [x] **6.8 Phase C Accessibility & Audit Preparation** ✅ (Updated `docs/accessibility_audit_report.md`, `docs/security_audit_readiness.md`, `docs/clinical_safety_review_packaging.md`)
 
+## PHASE 7 — Government Institution-Grade Supply Chain Engine
 
-
-
-
+- [x] **7.1 Phase A Defect Repairs** ✅ (Enforced explicit `expiry_date` and `batch_number` on PO receipt and store request issuance; eliminated bare print statements - 5/5 tests passing)
+- [x] **7.2 Phase B.1 Foundational Facility Model** ✅ (`Facility` model with `is_self` home facility identification and `get_home_facility()` auto-seeding helper)
+- [x] **7.3 Phase C.1 & C.2 Segregation of Duties & Unified LPO** ✅ (`PurchaseOrder` SOD fields `created_by_id`, `approved_by_id`, `received_by_id`, and `sod_warning`; 403 Forbidden enforcement on self-approval; extended `PurchaseOrderItem` for non-pharm items)
+- [x] **7.4 Phase C.4 & Phase F Stock Movement Ledger & Reconciliation** ✅ (`StockMovement` append-only bin card ledger, `reconcile_stock_balance()` discrepancy checker, `/stores/bin-card` and `/stores/reconciliation-report` APIs - 10/10 tests passing across supply chain suite)
+- [x] **7.5 Phase B.2 & D.1 Hard Stop Decision Gates** ✅ (Logged pending architecture decisions for Inter-Facility Transfers and Budget/Vote-Head control in `DECISIONS_PENDING.md`)
