@@ -12,7 +12,7 @@ Tests for:
 import pytest
 from werkzeug.security import generate_password_hash
 
-from departments.models.facility import get_home_facility
+from departments.models.facility import Facility, get_home_facility
 from departments.models.pharmacy import Drug, DrugCategory
 from departments.models.stock_movement import (
     StockMovement,
@@ -20,6 +20,7 @@ from departments.models.stock_movement import (
     record_movement,
 )
 from departments.models.supplier import PurchaseOrder, PurchaseOrderItem, Supplier
+from departments.models.transfer import TransferOrder, TransferOrderItem
 from departments.models.user import User
 from extensions import db
 
@@ -44,6 +45,20 @@ def user_approver(app):
             username="sc_approver_user",
             password=generate_password_hash("Password123!", method="pbkdf2:sha256"),
             role="pharmacy",
+        )
+        db.session.add(u)
+        db.session.commit()
+        yield u
+
+
+@pytest.fixture
+def user_store_admin(app):
+    """A user permitted to both dispatch and receive inter-facility transfers."""
+    with app.app_context():
+        u = User(
+            username="sc_store_admin_user",
+            password=generate_password_hash("Password123!", method="pbkdf2:sha256"),
+            role="admin",
         )
         db.session.add(u)
         db.session.commit()
@@ -265,3 +280,133 @@ def test_inter_facility_transfers_ui_views(client, user_approver):
     assert res_new.status_code == 200
     assert b"Initiate Inter-Facility Transfer" in res_new.data
 
+
+
+def test_dispatch_blocked_for_non_source_facility(client, app, user_store_admin, test_setup):
+    """A transfer whose source facility isn't this installation cannot be dispatched here."""
+    drug_id, _supplier_id = test_setup
+    with app.app_context():
+        other_facility = Facility(name="Other County Hospital", is_self=False)
+        db.session.add(other_facility)
+        db.session.flush()
+
+        transfer = TransferOrder(
+            transfer_number="TR-TESTSRC01",
+            source_facility_id=other_facility.id,
+            target_facility_id=get_home_facility().id,
+            status="DRAFT",
+        )
+        db.session.add(transfer)
+        db.session.flush()
+        db.session.add(TransferOrderItem(
+            transfer_id=transfer.id,
+            item_type="DRUG",
+            drug_id=drug_id,
+            quantity_requested=10,
+        ))
+        db.session.commit()
+        transfer_id = transfer.id
+
+    client.post("/login", data={"username": "sc_store_admin_user", "password": "Password123!"})
+    res = client.post(f"/stores/transfers/{transfer_id}/dispatch", json={})
+    assert res.status_code == 403
+    assert "Facility boundary violation" in res.get_json()["error"]
+
+
+def test_receive_blocked_for_non_target_facility(client, app, user_store_admin, test_setup):
+    """A transfer this installation dispatched to another facility cannot be 'received' here too."""
+    drug_id, _supplier_id = test_setup
+    client.post("/login", data={"username": "sc_store_admin_user", "password": "Password123!"})
+
+    with app.app_context():
+        other_facility = Facility(name="Other County Hospital", is_self=False)
+        db.session.add(other_facility)
+        db.session.commit()
+        other_facility_id = other_facility.id
+
+    res_create = client.post("/stores/transfers/create", json={
+        "target_facility_id": other_facility_id,
+        "items": [{"item_type": "DRUG", "drug_id": drug_id, "quantity_requested": 10}],
+    })
+    assert res_create.status_code == 201
+    transfer_id = res_create.get_json()["transfer"]["id"]
+
+    res_dispatch = client.post(f"/stores/transfers/{transfer_id}/dispatch", json={})
+    assert res_dispatch.status_code == 200
+
+    res_receive = client.post(f"/stores/transfers/{transfer_id}/receive", json={})
+    assert res_receive.status_code == 403
+    assert "Facility boundary violation" in res_receive.get_json()["error"]
+
+
+def test_receive_succeeds_and_flags_variance_for_target_facility(client, app, user_store_admin, test_setup):
+    """This installation, as the genuine target facility, can receive and short/over receipt is flagged."""
+    drug_id, _supplier_id = test_setup
+    with app.app_context():
+        other_facility = Facility(name="Sending County Hospital", is_self=False)
+        db.session.add(other_facility)
+        db.session.flush()
+
+        transfer = TransferOrder(
+            transfer_number="TR-TESTVAR01",
+            source_facility_id=other_facility.id,
+            target_facility_id=get_home_facility().id,
+            status="DISPATCHED",
+            dispatched_at=db.func.now(),
+        )
+        db.session.add(transfer)
+        db.session.flush()
+        toi = TransferOrderItem(
+            transfer_id=transfer.id,
+            item_type="DRUG",
+            drug_id=drug_id,
+            quantity_requested=10,
+            quantity_dispatched=10,
+        )
+        db.session.add(toi)
+        db.session.commit()
+        transfer_id = transfer.id
+        item_id = toi.id
+
+    client.post("/login", data={"username": "sc_store_admin_user", "password": "Password123!"})
+
+    # Receive 12 against 10 dispatched — previously silently accepted with no flag at all.
+    res = client.post(f"/stores/transfers/{transfer_id}/receive", json={
+        "items": [{"item_id": item_id, "quantity_received": 12, "expiry_date": "2027-01-01"}],
+    })
+    assert res.status_code == 200
+    body = res.get_json()
+    assert "discrepancies" in body
+    assert body["discrepancies"][0]["kind"] == "OVER_RECEIPT"
+    assert body["discrepancies"][0]["variance"] == 2
+    assert body["transfer"]["status"] == "RECEIVED_WITH_DISCREPANCY"
+
+    # A genuine short-receipt should stay open (DISPATCHED) rather than being marked received.
+    with app.app_context():
+        transfer2 = TransferOrder(
+            transfer_number="TR-TESTVAR02",
+            source_facility_id=db.session.get(TransferOrder, transfer_id).source_facility_id,
+            target_facility_id=get_home_facility().id,
+            status="DISPATCHED",
+        )
+        db.session.add(transfer2)
+        db.session.flush()
+        toi2 = TransferOrderItem(
+            transfer_id=transfer2.id,
+            item_type="DRUG",
+            drug_id=drug_id,
+            quantity_requested=10,
+            quantity_dispatched=10,
+        )
+        db.session.add(toi2)
+        db.session.commit()
+        transfer2_id = transfer2.id
+        item2_id = toi2.id
+
+    res_short = client.post(f"/stores/transfers/{transfer2_id}/receive", json={
+        "items": [{"item_id": item2_id, "quantity_received": 7}],
+    })
+    assert res_short.status_code == 200
+    body_short = res_short.get_json()
+    assert body_short["discrepancies"][0]["kind"] == "SHORT_RECEIPT"
+    assert body_short["transfer"]["status"] == "DISPATCHED"

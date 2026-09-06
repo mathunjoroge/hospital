@@ -120,6 +120,13 @@ def dispatch_transfer(transfer_id):
     if not transfer:
         return jsonify({'error': 'Transfer order not found'}), 404
 
+    home_facility = get_home_facility()
+    if transfer.source_facility_id != home_facility.id:
+        return jsonify({
+            'error': 'Facility boundary violation: only the source facility that owns this '
+                     'transfer may dispatch it.'
+        }), 403
+
     if transfer.status != 'DRAFT':
         return jsonify({'error': f'Transfer is in {transfer.status} status and cannot be dispatched'}), 400
 
@@ -213,8 +220,21 @@ def receive_transfer(transfer_id):
     if not transfer:
         return jsonify({'error': 'Transfer order not found'}), 404
 
+    home_facility = get_home_facility()
+    if transfer.target_facility_id != home_facility.id:
+        return jsonify({
+            'error': 'Facility boundary violation: only the target facility this transfer '
+                     'was dispatched to may receive it.'
+        }), 403
+
     if transfer.status == 'RECEIVED':
         return jsonify({'error': 'Transfer has already been received'}), 400
+
+    if transfer.status not in ('DISPATCHED',):
+        return jsonify({
+            'error': f'Transfer is in {transfer.status} status and cannot be received '
+                     '(it must be DISPATCHED first).'
+        }), 400
 
     data = request.get_json(silent=True) or {}
     items_input = data.get('items', [])
@@ -228,12 +248,27 @@ def receive_transfer(transfer_id):
 
     user_id = current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
 
+    discrepancies = []
+
     for toi in transfer.items:
         key = toi.id if toi.id in items_map else (toi.drug_id or toi.non_pharm_item_id)
         receive_info = items_map.get(key, {})
         qty_rcvd = int(receive_info.get('quantity_received', toi.quantity_dispatched or toi.quantity_requested))
 
         toi.quantity_received = (toi.quantity_received or 0) + qty_rcvd
+
+        # Phase E.2 — variance detection: flag under- or over-receipt against what was
+        # actually dispatched rather than silently accepting whatever quantity is submitted.
+        if toi.quantity_received != toi.quantity_dispatched:
+            variance = toi.quantity_received - toi.quantity_dispatched
+            discrepancies.append({
+                'item_id': toi.id,
+                'item_name': toi.item_name,
+                'quantity_dispatched': toi.quantity_dispatched,
+                'quantity_received': toi.quantity_received,
+                'variance': variance,
+                'kind': 'OVER_RECEIPT' if variance > 0 else 'SHORT_RECEIPT',
+            })
 
         if toi.item_type == 'DRUG' and toi.drug:
             drug = toi.drug
@@ -294,19 +329,38 @@ def receive_transfer(transfer_id):
             )
 
     all_fulfilled = all(toi.quantity_received >= toi.quantity_dispatched for toi in transfer.items)
-    transfer.status = 'RECEIVED' if all_fulfilled else 'DISPATCHED'
+    if not all_fulfilled:
+        transfer.status = 'DISPATCHED'
+    elif discrepancies:
+        transfer.status = 'RECEIVED_WITH_DISCREPANCY'
+    else:
+        transfer.status = 'RECEIVED'
     transfer.received_by_id = user_id
     transfer.received_at = datetime.now(timezone.utc)
+    if discrepancies:
+        variance_note = "; ".join(
+            f"{d['item_name']}: dispatched {d['quantity_dispatched']}, received "
+            f"{d['quantity_received']} ({d['kind']})"
+            for d in discrepancies
+        )
+        transfer.notes = f"{transfer.notes or ''}\n[DISCREPANCY] {variance_note}".strip()
     db.session.commit()
 
     log_audit_event(
         action='RECEIVE_INTER_FACILITY_TRANSFER',
         resource_type='TransferOrder',
         resource_id=transfer.transfer_number,
-        details={'status': transfer.status},
+        details={'status': transfer.status, 'discrepancies': discrepancies},
     )
 
-    return jsonify({
+    response = {
         'message': f'Inbound transfer {transfer.transfer_number} processed successfully',
         'transfer': transfer.to_dict(),
-    })
+    }
+    if discrepancies:
+        response['discrepancies'] = discrepancies
+        response['warning'] = (
+            'Received quantities differ from dispatched quantities for one or more items — '
+            'review before closing this transfer.'
+        )
+    return jsonify(response)
