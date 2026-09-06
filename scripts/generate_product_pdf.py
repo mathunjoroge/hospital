@@ -1,21 +1,27 @@
+#!/usr/bin/env python3
 """
 generate_product_pdf.py
 Generates docs/HMIS_Product_Overview.pdf using ReportLab.
-Run: python scripts/generate_product_pdf.py
+
+Usage:
+    python scripts/generate_product_pdf.py
 """
-import os
+
 from datetime import date
+from pathlib import Path
+from typing import Any
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm, mm
+from reportlab.pdfgen import canvas
 from reportlab.platypus import (
     BaseDocTemplate,
+    Flowable,
     Frame,
     HRFlowable,
-    Image,
     NextPageTemplate,
     PageBreak,
     PageTemplate,
@@ -25,232 +31,265 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-# ── Colour palette (matches the teal-blue UI theme) ──────────────────────────
-TEAL_DEEP   = colors.HexColor("#164e63")
-TEAL_MID    = colors.HexColor("#0e7490")
-TEAL_LIGHT  = colors.HexColor("#0891b2")
-CYAN_PALE   = colors.HexColor("#ecfeff")
-SLATE_700   = colors.HexColor("#334155")
-SLATE_500   = colors.HexColor("#64748b")
-SLATE_100   = colors.HexColor("#f1f5f9")
-WHITE       = colors.white
+# ── Color Palette (Teal / Slate Theme) ────────────────────────────────────────
+TEAL_DEEP = colors.HexColor("#164e63")
+TEAL_MID = colors.HexColor("#0e7490")
+TEAL_LIGHT = colors.HexColor("#0891b2")
+CYAN_PALE = colors.HexColor("#ecfeff")
+SLATE_700 = colors.HexColor("#0f172a")  # Primary body text for print
+SLATE_500 = colors.HexColor("#64748b")
+SLATE_100 = colors.HexColor("#f1f5f9")
+WHITE = colors.white
 ACCENT_GOLD = colors.HexColor("#f59e0b")
 
-W, H = A4
+PAGE_WIDTH, PAGE_HEIGHT = A4
+
+
+# ── Two-Pass Canvas for Dynamic Total Page Numbers ────────────────────────────
+class NumberedCanvas(canvas.Canvas):
+    """
+    Two-pass canvas to dynamically compute total page counts (e.g., 'Page X of Y').
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._saved_page_states: list[dict[str, Any]] = []
+
+    def showPage(self) -> None:
+        self._saved_page_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self) -> None:
+        num_pages = len(self._saved_page_states)
+        for state in self._saved_page_states:
+            self.__dict__.update(state)
+            self.draw_page_decorations(num_pages)
+            super().showPage()
+        super().save()
+
+    def draw_page_decorations(self, page_count: int) -> None:
+        if self._pageNumber == 1:
+            # Draw Cover Page Background
+            self.saveState()
+            self.setFillColor(TEAL_DEEP)
+            self.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, fill=1, stroke=0)
+            self.setFillColor(TEAL_MID)
+            self.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT * 0.55, fill=1, stroke=0)
+            # Decorative Geometry
+            self.setFillColor(colors.HexColor("#0e7490"))
+            self.circle(PAGE_WIDTH - 60, PAGE_HEIGHT - 60, 120, fill=1, stroke=0)
+            self.setFillColor(colors.HexColor("#164e63"))
+            self.circle(PAGE_WIDTH - 60, PAGE_HEIGHT - 60, 80, fill=1, stroke=0)
+            # Accent Stripe
+            self.setFillColor(ACCENT_GOLD)
+            self.rect(0, 30 * mm, PAGE_WIDTH, 3, fill=1, stroke=0)
+            self.restoreState()
+            return
+
+        # Header / Footer for Inner Pages
+        self.saveState()
+        # Running Header Bar
+        self.setFillColor(TEAL_DEEP)
+        self.rect(0, PAGE_HEIGHT - 18 * mm, PAGE_WIDTH, 18 * mm, fill=1, stroke=0)
+        self.setFillColor(WHITE)
+        self.setFont("Helvetica-Bold", 9)
+        self.drawString(20 * mm, PAGE_HEIGHT - 11 * mm, "HMIS — Hospital Management Information System")
+        self.setFont("Helvetica", 8)
+        self.drawRightString(PAGE_WIDTH - 20 * mm, PAGE_HEIGHT - 11 * mm, "Product Overview  |  Confidential")
+
+        # Running Footer Bar
+        self.setFillColor(SLATE_100)
+        self.rect(0, 0, PAGE_WIDTH, 12 * mm, fill=1, stroke=0)
+        self.setFillColor(TEAL_MID)
+        self.rect(0, 0, PAGE_WIDTH, 1.5, fill=1, stroke=0)
+        self.setFont("Helvetica", 8)
+        self.setFillColor(SLATE_500)
+        self.drawString(20 * mm, 4 * mm, f"© {date.today().year} — All rights reserved")
+        self.drawRightString(PAGE_WIDTH - 20 * mm, 4 * mm, f"Page {self._pageNumber} of {page_count}")
+        self.restoreState()
+
 
 # ── Styles ────────────────────────────────────────────────────────────────────
-def make_styles():
-    base = getSampleStyleSheet()
+def make_styles() -> dict[str, ParagraphStyle]:
+    styles = getSampleStyleSheet()
 
-    cover_title = ParagraphStyle(
-        "CoverTitle",
-        fontSize=34,
-        fontName="Helvetica-Bold",
-        textColor=WHITE,
-        leading=40,
-        spaceAfter=6,
-    )
-    cover_sub = ParagraphStyle(
-        "CoverSub",
-        fontSize=14,
-        fontName="Helvetica",
-        textColor=colors.HexColor("#a5f3fc"),
-        leading=20,
-        spaceAfter=4,
-    )
-    cover_date = ParagraphStyle(
-        "CoverDate",
-        fontSize=10,
-        fontName="Helvetica",
-        textColor=colors.HexColor("#cffafe"),
-        leading=14,
-    )
-    section_h = ParagraphStyle(
-        "SectionH",
-        fontSize=16,
-        fontName="Helvetica-Bold",
-        textColor=TEAL_DEEP,
-        spaceBefore=18,
-        spaceAfter=6,
-        leading=20,
-    )
-    sub_h = ParagraphStyle(
-        "SubH",
-        fontSize=12,
-        fontName="Helvetica-Bold",
-        textColor=TEAL_MID,
-        spaceBefore=10,
-        spaceAfter=4,
-        leading=16,
-    )
-    body = ParagraphStyle(
-        "Body",
-        fontSize=10,
-        fontName="Helvetica",
-        textColor=SLATE_700,
-        leading=16,
-        spaceAfter=6,
-        alignment=TA_JUSTIFY,
-    )
-    bullet = ParagraphStyle(
-        "Bullet",
-        fontSize=10,
-        fontName="Helvetica",
-        textColor=SLATE_700,
-        leading=15,
-        leftIndent=14,
-        spaceAfter=3,
-    )
-    caption = ParagraphStyle(
-        "Caption",
-        fontSize=8,
-        fontName="Helvetica-Oblique",
-        textColor=SLATE_500,
-        alignment=TA_CENTER,
-    )
-    kpi_val = ParagraphStyle(
-        "KpiVal",
-        fontSize=22,
-        fontName="Helvetica-Bold",
-        textColor=TEAL_LIGHT,
-        alignment=TA_CENTER,
-        spaceAfter=2,
-    )
-    kpi_lbl = ParagraphStyle(
-        "KpiLbl",
-        fontSize=9,
-        fontName="Helvetica",
-        textColor=SLATE_500,
-        alignment=TA_CENTER,
-    )
-    return dict(
-        cover_title=cover_title, cover_sub=cover_sub, cover_date=cover_date,
-        section_h=section_h, sub_h=sub_h, body=body, bullet=bullet,
-        caption=caption, kpi_val=kpi_val, kpi_lbl=kpi_lbl,
-    )
-
-
-# ── Page templates ────────────────────────────────────────────────────────────
-def cover_bg(canvas, doc):
-    """Full-bleed teal gradient cover background."""
-    canvas.saveState()
-    # Background rectangle (gradient approximated with two rects)
-    canvas.setFillColor(TEAL_DEEP)
-    canvas.rect(0, 0, W, H, fill=1, stroke=0)
-    canvas.setFillColor(TEAL_MID)
-    canvas.rect(0, 0, W, H * 0.55, fill=1, stroke=0)
-    # Decorative circle
-    canvas.setFillColor(colors.HexColor("#0e7490"))
-    canvas.setStrokeColor(colors.HexColor("#0891b2"))
-    canvas.setLineWidth(0)
-    canvas.circle(W - 60, H - 60, 120, fill=1, stroke=0)
-    canvas.setFillColor(colors.HexColor("#164e63"))
-    canvas.circle(W - 60, H - 60, 80, fill=1, stroke=0)
-    # Bottom accent bar
-    canvas.setFillColor(ACCENT_GOLD)
-    canvas.rect(0, 30 * mm, W, 3, fill=1, stroke=0)
-    canvas.restoreState()
+    return {
+        "cover_title": ParagraphStyle(
+            "CoverTitle",
+            parent=styles["Normal"],
+            fontSize=34,
+            fontName="Helvetica-Bold",
+            textColor=WHITE,
+            leading=40,
+            spaceAfter=6,
+        ),
+        "cover_sub": ParagraphStyle(
+            "CoverSub",
+            parent=styles["Normal"],
+            fontSize=14,
+            fontName="Helvetica",
+            textColor=colors.HexColor("#a5f3fc"),
+            leading=20,
+            spaceAfter=4,
+        ),
+        "cover_date": ParagraphStyle(
+            "CoverDate",
+            parent=styles["Normal"],
+            fontSize=10,
+            fontName="Helvetica",
+            textColor=colors.HexColor("#cffafe"),
+            leading=14,
+        ),
+        "section_h": ParagraphStyle(
+            "SectionH",
+            parent=styles["Normal"],
+            fontSize=16,
+            fontName="Helvetica-Bold",
+            textColor=TEAL_DEEP,
+            spaceBefore=16,
+            spaceAfter=6,
+            leading=20,
+            keepWithNext=True,
+        ),
+        "sub_h": ParagraphStyle(
+            "SubH",
+            parent=styles["Normal"],
+            fontSize=11,
+            fontName="Helvetica-Bold",
+            textColor=TEAL_MID,
+            spaceBefore=10,
+            spaceAfter=4,
+            leading=15,
+            keepWithNext=True,
+        ),
+        "body": ParagraphStyle(
+            "Body",
+            parent=styles["Normal"],
+            fontSize=9.5,
+            fontName="Helvetica",
+            textColor=SLATE_700,
+            leading=15,
+            spaceAfter=6,
+            alignment=TA_JUSTIFY,
+        ),
+        "caption": ParagraphStyle(
+            "Caption",
+            parent=styles["Normal"],
+            fontSize=8,
+            fontName="Helvetica-Oblique",
+            textColor=SLATE_500,
+            alignment=TA_CENTER,
+        ),
+        "kpi_val": ParagraphStyle(
+            "KpiVal",
+            parent=styles["Normal"],
+            fontSize=16,
+            fontName="Helvetica-Bold",
+            textColor=TEAL_LIGHT,
+            alignment=TA_CENTER,
+            spaceAfter=2,
+        ),
+        "kpi_lbl": ParagraphStyle(
+            "KpiLbl",
+            parent=styles["Normal"],
+            fontSize=8.5,
+            fontName="Helvetica",
+            textColor=SLATE_500,
+            alignment=TA_CENTER,
+            leading=11,
+        ),
+    }
 
 
-def normal_header_footer(canvas, doc):
-    """Header/footer for inner pages."""
-    canvas.saveState()
-    # Header bar
-    canvas.setFillColor(TEAL_DEEP)
-    canvas.rect(0, H - 18 * mm, W, 18 * mm, fill=1, stroke=0)
-    canvas.setFillColor(WHITE)
-    canvas.setFont("Helvetica-Bold", 9)
-    canvas.drawString(20 * mm, H - 11 * mm, "HMIS — Hospital Management Information System")
-    canvas.setFont("Helvetica", 8)
-    canvas.drawRightString(W - 20 * mm, H - 11 * mm, "Product Overview  |  Confidential")
-    # Footer
-    canvas.setFillColor(SLATE_100)
-    canvas.rect(0, 0, W, 12 * mm, fill=1, stroke=0)
-    canvas.setFillColor(TEAL_MID)
-    canvas.rect(0, 0, W, 1.5, fill=1, stroke=0)
-    canvas.setFont("Helvetica", 8)
-    canvas.setFillColor(SLATE_500)
-    canvas.drawString(20 * mm, 4 * mm, f"© {date.today().year}  —  All rights reserved")
-    canvas.drawRightString(W - 20 * mm, 4 * mm, f"Page {doc.page}")
-    canvas.restoreState()
-
-
-# ── Helper builders ───────────────────────────────────────────────────────────
-def hr(color=TEAL_LIGHT, thickness=0.8):
-    return HRFlowable(width="100%", thickness=thickness, color=color, spaceAfter=6, spaceBefore=2)
-
-
-def kpi_table(s, data):
-    """Renders a row of KPI boxes: [(value, label), ...]"""
-    cells = []
-    for val, lbl in data:
-        cells.append([
-            Paragraph(val, s["kpi_val"]),
-            Paragraph(lbl, s["kpi_lbl"]),
-        ])
-    tbl = Table(
-        [[[Paragraph(v, s["kpi_val"]), Paragraph(l, s["kpi_lbl"])] for v, l in data]],
-        colWidths=[(W - 60 * mm) / len(data)] * len(data),
+# ── Helper Component Builders ─────────────────────────────────────────────────
+def create_hr(color: colors.Color = TEAL_LIGHT, thickness: float = 0.8) -> HRFlowable:
+    return HRFlowable(
+        width="100%",
+        thickness=thickness,
+        color=color,
+        spaceAfter=8,
+        spaceBefore=2,
+        hAlign="CENTER",
     )
+
+
+def build_kpi_table(styles: dict[str, ParagraphStyle], data: list[tuple[str, str]]) -> Table:
+    """Renders a row of metric key indicators evenly across the content width."""
+    content_width = PAGE_WIDTH - 40 * mm
+    col_w = content_width / len(data)
+    
+    formatted_data = [
+        [[Paragraph(val, styles["kpi_val"]), Paragraph(lbl, styles["kpi_lbl"])] for val, lbl in data]
+    ]
+    
+    tbl = Table(formatted_data, colWidths=[col_w] * len(data))
     tbl.setStyle(TableStyle([
-        ("BOX",        (0, 0), (-1, -1), 0.5, TEAL_LIGHT),
-        ("LINEAFTER",  (0, 0), (-2, -1), 0.5, colors.HexColor("#a5f3fc")),
+        ("BOX", (0, 0), (-1, -1), 0.5, TEAL_LIGHT),
+        ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#a5f3fc")),
         ("BACKGROUND", (0, 0), (-1, -1), CYAN_PALE),
-        ("TOPPADDING",    (0, 0), (-1, -1), 10),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-        ("ROUNDEDCORNERS", [6]),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]))
     return tbl
 
 
-def feature_table(s, rows, col_widths=None):
-    """Two-column feature table with teal header row."""
-    col_widths = col_widths or [6 * cm, 10.5 * cm]
-    header = [
-        Paragraph("<b>Module</b>", ParagraphStyle("th", fontSize=10, fontName="Helvetica-Bold", textColor=WHITE)),
-        Paragraph("<b>Key Capabilities</b>", ParagraphStyle("th", fontSize=10, fontName="Helvetica-Bold", textColor=WHITE)),
-    ]
-    tdata = [header] + [
-        [Paragraph(f"<b>{r[0]}</b>", ParagraphStyle("td1", fontSize=9, fontName="Helvetica-Bold", textColor=TEAL_DEEP, leading=13)),
-         Paragraph(r[1], ParagraphStyle("td2", fontSize=9, fontName="Helvetica", textColor=SLATE_700, leading=13))]
-        for r in rows
-    ]
+def build_feature_table(
+    styles: dict[str, ParagraphStyle],
+    rows: list[tuple[str, str]],
+    col_widths: list[float] | None = None,
+) -> Table:
+    """Renders a two-column module and capabilities data grid."""
+    col_widths = col_widths or [5.5 * cm, 11.5 * cm]
+    
+    header_col1 = Paragraph("<b>Module</b>", ParagraphStyle("TH1", fontSize=9, fontName="Helvetica-Bold", textColor=WHITE))
+    header_col2 = Paragraph("<b>Key Capabilities</b>", ParagraphStyle("TH2", fontSize=9, fontName="Helvetica-Bold", textColor=WHITE))
+    
+    tdata = [[header_col1, header_col2]]
+    
+    td_label_style = ParagraphStyle("TDLabel", fontSize=8.5, fontName="Helvetica-Bold", textColor=TEAL_DEEP, leading=12)
+    td_body_style = ParagraphStyle("TDBody", fontSize=8.5, fontName="Helvetica", textColor=SLATE_700, leading=12)
+
+    for label, desc in rows:
+        tdata.append([
+            Paragraph(label, td_label_style),
+            Paragraph(desc, td_body_style),
+        ])
+
     tbl = Table(tdata, colWidths=col_widths, repeatRows=1)
     tbl.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, 0),  TEAL_DEEP),
-        ("BACKGROUND",    (0, 1), (-1, -1), WHITE),
-        ("ROWBACKGROUNDS",(0, 1), (-1, -1), [WHITE, SLATE_100]),
-        ("GRID",          (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")),
-        ("TOPPADDING",    (0, 0), (-1, -1), 7),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 8),
-        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-        ("ROUNDEDCORNERS", [4]),
+        ("BACKGROUND", (0, 0), (-1, 0), TEAL_DEEP),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, SLATE_100]),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 7),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
     ]))
     return tbl
 
 
-# ── Document content ──────────────────────────────────────────────────────────
-def build_story(s):
-    story = []
+# ── Story Construction ────────────────────────────────────────────────────────
+def build_story(styles: dict[str, ParagraphStyle]) -> list[Flowable]:
+    story: list[Flowable] = []
 
-    # ── COVER ──────────────────────────────────────────────────────────────────
+    # Cover Page
     story.append(Spacer(1, 6 * cm))
-    story.append(Paragraph("HMIS", s["cover_title"]))
-    story.append(Paragraph("Hospital Management Information System", s["cover_sub"]))
+    story.append(Paragraph("HMIS", styles["cover_title"]))
+    story.append(Paragraph("Hospital Management Information System", styles["cover_sub"]))
     story.append(Spacer(1, 4 * mm))
-    story.append(Paragraph("Product Overview &amp; Capability Reference", s["cover_sub"]))
+    story.append(Paragraph("Product Overview &amp; Capability Reference", styles["cover_sub"]))
     story.append(Spacer(1, 14 * mm))
-    story.append(Paragraph(f"Version 1.0  ·  {date.today().strftime('%B %Y')}  ·  Confidential", s["cover_date"]))
+    story.append(Paragraph(f"Version 1.0  ·  {date.today().strftime('%B %Y')}  ·  Confidential", styles["cover_date"]))
     story.append(PageBreak())
 
-    # ── Switch to inner template ───────────────────────────────────────────────
+    # Inner Pages Switch
     story.append(NextPageTemplate("inner"))
 
-    # ── 1. EXECUTIVE SUMMARY ──────────────────────────────────────────────────
-    story.append(Paragraph("1. Executive Summary", s["section_h"]))
-    story.append(hr())
+    # 1. Executive Summary
+    story.append(Paragraph("1. Executive Summary", styles["section_h"]))
+    story.append(create_hr())
     story.append(Paragraph(
         "The Hospital Management Information System (HMIS) is a full-stack, cloud-ready "
         "clinical and administrative platform engineered specifically for East African healthcare "
@@ -259,30 +298,30 @@ def build_story(s):
         "results, imaging review, billing, and discharge — while remaining compliant with Kenya's "
         "Data Protection Act 2019 and connected to national reporting infrastructure (DHIS2/KHIS "
         "and the SHA/SHIF insurance scheme).",
-        s["body"]))
+        styles["body"],
+    ))
     story.append(Paragraph(
         "Built on a modern, containerised Python/Flask architecture backed by PostgreSQL, the "
         "system has been hardened through six development phases, stress-tested at sustained "
         "concurrency, and prepared for independent clinical safety and security audits. With "
-        "214 automated tests, a 41 % code-coverage baseline, and a 0.0 % error rate on all "
-        "hot-path benchmarks, the platform is engineered to the standard required before "
-        "admitting the first real patient.",
-        s["body"]))
-
-    story.append(Spacer(1, 6 * mm))
-    story.append(kpi_table(s, [
-        ("214", "Automated tests\npassing"),
-        ("41.6 %", "Code coverage\nbaseline"),
-        ("0.0 %", "Error rate on\nhot-path load tests"),
-        ("17", "Clinical &amp; admin\nmodules"),
-        ("6", "Development\nphases completed"),
+        "214 automated tests, a 41.6% code-coverage baseline, and a 0.0% error rate on all "
+        "hot-path benchmarks, the platform is engineered to enterprise reliability standards.",
+        styles["body"],
+    ))
+    story.append(Spacer(1, 4 * mm))
+    story.append(build_kpi_table(styles, [
+        ("214", "Automated tests passing"),
+        ("41.6%", "Code coverage baseline"),
+        ("0.0%", "Hot-path error rate"),
+        ("17", "Clinical & admin modules"),
+        ("6", "Phases completed"),
     ]))
-    story.append(Spacer(1, 8 * mm))
+    story.append(Spacer(1, 6 * mm))
 
-    # ── 2. CLINICAL MODULES ───────────────────────────────────────────────────
-    story.append(Paragraph("2. Clinical Modules", s["section_h"]))
-    story.append(hr())
-    story.append(feature_table(s, [
+    # 2. Clinical Modules
+    story.append(Paragraph("2. Clinical Modules", styles["section_h"]))
+    story.append(create_hr())
+    story.append(build_feature_table(styles, [
         ("Outpatient / OPD",
          "Patient registration with UUID, triage vitals capture, OPD waiting-list queue, "
          "SOAP/SBAR consultation notes, ICD-10 diagnosis coding (50+ curated codes), "
@@ -316,12 +355,12 @@ def build_story(s):
          "in-call clinical notes, prescription drafting. Feature-flagged "
          "(ENABLE_TELEMEDICINE) pending regulatory sign-off."),
     ]))
-    story.append(PageBreak())
+    story.append(Spacer(1, 6 * mm))
 
-    # ── 3. ADMINISTRATIVE & OPERATIONAL MODULES ───────────────────────────────
-    story.append(Paragraph("3. Administrative &amp; Operational Modules", s["section_h"]))
-    story.append(hr())
-    story.append(feature_table(s, [
+    # 3. Administrative Modules
+    story.append(Paragraph("3. Administrative &amp; Operational Modules", styles["section_h"]))
+    story.append(create_hr())
+    story.append(build_feature_table(styles, [
         ("Billing &amp; Finance",
          "Invoice generation, multi-payment allocation (cash, M-Pesa STK Push, insurance), "
          "unreconciled-charges aggregation, revenue analytics."),
@@ -353,12 +392,12 @@ def build_story(s):
          "AuditLog DB model, @audited decorator on all write routes, SIEM-export endpoint, "
          "full structured event log with user/IP/timestamp/diff."),
     ]))
-    story.append(PageBreak())
+    story.append(Spacer(1, 6 * mm))
 
-    # ── 4. INTEROPERABILITY ───────────────────────────────────────────────────
-    story.append(Paragraph("4. Interoperability &amp; Standards", s["section_h"]))
-    story.append(hr())
-    story.append(feature_table(s, [
+    # 4. Interoperability
+    story.append(Paragraph("4. Interoperability &amp; Standards", styles["section_h"]))
+    story.append(create_hr())
+    story.append(build_feature_table(styles, [
         ("FHIR R4 API",
          "RESTful /api/fhir/R4 endpoints for Patient, Observation, MedicationRequest, "
          "DiagnosticReport resources. Enables integration with national health exchanges."),
@@ -377,15 +416,16 @@ def build_story(s):
          "DICOM Web upload &amp; Cornerstone.js viewer. HL7 MLLP/ASTM LIS interfacing "
          "architecture documented; implementation pending vendor selection."),
     ]))
-    story.append(Spacer(1, 8 * mm))
+    story.append(Spacer(1, 6 * mm))
 
-    # ── 5. SECURITY & COMPLIANCE ──────────────────────────────────────────────
-    story.append(Paragraph("5. Security &amp; Compliance", s["section_h"]))
-    story.append(hr())
+    # 5. Security & Compliance
+    story.append(Paragraph("5. Security &amp; Compliance", styles["section_h"]))
+    story.append(create_hr())
     story.append(Paragraph(
-        "Security is implemented as a layered defence-in-depth strategy, not an afterthought:", s["body"]))
-
-    sec_items = [
+        "Security is implemented as a layered defence-in-depth strategy across system layers:",
+        styles["body"],
+    ))
+    story.append(build_feature_table(styles, [
         ("Authentication", "TOTP-based MFA, 5-attempt account lockout (15-minute timeout), "
          "bcrypt/PBKDF2 password hashing, session signed with SECRET_KEY."),
         ("Authorisation", "Role-based access control (RBAC) across 12 roles; "
@@ -398,137 +438,101 @@ def build_story(s):
          "JWT API endpoints explicitly exempted."),
         ("Rate Limiting", "Flask-Limiter on login (5/min POST), disabled in test mode."),
         ("CI Security Gates", "pip-audit (17 known advisories documented), bandit SAST, "
-         "import-order linting — all enforced in GitHub Actions without || true bypass."),
+         "import-order linting — all enforced in GitHub Actions without bypasses."),
         ("Session Security", "Redis-backed sessions, 30-minute idle timeout, SameSite=Lax, "
          "HttpOnly, Secure cookie flags."),
-    ]
-    story.append(feature_table(s, sec_items, col_widths=[4.5 * cm, 12 * cm]))
-    story.append(PageBreak())
+    ], col_widths=[4.5 * cm, 12.5 * cm]))
+    story.append(Spacer(1, 6 * mm))
 
-    # ── 6. ARCHITECTURE ────────────────────────────────────────────────────────
-    story.append(Paragraph("6. Technical Architecture", s["section_h"]))
-    story.append(hr())
-
-    story.append(Paragraph("6.1  Stack Overview", s["sub_h"]))
-    story.append(feature_table(s, [
-        ("Backend",       "Python 3.12 · Flask 3.x · SQLAlchemy ORM · Flask-Migrate (Alembic)"),
-        ("Database",      "PostgreSQL 16 (primary) · SQLite (test / offline fallback)"),
+    # 6. Technical Architecture
+    story.append(Paragraph("6. Technical Architecture", styles["section_h"]))
+    story.append(create_hr())
+    story.append(Paragraph("6.1 Stack Overview", styles["sub_h"]))
+    story.append(build_feature_table(styles, [
+        ("Backend", "Python 3.12 · Flask 3.x · SQLAlchemy ORM · Flask-Migrate (Alembic)"),
+        ("Database", "PostgreSQL 16 (primary) · SQLite (test / offline fallback)"),
         ("Cache / Queue", "Redis 7 (session store + Celery broker) · Celery 5.4 (async tasks)"),
-        ("Real-time",     "Flask-SocketIO · WebRTC (telemedicine signalling)"),
-        ("Auth",          "Flask-Login · Flask-JWT-Extended · PyOTP (TOTP MFA)"),
-        ("AI / NLP",      "NVIDIA NIM API client · local HuggingFace summariser · DrugCentral DDI DB"),
-        ("Containers",    "Docker + Docker Compose (web, db, redis, celery_worker, nlp services)"),
-        ("CI/CD",         "GitHub Actions: lint → bandit → pip-audit → pytest (214 tests, 41.6 % cov)"),
+        ("Real-time", "Flask-SocketIO · WebRTC (telemedicine signalling)"),
+        ("Auth", "Flask-Login · Flask-JWT-Extended · PyOTP (TOTP MFA)"),
+        ("AI / NLP", "NVIDIA NIM API client · local HuggingFace summariser · DrugCentral DDI DB"),
+        ("Containers", "Docker + Docker Compose (web, db, redis, celery_worker, nlp services)"),
+        ("CI/CD", "GitHub Actions: lint → bandit → pip-audit → pytest (214 tests, 41.6% cov)"),
         ("Offline / PWA", "Service Worker sw.js · Web App Manifest · offline.html fallback"),
-    ], col_widths=[4 * cm, 12.5 * cm]))
+    ], col_widths=[4.5 * cm, 12.5 * cm]))
 
-    story.append(Paragraph("6.2  Deployment", s["sub_h"]))
-    story.append(Paragraph(
-        "The system ships as a five-container Docker Compose stack. A single "
-        "<b>docker compose up -d</b> command starts the Flask application server, "
-        "PostgreSQL database, Redis broker, Celery worker, and the optional NLP micro-service. "
-        "Database schema changes are applied with <b>flask db upgrade</b> (Alembic). "
-        "The stack is cloud-agnostic and has been tested on bare-metal Ubuntu 22.04 LTS and "
-        "AWS EC2/RDS equivalents.", s["body"]))
-
-    story.append(Paragraph("6.3  Performance Baseline", s["sub_h"]))
+    story.append(Paragraph("6.2 Performance Baseline", styles["sub_h"]))
     story.append(Paragraph(
         "Hot-path benchmarking was executed with a session-authenticated concurrent load "
-        "test (C = 20 simultaneous workers). Results recorded in docs/load_test_results.md:", s["body"]))
-    story.append(feature_table(s, [
-        ("Patient Registration",   "0.0 % error rate · sub-200 ms p95 at C=20"),
-        ("Prescription Sign-off",  "0.0 % error rate · sub-250 ms p95 at C=20"),
-        ("Billing Payment",        "0.0 % error rate · sub-200 ms p95 at C=20"),
-        ("Health Check /healthz",  "1,200 req/sec sustained · Flask-Limiter lockout verified"),
-    ], col_widths=[6 * cm, 10.5 * cm]))
-    story.append(PageBreak())
+        "test (C = 20 simultaneous workers). Results recorded in docs/load_test_results.md:",
+        styles["body"],
+    ))
+    story.append(build_feature_table(styles, [
+        ("Patient Registration", "0.0% error rate · sub-200 ms p95 at C=20"),
+        ("Prescription Sign-off", "0.0% error rate · sub-250 ms p95 at C=20"),
+        ("Billing Payment", "0.0% error rate · sub-200 ms p95 at C=20"),
+        ("Health Check /healthz", "1,200 req/sec sustained · Flask-Limiter lockout verified"),
+    ], col_widths=[5.5 * cm, 11.5 * cm]))
+    story.append(Spacer(1, 6 * mm))
 
-    # ── 7. COMPLIANCE & AUDIT READINESS ───────────────────────────────────────
-    story.append(Paragraph("7. Audit &amp; Regulatory Readiness", s["section_h"]))
-    story.append(hr())
+    # 7. Audit Readiness
+    story.append(Paragraph("7. Audit &amp; Regulatory Readiness", styles["section_h"]))
+    story.append(create_hr())
     story.append(Paragraph(
-        "Three independent audit-preparation packages have been produced and maintained "
-        "in the docs/ directory:", s["body"]))
+        "Three independent audit-preparation packages are maintained within the repository:",
+        styles["body"],
+    ))
     for doc_name, desc in [
         ("security_audit_readiness.md",
-         "Maps every OWASP Top-10 2021 control to its implementation in the codebase. "
+         "Maps OWASP Top-10 controls to implementation routes. "
          "Identifies 17 open pip-audit advisories with risk ratings and mitigations."),
         ("clinical_safety_review_packaging.md",
-         "Documents the Clinical Decision Support rules, AI governance framework "
-         "(input validation, consent gating, mode disclosure, audit timer), "
-         "allergy registry, and known limitations for clinical safety reviewers."),
+         "Documents Clinical Decision Support rules, AI governance framework "
+         "(input validation, consent gating, audit timer), and allergy registry."),
         ("accessibility_audit_report.md",
-         "WCAG 2.1 AA compliance checklist. Documents keyboard navigation, ARIA landmark "
-         "roles, colour-contrast ratios, and screen-reader compatibility across core flows."),
+         "WCAG 2.1 AA compliance verification covering keyboard navigation, ARIA landmarks, "
+         "and screen-reader compatibility."),
     ]:
-        story.append(Paragraph(f"<b>docs/{doc_name}</b>", s["sub_h"]))
-        story.append(Paragraph(desc, s["body"]))
+        story.append(Paragraph(f"<b>docs/{doc_name}</b>", styles["sub_h"]))
+        story.append(Paragraph(desc, styles["body"]))
 
-    story.append(Spacer(1, 4 * mm))
-    story.append(Paragraph(
-        "A DECISIONS_PENDING.md register captures all items requiring regulatory, financial, "
-        "or clinical authority before the system goes live with real patients (controlled drug "
-        "register, eTIMS/KRA tax compliance, file-storage data-residency, WHO ICD-10 licence).",
-        s["body"]))
-    story.append(PageBreak())
-
-    # ── 8. ROADMAP ─────────────────────────────────────────────────────────────
-    story.append(Paragraph("8. Recommended Next Steps", s["section_h"]))
-    story.append(hr())
-    story.append(Paragraph(
-        "The following items have been identified as the highest-value investments to elevate "
-        "the platform from a production-ready Level 2 HMIS to a world-class enterprise system:", s["body"]))
-
-    roadmap = [
-        ("ICD-10 Full Database",
-         "Replace the 50-item curated array in prescribe.py with a full ICD-10-CM SQLite "
-         "table and FTS5/Trigram search index (requires WHO API licence)."),
-        ("KRA eTIMS Middleware",
-         "Implement sign-and-send middleware for electronic tax invoicing compliance "
-         "with the Kenya Revenue Authority (pending regulatory decision)."),
-        ("Controlled Drug Register",
-         "Dedicated Schedule I/II/III dispensing log, dual-signature workflow, and "
-         "monthly reconciliation report (pending Pharmacy &amp; Poisons Board guidance)."),
-        ("LIS / PACS Hardware Bridge",
-         "ASTM E1381 MLLP listener for lab analyser auto-result import and DICOM "
-         "worklist integration with physical imaging equipment."),
-        ("HL7 ADT Feed",
-         "Real-time Admit/Discharge/Transfer HL7 v2 feed to national health exchange."),
-        ("Telemedicine Activation",
-         "Complete KMPDC telehealth guideline review and activate the ENABLE_TELEMEDICINE "
-         "feature flag for video consultations."),
-        ("Penetration Test",
-         "Commission a third-party OWASP-scoped web application penetration test before "
-         "production go-live."),
-    ]
-    story.append(feature_table(s, roadmap, col_widths=[5.5 * cm, 11 * cm]))
-    story.append(Spacer(1, 10 * mm))
-
-    # ── 9. CONTACT / CLOSING ──────────────────────────────────────────────────
-    story.append(Paragraph("9. Contact &amp; Licensing", s["section_h"]))
-    story.append(hr())
-    story.append(Paragraph(
-        "This document is confidential and intended solely for the recipient. "
-        "The HMIS codebase is maintained under a proprietary licence. "
-        "For partnership enquiries, clinical deployment support, or integration "
-        "services, please contact the development team through the project repository.",
-        s["body"]))
     story.append(Spacer(1, 6 * mm))
+
+    # 8. Roadmap & Closing
+    story.append(Paragraph("8. Recommended Next Steps", styles["section_h"]))
+    story.append(create_hr())
+    story.append(build_feature_table(styles, [
+        ("ICD-10 Full Database", "Expand 50-item curated array to full ICD-10-CM FTS5 index via WHO API."),
+        ("KRA eTIMS Middleware", "Implement tax middleware for automated KRA electronic invoicing."),
+        ("Controlled Drugs", "Schedule I/II/III dispensing log with dual-signature authorization."),
+        ("Hardware Interfacing", "ASTM E1381 MLLP listener for lab analyzers and PACS DICOM worklists."),
+        ("Penetration Testing", "Third-party OWASP web application penetration audit prior to go-live."),
+    ], col_widths=[5.5 * cm, 11.5 * cm]))
+
+    story.append(Spacer(1, 8 * mm))
+    story.append(Paragraph("9. Contact &amp; Licensing", styles["section_h"]))
+    story.append(create_hr())
     story.append(Paragraph(
-        f"Document generated: {date.today().strftime('%d %B %Y')}",
-        s["caption"]))
+        "This document is confidential and intended solely for designated stakeholders. "
+        "The HMIS codebase is maintained under a proprietary license. "
+        "For deployment inquiries, clinical configuration, or integration support, contact "
+        "the engineering team via the repository portal.",
+        styles["body"],
+    ))
+    story.append(Spacer(1, 4 * mm))
+    story.append(Paragraph(f"Document generated: {date.today().strftime('%d %B %Y')}", styles["caption"]))
 
     return story
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
-def main():
-    out_path = os.path.join(os.path.dirname(__file__), "..", "docs", "HMIS_Product_Overview.pdf")
-    out_path = os.path.normpath(out_path)
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+# ── Main Entrypoint ───────────────────────────────────────────────────────────
+def main() -> None:
+    project_root = Path(__file__).resolve().parent.parent
+    out_dir = project_root / "docs"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "HMIS_Product_Overview.pdf"
 
     doc = BaseDocTemplate(
-        out_path,
+        str(out_path),
         pagesize=A4,
         leftMargin=20 * mm,
         rightMargin=20 * mm,
@@ -539,25 +543,30 @@ def main():
         subject="Product Overview & Capability Reference",
     )
 
-    # Cover template (no header/footer, full bleed)
-    cover_frame = Frame(0, 0, W, H, leftPadding=30 * mm, rightPadding=30 * mm,
-                        topPadding=0, bottomPadding=30 * mm, id="cover")
-    cover_tpl = PageTemplate(id="cover", frames=[cover_frame], onPage=cover_bg)
-
-    # Inner pages
+    # Frame & Template Setup
+    cover_frame = Frame(
+        0, 0, PAGE_WIDTH, PAGE_HEIGHT,
+        leftPadding=30 * mm, rightPadding=30 * mm,
+        topPadding=0, bottomPadding=30 * mm,
+        id="cover_frame",
+    )
     inner_frame = Frame(
         20 * mm, 18 * mm,
-        W - 40 * mm, H - 18 * mm - 20 * mm,
-        id="inner_body",
+        PAGE_WIDTH - 40 * mm, PAGE_HEIGHT - 18 * mm - 20 * mm,
+        id="inner_frame",
     )
-    inner_tpl = PageTemplate(id="inner", frames=[inner_frame], onPage=normal_header_footer)
 
-    doc.addPageTemplates([cover_tpl, inner_tpl])
+    doc.addPageTemplates([
+        PageTemplate(id="cover", frames=[cover_frame]),
+        PageTemplate(id="inner", frames=[inner_frame]),
+    ])
 
-    s = make_styles()
-    story = build_story(s)
-    doc.build(story)
-    print(f"✅  PDF written to: {out_path}")
+    styles = make_styles()
+    story = build_story(styles)
+    
+    # Build PDF with Dynamic Page Counter Canvas
+    doc.build(story, canvasmaker=NumberedCanvas)
+    print(f"✅  Professional PDF generated: {out_path}")
 
 
 if __name__ == "__main__":
