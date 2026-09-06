@@ -138,6 +138,28 @@ def run_all_benchmarks(concurrency_levels=[5, 20]):
         'GET /records/search_patients?term=John (DB Search)': lambda c: c.get('/records/search_patients?term=John'),
         'GET /admin/analytics (Dashboard)': lambda c: c.get('/admin/analytics'),
         'GET /medicine/ (Clinical List)': lambda c: c.get('/medicine/'),
+        'POST /records/register_patient (Patient Reg)': lambda c: c.post('/records/register_patient', data={
+            'name': 'Bench Patient',
+            'place_of_residence': 'Nairobi',
+            'sex': 'Male',
+            'date_of_birth': '1992-04-10',
+            'marital_status': 'Single',
+            'blood_group': 'B+',
+            'contact': '0700000000',
+            'next_of_kin': 'Kin',
+            'relationship_with_next_of_kin': 'Parent',
+            'next_of_kin_contact': '0711111111',
+            'emergency_contact': '0722222222'
+        }),
+        'POST /medicine/prescribe/signoff (Rx Signoff)': lambda c: c.post('/medicine/prescribe/signoff', json={
+            'patient_id': 'P-BENCH-01',
+            'prescriptions': [{'name': 'Paracetamol', 'dosage': '500mg', 'cost': 100.0}]
+        }),
+        'POST /billing/pay_bills/P-BENCH-01 (Billing Pay)': lambda c: c.post('/billing/pay_bills/P-BENCH-01', data={
+            'action': 'pay_all',
+            'amount_paid': '100.00',
+            'payment_method': 'Cash'
+        }),
     }
 
     results = {}
@@ -153,3 +175,4 @@ def run_all_benchmarks(concurrency_levels=[5, 20]):
 
 if __name__ == '__main__':
     run_all_benchmarks()
+

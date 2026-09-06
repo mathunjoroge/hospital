@@ -22,27 +22,77 @@ except ImportError:
 from departments.models.billing import Invoice, InvoiceLineItem
 from departments.models.medicine import Medicine, PrescribedMedicine, SOAPNote
 from departments.models.nursing import NursingNote
-from departments.models.records import Patient
+from departments.models.records import Patient, PatientAllergy
 
 logger = logging.getLogger(__name__)
 
 prescribe_bp = Blueprint('eprescribe', __name__, url_prefix='/medicine/prescribe')
 
-# Standard ICD-10 Reference Catalog
+
+# Standard ICD-10 Reference Catalog (STOPGAP: Comprehensive Common Clinical Catalog)
+# Note: Full ICD-10-CM offline ingestion requires WHO ICD API client registration credentials.
 ICD10_DATABASE = [
+    # Respiratory & ENT
     {"code": "J06.9", "description": "Acute upper respiratory infection, unspecified", "category": "Respiratory"},
     {"code": "J18.9", "description": "Pneumonia, unspecified organism", "category": "Respiratory"},
     {"code": "J45.909", "description": "Unspecified asthma, uncomplicated", "category": "Respiratory"},
+    {"code": "J44.9", "description": "Chronic obstructive pulmonary disease, unspecified", "category": "Respiratory"},
+    {"code": "J01.90", "description": "Acute sinusitis, unspecified", "category": "Respiratory"},
+    {"code": "J02.9", "description": "Acute pharyngitis, unspecified", "category": "Respiratory"},
+    {"code": "R05", "description": "Cough", "category": "Respiratory"},
+    # Endocrine & Metabolic
     {"code": "E11.9", "description": "Type 2 diabetes mellitus without complications", "category": "Endocrine"},
+    {"code": "E10.9", "description": "Type 1 diabetes mellitus without complications", "category": "Endocrine"},
+    {"code": "E03.9", "description": "Hypothyroidism, unspecified", "category": "Endocrine"},
+    {"code": "E66.9", "description": "Obesity, unspecified", "category": "Endocrine"},
+    {"code": "E87.1", "description": "Hypo-osmolality and hyponatremia", "category": "Endocrine"},
+    # Cardiovascular
     {"code": "I10", "description": "Essential (primary) hypertension", "category": "Cardiovascular"},
+    {"code": "I50.9", "description": "Heart failure, unspecified", "category": "Cardiovascular"},
+    {"code": "I25.10", "description": "Atherosclerotic heart disease of native coronary artery", "category": "Cardiovascular"},
+    {"code": "I48.91", "description": "Unspecified atrial fibrillation", "category": "Cardiovascular"},
+    {"code": "I21.9", "description": "Acute myocardial infarction, unspecified", "category": "Cardiovascular"},
+    # Gastrointestinal & Hepatic
     {"code": "A09", "description": "Infectious gastroenteritis and colitis, unspecified", "category": "Gastrointestinal"},
     {"code": "K29.7", "description": "Gastritis, unspecified", "category": "Gastrointestinal"},
+    {"code": "K21.9", "description": "Gastro-esophageal reflux disease without esophagitis", "category": "Gastrointestinal"},
+    {"code": "K80.20", "description": "Calculus of gallbladder without cholecystitis without obstruction", "category": "Gastrointestinal"},
+    {"code": "K35.80", "description": "Unspecified acute appendicitis", "category": "Gastrointestinal"},
+    # Infectious Diseases & Malaria
     {"code": "B34.9", "description": "Viral infection, unspecified", "category": "Infectious"},
+    {"code": "B54", "description": "Unspecified malaria", "category": "Infectious"},
+    {"code": "B20", "description": "Human immunodeficiency virus [HIV] disease", "category": "Infectious"},
+    {"code": "A15.0", "description": "Tuberculosis of lung", "category": "Infectious"},
+    {"code": "A01.00", "description": "Typhoid fever, unspecified", "category": "Infectious"},
+    # Musculoskeletal
     {"code": "M54.5", "description": "Low back pain, unspecified", "category": "Musculoskeletal"},
+    {"code": "M17.9", "description": "Osteoarthritis of knee, unspecified", "category": "Musculoskeletal"},
+    {"code": "M79.7", "description": "Fibromyalgia", "category": "Musculoskeletal"},
+    # Nephrology & Genitourinary
     {"code": "N39.0", "description": "Urinary tract infection, site unspecified", "category": "Genitourinary"},
+    {"code": "N18.9", "description": "Chronic kidney disease, unspecified", "category": "Genitourinary"},
+    {"code": "N20.1", "description": "Calculus of ureter", "category": "Genitourinary"},
+    # Oncology & Hematology
+    {"code": "C50.919", "description": "Malignant neoplasm of unspecified site of unspecified female breast", "category": "Oncology"},
+    {"code": "C61", "description": "Malignant neoplasm of prostate", "category": "Oncology"},
+    {"code": "C34.90", "description": "Malignant neoplasm of unspecified part of unspecified bronchus or lung", "category": "Oncology"},
+    {"code": "D50.9", "description": "Iron deficiency anemia, unspecified", "category": "Hematology"},
+    {"code": "D57.1", "description": "Sickle-cell disease without crisis", "category": "Hematology"},
+    # Obstetrics & Gynecology
+    {"code": "O80", "description": "Encounter for full-term uncomplicated delivery", "category": "Obstetrics"},
+    {"code": "O14.90", "description": "Unspecified pre-eclampsia", "category": "Obstetrics"},
+    {"code": "N94.6", "description": "Dysmenorrhea, unspecified", "category": "Gynecology"},
+    # Neurology & Psychiatry
+    {"code": "G43.909", "description": "Migraine, unspecified, not intractable", "category": "Neurology"},
+    {"code": "G40.909", "description": "Epilepsy, unspecified, not intractable", "category": "Neurology"},
+    {"code": "F32.9", "description": "Major depressive disorder, single episode, unspecified", "category": "Psychiatry"},
+    {"code": "F41.1", "description": "Generalized anxiety disorder", "category": "Psychiatry"},
+    # General & Symptoms
     {"code": "R50.9", "description": "Fever, unspecified", "category": "General"},
-    {"code": "R05", "description": "Cough", "category": "Respiratory"},
+    {"code": "R51.9", "description": "Headache, unspecified", "category": "General"},
+    {"code": "R53.83", "description": "Other fatigue", "category": "General"},
 ]
+
 
 # Drug Allergy Cross-Reactivity Dictionary
 ALLERGY_GROUPS = {
@@ -75,31 +125,49 @@ def search_icd10(query: str) -> list[dict]:
 
 def check_drug_safety(patient_id: str, new_medications: list[str]) -> dict:
     """
-    Check new prescription list against patient allergies and drug-drug interactions.
+    Check new prescription list against patient allergies (structured PatientAllergy + free-text NursingNotes)
+    and drug-drug interactions.
     Returns: {"has_warnings": bool, "alerts": list[dict]}
     """
     alerts = []
     new_meds_lower = [m.lower().strip() for m in new_medications if m]
 
-    # 1. Fetch patient allergy history from NursingNotes or Patient record
+    # 1a. Fetch structured patient allergies from PatientAllergy model
+    structured_allergies = PatientAllergy.query.filter_by(patient_id=patient_id).all()
+    structured_allergen_names = [a.allergen.lower().strip() for a in structured_allergies if a.allergen]
+
+    # 1b. Fetch patient allergy history from NursingNotes free text
     notes = NursingNote.query.filter_by(patient_id=patient_id).all()
-    documented_allergies = []
+    documented_allergies = list(structured_allergen_names)
     for n in notes:
         if n.allergies:
             documented_allergies.extend([a.strip().lower() for a in n.allergies.split(',')])
 
-    # Check allergy cross-reactivity
+    # Check allergy cross-reactivity and direct matches
     for drug in new_meds_lower:
-        for group_name, drug_list in ALLERGY_GROUPS.items():
-            if any(d in drug for d in drug_list):
-                # Check if patient is allergic to this group
-                if any(group_name in allergy or any(d in allergy for d in drug_list) for allergy in documented_allergies):
-                    alerts.append({
-                        "type": "ALLERGY_WARNING",
-                        "severity": "CRITICAL",
-                        "drug": drug,
-                        "message": f"PATIENT ALLERGY ALERT: Patient is allergic to {group_name.upper()} group! Drug '{drug.title()}' is contraindicated."
-                    })
+        # Direct allergen match from PatientAllergy registry or free-text
+        for allergen in documented_allergies:
+            if allergen in drug or drug in allergen:
+                alerts.append({
+                    "type": "ALLERGY_WARNING",
+                    "severity": "CRITICAL",
+                    "drug": drug,
+                    "message": f"PATIENT ALLERGY ALERT: Patient has documented allergy to '{allergen.title()}'! Drug '{drug.title()}' is contraindicated."
+                })
+                break
+        else:
+            # Check group cross-reactivity
+            for group_name, drug_list in ALLERGY_GROUPS.items():
+                if any(d in drug for d in drug_list):
+                    if any(group_name in allergy or any(d in allergy for d in drug_list) for allergy in documented_allergies):
+                        alerts.append({
+                            "type": "ALLERGY_WARNING",
+                            "severity": "CRITICAL",
+                            "drug": drug,
+                            "message": f"PATIENT ALLERGY ALERT: Patient is allergic to {group_name.upper()} group! Drug '{drug.title()}' is contraindicated."
+                        })
+                        break
+
 
     # 2. Check Drug-Drug Interactions (DDI)
     # Fetch current active prescribed meds for patient

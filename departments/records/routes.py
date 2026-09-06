@@ -19,6 +19,8 @@ from departments.models.records import (
     Clinic,
     ClinicBooking,
     Patient,
+    PatientAllergy,
+    PatientProblem,
     PatientWaitingList,
 )
 
@@ -230,6 +232,10 @@ def patient_history(patient_id):
 
     clinic_bookings = ClinicBooking.query.filter_by(patient_id=patient_id).order_by(ClinicBooking.clinic_date.desc()).all()
 
+    allergies = PatientAllergy.query.filter_by(patient_id=patient_id).order_by(PatientAllergy.date_recorded.desc()).all()
+
+    problems = PatientProblem.query.filter_by(patient_id=patient_id).order_by(PatientProblem.created_at.desc()).all()
+
     return render_template('records/patient_history.html',
                            patient=patient,
                            soap_notes=soap_notes,
@@ -240,7 +246,103 @@ def patient_history(patient_id):
                            vitals=vitals,
                            nursing_notes=nursing_notes,
                            admissions=admissions,
-                           clinic_bookings=clinic_bookings)
+                           clinic_bookings=clinic_bookings,
+                           allergies=allergies,
+                           problems=problems)
+
+
+# ─────────────────────────────────────────────
+# PATIENT ALLERGY REGISTRY & PROBLEM LIST APIs
+# ─────────────────────────────────────────────
+@bp.route('/patient/<patient_id>/allergies', methods=['GET', 'POST'])
+@login_required
+def manage_patient_allergies(patient_id):
+    Patient.query.filter_by(patient_id=patient_id).first_or_404()
+    if request.method == 'POST':
+
+        data = request.get_json() or request.form
+        allergen = data.get('allergen')
+        if not allergen:
+            return jsonify({'error': 'Allergen name required'}), 400
+        category = data.get('category', 'DRUG')
+        reaction = data.get('reaction', '')
+        severity = data.get('severity', 'MODERATE')
+
+        allergy = PatientAllergy(
+            patient_id=patient_id,
+            allergen=allergen,
+            category=category,
+            reaction=reaction,
+            severity=severity,
+            recorded_by=getattr(current_user, 'id', None)
+        )
+        db.session.add(allergy)
+        db.session.commit()
+        log_audit_event('PATIENT_ALLERGY_ADD', resource_type='PatientAllergy', resource_id=str(allergy.id), details={'allergen': allergen, 'patient_id': patient_id})
+        return jsonify({'success': True, 'allergy_id': allergy.id, 'message': 'Allergy record added successfully.'}), 201
+
+    allergies = PatientAllergy.query.filter_by(patient_id=patient_id).order_by(PatientAllergy.date_recorded.desc()).all()
+    return jsonify([{
+        'id': a.id,
+        'allergen': a.allergen,
+        'category': a.category,
+        'reaction': a.reaction,
+        'severity': a.severity,
+        'date_recorded': a.date_recorded.isoformat() if a.date_recorded else None
+    } for a in allergies]), 200
+
+
+@bp.route('/patient/<patient_id>/problems', methods=['GET', 'POST'])
+@login_required
+def manage_patient_problems(patient_id):
+    Patient.query.filter_by(patient_id=patient_id).first_or_404()
+    if request.method == 'POST':
+
+        data = request.get_json() or request.form
+        description = data.get('description')
+        if not description:
+            return jsonify({'error': 'Problem description required'}), 400
+        icd10_code = data.get('icd10_code')
+        status = data.get('status', 'ACTIVE')
+
+        problem = PatientProblem(
+            patient_id=patient_id,
+            icd10_code=icd10_code,
+            description=description,
+            status=status,
+            created_by=getattr(current_user, 'id', None)
+        )
+        db.session.add(problem)
+        db.session.commit()
+        log_audit_event('PATIENT_PROBLEM_ADD', resource_type='PatientProblem', resource_id=str(problem.id), details={'description': description, 'status': status, 'patient_id': patient_id})
+        return jsonify({'success': True, 'problem_id': problem.id, 'message': 'Active problem recorded successfully.'}), 201
+
+    problems = PatientProblem.query.filter_by(patient_id=patient_id).order_by(PatientProblem.created_at.desc()).all()
+    return jsonify([{
+        'id': p.id,
+        'icd10_code': p.icd10_code,
+        'description': p.description,
+        'status': p.status,
+        'created_at': p.created_at.isoformat() if p.created_at else None
+    } for p in problems]), 200
+
+
+@bp.route('/patient/<patient_id>/problems/<int:problem_id>/status', methods=['POST', 'PUT'])
+@login_required
+def update_patient_problem_status(patient_id, problem_id):
+    problem = PatientProblem.query.filter_by(id=problem_id, patient_id=patient_id).first_or_404()
+    data = request.get_json() or request.form
+    new_status = data.get('status', 'RESOLVED').upper()
+    if new_status not in ('ACTIVE', 'RESOLVED', 'CHRONIC'):
+        return jsonify({'error': 'Invalid status. Must be ACTIVE, RESOLVED, or CHRONIC'}), 400
+
+    problem.status = new_status
+    if new_status == 'RESOLVED':
+        problem.resolved_date = date.today()
+    db.session.commit()
+    log_audit_event('PATIENT_PROBLEM_UPDATE', resource_type='PatientProblem', resource_id=str(problem.id), details={'new_status': new_status, 'patient_id': patient_id})
+    return jsonify({'success': True, 'problem_id': problem.id, 'status': problem.status}), 200
+
 
 
 # ─────────────────────────────────────────────

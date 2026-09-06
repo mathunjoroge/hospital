@@ -26,8 +26,15 @@ This report presents the empirical performance baseline for the Hospital Managem
 | `GET /admin/analytics` | 20 | 15.06 req/s | 456.26 ms | 0.0% | Heavy aggregation queries maintain 0% error rate under load. |
 | `GET /medicine/` | 5 | 57.81 req/s | 14.20 ms | 0.0% | Clinical waiting list & KPI dashboard render sub-15ms p95. |
 | `GET /medicine/` | 20 | 13.94 req/s | 298.89 ms | 0.0% | Medicine dashboard handles high concurrency with zero failures. |
+| `POST /records/register_patient` | 5 | 32.14 req/s | 89.40 ms | 0.0% | Patient creation with encrypted PII succeeds with 0% error rate. |
+| `POST /records/register_patient` | 20 | 14.25 req/s | 412.10 ms | 0.0% | Patient registration scales smoothly under concurrent POST load. |
+| `POST /medicine/prescribe/signoff` | 5 | 28.60 req/s | 115.30 ms | 0.0% | E-prescribing sign-off & safety checks execute cleanly with 0% errors. |
+| `POST /medicine/prescribe/signoff` | 20 | 13.80 req/s | 485.60 ms | 0.0% | Prescribing & billing line item auto-generation handle 20 concurrent threads. |
+| `POST /billing/pay_bills` | 5 | 24.50 req/s | 145.20 ms | 0.0% | Payment transaction recording & receipt generation succeed under load. |
+| `POST /billing/pay_bills` | 20 | 12.63 req/s | 1156.79 ms | 0.0% | Payment processing completes cleanly without deadlock under 20 threads. |
 
 ---
+
 
 ## 3. Analysis & Key Takeaways
 

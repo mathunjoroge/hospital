@@ -29,3 +29,42 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
 * **Questions / Decisions Required**:
   1. **Provider Selection**: Is Sentry SaaS (free tier/paid) acceptable for error tracking, or does the hospital require self-hosted error tracking (e.g. Sentry On-Premise, GlitchTip, or OpenTelemetry/Jaeger) due to data sovereignty rules under the Data Protection Act 2019?
   2. **Volume & Budget**: Does the anticipated log/error volume fit within free tier limits, or is budget allocated for telemetry ingestion?
+
+---
+
+## 4. Official WHO ICD-10 API Registration Credentials (Phase A.3)
+
+* **Context**: The system currently utilizes an expanded 50+ item common clinical diagnosis catalog in [`departments/medicine/prescribe.py`](file:///home/mathu/projects/hospital/departments/medicine/prescribe.py#L35). Importing the complete 14,000+ code WHO ICD-10-CM / ICD-11 database via WHO's API requires organizational registration credentials (`Client ID` & `Client Secret`).
+* **Questions / Decisions Required**:
+  1. **Credentials**: Can the facility management provide WHO ICD-API client credentials for automated FTS5 table ingestion?
+  2. **Catalog Scope**: Is the 50+ item curated stopgap diagnosis catalog adequate for initial deployment while official credentials are obtained?
+
+---
+
+## 5. Controlled Drug Register Policy & Workflow (Phase B.1 — HARD STOP)
+
+* **Context**: Schedule IV/V controlled substance dispensing is subject to Pharmacy and Poisons Board (PPB) legal regulation. The dual-signature and balance reconciliation rules vary by facility licensing tier.
+* **Questions / Decisions Required**:
+  1. **Dual Signature Roles**: Who qualifies as the mandatory second signatory for controlled drug dispensing? (e.g., two licensed pharmacists, or a pharmacist plus the ward nurse-in-charge?)
+  2. **Stock Reconciliation Schedule**: Does physical inventory reconciliation occur per shift, daily, or weekly?
+  3. **Schedule Differentiation**: Do Schedule II (narcotics) and Schedule IV (psychotropics) require distinct register ledgers or a single unified controlled log?
+
+---
+
+## 6. KRA eTIMS Tax Compliance & Electronic Invoicing (Phase B.2 — HARD STOP)
+
+* **Context**: Financial integration with Kenya Revenue Authority (KRA) eTIMS for automated QR code fiscal receipt generation requires an active KRA PIN and VSCU/OSCU software middleware certification.
+* **Questions / Decisions Required**:
+  1. **Registration Status**: Does the facility currently possess an active KRA eTIMS registration and VSCU/OSCU ESD device/software license?
+  2. **VAT Exemption Matrix**: Which hospital service categories are VAT-exempt under Kenyan tax law (e.g. medical consultations and essential drugs) vs. taxable (e.g. cosmetic procedures or retail supplies)?
+  3. **Implementation Timing**: Should eTIMS fiscalization be built as an automated middleware bridge once registration details are provided?
+
+---
+
+## 7. Medical File Storage Backend & Kenya DPA 2019 Data Residency (Phase B.3 — HARD STOP)
+
+* **Context**: DICOM imaging, lab PDF results, and patient record uploads currently sit on local Docker volume storage. Scalable production deployment requires object storage.
+* **Questions / Decisions Required**:
+  1. **Provider Selection**: Should storage use AWS S3, self-hosted MinIO, or Cloudflare R2?
+  2. **Data Residency Compliance**: Under the Kenya Data Protection Act (2019), health data must comply with strict data localization guidelines. Is hosting on a local cloud provider or self-hosted MinIO within Kenya mandatory, or is an AWS/R2 regional bucket acceptable?
+

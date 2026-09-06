@@ -30,6 +30,7 @@ from .hr import (
     Leave,
     Payroll,
     Rota,
+    StaffCredential,
 )
 from .imaging import ImagingResult
 from .insurance import Claim, ClaimStatus, InsuranceScheme, PatientInsurance
@@ -100,8 +101,10 @@ from .records import (
     Clinic,
     ClinicBooking,
     Patient,
+    PatientAllergy,
     PatientIdentifier,
     PatientMerge,
+    PatientProblem,
     PatientWaitingList,
 )
 from .stores import NonPharmCategory, NonPharmItem, OtherOrder
@@ -115,7 +118,7 @@ __all__ = [
     'LabBill', 'ClinicBill', 'TheatreBill', 'ImagingBill',
     'Invoice', 'InvoiceLineItem', 'Payment', 'InvoiceStatus', 'PaymentMethod',
     'InsuranceScheme', 'PatientInsurance', 'Claim', 'ClaimStatus',
-    'Rota', 'Employee', 'Allowance', 'Payroll', 'Deduction', 'Leave', 'CustomRule', 'AuditLog',
+    'Rota', 'Employee', 'Allowance', 'Payroll', 'Deduction', 'Leave', 'CustomRule', 'AuditLog', 'StaffCredential',
     'ImagingResult',
     'LabResultTemplate', 'LabResult',
     'SOAPNote', 'Medicine', 'PrescribedMedicine', 'LabTest', 'RequestedLab',
@@ -132,9 +135,10 @@ __all__ = [
     'DrugCategory', 'Drug', 'Batch', 'Purchase', 'DispensedDrug', 'Expiry',
     'DrugRequest', 'RequestItem',
     'Patient', 'PatientWaitingList', 'Clinic', 'ClinicBooking',
-    'PatientIdentifier', 'PatientMerge',
+    'PatientIdentifier', 'PatientMerge', 'PatientAllergy', 'PatientProblem',
     'NonPharmCategory', 'NonPharmItem', 'OtherOrder',
     'User', 'Log', 'PatientUser', 'TelemedicineSession',
     'Supplier', 'PurchaseOrder', 'PurchaseOrderItem',
     'BreakGlassAccessLog',
 ]
+

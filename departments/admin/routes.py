@@ -537,3 +537,94 @@ def analytics():
         return jsonify(kpis)
 
     return render_template('admin/analytics.html', kpis=kpis)
+
+
+@bp.route('/admin/credentials', methods=['GET', 'POST'])
+@login_required
+@roles_required('admin', 'hr')
+def staff_credentials():
+    """Admin/HR view to manage and list staff credentials sorted by days-until-expiry (soonest first)."""
+    from flask import jsonify
+
+    from departments.models.hr import StaffCredential
+
+    if request.method == 'POST':
+        data = request.get_json() or request.form
+        staff_name = data.get('staff_name')
+        credential_type = data.get('credential_type')
+        credential_number = data.get('credential_number')
+        expiry_date_str = data.get('expiry_date')
+
+        if not staff_name or not credential_type or not credential_number or not expiry_date_str:
+            return jsonify({'error': 'staff_name, credential_type, credential_number, and expiry_date required'}), 400
+
+        from datetime import datetime
+        try:
+            expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'expiry_date must be formatted YYYY-MM-DD'}), 400
+
+        cred = StaffCredential(
+            staff_name=staff_name,
+            credential_type=credential_type,
+            credential_number=credential_number,
+            expiry_date=expiry_date,
+            employee_id=data.get('employee_id')
+        )
+        db.session.add(cred)
+        db.session.commit()
+        return jsonify({'success': True, 'credential_id': cred.id, 'days_until_expiry': cred.days_until_expiry}), 201
+
+    credentials = StaffCredential.query.order_by(StaffCredential.expiry_date.asc()).all()
+
+    items = [
+        {
+            'id': c.id,
+            'staff_name': c.staff_name,
+            'credential_type': c.credential_type,
+            'credential_number': c.credential_number,
+            'expiry_date': c.expiry_date.isoformat(),
+            'days_until_expiry': c.days_until_expiry,
+            'status': 'EXPIRED' if c.days_until_expiry < 0 else ('WARNING' if c.days_until_expiry <= 30 else 'ACTIVE')
+        }
+        for c in credentials
+    ]
+
+    if request.args.get('format') == 'json' or request.headers.get('Accept') == 'application/json':
+        return jsonify(items)
+
+    return render_template('admin/credentials.html', credentials=credentials)
+
+
+@bp.route('/admin/credentials/alerts', methods=['GET'])
+@login_required
+@roles_required('admin', 'hr')
+def staff_credential_alerts():
+    """API endpoint returning staff credentials expiring within N threshold days (default 30 days)."""
+    from datetime import date, timedelta
+
+    from flask import jsonify
+
+    from departments.models.hr import StaffCredential
+
+    threshold_days = request.args.get('days', 30, type=int)
+    cutoff_date = date.today() + timedelta(days=threshold_days)
+
+    expiring = StaffCredential.query.filter(StaffCredential.expiry_date <= cutoff_date).order_by(StaffCredential.expiry_date.asc()).all()
+
+    return jsonify({
+        'threshold_days': threshold_days,
+        'count': len(expiring),
+        'expiring_credentials': [
+            {
+                'id': c.id,
+                'staff_name': c.staff_name,
+                'credential_type': c.credential_type,
+                'credential_number': c.credential_number,
+                'expiry_date': c.expiry_date.isoformat(),
+                'days_until_expiry': c.days_until_expiry,
+            }
+            for c in expiring
+        ]
+    }), 200
+

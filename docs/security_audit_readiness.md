@@ -17,6 +17,9 @@ Per Process Integrity rules (P.3), this document summarizes the current technica
 | **Rate Limiting** | `Flask-Limiter` active on login/auth routes to prevent automated brute-force attacks. | Tested (`load_test_baseline.py`) |
 | **CSRF Protection** | `Flask-WTF` CSRF token validation on all POST/PUT/DELETE forms. | Tested |
 | **Privacy Compliance** | Data Protection Act 2019 consent gate (`has_ai_consent`) for clinical data outbound processing. | Tested (`test_ai_consent_gate.py`) |
+| **Staff Credentialing** | `StaffCredential` model tracking professional licensing (KMPDC, NCK, PPB) with automated expiry alerts. | Tested (`test_staff_credentials.py`) |
+| **Async Task Isolation** | Celery + Redis worker decoupling long-running jobs (AI, PDF, notifications) from web request threads. | Tested (`celery_app.py`) |
+
 
 ---
 

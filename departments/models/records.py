@@ -137,4 +137,40 @@ class ClinicBooking(db.Model):
         return f"<ClinicBooking {self.id}>"
 
 
+class PatientAllergy(db.Model):
+    """Structured Patient Allergy Registry."""
+    __tablename__ = 'patient_allergies'
 
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False, index=True)
+    allergen = db.Column(db.String(100), nullable=False, index=True)  # e.g. Penicillin, Sulfa, Aspirin
+    category = db.Column(db.String(50), nullable=False, default='DRUG')  # DRUG, FOOD, ENVIRONMENTAL, OTHER
+    reaction = db.Column(db.String(255), nullable=True)
+    severity = db.Column(db.String(20), nullable=False, default='MODERATE')  # MILD, MODERATE, SEVERE, ANAPHYLACTIC
+    date_recorded = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    recorded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    patient = db.relationship('Patient', backref=db.backref('allergies', lazy=True))
+
+    def __repr__(self):
+        return f"<PatientAllergy {self.allergen} ({self.severity}) for Patient {self.patient_id}>"
+
+
+class PatientProblem(db.Model):
+    """Active Clinical Problem List per patient."""
+    __tablename__ = 'patient_problems'
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False, index=True)
+    icd10_code = db.Column(db.String(20), nullable=True, index=True)  # e.g., 'E11.9'
+    description = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='ACTIVE')  # ACTIVE, RESOLVED, CHRONIC
+    onset_date = db.Column(db.Date, nullable=True)
+    resolved_date = db.Column(db.Date, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    patient = db.relationship('Patient', backref=db.backref('problems', lazy=True))
+
+    def __repr__(self):
+        return f"<PatientProblem {self.description} [{self.status}] for Patient {self.patient_id}>"

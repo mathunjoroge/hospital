@@ -102,4 +102,28 @@ class AuditLog(db.Model):
     details = db.Column(db.Text, nullable=False)  # JSON or text description of the change
 
 
+class StaffCredential(db.Model):
+    """Staff Professional License & Credential Tracking Model."""
+    __tablename__ = 'staff_credentials'
 
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)
+    staff_name = db.Column(db.String(100), nullable=False)  # e.g., 'Dr. Jane Smith'
+    credential_type = db.Column(db.String(100), nullable=False)  # e.g. KMPDC, NCK, PPB, Radiography Board
+    credential_number = db.Column(db.String(100), nullable=False)
+    issue_date = db.Column(db.Date, nullable=True)
+    expiry_date = db.Column(db.Date, nullable=False, index=True)
+    status = db.Column(db.String(20), default='ACTIVE', nullable=False)  # ACTIVE, EXPIRED, RENEWAL_PENDING
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    employee = db.relationship('Employee', backref=db.backref('credentials', lazy=True))
+
+    @property
+    def days_until_expiry(self) -> int:
+        if not self.expiry_date:
+            return 999
+        from datetime import date
+        return (self.expiry_date - date.today()).days
+
+    def __repr__(self):
+        return f"<StaffCredential {self.staff_name} - {self.credential_type} ({self.credential_number})>"
