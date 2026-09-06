@@ -53,8 +53,10 @@
     <p class="text-muted text-center">No pending drug requests.</p>
     {% endif %}
 
-    <div class="text-center mt-4">
-        <a href="{{ url_for('stores.inventory') }}" class="btn btn-secondary">View Inventory</a>
+    <div class="text-center mt-4 d-flex justify-content-center gap-2">
+        <a href="{{ url_for('stores.inventory') }}" class="btn btn-secondary"><i class="bi bi-boxes"></i> View Inventory</a>
+        <a href="{{ url_for('stores.get_reconciliation_report') }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-check"></i> Reconciliation Report</a>
+        <a href="{{ url_for('stores.non_pharms') }}" class="btn btn-outline-info"><i class="bi bi-box-seam"></i> Non-Pharm Supplies</a>
     </div>
 </div>
 {% endblock %}

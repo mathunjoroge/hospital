@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-file-earmark-check text-success"></i> Stock Balance Reconciliation Report</h2>
+        <a href="{{ url_for('stores.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Stores Dashboard
+        </a>
+    </div>
+
+    <!-- Alert Header -->
+    {% if report.has_discrepancies %}
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+            <div>
+                <strong>Inventory Discrepancy Alert!</strong>
+                Found {{ report.discrepancy_count }} item(s) where cached stock level differs from the append-only movement ledger sum.
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+            <i class="bi bi-check-circle-fill fs-4 me-3"></i>
+            <div>
+                <strong>All Inventory Items Reconciled!</strong>
+                100% agreement between fast-read cached stock balances and append-only stock movement ledger totals.
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Pharmaceuticals Section -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="card-title mb-0"><i class="bi bi-capsule"></i> Pharmaceutical Inventory Stock Ledgers</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle mb-0">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th>Item ID</th>
+                            <th>Ledger Sum Balance</th>
+                            <th>Cached Stock Level</th>
+                            <th>Variance</th>
+                            <th>Status</th>
+                            <th>Bin Card</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in report.drugs %}
+                        <tr>
+                            <td><strong>Drug #{{ r.item_id }}</strong></td>
+                            <td class="fw-bold">{{ r.ledger_balance }}</td>
+                            <td>{{ r.cached_balance }}</td>
+                            <td class="fw-bold {{ 'text-success' if r.match else 'text-danger' }}">{{ r.variance }}</td>
+                            <td>
+                                {% if r.match %}
+                                    <span class="badge bg-success"><i class="bi bi-check"></i> Reconciled</span>
+                                {% else %}
+                                    <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Discrepancy</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('stores.get_bin_card', item_type='DRUG', item_id=r.item_id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-card-text"></i> Bin Card
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="text-center text-muted py-3">No pharmaceutical items recorded.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Non-Pharmaceuticals Section -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="card-title mb-0"><i class="bi bi-box-seam"></i> Non-Pharmaceutical Store Ledgers</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle mb-0">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th>Item ID</th>
+                            <th>Ledger Sum Balance</th>
+                            <th>Cached Stock Level</th>
+                            <th>Variance</th>
+                            <th>Status</th>
+                            <th>Bin Card</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in report.non_pharm %}
+                        <tr>
+                            <td><strong>Item #{{ r.item_id }}</strong></td>
+                            <td class="fw-bold">{{ r.ledger_balance }}</td>
+                            <td>{{ r.cached_balance }}</td>
+                            <td class="fw-bold {{ 'text-success' if r.match else 'text-danger' }}">{{ r.variance }}</td>
+                            <td>
+                                {% if r.match %}
+                                    <span class="badge bg-success"><i class="bi bi-check"></i> Reconciled</span>
+                                {% else %}
+                                    <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Discrepancy</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('stores.get_bin_card', item_type='NON_PHARM', item_id=r.item_id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-card-text"></i> Bin Card
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="text-center text-muted py-3">No non-pharmaceutical items recorded.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
