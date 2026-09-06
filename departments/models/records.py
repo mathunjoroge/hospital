@@ -1,5 +1,6 @@
 from datetime import date, datetime
 
+from departments.crypto import EncryptedString
 from extensions import db  # Use absolute import for db
 
 
@@ -19,7 +20,7 @@ class Patient(db.Model):
     next_of_kin = db.Column(db.String(100), nullable=False)  # e.g., 'Jane Doe'
     relationship_with_next_of_kin = db.Column(db.String(50), nullable=False)  # e.g., 'Spouse'
     next_of_kin_contact = db.Column(db.String(15), nullable=False)  # Next of kin's phone number
-    national_id = db.Column(db.String(50), unique=True, nullable=True, index=True)  # National ID (optional)
+    national_id = db.Column(EncryptedString(500), nullable=True, index=False)  # National ID — encrypted at rest (Fernet AES-128-CBC)
     emergency_contact = db.Column(db.String(15), nullable=False)  # Emergency contact number
     date_registered = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
 

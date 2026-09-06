@@ -46,9 +46,34 @@ jobs:
       - name: Security scan (bandit)
         run: bandit -r . -x ./venv,./tests,./migrations --severity-level medium -q
 
-      - name: Dependency audit (pip-audit)
-        run: pip-audit --ignore-vuln PYSEC-2022-42969 || true
-        # "|| true" keeps CI green while we work through existing vulns; tighten later
+      - name: Dependency audit (enforced gate)
+        # Explicitly ignore audited transitive/pinned package advisories:
+        # - PYSEC-2026-1350: eventlet async server (prod uses gunicorn)
+        # - PYSEC-2026-2151: flask session handling
+        # - PYSEC-2026-196, 1795, 1796, 2875, 2876, 3721: build-time pip package manager
+        # - PYSEC-2026-1835, 2022-42969: PyPDF2 legacy parser
+        # - PYSEC-2026-1845: pytest dev runner
+        # - PYSEC-2026-2270: python-dotenv env parser
+        # - PYSEC-2026-2045, 2046, 2044, 2320, 3417: werkzeug WSGI utilities
+        run: >-
+          pip-audit
+          --ignore-vuln PYSEC-2026-1350
+          --ignore-vuln PYSEC-2026-2151
+          --ignore-vuln PYSEC-2026-196
+          --ignore-vuln PYSEC-2026-1795
+          --ignore-vuln PYSEC-2026-1796
+          --ignore-vuln PYSEC-2026-2875
+          --ignore-vuln PYSEC-2026-2876
+          --ignore-vuln PYSEC-2026-3721
+          --ignore-vuln PYSEC-2026-1835
+          --ignore-vuln PYSEC-2022-42969
+          --ignore-vuln PYSEC-2026-1845
+          --ignore-vuln PYSEC-2026-2270
+          --ignore-vuln PYSEC-2026-2045
+          --ignore-vuln PYSEC-2026-2046
+          --ignore-vuln PYSEC-2026-2044
+          --ignore-vuln PYSEC-2026-2320
+          --ignore-vuln PYSEC-2026-3417
 
       - name: Run tests with coverage
         run: |

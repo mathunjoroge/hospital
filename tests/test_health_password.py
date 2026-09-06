@@ -70,5 +70,78 @@ class TestHealthAndPasswordPolicy(unittest.TestCase):
         self.assertGreater(os.path.getsize(backup_file), 0)
 
 
+    def test_secret_key_raises_in_development_env(self):
+        """SECRET_KEY must raise RuntimeError in development env (not just production)."""
+        import importlib
+        from unittest.mock import patch
+
+        original_secret_key = os.environ.get('SECRET_KEY')
+        original_flask_env = os.environ.get('FLASK_ENV')
+        try:
+            os.environ.pop('SECRET_KEY', None)
+            os.environ['FLASK_ENV'] = 'development'
+            import app as app_module
+            with patch('dotenv.load_dotenv'):
+                with self.assertRaises(RuntimeError) as ctx:
+                    importlib.reload(app_module)
+            self.assertIn('SECRET_KEY', str(ctx.exception))
+        finally:
+            if original_secret_key:
+                os.environ['SECRET_KEY'] = original_secret_key
+            if original_flask_env:
+                os.environ['FLASK_ENV'] = original_flask_env
+            else:
+                os.environ.pop('FLASK_ENV', None)
+            import app as app_module
+            importlib.reload(app_module)
+
+    def test_secret_key_raises_when_env_unset(self):
+        """SECRET_KEY must raise RuntimeError when FLASK_ENV is not set at all."""
+        import importlib
+        from unittest.mock import patch
+
+        original_secret_key = os.environ.get('SECRET_KEY')
+        original_flask_env = os.environ.get('FLASK_ENV')
+        try:
+            os.environ.pop('SECRET_KEY', None)
+            os.environ.pop('FLASK_ENV', None)
+            import app as app_module
+            with patch('dotenv.load_dotenv'):
+                with self.assertRaises(RuntimeError) as ctx:
+                    importlib.reload(app_module)
+            self.assertIn('SECRET_KEY', str(ctx.exception))
+        finally:
+            if original_secret_key:
+                os.environ['SECRET_KEY'] = original_secret_key
+            if original_flask_env:
+                os.environ['FLASK_ENV'] = original_flask_env
+            else:
+                os.environ.pop('FLASK_ENV', None)
+            import app as app_module
+            importlib.reload(app_module)
+
+    def test_secret_key_does_not_raise_in_testing_env(self):
+        """SECRET_KEY must NOT raise RuntimeError when FLASK_ENV=testing."""
+        import importlib
+
+        original_secret_key = os.environ.get('SECRET_KEY')
+        original_flask_env = os.environ.get('FLASK_ENV')
+        try:
+            os.environ.pop('SECRET_KEY', None)
+            os.environ['FLASK_ENV'] = 'testing'
+            import app as app_module
+            # Should not raise
+            importlib.reload(app_module)
+        finally:
+            if original_secret_key:
+                os.environ['SECRET_KEY'] = original_secret_key
+            if original_flask_env:
+                os.environ['FLASK_ENV'] = original_flask_env
+            else:
+                os.environ.pop('FLASK_ENV', None)
+            import app as app_module
+            importlib.reload(app_module)
+
+
 if __name__ == '__main__':
     unittest.main()

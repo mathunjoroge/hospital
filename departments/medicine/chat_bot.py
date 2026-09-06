@@ -43,6 +43,8 @@ from departments.api.ai_audit import (
     log_ai_call,
     validate_ai_input,
 )
+from departments.api.audit import log_audit_event
+from departments.models.compliance import has_ai_consent
 from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.nlp.logging_setup import get_logger
 
@@ -221,6 +223,32 @@ def chatbot_interface():
                     Summarizer._format_output(str(ve), is_error=True).encode('utf-8'),
                     status=400
                 )
+
+            # AI Consent check if patient_id is provided
+            patient_id = (request.form.get('patient_id') or request.args.get('patient_id') or '').strip()
+            if patient_id:
+                if not has_ai_consent(patient_id):
+                    logger.warning(f"AI consent check failed for patient_id={patient_id}")
+                    log_audit_event(
+                        action='AI_CONSENT_REFUSED',
+                        resource_type='Patient',
+                        resource_id=patient_id,
+                        details={'feature': 'clinical_chatbot', 'reason': 'Missing or revoked ai_diagnosis consent'}
+                    )
+                    return Response(
+                        Summarizer._format_output(
+                            "AI-assisted summary unavailable: patient has not consented to AI processing of clinical notes.",
+                            is_error=True
+                        ).encode('utf-8'),
+                        status=403
+                    )
+                else:
+                    log_audit_event(
+                        action='AI_CONSENT_GRANTED',
+                        resource_type='Patient',
+                        resource_id=patient_id,
+                        details={'feature': 'clinical_chatbot'}
+                    )
 
             def generate():
                 try:

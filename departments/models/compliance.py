@@ -75,6 +75,30 @@ def grant_patient_consent(patient_id: str, consent_type: str, ip_address: str = 
     return consent
 
 
+def has_ai_consent(patient_id: str) -> bool:
+    """
+    Check whether a patient has an active, unrevoked AI-processing consent grant.
+
+    Returns True only when a PatientConsent row exists with:
+      - consent_type == 'ai_diagnosis'
+      - is_granted == True
+      - revoked_at IS NULL
+
+    This is the authoritative consent gate for all external AI calls
+    that touch patient-specific clinical data (DPA 2019 s.30 lawful basis).
+    """
+    if not patient_id:
+        return False
+
+    consent = PatientConsent.query.filter_by(
+        patient_id=patient_id,
+        consent_type='ai_diagnosis',
+        is_granted=True,
+    ).filter(PatientConsent.revoked_at.is_(None)).first()
+
+    return consent is not None
+
+
 def export_patient_sar_data(patient_id: str) -> dict:
     """
     Subject Access Request (SAR) Data Export under DPA 2019 Section 26.

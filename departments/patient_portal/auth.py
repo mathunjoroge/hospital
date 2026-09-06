@@ -117,7 +117,8 @@ def register():
         # Look up existing clinical Patient
         patient = None
         if national_id:
-            patient = Patient.query.filter_by(national_id=national_id).first()
+            patients = Patient.query.filter(Patient.national_id.isnot(None)).all()
+            patient = next((p for p in patients if p.national_id == national_id), None)
         elif patient_id and patient_id.isdigit():
             patient = Patient.query.get(int(patient_id))
 

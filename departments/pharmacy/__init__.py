@@ -2,5 +2,11 @@ from flask import Blueprint
 
 bp = Blueprint('pharmacy', __name__, template_folder='templates')
 
-from . import ai_discovery, dispensing, inventory, reports  # noqa: F401, E402
+from . import (  # noqa: F401, E402
+    ai_discovery,
+    dispensing,
+    inventory,
+    reports,
+    stock_ops,
+)
 

@@ -44,10 +44,13 @@ app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2 GB file limit
 
 secret_key = os.environ.get('SECRET_KEY')
 if not secret_key:
-    if os.environ.get('FLASK_ENV') == 'production':
-        raise RuntimeError("SECRET_KEY environment variable must be set in production mode.")
-    secret_key = 'dev-secret-key-for-local-development-only'
-    logging.warning("SECRET_KEY environment variable not found; using development fallback key.")
+    if os.environ.get('FLASK_ENV') == 'testing':
+        secret_key = 'test-secret-key-not-for-production'
+    else:
+        raise RuntimeError(
+            "SECRET_KEY environment variable must be set "
+            "(FLASK_ENV=testing is the only exception)."
+        )
 
 app.config['SECRET_KEY'] = secret_key
 app.config['SESSION_TYPE'] = 'redis'
@@ -383,7 +386,8 @@ app.register_blueprint(khis_bp, url_prefix='/api/khis')
 if __name__ == '__main__':
     with app.app_context():
         try:
-            db.create_all()
+            # Schema is managed exclusively by Flask-Migrate (Alembic).
+            # Run `flask db upgrade` before starting the app to apply pending migrations.
             from werkzeug.security import generate_password_hash
 
             from departments.models.user import User
@@ -395,11 +399,13 @@ if __name__ == '__main__':
                 )
                 db.session.add(admin)
                 db.session.commit()
-                print("✅ Database tables verified & default admin user created (admin / AdminPassword123!)")
+                print("✅ Default admin user created (admin / AdminPassword123!)")
+                print("   Run `flask db upgrade` to ensure the schema is up to date.")
             else:
-                print("✅ Database connection verified & schema ready.")
+                print("✅ Database connection verified & admin user exists.")
         except Exception as exc:
-            print(f"⚠️ Database auto-initialization note: {exc}")
+            print(f"⚠️  Startup note: {exc}")
+            print("   If the database is not initialised, run: flask db upgrade")
 
     debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
     socketio.run(app, debug=debug_mode)
