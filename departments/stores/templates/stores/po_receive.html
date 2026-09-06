@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 font-weight-bold text-gray-800 mb-1"><i class="bi bi-box-arrow-in-down text-success me-2"></i>Receive PO Shipment</h2>
+            <p class="text-muted small mb-0">Record items delivered against Purchase Order <strong>{{ po.po_number }}</strong>.</p>
+        </div>
+        <a href="{{ url_for('stores.list_purchase_orders') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Orders
+        </a>
+    </div>
+
+    <!-- PO Summary Card -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-light py-3">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Supplier</span>
+                    <strong class="fs-6 text-dark">{{ po.supplier.name if po.supplier else 'N/A' }}</strong>
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Status</span>
+                    {% if po.status == 'DRAFT' %}
+                        <span class="badge bg-warning text-dark">DRAFT</span>
+                    {% elif po.status == 'ORDERED' %}
+                        <span class="badge bg-info text-white">ORDERED</span>
+                    {% elif po.status == 'RECEIVED' %}
+                        <span class="badge bg-success">RECEIVED</span>
+                    {% else %}
+                        <span class="badge bg-secondary">{{ po.status }}</span>
+                    {% endif %}
+                </div>
+                <div class="col-md-3">
+                    <span class="text-muted small d-block">Total Cost</span>
+                    <strong class="fs-6 text-dark">KES {{ "%.2f"|format(po.total_cost) }}</strong>
+                </div>
+                <div class="col-md-3 text-end">
+                    <span class="text-muted small d-block">Ordered Date</span>
+                    <span class="small text-dark">{{ po.ordered_at.strftime('%Y-%m-%d') if po.ordered_at else 'N/A' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Items Receiving Table -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-card-checklist me-1"></i> Line Items Delivery Details</h6>
+        </div>
+        <div class="card-body">
+            <div id="receiveAlert" class="alert alert-danger d-none" role="alert"></div>
+
+            {% if po.status in ['DRAFT', 'ORDERED', 'PARTIALLY_RECEIVED'] %}
+            <form id="receiveForm">
+                <div class="table-responsive mb-4">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Item Type</th>
+                                <th>Item Name</th>
+                                <th style="width: 130px;">Ordered Qty</th>
+                                <th style="width: 140px;">Qty Received <span class="text-danger">*</span></th>
+                                <th style="width: 180px;">Batch #</th>
+                                <th style="width: 180px;">Expiry Date <span class="text-danger">*</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in po.items %}
+                            <tr data-item-id="{{ item.id }}">
+                                <td>
+                                    {% if item.item_type == 'NON_PHARM' %}
+                                        <span class="badge bg-purple text-white" style="background-color: #6f42c1;"><i class="bi bi-box-seam me-1"></i>Non-Pharm</span>
+                                    {% else %}
+                                        <span class="badge bg-primary"><i class="bi bi-capsule me-1"></i>Drug</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ item.item_name }}</strong>
+                                    <span class="d-block text-muted small">Unit Cost: KES {{ "%.2f"|format(item.unit_cost) }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border fs-6">{{ item.quantity_ordered }}</span>
+                                    {% if item.quantity_received > 0 %}
+                                    <span class="d-block text-muted x-small">Prev rcvd: {{ item.quantity_received }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <input type="number" class="form-control form-control-sm item-qty" min="1" value="{{ item.quantity_ordered - item.quantity_received if item.quantity_ordered > item.quantity_received else item.quantity_ordered }}" required>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm item-batch" placeholder="Auto-generated if empty">
+                                </td>
+                                <td>
+                                    <input type="date" class="form-control form-control-sm item-expiry" required>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{{ url_for('stores.list_purchase_orders') }}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" id="submitBtn" class="btn btn-success px-4">
+                        <i class="bi bi-check-lg me-1"></i> Confirm & Process Receipt
+                    </button>
+                </div>
+            </form>
+            {% else %}
+            <!-- View Only if already fully received -->
+            <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+                <i class="bi bi-check-circle-fill me-2 fs-4"></i>
+                <div>This Purchase Order has been processed and completed on <strong>{{ po.received_at.strftime('%Y-%m-%d %H:%M') if po.received_at else 'N/A' }}</strong>.</div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Item Type</th>
+                            <th>Item Name</th>
+                            <th>Qty Ordered</th>
+                            <th>Qty Received</th>
+                            <th>Unit Cost</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in po.items %}
+                        <tr>
+                            <td>
+                                {% if item.item_type == 'NON_PHARM' %}
+                                    <span class="badge bg-purple text-white" style="background-color: #6f42c1;">Non-Pharm</span>
+                                {% else %}
+                                    <span class="badge bg-primary">Drug</span>
+                                {% endif %}
+                            </td>
+                            <td><strong>{{ item.item_name }}</strong></td>
+                            <td>{{ item.quantity_ordered }}</td>
+                            <td><span class="badge bg-success fs-6">{{ item.quantity_received }}</span></td>
+                            <td>KES {{ "%.2f"|format(item.unit_cost) }}</td>
+                            <td class="fw-bold">KES {{ "%.2f"|format(item.unit_cost * item.quantity_received) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default expiry date to 1 year from today for convenience
+    const today = new Date();
+    const nextYear = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
+    const defaultExpiryStr = nextYear.toISOString().split('T')[0];
+
+    document.querySelectorAll('.item-expiry').forEach(input => {
+        if (!input.value) {
+            input.value = defaultExpiryStr;
+        }
+    });
+
+    const form = document.getElementById('receiveForm');
+    if (!form) return;
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const alertBox = document.getElementById('receiveAlert');
+        const submitBtn = document.getElementById('submitBtn');
+        alertBox.classList.add('d-none');
+
+        const itemsMap = {};
+        let isValid = true;
+        let errorMessage = '';
+
+        document.querySelectorAll('#receiveForm tbody tr').forEach(tr => {
+            const itemId = tr.getAttribute('data-item-id');
+            const qtyInput = tr.querySelector('.item-qty');
+            const batchInput = tr.querySelector('.item-batch');
+            const expiryInput = tr.querySelector('.item-expiry');
+
+            const qty = parseInt(qtyInput.value, 10);
+            const expiry = expiryInput.value;
+            const batch = batchInput.value.trim();
+
+            if (isNaN(qty) || qty <= 0) {
+                isValid = false;
+                errorMessage = 'All received quantities must be greater than 0.';
+            }
+
+            if (!expiry) {
+                isValid = false;
+                errorMessage = 'Expiry date is required for every line item.';
+            }
+
+            itemsMap[itemId] = {
+                quantity_received: qty,
+                batch_number: batch,
+                expiry_date: expiry
+            };
+        });
+
+        if (!isValid) {
+            alertBox.textContent = errorMessage;
+            alertBox.classList.remove('d-none');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Processing...';
+
+        try {
+            const response = await fetch(`/pharmacy/po/{{ po.id }}/receive`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ items: itemsMap })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                window.location.href = "{{ url_for('stores.list_purchase_orders') }}";
+            } else {
+                alertBox.textContent = data.error || 'Failed to process shipment receipt.';
+                alertBox.classList.remove('d-none');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Confirm & Process Receipt';
+            }
+        } catch (err) {
+            alertBox.textContent = 'Network or server error occurred. Please try again.';
+            alertBox.classList.remove('d-none');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Confirm & Process Receipt';
+        }
+    });
+});
+</script>
+{% endblock %}

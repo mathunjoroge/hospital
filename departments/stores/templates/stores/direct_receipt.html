@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 font-weight-bold text-gray-800 mb-1"><i class="bi bi-file-earmark-plus text-primary me-2"></i>Record Direct Supplier Receipt</h2>
+            <p class="text-muted small mb-0">Record incoming stock directly into inventory without a pre-existing Purchase Order.</p>
+        </div>
+        <a href="{{ url_for('stores.list_purchase_orders') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Purchase Orders
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-journal-plus me-1"></i> Receipt Details</h6>
+        </div>
+        <div class="card-body">
+            <div id="directAlert" class="alert alert-danger d-none" role="alert"></div>
+
+            <form id="directReceiptForm">
+                <!-- Header Info -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label for="supplierSelect" class="form-label fw-bold">Supplier / Vendor <span class="text-danger">*</span></label>
+                        <select class="form-select" id="supplierSelect" required>
+                            <option value="" selected disabled>-- Select Supplier --</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="receiptNotes" class="form-label fw-bold">Notes / Reference</label>
+                        <input type="text" class="form-control" id="receiptNotes" placeholder="e.g. Direct purchase, Urgent delivery, Donation">
+                    </div>
+                </div>
+
+                <!-- Dynamic Items Table -->
+                <h6 class="fw-bold mb-3"><i class="bi bi-box me-1"></i> Delivered Items</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered align-middle" id="itemsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 140px;">Category</th>
+                                <th>Item Name <span class="text-danger">*</span></th>
+                                <th style="width: 110px;">Qty <span class="text-danger">*</span></th>
+                                <th style="width: 130px;">Unit Cost (KES)</th>
+                                <th style="width: 150px;">Batch #</th>
+                                <th style="width: 160px;">Expiry Date <span class="text-danger">*</span></th>
+                                <th style="width: 60px;" class="text-center"><i class="bi bi-trash"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTbody">
+                            <!-- Dynamic rows injected here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mb-4">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="addRowBtn">
+                        <i class="bi bi-plus-circle me-1"></i> Add Another Item
+                    </button>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                    <a href="{{ url_for('stores.list_purchase_orders') }}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" id="submitDirectBtn" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg me-1"></i> Submit & Update Inventory
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Available items datasets from server
+const DRUGS_LIST = [
+    {% for d in drugs %}
+    { id: {{ d.id }}, name: "{{ d.generic_name|escapejs }} (Stock: {{ d.quantity_in_stock }})" },
+    {% endfor %}
+];
+
+const NON_PHARM_LIST = [
+    {% for np in non_pharms %}
+    { id: {{ np.id }}, name: "{{ np.name|escapejs }} [{{ np.unit|escapejs }}] (Stock: {{ np.stock_level }})" },
+    {% endfor %}
+];
+
+document.addEventListener('DOMContentLoaded', function() {
+    const tbody = document.getElementById('itemsTbody');
+    const addRowBtn = document.getElementById('addRowBtn');
+    const form = document.getElementById('directReceiptForm');
+    const alertBox = document.getElementById('directAlert');
+    const submitBtn = document.getElementById('submitDirectBtn');
+
+    // Default expiry 1 year out
+    const today = new Date();
+    const nextYear = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
+    const defaultExpiryStr = nextYear.toISOString().split('T')[0];
+
+    function createRow() {
+        const tr = document.createElement('tr');
+        tr.className = 'item-row';
+
+        tr.innerHTML = `
+            <td>
+                <select class="form-select form-select-sm item-type-select">
+                    <option value="DRUG" selected>Drug</option>
+                    <option value="NON_PHARM">Non-Pharm</option>
+                </select>
+            </td>
+            <td>
+                <select class="form-select form-select-sm item-id-select" required>
+                    <option value="" disabled selected>-- Select Item --</option>
+                </select>
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm item-qty" min="1" value="1" required>
+            </td>
+            <td>
+                <input type="number" step="0.01" class="form-control form-control-sm item-cost" min="0" value="0.00" required>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm item-batch" placeholder="Optional">
+            </td>
+            <td>
+                <input type="date" class="form-control form-control-sm item-expiry" value="${defaultExpiryStr}" required>
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-row-btn">&times;</button>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+
+        const typeSelect = tr.querySelector('.item-type-select');
+        const itemSelect = tr.querySelector('.item-id-select');
+        const removeBtn = tr.querySelector('.remove-row-btn');
+
+        function populateItems() {
+            const type = typeSelect.value;
+            itemSelect.innerHTML = '<option value="" disabled selected>-- Select Item --</option>';
+            const list = (type === 'DRUG') ? DRUGS_LIST : NON_PHARM_LIST;
+            list.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = item.name;
+                itemSelect.appendChild(opt);
+            });
+        }
+
+        typeSelect.addEventListener('change', populateItems);
+        populateItems();
+
+        removeBtn.addEventListener('click', function() {
+            if (tbody.querySelectorAll('tr').length > 1) {
+                tr.remove();
+            } else {
+                alert('At least one item is required.');
+            }
+        });
+    }
+
+    // Add initial row
+    createRow();
+
+    addRowBtn.addEventListener('click', function() {
+        createRow();
+    });
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        alertBox.classList.add('d-none');
+
+        const supplierId = document.getElementById('supplierSelect').value;
+        const notes = document.getElementById('receiptNotes').value.trim() || 'Direct Receipt (No PO)';
+
+        if (!supplierId) {
+            alertBox.textContent = 'Please select a supplier.';
+            alertBox.classList.remove('d-none');
+            return;
+        }
+
+        const items = [];
+        let isValid = true;
+        let errorMessage = '';
+
+        document.querySelectorAll('#itemsTbody tr').forEach(tr => {
+            const itemType = tr.querySelector('.item-type-select').value;
+            const itemId = tr.querySelector('.item-id-select').value;
+            const qty = parseInt(tr.querySelector('.item-qty').value, 10);
+            const cost = parseFloat(tr.querySelector('.item-cost').value);
+            const batch = tr.querySelector('.item-batch').value.trim();
+            const expiry = tr.querySelector('.item-expiry').value;
+
+            if (!itemId) {
+                isValid = false;
+                errorMessage = 'Please select an item for all rows.';
+            }
+
+            if (isNaN(qty) || qty <= 0) {
+                isValid = false;
+                errorMessage = 'Quantity must be greater than 0.';
+            }
+
+            if (!expiry) {
+                isValid = false;
+                errorMessage = 'Expiry date is required for all items.';
+            }
+
+            const itemPayload = {
+                item_type: itemType,
+                quantity: qty,
+                unit_cost: isNaN(cost) ? 0.0 : cost,
+                batch_number: batch,
+                expiry_date: expiry
+            };
+
+            if (itemType === 'DRUG') {
+                itemPayload.drug_id = parseInt(itemId, 10);
+            } else {
+                itemPayload.non_pharm_item_id = parseInt(itemId, 10);
+            }
+
+            items.push(itemPayload);
+        });
+
+        if (!isValid) {
+            alertBox.textContent = errorMessage;
+            alertBox.classList.remove('d-none');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Saving...';
+
+        try {
+            const response = await fetch('/pharmacy/receipt/direct', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    supplier_id: parseInt(supplierId, 10),
+                    notes: notes,
+                    items: items
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                window.location.href = "{{ url_for('stores.list_purchase_orders') }}";
+            } else {
+                alertBox.textContent = data.error || 'Failed to record direct receipt.';
+                alertBox.classList.remove('d-none');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Submit & Update Inventory';
+            }
+        } catch (err) {
+            alertBox.textContent = 'Network or server error occurred. Please try again.';
+            alertBox.classList.remove('d-none');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Submit & Update Inventory';
+        }
+    });
+});
+</script>
+{% endblock %}

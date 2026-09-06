@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid py-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 font-weight-bold text-gray-800 mb-1"><i class="bi bi-journal-text me-2 text-primary"></i>Purchase Orders & Goods Receiving</h2>
+            <p class="text-muted small mb-0">Manage supplier purchase orders and record incoming deliveries for drugs and non-pharmaceuticals.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('stores.view_direct_receipt') }}" class="btn btn-primary shadow-sm">
+                <i class="bi bi-plus-lg me-1"></i> Record Direct Receipt
+            </a>
+            <a href="{{ url_for('stores.receipt_history') }}" class="btn btn-outline-secondary shadow-sm">
+                <i class="bi bi-clock-history me-1"></i> Receipt History
+            </a>
+        </div>
+    </div>
+
+    <!-- Status Filters -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body py-2 px-3">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted small fw-bold me-2">Filter Status:</span>
+                <a href="{{ url_for('stores.list_purchase_orders') }}" class="btn btn-sm {% if not current_status %}btn-dark{% else %}btn-outline-secondary{% endif %} rounded-pill">All</a>
+                <a href="{{ url_for('stores.list_purchase_orders', status='DRAFT') }}" class="btn btn-sm {% if current_status == 'DRAFT' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %} rounded-pill">Draft</a>
+                <a href="{{ url_for('stores.list_purchase_orders', status='ORDERED') }}" class="btn btn-sm {% if current_status == 'ORDERED' %}btn-info text-white{% else %}btn-outline-info{% endif %} rounded-pill">Ordered</a>
+                <a href="{{ url_for('stores.list_purchase_orders', status='RECEIVED') }}" class="btn btn-sm {% if current_status == 'RECEIVED' %}btn-success{% else %}btn-outline-success{% endif %} rounded-pill">Received</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- PO Table Card -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-list-columns-reverse me-1"></i> Supplier Orders Log</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">PO Number</th>
+                            <th>Supplier</th>
+                            <th>Items Count</th>
+                            <th>Total Cost</th>
+                            <th>Status</th>
+                            <th>Created Date</th>
+                            <th class="text-end pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if purchase_orders %}
+                            {% for po in purchase_orders %}
+                            <tr>
+                                <td class="ps-3 fw-bold text-primary">
+                                    {{ po.po_number }}
+                                    {% if po.sod_warning %}
+                                    <span class="badge bg-danger ms-1" data-bs-toggle="tooltip" title="Segregation of Duties warning: Approved and Received by same user">SOD Alert</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-semibold">{{ po.supplier.name if po.supplier else 'N/A' }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ po.items|length }} item(s)</span></td>
+                                <td class="fw-bold">KES {{ "%.2f"|format(po.total_cost) }}</td>
+                                <td>
+                                    {% if po.status == 'DRAFT' %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-pencil me-1"></i>DRAFT</span>
+                                    {% elif po.status == 'ORDERED' %}
+                                        <span class="badge bg-info text-white"><i class="bi bi-truck me-1"></i>ORDERED</span>
+                                    {% elif po.status == 'RECEIVED' %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>RECEIVED</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ po.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted small">
+                                    {{ po.created_at.strftime('%Y-%m-%d %H:%M') if po.created_at else 'N/A' }}
+                                </td>
+                                <td class="text-end pe-3">
+                                    {% if po.status in ['DRAFT', 'ORDERED'] %}
+                                        <a href="{{ url_for('stores.view_po_receive', po_id=po.id) }}" class="btn btn-sm btn-success">
+                                            <i class="bi bi-box-arrow-in-down me-1"></i> Receive Goods
+                                        </a>
+                                    {% else %}
+                                        <a href="{{ url_for('stores.view_po_receive', po_id=po.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye me-1"></i> View Receipt Details
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                                    No purchase orders found matching the filter criteria.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

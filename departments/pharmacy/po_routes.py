@@ -23,6 +23,7 @@ from departments.api.audit import log_audit_event
 from departments.models.budget import VoteHead
 from departments.models.pharmacy import Batch, Drug
 from departments.models.stock_movement import record_movement
+from departments.models.stores import NonPharmItem
 from departments.models.supplier import PurchaseOrder, PurchaseOrderItem, Supplier
 from departments.rbac import roles_required
 from extensions import db
@@ -262,6 +263,7 @@ def receive_po_shipment(po_id):
 
         po_item.quantity_received = (po_item.quantity_received or 0) + qty_rcvd
         drug = po_item.drug
+        non_pharm = po_item.non_pharm_item
 
         if drug:
             # Create FEFO batch with real receiving expiry date
@@ -284,6 +286,20 @@ def receive_po_shipment(po_id):
                 movement_type='RECEIVED',
                 quantity_delta=qty_rcvd,
                 balance_after=drug.quantity_in_stock,
+                reference_type='PURCHASE_ORDER',
+                reference_id=po.po_number,
+                user_id=current_uid,
+            )
+        elif non_pharm:
+            non_pharm.stock_level += qty_rcvd
+            current_uid = current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
+            record_movement(
+                item_type='NON_PHARM',
+                item_id=non_pharm.id,
+                batch_id=None,
+                movement_type='RECEIVED',
+                quantity_delta=qty_rcvd,
+                balance_after=non_pharm.stock_level,
                 reference_type='PURCHASE_ORDER',
                 reference_id=po.po_number,
                 user_id=current_uid,
@@ -312,5 +328,138 @@ def receive_po_shipment(po_id):
         'message': f'Shipment for PO {po.po_number} processed successfully.',
         'purchase_order': po.to_dict(),
     })
+
+
+@po_bp.route('/pharmacy/receipt/direct', methods=['POST'])
+@login_required
+@roles_required('Admin', 'Pharmacist', 'Storekeeper')
+def record_direct_receipt():
+    """
+    Record direct receipt of supplies from a supplier without a prior Purchase Order.
+    Auto-creates a RECEIVED PurchaseOrder record for auditing and inventory updates.
+    """
+    data = request.get_json() or {}
+    supplier_id = data.get('supplier_id')
+    items_data = data.get('items', [])
+    notes = data.get('notes', 'Direct Receipt (No PO)')
+
+    if not supplier_id or not items_data:
+        return jsonify({'error': 'supplier_id and at least one item are required'}), 400
+
+    supplier = Supplier.query.get(supplier_id)
+    if not supplier:
+        return jsonify({'error': 'Supplier not found'}), 404
+
+    now = datetime.now(timezone.utc)
+    po_num = f"PO-DIR-{now.strftime('%Y%m%d%H%M%S')}-{secrets.token_hex(2).upper()}"
+
+    current_uid = current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
+
+    po = PurchaseOrder(
+        po_number=po_num,
+        supplier_id=supplier.id,
+        status='RECEIVED',
+        created_by_id=current_uid,
+        received_by_id=current_uid,
+        notes=notes,
+        ordered_at=now,
+        received_at=now,
+    )
+    db.session.add(po)
+    db.session.flush()
+
+    total_cost = 0.0
+
+    for item in items_data:
+        item_type = str(item.get('item_type', 'DRUG')).upper()
+        quantity = int(item.get('quantity', 0))
+        unit_cost = float(item.get('unit_cost', 0.0))
+        batch_num = item.get('batch_number') or f"B-DIR-{po.id}-{secrets.token_hex(2).upper()}"
+        expiry_str = item.get('expiry_date')
+
+        if quantity <= 0:
+            return jsonify({'error': 'Quantity must be > 0'}), 400
+
+        if not expiry_str:
+            return jsonify({'error': 'Expiry date (YYYY-MM-DD) is required for all items'}), 400
+
+        try:
+            exp_date = datetime.strptime(str(expiry_str).strip(), "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({'error': 'Invalid expiry_date format. Use YYYY-MM-DD'}), 400
+
+        drug_id = item.get('drug_id') if item_type == 'DRUG' else None
+        non_pharm_id = item.get('non_pharm_item_id') if item_type == 'NON_PHARM' else None
+
+        po_item = PurchaseOrderItem(
+            po_id=po.id,
+            item_type=item_type,
+            drug_id=drug_id,
+            non_pharm_item_id=non_pharm_id,
+            quantity_ordered=quantity,
+            quantity_received=quantity,
+            unit_cost=unit_cost,
+        )
+        db.session.add(po_item)
+        total_cost += quantity * unit_cost
+
+        if item_type == 'DRUG':
+            drug = Drug.query.get(drug_id) if drug_id else None
+            if not drug:
+                return jsonify({'error': f'Drug ID {drug_id} not found'}), 404
+            batch = Batch(
+                drug_id=drug.id,
+                batch_number=batch_num,
+                quantity_in_stock=quantity,
+                expiry_date=exp_date,
+            )
+            db.session.add(batch)
+            db.session.flush()
+            drug.quantity_in_stock += quantity
+
+            record_movement(
+                item_type='DRUG',
+                item_id=drug.id,
+                batch_id=batch.id,
+                movement_type='RECEIVED',
+                quantity_delta=quantity,
+                balance_after=drug.quantity_in_stock,
+                reference_type='PURCHASE_ORDER',
+                reference_id=po.po_number,
+                user_id=current_uid,
+            )
+        elif item_type == 'NON_PHARM':
+            non_pharm = NonPharmItem.query.get(non_pharm_id) if non_pharm_id else None
+            if not non_pharm:
+                return jsonify({'error': f'Non-pharm item ID {non_pharm_id} not found'}), 404
+            non_pharm.stock_level += quantity
+
+            record_movement(
+                item_type='NON_PHARM',
+                item_id=non_pharm.id,
+                batch_id=None,
+                movement_type='RECEIVED',
+                quantity_delta=quantity,
+                balance_after=non_pharm.stock_level,
+                reference_type='PURCHASE_ORDER',
+                reference_id=po.po_number,
+                user_id=current_uid,
+            )
+
+    po.total_cost = round(total_cost, 2)
+    db.session.commit()
+
+    log_audit_event(
+        action='RECORD_DIRECT_RECEIPT',
+        resource_type='PurchaseOrder',
+        resource_id=po.po_number,
+        details={'items_count': len(items_data), 'total_cost': po.total_cost},
+    )
+
+    return jsonify({
+        'message': f'Direct receipt recorded under PO {po.po_number}.',
+        'purchase_order': po.to_dict(),
+    }), 201
+
 
 

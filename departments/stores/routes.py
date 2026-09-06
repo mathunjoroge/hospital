@@ -21,6 +21,7 @@ from departments.models.stock_movement import (
     record_movement,
 )
 from departments.models.stores import NonPharmCategory, NonPharmItem, OtherOrder
+from departments.models.supplier import PurchaseOrder, Supplier
 from departments.models.user import User  # Import User model
 from departments.rbac import roles_required
 from extensions import db
@@ -349,6 +350,56 @@ def get_reconciliation_report():
         return jsonify(report)
 
     return render_template('stores/reconciliation_report.html', report=report)
+
+
+@bp.route('/purchase-orders', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def list_purchase_orders():
+    """List purchase orders for stores view."""
+    status_filter = request.args.get('status', '').strip().upper()
+    query = PurchaseOrder.query.order_by(PurchaseOrder.created_at.desc())
+    if status_filter:
+        query = query.filter(PurchaseOrder.status == status_filter)
+    purchase_orders = query.all()
+    return render_template('stores/po_list.html', purchase_orders=purchase_orders, current_status=status_filter)
+
+
+@bp.route('/purchase-orders/<int:po_id>/receive', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def view_po_receive(po_id):
+    """Render PO shipment receiving form."""
+    po = PurchaseOrder.query.get_or_404(po_id)
+    return render_template('stores/po_receive.html', po=po)
+
+
+@bp.route('/receipt/direct', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def view_direct_receipt():
+    """Render form to record direct receipt of goods (no PO)."""
+    suppliers = Supplier.query.filter_by(is_active=True).order_by(Supplier.name).all()
+    drugs = Drug.query.order_by(Drug.generic_name).all()
+    non_pharms = NonPharmItem.query.order_by(NonPharmItem.name).all()
+    return render_template(
+        'stores/direct_receipt.html',
+        suppliers=suppliers,
+        drugs=drugs,
+        non_pharms=non_pharms,
+    )
+
+
+@bp.route('/receipt-history', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def receipt_history():
+    """Render history of received shipments & direct receipts."""
+    received_pos = PurchaseOrder.query.filter(
+        PurchaseOrder.status.in_(['RECEIVED', 'PARTIALLY_RECEIVED'])
+    ).order_by(PurchaseOrder.received_at.desc()).all()
+    return render_template('stores/receipt_history.html', received_pos=received_pos)
+
 
 
 
