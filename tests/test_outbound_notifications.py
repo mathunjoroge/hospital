@@ -281,3 +281,111 @@ def test_admin_outbound_notifications_endpoint(client, app, sample_patient):
     assert 'logs' in data
     assert len(data['logs']) >= 1
     assert data['logs'][0]['event_type'] == EVENT_APPOINTMENT_REMINDER
+
+
+def test_africas_talking_sms_channel_success(app, sample_patient):
+    """Verify AfricasTalkingSMSChannel successfully delivers SMS when API responds with Success."""
+    from unittest.mock import MagicMock
+    with app.app_context():
+        app.config['SMS_CHANNEL'] = 'africastalking'
+        app.config['AT_API_KEY'] = 'mock_at_api_key_123'
+        app.config['AT_USERNAME'] = 'sandbox'
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 201
+        mock_resp.json.return_value = {
+            "SMSMessageData": {
+                "Message": "Sent to 1/1 Total Cost: KES 0.8000",
+                "Recipients": [
+                    {
+                        "statusCode": 101,
+                        "number": "+254712345678",
+                        "status": "Success",
+                        "cost": "KES 0.8000",
+                        "messageId": "ATXid_test_12345"
+                    }
+                ]
+            }
+        }
+
+        with patch('requests.post', return_value=mock_resp) as mock_post:
+            log = NotificationDispatcher.dispatch_event(
+                event_type=EVENT_APPOINTMENT_REMINDER,
+                recipient="+254712345678",
+                subject="Appointment Reminder",
+                body="Your appointment is tomorrow at 10 AM.",
+                patient_id=sample_patient,
+                channels=['sms']
+            )
+
+            assert log is not None
+            assert log.status == "SENT"
+            assert log.channel == "sms"
+            mock_post.assert_called_once()
+            call_kwargs = mock_post.call_args
+            assert call_kwargs[1]['headers']['ApiKey'] == 'mock_at_api_key_123'
+
+
+def test_africas_talking_sms_channel_delivery_failure(app, sample_patient):
+    """Verify AfricasTalkingSMSChannel logs FAILED when provider reports recipient failure or error status."""
+    from unittest.mock import MagicMock
+    with app.app_context():
+        app.config['SMS_CHANNEL'] = 'africastalking'
+        app.config['AT_API_KEY'] = 'mock_at_api_key_123'
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "SMSMessageData": {
+                "Message": "Sent to 0/1",
+                "Recipients": [
+                    {
+                        "statusCode": 403,
+                        "number": "+254700000000",
+                        "status": "UserInBlackList",
+                        "cost": "KES 0.0000",
+                        "messageId": "None"
+                    }
+                ]
+            }
+        }
+
+        with patch('requests.post', return_value=mock_resp):
+            log = NotificationDispatcher.dispatch_event(
+                event_type=EVENT_APPOINTMENT_REMINDER,
+                recipient="+254700000000",
+                subject="Reminder",
+                body="Test notification body",
+                patient_id=sample_patient,
+                channels=['sms']
+            )
+
+            assert log is not None
+            assert log.status == "FAILED"
+            assert "UserInBlackList" in log.error_message
+
+
+def test_africas_talking_sms_channel_missing_api_key(app, sample_patient):
+    """Verify AfricasTalkingSMSChannel raises error and sets FAILED when AT_API_KEY is omitted."""
+    with app.app_context():
+        app.config['SMS_CHANNEL'] = 'africastalking'
+        app.config.pop('AT_API_KEY', None)
+        import os
+        old_env_key = os.environ.pop('AT_API_KEY', None)
+        try:
+            log = NotificationDispatcher.dispatch_event(
+                event_type=EVENT_APPOINTMENT_REMINDER,
+                recipient="+254712345678",
+                subject="Reminder",
+                body="Test message",
+                patient_id=sample_patient,
+                channels=['sms']
+            )
+
+            assert log is not None
+            assert log.status == "FAILED"
+            assert "AT_API_KEY" in log.error_message
+        finally:
+            if old_env_key:
+                os.environ['AT_API_KEY'] = old_env_key
+
