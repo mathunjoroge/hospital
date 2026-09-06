@@ -19,6 +19,7 @@ class NonPharmItem(db.Model):
     unit_cost = db.Column(db.Float, nullable=False, default=0.0)  # Cost per unit
     stock_level = db.Column(db.Integer, nullable=False, default=0)
     in_dispensing = db.Column(db.Integer, nullable=False, default=0)
+    storage_condition = db.Column(db.String(50), default='Ambient', nullable=False)  # Ambient | Cold Chain (2-8°C) | Freezer (-20°C)
     # Relationship
     category = db.relationship('NonPharmCategory', backref='items')
     # Index for faster lookups

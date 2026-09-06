@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 font-weight-bold text-gray-800 mb-1"><i class="bi bi-box-arrow-left text-danger me-2"></i>Initiate Return to Vendor (RTV)</h2>
+            <p class="text-muted small mb-0">Record items being returned to supplier due to defects, damage, or expiry.</p>
+        </div>
+        <a href="{{ url_for('stores.list_rtv_view') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to RTV Log
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h6 class="m-0 font-weight-bold text-danger"><i class="bi bi-journal-minus me-1"></i> Return Details</h6>
+        </div>
+        <div class="card-body">
+            <div id="rtvAlert" class="alert alert-danger d-none" role="alert"></div>
+
+            <form id="createRtvForm">
+                <!-- Header Info -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label for="supplierSelect" class="form-label fw-bold">Supplier / Vendor <span class="text-danger">*</span></label>
+                        <select class="form-select" id="supplierSelect" required>
+                            <option value="" selected disabled>-- Select Supplier --</option>
+                            {% for s in suppliers %}
+                            <option value="{{ s.id }}">{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="poSelect" class="form-label fw-bold">Reference Purchase Order</label>
+                        <select class="form-select" id="poSelect">
+                            <option value="" selected>-- Optional (Direct Return) --</option>
+                            {% for po in purchase_orders %}
+                            <option value="{{ po.id }}">{{ po.po_number }} - {{ po.supplier.name if po.supplier else '' }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="returnReason" class="form-label fw-bold">Primary Return Reason <span class="text-danger">*</span></label>
+                        <select class="form-select" id="returnReason" required>
+                            <option value="Damaged Shipment">Damaged Shipment</option>
+                            <option value="Near Expiry / Expired">Near Expiry / Expired</option>
+                            <option value="Wrong Specification Delivered">Wrong Specification Delivered</option>
+                            <option value="Substandard Quality / Quality Failure">Substandard Quality / Quality Failure</option>
+                            <option value="Excess Quantity Sent">Excess Quantity Sent</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Items Table -->
+                <h6 class="fw-bold mb-3"><i class="bi bi-box me-1"></i> Items Being Returned</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered align-middle" id="rtvItemsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 130px;">Category</th>
+                                <th>Item / Commodity <span class="text-danger">*</span></th>
+                                <th style="width: 140px;">Batch #</th>
+                                <th style="width: 110px;">Return Qty <span class="text-danger">*</span></th>
+                                <th style="width: 130px;">Unit Cost (KES)</th>
+                                <th style="width: 60px;" class="text-center"><i class="bi bi-trash"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody id="rtvItemsTbody">
+                            <!-- Dynamic rows injected here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mb-4">
+                    <button type="button" class="btn btn-sm btn-outline-danger" id="addRtvRowBtn">
+                        <i class="bi bi-plus-circle me-1"></i> Add Returned Item
+                    </button>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                    <a href="{{ url_for('stores.list_rtv_view') }}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" id="submitRtvBtn" class="btn btn-danger px-4">
+                        <i class="bi bi-check-lg me-1"></i> Create Draft RTV
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const DRUGS_LIST = [
+    {% for d in drugs %}
+    { id: {{ d.id }}, name: {{ (d.generic_name ~ " (Current Stock: " ~ d.quantity_in_stock ~ ")")|tojson }}, price: {{ d.buying_price }} },
+    {% endfor %}
+];
+
+const NON_PHARM_LIST = [
+    {% for np in non_pharms %}
+    { id: {{ np.id }}, name: {{ (np.name ~ " [" ~ np.unit ~ "] (Current Stock: " ~ np.stock_level ~ ")")|tojson }}, price: {{ np.unit_cost }} },
+    {% endfor %}
+];
+
+document.addEventListener('DOMContentLoaded', function() {
+    const tbody = document.getElementById('rtvItemsTbody');
+    const addBtn = document.getElementById('addRtvRowBtn');
+    const form = document.getElementById('createRtvForm');
+    const alertBox = document.getElementById('rtvAlert');
+    const submitBtn = document.getElementById('submitRtvBtn');
+
+    function createRow() {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <select class="form-select form-select-sm item-type-select">
+                    <option value="DRUG" selected>Drug</option>
+                    <option value="NON_PHARM">Non-Pharm</option>
+                </select>
+            </td>
+            <td>
+                <select class="form-select form-select-sm item-id-select" required>
+                    <option value="" disabled selected>-- Select Item --</option>
+                </select>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm item-batch" placeholder="Batch #">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm item-qty" min="1" value="1" required>
+            </td>
+            <td>
+                <input type="number" step="0.01" class="form-control form-control-sm item-cost" min="0" value="0.00" required>
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-row-btn">&times;</button>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+
+        const typeSelect = tr.querySelector('.item-type-select');
+        const itemSelect = tr.querySelector('.item-id-select');
+        const costInput = tr.querySelector('.item-cost');
+        const removeBtn = tr.querySelector('.remove-row-btn');
+
+        function populateItems() {
+            const type = typeSelect.value;
+            itemSelect.innerHTML = '<option value="" disabled selected>-- Select Item --</option>';
+            const list = (type === 'DRUG') ? DRUGS_LIST : NON_PHARM_LIST;
+            list.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = item.name;
+                opt.setAttribute('data-price', item.price);
+                itemSelect.appendChild(opt);
+            });
+        }
+
+        typeSelect.addEventListener('change', populateItems);
+        itemSelect.addEventListener('change', function() {
+            const selectedOpt = itemSelect.options[itemSelect.selectedIndex];
+            if (selectedOpt && selectedOpt.getAttribute('data-price')) {
+                costInput.value = parseFloat(selectedOpt.getAttribute('data-price')).toFixed(2);
+            }
+        });
+
+        populateItems();
+
+        removeBtn.addEventListener('click', function() {
+            if (tbody.querySelectorAll('tr').length > 1) {
+                tr.remove();
+            } else {
+                alert('At least one returned item is required.');
+            }
+        });
+    }
+
+    createRow();
+    addBtn.addEventListener('click', createRow);
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        alertBox.classList.add('d-none');
+
+        const supplierId = document.getElementById('supplierSelect').value;
+        const poId = document.getElementById('poSelect').value;
+        const reason = document.getElementById('returnReason').value;
+
+        if (!supplierId) {
+            alertBox.textContent = 'Please select a supplier.';
+            alertBox.classList.remove('d-none');
+            return;
+        }
+
+        const items = [];
+        let isValid = true;
+
+        document.querySelectorAll('#rtvItemsTbody tr').forEach(tr => {
+            const type = tr.querySelector('.item-type-select').value;
+            const id = tr.querySelector('.item-id-select').value;
+            const batch = tr.querySelector('.item-batch').value.trim();
+            const qty = parseInt(tr.querySelector('.item-qty').value, 10);
+            const cost = parseFloat(tr.querySelector('.item-cost').value);
+
+            if (!id || isNaN(qty) || qty <= 0) {
+                isValid = false;
+            }
+
+            const itemPayload = {
+                item_type: type,
+                batch_number: batch,
+                quantity: qty,
+                unit_cost: isNaN(cost) ? 0.0 : cost,
+                reason: reason
+            };
+
+            if (type === 'DRUG') {
+                itemPayload.drug_id = parseInt(id, 10);
+            } else {
+                itemPayload.non_pharm_item_id = parseInt(id, 10);
+            }
+
+            items.push(itemPayload);
+        });
+
+        if (!isValid || items.length === 0) {
+            alertBox.textContent = 'Please select valid items and return quantities for all rows.';
+            alertBox.classList.remove('d-none');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Submitting...';
+
+        try {
+            const response = await fetch('/pharmacy/rtv/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    supplier_id: parseInt(supplierId, 10),
+                    po_id: poId ? parseInt(poId, 10) : null,
+                    reason: reason,
+                    items: items
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                window.location.href = "{{ url_for('stores.list_rtv_view') }}";
+            } else {
+                alertBox.textContent = data.error || 'Failed to create RTV record.';
+                alertBox.classList.remove('d-none');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Create Draft RTV';
+            }
+        } catch (err) {
+            alertBox.textContent = 'Network or server error occurred.';
+            alertBox.classList.remove('d-none');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Create Draft RTV';
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -22,9 +22,15 @@ from flask_login import current_user, login_required
 from departments.api.audit import log_audit_event
 from departments.models.budget import VoteHead
 from departments.models.pharmacy import Batch, Drug
-from departments.models.stock_movement import record_movement
+from departments.models.stock_movement import StockMovement, record_movement
 from departments.models.stores import NonPharmItem
-from departments.models.supplier import PurchaseOrder, PurchaseOrderItem, Supplier
+from departments.models.supplier import (
+    PurchaseOrder,
+    PurchaseOrderItem,
+    Supplier,
+    SupplierReturn,
+    SupplierReturnItem,
+)
 from departments.rbac import roles_required
 from extensions import db
 
@@ -460,6 +466,282 @@ def record_direct_receipt():
         'message': f'Direct receipt recorded under PO {po.po_number}.',
         'purchase_order': po.to_dict(),
     }), 201
+
+
+@po_bp.route('/pharmacy/rtv/create', methods=['POST'])
+@login_required
+@roles_required('pharmacy', 'admin', 'stores', 'Storekeeper', 'Admin', 'Pharmacist')
+def create_supplier_return():
+    """Create a draft Return to Vendor (RTV) record."""
+    data = request.get_json() or {}
+    supplier_id = data.get('supplier_id')
+    po_id = data.get('po_id')
+    reason = data.get('reason', 'Return to Vendor')
+    items_data = data.get('items', [])
+
+    if not supplier_id or not items_data:
+        return jsonify({'error': 'supplier_id and items are required'}), 400
+
+    supplier = Supplier.query.get(supplier_id)
+    if not supplier:
+        return jsonify({'error': 'Supplier not found'}), 404
+
+    now = datetime.now(timezone.utc)
+    rtv_num = f"RTV-{now.strftime('%Y%m%d%H%M%S')}-{secrets.token_hex(2).upper()}"
+    current_uid = current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
+
+    rtv = SupplierReturn(
+        rtv_number=rtv_num,
+        supplier_id=supplier.id,
+        po_id=po_id,
+        status='DRAFT',
+        reason=reason,
+        created_by_id=current_uid,
+    )
+    db.session.add(rtv)
+    db.session.flush()
+
+    total_credit = 0.0
+    for item in items_data:
+        item_type = str(item.get('item_type', 'DRUG')).upper()
+        quantity = int(item.get('quantity', 0))
+        unit_cost = float(item.get('unit_cost', 0.0))
+        batch_num = item.get('batch_number')
+        item_reason = item.get('reason', reason)
+
+        if quantity <= 0:
+            continue
+
+        rtv_item = SupplierReturnItem(
+            supplier_return_id=rtv.id,
+            item_type=item_type,
+            drug_id=item.get('drug_id') if item_type == 'DRUG' else None,
+            non_pharm_item_id=item.get('non_pharm_item_id') if item_type == 'NON_PHARM' else None,
+            batch_number=batch_num,
+            quantity_returned=quantity,
+            unit_cost=unit_cost,
+            reason=item_reason,
+        )
+        db.session.add(rtv_item)
+        total_credit += quantity * unit_cost
+
+    rtv.total_credit_amount = round(total_credit, 2)
+    db.session.commit()
+
+    log_audit_event(
+        action='CREATE_SUPPLIER_RETURN',
+        resource_type='SupplierReturn',
+        resource_id=rtv.rtv_number,
+        details={'supplier_id': supplier_id, 'total_credit': rtv.total_credit_amount},
+    )
+
+    return jsonify({
+        'message': f'Draft RTV {rtv.rtv_number} created.',
+        'supplier_return': rtv.to_dict(),
+    }), 201
+
+
+@po_bp.route('/pharmacy/rtv/<int:rtv_id>/dispatch', methods=['POST'])
+@login_required
+@roles_required('pharmacy', 'admin', 'stores', 'Storekeeper', 'Admin', 'Pharmacist')
+def dispatch_supplier_return(rtv_id):
+    """Dispatch Return to Vendor (RTV), deduct stock, and record RETURN_TO_VENDOR movements."""
+    rtv = db.session.get(SupplierReturn, rtv_id)
+    if not rtv:
+        return jsonify({'error': 'RTV record not found'}), 404
+
+    if rtv.status != 'DRAFT':
+        return jsonify({'error': f'RTV is in {rtv.status} status and cannot be dispatched'}), 400
+
+    current_uid = current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
+
+    for item in rtv.items:
+        qty = item.quantity_returned
+        if item.item_type == 'DRUG' and item.drug:
+            drug = item.drug
+            drug.quantity_in_stock = max(0, drug.quantity_in_stock - qty)
+            record_movement(
+                item_type='DRUG',
+                item_id=drug.id,
+                movement_type='RETURN_TO_VENDOR',
+                quantity_delta=-qty,
+                balance_after=drug.quantity_in_stock,
+                reference_type='SUPPLIER_RETURN',
+                reference_id=rtv.rtv_number,
+                user_id=current_uid,
+                notes=f"Return to vendor {rtv.supplier.name if rtv.supplier else ''}: {item.reason or rtv.reason}",
+            )
+        elif item.item_type == 'NON_PHARM' and item.non_pharm_item:
+            np = item.non_pharm_item
+            np.stock_level = max(0, np.stock_level - qty)
+            record_movement(
+                item_type='NON_PHARM',
+                item_id=np.id,
+                movement_type='RETURN_TO_VENDOR',
+                quantity_delta=-qty,
+                balance_after=np.stock_level,
+                reference_type='SUPPLIER_RETURN',
+                reference_id=rtv.rtv_number,
+                user_id=current_uid,
+                notes=f"Return to vendor {rtv.supplier.name if rtv.supplier else ''}: {item.reason or rtv.reason}",
+            )
+
+    rtv.status = 'DISPATCHED'
+    rtv.dispatched_at = datetime.now(timezone.utc)
+    db.session.commit()
+
+    log_audit_event(
+        action='DISPATCH_SUPPLIER_RETURN',
+        resource_type='SupplierReturn',
+        resource_id=rtv.rtv_number,
+        details={'status': rtv.status},
+    )
+
+    return jsonify({
+        'message': f'RTV {rtv.rtv_number} dispatched to vendor.',
+        'supplier_return': rtv.to_dict(),
+    })
+
+
+@po_bp.route('/pharmacy/suppliers/<int:supplier_id>/metrics', methods=['GET'])
+@login_required
+@roles_required('pharmacy', 'admin', 'stores', 'Storekeeper', 'Admin', 'Pharmacist')
+def get_supplier_otif_metrics(supplier_id):
+    """Calculate Supplier On-Time In-Full (OTIF) performance scorecards."""
+    supplier = db.session.get(Supplier, supplier_id)
+    if not supplier:
+        return jsonify({'error': 'Supplier not found'}), 404
+
+    pos = PurchaseOrder.query.filter_by(supplier_id=supplier.id).all()
+
+    total_orders = len(pos)
+    received_pos = [po for po in pos if po.status == 'RECEIVED' and po.ordered_at and po.received_at]
+
+    lead_times = []
+    on_time_count = 0
+    total_ordered_items = 0
+    total_received_items = 0
+
+    for po in received_pos:
+        days = (po.received_at - po.ordered_at).days
+        lead_times.append(days)
+        if days <= supplier.lead_time_days:
+            on_time_count += 1
+
+        for item in po.items:
+            total_ordered_items += item.quantity_ordered
+            total_received_items += item.quantity_received
+
+    avg_actual_lead_time = round(sum(lead_times) / len(lead_times), 1) if lead_times else float(supplier.lead_time_days)
+    on_time_rate = round((on_time_count / len(received_pos)) * 100, 1) if received_pos else 100.0
+    fill_rate = round((total_received_items / total_ordered_items) * 100, 1) if total_ordered_items > 0 else 100.0
+
+    return jsonify({
+        'supplier_id': supplier.id,
+        'supplier_name': supplier.name,
+        'promised_lead_time_days': supplier.lead_time_days,
+        'actual_avg_lead_time_days': avg_actual_lead_time,
+        'total_orders': total_orders,
+        'received_orders': len(received_pos),
+        'on_time_delivery_rate': on_time_rate,
+        'fill_rate_percentage': fill_rate,
+        'total_spend': round(sum(float(po.total_cost) for po in pos), 2),
+    })
+
+
+@po_bp.route('/pharmacy/smart-reorder', methods=['GET'])
+@login_required
+@roles_required('pharmacy', 'admin', 'stores', 'Storekeeper', 'Admin', 'Pharmacist')
+def calculate_smart_reorder():
+    """Calculate 30-day Average Daily Consumption (ADC) and dynamic Reorder Points (ROP)."""
+    import math
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=30)
+
+    # Fetch 30-day outward movements
+    movements = StockMovement.query.filter(
+        StockMovement.created_at >= cutoff,
+        StockMovement.movement_type.in_(['DISPENSED', 'ISSUED', 'TRANSFER_OUT'])
+    ).all()
+
+    drug_consumption = {}
+    non_pharm_consumption = {}
+
+    for m in movements:
+        qty = abs(m.quantity_delta)
+        if m.item_type == 'DRUG':
+            drug_consumption[m.item_id] = drug_consumption.get(m.item_id, 0) + qty
+        elif m.item_type == 'NON_PHARM':
+            non_pharm_consumption[m.item_id] = non_pharm_consumption.get(m.item_id, 0) + qty
+
+    reorder_proposals = []
+
+    # Evaluate Drugs
+    drugs = Drug.query.all()
+    for d in drugs:
+        consumed_30d = drug_consumption.get(d.id, 0)
+        adc = round(consumed_30d / 30.0, 2)
+        lead_days = 3
+        safety_stock = math.ceil(adc * 2)
+        dynamic_rop = math.ceil(adc * lead_days) + safety_stock
+
+        current_stock = d.quantity_in_stock
+        effective_rop = max(d.reorder_level or 0, dynamic_rop)
+
+        needs_reorder = current_stock <= effective_rop
+        suggested_qty = max(50, effective_rop * 2) if needs_reorder else 0
+
+        reorder_proposals.append({
+            'item_type': 'DRUG',
+            'id': d.id,
+            'name': d.generic_name,
+            'current_stock': current_stock,
+            'static_reorder_level': d.reorder_level or 0,
+            'adc': adc,
+            'dynamic_rop': dynamic_rop,
+            'effective_rop': effective_rop,
+            'storage_condition': d.storage_condition,
+            'needs_reorder': needs_reorder,
+            'suggested_reorder_qty': suggested_qty,
+        })
+
+    # Evaluate NonPharmItems
+    non_pharms = NonPharmItem.query.all()
+    for np in non_pharms:
+        consumed_30d = non_pharm_consumption.get(np.id, 0)
+        adc = round(consumed_30d / 30.0, 2)
+        lead_days = 3
+        safety_stock = math.ceil(adc * 2)
+        dynamic_rop = math.ceil(adc * lead_days) + safety_stock
+
+        current_stock = np.stock_level
+        needs_reorder = current_stock <= dynamic_rop
+        suggested_qty = max(20, dynamic_rop * 2) if needs_reorder else 0
+
+        reorder_proposals.append({
+            'item_type': 'NON_PHARM',
+            'id': np.id,
+            'name': np.name,
+            'current_stock': current_stock,
+            'static_reorder_level': 0,
+            'adc': adc,
+            'dynamic_rop': dynamic_rop,
+            'effective_rop': dynamic_rop,
+            'storage_condition': np.storage_condition,
+            'needs_reorder': needs_reorder,
+            'suggested_reorder_qty': suggested_qty,
+        })
+
+    items_to_reorder = [p for p in reorder_proposals if p['needs_reorder']]
+
+    return jsonify({
+        'total_items_analyzed': len(reorder_proposals),
+        'items_needing_reorder_count': len(items_to_reorder),
+        'proposals': reorder_proposals,
+    })
+
 
 
 

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid py-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 font-weight-bold text-gray-800 mb-1"><i class="bi bi-cpu text-info me-2"></i>Smart Reorder & Consumption Analytics</h2>
+            <p class="text-muted small mb-0">Dynamic Reorder Points (ROP) calculated from 30-day Average Daily Consumption (ADC) and storage condition compliance.</p>
+        </div>
+        <button type="button" id="autoGeneratePoBtn" class="btn btn-info text-white shadow-sm">
+            <i class="bi bi-magic me-1"></i> Auto-Generate PO for Low Stock
+        </button>
+    </div>
+
+    <!-- Summary Metrics -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 bg-dark text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-white-50 small fw-bold text-uppercase d-block">Commodities Analyzed</span>
+                            <h3 class="mb-0 font-weight-bold" id="totalAnalyzed">—</h3>
+                        </div>
+                        <i class="bi bi-boxes fs-1 text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 bg-danger text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-white-50 small fw-bold text-uppercase d-block">Needing Replenishment</span>
+                            <h3 class="mb-0 font-weight-bold" id="needingReorder">—</h3>
+                        </div>
+                        <i class="bi bi-exclamation-triangle fs-1 text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 bg-info text-white">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-white-50 small fw-bold text-uppercase d-block">Cold-Chain Items</span>
+                            <h3 class="mb-0 font-weight-bold" id="coldChainCount">—</h3>
+                        </div>
+                        <i class="bi bi-snow fs-1 text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Table Card -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-info"><i class="bi bi-graph-up-arrow me-1"></i> Dynamic ROP & ADC Matrix</h6>
+            <input type="text" id="reorderSearch" class="form-control form-control-sm w-auto" placeholder="Search commodities...">
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="smartReorderTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Commodity Name</th>
+                            <th>Category</th>
+                            <th>Storage Condition</th>
+                            <th>Current Stock</th>
+                            <th>30-Day ADC</th>
+                            <th>Dynamic ROP</th>
+                            <th>Replenishment Status</th>
+                            <th class="text-end pe-3">Suggested Order Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reorderTbody">
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>Analyzing consumption ledger...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+    const tbody = document.getElementById('reorderTbody');
+    const searchInput = document.getElementById('reorderSearch');
+    const autoGenBtn = document.getElementById('autoGeneratePoBtn');
+
+    try {
+        const response = await fetch('/pharmacy/smart-reorder', { headers: { 'Accept': 'application/json' } });
+        const data = await response.json();
+
+        if (response.ok) {
+            document.getElementById('totalAnalyzed').textContent = data.total_items_analyzed;
+            document.getElementById('needingReorder').textContent = data.items_needing_reorder_count;
+
+            const proposals = data.proposals || [];
+            let coldCount = 0;
+            tbody.innerHTML = '';
+
+            proposals.forEach(p => {
+                if (p.storage_condition && p.storage_condition.toLowerCase().includes('cold')) {
+                    coldCount++;
+                }
+
+                const tr = document.createElement('tr');
+                let condBadge = '<span class="badge bg-secondary">Ambient</span>';
+                if (p.storage_condition && p.storage_condition.toLowerCase().includes('cold')) {
+                    condBadge = '<span class="badge bg-info text-white"><i class="bi bi-snow me-1"></i>Cold Chain (2-8°C)</span>';
+                } else if (p.storage_condition && p.storage_condition.toLowerCase().includes('freeze')) {
+                    condBadge = '<span class="badge bg-primary"><i class="bi bi-snow2 me-1"></i>Freezer (-20°C)</span>';
+                }
+
+                let statusBadge = '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Adequate Stock</span>';
+                if (p.needs_reorder) {
+                    statusBadge = '<span class="badge bg-danger"><i class="bi bi-exclamation-circle me-1"></i>Reorder Recommended</span>';
+                }
+
+                tr.innerHTML = `
+                    <td class="ps-3 fw-bold text-dark">${p.name}</td>
+                    <td><span class="badge bg-light text-dark border">${p.item_type}</span></td>
+                    <td>${condBadge}</td>
+                    <td class="fw-bold">${p.current_stock}</td>
+                    <td><span class="badge bg-light text-dark border">${p.adc} / day</span></td>
+                    <td><span class="badge bg-warning text-dark">${p.effective_rop} units</span></td>
+                    <td>${statusBadge}</td>
+                    <td class="text-end pe-3 fw-bold text-primary">${p.suggested_reorder_qty > 0 ? p.suggested_reorder_qty + ' units' : '—'}</td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('coldChainCount').textContent = coldCount;
+        } else {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">Failed to load consumption analytics.</td></tr>';
+        }
+    } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">Network error loading analytics.</td></tr>';
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function() {
+            const q = this.value.toLowerCase();
+            document.querySelectorAll('#smartReorderTable tbody tr').forEach(tr => {
+                tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+            });
+        });
+    }
+
+    if (autoGenBtn) {
+        autoGenBtn.addEventListener('click', function() {
+            window.location.href = "{{ url_for('stores.view_direct_receipt') }}";
+        });
+    }
+});
+</script>
+{% endblock %}

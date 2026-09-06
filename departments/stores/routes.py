@@ -1,5 +1,6 @@
 import os
-from datetime import datetime
+import secrets
+from datetime import datetime, timezone
 
 from flask import (
     current_app,
@@ -22,7 +23,13 @@ from departments.models.stock_movement import (
     record_movement,
 )
 from departments.models.stores import NonPharmCategory, NonPharmItem, OtherOrder
-from departments.models.supplier import PurchaseOrder, Supplier
+from departments.models.supplier import (
+    PurchaseOrder,
+    StockDisposal,
+    StockDisposalItem,
+    Supplier,
+    SupplierReturn,
+)
 from departments.models.transfer import TransferOrder
 from departments.models.user import User  # Import User model
 from departments.rbac import roles_required
@@ -472,6 +479,178 @@ def view_transfer_detail(transfer_id):
         home_facility=home_facility,
         is_outward=is_outward,
     )
+
+
+@bp.route('/rtv', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def list_rtv_view():
+    """Render Return to Vendor (RTV) log page."""
+    returns = SupplierReturn.query.order_by(SupplierReturn.created_at.desc()).all()
+    return render_template('stores/rtv_list.html', returns=returns)
+
+
+@bp.route('/rtv/new', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def new_rtv_view():
+    """Render form to initiate Return to Vendor (RTV)."""
+    suppliers = Supplier.query.filter_by(is_active=True).order_by(Supplier.name).all()
+    pos = PurchaseOrder.query.order_by(PurchaseOrder.created_at.desc()).limit(50).all()
+    drugs = Drug.query.order_by(Drug.generic_name).all()
+    non_pharms = NonPharmItem.query.order_by(NonPharmItem.name).all()
+    return render_template(
+        'stores/rtv_create.html',
+        suppliers=suppliers,
+        purchase_orders=pos,
+        drugs=drugs,
+        non_pharms=non_pharms,
+    )
+
+
+@bp.route('/disposals', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def list_disposals_view():
+    """Render Stock Disposal / Write-off Board page."""
+    disposals = StockDisposal.query.order_by(StockDisposal.created_at.desc()).all()
+    drugs = Drug.query.order_by(Drug.generic_name).all()
+    non_pharms = NonPharmItem.query.order_by(NonPharmItem.name).all()
+    batches = Batch.query.filter(Batch.quantity_in_stock > 0).order_by(Batch.expiry_date).all()
+    return render_template(
+        'stores/disposal_list.html',
+        disposals=disposals,
+        drugs=drugs,
+        non_pharms=non_pharms,
+        batches=batches,
+    )
+
+
+@bp.route('/disposal/create', methods=['POST'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def create_stock_disposal():
+    """Create draft stock disposal record."""
+    data = request.get_json() or {}
+    reason = data.get('reason', 'Expired/Damaged Stock Destruction')
+    items_data = data.get('items', [])
+
+    if not items_data:
+        return jsonify({'error': 'At least one item is required'}), 400
+
+    now = datetime.now(timezone.utc)
+    disp_num = f"DISP-{now.strftime('%Y%m%d%H%M%S')}-{secrets.token_hex(2).upper()}"
+    current_uid = current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
+
+    disposal = StockDisposal(
+        disposal_number=disp_num,
+        status='DRAFT',
+        reason=reason,
+        created_by_id=current_uid,
+    )
+    db.session.add(disposal)
+    db.session.flush()
+
+    total_loss = 0.0
+    for item in items_data:
+        item_type = str(item.get('item_type', 'DRUG')).upper()
+        quantity = int(item.get('quantity', 0))
+        unit_cost = float(item.get('unit_cost', 0.0))
+        batch_id = item.get('batch_id')
+        item_reason = item.get('reason', reason)
+
+        if quantity <= 0:
+            continue
+
+        disp_item = StockDisposalItem(
+            disposal_id=disposal.id,
+            item_type=item_type,
+            drug_id=item.get('drug_id') if item_type == 'DRUG' else None,
+            non_pharm_item_id=item.get('non_pharm_item_id') if item_type == 'NON_PHARM' else None,
+            batch_id=batch_id,
+            quantity_disposed=quantity,
+            unit_cost=unit_cost,
+            reason=item_reason,
+        )
+        db.session.add(disp_item)
+        total_loss += quantity * unit_cost
+
+    disposal.total_loss_value = round(total_loss, 2)
+    db.session.commit()
+
+    return jsonify({
+        'message': f'Draft disposal board record {disposal.disposal_number} created.',
+        'disposal': disposal.to_dict(),
+    }), 201
+
+
+@bp.route('/disposal/<int:disposal_id>/approve', methods=['POST'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def approve_stock_disposal(disposal_id):
+    """Approve and execute stock disposal write-off."""
+    disposal = db.session.get(StockDisposal, disposal_id)
+    if not disposal:
+        return jsonify({'error': 'Disposal record not found'}), 404
+
+    if disposal.status != 'DRAFT':
+        return jsonify({'error': f'Disposal record is in {disposal.status} status and cannot be re-approved'}), 400
+
+    current_uid = current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
+
+    for item in disposal.items:
+        qty = item.quantity_disposed
+        if item.item_type == 'DRUG' and item.drug:
+            drug = item.drug
+            drug.quantity_in_stock = max(0, drug.quantity_in_stock - qty)
+            if item.batch_id and item.batch:
+                item.batch.quantity_in_stock = max(0, item.batch.quantity_in_stock - qty)
+
+            record_movement(
+                item_type='DRUG',
+                item_id=drug.id,
+                batch_id=item.batch_id,
+                movement_type='DISCARDED',
+                quantity_delta=-qty,
+                balance_after=drug.quantity_in_stock,
+                reference_type='STOCK_DISPOSAL',
+                reference_id=disposal.disposal_number,
+                user_id=current_uid,
+                notes=f"Write-off disposal: {item.reason or disposal.reason}",
+            )
+        elif item.item_type == 'NON_PHARM' and item.non_pharm_item:
+            np = item.non_pharm_item
+            np.stock_level = max(0, np.stock_level - qty)
+            record_movement(
+                item_type='NON_PHARM',
+                item_id=np.id,
+                movement_type='DISCARDED',
+                quantity_delta=-qty,
+                balance_after=np.stock_level,
+                reference_type='STOCK_DISPOSAL',
+                reference_id=disposal.disposal_number,
+                user_id=current_uid,
+                notes=f"Write-off disposal: {item.reason or disposal.reason}",
+            )
+
+    disposal.status = 'APPROVED'
+    disposal.approved_by_id = current_uid
+    disposal.disposed_at = datetime.now(timezone.utc)
+    db.session.commit()
+
+    return jsonify({
+        'message': f'Stock disposal {disposal.disposal_number} approved and stock written off.',
+        'disposal': disposal.to_dict(),
+    })
+
+
+@bp.route('/smart-reorder', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def smart_reorder_view():
+    """Render Smart Reorder AI & Consumption Analytics Dashboard."""
+    return render_template('stores/smart_reorder.html')
+
 
 
 

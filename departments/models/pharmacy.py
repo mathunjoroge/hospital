@@ -24,6 +24,7 @@ class Drug(db.Model):
     selling_price = db.Column(db.Float, nullable=False)
     quantity_in_stock = db.Column(db.Integer, default=0, nullable=False)  # Sum of batch quantities
     reorder_level = db.Column(db.Integer)
+    storage_condition = db.Column(db.String(50), default='Ambient', nullable=False)  # Ambient | Cold Chain (2-8°C) | Freezer (-20°C)
 
     # Relationship
     category = db.relationship('DrugCategory', backref=db.backref('drugs', lazy=True))
