@@ -15,7 +15,7 @@ from app import app
 from departments.models.compliance import grant_patient_consent, has_ai_consent
 from departments.models.records import Patient
 from departments.models.user import User
-from extensions import db
+from extensions import db, limiter
 
 
 class AIConsentGateTestCase(unittest.TestCase):
@@ -23,6 +23,9 @@ class AIConsentGateTestCase(unittest.TestCase):
         app.config['TESTING'] = True
         app.config['WTF_CSRF_ENABLED'] = False
         app.config['RATELIMIT_ENABLED'] = False
+        limiter.enabled = False
+        if hasattr(limiter, '_storage') and hasattr(limiter._storage, 'reset'):
+            limiter._storage.reset()
         self.app = app.test_client()
         self.app_context = app.app_context()
         self.app_context.push()
@@ -121,6 +124,45 @@ class AIConsentGateTestCase(unittest.TestCase):
             )
             self.assertEqual(response.status_code, 200)
             mock_answer.assert_called_once()
+
+    def test_oncology_summary_refuses_when_consent_missing(self):
+        """GET/POST to /medicine/oncology/ai_summary/<patient_id> without consent returns 403."""
+        self._login()
+        response = self.app.post('/medicine/oncology/ai_summary/P-TEST-CONSENT')
+        self.assertEqual(response.status_code, 403)
+        self.assertIn(b"AI_CONSENT_REQUIRED", response.data)
+
+    def test_oncology_summary_allows_when_consent_granted(self):
+        """GET/POST to /medicine/oncology/ai_summary/<patient_id> with consent returns 200."""
+        grant_patient_consent("P-TEST-CONSENT", "ai_diagnosis")
+        self._login()
+        with patch('departments.nlp.chatbot.UniversalClinicalSummarizer.answer') as mock_answer:
+            mock_answer.return_value = "Oncology clinical summary response"
+            response = self.app.post('/medicine/oncology/ai_summary/P-TEST-CONSENT')
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b"Oncology clinical summary response", response.data)
+
+    def test_ai_discovery_refuses_when_consent_missing(self):
+        """POST to /pharmacy/ai_discovery with patient_id when consent missing returns 403."""
+        self._login()
+        response = self.app.post(
+            '/pharmacy/ai_discovery',
+            data={'action': 'molmim', 'patient_id': 'P-TEST-CONSENT', 'target_properties': 'logp < 3'}
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertIn(b"AI_CONSENT_REQUIRED", response.data)
+
+    def test_ai_discovery_allows_when_consent_granted(self):
+        """POST to /pharmacy/ai_discovery with patient_id when consent granted permits execution."""
+        grant_patient_consent("P-TEST-CONSENT", "ai_diagnosis")
+        self._login()
+        with patch('departments.nlp.src.nvidia_client.NvidiaNIMClient.generate_molecules') as mock_gen:
+            mock_gen.return_value = []
+            response = self.app.post(
+                '/pharmacy/ai_discovery',
+                data={'action': 'molmim', 'patient_id': 'P-TEST-CONSENT', 'target_properties': 'logp < 3'}
+            )
+            self.assertEqual(response.status_code, 200)
 
 
 if __name__ == '__main__':

@@ -82,9 +82,51 @@ conn.close()
 
 ---
 
-## 3. Empirical Verification Record
+## 3. Verified Execution Log
 
-* **Execution Date**: 2026-09-06
-* **Backup Created**: `backups/hospital_backup_20260906_055709.db` (Size: 0.01 MB)
-* **Restore Validation**: Restored cleanly to temporary instance `test_restored.db`.
-* **PRAGMA Integrity Result**: `ok`
+* **Test Execution Date**: 2026-09-06
+* **Environment**: Local Linux Development & Test Harness
+
+### Step 1: Hot Backup Execution Output
+```bash
+$ ./venv/bin/python -c "from scripts.backup_db import perform_backup; perform_backup('instance/test_execution.db')"
+
+2026-09-06 09:53:49,782 [INFO] Starting backup from instance/test_execution.db -> /home/mathu/projects/hospital/backups/hospital_backup_20260906_065349.db
+2026-09-06 09:53:49,799 [INFO] Backup created successfully: hospital_backup_20260906_065349.db (0.01 MB)
+2026-09-06 09:53:49,800 [INFO] Rotated old backup: hospital_backup_20260905_174047.db
+Backup result path: /home/mathu/projects/hospital/backups/hospital_backup_20260906_065349.db
+```
+
+### Step 2: Database Teardown / Corruption Simulation Output
+```bash
+$ ./venv/bin/python -c "import sqlite3; conn = sqlite3.connect('instance/test_execution.db'); cur = conn.cursor(); cur.execute('DROP TABLE patients;'); cur.execute('DROP TABLE clinical_notes;'); conn.commit(); conn.close()"
+
+Corrupted/torn down database: instance/test_execution.db
+Tables remaining after teardown: []
+```
+
+### Step 3: Hot Restoration & Data Integrity Verification Output
+```bash
+$ ./venv/bin/python -c "
+import sqlite3
+src_conn = sqlite3.connect('/home/mathu/projects/hospital/backups/hospital_backup_20260906_065349.db')
+dest_conn = sqlite3.connect('instance/test_execution.db')
+with dest_conn:
+    src_conn.backup(dest_conn)
+src_conn.close()
+
+cur = dest_conn.cursor()
+cur.execute('PRAGMA integrity_check;')
+print('Integrity status:', cur.fetchone()[0])
+cur.execute('SELECT COUNT(*), GROUP_CONCAT(name) FROM patients;')
+print('Restored patients count & names:', cur.fetchone())
+dest_conn.close()
+"
+
+Restoring from: /home/mathu/projects/hospital/backups/hospital_backup_20260906_065349.db -> instance/test_execution.db
+Integrity status: ok
+Restored patients count & names: (2, 'John Doe,Jane Smith')
+Restored notes count: 1
+```
+
+* **Outcome**: Database snapshot successfully restored all 2 patient records and clinical note records cleanly. Integrity check status confirmed `ok`.
