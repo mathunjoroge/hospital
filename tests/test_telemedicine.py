@@ -2,6 +2,8 @@
 tests/test_telemedicine.py
 ───────────────────────────
 Phase E — Telemedicine & Virtual Consultation Engine Test Suite
+
+Tests include feature-flag quarantine verification (ENABLE_TELEMEDICINE).
 """
 
 import pytest
@@ -37,8 +39,27 @@ def unauthorized_user(app):
         yield u
 
 
-def test_create_telemedicine_session_success(client, doctor_user):
+# ── Feature-flag quarantine tests ──────────────────────────────────
+
+def test_telemedicine_blocked_when_flag_off(client, app, doctor_user):
+    """All telemedicine routes return 403 when ENABLE_TELEMEDICINE is False (default)."""
+    app.config['ENABLE_TELEMEDICINE'] = False
+    client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
+
+    resp = client.post("/telemedicine/session/create", json={"patient_id": "P-BLOCK-01"})
+    assert resp.status_code == 403
+    data = resp.get_json()
+    assert data["code"] == "FEATURE_DISABLED"
+
+    resp2 = client.get("/telemedicine/sessions")
+    assert resp2.status_code == 403
+
+
+# ── Feature-enabled tests ─────────────────────────────────────────
+
+def test_create_telemedicine_session_success(client, app, doctor_user):
     """POST /telemedicine/session/create creates a session with SCHEDULED status."""
+    app.config['ENABLE_TELEMEDICINE'] = True
     client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
     resp = client.post(
         "/telemedicine/session/create",
@@ -52,8 +73,9 @@ def test_create_telemedicine_session_success(client, doctor_user):
     assert data["session"]["room_token"].startswith("room_")
 
 
-def test_create_telemedicine_session_missing_patient(client, doctor_user):
+def test_create_telemedicine_session_missing_patient(client, app, doctor_user):
     """POST /telemedicine/session/create returns 400 if patient_id is absent."""
+    app.config['ENABLE_TELEMEDICINE'] = True
     client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
     resp = client.post("/telemedicine/session/create", json={})
     assert resp.status_code == 400
@@ -61,6 +83,7 @@ def test_create_telemedicine_session_missing_patient(client, doctor_user):
 
 def test_session_lifecycle_and_notes(client, app, doctor_user):
     """Test start, notes update, and complete lifecycle endpoints."""
+    app.config['ENABLE_TELEMEDICINE'] = True
     client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
 
     # 1. Create
@@ -94,6 +117,7 @@ def test_session_lifecycle_and_notes(client, app, doctor_user):
 
 def test_room_ui_access_control(client, app, doctor_user, unauthorized_user):
     """GET /telemedicine/room/<uuid> returns 200 for participant, 403 for unauthorized."""
+    app.config['ENABLE_TELEMEDICINE'] = True
     client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
     c_resp = client.post(
         "/telemedicine/session/create",
@@ -112,8 +136,9 @@ def test_room_ui_access_control(client, app, doctor_user, unauthorized_user):
     assert unauth_resp.status_code == 403
 
 
-def test_list_sessions_endpoint(client, doctor_user):
+def test_list_sessions_endpoint(client, app, doctor_user):
     """GET /telemedicine/sessions lists the doctor's sessions."""
+    app.config['ENABLE_TELEMEDICINE'] = True
     client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
     client.post("/telemedicine/session/create", json={"patient_id": "P-TELE-104"})
 

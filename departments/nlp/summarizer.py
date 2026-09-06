@@ -90,12 +90,13 @@ class ClinicalSummarizer:
                 logger.error(f"Failed to initialize HMIS models: {e}")
                 cls._initialized = True
 
-    def summarize(self, note: Union[str, Dict], max_length: int = 250, min_length: int = 50) -> str:
+    def summarize(self, note: Union[str, Dict], patient_id: Optional[str] = None, max_length: int = 250, min_length: int = 50) -> str:
         """
         Generate a clinical summary for HMIS integration.
 
         Args:
             note (Union[str, Dict]): Clinical note as string or dictionary.
+            patient_id (Optional[str]): Patient ID for AI consent verification.
             max_length (int): Maximum length of the summary.
             min_length (int): Minimum length of the summary.
 
@@ -106,11 +107,31 @@ class ClinicalSummarizer:
             if not note:
                 return self._format_hmis_error("Input clinical note is empty")
 
+            pid = patient_id
+            if not pid and isinstance(note, dict):
+                pid = note.get('patient_id')
+
+            if pid:
+                try:
+                    from departments.api.audit import log_audit_event
+                    from departments.models.compliance import has_ai_consent
+                    if not has_ai_consent(pid):
+                        logger.warning(f"AI consent missing for patient {pid} in ClinicalSummarizer")
+                        log_audit_event(
+                            action="AI_CONSENT_REFUSED",
+                            resource_type="PatientConsent",
+                            resource_id=pid,
+                            details={"reason": "Missing or revoked ai_diagnosis consent"},
+                        )
+                        return self._format_hmis_error(f"AI processing refused: Patient {pid} has not granted explicit AI diagnosis consent (DPA 2019 Section 30).")
+                except Exception as consent_err:
+                    logger.error(f"Error checking AI consent in ClinicalSummarizer: {consent_err}")
+
             text = self._preprocess_input(note)
             if not text.strip():
                 return self._format_hmis_error("No valid clinical content found in input")
 
-            raw_summary = self._generate_summary(text, max_length, min_length)
+            raw_summary = self._generate_summary(text, max_length, min_length, patient_id=pid)
             verified_summary = self._verify_summary(text, raw_summary)
 
             if not verified_summary or "Unable to generate" in verified_summary:
@@ -151,10 +172,10 @@ class ClinicalSummarizer:
 
         return "Summarize the following clinical note accurately and concisely for hospital use: " + text
 
-    def _generate_summary(self, text: str, max_length: int, min_length: int) -> str:
+    def _generate_summary(self, text: str, max_length: int, min_length: int, patient_id: Optional[str] = None) -> str:
         """Generate summary using NVIDIA NIM model with fallback."""
         try:
-            summary = self._nvidia_client.summarize_note(text)
+            summary = self._nvidia_client.summarize_note(text, patient_id=patient_id)
             logger.info("Summary generated successfully via NVIDIA NIM")
             return summary
 

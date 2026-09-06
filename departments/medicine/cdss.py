@@ -83,9 +83,64 @@ RENAL_DOSE_DRUGS = {
 }
 
 
+def query_drugcentral_ddi(drug1: str, drug2: str) -> list[dict]:
+    """Query live DrugCentral PostgreSQL database for drug-drug interactions between two drugs."""
+    try:
+        from departments.shared.drugcentral import get_drugcentral_connection
+        conn = get_drugcentral_connection()
+        cur = conn.cursor()
+
+        # Step 1: Query drug class names for both drugs
+        def get_classes(drug: str) -> list[str]:
+            q = '''
+                SELECT DISTINCT c.name
+                FROM structures s
+                JOIN struct2drgclass sc ON s.id = sc.struct_id
+                JOIN drug_class c ON sc.drug_class_id = c.id
+                WHERE LOWER(s.name) LIKE %s OR LOWER(c.name) LIKE %s
+            '''
+            pat = f"%{drug.lower().strip()}%"
+            cur.execute(q, (pat, pat))
+            return [r[0] for r in cur.fetchall()] + [drug.strip()]
+
+        c1 = get_classes(drug1)
+        c2 = get_classes(drug2)
+
+        if not c1 or not c2:
+            conn.close()
+            return []
+
+        # Step 2: Query DDI table matching class pairs
+        q_ddi = '''
+            SELECT d.drug_class1, d.drug_class2, d.ddi_risk, d.description
+            FROM ddi d
+            WHERE (d.drug_class1 = ANY(%s) AND d.drug_class2 = ANY(%s))
+               OR (d.drug_class1 = ANY(%s) AND d.drug_class2 = ANY(%s))
+        '''
+        cur.execute(q_ddi, (c1, c2, c2, c1))
+        rows = cur.fetchall()
+        conn.close()
+
+        results = []
+        for r in rows:
+            results.append({
+                'severity': 'HIGH' if 'avoid' in (r[2] or '').lower() or 'contraindicated' in (r[2] or '').lower() else 'MODERATE',
+                'title': f"DrugCentral DDI: {r[0]} + {r[1]}",
+                'interacting_drugs': [drug1, drug2],
+                'mechanism': r[3] or 'Pharmacological class interaction registered in DrugCentral.',
+                'recommendation': f"Risk: {r[2]}. Review concurrent administration.",
+                'source': 'DrugCentral PostgreSQL DB'
+            })
+        return results
+    except Exception as err:
+        logger.debug("DrugCentral DB lookup unavailable, using local rules: %s", err)
+        return []
+
+
 def check_drug_interactions(medications: list[str]) -> list[dict]:
     """
     Check a list of medication names for known dangerous drug-drug interactions.
+    Attempts live DrugCentral PostgreSQL lookup first, falling back to local KNOWN_INTERACTIONS matrix.
 
     Returns:
         List of interaction warning dicts.
@@ -95,7 +150,21 @@ def check_drug_interactions(medications: list[str]) -> list[dict]:
 
     normalized = [m.strip().lower() for m in medications if m]
     warnings = []
+    seen_pairs = set()
 
+    # Try DrugCentral DB lookup for pairs
+    for i in range(len(normalized)):
+        for j in range(i + 1, len(normalized)):
+            d1, d2 = normalized[i], normalized[j]
+            pair_key = tuple(sorted([d1, d2]))
+            if pair_key in seen_pairs:
+                continue
+            dc_results = query_drugcentral_ddi(d1, d2)
+            if dc_results:
+                warnings.extend(dc_results)
+                seen_pairs.add(pair_key)
+
+    # Local fallback for pairs not found or if DB offline
     for rule in KNOWN_INTERACTIONS:
         pair = rule['pair']
         matched_drugs = []
@@ -106,13 +175,17 @@ def check_drug_interactions(medications: list[str]) -> list[dict]:
                     break
 
         if len(matched_drugs) == len(pair):
-            warnings.append({
-                'severity': rule['severity'],
-                'title': rule['title'],
-                'interacting_drugs': sorted(matched_drugs),
-                'mechanism': rule['mechanism'],
-                'recommendation': rule['recommendation'],
-            })
+            pair_key = tuple(sorted(matched_drugs))
+            if pair_key not in seen_pairs:
+                warnings.append({
+                    'severity': rule['severity'],
+                    'title': rule['title'],
+                    'interacting_drugs': sorted(matched_drugs),
+                    'mechanism': rule['mechanism'],
+                    'recommendation': rule['recommendation'],
+                    'source': 'Local Fallback Matrix'
+                })
+                seen_pairs.add(pair_key)
 
     return warnings
 

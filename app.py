@@ -53,6 +53,7 @@ if not secret_key:
         )
 
 app.config['SECRET_KEY'] = secret_key
+app.config['ENABLE_TELEMEDICINE'] = os.environ.get('ENABLE_TELEMEDICINE', os.environ.get('TELEMEDICINE_ENABLED', 'false')).lower() == 'true'
 app.config['SESSION_TYPE'] = 'redis'
 redis_host = os.environ.get('REDIS_HOST', 'localhost')
 redis_port = int(os.environ.get('REDIS_PORT', 6379))

@@ -14,7 +14,7 @@ Routes:
 
 import secrets
 
-from flask import jsonify, render_template, request
+from flask import current_app, jsonify, render_template, request
 from flask_login import login_required
 
 from departments.api.audit import log_audit_event
@@ -23,6 +23,17 @@ from departments.rbac import get_effective_user, roles_required
 from extensions import db
 
 from . import bp
+
+
+@bp.before_request
+def check_telemedicine_enabled():
+    """Quarantine Telemedicine module behind feature flag (ENABLE_TELEMEDICINE=False by default)."""
+    if not current_app.config.get('ENABLE_TELEMEDICINE', False):
+        return jsonify({
+            'error': 'Telemedicine module is currently disabled by system policy.',
+            'code': 'FEATURE_DISABLED'
+        }), 403
+
 
 
 @bp.route('/session/create', methods=['POST'])

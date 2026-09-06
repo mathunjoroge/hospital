@@ -634,15 +634,15 @@ class DiseasePredictor:
         self.primary_threshold = HIMS_CONFIG.get("SIMILARITY_THRESHOLD", 1.0)
         self.min_symptom_count = 2
 
-    def predict_cancer_risk(self, text: str) -> Dict[str, float]:
+    def predict_cancer_risk(self, text: str, patient_id: str = None) -> Dict[str, float]:
         """Predict cancer risk using NVIDIA NIM API model with offline fallback."""
-        return nvidia_client.predict_cancer_risk(text)
+        return nvidia_client.predict_cancer_risk(text, patient_id=patient_id)
 
-    def predict_amr_ipc(self, text: str) -> Dict[str, float]:
+    def predict_amr_ipc(self, text: str, patient_id: str = None) -> Dict[str, float]:
         """Predict AMR/IPC categories using NVIDIA NIM API model with offline fallback."""
-        return nvidia_client.predict_amr_ipc(text)
+        return nvidia_client.predict_amr_ipc(text, patient_id=patient_id)
 
-    def predict_from_text(self, text: str, amr_ipc_text: str = None) -> Dict:
+    def predict_from_text(self, text: str, amr_ipc_text: str = None, patient_id: str = None) -> Dict:
         start_time = time.time()
         cleaned_text = bleach.clean(text)  # For entity extraction
         if not cleaned_text or not cleaned_text.strip():
@@ -721,7 +721,7 @@ class DiseasePredictor:
             else:
                 differential_diagnoses = sorted_diseases
 
-        cancer_probabilities = self.predict_cancer_risk(cleaned_text)  # Use cleaned text for cancer model
+        cancer_probabilities = self.predict_cancer_risk(cleaned_text, patient_id=patient_id)  # Use cleaned text for cancer model
         max_cancer = max(cancer_probabilities, key=cancer_probabilities.get)
         max_prob = cancer_probabilities[max_cancer]
         if max_prob > HIMS_CONFIG.get("CANCER_CONFIDENCE_THRESHOLD", 0.3) and not primary_diagnosis:
@@ -729,7 +729,7 @@ class DiseasePredictor:
         elif max_prob > HIMS_CONFIG.get("CANCER_CONFIDENCE_THRESHOLD", 0.3):
             differential_diagnoses.append({"disease": max_cancer, "score": max_prob})
 
-        amr_ipc_probabilities = self.predict_amr_ipc(amr_ipc_text if amr_ipc_text else text)  # Use AMR/IPC-specific text if provided
+        amr_ipc_probabilities = self.predict_amr_ipc(amr_ipc_text if amr_ipc_text else text, patient_id=patient_id)  # Use AMR/IPC-specific text if provided
 
         result = {
             "primary_diagnosis": primary_diagnosis,

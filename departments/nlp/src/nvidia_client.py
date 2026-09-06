@@ -48,7 +48,23 @@ class NvidiaNIMClient:
     def is_available(self) -> bool:
         return bool(self.api_key and self.api_key.strip())
 
-    def _call_chat_completion(self, prompt: str, system_message: str = "You are a clinical NLP assistant.") -> Optional[str]:
+    def _call_chat_completion(self, prompt: str, system_message: str = "You are a clinical NLP assistant.", patient_id: Optional[str] = None) -> Optional[str]:
+        if patient_id:
+            try:
+                from departments.api.audit import log_audit_event
+                from departments.models.compliance import has_ai_consent
+                if not has_ai_consent(patient_id):
+                    logger.warning(f"AI consent missing or revoked for patient {patient_id}. Refusing external API call.")
+                    log_audit_event(
+                        action="AI_CONSENT_REFUSED",
+                        resource_type="PatientConsent",
+                        resource_id=patient_id,
+                        details={"reason": "Missing or revoked ai_diagnosis consent"},
+                    )
+                    return None
+            except Exception as e:
+                logger.error(f"Error checking AI consent for patient {patient_id}: {e}")
+
         if not self.is_available():
             logger.warning("NVIDIA_API_KEY is not configured. Using offline fallback.")
             return None
@@ -72,7 +88,7 @@ class NvidiaNIMClient:
             logger.error(f"Error calling NVIDIA NIM API: {e}")
             return None
 
-    def predict_cancer_risk(self, text: str) -> Dict[str, float]:
+    def predict_cancer_risk(self, text: str, patient_id: Optional[str] = None) -> Dict[str, float]:
         """Predict cancer risk probabilities using NVIDIA NIM model with offline fallback."""
         if not text or not text.strip():
             return {c: 1.0 / len(CANCER_TYPES) for c in CANCER_TYPES}
@@ -85,7 +101,7 @@ class NvidiaNIMClient:
             f"Example format: {{\"{CANCER_TYPES[0]}\": 0.1, ...}}"
         )
 
-        response_str = self._call_chat_completion(prompt)
+        response_str = self._call_chat_completion(prompt, patient_id=patient_id)
         if response_str:
             try:
                 # Extract JSON block if surrounded by markdown fence
@@ -108,7 +124,7 @@ class NvidiaNIMClient:
         # --- Rule-Based Offline Fallback ---
         return self._offline_cancer_risk_fallback(text)
 
-    def predict_amr_ipc(self, text: str) -> Dict[str, float]:
+    def predict_amr_ipc(self, text: str, patient_id: Optional[str] = None) -> Dict[str, float]:
         """Predict AMR/IPC risk categories using NVIDIA NIM model with offline fallback."""
         if not text or not text.strip():
             return {cat: 1.0 / len(AMR_IPC_CATEGORIES) for cat in AMR_IPC_CATEGORIES}
@@ -121,7 +137,7 @@ class NvidiaNIMClient:
             f"Example format: {{\"amr_high\": 0.1, \"amr_low\": 0.2, \"amr_none\": 0.7, \"ipc_adequate\": 0.8, \"ipc_inadequate\": 0.1, \"ipc_none\": 0.1}}"
         )
 
-        response_str = self._call_chat_completion(prompt)
+        response_str = self._call_chat_completion(prompt, patient_id=patient_id)
         if response_str:
             try:
                 if "```" in response_str:
@@ -392,7 +408,7 @@ class NvidiaNIMClient:
             "an AI backend must be configured.**"
         )
 
-    def summarize_note(self, text: str) -> str:
+    def summarize_note(self, text: str, patient_id: Optional[str] = None) -> str:
         """Summarize clinical note using NVIDIA NIM LLM with offline fallback."""
         if not text or not text.strip():
             return "No content provided for summary."
@@ -403,7 +419,11 @@ class NvidiaNIMClient:
             f"Concise Summary:"
         )
 
-        summary = self._call_chat_completion(prompt, system_message="You are a clinical documentation assistant specializing in concise medical summaries.")
+        summary = self._call_chat_completion(
+            prompt,
+            system_message="You are a clinical documentation assistant specializing in concise medical summaries.",
+            patient_id=patient_id,
+        )
         if summary:
             return summary
 
@@ -470,7 +490,7 @@ class NvidiaNIMClient:
 
         return res
 
-    def analyze_radiology(self, modality: str, body_part: str, description: str = "", symptoms: str = "") -> Dict[str, any]:
+    def analyze_radiology(self, modality: str, body_part: str, description: str = "", symptoms: str = "", patient_id: Optional[str] = None) -> Dict[str, any]:
         """Analyze radiology DICOM exam details using NVIDIA NIM Vision/LLM with offline fallback."""
         prompt = (
             f"You are an expert board-certified radiologist. Analyze the following imaging study details:\n"
@@ -484,7 +504,11 @@ class NvidiaNIMClient:
             f"3. 'impression': concise 1-2 sentence diagnostic impression\n"
             f"Format as valid JSON: {{\"predictions\": [...], \"confidence\": 92.5, \"impression\": \"...\"}}"
         )
-        response_str = self._call_chat_completion(prompt, system_message="You are a clinical radiologist specializing in diagnostic imaging reports.")
+        response_str = self._call_chat_completion(
+            prompt,
+            system_message="You are a clinical radiologist specializing in diagnostic imaging reports.",
+            patient_id=patient_id,
+        )
         if response_str:
             try:
                 if "```" in response_str:

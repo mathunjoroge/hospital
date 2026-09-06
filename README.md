@@ -107,5 +107,17 @@ PYTHONPATH=. venv/bin/pytest --cov=. --cov-report=term-missing
 
 ---
 
+## 📚 Operational Documentation & Technical Runbooks
+
+- **Disaster Recovery**: [Backup & Emergency Restore Runbook](docs/backup_restore_runbook.md)
+- **Performance Benchmarks**: [Load & Concurrency Baseline Results](docs/load_test_results.md)
+- **Interfacing Research**: [HL7 v2 Lab-Instrument & DICOM Web Architecture](docs/pacs_hl7_interfacing_research.md)
+- **Security Readiness**: [Third-Party Security Audit Scope](docs/security_audit_readiness.md)
+- **Clinical Governance**: [Clinical Safety Review Packaging](docs/clinical_safety_review_packaging.md)
+- **Accessibility**: [WCAG 2.1 AA Compliance Baseline Report](docs/accessibility_audit_report.md)
+- **Pending Human Decisions**: [Decisions Pending Stakeholder Sign-Off](DECISIONS_PENDING.md)
+
+---
+
 ## 📜 License
 Internal Enterprise & Clinical Use Only. Confidential.

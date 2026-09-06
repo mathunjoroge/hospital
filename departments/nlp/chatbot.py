@@ -360,7 +360,7 @@ This chatbot provides general, educational information only.
 
         return response
 
-    def answer(self, question: str, conversation_history: List[Dict[str, str]] = None, clinical_data: Dict[str, Any] = None, file_stream: Any = None, filename: str = None) -> str:
+    def answer(self, question: str, conversation_history: List[Dict[str, str]] = None, clinical_data: Dict[str, Any] = None, file_stream: Any = None, filename: str = None, patient_id: Optional[str] = None) -> str:
         """Answer a medical question with optional clinical data or file input."""
         try:
             if not question and not file_stream:
@@ -369,6 +369,27 @@ This chatbot provides general, educational information only.
                     question="Greeting",
                     sources=[]
                 )
+
+            pid = patient_id or (clinical_data.get('patient_id') if isinstance(clinical_data, dict) else None)
+            if pid:
+                try:
+                    from departments.api.audit import log_audit_event
+                    from departments.models.compliance import has_ai_consent
+                    if not has_ai_consent(pid):
+                        logger.warning(f"AI consent missing for patient {pid} in chatbot.answer")
+                        log_audit_event(
+                            action="AI_CONSENT_REFUSED",
+                            resource_type="PatientConsent",
+                            resource_id=pid,
+                            details={"reason": "Missing or revoked ai_diagnosis consent"},
+                        )
+                        return self._format_output(
+                            f"AI Consent Refused: Patient {pid} has not granted explicit AI diagnosis consent (DPA 2019 Section 30).",
+                            question=question,
+                            is_error=True,
+                        )
+                except Exception as consent_err:
+                    logger.error(f"Error checking AI consent in chatbot.answer: {consent_err}")
 
             emergency_response = self._check_emergency(question) if question else None
             if emergency_response:
@@ -444,19 +465,19 @@ This chatbot provides general, educational information only.
 
             if self.nvidia_client.is_available():
                 logger.info("Querying NVIDIA NIM API for clinical response...")
-                resp_text = self.nvidia_client._call_chat_completion(combined_input, system_message="You are an evidence-based clinical AI assistant designed to support clinicians with technical medical information.")
+                resp_text = self.nvidia_client._call_chat_completion(combined_input, system_message="You are an evidence-based clinical AI assistant designed to support clinicians with technical medical information.", patient_id=pid)
                 if resp_text:
                     api_result = {"text": resp_text, "sources": []}
                 elif self.gemini_api_key:
                     api_result = self._query_gemini(llm_contents, max_tokens=3000)
                 else:
-                    api_result = {"text": self.nvidia_client.summarize_note(combined_input), "sources": []}
+                    api_result = {"text": self.nvidia_client.summarize_note(combined_input, patient_id=pid), "sources": []}
             elif self.gemini_api_key:
                 logger.info("Querying Gemini API for clinical response...")
                 api_result = self._query_gemini(llm_contents, max_tokens=3000)
             else:
                 logger.info("Using offline rule-based fallback summarization...")
-                api_result = {"text": self.nvidia_client.summarize_note(combined_input), "sources": []}
+                api_result = {"text": self.nvidia_client.summarize_note(combined_input, patient_id=pid), "sources": []}
 
             response = api_result['text']
             sources = api_result['sources']
