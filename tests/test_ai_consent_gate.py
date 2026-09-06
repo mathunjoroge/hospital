@@ -98,8 +98,8 @@ class AIConsentGateTestCase(unittest.TestCase):
         grant_patient_consent("P-TEST-CONSENT", "ai_diagnosis")
         self._login()
 
-        with patch('departments.nlp.chatbot.UniversalClinicalSummarizer.answer') as mock_answer:
-            mock_answer.return_value = "AI summary response"
+        with patch('departments.tasks.process_clinical_chatbot_task.delay') as mock_delay:
+            mock_delay.return_value.id = "mock-task-1"
             response = self.app.post(
                 '/medicine/chatbot',
                 data={
@@ -107,23 +107,23 @@ class AIConsentGateTestCase(unittest.TestCase):
                     'patient_id': 'P-TEST-CONSENT'
                 }
             )
-            self.assertEqual(response.status_code, 200)
-            mock_answer.assert_called_once()
+            self.assertEqual(response.status_code, 202)
+            mock_delay.assert_called_once()
 
     def test_chatbot_allows_ungated_query_without_patient_id(self):
         """POST to /medicine/chatbot without patient_id proceeds ungated."""
         self._login()
 
-        with patch('departments.nlp.chatbot.UniversalClinicalSummarizer.answer') as mock_answer:
-            mock_answer.return_value = "General AI summary response"
+        with patch('departments.tasks.process_clinical_chatbot_task.delay') as mock_delay:
+            mock_delay.return_value.id = "mock-task-2"
             response = self.app.post(
                 '/medicine/chatbot',
                 data={
                     'clinical_note': 'General clinical guidelines query'
                 }
             )
-            self.assertEqual(response.status_code, 200)
-            mock_answer.assert_called_once()
+            self.assertEqual(response.status_code, 202)
+            mock_delay.assert_called_once()
 
     def test_oncology_summary_refuses_when_consent_missing(self):
         """GET/POST to /medicine/oncology/ai_summary/<patient_id> without consent returns 403."""

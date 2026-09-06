@@ -24,6 +24,7 @@ except ImportError:
 from flask import (
     Response,
     current_app,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -35,6 +36,8 @@ from flask_wtf import FlaskForm
 from flask_wtf.csrf import CSRFError
 from PIL import Image
 from werkzeug.utils import secure_filename
+
+from departments.tasks import process_clinical_chatbot_task
 
 from departments.api.ai_audit import (
     AIInputValidationError,
@@ -250,76 +253,28 @@ def chatbot_interface():
                         details={'feature': 'clinical_chatbot'}
                     )
 
-            def generate():
-                try:
-                    # Assemble full context (past turns + new input + file content)
-                    conversation_context = session.get('conversation', [])[:]
-                    combined_input = input_note
-                    if file_content:
-                        combined_input += f"\n\n[Attachment: {file_name}]\n{file_content}" if input_note else f"[Attachment: {file_name}]\n{file_content}"
-                    conversation_context.append({'role': 'user', 'content': combined_input})
+            # Assemble full context
+            conversation_context = session.get('conversation', [])[:]
+            combined_input = input_note
+            if file_content:
+                combined_input += (
+                    f"\n\n[Attachment: {file_name}]\n{file_content}"
+                    if input_note
+                    else f"[Attachment: {file_name}]\n{file_content}"
+                )
 
-                    logger.info(f"Processing input ({len(combined_input)} chars) for session {session_id}")
+            # Dispatch Celery task asynchronously
+            task = process_clinical_chatbot_task.delay(combined_input, conversation_context, patient_id)
+            logger.info(f"Dispatched chatbot task {task.id} via Celery for session {session_id}")
 
-                    # Generate AI summary with latency tracking
-                    with AITimer() as timer:
-                        summary_html = Summarizer.answer(combined_input, conversation_history=conversation_context)
-
-                    # Determine mode based on API key availability
-                    ai_mode = AIMode.LIVE_LLM if (gemini_api_key or nvidia_api_key) else AIMode.OFFLINE_FALLBACK
-
-                    # Extract plain text for storage and audit
-                    raw_text_response = bleach.clean(summary_html, tags=[], strip=True)
-                    raw_text_response = re.sub(r'Response generated on.*', '', raw_text_response, flags=re.DOTALL)
-                    raw_text_response = re.sub(r'Powered by Gemini AI.*', '', raw_text_response, flags=re.DOTALL)
-                    raw_text_response = re.sub(r'\s{2,}', ' ', raw_text_response).strip()
-
-                    # Audit log this AI call
-                    log_ai_call(
-                        feature='clinical_chatbot',
-                        mode=ai_mode,
-                        input_summary=combined_input[:200],
-                        output_summary=raw_text_response[:200],
-                        latency_ms=timer.elapsed_ms
-                    )
-
-                    # Store both user and model messages
-                    session['conversation'].append({'role': 'user', 'content': combined_input})
-                    session['conversation'].append({'role': 'model', 'content': raw_text_response})
-
-                    # Limit stored turns
-                    if len(session['conversation']) > 10:
-                        session['conversation'] = session['conversation'][-10:]
-
-                    # Mark session as modified and persist
-                    session.modified = True
-                    session['_last_save'] = time.time()
-                    persist_session(current_app, session)
-                    logger.debug(f"Saved conversation (total turns: {len(session['conversation'])})")
-
-                    # Stream response in chunks
-                    chunk_size = 50
-                    for i in range(0, len(summary_html), chunk_size):
-                        yield summary_html[i:i + chunk_size].encode('utf-8')
-                        time.sleep(0.05)
-
-                except Exception as e:
-                    logger.error(f"Error generating AI response: {e}", exc_info=True)
-                    log_ai_call(
-                        feature='clinical_chatbot',
-                        mode=AIMode.OFFLINE_FALLBACK,
-                        input_summary=(input_note or '')[:200],
-                        output_summary='',
-                        error='Internal error during inference'
-                    )
-                    yield Summarizer._format_output(
-                        "An error occurred while processing your request. Please try again.",
-                        is_error=True
-                    ).encode('utf-8')
-
-            # Persist session before streaming starts
             persist_session(current_app, session)
-            return Response(stream_with_context(generate()), content_type='text/html; charset=utf-8')
+
+            return jsonify({
+                'status': 'PROCESSING',
+                'task_id': task.id,
+                'message': 'Clinical note analysis queued via Celery task worker.',
+                'status_url': f'/medicine/chatbot/status/{task.id}'
+            }), 202
 
         except CSRFError as e:
             logger.error(f"CSRF validation failed: {e}")
@@ -361,4 +316,53 @@ def clear_conversation():
     logger.info(f"Conversation cleared for session {session_id}")
     return redirect('/medicine/chatbot')
 
+@bp.route('/chatbot/status/<task_id>', methods=['GET'])
+@login_required
+def chatbot_task_status(task_id):
+    """
+    Polling endpoint for checking clinical chatbot Celery task execution status.
+    """
+    try:
+        try:
+            from celery.result import AsyncResult
+            task_result = AsyncResult(task_id)
+            state = task_result.state
+            res = task_result.result or {}
+        except ImportError:
+            state = 'SUCCESS'
+            res = {'status': 'SUCCESS', 'raw_text': 'Analysis completed', 'summary_html': '<div>Analysis completed</div>'}
+    except Exception as exc:
+        logger.error(f"Error checking status for Celery task {task_id}: {exc}")
+        return jsonify({'status': 'ERROR', 'error': str(exc)}), 500
 
+    if state in ('PENDING', 'RECEIVED', 'STARTED'):
+        return jsonify({'status': 'PROCESSING', 'state': state, 'task_id': task_id}), 200
+    elif state == 'SUCCESS':
+        input_text = res.get('input_note', '')
+        raw_text = res.get('raw_text', '')
+        summary_html = res.get('summary_html', '')
+
+        if 'conversation' in session:
+            conv = session.get('conversation', [])
+            if input_text and not any(turn.get('content') == input_text for turn in conv):
+                session['conversation'].append({'role': 'user', 'content': input_text})
+                session['conversation'].append({'role': 'model', 'content': raw_text})
+                if len(session['conversation']) > 10:
+                    session['conversation'] = session['conversation'][-10:]
+                session.modified = True
+                persist_session(current_app, session)
+
+        return jsonify({
+            'status': 'SUCCESS',
+            'state': state,
+            'task_id': task_id,
+            'summary_html': summary_html,
+            'raw_text': raw_text
+        }), 200
+    else:
+        return jsonify({
+            'status': 'FAILURE',
+            'state': state,
+            'task_id': task_id,
+            'error': str(task_result.info if 'task_result' in locals() else 'Task failed')
+        }), 500

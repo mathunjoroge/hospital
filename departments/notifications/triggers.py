@@ -6,7 +6,10 @@ from departments.models.patient_user import PatientUser
 from departments.models.records import ClinicBooking, Patient
 from departments.notifications.dispatcher import (
     EVENT_APPOINTMENT_REMINDER,
+    EVENT_BREAK_GLASS,
     EVENT_CLAIM_STATUS_CHANGED,
+    EVENT_CREDENTIAL_EXPIRED,
+    EVENT_CREDENTIAL_EXPIRING,
     EVENT_INVOICE_DUE,
     EVENT_LAB_RESULT_READY,
     EVENT_PAYMENT_RECEIVED,
@@ -215,3 +218,86 @@ def send_upcoming_appointment_reminders(app=None):
         f"Scheduled appointment reminders job complete: sent {reminders_sent} reminders."
     )
     return reminders_sent
+
+
+def trigger_staff_credential_expiry_check(app=None, window_days: int = 30) -> int:
+    """
+    Scheduled task to query StaffCredential records and notify staff & department admin
+    if credential is expiring within window_days or has already expired.
+    """
+    from datetime import date
+    from departments.models.hr import StaffCredential
+    from extensions import db
+
+    today = date.today()
+    cutoff_date = today + timedelta(days=window_days)
+
+    # Query credentials expiring on or before cutoff_date (excluding renewed credentials)
+    credentials = StaffCredential.query.filter(
+        StaffCredential.expiry_date <= cutoff_date,
+        StaffCredential.status != 'RENEWED'
+    ).all()
+
+    notifications_sent = 0
+
+    for cred in credentials:
+        days_until = (cred.expiry_date - today).days
+
+        if days_until < 0 or cred.status == 'EXPIRED':
+            event_type = EVENT_CREDENTIAL_EXPIRED
+            cred.status = 'EXPIRED'
+            subject = f"EXPIRED: Staff Credential Alert — {cred.credential_type} ({cred.staff_name})"
+            body = (
+                f"CRITICAL NOTICE:\n\n"
+                f"Staff credential '{cred.credential_type}' (License #{cred.credential_number}) "
+                f"for {cred.staff_name} EXPIRED on {cred.expiry_date}.\n"
+                f"Status updated to EXPIRED. Immediate renewal required before clinical duties resume."
+            )
+        else:
+            event_type = EVENT_CREDENTIAL_EXPIRING
+            subject = f"EXPIRING SOON: Staff Credential Warning — {cred.credential_type} ({cred.staff_name})"
+            body = (
+                f"WARNING:\n\n"
+                f"Staff credential '{cred.credential_type}' (License #{cred.credential_number}) "
+                f"for {cred.staff_name} is expiring in {days_until} days on {cred.expiry_date}.\n"
+                f"Please submit renewal documentation promptly."
+            )
+
+        # Staff email
+        staff_email = (
+            cred.employee.email
+            if (cred.employee and cred.employee.email)
+            else f"{cred.staff_name.lower().replace(' ', '.')}@hospital.org"
+        )
+
+        # Department admin email
+        dept_name = cred.employee.department if (cred.employee and cred.employee.department) else 'hr'
+        admin_email = f"admin_{dept_name.lower().replace(' ', '_')}@hospital.org"
+
+        for recipient in set([staff_email, admin_email]):
+            # Deduplicate if already notified in past 24 hours
+            recent = OutboundNotificationLog.query.filter(
+                OutboundNotificationLog.recipient == recipient,
+                OutboundNotificationLog.event_type == event_type,
+                OutboundNotificationLog.body.like(f"%{cred.credential_number}%"),
+                OutboundNotificationLog.created_at >= datetime.utcnow() - timedelta(hours=24)
+            ).first()
+
+            if not recent:
+                NotificationDispatcher.dispatch_event(
+                    event_type=event_type,
+                    recipient=recipient,
+                    subject=subject,
+                    body=body,
+                    channels=['email']
+                )
+                notifications_sent += 1
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error committing credential status updates: {e}")
+
+    logger.info(f"Staff credential expiry check complete: {notifications_sent} notifications sent.")
+    return notifications_sent

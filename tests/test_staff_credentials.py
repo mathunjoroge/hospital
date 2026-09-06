@@ -1,59 +1,118 @@
-from datetime import date, timedelta
-
+from datetime import date, datetime, timedelta
 import pytest
-
-from app import app
-from departments.models.hr import StaffCredential
 from extensions import db
+from departments.models.hr import Employee, StaffCredential
+from departments.models.notification_log import OutboundNotificationLog
+from departments.notifications.dispatcher import (
+    EVENT_CREDENTIAL_EXPIRED,
+    EVENT_CREDENTIAL_EXPIRING,
+)
+from departments.notifications.triggers import trigger_staff_credential_expiry_check
 
 
 @pytest.fixture
-def client():
-    app.config['TESTING'] = True
-    app.config['WTF_CSRF_ENABLED'] = False
-    with app.test_client() as client:
-        with app.app_context():
-            db.create_all()
-            yield client
+def sample_employee(app):
+    with app.app_context():
+        emp = Employee(
+            employee_id="E-CRED-001",
+            name="Dr. Alice Smith",
+            role="Doctor",
+            department="Medicine",
+            job_group="Group A",
+            email="alice.smith@hospital.org",
+            phone="0711000111",
+        )
+        db.session.add(emp)
+        db.session.commit()
+        return emp.id
 
-def test_staff_credential_expiry_sorting_and_alerts(client):
-    """Test staff credentials ordering soonest-first and filtering expiring credentials."""
+
+def test_staff_credential_expiring_soon_notification(app, sample_employee):
+    """Verify credential expiring in 5 days triggers 'staff_credential_expiring' notification."""
     with app.app_context():
         today = date.today()
-
-        c1 = StaffCredential(
+        cred = StaffCredential(
+            employee_id=sample_employee,
             staff_name="Dr. Alice Smith",
             credential_type="KMPDC",
-            credential_number="A-1001",
-            expiry_date=today + timedelta(days=90)
+            credential_number="KMPDC-LIC-8821",
+            issue_date=today - timedelta(days=360),
+            expiry_date=today + timedelta(days=5),
+            status="ACTIVE",
         )
-        c2 = StaffCredential(
-            staff_name="Nurse Bob Jones",
-            credential_type="NCK",
-            credential_number="N-2002",
-            expiry_date=today + timedelta(days=10)
-        )
-        c3 = StaffCredential(
-            staff_name="Pharm. Carol Danvers",
-            credential_type="PPB",
-            credential_number="P-3003",
-            expiry_date=today + timedelta(days=25)
-        )
-        db.session.add_all([c1, c2, c3])
+        db.session.add(cred)
         db.session.commit()
 
-        # Query soonest-first
-        all_creds = StaffCredential.query.order_by(StaffCredential.expiry_date.asc()).all()
-        assert len(all_creds) >= 3
-        # Nurse Bob Jones (10 days) should come before Carol (25 days) and Alice (90 days)
-        sorted_names = [c.staff_name for c in all_creds if c.staff_name in ["Dr. Alice Smith", "Nurse Bob Jones", "Pharm. Carol Danvers"]]
-        assert sorted_names == ["Nurse Bob Jones", "Pharm. Carol Danvers", "Dr. Alice Smith"]
+        sent_count = trigger_staff_credential_expiry_check(app, window_days=30)
+        assert sent_count > 0
 
-        # Alert filter (credentials expiring within 30 days)
-        cutoff_date = today + timedelta(days=30)
-        expiring_creds = StaffCredential.query.filter(StaffCredential.expiry_date <= cutoff_date).all()
-        expiring_names = [c.staff_name for c in expiring_creds]
+        logs = OutboundNotificationLog.query.filter(
+            OutboundNotificationLog.event_type == EVENT_CREDENTIAL_EXPIRING,
+            OutboundNotificationLog.body.like("%KMPDC-LIC-8821%"),
+        ).all()
 
-        assert "Nurse Bob Jones" in expiring_names
-        assert "Pharm. Carol Danvers" in expiring_names
-        assert "Dr. Alice Smith" not in expiring_names
+        assert len(logs) >= 1
+        log = logs[0]
+        assert log.status == "SENT"
+        assert "EXPIRING SOON" in log.subject
+        assert "5 days" in log.body
+
+
+def test_staff_credential_already_expired_notification(app, sample_employee):
+    """Verify already expired credential (-2 days) triggers 'staff_credential_expired' notification and updates status."""
+    with app.app_context():
+        today = date.today()
+        cred = StaffCredential(
+            employee_id=sample_employee,
+            staff_name="Dr. Alice Smith",
+            credential_type="NCK",
+            credential_number="NCK-REG-9912",
+            issue_date=today - timedelta(days=400),
+            expiry_date=today - timedelta(days=2),
+            status="ACTIVE",
+        )
+        db.session.add(cred)
+        db.session.commit()
+
+        sent_count = trigger_staff_credential_expiry_check(app, window_days=30)
+        assert sent_count > 0
+
+        # Verify model status updated to EXPIRED
+        updated_cred = StaffCredential.query.get(cred.id)
+        assert updated_cred.status == "EXPIRED"
+
+        logs = OutboundNotificationLog.query.filter(
+            OutboundNotificationLog.event_type == EVENT_CREDENTIAL_EXPIRED,
+            OutboundNotificationLog.body.like("%NCK-REG-9912%"),
+        ).all()
+
+        assert len(logs) >= 1
+        log = logs[0]
+        assert log.status == "SENT"
+        assert "EXPIRED" in log.subject
+        assert "CRITICAL NOTICE" in log.body
+
+
+def test_staff_credential_valid_no_notification(app, sample_employee):
+    """Verify valid credential expiring in 60 days (outside 30-day window) generates no notification."""
+    with app.app_context():
+        today = date.today()
+        cred = StaffCredential(
+            employee_id=sample_employee,
+            staff_name="Dr. Alice Smith",
+            credential_type="PPB",
+            credential_number="PPB-PHARM-7741",
+            issue_date=today - timedelta(days=30),
+            expiry_date=today + timedelta(days=60),
+            status="ACTIVE",
+        )
+        db.session.add(cred)
+        db.session.commit()
+
+        initial_log_count = OutboundNotificationLog.query.count()
+        trigger_staff_credential_expiry_check(app, window_days=30)
+
+        logs = OutboundNotificationLog.query.filter(
+            OutboundNotificationLog.body.like("%PPB-PHARM-7741%")
+        ).all()
+        assert len(logs) == 0
