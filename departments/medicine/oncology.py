@@ -6,6 +6,7 @@ from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
 from sqlalchemy import func
 
+from departments.api.audit import log_audit_event
 from departments.forms import OncologyNoteForm, OncoPatientForm, PatientSearchForm
 from departments.models.compliance import has_ai_consent
 from departments.models.laboratory import LabResultTemplate
@@ -27,7 +28,6 @@ from departments.models.medicine import (
 from departments.models.records import Patient
 from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.nlp.logging_setup import get_logger
-from departments.api.audit import log_audit_event
 from extensions import db
 
 from . import bp

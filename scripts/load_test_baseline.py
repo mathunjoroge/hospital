@@ -22,11 +22,12 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from app import app  # noqa: E402
-from extensions import db, limiter  # noqa: E402
-from departments.models.user import User  # noqa: E402
-from departments.models.records import Patient  # noqa: E402
 from datetime import date  # noqa: E402
+
+from app import app  # noqa: E402
+from departments.models.records import Patient  # noqa: E402
+from departments.models.user import User  # noqa: E402
+from extensions import db, limiter  # noqa: E402
 
 
 def setup_test_data():
