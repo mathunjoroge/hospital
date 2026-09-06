@@ -2,11 +2,11 @@
 {% block content %}
 <style>
   :root {
-    --md-primary: #e11d48;
-    --md-primary-dark: #be123c;
-    --md-primary-deep: #881337;
-    --md-header-bg: linear-gradient(135deg, #881337 0%, #be123c 60%, #e11d48 100%);
-    --md-card-shadow: 0 4px 20px rgba(225, 29, 72, 0.08);
+    --md-primary: #0891b2;
+    --md-primary-dark: #0e7490;
+    --md-primary-deep: #164e63;
+    --md-header-bg: linear-gradient(135deg, #164e63 0%, #0e7490 55%, #0891b2 100%);
+    --md-card-shadow: 0 4px 20px rgba(8, 145, 178, 0.08);
     --md-glass: rgba(255,255,255,0.7);
   }
   .md-header-card {
@@ -15,7 +15,18 @@
     border-radius: 16px;
     padding: 2rem 2.5rem;
     margin-bottom: 2rem;
-    box-shadow: 0 10px 30px rgba(190,18,60,0.22);
+    box-shadow: 0 10px 30px rgba(14, 116, 144, 0.25);
+    position: relative;
+    overflow: hidden;
+  }
+  .md-header-card::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    pointer-events: none;
   }
   .md-stat-card {
     background: #fff;
@@ -27,7 +38,7 @@
   }
   .md-stat-card:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 28px rgba(225,29,72,0.13);
+    box-shadow: 0 8px 28px rgba(8, 145, 178, 0.15);
   }
   .md-icon-circle {
     width: 52px; height: 52px;
@@ -62,7 +73,7 @@
     vertical-align: middle;
     border-color: #f1f5f9;
   }
-  .table-md tbody tr:hover { background: #fff5f7; }
+  .table-md tbody tr:hover { background: #f0fdff; }
   .btn-md-primary {
     background: var(--md-primary);
     color: #fff;
@@ -71,9 +82,13 @@
     padding: 0.5rem 1.1rem;
     border-radius: 8px;
     font-size: 0.87rem;
-    transition: background 0.18s;
+    transition: background 0.18s, box-shadow 0.18s;
   }
-  .btn-md-primary:hover { background: var(--md-primary-dark); color: #fff; }
+  .btn-md-primary:hover {
+    background: var(--md-primary-dark);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(8,145,178,0.3);
+  }
   .nav-module-link {
     display: flex; align-items: center; gap: 0.55rem;
     font-size: 0.88rem; font-weight: 600;
@@ -83,9 +98,10 @@
     transition: background 0.15s, color 0.15s;
   }
   .nav-module-link:hover, .nav-module-link.active {
-    background: #fff0f3; color: var(--md-primary);
+    background: #ecfeff; color: var(--md-primary);
   }
   .nav-module-link i { font-size: 1rem; }
+  .md-accent-teal { color: var(--md-primary); }
 </style>
 
 <div class="container-fluid px-4 py-3">
@@ -108,7 +124,7 @@
       <p class="mb-0 text-white-50 fs-6">Outpatient clinic, ward rounds, theatre, oncology, and drug reference.</p>
     </div>
     <div class="mt-3 mt-md-0 d-flex flex-wrap gap-2">
-      <a href="{{ url_for('medicine.ward_rounds') }}" class="btn btn-light fw-bold text-danger">
+      <a href="{{ url_for('medicine.ward_rounds') }}" class="btn btn-light fw-bold" style="color: var(--md-primary-deep);">
         <i class="bi bi-hospital me-1"></i> Ward Rounds
       </a>
       <a href="{{ url_for('medicine.get_theatre_list') }}" class="btn btn-outline-light fw-bold">
@@ -129,8 +145,8 @@
           <div class="fs-2 fw-bold text-dark">{{ waiting_list|length }}</div>
           <small class="text-muted">Awaiting doctor</small>
         </div>
-        <div class="md-icon-circle" style="background:#fff0f3;">
-          <i class="bi bi-person-lines-fill text-danger"></i>
+        <div class="md-icon-circle" style="background:#ecfeff;">
+          <i class="bi bi-person-lines-fill" style="color: var(--md-primary);"></i>
         </div>
       </div>
     </div>
@@ -175,14 +191,14 @@
   <!-- Quick Navigation Modules -->
   <div class="md-table-card mb-4">
     <div class="md-table-header">
-      <h6 class="fw-bold text-dark mb-0"><i class="bi bi-grid-3x3-gap-fill me-2 text-danger"></i>Clinical Modules</h6>
+      <h6 class="fw-bold text-dark mb-0"><i class="bi bi-grid-3x3-gap-fill me-2" style="color: var(--md-primary);"></i>Clinical Modules</h6>
     </div>
     <div class="p-3">
       <div class="row g-2">
         <!-- Outpatient -->
         <div class="col-12 col-md-4">
-          <div class="p-3 rounded-3 border" style="border-color: #fecdd3 !important; background: #fff5f7;">
-            <div class="fw-bold text-danger mb-2 small text-uppercase"><i class="bi bi-person-check me-1"></i>Outpatient Clinic</div>
+          <div class="p-3 rounded-3 border" style="border-color: #a5f3fc !important; background: #ecfeff;">
+            <div class="fw-bold mb-2 small text-uppercase" style="color: var(--md-primary);"><i class="bi bi-person-check me-1"></i>Outpatient Clinic</div>
             <div class="d-flex flex-column gap-1">
               <a href="{{ url_for('medicine.index') }}" class="nav-module-link active"><i class="bi bi-list-task"></i>Waiting List</a>
               <a href="{{ url_for('medicine.chatbot_interface') }}" class="nav-module-link"><i class="bi bi-robot"></i>AI Clinical Assistant</a>
@@ -221,7 +237,7 @@
   <!-- Waiting List Table -->
   <div class="md-table-card">
     <div class="md-table-header d-flex align-items-center justify-content-between">
-      <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-person-lines-fill me-2 text-danger"></i>OPD Waiting List</h5>
+      <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-person-lines-fill me-2" style="color: var(--md-primary);"></i>OPD Waiting List</h5>
       <span class="badge px-3 py-2 rounded-pill" style="background: var(--md-primary);">
         {{ waiting_list|length }} Patient{{ 's' if waiting_list|length != 1 else '' }}
       </span>
