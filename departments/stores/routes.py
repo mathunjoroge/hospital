@@ -1,15 +1,26 @@
 import os
 from datetime import datetime
 
-from flask import current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask import (
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import current_user, login_required
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
 from departments.models.pharmacy import Batch, Drug, DrugRequest, RequestItem
-from departments.models.stock_movement import StockMovement, record_movement, reconcile_stock_balance
+from departments.models.stock_movement import (
+    StockMovement,
+    reconcile_stock_balance,
+    record_movement,
+)
 from departments.models.stores import NonPharmCategory, NonPharmItem, OtherOrder
-
 from departments.models.user import User  # Import User model
 from departments.rbac import roles_required
 from extensions import db

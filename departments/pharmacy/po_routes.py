@@ -27,7 +27,6 @@ from departments.models.supplier import PurchaseOrder, PurchaseOrderItem, Suppli
 from departments.rbac import roles_required
 from extensions import db
 
-
 po_bp = Blueprint('pharmacy_po', __name__)
 
 
@@ -171,7 +170,7 @@ def submit_po_order(po_id):
         return jsonify({'error': 'Purchase order not found'}), 404
 
     current_uid = current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
-    
+
     # Segregation of duties: Creator cannot approve/order their own PO
     if current_uid and po.created_by_id and current_uid == po.created_by_id:
         return jsonify({

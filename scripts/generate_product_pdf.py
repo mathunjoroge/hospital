@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm, mm
@@ -217,11 +217,11 @@ def build_kpi_table(styles: dict[str, ParagraphStyle], data: list[tuple[str, str
     """Renders a row of metric key indicators evenly across the content width."""
     content_width = PAGE_WIDTH - 40 * mm
     col_w = content_width / len(data)
-    
+
     formatted_data = [
         [[Paragraph(val, styles["kpi_val"]), Paragraph(lbl, styles["kpi_lbl"])] for val, lbl in data]
     ]
-    
+
     tbl = Table(formatted_data, colWidths=[col_w] * len(data))
     tbl.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.5, TEAL_LIGHT),
@@ -241,12 +241,12 @@ def build_feature_table(
 ) -> Table:
     """Renders a two-column module and capabilities data grid."""
     col_widths = col_widths or [5.5 * cm, 11.5 * cm]
-    
+
     header_col1 = Paragraph("<b>Module</b>", ParagraphStyle("TH1", fontSize=9, fontName="Helvetica-Bold", textColor=WHITE))
     header_col2 = Paragraph("<b>Key Capabilities</b>", ParagraphStyle("TH2", fontSize=9, fontName="Helvetica-Bold", textColor=WHITE))
-    
+
     tdata = [[header_col1, header_col2]]
-    
+
     td_label_style = ParagraphStyle("TDLabel", fontSize=8.5, fontName="Helvetica-Bold", textColor=TEAL_DEEP, leading=12)
     td_body_style = ParagraphStyle("TDBody", fontSize=8.5, fontName="Helvetica", textColor=SLATE_700, leading=12)
 
@@ -563,7 +563,7 @@ def main() -> None:
 
     styles = make_styles()
     story = build_story(styles)
-    
+
     # Build PDF with Dynamic Page Counter Canvas
     doc.build(story, canvasmaker=NumberedCanvas)
     print(f"✅  Professional PDF generated: {out_path}")

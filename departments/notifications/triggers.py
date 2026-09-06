@@ -6,7 +6,6 @@ from departments.models.patient_user import PatientUser
 from departments.models.records import ClinicBooking, Patient
 from departments.notifications.dispatcher import (
     EVENT_APPOINTMENT_REMINDER,
-    EVENT_BREAK_GLASS,
     EVENT_CLAIM_STATUS_CHANGED,
     EVENT_CREDENTIAL_EXPIRED,
     EVENT_CREDENTIAL_EXPIRING,
@@ -226,6 +225,7 @@ def trigger_staff_credential_expiry_check(app=None, window_days: int = 30) -> in
     if credential is expiring within window_days or has already expired.
     """
     from datetime import date
+
     from departments.models.hr import StaffCredential
     from extensions import db
 

@@ -8,13 +8,17 @@ Tests for:
 4. Bin Card API and Reconciliation Report routes (Phase F)
 """
 
-from datetime import date
+
 import pytest
 from werkzeug.security import generate_password_hash
 
-from departments.models.facility import Facility, get_home_facility
-from departments.models.pharmacy import Batch, Drug, DrugCategory, DrugRequest, RequestItem
-from departments.models.stock_movement import StockMovement, record_movement, reconcile_stock_balance
+from departments.models.facility import get_home_facility
+from departments.models.pharmacy import Drug, DrugCategory
+from departments.models.stock_movement import (
+    StockMovement,
+    reconcile_stock_balance,
+    record_movement,
+)
 from departments.models.supplier import PurchaseOrder, PurchaseOrderItem, Supplier
 from departments.models.user import User
 from extensions import db
@@ -123,7 +127,7 @@ def test_segregation_of_duties_success_and_sod_warning(client, app, user_creator
     # Log in as creator to create PO
     with app.app_context():
         creator = db.session.merge(user_creator)
-        approver = db.session.merge(user_approver)
+        db.session.merge(user_approver)
         po = PurchaseOrder(
             po_number="PO-SOD-002",
             supplier_id=supplier_id,

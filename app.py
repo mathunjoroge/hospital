@@ -135,7 +135,9 @@ scheduler.init_app(app)
 @scheduler.task('cron', id='check_staff_credentials_daily', hour=1, minute=0)
 def scheduled_staff_credential_check():
     with app.app_context():
-        from departments.notifications.triggers import trigger_staff_credential_expiry_check
+        from departments.notifications.triggers import (
+            trigger_staff_credential_expiry_check,
+        )
         trigger_staff_credential_expiry_check()
 
 if not scheduler.running and not app.config.get('TESTING'):

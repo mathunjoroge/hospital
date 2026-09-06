@@ -11,7 +11,13 @@ from datetime import date
 import pytest
 from werkzeug.security import generate_password_hash
 
-from departments.models.pharmacy import Batch, Drug, DrugCategory, DrugRequest, RequestItem
+from departments.models.pharmacy import (
+    Batch,
+    Drug,
+    DrugCategory,
+    DrugRequest,
+    RequestItem,
+)
 from departments.models.supplier import PurchaseOrder, PurchaseOrderItem, Supplier
 from departments.models.user import User
 from extensions import db

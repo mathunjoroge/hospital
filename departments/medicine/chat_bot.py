@@ -1,10 +1,6 @@
 import csv
 import os
-import re
-import time
 from uuid import uuid4
-
-import bleach
 
 try:
     import PyPDF2
@@ -29,7 +25,6 @@ from flask import (
     render_template,
     request,
     session,
-    stream_with_context,
 )
 from flask_login import login_required
 from flask_wtf import FlaskForm
@@ -50,9 +45,6 @@ except ImportError:
 
 from departments.api.ai_audit import (
     AIInputValidationError,
-    AIMode,
-    AITimer,
-    log_ai_call,
     validate_ai_input,
 )
 from departments.api.audit import log_audit_event

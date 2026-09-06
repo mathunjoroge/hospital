@@ -1,6 +1,7 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
+
 import pytest
-from extensions import db
+
 from departments.models.hr import Employee, StaffCredential
 from departments.models.notification_log import OutboundNotificationLog
 from departments.notifications.dispatcher import (
@@ -8,6 +9,7 @@ from departments.notifications.dispatcher import (
     EVENT_CREDENTIAL_EXPIRING,
 )
 from departments.notifications.triggers import trigger_staff_credential_expiry_check
+from extensions import db
 
 
 @pytest.fixture
@@ -109,7 +111,6 @@ def test_staff_credential_valid_no_notification(app, sample_employee):
         db.session.add(cred)
         db.session.commit()
 
-        initial_log_count = OutboundNotificationLog.query.count()
         trigger_staff_credential_expiry_check(app, window_days=30)
 
         logs = OutboundNotificationLog.query.filter(

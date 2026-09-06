@@ -1,8 +1,11 @@
 from unittest.mock import MagicMock, patch
+
 import pytest
 from werkzeug.security import generate_password_hash
+
 from departments.models.user import User
 from departments.tasks import process_clinical_chatbot_task
+from extensions import db
 
 
 @pytest.fixture
@@ -23,9 +26,6 @@ def logged_in_user(client, app):
         data={"username": "doc_async_test", "password": "Password123!"},
     )
     return user
-
-
-from extensions import db
 
 
 def test_chatbot_async_route_dispatches_task_immediately(client, logged_in_user):

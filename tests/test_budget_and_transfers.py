@@ -6,16 +6,15 @@ Tests for:
 2. Phase E — Inter-Facility Stock Transfer Engine (Dispatch & Receive)
 """
 
-from datetime import date
+
 import pytest
 from werkzeug.security import generate_password_hash
 
 from departments.models.budget import VoteHead
 from departments.models.facility import Facility
-from departments.models.pharmacy import Batch, Drug, DrugCategory
-from departments.models.stock_movement import StockMovement, reconcile_stock_balance
+from departments.models.pharmacy import Drug, DrugCategory
+from departments.models.stock_movement import StockMovement
 from departments.models.supplier import PurchaseOrder, PurchaseOrderItem, Supplier
-from departments.models.transfer import TransferOrder, TransferOrderItem
 from departments.models.user import User
 from extensions import db
 

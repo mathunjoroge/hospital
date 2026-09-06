@@ -19,9 +19,8 @@ from flask_login import current_user, login_required
 
 from departments.api.audit import log_audit_event
 from departments.models.facility import Facility, get_home_facility
-from departments.models.pharmacy import Batch, Drug
+from departments.models.pharmacy import Batch
 from departments.models.stock_movement import record_movement
-from departments.models.stores import NonPharmItem
 from departments.models.transfer import TransferOrder, TransferOrderItem
 from departments.rbac import roles_required
 from extensions import db

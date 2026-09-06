@@ -1,9 +1,8 @@
 import logging
 import os
 import re
+
 import bleach
-from flask import current_app
-from extensions import db
 
 try:
     from celery import shared_task
@@ -65,7 +64,7 @@ def process_clinical_chatbot_task(combined_input: str, conversation_context: lis
             'input_note': combined_input,
         }
     except Exception as e:
-        logger.error(f"[Celery Task {task_id}] Error generating response: {e}", exc_info=True)
+        logger.error(f"[Celery Task] Error generating response: {e}", exc_info=True)
         log_ai_call(
             feature='clinical_chatbot',
             mode=AIMode.OFFLINE_FALLBACK,
