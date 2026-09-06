@@ -147,6 +147,21 @@ def handle_safety_validate():
     return jsonify(safety_report), 200
 
 
+@prescribe_bp.route('/cdss/evaluate', methods=['POST'])
+def handle_cdss_evaluate():
+    """Comprehensive Clinical Decision Support System (CDSS) evaluation endpoint."""
+    from departments.medicine.cdss import evaluate_prescription_safety
+
+    data = request.get_json() or {}
+    report = evaluate_prescription_safety(
+        patient_id=data.get('patient_id'),
+        drug_name=data.get('drug_name'),
+        existing_meds=data.get('existing_meds', []),
+        egfr=data.get('egfr'),
+    )
+    return jsonify(report), 200
+
+
 @prescribe_bp.route('/soap', methods=['POST'])
 def handle_soap_consultation():
     """Save structured SOAP consultation note."""

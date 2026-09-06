@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telemedicine Consultation — {{ session.session_uuid[:8] }}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
+    .video-canvas { background-color: #1e293b; border-radius: 12px; height: 380px; position: relative; overflow: hidden; }
+    .remote-video { width: 100%; height: 100%; object-fit: cover; background: #000; }
+    .local-video { width: 120px; height: 90px; position: absolute; bottom: 12px; right: 12px; border-radius: 8px; border: 2px solid #38bdf8; background: #000; }
+    .card-panel { background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+  </style>
+</head>
+<body class="p-3">
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h4 class="mb-0 text-info">🩺 Virtual Telemedicine Consultation</h4>
+        <small class="text-secondary">Session ID: {{ session.session_uuid }} | Patient: {{ session.patient_id }}</small>
+      </div>
+      <div>
+        <span class="badge bg-success fs-6" id="session-status">{{ session.status }}</span>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <!-- Left Column: Video Room Canvas -->
+      <div class="col-lg-7">
+        <div class="video-canvas d-flex justify-content-center align-items-center">
+          <div class="text-center" id="video-placeholder">
+            <div class="fs-1 mb-2">📹</div>
+            <h5>WebRTC Telemedicine Room Connected</h5>
+            <p class="text-secondary small">Room Token: {{ session.room_token }}</p>
+          </div>
+          <video id="remote-stream" class="remote-video d-none" autoplay playsinline></video>
+          <video id="local-stream" class="local-video d-none" autoplay playsinline muted></video>
+        </div>
+
+        <div class="d-flex justify-content-center gap-2 mt-3">
+          <button class="btn btn-outline-light" id="btn-toggle-cam">📷 Toggle Camera</button>
+          <button class="btn btn-outline-light" id="btn-toggle-mic">🎙️ Toggle Mic</button>
+          <button class="btn btn-danger" id="btn-end-call" onclick="completeSession()">🛑 End Consultation</button>
+        </div>
+      </div>
+
+      <!-- Right Column: Consultation Clinical Notes -->
+      <div class="col-lg-5">
+        <div class="card-panel p-3">
+          <h5 class="text-light mb-3">📝 Doctor Consultation Notes</h5>
+          <textarea id="notes-input" class="form-control bg-dark text-light border-secondary mb-3" rows="10" placeholder="Type clinical findings, diagnosis, and treatment plan during call...">{{ session.clinical_notes or '' }}</textarea>
+          <div class="d-flex justify-content-between">
+            <button class="btn btn-primary" onclick="saveNotes()">💾 Save Notes</button>
+            <button class="btn btn-success" onclick="completeSession()">✅ Finalize Consultation</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const sessionUuid = "{{ session.session_uuid }}";
+
+    async function saveNotes() {
+      const notes = document.getElementById('notes-input').value;
+      const res = await fetch(`/telemedicine/session/${sessionUuid}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: notes })
+      });
+      const data = await res.json();
+      if (res.ok) alert("Notes saved successfully!");
+    }
+
+    async function completeSession() {
+      const notes = document.getElementById('notes-input').value;
+      const res = await fetch(`/telemedicine/session/${sessionUuid}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: notes })
+      });
+      if (res.ok) {
+        document.getElementById('session-status').innerText = 'COMPLETED';
+        alert("Consultation finalized.");
+        window.location.href = "/";
+      }
+    }
+  </script>
+</body>
+</html>

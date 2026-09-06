@@ -349,8 +349,10 @@ from departments.nursing.triage import triage_bp  # noqa: E402
 from departments.patient_portal import patient_portal_bp  # noqa: E402
 from departments.pharmacy import bp as pharmacy_bp  # noqa: E402
 from departments.pharmacy.fefo import fefo_bp  # noqa: E402
+from departments.pharmacy.po_routes import po_bp  # noqa: E402
 from departments.records import bp as records_bp  # noqa: E402
 from departments.stores import bp as stores_bp  # noqa: E402
+from departments.telemedicine import bp as telemedicine_bp  # noqa: E402
 
 app.register_blueprint(records_bp, url_prefix='/records')
 app.register_blueprint(billing_bp, url_prefix='/billing')
@@ -365,6 +367,8 @@ app.register_blueprint(hr_bp, url_prefix='/hr')
 app.register_blueprint(mortuary_bp, url_prefix='/mortuary')
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(patient_portal_bp, url_prefix='/portal')
+app.register_blueprint(telemedicine_bp, url_prefix='/telemedicine')  # Phase E
+app.register_blueprint(po_bp)  # Phase F: mounts /pharmacy/po/* & /pharmacy/suppliers
 app.register_blueprint(emergency_bp)          # Phase D: mounts /emergency/* and /admin/break-glass
 app.register_blueprint(mpesa_bp)
 app.register_blueprint(triage_bp)

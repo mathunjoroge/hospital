@@ -49,6 +49,9 @@
 - [x] **Phase B — Outbound Patient Communication** ✅ (Flask-Mail email driver, SMS sandbox abstraction, OutboundNotificationLog delivery auditing, 5 event triggers for appointments/labs/billing/payments/claims, 24h appointment reminder scheduler - 6/6 tests passing)
 - [x] **Phase C — Hospital-wide Analytics Dashboard** ✅ (`departments/admin/analytics.py` service, `/admin/analytics` HTML/JSON view, Chart.js executive dashboard for Bed Occupancy, 30-day Admission Trends, Revenue Breakdown by channel, and Insurance Claims approval ratios - 6/6 tests passing)
 - [x] **Phase D — Break-glass Emergency Access** ✅ (`BreakGlassAccessLog` model, core `invoke`/`check`/`expire` engine, `@break_glass_required` decorator, `/emergency/break-glass` API & `/admin/break-glass` audit trail, supervisor alert dispatching - 15/15 tests passing)
+- [x] **Phase E — Telemedicine & Virtual Consultation Engine** ✅ (`TelemedicineSession` model, WebRTC consultation room UI with real-time signalling, in-call notes & prescription drafting, session lifecycle API - 5/5 tests passing)
+- [x] **Phase F — Automated Pharmacy Inventory & Supplier Purchase Orders** ✅ (`Supplier`, `PurchaseOrder` & `PurchaseOrderItem` models, min-stock threshold scanner, auto-PO generator, shipment receiving into FEFO batches - 4/4 tests passing)
+- [x] **Phase G — Clinical Decision Support System (CDSS)** ✅ (`cdss.py` stateless safety engine: 5 drug-drug interaction rules, 3 allergen class screens, 4 renal dose adjustment drugs, composite `/cdss/evaluate` REST endpoint integrated into prescribe workflow - 4/4 tests passing)
 
 
 
