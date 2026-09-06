@@ -39,6 +39,15 @@ from werkzeug.utils import secure_filename
 
 from departments.tasks import process_clinical_chatbot_task
 
+try:
+    from celery.result import AsyncResult
+except ImportError:
+    class AsyncResult:
+        def __init__(self, id, app=None):
+            self.id = id
+            self.state = 'PENDING'
+            self.result = {}
+
 from departments.api.ai_audit import (
     AIInputValidationError,
     AIMode,
@@ -324,13 +333,15 @@ def chatbot_task_status(task_id):
     """
     try:
         try:
-            from celery.result import AsyncResult
+            from celery_app import celery
+            task_result = AsyncResult(task_id, app=celery)
+        except Exception:
             task_result = AsyncResult(task_id)
-            state = task_result.state
-            res = task_result.result or {}
-        except ImportError:
-            state = 'SUCCESS'
-            res = {'status': 'SUCCESS', 'raw_text': 'Analysis completed', 'summary_html': '<div>Analysis completed</div>'}
+
+        state = getattr(task_result, 'state', 'PENDING')
+        res = getattr(task_result, 'result', {}) or {}
+        if isinstance(res, Exception):
+            return jsonify({'status': 'FAILURE', 'state': 'FAILURE', 'task_id': task_id, 'error': str(res)}), 500
     except Exception as exc:
         logger.error(f"Error checking status for Celery task {task_id}: {exc}")
         return jsonify({'status': 'ERROR', 'error': str(exc)}), 500

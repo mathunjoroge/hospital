@@ -82,9 +82,21 @@ def test_chatbot_celery_task_execution(app):
 
 def test_chatbot_polling_status_endpoint(client, logged_in_user):
     """
-    Verify GET /medicine/chatbot/status/<task_id> returns task status.
+    Verify GET /medicine/chatbot/status/<task_id> returns task status without throwing DisabledBackend or 500 error.
     """
-    resp = client.get("/medicine/chatbot/status/test-task-999")
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert data["status"] in ("SUCCESS", "PROCESSING")
+    mock_async_res = MagicMock()
+    mock_async_res.state = "SUCCESS"
+    mock_async_res.result = {
+        "status": "SUCCESS",
+        "summary_html": "<div>AI Summary Result</div>",
+        "raw_text": "AI Summary Result",
+        "input_note": "Fever test note",
+    }
+
+    with patch("departments.medicine.chat_bot.AsyncResult", return_value=mock_async_res):
+        resp = client.get("/medicine/chatbot/status/test-task-999")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["status"] == "SUCCESS"
+        assert data["task_id"] == "test-task-999"
+        assert data["summary_html"] == "<div>AI Summary Result</div>"
