@@ -211,9 +211,31 @@ def test_inter_facility_transfer_lifecycle(client, app, stores_user, setup_budge
         assert movement is not None
         assert movement.quantity_delta == -100
 
-    # 3. Receive inbound stock -> status RECEIVED, stock added, TRANSFER_IN ledger recorded
+    # 3. Receive inbound stock (from external facility to home facility) -> status RECEIVED, stock added, TRANSFER_IN ledger recorded
+    with app.app_context():
+        from departments.models.facility import get_home_facility
+        from departments.models.transfer import TransferOrder, TransferOrderItem
+        inbound_tr = TransferOrder(
+            transfer_number="TR-INBOUND-001",
+            source_facility_id=target_fac_id,
+            target_facility_id=get_home_facility().id,
+            status="DISPATCHED",
+        )
+        db.session.add(inbound_tr)
+        db.session.flush()
+        toi = TransferOrderItem(
+            transfer_id=inbound_tr.id,
+            item_type="DRUG",
+            drug_id=drug_id,
+            quantity_requested=100,
+            quantity_dispatched=100,
+        )
+        db.session.add(toi)
+        db.session.commit()
+        inbound_transfer_id = inbound_tr.id
+
     res_receive = client.post(
-        f"/stores/transfers/{transfer_id}/receive",
+        f"/stores/transfers/{inbound_transfer_id}/receive",
         json={
             "items": [
                 {
