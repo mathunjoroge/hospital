@@ -20,11 +20,13 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
 from departments.api.audit import log_audit_event
+from departments.models.budget import VoteHead
 from departments.models.pharmacy import Batch, Drug
 from departments.models.stock_movement import record_movement
 from departments.models.supplier import PurchaseOrder, PurchaseOrderItem, Supplier
 from departments.rbac import roles_required
 from extensions import db
+
 
 po_bp = Blueprint('pharmacy_po', __name__)
 
@@ -176,12 +178,29 @@ def submit_po_order(po_id):
             'error': 'Segregation of duties constraint: Creator cannot approve or issue their own Purchase Order.'
         }), 403
 
+    # Phase D — Budget / Vote-Head Validation & Encumbrance
+    vote_head_totals = {}
+    for item in po.items:
+        if item.vote_head_id:
+            cost = float(item.quantity_ordered) * float(item.unit_cost)
+            vote_head_totals[item.vote_head_id] = vote_head_totals.get(item.vote_head_id, 0.0) + cost
+
+    for vh_id, cost in vote_head_totals.items():
+        vh = db.session.get(VoteHead, vh_id)
+        if vh:
+            if not vh.can_encumber(cost):
+                return jsonify({
+                    'error': f'Budget vote-head cap exceeded for {vh.code}. Available: {vh.available_amount:.2f}, Required: {cost:.2f}'
+                }), 400
+            vh.encumber(cost)
+
     po.status = 'ORDERED'
     po.approved_by_id = current_uid
     po.ordered_at = datetime.now(timezone.utc)
     db.session.commit()
 
     return jsonify({'message': f'PO {po.po_number} marked as ORDERED', 'purchase_order': po.to_dict()})
+
 
 
 @po_bp.route('/pharmacy/po/<int:po_id>/receive', methods=['POST'])

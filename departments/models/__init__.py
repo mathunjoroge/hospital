@@ -113,6 +113,8 @@ from .stores import NonPharmCategory, NonPharmItem, OtherOrder
 from .supplier import PurchaseOrder, PurchaseOrderItem, Supplier
 from .telemedicine import TelemedicineSession
 from .user import User
+from .budget import VoteHead
+from .transfer import TransferOrder, TransferOrderItem
 
 __all__ = [
     'Log',
@@ -144,5 +146,7 @@ __all__ = [
     'BreakGlassAccessLog',
     'Facility', 'get_home_facility',
     'StockMovement', 'record_movement', 'reconcile_stock_balance',
+    'VoteHead', 'TransferOrder', 'TransferOrderItem',
 ]
+
 

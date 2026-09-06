@@ -79,7 +79,9 @@
 ## PHASE 7 — Government Institution-Grade Supply Chain Engine
 
 - [x] **7.1 Phase A Defect Repairs** ✅ (Enforced explicit `expiry_date` and `batch_number` on PO receipt and store request issuance; eliminated bare print statements - 5/5 tests passing)
-- [x] **7.2 Phase B.1 Foundational Facility Model** ✅ (`Facility` model with `is_self` home facility identification and `get_home_facility()` auto-seeding helper)
-- [x] **7.3 Phase C.1 & C.2 Segregation of Duties & Unified LPO** ✅ (`PurchaseOrder` SOD fields `created_by_id`, `approved_by_id`, `received_by_id`, and `sod_warning`; 403 Forbidden enforcement on self-approval; extended `PurchaseOrderItem` for non-pharm items)
-- [x] **7.4 Phase C.4 & Phase F Stock Movement Ledger & Reconciliation** ✅ (`StockMovement` append-only bin card ledger, `reconcile_stock_balance()` discrepancy checker, `/stores/bin-card` and `/stores/reconciliation-report` APIs - 10/10 tests passing across supply chain suite)
-- [x] **7.5 Phase B.2 & D.1 Hard Stop Decision Gates** ✅ (Logged pending architecture decisions for Inter-Facility Transfers and Budget/Vote-Head control in `DECISIONS_PENDING.md`)
+- [x] **7.2 Phase B Foundational Facility Model** ✅ (`Facility` model with `is_self` home facility identification and `get_home_facility()` auto-seeding helper)
+- [x] **7.3 Phase C Segregation of Duties & Unified LPO** ✅ (`PurchaseOrder` SOD fields `created_by_id`, `approved_by_id`, `received_by_id`, and `sod_warning`; 403 Forbidden enforcement on self-approval; extended `PurchaseOrderItem` for non-pharm items)
+- [x] **7.4 Phase D Budget / Vote-Head Procurement Control** ✅ (`VoteHead` model with encumbrance tracking; PO approval blocks when line items exceed available vote-head balance - 2/2 tests passing)
+- [x] **7.5 Phase E Inter-Facility Stock Transfer Engine** ✅ (`TransferOrder` & `TransferOrderItem` models, outbound dispatch with `TRANSFER_OUT` ledger and stock deduction, inbound receiving with `TRANSFER_IN` ledger - 2/2 tests passing)
+- [x] **7.6 Phase F Stock Movement Ledger & Reconciliation** ✅ (`StockMovement` append-only bin card ledger, `reconcile_stock_balance()` discrepancy checker, `/stores/bin-card` and `/stores/reconciliation-report` APIs - 12/12 tests passing across entire supply chain suite)
+

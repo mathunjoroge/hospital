@@ -122,6 +122,7 @@ class PurchaseOrderItem(db.Model):
     item_type = db.Column(db.String(20), default='DRUG', nullable=False)  # DRUG | NON_PHARM
     drug_id = db.Column(db.Integer, db.ForeignKey('drugs.id'), nullable=True, index=True)
     non_pharm_item_id = db.Column(db.Integer, db.ForeignKey('non_pharm_items.id'), nullable=True, index=True)
+    vote_head_id = db.Column(db.Integer, db.ForeignKey('vote_heads.id'), nullable=True, index=True)
 
     quantity_ordered = db.Column(db.Integer, nullable=False)
     unit_cost = db.Column(db.Numeric(10, 2), nullable=False)
@@ -129,6 +130,8 @@ class PurchaseOrderItem(db.Model):
 
     drug = db.relationship('Drug')
     non_pharm_item = db.relationship('NonPharmItem')
+    vote_head = db.relationship('VoteHead')
+
 
     @property
     def item_name(self) -> str:
