@@ -105,6 +105,8 @@ from .records import (
     PatientWaitingList,
 )
 from .stores import NonPharmCategory, NonPharmItem, OtherOrder
+from .supplier import PurchaseOrder, PurchaseOrderItem, Supplier
+from .telemedicine import TelemedicineSession
 from .user import User
 
 __all__ = [
@@ -132,6 +134,7 @@ __all__ = [
     'Patient', 'PatientWaitingList', 'Clinic', 'ClinicBooking',
     'PatientIdentifier', 'PatientMerge',
     'NonPharmCategory', 'NonPharmItem', 'OtherOrder',
-    'User', 'PatientUser',
+    'User', 'Log', 'PatientUser', 'TelemedicineSession',
+    'Supplier', 'PurchaseOrder', 'PurchaseOrderItem',
     'BreakGlassAccessLog',
 ]
