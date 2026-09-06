@@ -22,6 +22,7 @@ from departments.models.stock_movement import (
     reconcile_stock_balance,
     record_movement,
 )
+from departments.models.stock_take import StockTake, StockTakeItem
 from departments.models.stores import NonPharmCategory, NonPharmItem, OtherOrder
 from departments.models.supplier import (
     PurchaseOrder,
@@ -650,6 +651,164 @@ def approve_stock_disposal(disposal_id):
 def smart_reorder_view():
     """Render Smart Reorder AI & Consumption Analytics Dashboard."""
     return render_template('stores/smart_reorder.html')
+
+
+@bp.route('/requisitions/create', methods=['POST'])
+@login_required
+def create_commodity_requisition():
+    """
+    Allow any hospital department (Nursing, Kitchen, Laundry, Lab, Stores, Admin) to request non-pharm commodities.
+    """
+    data = request.get_json(silent=True) or request.form or {}
+    item_id = data.get('item_id')
+    quantity = int(data.get('quantity_requested', 0) or data.get('quantity', 0))
+    department = data.get('department') or getattr(current_user, 'role', 'general')
+
+    if not item_id or quantity <= 0:
+        return jsonify({'error': 'item_id and positive quantity_requested are required'}), 400
+
+    item = db.session.get(NonPharmItem, item_id)
+    if not item:
+        return jsonify({'error': 'Non-pharm commodity item not found'}), 404
+
+    current_uid = current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else 1
+
+    order = OtherOrder(
+        item_id=item.id,
+        quantity_requested=quantity,
+        request_date=datetime.now(timezone.utc).date(),
+        requested_by=current_uid,
+        notes=f"Requisition for {department} department",
+        status='Pending',
+    )
+    db.session.add(order)
+    db.session.commit()
+
+    if request.is_json:
+        return jsonify({
+            'message': f'Commodity requisition for {item.name} created successfully.',
+            'requisition': {'id': order.id, 'item_id': item.id, 'department': department, 'quantity': quantity},
+        }), 201
+    flash(f"Commodity requisition for {item.name} submitted successfully!", "success")
+    return redirect(url_for('stores.manage_reagent_requests'))
+
+
+@bp.route('/stock-take', methods=['GET'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def list_stock_takes_view():
+    """Render physical stock count audit dashboard & history."""
+    takes = StockTake.query.order_by(StockTake.created_at.desc()).all()
+    drugs = Drug.query.order_by(Drug.generic_name).all()
+    non_pharms = NonPharmItem.query.order_by(NonPharmItem.name).all()
+    return render_template('stores/stock_take.html', takes=takes, drugs=drugs, non_pharms=non_pharms)
+
+
+@bp.route('/stock-take/create', methods=['POST'])
+@login_required
+@roles_required('store', 'stores', 'pharmacy', 'admin', 'Storekeeper', 'Admin', 'Pharmacist')
+def create_stock_take():
+    """
+    Submit a physical inventory count audit.
+    Calculates variance (physical - book) and posts STOCK_TAKE_ADJUSTMENT ledger entries.
+    """
+    data = request.get_json(silent=True) or {}
+    items_data = data.get('items', [])
+    notes = data.get('notes', 'Physical Stock Take Audit')
+
+    if not items_data:
+        return jsonify({'error': 'At least one stock count item is required'}), 400
+
+    now = datetime.now(timezone.utc)
+    take_num = f"ST-{now.strftime('%Y%m%d%H%M%S')}-{secrets.token_hex(2).upper()}"
+    current_uid = current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
+
+    take = StockTake(
+        take_number=take_num,
+        status='COMPLETED',
+        notes=notes,
+        created_by_id=current_uid,
+    )
+    db.session.add(take)
+    db.session.flush()
+
+    total_counted = 0
+    total_variance = 0
+
+    for item in items_data:
+        item_type = str(item.get('item_type', 'DRUG')).upper()
+        drug_id = item.get('drug_id') if item_type == 'DRUG' else None
+        non_pharm_id = item.get('non_pharm_item_id') if item_type == 'NON_PHARM' else None
+        physical_qty = int(item.get('physical_quantity', 0))
+        reason = item.get('reason', 'Routine Audit')
+
+        book_qty = 0
+        drug = None
+        non_pharm = None
+
+        if item_type == 'DRUG' and drug_id:
+            drug = db.session.get(Drug, drug_id)
+            if drug:
+                book_qty = drug.quantity_in_stock
+        elif item_type == 'NON_PHARM' and non_pharm_id:
+            non_pharm = db.session.get(NonPharmItem, non_pharm_id)
+            if non_pharm:
+                book_qty = non_pharm.stock_level
+
+        variance = physical_qty - book_qty
+        total_counted += 1
+        if variance != 0:
+            total_variance += 1
+
+        sti = StockTakeItem(
+            stock_take_id=take.id,
+            item_type=item_type,
+            drug_id=drug_id,
+            non_pharm_item_id=non_pharm_id,
+            book_quantity=book_qty,
+            physical_quantity=physical_qty,
+            variance=variance,
+            reason=reason,
+        )
+        db.session.add(sti)
+
+        # Update physical inventory & post ledger movement adjustment
+        if drug:
+            drug.quantity_in_stock = physical_qty
+            record_movement(
+                item_type='DRUG',
+                item_id=drug.id,
+                movement_type='STOCK_TAKE_ADJUSTMENT',
+                quantity_delta=variance,
+                balance_after=physical_qty,
+                reference_type='STOCK_TAKE',
+                reference_id=take.take_number,
+                user_id=current_uid,
+                notes=f"Physical Stock Take Audit: {reason} (Variance: {variance:+d})",
+            )
+        elif non_pharm:
+            non_pharm.stock_level = physical_qty
+            record_movement(
+                item_type='NON_PHARM',
+                item_id=non_pharm.id,
+                movement_type='STOCK_TAKE_ADJUSTMENT',
+                quantity_delta=variance,
+                balance_after=physical_qty,
+                reference_type='STOCK_TAKE',
+                reference_id=take.take_number,
+                user_id=current_uid,
+                notes=f"Physical Stock Take Audit: {reason} (Variance: {variance:+d})",
+            )
+
+    take.total_items_counted = total_counted
+    take.total_variance_count = total_variance
+    db.session.commit()
+
+    return jsonify({
+        'message': f'Physical stock take {take.take_number} completed successfully',
+        'stock_take': take.to_dict(),
+    }), 201
+
 
 
 

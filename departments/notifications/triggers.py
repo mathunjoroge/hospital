@@ -301,3 +301,65 @@ def trigger_staff_credential_expiry_check(app=None, window_days: int = 30) -> in
 
     logger.info(f"Staff credential expiry check complete: {notifications_sent} notifications sent.")
     return notifications_sent
+
+
+def trigger_batch_expiry_check(app=None, window_days: int = 30) -> int:
+    """
+    Scheduled task to query Batch records and notify pharmacy & store managers
+    if drug batches are expiring within window_days or have already expired.
+    """
+    from datetime import date
+
+    from departments.models.pharmacy import Batch
+
+    today = date.today()
+    cutoff_date = today + timedelta(days=window_days)
+
+    expiring_batches = Batch.query.filter(
+        Batch.expiry_date <= cutoff_date,
+        Batch.quantity_in_stock > 0
+    ).all()
+
+    notifications_sent = 0
+    recipient = "stores_pharmacy_alerts@hospital.org"
+
+    for batch in expiring_batches:
+        days_until = (batch.expiry_date - today).days
+        drug_name = batch.drug.generic_name if batch.drug else f"Drug #{batch.drug_id}"
+
+        if days_until < 0:
+            subject = f"EXPIRED STOCK ALERT: Batch #{batch.batch_number} ({drug_name})"
+            body = (
+                f"CRITICAL EXPIRY ALERT:\n\n"
+                f"Drug Batch '{batch.batch_number}' for {drug_name} EXPIRED on {batch.expiry_date}.\n"
+                f"Stock remaining on shelf: {batch.quantity_in_stock} units.\n"
+                f"Immediate quarantine or disposal write-off required."
+            )
+        else:
+            subject = f"SOON EXPIRING STOCK WARNING: Batch #{batch.batch_number} ({drug_name})"
+            body = (
+                f"EXPIRING STOCK WARNING:\n\n"
+                f"Drug Batch '{batch.batch_number}' for {drug_name} expires in {days_until} days on {batch.expiry_date}.\n"
+                f"Stock remaining on shelf: {batch.quantity_in_stock} units.\n"
+                f"Please prioritize FEFO dispensing or process Return-to-Vendor."
+            )
+
+        recent = OutboundNotificationLog.query.filter(
+            OutboundNotificationLog.recipient == recipient,
+            OutboundNotificationLog.body.like(f"%{batch.batch_number}%"),
+            OutboundNotificationLog.created_at >= datetime.utcnow() - timedelta(hours=24)
+        ).first()
+
+        if not recent:
+            NotificationDispatcher.dispatch_event(
+                event_type="BATCH_EXPIRING",
+                recipient=recipient,
+                subject=subject,
+                body=body,
+                channels=['email']
+            )
+            notifications_sent += 1
+
+    logger.info(f"Batch expiry check complete: {notifications_sent} notifications dispatched.")
+    return notifications_sent
+

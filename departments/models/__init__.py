@@ -110,6 +110,7 @@ from .records import (
     PatientWaitingList,
 )
 from .stock_movement import StockMovement, reconcile_stock_balance, record_movement
+from .stock_take import StockTake, StockTakeItem
 from .stores import NonPharmCategory, NonPharmItem, OtherOrder
 from .supplier import PurchaseOrder, PurchaseOrderItem, Supplier
 from .telemedicine import TelemedicineSession
@@ -147,6 +148,7 @@ __all__ = [
     'Facility', 'get_home_facility',
     'StockMovement', 'record_movement', 'reconcile_stock_balance',
     'VoteHead', 'TransferOrder', 'TransferOrderItem',
+    'StockTake', 'StockTakeItem',
 ]
 
 

@@ -147,6 +147,71 @@ def auto_generate_pos():
     }), 201
 
 
+@po_bp.route('/pharmacy/po/create', methods=['POST'])
+@login_required
+@roles_required('pharmacy', 'admin', 'stores', 'Storekeeper', 'Admin', 'Pharmacist')
+def create_manual_po():
+    """
+    Manually create a draft Purchase Order for a specified supplier and line items.
+    """
+    data = request.get_json() or {}
+    supplier_id = data.get('supplier_id')
+    items_data = data.get('items', [])
+    notes = data.get('notes', 'Manual PO Creation')
+
+    if not supplier_id or not items_data:
+        return jsonify({'error': 'supplier_id and at least one item are required'}), 400
+
+    supplier = db.session.get(Supplier, supplier_id)
+    if not supplier:
+        return jsonify({'error': 'Supplier not found'}), 404
+
+    now = datetime.now(timezone.utc)
+    po_num = f"PO-MAN-{now.strftime('%Y%m%d%H%M%S')}-{secrets.token_hex(2).upper()}"
+    current_uid = current_user.id if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
+
+    po = PurchaseOrder(
+        po_number=po_num,
+        supplier_id=supplier.id,
+        status='DRAFT',
+        created_by_id=current_uid,
+        notes=notes,
+    )
+    db.session.add(po)
+    db.session.flush()
+
+    for item in items_data:
+        item_type = str(item.get('item_type', 'DRUG')).upper()
+        drug_id = item.get('drug_id') if item_type == 'DRUG' else None
+        non_pharm_id = item.get('non_pharm_item_id') if item_type == 'NON_PHARM' else None
+        qty_ordered = int(item.get('quantity_ordered', 0))
+        unit_cost = float(item.get('unit_cost', 0.0))
+        vh_id = item.get('vote_head_id')
+
+        if qty_ordered <= 0:
+            return jsonify({'error': 'quantity_ordered must be > 0'}), 400
+
+        po_item = PurchaseOrderItem(
+            po_id=po.id,
+            item_type=item_type,
+            drug_id=drug_id,
+            non_pharm_item_id=non_pharm_id,
+            vote_head_id=vh_id,
+            quantity_ordered=qty_ordered,
+            unit_cost=unit_cost,
+        )
+        db.session.add(po_item)
+
+    db.session.commit()
+    log_audit_event(
+        action='CREATE_MANUAL_PURCHASE_ORDER',
+        resource_type='PurchaseOrder',
+        resource_id=po.po_number,
+        details={'supplier_id': supplier.id, 'items_count': len(items_data)},
+    )
+    return jsonify({'message': f'Manual PO {po.po_number} created', 'purchase_order': po.to_dict()}), 201
+
+
 @po_bp.route('/pharmacy/po/list', methods=['GET'])
 @login_required
 @roles_required('pharmacy', 'admin', 'stores')
@@ -208,7 +273,6 @@ def submit_po_order(po_id):
     return jsonify({'message': f'PO {po.po_number} marked as ORDERED', 'purchase_order': po.to_dict()})
 
 
-
 @po_bp.route('/pharmacy/po/<int:po_id>/receive', methods=['POST'])
 @login_required
 @roles_required('pharmacy', 'admin', 'stores')
@@ -218,12 +282,13 @@ def receive_po_shipment(po_id):
     Requires explicit itemized receiving data including batch_number and expiry_date.
     No longer fabricates placeholder expiry dates.
     Records StockMovement ledger entries and flags SOD warnings if receiver == approver.
+    Calculates quantity receiving variances (SHORT_RECEIPT / OVER_RECEIPT).
     """
     po = db.session.get(PurchaseOrder, po_id)
     if not po:
         return jsonify({'error': 'Purchase order not found'}), 404
 
-    if po.status == 'RECEIVED':
+    if po.status in ('RECEIVED', 'RECEIVED_WITH_DISCREPANCY'):
         return jsonify({'error': 'Purchase order has already been received'}), 400
 
     data = request.get_json(silent=True) or {}
@@ -247,6 +312,8 @@ def receive_po_shipment(po_id):
 
     # Validate that every line item being received has an explicit expiry date
     now = datetime.now(timezone.utc)
+    discrepancies = []
+
     for po_item in po.items:
         key = po_item.id if po_item.id in items_map else (po_item.drug_id or po_item.non_pharm_item_id)
         receipt_info = items_map.get(key)
@@ -268,6 +335,18 @@ def receive_po_shipment(po_id):
         batch_num = receipt_info.get('batch_number') or f"B-PO-{po.id}-{po_item.id}"
 
         po_item.quantity_received = (po_item.quantity_received or 0) + qty_rcvd
+
+        if po_item.quantity_received != po_item.quantity_ordered:
+            variance = po_item.quantity_received - po_item.quantity_ordered
+            discrepancies.append({
+                'item_id': po_item.id,
+                'item_name': po_item.item_name,
+                'quantity_ordered': po_item.quantity_ordered,
+                'quantity_received': po_item.quantity_received,
+                'variance': variance,
+                'kind': 'OVER_RECEIPT' if variance > 0 else 'SHORT_RECEIPT',
+            })
+
         drug = po_item.drug
         non_pharm = po_item.non_pharm_item
 
@@ -319,21 +398,43 @@ def receive_po_shipment(po_id):
 
     # Determine status
     all_fulfilled = all(item.quantity_received >= item.quantity_ordered for item in po.items)
-    po.status = 'RECEIVED' if all_fulfilled else 'PARTIALLY_RECEIVED'
+    if not all_fulfilled:
+        po.status = 'PARTIALLY_RECEIVED'
+    elif discrepancies:
+        po.status = 'RECEIVED_WITH_DISCREPANCY'
+    else:
+        po.status = 'RECEIVED'
+
     po.received_at = now
+    if discrepancies:
+        variance_note = "; ".join(
+            f"{d['item_name']}: ordered {d['quantity_ordered']}, received {d['quantity_received']} ({d['kind']})"
+            for d in discrepancies
+        )
+        po.notes = f"{po.notes or ''}\n[DISCREPANCY] {variance_note}".strip()
+
     db.session.commit()
 
     log_audit_event(
         action='RECEIVE_PURCHASE_ORDER',
         resource_type='PurchaseOrder',
         resource_id=po.po_number,
-        details={'items_count': len(po.items), 'status': po.status, 'sod_warning': po.sod_warning},
+        details={
+            'items_count': len(po.items),
+            'status': po.status,
+            'sod_warning': po.sod_warning,
+            'discrepancies': discrepancies,
+        },
     )
 
-    return jsonify({
-        'message': f'Shipment for PO {po.po_number} processed successfully.',
+    response = {
+        'message': f'Shipment received for PO {po.po_number}',
         'purchase_order': po.to_dict(),
-    })
+    }
+    if discrepancies:
+        response['discrepancies'] = discrepancies
+        response['warning'] = 'Quantity variances detected on received PO line items.'
+    return jsonify(response)
 
 
 @po_bp.route('/pharmacy/receipt/direct', methods=['POST'])
@@ -343,6 +444,7 @@ def record_direct_receipt():
     """
     Record direct receipt of supplies from a supplier without a prior Purchase Order.
     Auto-creates a RECEIVED PurchaseOrder record for auditing and inventory updates.
+    Supports optional VoteHead budget encumbrance if vote_head_id is supplied.
     """
     data = request.get_json() or {}
     supplier_id = data.get('supplier_id')
@@ -352,7 +454,7 @@ def record_direct_receipt():
     if not supplier_id or not items_data:
         return jsonify({'error': 'supplier_id and at least one item are required'}), 400
 
-    supplier = Supplier.query.get(supplier_id)
+    supplier = db.session.get(Supplier, supplier_id)
     if not supplier:
         return jsonify({'error': 'Supplier not found'}), 404
 
@@ -382,6 +484,7 @@ def record_direct_receipt():
         unit_cost = float(item.get('unit_cost', 0.0))
         batch_num = item.get('batch_number') or f"B-DIR-{po.id}-{secrets.token_hex(2).upper()}"
         expiry_str = item.get('expiry_date')
+        vh_id = item.get('vote_head_id') or data.get('vote_head_id')
 
         if quantity <= 0:
             return jsonify({'error': 'Quantity must be > 0'}), 400
@@ -394,6 +497,17 @@ def record_direct_receipt():
         except ValueError:
             return jsonify({'error': 'Invalid expiry_date format. Use YYYY-MM-DD'}), 400
 
+        # Optional VoteHead Budget Encumbrance
+        if vh_id:
+            vh = db.session.get(VoteHead, vh_id)
+            if vh:
+                line_cost = quantity * unit_cost
+                if not vh.can_encumber(line_cost):
+                    return jsonify({
+                        'error': f'Budget vote-head cap exceeded for {vh.code}. Available: {vh.available_amount:.2f}, Required: {line_cost:.2f}'
+                    }), 400
+                vh.encumber(line_cost)
+
         drug_id = item.get('drug_id') if item_type == 'DRUG' else None
         non_pharm_id = item.get('non_pharm_item_id') if item_type == 'NON_PHARM' else None
 
@@ -402,6 +516,7 @@ def record_direct_receipt():
             item_type=item_type,
             drug_id=drug_id,
             non_pharm_item_id=non_pharm_id,
+            vote_head_id=vh_id,
             quantity_ordered=quantity,
             quantity_received=quantity,
             unit_cost=unit_cost,
