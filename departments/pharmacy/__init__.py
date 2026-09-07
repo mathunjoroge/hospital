@@ -1,6 +1,6 @@
 from flask import Blueprint
 
-bp = Blueprint('pharmacy', __name__, template_folder='templates')
+bp = Blueprint("pharmacy", __name__, template_folder="templates")
 
 from . import (  # noqa: F401, E402
     ai_discovery,
@@ -9,4 +9,3 @@ from . import (  # noqa: F401, E402
     reports,
     stock_ops,
 )
-

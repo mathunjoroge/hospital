@@ -41,12 +41,17 @@ def unauthorized_user(app):
 
 # ── Feature-flag quarantine tests ──────────────────────────────────
 
+
 def test_telemedicine_blocked_when_flag_off(client, app, doctor_user):
     """All telemedicine routes return 403 when ENABLE_TELEMEDICINE is False (default)."""
-    app.config['ENABLE_TELEMEDICINE'] = False
-    client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
+    app.config["ENABLE_TELEMEDICINE"] = False
+    client.post(
+        "/login", data={"username": doctor_user.username, "password": "Password123!"}
+    )
 
-    resp = client.post("/telemedicine/session/create", json={"patient_id": "P-BLOCK-01"})
+    resp = client.post(
+        "/telemedicine/session/create", json={"patient_id": "P-BLOCK-01"}
+    )
     assert resp.status_code == 403
     data = resp.get_json()
     assert data["code"] == "FEATURE_DISABLED"
@@ -57,10 +62,13 @@ def test_telemedicine_blocked_when_flag_off(client, app, doctor_user):
 
 # ── Feature-enabled tests ─────────────────────────────────────────
 
+
 def test_create_telemedicine_session_success(client, app, doctor_user):
     """POST /telemedicine/session/create creates a session with SCHEDULED status."""
-    app.config['ENABLE_TELEMEDICINE'] = True
-    client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
+    app.config["ENABLE_TELEMEDICINE"] = True
+    client.post(
+        "/login", data={"username": doctor_user.username, "password": "Password123!"}
+    )
     resp = client.post(
         "/telemedicine/session/create",
         json={"patient_id": "P-TELE-101", "appointment_id": 42},
@@ -75,16 +83,20 @@ def test_create_telemedicine_session_success(client, app, doctor_user):
 
 def test_create_telemedicine_session_missing_patient(client, app, doctor_user):
     """POST /telemedicine/session/create returns 400 if patient_id is absent."""
-    app.config['ENABLE_TELEMEDICINE'] = True
-    client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
+    app.config["ENABLE_TELEMEDICINE"] = True
+    client.post(
+        "/login", data={"username": doctor_user.username, "password": "Password123!"}
+    )
     resp = client.post("/telemedicine/session/create", json={})
     assert resp.status_code == 400
 
 
 def test_session_lifecycle_and_notes(client, app, doctor_user):
     """Test start, notes update, and complete lifecycle endpoints."""
-    app.config['ENABLE_TELEMEDICINE'] = True
-    client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
+    app.config["ENABLE_TELEMEDICINE"] = True
+    client.post(
+        "/login", data={"username": doctor_user.username, "password": "Password123!"}
+    )
 
     # 1. Create
     c_resp = client.post(
@@ -101,7 +113,9 @@ def test_session_lifecycle_and_notes(client, app, doctor_user):
     # 3. Notes
     n_resp = client.post(
         f"/telemedicine/session/{session_uuid}/notes",
-        json={"notes": "Patient presents with mild respiratory symptoms. Prescribed bed rest."},
+        json={
+            "notes": "Patient presents with mild respiratory symptoms. Prescribed bed rest."
+        },
     )
     assert n_resp.status_code == 200
     assert "respiratory" in n_resp.get_json()["notes"]
@@ -117,8 +131,10 @@ def test_session_lifecycle_and_notes(client, app, doctor_user):
 
 def test_room_ui_access_control(client, app, doctor_user, unauthorized_user):
     """GET /telemedicine/room/<uuid> returns 200 for participant, 403 for unauthorized."""
-    app.config['ENABLE_TELEMEDICINE'] = True
-    client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
+    app.config["ENABLE_TELEMEDICINE"] = True
+    client.post(
+        "/login", data={"username": doctor_user.username, "password": "Password123!"}
+    )
     c_resp = client.post(
         "/telemedicine/session/create",
         json={"patient_id": "P-TELE-103"},
@@ -131,15 +147,20 @@ def test_room_ui_access_control(client, app, doctor_user, unauthorized_user):
     assert b"Virtual Telemedicine Consultation" in doc_resp.data
 
     # Unauthorized access -> 403
-    client.post("/login", data={"username": unauthorized_user.username, "password": "Password123!"})
+    client.post(
+        "/login",
+        data={"username": unauthorized_user.username, "password": "Password123!"},
+    )
     unauth_resp = client.get(f"/telemedicine/room/{session_uuid}")
     assert unauth_resp.status_code == 403
 
 
 def test_list_sessions_endpoint(client, app, doctor_user):
     """GET /telemedicine/sessions lists the doctor's sessions."""
-    app.config['ENABLE_TELEMEDICINE'] = True
-    client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
+    app.config["ENABLE_TELEMEDICINE"] = True
+    client.post(
+        "/login", data={"username": doctor_user.username, "password": "Password123!"}
+    )
     client.post("/telemedicine/session/create", json={"patient_id": "P-TELE-104"})
 
     resp = client.get("/telemedicine/sessions")

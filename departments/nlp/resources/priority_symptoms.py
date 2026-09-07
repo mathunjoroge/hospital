@@ -56,5 +56,5 @@ PRIORITY_SYMPTOMS = [
     "stridor",
     "history of recent fall with anticoagulation",
     "pain out of proportion to exam",
-    "sudden inability to walk"
+    "sudden inability to walk",
 ]

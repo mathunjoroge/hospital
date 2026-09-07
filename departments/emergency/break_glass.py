@@ -25,7 +25,7 @@ from extensions import db
 logger = logging.getLogger(__name__)
 
 # Break-glass roles: who is allowed to invoke emergency override
-BREAK_GLASS_ELIGIBLE_ROLES = {'doctor', 'medicine', 'nursing', 'admin'}
+BREAK_GLASS_ELIGIBLE_ROLES = {"doctor", "medicine", "nursing", "admin"}
 
 # Default validity window for an override grant
 DEFAULT_BREAK_GLASS_DURATION_HOURS = 4
@@ -43,7 +43,9 @@ def invoke_break_glass(
     Record a break-glass override invocation for the specified or currently authenticated user.
     """
     if not reason or not reason.strip():
-        raise ValueError("A mandatory clinical reason must be provided for break-glass access.")
+        raise ValueError(
+            "A mandatory clinical reason must be provided for break-glass access."
+        )
 
     if not user:
         user = get_effective_user()
@@ -86,22 +88,26 @@ def invoke_break_glass(
 
     # Record a prominent audit trail entry, distinct from normal audit rows
     log_audit_event(
-        action='BREAK_GLASS_OVERRIDE',
-        resource_type=resource_type or 'Patient',
+        action="BREAK_GLASS_OVERRIDE",
+        resource_type=resource_type or "Patient",
         resource_id=patient_id or resource_id,
         details={
-            'break_glass_id': log_entry.id,
-            'reason': reason.strip(),
-            'expires_at': expires_at.isoformat(),
-            'patient_id': patient_id,
-            'user_role': user.role,
+            "break_glass_id": log_entry.id,
+            "reason": reason.strip(),
+            "expires_at": expires_at.isoformat(),
+            "patient_id": patient_id,
+            "user_role": user.role,
         },
         user_id=user.id,
         username=user.username,
     )
     logger.warning(
         "BREAK-GLASS INVOKED | user=%s (%s) | patient=%s | reason=%s | expires=%s",
-        user.username, user.role, patient_id, reason.strip(), expires_at.isoformat()
+        user.username,
+        user.role,
+        patient_id,
+        reason.strip(),
+        expires_at.isoformat(),
     )
 
     # Notify supervisors (async-safe: errors are caught and logged)
@@ -110,7 +116,9 @@ def invoke_break_glass(
     return log_entry
 
 
-def check_break_glass(user_id: int, patient_id: str = None) -> BreakGlassAccessLog | None:
+def check_break_glass(
+    user_id: int, patient_id: str = None
+) -> BreakGlassAccessLog | None:
     """
     Return the most-recent valid (active & not expired) break-glass grant for
     the given user, optionally scoped to a specific patient.
@@ -118,13 +126,10 @@ def check_break_glass(user_id: int, patient_id: str = None) -> BreakGlassAccessL
     Returns None if no valid grant exists.
     """
     now = datetime.now(timezone.utc)
-    q = (
-        db.session.query(BreakGlassAccessLog)
-        .filter(
-            BreakGlassAccessLog.user_id == user_id,
-            BreakGlassAccessLog.is_active.is_(True),
-            BreakGlassAccessLog.expires_at > now,
-        )
+    q = db.session.query(BreakGlassAccessLog).filter(
+        BreakGlassAccessLog.user_id == user_id,
+        BreakGlassAccessLog.is_active.is_(True),
+        BreakGlassAccessLog.expires_at > now,
     )
     if patient_id:
         q = q.filter(
@@ -179,6 +184,7 @@ def break_glass_required(*normal_roles):
        a visible UI banner.
     3. Neither → 403.
     """
+
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
@@ -192,19 +198,23 @@ def break_glass_required(*normal_roles):
                 return fn(*args, **kwargs)
 
             # Break-glass path
-            patient_id = kwargs.get('patient_id')
+            patient_id = kwargs.get("patient_id")
             grant = check_break_glass(user.id, patient_id=patient_id)
             if grant:
                 g.break_glass_active = True
                 g.break_glass_grant = grant
                 logger.info(
                     "BREAK-GLASS ACCESS | user=%s | grant_id=%d | patient=%s",
-                    user.username, grant.id, patient_id,
+                    user.username,
+                    grant.id,
+                    patient_id,
                 )
                 return fn(*args, **kwargs)
 
             abort(403)
+
         return wrapper
+
     return decorator
 
 
@@ -221,7 +231,7 @@ def _notify_supervisors(log_entry: BreakGlassAccessLog):
             NotificationDispatcher,
         )
 
-        admins = User.query.filter_by(role='admin').all()
+        admins = User.query.filter_by(role="admin").all()
         for admin in admins:
             NotificationDispatcher.dispatch_event(
                 event_type=EVENT_BREAK_GLASS,
@@ -237,7 +247,7 @@ def _notify_supervisors(log_entry: BreakGlassAccessLog):
                     "Review this event immediately in the admin audit trail."
                 ),
                 patient_id=log_entry.patient_id,
-                channels=['email', 'in_app'],
+                channels=["email", "in_app"],
             )
 
         log_entry.supervisor_notified = True
@@ -245,4 +255,8 @@ def _notify_supervisors(log_entry: BreakGlassAccessLog):
         db.session.commit()
 
     except Exception as exc:
-        logger.error("Failed to notify supervisors of break-glass event (grant_id=%s): %s", log_entry.id, exc)
+        logger.error(
+            "Failed to notify supervisors of break-glass event (grant_id=%s): %s",
+            log_entry.id,
+            exc,
+        )

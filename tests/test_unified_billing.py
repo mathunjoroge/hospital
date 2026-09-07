@@ -5,6 +5,7 @@ Unit tests for Task 2.2: Unified Invoice / InvoiceLineItem / Payment models.
 Legacy billing tables are not tested here — they are already covered by
 tests/test_billing.py.
 """
+
 from datetime import date
 from decimal import Decimal
 
@@ -21,6 +22,7 @@ from extensions import db
 # ─────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────
+
 
 def _make_patient(pid):
     p = Patient(
@@ -78,6 +80,7 @@ def _add_line(invoice, description, category, unit_price, quantity=1, discount=0
 # 1. Invoice creation & number generation
 # ─────────────────────────────────────────────
 
+
 class TestInvoiceCreation:
     def test_create_invoice_defaults(self, app):
         with app.app_context():
@@ -96,7 +99,11 @@ class TestInvoiceCreation:
                 invoice_number=n1,
                 patient_id="INV002",
                 status=InvoiceStatus.DRAFT,
-                subtotal=0, discount=0, grand_total=0, amount_paid=0, balance=0,
+                subtotal=0,
+                discount=0,
+                grand_total=0,
+                amount_paid=0,
+                balance=0,
             )
             db.session.add(inv1)
             db.session.commit()
@@ -114,6 +121,7 @@ class TestInvoiceCreation:
 # ─────────────────────────────────────────────
 # 2. InvoiceLineItem
 # ─────────────────────────────────────────────
+
 
 class TestInvoiceLineItem:
     def test_add_single_line_item(self, app):
@@ -161,6 +169,7 @@ class TestInvoiceLineItem:
 # 3. Payment
 # ─────────────────────────────────────────────
 
+
 class TestPayment:
     def test_create_cash_payment(self, app):
         with app.app_context():
@@ -203,13 +212,15 @@ class TestPayment:
             _make_patient("PAY003")
             inv = _make_invoice("PAY003")
             for i, amt in enumerate([500, 300, 200], start=1):
-                db.session.add(Payment(
-                    invoice_id=inv.id,
-                    patient_id="PAY003",
-                    amount=Decimal(str(amt)),
-                    method=PaymentMethod.CASH,
-                    receipt_number=f"REC-PART-{i:03d}",
-                ))
+                db.session.add(
+                    Payment(
+                        invoice_id=inv.id,
+                        patient_id="PAY003",
+                        amount=Decimal(str(amt)),
+                        method=PaymentMethod.CASH,
+                        receipt_number=f"REC-PART-{i:03d}",
+                    )
+                )
             db.session.commit()
             payments = Payment.query.filter_by(invoice_id=inv.id).all()
             assert len(payments) == 3
@@ -219,6 +230,7 @@ class TestPayment:
 # ─────────────────────────────────────────────
 # 4. Invoice.recalculate()
 # ─────────────────────────────────────────────
+
 
 class TestInvoiceRecalculate:
     def test_recalculate_sets_totals(self, app):
@@ -239,13 +251,15 @@ class TestInvoiceRecalculate:
             _make_patient("CALC02")
             inv = _make_invoice("CALC02")
             _add_line(inv, "Consultation", "consult", 500)
-            db.session.add(Payment(
-                invoice_id=inv.id,
-                patient_id="CALC02",
-                amount=Decimal("500"),
-                method=PaymentMethod.CASH,
-                receipt_number="REC-CALC-001",
-            ))
+            db.session.add(
+                Payment(
+                    invoice_id=inv.id,
+                    patient_id="CALC02",
+                    amount=Decimal("500"),
+                    method=PaymentMethod.CASH,
+                    receipt_number="REC-CALC-001",
+                )
+            )
             db.session.commit()
             inv.recalculate()
             assert inv.status == InvoiceStatus.PAID
@@ -256,13 +270,15 @@ class TestInvoiceRecalculate:
             _make_patient("CALC03")
             inv = _make_invoice("CALC03")
             _add_line(inv, "Ward charge", "ward", 2000)
-            db.session.add(Payment(
-                invoice_id=inv.id,
-                patient_id="CALC03",
-                amount=Decimal("1000"),
-                method=PaymentMethod.MPESA,
-                receipt_number="REC-CALC-002",
-            ))
+            db.session.add(
+                Payment(
+                    invoice_id=inv.id,
+                    patient_id="CALC03",
+                    amount=Decimal("1000"),
+                    method=PaymentMethod.MPESA,
+                    receipt_number="REC-CALC-002",
+                )
+            )
             db.session.commit()
             inv.recalculate()
             assert inv.status == InvoiceStatus.PARTIAL
@@ -281,6 +297,7 @@ class TestInvoiceRecalculate:
 # ─────────────────────────────────────────────
 # 5. Legacy source tracking
 # ─────────────────────────────────────────────
+
 
 class TestLegacySourceTracking:
     def test_legacy_source_fields_stored(self, app):
@@ -301,6 +318,8 @@ class TestLegacySourceTracking:
             )
             db.session.add(inv)
             db.session.commit()
-            saved = Invoice.query.filter_by(legacy_source="drugs_bill", legacy_id=42).first()
+            saved = Invoice.query.filter_by(
+                legacy_source="drugs_bill", legacy_id=42
+            ).first()
             assert saved is not None
             assert saved.grand_total == Decimal("500")

@@ -6,7 +6,6 @@ Tests for:
 2. Phase E — Inter-Facility Stock Transfer Engine (Dispatch & Receive)
 """
 
-
 import pytest
 from werkzeug.security import generate_password_hash
 
@@ -91,11 +90,15 @@ def setup_budget_and_facilities(app):
         yield target_fac.id, vh.id, drug.id, supplier.id
 
 
-def test_vote_head_budget_encumbrance_and_cap_blocking(client, app, stores_user, approver_user, setup_budget_and_facilities):
+def test_vote_head_budget_encumbrance_and_cap_blocking(
+    client, app, stores_user, approver_user, setup_budget_and_facilities
+):
     """Test Phase D: PO approval encumbers vote-head budget; rejects if cost exceeds available balance."""
     _, vh_id, drug_id, supplier_id = setup_budget_and_facilities
 
-    client.post("/login", data={"username": "test_transfers_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "test_transfers_user", "password": "Password123!"}
+    )
 
     # 1. Create draft PO exceeding budget (1,500 units @ KES 10 = KES 15,000 > KES 10,000 allocated)
     with app.app_context():
@@ -121,7 +124,9 @@ def test_vote_head_budget_encumbrance_and_cap_blocking(client, app, stores_user,
         po_exceed_id = po_exceed.id
 
     # Log in as approver to attempt approval -> 400 Bad Request (budget exceeded)
-    client.post("/login", data={"username": "test_approver_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "test_approver_user", "password": "Password123!"}
+    )
     res_fail = client.post(f"/pharmacy/po/{po_exceed_id}/order")
     assert res_fail.status_code == 400
     assert "budget vote-head cap exceeded" in res_fail.get_json()["error"].lower()
@@ -158,11 +163,15 @@ def test_vote_head_budget_encumbrance_and_cap_blocking(client, app, stores_user,
         assert vh.available_amount == 5000.0
 
 
-def test_inter_facility_transfer_lifecycle(client, app, stores_user, setup_budget_and_facilities):
+def test_inter_facility_transfer_lifecycle(
+    client, app, stores_user, setup_budget_and_facilities
+):
     """Test Phase E: Inter-facility transfer creation, outbound dispatch, and inbound receiving."""
     target_fac_id, _, drug_id, _ = setup_budget_and_facilities
 
-    client.post("/login", data={"username": "test_transfers_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "test_transfers_user", "password": "Password123!"}
+    )
 
     # 1. Create draft transfer order
     res_create = client.post(
@@ -215,6 +224,7 @@ def test_inter_facility_transfer_lifecycle(client, app, stores_user, setup_budge
     with app.app_context():
         from departments.models.facility import get_home_facility
         from departments.models.transfer import TransferOrder, TransferOrderItem
+
         inbound_tr = TransferOrder(
             transfer_number="TR-INBOUND-001",
             source_facility_id=target_fac_id,

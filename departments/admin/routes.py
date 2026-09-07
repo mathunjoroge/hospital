@@ -20,109 +20,145 @@ from extensions import db
 from . import bp
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Define roles for the dropdown
 ROLES = [
-    ('admin', 'Admin'),
-    ('records', 'Records'),
-    ('nursing', 'Nursing'),
-    ('pharmacy', 'Pharmacy'),
-    ('stores', 'Stores'),
-    ('mortuary', 'Mortuary')
+    ("admin", "Admin"),
+    ("records", "Records"),
+    ("nursing", "Nursing"),
+    ("pharmacy", "Pharmacy"),
+    ("stores", "Stores"),
+    ("mortuary", "Mortuary"),
 ]
 
+
 class AddUserForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=80)])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=6, max=120)])
-    role = SelectField('Role', choices=ROLES, validators=[DataRequired()])
-    submit = SubmitField('Add User')
-    #edit user
+    username = StringField(
+        "Username", validators=[DataRequired(), Length(min=4, max=80)]
+    )
+    password = PasswordField(
+        "Password", validators=[DataRequired(), Length(min=6, max=120)]
+    )
+    role = SelectField("Role", choices=ROLES, validators=[DataRequired()])
+    submit = SubmitField("Add User")
+    # edit user
+
+
 class EditUserForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=80)])
-    role = SelectField('Role', choices=ROLES, validators=[DataRequired()])
-    submit = SubmitField('Update User')
+    username = StringField(
+        "Username", validators=[DataRequired(), Length(min=4, max=80)]
+    )
+    role = SelectField("Role", choices=ROLES, validators=[DataRequired()])
+    submit = SubmitField("Update User")
 
 
-@bp.route('/admin/switch_user', methods=['POST'])
-@bp.route('/switch_user', methods=['POST'])
+@bp.route("/admin/switch_user", methods=["POST"])
+@bp.route("/switch_user", methods=["POST"])
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def switch_user():
-
-    new_role = request.form.get('role')
-    allowed_roles = ['records', 'billing', 'nursing', 'laboratory', 'imaging', 'pharmacy', 'medicine', 'stores', 'hr', 'mortuary', 'admin']
+    new_role = request.form.get("role")
+    allowed_roles = [
+        "records",
+        "billing",
+        "nursing",
+        "laboratory",
+        "imaging",
+        "pharmacy",
+        "medicine",
+        "stores",
+        "hr",
+        "mortuary",
+        "admin",
+    ]
 
     if new_role not in allowed_roles:
-        flash('Invalid role selected.', 'danger')
-        return redirect(url_for('home'))
+        flash("Invalid role selected.", "danger")
+        return redirect(url_for("home"))
 
-    session['switched_user'] = new_role
-    flash(f'Switched to {new_role} role.', 'success')
+    session["switched_user"] = new_role
+    flash(f"Switched to {new_role} role.", "success")
 
     # Role-to-homepage mapping
     role_homepages = {
-        'records': 'records.index',
-        'billing': 'billing.index',
-        'nursing': 'nursing.index',
-        'laboratory': 'laboratory.index',
-        'imaging': 'imaging.index',
-        'pharmacy': 'pharmacy.index',
-        'medicine': 'medicine.index',
-        'stores': 'stores.index',
-        'hr': 'hr.index',
-        'mortuary': 'mortuary.index',
-        'admin': 'admin.index'
+        "records": "records.index",
+        "billing": "billing.index",
+        "nursing": "nursing.index",
+        "laboratory": "laboratory.index",
+        "imaging": "imaging.index",
+        "pharmacy": "pharmacy.index",
+        "medicine": "medicine.index",
+        "stores": "stores.index",
+        "hr": "hr.index",
+        "mortuary": "mortuary.index",
+        "admin": "admin.index",
     }
 
     # Redirect to the role-specific homepage
-    return redirect(url_for(role_homepages.get(new_role, 'home')))
+    return redirect(url_for(role_homepages.get(new_role, "home")))
 
-@bp.route('/admin/revert_user')
+
+@bp.route("/admin/revert_user")
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def revert_user():
+    session.pop("switched_user", None)
+    flash("Reverted to admin role.", "success")
+    return redirect(url_for("admin.index"))
 
-    session.pop('switched_user', None)
-    flash('Reverted to admin role.', 'success')
-    return redirect(url_for('admin.index'))
 
 def get_effective_role():
-    if current_user.is_authenticated and current_user.role == 'admin' and 'switched_user' in session:
-        return session['switched_user']
+    if (
+        current_user.is_authenticated
+        and current_user.role == "admin"
+        and "switched_user" in session
+    ):
+        return session["switched_user"]
     return current_user.role if current_user.is_authenticated else None
 
-@bp.route('/index', methods=['GET'])
-@bp.route('/', methods=['GET'])  # Add this to handle /admin directly
+
+@bp.route("/index", methods=["GET"])
+@bp.route("/", methods=["GET"])  # Add this to handle /admin directly
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def index():
     """Admin dashboard showing all users."""
 
     try:
-        department = request.args.get('department', 'admin')  # Get department from query parameter
+        department = request.args.get(
+            "department", "admin"
+        )  # Get department from query parameter
         users = User.query.order_by(User.username).all()
-        logger.info(f"Admin {current_user.id} accessed dashboard with department {department}")
-        db.session.add(Log(
-            level='INFO',
-            message=f"Admin {current_user.username} (ID: {current_user.id}) accessed dashboard with department {department}",
-            user_id=current_user.id,
-            source='admin'
-        ))
+        logger.info(
+            f"Admin {current_user.id} accessed dashboard with department {department}"
+        )
+        db.session.add(
+            Log(
+                level="INFO",
+                message=f"Admin {current_user.username} (ID: {current_user.id}) accessed dashboard with department {department}",
+                user_id=current_user.id,
+                source="admin",
+            )
+        )
         db.session.commit()
-        return render_template('admin/index.html', users=users, department=department)
+        return render_template("admin/index.html", users=users, department=department)
     except Exception as e:
-        flash('Something went wrong. Please try again.', 'error')
+        flash("Something went wrong. Please try again.", "error")
         logger.error(f"Error in admin.index: {e}", exc_info=True)
-        db.session.add(Log(
-            level='ERROR',
-            message=f"Error loading dashboard: {str(e)}",
-            user_id=current_user.id,
-            source='admin'
-        ))
+        db.session.add(
+            Log(
+                level="ERROR",
+                message=f"Error loading dashboard: {str(e)}",
+                user_id=current_user.id,
+                source="admin",
+            )
+        )
         db.session.commit()
-        return redirect(url_for('login'))
+        return redirect(url_for("login"))
 
 
 def validate_password_complexity(password):
@@ -138,9 +174,9 @@ def validate_password_complexity(password):
     return True, "Password is strong."
 
 
-@bp.route('/add_user', methods=['GET', 'POST'])
+@bp.route("/add_user", methods=["GET", "POST"])
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def add_user():
     """Allows admin to add a new user."""
 
@@ -149,86 +185,103 @@ def add_user():
         try:
             valid_pwd, pwd_msg = validate_password_complexity(form.password.data)
             if not valid_pwd:
-                flash(pwd_msg, 'error')
-                return render_template('admin/add_user.html', form=form)
+                flash(pwd_msg, "error")
+                return render_template("admin/add_user.html", form=form)
 
             if User.query.filter_by(username=form.username.data).first():
-                flash('Username already exists.', 'error')
-                logger.warning(f"Duplicate username attempt: {form.username.data} by admin {current_user.id}")
-                db.session.add(Log(
-                    level='WARNING',
-                    message=f"Duplicate username attempt: {form.username.data} by admin {current_user.id}",
-                    user_id=current_user.id,
-                    source='admin'
-                ))
+                flash("Username already exists.", "error")
+                logger.warning(
+                    f"Duplicate username attempt: {form.username.data} by admin {current_user.id}"
+                )
+                db.session.add(
+                    Log(
+                        level="WARNING",
+                        message=f"Duplicate username attempt: {form.username.data} by admin {current_user.id}",
+                        user_id=current_user.id,
+                        source="admin",
+                    )
+                )
                 db.session.commit()
-                return render_template('admin/add_user.html', form=form)
+                return render_template("admin/add_user.html", form=form)
 
             new_user = User(
                 username=form.username.data,
-                password=generate_password_hash(form.password.data, method='pbkdf2:sha256'),
-                role=form.role.data
+                password=generate_password_hash(
+                    form.password.data, method="pbkdf2:sha256"
+                ),
+                role=form.role.data,
             )
 
             db.session.add(new_user)
             db.session.commit()
             logger.info(f"Admin {current_user.id} added user {new_user.username}")
-            db.session.add(Log(
-                level='INFO',
-                message=f"User {new_user.username} (ID: {new_user.id}) created with role {new_user.role} by admin {current_user.id}",
-                user_id=current_user.id,
-                source='admin'
-            ))
+            db.session.add(
+                Log(
+                    level="INFO",
+                    message=f"User {new_user.username} (ID: {new_user.id}) created with role {new_user.role} by admin {current_user.id}",
+                    user_id=current_user.id,
+                    source="admin",
+                )
+            )
             db.session.commit()
-            flash(f'User {form.username.data} added successfully.', 'success')
-            return redirect(url_for('admin.index'))
+            flash(f"User {form.username.data} added successfully.", "success")
+            return redirect(url_for("admin.index"))
 
         except Exception as e:
             db.session.rollback()
-            flash('Something went wrong. Please try again.', 'error')
+            flash("Something went wrong. Please try again.", "error")
             logger.error(f"Error in admin.add_user: {e}", exc_info=True)
-            db.session.add(Log(
-                level='ERROR',
-                message=f"Error adding user: {str(e)}",
-                user_id=current_user.id,
-                source='admin'
-            ))
+            db.session.add(
+                Log(
+                    level="ERROR",
+                    message=f"Error adding user: {str(e)}",
+                    user_id=current_user.id,
+                    source="admin",
+                )
+            )
             db.session.commit()
-            return render_template('admin/add_user.html', form=form)
+            return render_template("admin/add_user.html", form=form)
 
-    return render_template('admin/add_user.html', form=form)
+    return render_template("admin/add_user.html", form=form)
 
-@bp.route('/manage_users', methods=['GET'])
+
+@bp.route("/manage_users", methods=["GET"])
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def manage_users():
     """Admin page to manage existing users."""
 
     try:
         users = User.query.order_by(User.username).all()
         logger.info(f"Admin {current_user.id} accessed manage users page")
-        db.session.add(Log(
-            level='INFO',
-            message=f"Admin {current_user.username} (ID: {current_user.id}) accessed manage users page",
-            user_id=current_user.id,
-            source='admin'
-        ))
+        db.session.add(
+            Log(
+                level="INFO",
+                message=f"Admin {current_user.username} (ID: {current_user.id}) accessed manage users page",
+                user_id=current_user.id,
+                source="admin",
+            )
+        )
         db.session.commit()
-        return render_template('admin/manage_users.html', users=users)
+        return render_template("admin/manage_users.html", users=users)
     except Exception as e:
-        flash('Something went wrong. Please try again.', 'error')
+        flash("Something went wrong. Please try again.", "error")
         logger.error(f"Error in admin.manage_users: {e}", exc_info=True)
-        db.session.add(Log(
-            level='ERROR',
-            message=f"Error loading manage users page: {str(e)}",
-            user_id=current_user.id,
-            source='admin'
-        ))
+        db.session.add(
+            Log(
+                level="ERROR",
+                message=f"Error loading manage users page: {str(e)}",
+                user_id=current_user.id,
+                source="admin",
+            )
+        )
         db.session.commit()
-        return redirect(url_for('login'))
-@bp.route('/edit_user/<int:user_id>', methods=['GET', 'POST'])
+        return redirect(url_for("login"))
+
+
+@bp.route("/edit_user/<int:user_id>", methods=["GET", "POST"])
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def edit_user(user_id):
     """Admin page to edit an existing user."""
 
@@ -240,194 +293,227 @@ def edit_user(user_id):
             # Check for username conflicts (excluding the current user)
             existing_user = User.query.filter_by(username=form.username.data).first()
             if existing_user and existing_user.id != user.id:
-                flash('Username already exists.', 'error')
-                logger.warning(f"Duplicate username attempt: {form.username.data} by admin {current_user.id} for user {user.id}")
-                db.session.add(Log(
-                    level='WARNING',
-                    message=f"Duplicate username attempt: {form.username.data} by admin {current_user.id} for user {user.id}",
-                    user_id=current_user.id,
-                    source='admin'
-                ))
+                flash("Username already exists.", "error")
+                logger.warning(
+                    f"Duplicate username attempt: {form.username.data} by admin {current_user.id} for user {user.id}"
+                )
+                db.session.add(
+                    Log(
+                        level="WARNING",
+                        message=f"Duplicate username attempt: {form.username.data} by admin {current_user.id} for user {user.id}",
+                        user_id=current_user.id,
+                        source="admin",
+                    )
+                )
                 db.session.commit()
-                return render_template('admin/edit_user.html', form=form, user=user)
+                return render_template("admin/edit_user.html", form=form, user=user)
 
             user.username = form.username.data
             user.role = form.role.data
             db.session.commit()
-            logger.info(f"Admin {current_user.id} updated user {user.username} (ID: {user.id})")
-            db.session.add(Log(
-                level='INFO',
-                message=f"Admin {current_user.username} (ID: {current_user.id}) updated user {user.username} (ID: {user.id}) to role {user.role}",
-                user_id=current_user.id,
-                source='admin'
-            ))
+            logger.info(
+                f"Admin {current_user.id} updated user {user.username} (ID: {user.id})"
+            )
+            db.session.add(
+                Log(
+                    level="INFO",
+                    message=f"Admin {current_user.username} (ID: {current_user.id}) updated user {user.username} (ID: {user.id}) to role {user.role}",
+                    user_id=current_user.id,
+                    source="admin",
+                )
+            )
             db.session.commit()
-            flash(f'User {user.username} updated successfully.', 'success')
-            return redirect(url_for('admin.manage_users'))
+            flash(f"User {user.username} updated successfully.", "success")
+            return redirect(url_for("admin.manage_users"))
         except Exception as e:
             db.session.rollback()
-            flash('Something went wrong. Please try again.', 'error')
+            flash("Something went wrong. Please try again.", "error")
             logger.error(f"Error in admin.edit_user: {e}", exc_info=True)
-            db.session.add(Log(
-                level='ERROR',
-                message=f"Error updating user {user.id}: {str(e)}",
-                user_id=current_user.id,
-                source='admin'
-            ))
+            db.session.add(
+                Log(
+                    level="ERROR",
+                    message=f"Error updating user {user.id}: {str(e)}",
+                    user_id=current_user.id,
+                    source="admin",
+                )
+            )
             db.session.commit()
-            return render_template('admin/edit_user.html', form=form, user=user)
+            return render_template("admin/edit_user.html", form=form, user=user)
 
-    return render_template('admin/edit_user.html', form=form, user=user)
+    return render_template("admin/edit_user.html", form=form, user=user)
 
-@bp.route('/delete_user/<int:user_id>', methods=['POST'])
+
+@bp.route("/delete_user/<int:user_id>", methods=["POST"])
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def delete_user(user_id):
     """Admin action to delete a user."""
 
     try:
         user = User.query.get_or_404(user_id)
         if user.id == current_user.id:
-            flash('You cannot delete your own account.', 'error')
+            flash("You cannot delete your own account.", "error")
             logger.warning(f"Admin {current_user.id} attempted to delete own account")
-            db.session.add(Log(
-                level='WARNING',
-                message=f"Admin {current_user.username} (ID: {current_user.id}) attempted to delete own account",
-                user_id=current_user.id,
-                source='admin'
-            ))
+            db.session.add(
+                Log(
+                    level="WARNING",
+                    message=f"Admin {current_user.username} (ID: {current_user.id}) attempted to delete own account",
+                    user_id=current_user.id,
+                    source="admin",
+                )
+            )
             db.session.commit()
-            return redirect(url_for('admin.manage_users'))
+            return redirect(url_for("admin.manage_users"))
 
         db.session.delete(user)
         db.session.commit()
-        logger.info(f"Admin {current_user.id} deleted user {user.username} (ID: {user.id})")
-        db.session.add(Log(
-            level='INFO',
-            message=f"Admin {current_user.username} (ID: {current_user.id}) deleted user {user.username} (ID: {user.id})",
-            user_id=current_user.id,
-            source='admin'
-        ))
+        logger.info(
+            f"Admin {current_user.id} deleted user {user.username} (ID: {user.id})"
+        )
+        db.session.add(
+            Log(
+                level="INFO",
+                message=f"Admin {current_user.username} (ID: {current_user.id}) deleted user {user.username} (ID: {user.id})",
+                user_id=current_user.id,
+                source="admin",
+            )
+        )
         db.session.commit()
-        flash(f'User {user.username} deleted successfully.', 'success')
-        return redirect(url_for('admin.manage_users'))
+        flash(f"User {user.username} deleted successfully.", "success")
+        return redirect(url_for("admin.manage_users"))
     except Exception as e:
         db.session.rollback()
-        flash('Something went wrong. Please try again.', 'error')
+        flash("Something went wrong. Please try again.", "error")
         logger.error(f"Error in admin.delete_user: {e}", exc_info=True)
-        db.session.add(Log(
-            level='ERROR',
-            message=f"Error deleting user {user_id}: {str(e)}",
-            user_id=current_user.id,
-            source='admin'
-        ))
+        db.session.add(
+            Log(
+                level="ERROR",
+                message=f"Error deleting user {user_id}: {str(e)}",
+                user_id=current_user.id,
+                source="admin",
+            )
+        )
         db.session.commit()
-        return redirect(url_for('admin.manage_users'))
+        return redirect(url_for("admin.manage_users"))
 
 
-@bp.route('/system_overview', methods=['GET'])
+@bp.route("/system_overview", methods=["GET"])
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def system_overview():
     """Admin page showing system stats."""
 
     try:
         user_count = User.query.count()
         logger.info(f"Admin {current_user.id} accessed system overview")
-        db.session.add(Log(
-            level='INFO',
-            message=f"Admin {current_user.username} (ID: {current_user.id}) accessed system overview",
-            user_id=current_user.id,
-            source='admin'
-        ))
+        db.session.add(
+            Log(
+                level="INFO",
+                message=f"Admin {current_user.username} (ID: {current_user.id}) accessed system overview",
+                user_id=current_user.id,
+                source="admin",
+            )
+        )
         db.session.commit()
-        return render_template('admin/system_overview.html', user_count=user_count)
+        return render_template("admin/system_overview.html", user_count=user_count)
     except Exception as e:
-        flash('Something went wrong. Please try again.', 'error')
+        flash("Something went wrong. Please try again.", "error")
         logger.error(f"Error in admin.system_overview: {e}", exc_info=True)
-        db.session.add(Log(
-            level='ERROR',
-            message=f"Error loading system overview: {str(e)}",
-            user_id=current_user.id,
-            source='admin'
-        ))
+        db.session.add(
+            Log(
+                level="ERROR",
+                message=f"Error loading system overview: {str(e)}",
+                user_id=current_user.id,
+                source="admin",
+            )
+        )
         db.session.commit()
-        return redirect(url_for('home'))
+        return redirect(url_for("home"))
 
-@bp.route('/logs', methods=['GET'])
+
+@bp.route("/logs", methods=["GET"])
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def logs():
     """Admin page showing system logs."""
 
     try:
-        logs = Log.query.order_by(Log.timestamp.desc()).limit(100).all()  # Last 100 logs
+        logs = (
+            Log.query.order_by(Log.timestamp.desc()).limit(100).all()
+        )  # Last 100 logs
         logger.info(f"Admin {current_user.id} viewed system logs")
-        db.session.add(Log(
-            level='INFO',
-            message=f"Admin {current_user.username} (ID: {current_user.id}) viewed system logs",
-            user_id=current_user.id,
-            source='admin'
-        ))
+        db.session.add(
+            Log(
+                level="INFO",
+                message=f"Admin {current_user.username} (ID: {current_user.id}) viewed system logs",
+                user_id=current_user.id,
+                source="admin",
+            )
+        )
         db.session.commit()
-        return render_template('admin/logs.html', logs=logs)
+        return render_template("admin/logs.html", logs=logs)
     except Exception as e:
-        flash('Something went wrong. Please try again.', 'error')
+        flash("Something went wrong. Please try again.", "error")
         logger.error(f"Error in admin.logs: {e}", exc_info=True)
-        db.session.add(Log(
-            level='ERROR',
-            message=f"Error loading logs: {str(e)}",
-            user_id=current_user.id,
-            source='admin'
-        ))
+        db.session.add(
+            Log(
+                level="ERROR",
+                message=f"Error loading logs: {str(e)}",
+                user_id=current_user.id,
+                source="admin",
+            )
+        )
         db.session.commit()
-        return redirect(url_for('admin.index'))
+        return redirect(url_for("admin.index"))
 
-@bp.route('/mfa/setup', methods=['GET', 'POST'])
+
+@bp.route("/mfa/setup", methods=["GET", "POST"])
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def mfa_setup():
     user = current_user
-    secret = session.get('mfa_setup_secret')
+    secret = session.get("mfa_setup_secret")
     if not secret:
         secret = pyotp.random_base32()
-        session['mfa_setup_secret'] = secret
+        session["mfa_setup_secret"] = secret
 
     totp = pyotp.TOTP(secret)
-    provisioning_uri = totp.provisioning_uri(name=user.username, issuer_name="HMIS Hospital")
+    provisioning_uri = totp.provisioning_uri(
+        name=user.username, issuer_name="HMIS Hospital"
+    )
 
     img = qrcode.make(provisioning_uri)
     buf = io.BytesIO()
-    img.save(buf, format='PNG')
-    qr_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+    img.save(buf, format="PNG")
+    qr_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
 
-    if request.method == 'POST':
-        code = request.form.get('code', '').strip()
+    if request.method == "POST":
+        code = request.form.get("code", "").strip()
         if totp.verify(code):
             user.totp_secret = secret
             user.mfa_enabled = True
             db.session.commit()
-            session.pop('mfa_setup_secret', None)
-            flash('MFA has been successfully enabled for your account!', 'success')
-            return redirect(url_for('admin.index'))
+            session.pop("mfa_setup_secret", None)
+            flash("MFA has been successfully enabled for your account!", "success")
+            return redirect(url_for("admin.index"))
         else:
-            flash('Invalid MFA verification code. Please try again.', 'error')
+            flash("Invalid MFA verification code. Please try again.", "error")
 
-    return render_template('admin/mfa_setup.html', secret=secret, qr_b64=qr_b64)
+    return render_template("admin/mfa_setup.html", secret=secret, qr_b64=qr_b64)
 
 
-@bp.route('/admin/audit-trail', methods=['GET'])
-@bp.route('/audit-trail', methods=['GET'])
+@bp.route("/admin/audit-trail", methods=["GET"])
+@bp.route("/audit-trail", methods=["GET"])
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def audit_trail():
     """Admin dashboard view for persistent system audit logs."""
     from departments.models.compliance import AuditLog
 
-    page = request.args.get('page', 1, type=int)
-    action_filter = request.args.get('action', '').strip()
-    username_filter = request.args.get('username', '').strip()
-    resource_type_filter = request.args.get('resource_type', '').strip()
+    page = request.args.get("page", 1, type=int)
+    action_filter = request.args.get("action", "").strip()
+    username_filter = request.args.get("username", "").strip()
+    resource_type_filter = request.args.get("resource_type", "").strip()
 
     query = AuditLog.query
 
@@ -438,93 +524,108 @@ def audit_trail():
     if resource_type_filter:
         query = query.filter(AuditLog.resource_type.ilike(f"%{resource_type_filter}%"))
 
-    pagination = query.order_by(AuditLog.timestamp.desc()).paginate(page=page, per_page=30, error_out=False)
+    pagination = query.order_by(AuditLog.timestamp.desc()).paginate(
+        page=page, per_page=30, error_out=False
+    )
 
-    if request.args.get('format') == 'json':
+    if request.args.get("format") == "json":
         return {
             "total": pagination.total,
             "page": page,
             "pages": pagination.pages,
-            "logs": [log.to_dict() for log in pagination.items]
+            "logs": [log.to_dict() for log in pagination.items],
         }
 
-    return render_template('admin/audit_trail.html', pagination=pagination, logs=pagination.items)
+    return render_template(
+        "admin/audit_trail.html", pagination=pagination, logs=pagination.items
+    )
 
 
-@bp.route('/audit-trail/export', methods=['GET'])
+@bp.route("/audit-trail/export", methods=["GET"])
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def export_audit_trail():
-
     """Export system audit logs as structured JSON for SIEM integration."""
     from flask import jsonify
 
     from departments.models.compliance import AuditLog
 
     logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(1000).all()
-    return jsonify({
-        "system": "HMIS",
-        "exported_at": datetime.now().isoformat(),
-        "count": len(logs),
-        "audit_logs": [log_item.to_dict() for log_item in logs]
-    })
+    return jsonify(
+        {
+            "system": "HMIS",
+            "exported_at": datetime.now().isoformat(),
+            "count": len(logs),
+            "audit_logs": [log_item.to_dict() for log_item in logs],
+        }
+    )
 
 
-@bp.route('/admin/outbound-notifications', methods=['GET'])
-@bp.route('/outbound-notifications', methods=['GET'])
+@bp.route("/admin/outbound-notifications", methods=["GET"])
+@bp.route("/outbound-notifications", methods=["GET"])
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def outbound_notifications():
     """Admin dashboard view for outbound patient notification logs."""
     from flask import jsonify
 
     from departments.models.notification_log import OutboundNotificationLog
 
-    page = request.args.get('page', 1, type=int)
-    event_filter = request.args.get('event_type', '').strip()
-    status_filter = request.args.get('status', '').strip()
-    recipient_filter = request.args.get('recipient', '').strip()
+    page = request.args.get("page", 1, type=int)
+    event_filter = request.args.get("event_type", "").strip()
+    status_filter = request.args.get("status", "").strip()
+    recipient_filter = request.args.get("recipient", "").strip()
 
     query = OutboundNotificationLog.query
 
     if event_filter:
-        query = query.filter(OutboundNotificationLog.event_type.ilike(f"%{event_filter}%"))
+        query = query.filter(
+            OutboundNotificationLog.event_type.ilike(f"%{event_filter}%")
+        )
     if status_filter:
         query = query.filter(OutboundNotificationLog.status == status_filter.upper())
     if recipient_filter:
-        query = query.filter(OutboundNotificationLog.recipient.ilike(f"%{recipient_filter}%"))
+        query = query.filter(
+            OutboundNotificationLog.recipient.ilike(f"%{recipient_filter}%")
+        )
 
-    pagination = query.order_by(OutboundNotificationLog.created_at.desc()).paginate(page=page, per_page=30, error_out=False)
+    pagination = query.order_by(OutboundNotificationLog.created_at.desc()).paginate(
+        page=page, per_page=30, error_out=False
+    )
 
-    if request.args.get('format') == 'json':
-        return jsonify({
-            "total": pagination.total,
-            "page": page,
-            "pages": pagination.pages,
-            "logs": [
-                {
-                    "id": log.id,
-                    "patient_id": log.patient_id,
-                    "recipient": log.recipient,
-                    "channel": log.channel,
-                    "event_type": log.event_type,
-                    "subject": log.subject,
-                    "status": log.status,
-                    "error_message": log.error_message,
-                    "sent_at": log.sent_at.isoformat() if log.sent_at else None,
-                    "created_at": log.created_at.isoformat() if log.created_at else None,
-                }
-                for log in pagination.items
-            ]
-        })
+    if request.args.get("format") == "json":
+        return jsonify(
+            {
+                "total": pagination.total,
+                "page": page,
+                "pages": pagination.pages,
+                "logs": [
+                    {
+                        "id": log.id,
+                        "patient_id": log.patient_id,
+                        "recipient": log.recipient,
+                        "channel": log.channel,
+                        "event_type": log.event_type,
+                        "subject": log.subject,
+                        "status": log.status,
+                        "error_message": log.error_message,
+                        "sent_at": log.sent_at.isoformat() if log.sent_at else None,
+                        "created_at": log.created_at.isoformat()
+                        if log.created_at
+                        else None,
+                    }
+                    for log in pagination.items
+                ],
+            }
+        )
 
-    return render_template('admin/logs.html', logs=pagination.items)
+    return render_template("admin/logs.html", logs=pagination.items)
 
 
-@bp.route('/admin/analytics', methods=['GET'])
-@bp.route('/analytics', methods=['GET'])
+@bp.route("/admin/analytics", methods=["GET"])
+@bp.route("/analytics", methods=["GET"])
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def analytics():
     """Admin dashboard view for hospital-wide executive KPIs and analytics."""
     from flask import jsonify
@@ -533,72 +634,95 @@ def analytics():
 
     kpis = get_executive_kpi_summary()
 
-    if request.args.get('format') == 'json':
+    if request.args.get("format") == "json":
         return jsonify(kpis)
 
-    return render_template('admin/analytics.html', kpis=kpis)
+    return render_template("admin/analytics.html", kpis=kpis)
 
 
-@bp.route('/admin/credentials', methods=['GET', 'POST'])
+@bp.route("/admin/credentials", methods=["GET", "POST"])
 @login_required
-@roles_required('admin', 'hr')
+@roles_required("admin", "hr")
 def staff_credentials():
     """Admin/HR view to manage and list staff credentials sorted by days-until-expiry (soonest first)."""
     from flask import jsonify
 
     from departments.models.hr import StaffCredential
 
-    if request.method == 'POST':
+    if request.method == "POST":
         data = request.get_json() or request.form
-        staff_name = data.get('staff_name')
-        credential_type = data.get('credential_type')
-        credential_number = data.get('credential_number')
-        expiry_date_str = data.get('expiry_date')
+        staff_name = data.get("staff_name")
+        credential_type = data.get("credential_type")
+        credential_number = data.get("credential_number")
+        expiry_date_str = data.get("expiry_date")
 
-        if not staff_name or not credential_type or not credential_number or not expiry_date_str:
-            return jsonify({'error': 'staff_name, credential_type, credential_number, and expiry_date required'}), 400
+        if (
+            not staff_name
+            or not credential_type
+            or not credential_number
+            or not expiry_date_str
+        ):
+            return jsonify(
+                {
+                    "error": "staff_name, credential_type, credential_number, and expiry_date required"
+                }
+            ), 400
 
         from datetime import datetime
+
         try:
-            expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+            expiry_date = datetime.strptime(expiry_date_str, "%Y-%m-%d").date()
         except ValueError:
-            return jsonify({'error': 'expiry_date must be formatted YYYY-MM-DD'}), 400
+            return jsonify({"error": "expiry_date must be formatted YYYY-MM-DD"}), 400
 
         cred = StaffCredential(
             staff_name=staff_name,
             credential_type=credential_type,
             credential_number=credential_number,
             expiry_date=expiry_date,
-            employee_id=data.get('employee_id')
+            employee_id=data.get("employee_id"),
         )
         db.session.add(cred)
         db.session.commit()
-        return jsonify({'success': True, 'credential_id': cred.id, 'days_until_expiry': cred.days_until_expiry}), 201
+        return jsonify(
+            {
+                "success": True,
+                "credential_id": cred.id,
+                "days_until_expiry": cred.days_until_expiry,
+            }
+        ), 201
 
-    credentials = StaffCredential.query.order_by(StaffCredential.expiry_date.asc()).all()
+    credentials = StaffCredential.query.order_by(
+        StaffCredential.expiry_date.asc()
+    ).all()
 
     items = [
         {
-            'id': c.id,
-            'staff_name': c.staff_name,
-            'credential_type': c.credential_type,
-            'credential_number': c.credential_number,
-            'expiry_date': c.expiry_date.isoformat(),
-            'days_until_expiry': c.days_until_expiry,
-            'status': 'EXPIRED' if c.days_until_expiry < 0 else ('WARNING' if c.days_until_expiry <= 30 else 'ACTIVE')
+            "id": c.id,
+            "staff_name": c.staff_name,
+            "credential_type": c.credential_type,
+            "credential_number": c.credential_number,
+            "expiry_date": c.expiry_date.isoformat(),
+            "days_until_expiry": c.days_until_expiry,
+            "status": "EXPIRED"
+            if c.days_until_expiry < 0
+            else ("WARNING" if c.days_until_expiry <= 30 else "ACTIVE"),
         }
         for c in credentials
     ]
 
-    if request.args.get('format') == 'json' or request.headers.get('Accept') == 'application/json':
+    if (
+        request.args.get("format") == "json"
+        or request.headers.get("Accept") == "application/json"
+    ):
         return jsonify(items)
 
-    return render_template('admin/credentials.html', credentials=credentials)
+    return render_template("admin/credentials.html", credentials=credentials)
 
 
-@bp.route('/admin/credentials/alerts', methods=['GET'])
+@bp.route("/admin/credentials/alerts", methods=["GET"])
 @login_required
-@roles_required('admin', 'hr')
+@roles_required("admin", "hr")
 def staff_credential_alerts():
     """API endpoint returning staff credentials expiring within N threshold days (default 30 days)."""
     from datetime import date, timedelta
@@ -607,24 +731,29 @@ def staff_credential_alerts():
 
     from departments.models.hr import StaffCredential
 
-    threshold_days = request.args.get('days', 30, type=int)
+    threshold_days = request.args.get("days", 30, type=int)
     cutoff_date = date.today() + timedelta(days=threshold_days)
 
-    expiring = StaffCredential.query.filter(StaffCredential.expiry_date <= cutoff_date).order_by(StaffCredential.expiry_date.asc()).all()
+    expiring = (
+        StaffCredential.query.filter(StaffCredential.expiry_date <= cutoff_date)
+        .order_by(StaffCredential.expiry_date.asc())
+        .all()
+    )
 
-    return jsonify({
-        'threshold_days': threshold_days,
-        'count': len(expiring),
-        'expiring_credentials': [
-            {
-                'id': c.id,
-                'staff_name': c.staff_name,
-                'credential_type': c.credential_type,
-                'credential_number': c.credential_number,
-                'expiry_date': c.expiry_date.isoformat(),
-                'days_until_expiry': c.days_until_expiry,
-            }
-            for c in expiring
-        ]
-    }), 200
-
+    return jsonify(
+        {
+            "threshold_days": threshold_days,
+            "count": len(expiring),
+            "expiring_credentials": [
+                {
+                    "id": c.id,
+                    "staff_name": c.staff_name,
+                    "credential_type": c.credential_type,
+                    "credential_number": c.credential_number,
+                    "expiry_date": c.expiry_date.isoformat(),
+                    "days_until_expiry": c.days_until_expiry,
+                }
+                for c in expiring
+            ],
+        }
+    ), 200

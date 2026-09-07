@@ -13,7 +13,9 @@ class Appointment(db.Model):
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     patient_id = db.Column(db.Integer, index=True, nullable=False)
-    provider_id = db.Column(db.Integer, index=True, nullable=False)  # Staff/Clinician ID
+    provider_id = db.Column(
+        db.Integer, index=True, nullable=False
+    )  # Staff/Clinician ID
 
     scheduled_start = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
     scheduled_end = db.Column(db.DateTime(timezone=True), nullable=False)
@@ -21,10 +23,14 @@ class Appointment(db.Model):
     # SCHEDULED, CHECKED_IN, IN_PROGRESS, COMPLETED, NO_SHOW, CANCELLED
     status = db.Column(db.String(20), nullable=False, default="SCHEDULED")
 
-    appointment_type = db.Column(db.String(50), nullable=False)  # e.g., CONSULTATION, TELEHEALTH, PROCEDURE
+    appointment_type = db.Column(
+        db.String(50), nullable=False
+    )  # e.g., CONSULTATION, TELEHEALTH, PROCEDURE
     reason_for_visit = db.Column(db.Text, nullable=True)
 
-    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(
+        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
     updated_at = db.Column(
         db.DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

@@ -38,10 +38,10 @@ from departments.nlp.src.nvidia_client import NvidiaNIMClient
 
 # --- Logging Configuration ---
 logging.basicConfig(
-    filename='medical_chatbot.log',
+    filename="medical_chatbot.log",
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filemode='a'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    filemode="a",
 )
 logger = logging.getLogger("MedicalChatbot")
 
@@ -58,12 +58,14 @@ if spacy:
         logger.warning(f"SpaCy model 'en_core_web_sm' not available: {e}")
 
 # --- Allowed File Types ---
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'txt', 'csv', 'docx'}
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "pdf", "txt", "csv", "docx"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB max file size
+
 
 def allowed_file(filename: str) -> bool:
     """Check if the file extension is allowed."""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 # --- Universal Clinical Summarizer Class ---
 class UniversalClinicalSummarizer:
@@ -71,33 +73,58 @@ class UniversalClinicalSummarizer:
 
     SAFETY_FILTERS: Dict[str, Any] = {
         "dangerous_advice": [
-            r"self-diagnose", r"self-treat", r"stop taking", r"ignore.*doctor",
-            r"alternative to.*medical", r"without.*doctor"
+            r"self-diagnose",
+            r"self-treat",
+            r"stop taking",
+            r"ignore.*doctor",
+            r"alternative to.*medical",
+            r"without.*doctor",
         ],
         "emergency_conditions": [
-            "chest pain", "difficulty breathing", "severe headache", "sudden weakness",
-            "uncontrolled bleeding", "suicidal thoughts", "severe allergic reaction"
+            "chest pain",
+            "difficulty breathing",
+            "severe headache",
+            "sudden weakness",
+            "uncontrolled bleeding",
+            "suicidal thoughts",
+            "severe allergic reaction",
         ],
         "clinical_rules": {
             "contraindicated_beta_blockers": r"beta.*blocker.*asthma",
-            "outdated_diabetes_guideline": r"insulin.*start.*hba1c.*<7"
-        }
+            "outdated_diabetes_guideline": r"insulin.*start.*hba1c.*<7",
+        },
     }
 
-    def __init__(self, gemini_api_key: Optional[str] = None, nvidia_api_key: Optional[str] = None, user_type: str = "doctor"):
+    def __init__(
+        self,
+        gemini_api_key: Optional[str] = None,
+        nvidia_api_key: Optional[str] = None,
+        user_type: str = "doctor",
+    ):
         """Initialize the chatbot with optional NVIDIA NIM or Gemini API key and user type."""
         self.gemini_api_key = gemini_api_key or os.environ.get("GEMINI_API_KEY")
         self.nvidia_api_key = nvidia_api_key or os.environ.get("NVIDIA_API_KEY")
         self.user_type = user_type.lower()
         self.nvidia_client = NvidiaNIMClient(api_key=self.nvidia_api_key)
-        logger.info(f"UniversalClinicalSummarizer initialized (NVIDIA NIM active: {self.nvidia_client.is_available()}, Gemini active: {bool(self.gemini_api_key)})")
+        logger.info(
+            f"UniversalClinicalSummarizer initialized (NVIDIA NIM active: {self.nvidia_client.is_available()}, Gemini active: {bool(self.gemini_api_key)})"
+        )
 
-    async def _query_gemini_async(self, contents: List[Dict[str, Any]], max_tokens: int = 3000, max_retries: int = 5) -> Dict[str, Any]:
+    async def _query_gemini_async(
+        self,
+        contents: List[Dict[str, Any]],
+        max_tokens: int = 3000,
+        max_retries: int = 5,
+    ) -> Dict[str, Any]:
         """Query Gemini API asynchronously with Google Search grounding and exponential backoff."""
         url = f"{API_BASE_URL}/{GEMINI_MODEL}:generateContent?key={self.gemini_api_key}"
 
         # Detect specialty from the latest user query
-        specialty = self.detect_specialty(contents[-1]["parts"][0]["text"]) if contents else "general"
+        specialty = (
+            self.detect_specialty(contents[-1]["parts"][0]["text"])
+            if contents
+            else "general"
+        )
 
         system_instruction = f"""
         You are an **evidence-based clinical AI assistant** designed to support clinicians with precise, technical, and comprehensive medical information. Your purpose is to assist doctors by providing detailed clinical insights, including pathophysiology, differential diagnoses, diagnostic workup, evidence-based management, and patient counseling strategies.
@@ -148,7 +175,7 @@ class UniversalClinicalSummarizer:
             "tools": [{"google_search": {}}],
         }
 
-        headers = {'Content-Type': 'application/json'}
+        headers = {"Content-Type": "application/json"}
 
         if not aiohttp:
             logger.warning("aiohttp is not installed. Gemini async query unavailable.")
@@ -157,48 +184,75 @@ class UniversalClinicalSummarizer:
         async with aiohttp.ClientSession() as session:
             for attempt in range(max_retries):
                 try:
-                    async with session.post(url, headers=headers, json=payload, timeout=30) as response:
+                    async with session.post(
+                        url, headers=headers, json=payload, timeout=30
+                    ) as response:
                         response.raise_for_status()
                         result = await response.json()
 
-                        if 'promptFeedback' in result and result['promptFeedback'].get('blockReason'):
-                            logger.warning(f"Response blocked: {result['promptFeedback']['blockReason']}")
+                        if "promptFeedback" in result and result["promptFeedback"].get(
+                            "blockReason"
+                        ):
+                            logger.warning(
+                                f"Response blocked: {result['promptFeedback']['blockReason']}"
+                            )
                             return {"text": "", "sources": []}
 
-                        if not result.get('candidates'):
+                        if not result.get("candidates"):
                             if attempt < max_retries - 1:
-                                logger.warning("API returned no candidates. Retrying...")
-                                await asyncio.sleep(2 ** attempt)
+                                logger.warning(
+                                    "API returned no candidates. Retrying..."
+                                )
+                                await asyncio.sleep(2**attempt)
                                 continue
-                            raise ValueError("API response structure is invalid or candidates are missing after retries.")
+                            raise ValueError(
+                                "API response structure is invalid or candidates are missing after retries."
+                            )
 
-                        candidate = result['candidates'][0]
-                        text = candidate['content']['parts'][0]['text'].strip()
+                        candidate = result["candidates"][0]
+                        text = candidate["content"]["parts"][0]["text"].strip()
                         sources: List[Dict[str, str]] = []
 
-                        grounding_metadata = candidate.get('groundingMetadata')
-                        if grounding_metadata and grounding_metadata.get('groundingAttributions'):
-                            for attribution in grounding_metadata['groundingAttributions']:
-                                if 'web' in attribution:
-                                    sources.append({
-                                        "uri": attribution['web'].get('uri', 'N/A'),
-                                        "title": attribution['web'].get('title', 'N/A')
-                                    })
+                        grounding_metadata = candidate.get("groundingMetadata")
+                        if grounding_metadata and grounding_metadata.get(
+                            "groundingAttributions"
+                        ):
+                            for attribution in grounding_metadata[
+                                "groundingAttributions"
+                            ]:
+                                if "web" in attribution:
+                                    sources.append(
+                                        {
+                                            "uri": attribution["web"].get("uri", "N/A"),
+                                            "title": attribution["web"].get(
+                                                "title", "N/A"
+                                            ),
+                                        }
+                                    )
 
-                        logger.info(f"API response received. Length: {len(text)} characters")
+                        logger.info(
+                            f"API response received. Length: {len(text)} characters"
+                        )
                         return {"text": text, "sources": sources}
 
                 except Exception as e:
-                    logger.warning(f"API Request failed (Attempt {attempt+1}/{max_retries}): {e}")
+                    logger.warning(
+                        f"API Request failed (Attempt {attempt+1}/{max_retries}): {e}"
+                    )
                     if attempt < max_retries - 1:
-                        await asyncio.sleep(2 ** attempt)
+                        await asyncio.sleep(2**attempt)
                     else:
                         logger.error("Max retries reached. Failing the API call.")
                         return {"text": "", "sources": []}
 
         return {"text": "", "sources": []}
 
-    def _query_gemini(self, contents: List[Dict[str, Any]], max_tokens: int = 3000, max_retries: int = 5) -> Dict[str, Any]:
+    def _query_gemini(
+        self,
+        contents: List[Dict[str, Any]],
+        max_tokens: int = 3000,
+        max_retries: int = 5,
+    ) -> Dict[str, Any]:
         """Synchronous wrapper for async Gemini query."""
         return asyncio.run(self._query_gemini_async(contents, max_tokens, max_retries))
 
@@ -229,15 +283,19 @@ class UniversalClinicalSummarizer:
     def parse_clinical_data(self, clinical_data: Dict[str, Any]) -> str:
         """Parse structured clinical data (e.g., labs, vitals) to include in the query context."""
         try:
-            vitals = clinical_data.get('vitals', {})
-            labs = clinical_data.get('labs', {})
-            history = clinical_data.get('history', '')
+            vitals = clinical_data.get("vitals", {})
+            labs = clinical_data.get("labs", {})
+            history = clinical_data.get("history", "")
 
             context = "Patient Context:\n"
             if vitals:
-                context += f"- Vitals: {', '.join([f'{k}: {v}' for k, v in vitals.items()])}\n"
+                context += (
+                    f"- Vitals: {', '.join([f'{k}: {v}' for k, v in vitals.items()])}\n"
+                )
             if labs:
-                context += f"- Labs: {', '.join([f'{k}: {v}' for k, v in labs.items()])}\n"
+                context += (
+                    f"- Labs: {', '.join([f'{k}: {v}' for k, v in labs.items()])}\n"
+                )
             if history:
                 context += f"- Medical History: {history}\n"
 
@@ -250,9 +308,9 @@ class UniversalClinicalSummarizer:
     def extract_text_from_file(self, file_stream: Any, filename: str) -> str:
         """Extract text from a file stream based on its type."""
         try:
-            extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+            extension = filename.rsplit(".", 1)[1].lower() if "." in filename else ""
 
-            if extension in ['png', 'jpg', 'jpeg', 'gif']:
+            if extension in ["png", "jpg", "jpeg", "gif"]:
                 if not pytesseract:
                     return "OCR capability (pytesseract) is not installed."
                 img = Image.open(file_stream)
@@ -260,32 +318,34 @@ class UniversalClinicalSummarizer:
                 logger.info(f"Extracted text from image: {filename}")
                 return text.strip() or "No text could be extracted from the image."
 
-            elif extension == 'pdf':
+            elif extension == "pdf":
                 if not pdfplumber:
                     return "PDF extraction capability (pdfplumber) is not installed."
                 with pdfplumber.open(file_stream) as pdf:
-                    text = "".join(page.extract_text() for page in pdf.pages if page.extract_text())
+                    text = "".join(
+                        page.extract_text() for page in pdf.pages if page.extract_text()
+                    )
                 logger.info(f"Extracted text from PDF: {filename}")
                 return text.strip() or "No text could be extracted from the PDF."
 
-            elif extension == 'txt':
-                text = file_stream.read().decode('utf-8')
+            elif extension == "txt":
+                text = file_stream.read().decode("utf-8")
                 logger.info(f"Extracted text from TXT: {filename}")
                 return text.strip()
 
-            elif extension == 'csv':
-                text = ''
-                reader = csv.reader(file_stream.read().decode('utf-8').splitlines())
+            elif extension == "csv":
+                text = ""
+                reader = csv.reader(file_stream.read().decode("utf-8").splitlines())
                 for row in reader:
-                    text += ' '.join(row) + '\n'
+                    text += " ".join(row) + "\n"
                 logger.info(f"Extracted text from CSV: {filename}")
                 return text.strip()
 
-            elif extension == 'docx':
+            elif extension == "docx":
                 if not Document:
                     return "DOCX extraction capability (docx) is not installed."
                 doc = Document(file_stream)
-                text = '\n'.join([para.text for para in doc.paragraphs])
+                text = "\n".join([para.text for para in doc.paragraphs])
                 logger.info(f"Extracted text from DOCX: {filename}")
                 return text.strip() or "No text could be extracted from the DOCX."
 
@@ -303,7 +363,11 @@ class UniversalClinicalSummarizer:
         if nlp:
             try:
                 doc = nlp(question_lower)
-                emergency_entities = [ent.text for ent in doc.ents if ent.label_ in ["SYMPTOM", "CONDITION"]]
+                emergency_entities = [
+                    ent.text
+                    for ent in doc.ents
+                    if ent.label_ in ["SYMPTOM", "CONDITION"]
+                ]
             except Exception:
                 emergency_entities = [question_lower]
         else:
@@ -323,10 +387,11 @@ class UniversalClinicalSummarizer:
             "sudden weakness": "🚨 **EMERGENCY WARNING** 🚨 This could indicate a stroke. **CALL EMERGENCY SERVICES IMMEDIATELY.**",
             "uncontrolled bleeding": "🚨 **EMERGENCY WARNING** 🚨 Apply direct pressure and **SEEK EMERGENCY CARE IMMEDIATELY.**",
             "suicidal thoughts": "🚨 **EMERGENCY WARNING** 🚨 If you are having suicidal thoughts, contact a crisis helpline or **CALL EMERGENCY SERVICES IMMEDIATELY.**",
-            "severe allergic reaction": "🚨 **EMERGENCY WARNING** 🚨 Use an epinephrine auto-injector if available and **SEEK EMERGENCY CARE IMMEDIATELY.**"
+            "severe allergic reaction": "🚨 **EMERGENCY WARNING** 🚨 Use an epinephrine auto-injector if available and **SEEK EMERGENCY CARE IMMEDIATELY.**",
         }
         return emergency_responses.get(
-            condition, "🚨 **MEDICAL EMERGENCY** 🚨 Seek immediate medical attention or call emergency services."
+            condition,
+            "🚨 **MEDICAL EMERGENCY** 🚨 Seek immediate medical attention or call emergency services.",
         )
 
     def _safe_fallback_response(self, question: str) -> str:
@@ -360,28 +425,45 @@ This chatbot provides general, educational information only.
 
         return response
 
-    def answer(self, question: str, conversation_history: List[Dict[str, str]] = None, clinical_data: Dict[str, Any] = None, file_stream: Any = None, filename: str = None, patient_id: Optional[str] = None) -> str:
+    def answer(
+        self,
+        question: str,
+        conversation_history: List[Dict[str, str]] = None,
+        clinical_data: Dict[str, Any] = None,
+        file_stream: Any = None,
+        filename: str = None,
+        patient_id: Optional[str] = None,
+    ) -> str:
         """Answer a medical question with optional clinical data or file input."""
         try:
             if not question and not file_stream:
                 return self._format_output(
                     "Hello! I'm here to help with medical questions or file analysis. Please provide a question or upload a file.",
                     question="Greeting",
-                    sources=[]
+                    sources=[],
                 )
 
-            pid = patient_id or (clinical_data.get('patient_id') if isinstance(clinical_data, dict) else None)
+            pid = patient_id or (
+                clinical_data.get("patient_id")
+                if isinstance(clinical_data, dict)
+                else None
+            )
             if pid:
                 try:
                     from departments.api.audit import log_audit_event
                     from departments.models.compliance import has_ai_consent
+
                     if not has_ai_consent(pid):
-                        logger.warning(f"AI consent missing for patient {pid} in chatbot.answer")
+                        logger.warning(
+                            f"AI consent missing for patient {pid} in chatbot.answer"
+                        )
                         log_audit_event(
                             action="AI_CONSENT_REFUSED",
                             resource_type="PatientConsent",
                             resource_id=pid,
-                            details={"reason": "Missing or revoked ai_diagnosis consent"},
+                            details={
+                                "reason": "Missing or revoked ai_diagnosis consent"
+                            },
                         )
                         return self._format_output(
                             f"AI Consent Refused: Patient {pid} has not granted explicit AI diagnosis consent (DPA 2019 Section 30).",
@@ -389,23 +471,26 @@ This chatbot provides general, educational information only.
                             is_error=True,
                         )
                 except Exception as consent_err:
-                    logger.error(f"Error checking AI consent in chatbot.answer: {consent_err}")
+                    logger.error(
+                        f"Error checking AI consent in chatbot.answer: {consent_err}"
+                    )
 
             emergency_response = self._check_emergency(question) if question else None
             if emergency_response:
-                return self._format_output(emergency_response, question=question, is_error=True)
+                return self._format_output(
+                    emergency_response, question=question, is_error=True
+                )
 
             # Build the native contents list
             llm_contents = []
             if conversation_history:
                 for entry in conversation_history:
-                    role = entry.get('role', 'user')
-                    content = entry.get('content', '')
-                    if content and role in ['user', 'model']:
-                        llm_contents.append({
-                            "role": role,
-                            "parts": [{"text": content}]
-                        })
+                    role = entry.get("role", "user")
+                    content = entry.get("content", "")
+                    if content and role in ["user", "model"]:
+                        llm_contents.append(
+                            {"role": role, "parts": [{"text": content}]}
+                        )
                     else:
                         logger.warning(f"Skipping invalid history entry: {entry}")
 
@@ -421,7 +506,7 @@ This chatbot provides general, educational information only.
                         return self._format_output(
                             "Invalid file type. Allowed types: images, PDF, TXT, CSV, DOCX.",
                             question=question,
-                            is_error=True
+                            is_error=True,
                         )
 
                     # Check file size
@@ -429,77 +514,118 @@ This chatbot provides general, educational information only.
                     file_size = file_stream.tell()
                     file_stream.seek(0)
                     if file_size > MAX_FILE_SIZE:
-                        logger.warning(f"File too large: {filename}, size: {file_size} bytes")
+                        logger.warning(
+                            f"File too large: {filename}, size: {file_size} bytes"
+                        )
                         return self._format_output(
                             f"File size exceeds limit of {MAX_FILE_SIZE // (1024 * 1024)}MB.",
                             question=question,
-                            is_error=True
+                            is_error=True,
                         )
 
                     file_content = self.extract_text_from_file(file_stream, filename)
-                    if file_content.startswith("Error") or file_content == "Unsupported file type.":
+                    if (
+                        file_content.startswith("Error")
+                        or file_content == "Unsupported file type."
+                    ):
                         return self._format_output(
-                            file_content,
-                            question=question,
-                            is_error=True
+                            file_content, question=question, is_error=True
                         )
                     context += f"File Content [{filename}]:\n{file_content}\n"
 
                 if context:
-                    combined_input = f"{context}\nQuestion: {combined_input}" if question else context
+                    combined_input = (
+                        f"{context}\nQuestion: {combined_input}"
+                        if question
+                        else context
+                    )
 
             if not combined_input.strip():
                 logger.warning("No valid input provided (question or file content).")
                 return self._format_output(
                     "Please provide a clinical question or a valid file.",
                     question=question,
-                    is_error=True
+                    is_error=True,
                 )
 
-            llm_contents.append({
-                "role": "user",
-                "parts": [{"text": combined_input}]
-            })
+            llm_contents.append({"role": "user", "parts": [{"text": combined_input}]})
 
             logger.info(f"Sending {len(llm_contents)} total history entries to model.")
 
             if self.nvidia_client.is_available():
                 logger.info("Querying NVIDIA NIM API for clinical response...")
-                resp_text = self.nvidia_client._call_chat_completion(combined_input, system_message="You are an evidence-based clinical AI assistant designed to support clinicians with technical medical information.", patient_id=pid)
+                resp_text = self.nvidia_client._call_chat_completion(
+                    combined_input,
+                    system_message="You are an evidence-based clinical AI assistant designed to support clinicians with technical medical information.",
+                    patient_id=pid,
+                )
                 if resp_text:
                     api_result = {"text": resp_text, "sources": []}
                 elif self.gemini_api_key:
                     api_result = self._query_gemini(llm_contents, max_tokens=3000)
                 else:
-                    api_result = {"text": self.nvidia_client.summarize_note(combined_input, patient_id=pid), "sources": []}
+                    api_result = {
+                        "text": self.nvidia_client.summarize_note(
+                            combined_input, patient_id=pid
+                        ),
+                        "sources": [],
+                    }
             elif self.gemini_api_key:
                 logger.info("Querying Gemini API for clinical response...")
                 api_result = self._query_gemini(llm_contents, max_tokens=3000)
             else:
                 logger.info("Using offline rule-based fallback summarization...")
-                api_result = {"text": self.nvidia_client.summarize_note(combined_input, patient_id=pid), "sources": []}
+                api_result = {
+                    "text": self.nvidia_client.summarize_note(
+                        combined_input, patient_id=pid
+                    ),
+                    "sources": [],
+                }
 
-            response = api_result['text']
-            sources = api_result['sources']
+            response = api_result["text"]
+            sources = api_result["sources"]
 
             if not response:
                 logger.warning("Gemini API returned empty response after retries.")
-                return self._format_output(self._safe_fallback_response(question or "File analysis"), question=question, sources=[])
+                return self._format_output(
+                    self._safe_fallback_response(question or "File analysis"),
+                    question=question,
+                    sources=[],
+                )
 
-            logger.info(f"Successfully generated response of {len(response)} characters")
+            logger.info(
+                f"Successfully generated response of {len(response)} characters"
+            )
             response = self._verify_response(response)
 
-            if "disclaimer" not in response.lower() and "consult" not in response.lower():
+            if (
+                "disclaimer" not in response.lower()
+                and "consult" not in response.lower()
+            ):
                 response += "\n\n---"
                 response += "\n**MANDATORY DISCLAIMER:** \n This information is for educational purposes only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of a qualified healthcare provider for any health concerns or before starting a new treatment."
 
-            return self._format_output(response, question=question or f"Analysis of {filename}", sources=sources)
+            return self._format_output(
+                response,
+                question=question or f"Analysis of {filename}",
+                sources=sources,
+            )
 
         except Exception as e:
             logger.error(f"Critical error processing question or file: {e}")
-            return self._format_output(self._safe_fallback_response(question or "File analysis"), question=question, sources=[])
+            return self._format_output(
+                self._safe_fallback_response(question or "File analysis"),
+                question=question,
+                sources=[],
+            )
 
-    def _format_output(self, response: str, question: str = None, sources: List[Dict[str, str]] = None, is_error: bool = False) -> str:
+    def _format_output(
+        self,
+        response: str,
+        question: str = None,
+        sources: List[Dict[str, str]] = None,
+        is_error: bool = False,
+    ) -> str:
         """Format the response as beautiful, safety-focused HTML."""
         response_clean = bleach.clean(response)
         source_html = ""
@@ -523,7 +649,9 @@ This chatbot provides general, educational information only.
             </div>
             """
 
-        display_question = bleach.clean(question) if question else "Starting our conversation"
+        display_question = (
+            bleach.clean(question) if question else "Starting our conversation"
+        )
 
         html = f"""
         <div class="container">
@@ -541,4 +669,4 @@ This chatbot provides general, educational information only.
             </div>
         </div>
         """
-        return '\n'.join(line.strip() for line in html.split('\n'))
+        return "\n".join(line.strip() for line in html.split("\n"))

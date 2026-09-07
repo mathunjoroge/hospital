@@ -51,7 +51,7 @@ fallback_disease_keywords = {
     "major depressive disorder": "C0011570",
     "anxiety": "C0003467",
     "generalized anxiety disorder": "C0003467",
-    "jaundice": "C0022346"
+    "jaundice": "C0022346",
 }
 
 # Mapping of symptoms to UMLS CUIs
@@ -92,7 +92,7 @@ fallback_symptom_cuis = {
     "blood in urine": "C0018965",
     "jaundice": "C0022346",
     "yellow eyes": "C0022346",
-    "cyanosis": "C0010520"
+    "cyanosis": "C0010520",
 }
 
 # Management Plans (Updated with Latest Guidelines as of 2024–2025)
@@ -192,207 +192,205 @@ fallback_management_plans = {
     "anxiety": (
         "Cognitive behavioral therapy (CBT), mindfulness techniques, breathing exercises. "
         "SSRIs/SNRIs for persistent symptoms. Short-term benzodiazepines for acute panic attacks (with caution)."
-    )
+    ),
 }
 
 # Common Symptom-Disease Associations
 COMMON_SYMPTOM_DISEASE_MAP = {
     "fever": [
-        "Malaria", "Influenza", "Pneumonia", "COVID-19",
-        "Urinary Tract Infection", "Sepsis", "Tuberculosis", "Typhoid Fever"
+        "Malaria",
+        "Influenza",
+        "Pneumonia",
+        "COVID-19",
+        "Urinary Tract Infection",
+        "Sepsis",
+        "Tuberculosis",
+        "Typhoid Fever",
     ],
     "chills": [
-        "Malaria", "Influenza", "Pneumonia", "Sepsis",
-        "Bacterial Infection", "Viral Infection", "Pyelonephritis"
+        "Malaria",
+        "Influenza",
+        "Pneumonia",
+        "Sepsis",
+        "Bacterial Infection",
+        "Viral Infection",
+        "Pyelonephritis",
     ],
     "anorexia": [
-        "Depression", "Cancer", "HIV/AIDS", "Chronic Kidney Disease",
-        "Hepatitis", "Inflammatory Bowel Disease", "Anorexia Nervosa"
+        "Depression",
+        "Cancer",
+        "HIV/AIDS",
+        "Chronic Kidney Disease",
+        "Hepatitis",
+        "Inflammatory Bowel Disease",
+        "Anorexia Nervosa",
     ],
     "nausea": [
-        "Gastroenteritis", "Migraine", "Food Poisoning",
-        "Pregnancy", "Pancreatitis", "Peptic Ulcer", "Hyperemesis Gravidarum"
+        "Gastroenteritis",
+        "Migraine",
+        "Food Poisoning",
+        "Pregnancy",
+        "Pancreatitis",
+        "Peptic Ulcer",
+        "Hyperemesis Gravidarum",
     ],
     "headache": [
-        "Migraine", "Tension Headache", "Sinusitis",
-        "Hypertension", "Meningitis", "Subarachnoid Hemorrhage"
-    ]
+        "Migraine",
+        "Tension Headache",
+        "Sinusitis",
+        "Hypertension",
+        "Meningitis",
+        "Subarachnoid Hemorrhage",
+    ],
 }
-SYMPTOM_NORMALIZATIONS =  {
-        # Fever-related
-        "fever": "fever",
-        "fevers": "fever",
-        "febrile": "fever",
-        "pyrexia": "fever",
-        "high temperature": "fever",
-        "temperature": "fever",
-
-        # Chills
-        "chill": "chills",
-        "chills": "chills",
-        "rigor": "chills",
-        "rigors": "chills",
-        "shivering": "chills",
-
-        # Cough
-        "cough": "cough",
-        "coughing": "cough",
-        "dry cough": "cough",
-        "productive cough": "cough",
-        "wet cough": "cough",
-
-        # Shortness of breath
-        "shortness of breath": "shortness of breath",
-        "dyspnea": "shortness of breath",
-        "difficulty breathing": "shortness of breath",
-        "breathless": "shortness of breath",
-        "breathlessness": "shortness of breath",
-
-        # Chest pain
-        "chest pain": "chest pain",
-        "chest discomfort": "chest pain",
-        "chest ache": "chest pain",
-        "cardiac pain": "chest pain",
-
-        # Nausea
-        "nausea": "nausea",
-        "nauseated": "nausea",
-        "sick to stomach": "nausea",
-        "queasy": "nausea",
-        "upset stomach": "nausea",
-
-        # Headache
-        "headache": "headache",
-        "head pain": "headache",
-        "cephalgia": "headache",
-        "migraine": "headache",  # Could also be separate if needed
-        "tension headache": "headache",
-
-        # Weakness
-        "weakness": "weakness",
-        "weak": "weakness",
-        "fatigue": "weakness",
-        "lack of strength": "weakness",
-        "tiredness": "weakness",
-
-        # Visual disturbances
-        "visual disturbance": "visual disturbances",
-        "vision changes": "visual disturbances",
-        "blurred vision": "visual disturbances",
-        "double vision": "visual disturbances",
-        "loss of vision": "visual disturbances",
-
-        # Slurred speech
-        "slurred speech": "slurred speech",
-        "speech difficulty": "slurred speech",
-        "dysarthria": "slurred speech",
-        "trouble speaking": "slurred speech",
-
-        # Abdominal pain
-        "abdominal pain": "abdominal pain",
-        "stomach pain": "abdominal pain",
-        "belly pain": "abdominal pain",
-        "abdominal ache": "abdominal pain",
-        "tummy ache": "abdominal pain",
-
-        # Diarrhea
-        "diarrhea": "diarrhea",
-        "loose stools": "diarrhea",
-        "frequent loose stools": "diarrhea",
-        "watery stool": "diarrhea",
-
-        # Vomiting
-        "vomiting": "vomiting",
-        "vomit": "vomiting",
-        "throw up": "vomiting",
-        "emesis": "vomiting",
-
-        # Loss of appetite
-        "loss of appetite": "loss of appetite",
-        "decreased appetite": "loss of appetite",
-        "poor appetite": "loss of appetite",
-        "appetite loss": "loss of appetite",
-        "anorexia": "loss of appetite",
-        "not eating well": "loss of appetite",
-
-        # Urinary frequency
-        "urinary frequency": "urinary frequency",
-        "frequent urination": "urinary frequency",
-        "peeing more": "urinary frequency",
-        "polyuria": "urinary frequency",
-
-        # Dysuria
-        "dysuria": "dysuria",
-        "painful urination": "dysuria",
-        "burning when peeing": "dysuria",
-        "urinary pain": "dysuria",
-
-        # Joint pain
-        "joint pain": "joint pain",
-        "arthralgia": "joint pain",
-        "joint ache": "joint pain",
-        "joint soreness": "joint pain",
-
-        # Fatigue
-        "tired": "fatigue",
-        "exhaustion": "fatigue",
-        "lethargy": "fatigue",
-
-        # Sore throat
-        "sore throat": "sore throat",
-        "throat pain": "sore throat",
-        "pharyngitis": "sore throat",
-        "sore neck": "sore throat",
-
-        # Polyuria
-        "excessive urination": "polyuria",
-        "too much urine": "polyuria",
-
-        # Thirst
-        "thirst": "thirst",
-        "excessive thirst": "thirst",
-        "increased thirst": "thirst",
-        "polydipsia": "thirst",
-
-        # Jaundice
-        "jaundice": "jaundice",
-        "yellow eyes": "jaundice",
-        "yellow skin": "jaundice",
-        "icterus": "jaundice",
-
-        # Weight loss
-        "weight loss": "weight loss",
-        "unintentional weight loss": "weight loss",
-        "losing weight": "weight loss",
-        "thin": "weight loss",
-
-        # Palpitations
-        "palpitations": "palpitations",
-        "heart palpitations": "palpitations",
-        "racing heart": "palpitations",
-        "heart racing": "palpitations",
-
-        # Swelling
-        "swelling": "swelling",
-        "edema": "swelling",
-        "fluid retention": "swelling",
-        "puffiness": "swelling",
-
-        # Back pain
-        "back pain": "back pain",
-        "low back pain": "back pain",
-        "lumbar pain": "back pain",
-        "backache": "back pain",
-
-        # Malaise
-        "malaise": "malaise",
-        "general ill feeling": "malaise",
-        "just not feeling right": "malaise",
-        "unwell": "malaise",
-
-        # Rash
-        "rash": "rash",
-        "skin rash": "rash",
-        "eruption": "rash",
-        "skin irritation": "rash"
-    }
+SYMPTOM_NORMALIZATIONS = {
+    # Fever-related
+    "fever": "fever",
+    "fevers": "fever",
+    "febrile": "fever",
+    "pyrexia": "fever",
+    "high temperature": "fever",
+    "temperature": "fever",
+    # Chills
+    "chill": "chills",
+    "chills": "chills",
+    "rigor": "chills",
+    "rigors": "chills",
+    "shivering": "chills",
+    # Cough
+    "cough": "cough",
+    "coughing": "cough",
+    "dry cough": "cough",
+    "productive cough": "cough",
+    "wet cough": "cough",
+    # Shortness of breath
+    "shortness of breath": "shortness of breath",
+    "dyspnea": "shortness of breath",
+    "difficulty breathing": "shortness of breath",
+    "breathless": "shortness of breath",
+    "breathlessness": "shortness of breath",
+    # Chest pain
+    "chest pain": "chest pain",
+    "chest discomfort": "chest pain",
+    "chest ache": "chest pain",
+    "cardiac pain": "chest pain",
+    # Nausea
+    "nausea": "nausea",
+    "nauseated": "nausea",
+    "sick to stomach": "nausea",
+    "queasy": "nausea",
+    "upset stomach": "nausea",
+    # Headache
+    "headache": "headache",
+    "head pain": "headache",
+    "cephalgia": "headache",
+    "migraine": "headache",  # Could also be separate if needed
+    "tension headache": "headache",
+    # Weakness
+    "weakness": "weakness",
+    "weak": "weakness",
+    "fatigue": "weakness",
+    "lack of strength": "weakness",
+    "tiredness": "weakness",
+    # Visual disturbances
+    "visual disturbance": "visual disturbances",
+    "vision changes": "visual disturbances",
+    "blurred vision": "visual disturbances",
+    "double vision": "visual disturbances",
+    "loss of vision": "visual disturbances",
+    # Slurred speech
+    "slurred speech": "slurred speech",
+    "speech difficulty": "slurred speech",
+    "dysarthria": "slurred speech",
+    "trouble speaking": "slurred speech",
+    # Abdominal pain
+    "abdominal pain": "abdominal pain",
+    "stomach pain": "abdominal pain",
+    "belly pain": "abdominal pain",
+    "abdominal ache": "abdominal pain",
+    "tummy ache": "abdominal pain",
+    # Diarrhea
+    "diarrhea": "diarrhea",
+    "loose stools": "diarrhea",
+    "frequent loose stools": "diarrhea",
+    "watery stool": "diarrhea",
+    # Vomiting
+    "vomiting": "vomiting",
+    "vomit": "vomiting",
+    "throw up": "vomiting",
+    "emesis": "vomiting",
+    # Loss of appetite
+    "loss of appetite": "loss of appetite",
+    "decreased appetite": "loss of appetite",
+    "poor appetite": "loss of appetite",
+    "appetite loss": "loss of appetite",
+    "anorexia": "loss of appetite",
+    "not eating well": "loss of appetite",
+    # Urinary frequency
+    "urinary frequency": "urinary frequency",
+    "frequent urination": "urinary frequency",
+    "peeing more": "urinary frequency",
+    "polyuria": "urinary frequency",
+    # Dysuria
+    "dysuria": "dysuria",
+    "painful urination": "dysuria",
+    "burning when peeing": "dysuria",
+    "urinary pain": "dysuria",
+    # Joint pain
+    "joint pain": "joint pain",
+    "arthralgia": "joint pain",
+    "joint ache": "joint pain",
+    "joint soreness": "joint pain",
+    # Fatigue
+    "tired": "fatigue",
+    "exhaustion": "fatigue",
+    "lethargy": "fatigue",
+    # Sore throat
+    "sore throat": "sore throat",
+    "throat pain": "sore throat",
+    "pharyngitis": "sore throat",
+    "sore neck": "sore throat",
+    # Polyuria
+    "excessive urination": "polyuria",
+    "too much urine": "polyuria",
+    # Thirst
+    "thirst": "thirst",
+    "excessive thirst": "thirst",
+    "increased thirst": "thirst",
+    "polydipsia": "thirst",
+    # Jaundice
+    "jaundice": "jaundice",
+    "yellow eyes": "jaundice",
+    "yellow skin": "jaundice",
+    "icterus": "jaundice",
+    # Weight loss
+    "weight loss": "weight loss",
+    "unintentional weight loss": "weight loss",
+    "losing weight": "weight loss",
+    "thin": "weight loss",
+    # Palpitations
+    "palpitations": "palpitations",
+    "heart palpitations": "palpitations",
+    "racing heart": "palpitations",
+    "heart racing": "palpitations",
+    # Swelling
+    "swelling": "swelling",
+    "edema": "swelling",
+    "fluid retention": "swelling",
+    "puffiness": "swelling",
+    # Back pain
+    "back pain": "back pain",
+    "low back pain": "back pain",
+    "lumbar pain": "back pain",
+    "backache": "back pain",
+    # Malaise
+    "malaise": "malaise",
+    "general ill feeling": "malaise",
+    "just not feeling right": "malaise",
+    "unwell": "malaise",
+    # Rash
+    "rash": "rash",
+    "skin rash": "rash",
+    "eruption": "rash",
+    "skin irritation": "rash",
+}

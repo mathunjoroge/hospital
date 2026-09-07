@@ -30,7 +30,10 @@ def validate_password_strength(password: str) -> Tuple[bool, str]:
         return False, "Password cannot be empty."
 
     if len(password) < MIN_PASSWORD_LENGTH:
-        return False, f"Password must be at least {MIN_PASSWORD_LENGTH} characters long."
+        return (
+            False,
+            f"Password must be at least {MIN_PASSWORD_LENGTH} characters long.",
+        )
 
     if not re.search(r"[A-Z]", password):
         return False, "Password must contain at least one uppercase letter (A-Z)."
@@ -42,6 +45,9 @@ def validate_password_strength(password: str) -> Tuple[bool, str]:
         return False, "Password must contain at least one numeric digit (0-9)."
 
     if not re.search(r"[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]", password):
-        return False, "Password must contain at least one special character (!@#$%^&*...)."
+        return (
+            False,
+            "Password must contain at least one special character (!@#$%^&*...).",
+        )
 
     return True, "Password meets complexity requirements."

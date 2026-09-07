@@ -17,7 +17,8 @@ from extensions import db
 
 class StockMovement(db.Model):
     """Append-only ledger row for every stock-changing event."""
-    __tablename__ = 'stock_movements'
+
+    __tablename__ = "stock_movements"
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -28,7 +29,7 @@ class StockMovement(db.Model):
     item_id = db.Column(db.Integer, nullable=False, index=True)
 
     # Optional reference to a specific Batch (for FEFO-relevant movements)
-    batch_id = db.Column(db.Integer, db.ForeignKey('batches.id'), nullable=True)
+    batch_id = db.Column(db.Integer, db.ForeignKey("batches.id"), nullable=True)
 
     # Movement kind
     movement_type = db.Column(
@@ -42,12 +43,16 @@ class StockMovement(db.Model):
     balance_after = db.Column(db.Integer, nullable=False)
 
     # What caused this movement?
-    reference_type = db.Column(db.String(50), nullable=True)  # PURCHASE_ORDER | DRUG_REQUEST | TRANSFER | MANUAL
-    reference_id = db.Column(db.String(50), nullable=True)    # PO number, request id, transfer id
+    reference_type = db.Column(
+        db.String(50), nullable=True
+    )  # PURCHASE_ORDER | DRUG_REQUEST | TRANSFER | MANUAL
+    reference_id = db.Column(
+        db.String(50), nullable=True
+    )  # PO number, request id, transfer id
 
     # Who performed it, and from which facility?
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    facility_id = db.Column(db.Integer, db.ForeignKey('facilities.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    facility_id = db.Column(db.Integer, db.ForeignKey("facilities.id"), nullable=True)
 
     created_at = db.Column(
         db.DateTime(timezone=True),
@@ -59,12 +64,14 @@ class StockMovement(db.Model):
     notes = db.Column(db.Text, nullable=True)
 
     # Relationships
-    batch = db.relationship('Batch', backref=db.backref('movements', lazy='dynamic'))
-    user = db.relationship('User', backref=db.backref('stock_movements', lazy='dynamic'))
+    batch = db.relationship("Batch", backref=db.backref("movements", lazy="dynamic"))
+    user = db.relationship(
+        "User", backref=db.backref("stock_movements", lazy="dynamic")
+    )
 
     __table_args__ = (
-        db.Index('idx_sm_item', 'item_type', 'item_id'),
-        db.Index('idx_sm_ref', 'reference_type', 'reference_id'),
+        db.Index("idx_sm_item", "item_type", "item_id"),
+        db.Index("idx_sm_ref", "reference_type", "reference_id"),
     )
 
     def __repr__(self):
@@ -76,19 +83,19 @@ class StockMovement(db.Model):
 
     def to_dict(self) -> dict:
         return {
-            'id': self.id,
-            'item_type': self.item_type,
-            'item_id': self.item_id,
-            'batch_id': self.batch_id,
-            'movement_type': self.movement_type,
-            'quantity_delta': self.quantity_delta,
-            'balance_after': self.balance_after,
-            'reference_type': self.reference_type,
-            'reference_id': self.reference_id,
-            'user_id': self.user_id,
-            'facility_id': self.facility_id,
-            'notes': self.notes,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            "id": self.id,
+            "item_type": self.item_type,
+            "item_id": self.item_id,
+            "batch_id": self.batch_id,
+            "movement_type": self.movement_type,
+            "quantity_delta": self.quantity_delta,
+            "balance_after": self.balance_after,
+            "reference_type": self.reference_type,
+            "reference_id": self.reference_id,
+            "user_id": self.user_id,
+            "facility_id": self.facility_id,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
 
@@ -142,28 +149,33 @@ def reconcile_stock_balance(item_type: str, item_id: int) -> dict:
         }
     """
     from sqlalchemy import func
-    ledger_balance = db.session.query(
-        func.coalesce(func.sum(StockMovement.quantity_delta), 0)
-    ).filter_by(item_type=item_type, item_id=item_id).scalar()
+
+    ledger_balance = (
+        db.session.query(func.coalesce(func.sum(StockMovement.quantity_delta), 0))
+        .filter_by(item_type=item_type, item_id=item_id)
+        .scalar()
+    )
 
     cached_balance = 0
-    if item_type == 'DRUG':
+    if item_type == "DRUG":
         from departments.models.pharmacy import Drug
+
         drug = db.session.get(Drug, item_id)
         if drug:
             cached_balance = drug.quantity_in_stock
-    elif item_type == 'NON_PHARM':
+    elif item_type == "NON_PHARM":
         from departments.models.stores import NonPharmItem
+
         item = db.session.get(NonPharmItem, item_id)
         if item:
             cached_balance = item.stock_level
 
     variance = int(ledger_balance) - cached_balance
     return {
-        'item_type': item_type,
-        'item_id': item_id,
-        'ledger_balance': int(ledger_balance),
-        'cached_balance': cached_balance,
-        'match': variance == 0,
-        'variance': variance,
+        "item_type": item_type,
+        "item_id": item_id,
+        "ledger_balance": int(ledger_balance),
+        "cached_balance": cached_balance,
+        "match": variance == 0,
+        "variance": variance,
     }

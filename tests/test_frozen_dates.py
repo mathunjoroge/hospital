@@ -9,5 +9,5 @@ def test_frozen_dates():
     assert callable(OncologyNote.note_date.default.arg)
 
     # Check the default on the UnboundField
-    default = OncologyNoteForm.note_date.kwargs.get('default')
+    default = OncologyNoteForm.note_date.kwargs.get("default")
     assert callable(default)

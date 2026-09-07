@@ -79,17 +79,23 @@ def test_po_receive_requires_expiry_date(client, app, pharm_user, drug_and_suppl
     """POST /pharmacy/po/<id>/receive must fail with HTTP 400 if expiry_date is omitted."""
     drug, supplier = drug_and_supplier
 
-    client.post("/login", data={"username": "sc_pharm_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_pharm_user", "password": "Password123!"}
+    )
 
     with app.app_context():
         drug = db.session.merge(drug)
         supplier = db.session.merge(supplier)
 
-        po = PurchaseOrder(po_number="PO-DEFECT-001", supplier_id=supplier.id, status="ORDERED")
+        po = PurchaseOrder(
+            po_number="PO-DEFECT-001", supplier_id=supplier.id, status="ORDERED"
+        )
         db.session.add(po)
         db.session.flush()
 
-        poi = PurchaseOrderItem(po_id=po.id, drug_id=drug.id, quantity_ordered=50, unit_cost=15.0)
+        poi = PurchaseOrderItem(
+            po_id=po.id, drug_id=drug.id, quantity_ordered=50, unit_cost=15.0
+        )
         db.session.add(poi)
         db.session.commit()
 
@@ -112,7 +118,15 @@ def test_po_receive_requires_expiry_date(client, app, pharm_user, drug_and_suppl
     # 3. Bad date format → 400
     res_bad_fmt = client.post(
         f"/pharmacy/po/{po_id}/receive",
-        json={"items": [{"drug_id": drug_id, "quantity_received": 50, "expiry_date": "NOT-A-DATE"}]},
+        json={
+            "items": [
+                {
+                    "drug_id": drug_id,
+                    "quantity_received": 50,
+                    "expiry_date": "NOT-A-DATE",
+                }
+            ]
+        },
     )
     assert res_bad_fmt.status_code == 400
     assert "invalid expiry_date format" in res_bad_fmt.get_json()["error"].lower()
@@ -140,11 +154,15 @@ def test_po_receive_requires_expiry_date(client, app, pharm_user, drug_and_suppl
         assert batch.expiry_date == date(2028, 6, 30)
 
 
-def test_issue_request_requires_expiry_date(client, app, stores_user, drug_and_supplier):
+def test_issue_request_requires_expiry_date(
+    client, app, stores_user, drug_and_supplier
+):
     """POST /stores/issue_request/<id> must fail if expiry_date field is absent."""
     drug, _ = drug_and_supplier
 
-    client.post("/login", data={"username": "sc_stores_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_stores_user", "password": "Password123!"}
+    )
 
     with app.app_context():
         drug = db.session.merge(drug)

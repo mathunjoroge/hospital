@@ -38,7 +38,7 @@ def sample_patient(app):
         next_of_kin="Peter Wanjiku",
         relationship_with_next_of_kin="Parent",
         next_of_kin_contact="0733445566",
-        emergency_contact="0733445566"
+        emergency_contact="0733445566",
     )
     db.session.add(patient)
     db.session.commit()
@@ -52,7 +52,7 @@ class TestPatientConsent:
             patient_id=sample_patient.patient_id,
             consent_type="ai_diagnosis",
             ip_address="192.168.1.50",
-            notes="Opt-in during registration"
+            notes="Opt-in during registration",
         )
         assert consent.is_granted is True
         assert consent.granted_at is not None
@@ -63,8 +63,7 @@ class TestPatientConsent:
         db.session.commit()
 
         updated = PatientConsent.query.filter_by(
-            patient_id=sample_patient.patient_id,
-            consent_type="ai_diagnosis"
+            patient_id=sample_patient.patient_id, consent_type="ai_diagnosis"
         ).first()
         assert updated.is_granted is False
         assert updated.revoked_at is not None
@@ -74,7 +73,11 @@ class TestSubjectAccessRequest:
     def test_export_patient_sar_data(self, app, sample_patient):
         # Grant consent & create invoice
         grant_patient_consent(sample_patient.patient_id, "data_sharing")
-        inv = Invoice(patient_id=sample_patient.patient_id, total_amount=5000.0, balance_due=5000.0)
+        inv = Invoice(
+            patient_id=sample_patient.patient_id,
+            total_amount=5000.0,
+            balance_due=5000.0,
+        )
         db.session.add(inv)
         db.session.commit()
 

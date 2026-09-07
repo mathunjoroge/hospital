@@ -14,10 +14,7 @@ def find_duplicate_candidates(patient):
     if not patient or not patient.is_active:
         return []
 
-    query = Patient.query.filter(
-        Patient.id != patient.id,
-        Patient.is_active.is_(True)
-    )
+    query = Patient.query.filter(Patient.id != patient.id, Patient.is_active.is_(True))
 
     candidates = []
     normalized_phone = "".join(filter(str.isdigit, patient.contact or ""))
@@ -28,11 +25,13 @@ def find_duplicate_candidates(patient):
 
         # Phone + DOB match
         if normalized_phone and cand_phone and normalized_phone[-9:] == cand_phone[-9:]:
-            candidates.append({
-                'patient': cand,
-                'confidence': 'HIGH',
-                'reason': 'Matching date of birth and phone number'
-            })
+            candidates.append(
+                {
+                    "patient": cand,
+                    "confidence": "HIGH",
+                    "reason": "Matching date of birth and phone number",
+                }
+            )
             continue
 
         # Name + DOB match
@@ -41,13 +40,16 @@ def find_duplicate_candidates(patient):
             c_name = cand.name.lower().split()
             common_names = set(p_name).intersection(set(c_name))
             if len(common_names) >= 1:
-                candidates.append({
-                    'patient': cand,
-                    'confidence': 'MEDIUM',
-                    'reason': f"Matching date of birth and name: {', '.join(common_names)}"
-                })
+                candidates.append(
+                    {
+                        "patient": cand,
+                        "confidence": "MEDIUM",
+                        "reason": f"Matching date of birth and name: {', '.join(common_names)}",
+                    }
+                )
 
     return candidates
+
 
 def merge_patient_records(source_patient_id, target_patient_id, user_id, notes=None):
     """
@@ -63,27 +65,30 @@ def merge_patient_records(source_patient_id, target_patient_id, user_id, notes=N
         raise ValueError(f"Target patient {target_patient_id} not found.")
 
     if not source.is_active:
-        raise ValueError(f"Source patient {source_patient_id} is already inactive or merged.")
-
+        raise ValueError(
+            f"Source patient {source_patient_id} is already inactive or merged."
+        )
 
     merge_log = PatientMerge(
         source_patient_id=source_patient_id,
         target_patient_id=target_patient_id,
         merged_by=user_id,
         merged_at=datetime.utcnow(),
-        notes=notes
+        notes=notes,
     )
     db.session.add(merge_log)
 
     source.is_active = False
     source.deleted_at = datetime.utcnow()
 
-    db.session.add(Log(
-        level='INFO',
-        message=f"Patient {source_patient_id} merged into {target_patient_id} by user ID {user_id}",
-        user_id=user_id,
-        source='records'
-    ))
+    db.session.add(
+        Log(
+            level="INFO",
+            message=f"Patient {source_patient_id} merged into {target_patient_id} by user ID {user_id}",
+            user_id=user_id,
+            source="records",
+        )
+    )
 
     db.session.commit()
     return target

@@ -4,7 +4,7 @@ from extensions import db  # Import db from extensions
 
 
 class User(UserMixin, db.Model):
-    __tablename__ = 'users'
+    __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=False)
@@ -13,4 +13,3 @@ class User(UserMixin, db.Model):
     locked_until = db.Column(db.DateTime, nullable=True)
     totp_secret = db.Column(db.String(64), nullable=True)
     mfa_enabled = db.Column(db.Boolean, default=False, nullable=False)
-

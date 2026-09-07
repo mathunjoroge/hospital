@@ -6,6 +6,6 @@ Phase D — Emergency blueprint
 
 from flask import Blueprint
 
-bp = Blueprint('emergency', __name__)
+bp = Blueprint("emergency", __name__)
 
 from . import routes  # noqa: E402, F401

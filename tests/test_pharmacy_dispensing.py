@@ -19,7 +19,7 @@ def test_pharmacy_dispensing_decrements_stock(app):
             buying_price=10.0,
             selling_price=15.0,
             quantity_in_stock=100,
-            reorder_level=20
+            reorder_level=20,
         )
         db.session.add(drug)
         db.session.commit()
@@ -28,7 +28,7 @@ def test_pharmacy_dispensing_decrements_stock(app):
             drug_id=drug.id,
             batch_number="B12345",
             expiry_date=date(2028, 12, 31),
-            quantity_in_stock=100
+            quantity_in_stock=100,
         )
         db.session.add(batch)
         db.session.commit()
@@ -40,7 +40,7 @@ def test_pharmacy_dispensing_decrements_stock(app):
             patient_id="PTEST100",
             prescription_id="RX100",
             quantity_dispensed=15,
-            date_dispensed=datetime.utcnow()
+            date_dispensed=datetime.utcnow(),
         )
         batch.quantity_in_stock -= 15
         drug.quantity_in_stock -= 15

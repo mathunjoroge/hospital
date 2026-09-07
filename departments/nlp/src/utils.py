@@ -17,16 +17,17 @@ from .database import get_sqlite_connection
 logger = logging.getLogger("HIMS-NLP")
 
 # Define terms to ignore during summary entity extraction to avoid noise.
-SUMMARY_INVALID_TERMS = {'mg', 'ms', 'g', 'ml', 'mm', 'ng', 'dl', 'hr'}
+SUMMARY_INVALID_TERMS = {"mg", "ms", "g", "ml", "mm", "ng", "dl", "hr"}
 
 # --- DATA LOADING ---
+
 
 def load_management_plans() -> Dict[str, Dict[str, Any]]:
     """Load management plans and lab tests for diseases."""
     try:
         with get_sqlite_connection() as conn:
             cursor = conn.cursor()
-            management_plans = defaultdict(lambda: {'plan': '', 'lab_tests': []})
+            management_plans = defaultdict(lambda: {"plan": "", "lab_tests": []})
 
             # 1. Fetch general management plans
             cursor.execute("""
@@ -35,7 +36,7 @@ def load_management_plans() -> Dict[str, Dict[str, Any]]:
                 JOIN diseases d ON dmp.disease_id = d.id
             """)
             for row in cursor.fetchall():
-                management_plans[row['name'].lower()]['plan'] = row['plan']
+                management_plans[row["name"].lower()]["plan"] = row["plan"]
 
             # 2. Fetch and associate lab tests
             cursor.execute("""
@@ -44,15 +45,27 @@ def load_management_plans() -> Dict[str, Dict[str, Any]]:
                 JOIN diseases d ON dl.disease_id = d.id
             """)
             for row in cursor.fetchall():
-                management_plans[row['name'].lower()]['lab_tests'].append({
-                    'test': row['lab_test'],
-                    'description': row['description'] or ''
-                })
+                management_plans[row["name"].lower()]["lab_tests"].append(
+                    {"test": row["lab_test"], "description": row["description"] or ""}
+                )
 
             # 3. Convert defaultdict to dict and integrate cancer-specific plans
             cancer_plans = {
-                'prostate cancer': {'plan': 'Refer to oncologist; order prostate biopsy', 'lab_tests': [{'test': 'PSA follow-up', 'description': 'Monitor PSA levels in 4-6 weeks'}]},
-                'lymphoma': {'plan': 'Order lymph node biopsy; consider PET scan', 'lab_tests': [{'test': 'LDH', 'description': 'Assess lymphoma activity'}]},
+                "prostate cancer": {
+                    "plan": "Refer to oncologist; order prostate biopsy",
+                    "lab_tests": [
+                        {
+                            "test": "PSA follow-up",
+                            "description": "Monitor PSA levels in 4-6 weeks",
+                        }
+                    ],
+                },
+                "lymphoma": {
+                    "plan": "Order lymph node biopsy; consider PET scan",
+                    "lab_tests": [
+                        {"test": "LDH", "description": "Assess lymphoma activity"}
+                    ],
+                },
             }
             final_plans = dict(management_plans)
             final_plans.update(cancer_plans)
@@ -63,19 +76,27 @@ def load_management_plans() -> Dict[str, Dict[str, Any]]:
         logger.error(f"Failed to load management plans: {e}", exc_info=True)
         return fallback_management_plans
 
+
 # --- TEXT & NLP UTILITIES ---
+
 
 def prepare_note_for_nlp(soap_note: Dict) -> str:
     """Prepare a SOAP note for NLP processing."""
     fields = [
-        soap_note.get('situation', ''), soap_note.get('hpi', ''),
-        soap_note.get('symptoms', ''), soap_note.get('aggravating_factors', ''),
-        soap_note.get('alleviating_factors', ''), soap_note.get('medical_history', ''),
-        soap_note.get('medication_history', ''), soap_note.get('assessment', ''),
-        soap_note.get('recommendation', ''), soap_note.get('additional_notes', ''),
-        soap_note.get('ai_notes', '')
+        soap_note.get("situation", ""),
+        soap_note.get("hpi", ""),
+        soap_note.get("symptoms", ""),
+        soap_note.get("aggravating_factors", ""),
+        soap_note.get("alleviating_factors", ""),
+        soap_note.get("medical_history", ""),
+        soap_note.get("medication_history", ""),
+        soap_note.get("assessment", ""),
+        soap_note.get("recommendation", ""),
+        soap_note.get("additional_notes", ""),
+        soap_note.get("ai_notes", ""),
     ]
-    return ' '.join(filter(None, fields)).strip()
+    return " ".join(filter(None, fields)).strip()
+
 
 def humanize_list(items: List[str]) -> str:
     """Format a list of items into a natural language string."""
@@ -87,7 +108,10 @@ def humanize_list(items: List[str]) -> str:
         return f"{items[0]} and {items[1]}"
     return f"{', '.join(items[:-1])}, and {items[-1]}"
 
-def generate_summary(text: str = "", soap_note: Dict[str, str] = None, max_sentences: int = 4, **kwargs) -> str:
+
+def generate_summary(
+    text: str = "", soap_note: Dict[str, str] = None, max_sentences: int = 4, **kwargs
+) -> str:
     """Generate a concise and natural clinical summary using ClinicalSummarizer."""
     if soap_note is None:
         soap_note = {}
@@ -100,19 +124,19 @@ def generate_summary(text: str = "", soap_note: Dict[str, str] = None, max_sente
     # Prepare text from all relevant SOAP note fields if text is not provided
     if not text.strip() and soap_note:
         text_parts = [
-            soap_note.get('situation', ''),
-            soap_note.get('hpi', ''),
-            soap_note.get('symptoms', ''),
-            soap_note.get('aggravating_factors', ''),
-            soap_note.get('alleviating_factors', ''),
-            soap_note.get('medical_history', ''),
-            soap_note.get('medication_history', ''),
-            soap_note.get('assessment', ''),
-            soap_note.get('recommendation', ''),
-            soap_note.get('additional_notes', ''),
-            soap_note.get('ai_notes', '')
+            soap_note.get("situation", ""),
+            soap_note.get("hpi", ""),
+            soap_note.get("symptoms", ""),
+            soap_note.get("aggravating_factors", ""),
+            soap_note.get("alleviating_factors", ""),
+            soap_note.get("medical_history", ""),
+            soap_note.get("medication_history", ""),
+            soap_note.get("assessment", ""),
+            soap_note.get("recommendation", ""),
+            soap_note.get("additional_notes", ""),
+            soap_note.get("ai_notes", ""),
         ]
-        text = ' '.join(filter(None, text_parts)).strip()
+        text = " ".join(filter(None, text_parts)).strip()
 
     if not text.strip():
         return "No summary available."
@@ -134,9 +158,14 @@ def generate_summary(text: str = "", soap_note: Dict[str, str] = None, max_sente
 
     # Return the full, structured output from the ClinicalSummarizer
     return summary
+
+
 # --- HTML REPORT GENERATION ---
 
-def _generate_component_html(title: str, icon_class: str, content: str, is_visible: bool = True) -> str:
+
+def _generate_component_html(
+    title: str, icon_class: str, content: str, is_visible: bool = True
+) -> str:
     """A helper to generate a standard, filterable HTML section card."""
     if not is_visible or not content:
         return ""
@@ -149,6 +178,7 @@ def _generate_component_html(title: str, icon_class: str, content: str, is_visib
     </div>
     """
 
+
 def generate_primary_diagnosis_html(primary_diagnosis: dict) -> str:
     """Generate HTML for primary diagnosis."""
     if not primary_diagnosis:
@@ -158,8 +188,8 @@ def generate_primary_diagnosis_html(primary_diagnosis: dict) -> str:
             <p>No primary diagnosis identified.</p>
         </div>
         """
-    disease = html.escape(primary_diagnosis.get('disease', 'N/A'))
-    score = primary_diagnosis.get('score', 0.0)
+    disease = html.escape(primary_diagnosis.get("disease", "N/A"))
+    score = primary_diagnosis.get("score", 0.0)
     return f"""
     <div class="{BOOTSTRAP_CLASSES['alert_success']}" role="alert">
         <h5 class="alert-heading">Primary Diagnosis</h5>
@@ -167,6 +197,7 @@ def generate_primary_diagnosis_html(primary_diagnosis: dict) -> str:
         <p class="mb-0"><span class="{BOOTSTRAP_CLASSES['badge_primary']}">Confidence Score: {score:.2f}</span></p>
     </div>
     """
+
 
 def generate_differential_diagnoses_html(diagnoses: list) -> str:
     """Generate HTML for differential diagnoses."""
@@ -185,6 +216,7 @@ def generate_differential_diagnoses_html(diagnoses: list) -> str:
     </table>
     """
 
+
 def generate_entities_html(entities: list) -> str:
     """Generate HTML for extracted entities."""
     if not entities:
@@ -194,8 +226,12 @@ def generate_entities_html(entities: list) -> str:
     for text, label, context in entities:
         entity_id = hashlib.sha256(f"{text}{label}".encode()).hexdigest()[:8]
         is_priority = text.lower() in PRIORITY_SYMPTOMS
-        priority_badge = f'<span class="{BOOTSTRAP_CLASSES["badge_priority"]}">Priority</span>' if is_priority else ''
-        card_border_class = 'border-danger' if is_priority else ''
+        priority_badge = (
+            f'<span class="{BOOTSTRAP_CLASSES["badge_priority"]}">Priority</span>'
+            if is_priority
+            else ""
+        )
+        card_border_class = "border-danger" if is_priority else ""
 
         severity_str = html.escape(str(context.get("severity", "N/A")))
         temporal_str = html.escape(str(context.get("temporal", "N/A")))
@@ -222,15 +258,16 @@ def generate_entities_html(entities: list) -> str:
         """)
     return "".join(entity_cards)
 
+
 def generate_management_plans_html(management_plans: dict) -> str:
     """Generate HTML for management plans and lab tests."""
     if not management_plans:
         return ""
     plan_cards = []
     for disease, data in management_plans.items():
-        plan_escaped = html.escape(data.get('plan', 'No plan available.'))
+        plan_escaped = html.escape(data.get("plan", "No plan available."))
         lab_tests_html = ""
-        if lab_tests := data.get('lab_tests'):
+        if lab_tests := data.get("lab_tests"):
             items = "".join(
                 f'<li class="list-group-item"><strong>{html.escape(t["test"])}:</strong> {html.escape(t["description"])}</li>'
                 for t in lab_tests
@@ -238,13 +275,29 @@ def generate_management_plans_html(management_plans: dict) -> str:
             lab_tests_html = f'<h6>Recommended Lab Tests</h6><ul class="list-group list-group-flush">{items}</ul>'
 
         # Include cancer_follow_up and lab_follow_up if present
-        cancer_follow_up = html.escape(data.get('cancer_follow_up', '')) if data.get('cancer_follow_up') else ''
-        cancer_follow_up_html = f'<p><strong>Cancer Follow-Up:</strong> {cancer_follow_up}</p>' if cancer_follow_up else ''
-        lab_follow_up = html.escape(data.get('lab_follow_up', '')) if data.get('lab_follow_up') else ''
-        lab_follow_up_html = f'<p><strong>Lab Follow-Up:</strong> {lab_follow_up}</p>' if lab_follow_up else ''
+        cancer_follow_up = (
+            html.escape(data.get("cancer_follow_up", ""))
+            if data.get("cancer_follow_up")
+            else ""
+        )
+        cancer_follow_up_html = (
+            f"<p><strong>Cancer Follow-Up:</strong> {cancer_follow_up}</p>"
+            if cancer_follow_up
+            else ""
+        )
+        lab_follow_up = (
+            html.escape(data.get("lab_follow_up", ""))
+            if data.get("lab_follow_up")
+            else ""
+        )
+        lab_follow_up_html = (
+            f"<p><strong>Lab Follow-Up:</strong> {lab_follow_up}</p>"
+            if lab_follow_up
+            else ""
+        )
 
         risk_factors_html = ""
-        if risk_factors := data.get('risk_factors'):
+        if risk_factors := data.get("risk_factors"):
             items = "".join(
                 f'<li class="list-group-item">{html.escape(rf["risk_factor"])}</li>'
                 for rf in risk_factors
@@ -267,10 +320,13 @@ def generate_management_plans_html(management_plans: dict) -> str:
         """)
     return "".join(plan_cards)
 
-def generate_metadata_html(note_id: str, patient_id: str, processed_at: str, processing_time: float) -> str:
+
+def generate_metadata_html(
+    note_id: str, patient_id: str, processed_at: str, processing_time: float
+) -> str:
     """Generate HTML for metadata section."""
-    card_class = BOOTSTRAP_CLASSES['card']
-    body_class = BOOTSTRAP_CLASSES['card_body']
+    card_class = BOOTSTRAP_CLASSES["card"]
+    body_class = BOOTSTRAP_CLASSES["card_body"]
     return f"""
     <div class="row g-3 mb-4">
         <div class="col-12 col-md-4"><div class="{card_class}"><div class="{body_class}">
@@ -288,14 +344,17 @@ def generate_metadata_html(note_id: str, patient_id: str, processed_at: str, pro
     </div>
     """
 
-def generate_amr_ipc_html(amr_ipc_probabilities: dict, amr_ipc_recommendations: dict) -> str:
+
+def generate_amr_ipc_html(
+    amr_ipc_probabilities: dict, amr_ipc_recommendations: dict
+) -> str:
     """Generate HTML for AMR/IPC probabilities and recommendations."""
     if not amr_ipc_probabilities and not amr_ipc_recommendations:
         return ""
 
     # Generate probabilities table
     prob_rows = "".join(
-        f'<tr><td>{html.escape(category)}</td><td>{prob:.2f}</td></tr>'
+        f"<tr><td>{html.escape(category)}</td><td>{prob:.2f}</td></tr>"
         for category, prob in amr_ipc_probabilities.items()
     )
     prob_html = f"""
@@ -335,6 +394,7 @@ def generate_amr_ipc_html(amr_ipc_probabilities: dict, amr_ipc_recommendations: 
         </div>
     </div>
     """
+
 
 def _get_javascript_html() -> str:
     """Returns the inline JavaScript for report interactivity."""
@@ -387,6 +447,7 @@ def _get_javascript_html() -> str:
     </script>
     """
 
+
 def generate_html_response(data: Dict, status_code: int = 200) -> str:
     """Generate the core HTML content for the processed note, for embedding in a Jinja template."""
     bc = BOOTSTRAP_CLASSES
@@ -408,30 +469,58 @@ def generate_html_response(data: Dict, status_code: int = 200) -> str:
         processed_at = "N/A"
         if created_at:
             utc_time = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-            processed_at = utc_time.astimezone(TIME_ZONE).strftime("%Y-%m-%d %H:%M:%S %Z")
+            processed_at = utc_time.astimezone(TIME_ZONE).strftime(
+                "%Y-%m-%d %H:%M:%S %Z"
+            )
 
-        metadata_html = generate_metadata_html(note_id, patient_id, processed_at, data.get("processing_time", 0.0))
-        primary_dx_html = generate_primary_diagnosis_html(data.get("primary_diagnosis", {}))
+        metadata_html = generate_metadata_html(
+            note_id, patient_id, processed_at, data.get("processing_time", 0.0)
+        )
+        primary_dx_html = generate_primary_diagnosis_html(
+            data.get("primary_diagnosis", {})
+        )
 
-        diff_dx_html = _generate_component_html("Differential Diagnoses", "bi-list-ul",
-            generate_differential_diagnoses_html(data.get("differential_diagnoses", [])),
-            is_visible=bool(data.get("differential_diagnoses")))
+        diff_dx_html = _generate_component_html(
+            "Differential Diagnoses",
+            "bi-list-ul",
+            generate_differential_diagnoses_html(
+                data.get("differential_diagnoses", [])
+            ),
+            is_visible=bool(data.get("differential_diagnoses")),
+        )
 
-        entities_html = _generate_component_html("Extracted Clinical Entities", "bi-card-list",
+        entities_html = _generate_component_html(
+            "Extracted Clinical Entities",
+            "bi-card-list",
             generate_entities_html(data.get("entities", [])),
-            is_visible=bool(data.get("entities")))
+            is_visible=bool(data.get("entities")),
+        )
 
-        management_html = _generate_component_html("Management Plans", "bi-prescription",
+        management_html = _generate_component_html(
+            "Management Plans",
+            "bi-prescription",
             generate_management_plans_html(data.get("management_plans", {})),
-            is_visible=bool(data.get("management_plans")))
+            is_visible=bool(data.get("management_plans")),
+        )
 
-        summary_html = _generate_component_html("Clinical Summary", "bi-file-text-fill",
+        summary_html = _generate_component_html(
+            "Clinical Summary",
+            "bi-file-text-fill",
             f"{data.get('summary', '')}",
-            is_visible=bool(data.get('summary')))
+            is_visible=bool(data.get("summary")),
+        )
 
-        amr_ipc_html = _generate_component_html("AMR/IPC Analysis", "bi-shield-fill-exclamation",
-            generate_amr_ipc_html(data.get("amr_ipc_probabilities", {}), data.get("amr_ipc_recommendations", {})),
-            is_visible=bool(data.get("amr_ipc_probabilities") or data.get("amr_ipc_recommendations")))
+        amr_ipc_html = _generate_component_html(
+            "AMR/IPC Analysis",
+            "bi-shield-fill-exclamation",
+            generate_amr_ipc_html(
+                data.get("amr_ipc_probabilities", {}),
+                data.get("amr_ipc_recommendations", {}),
+            ),
+            is_visible=bool(
+                data.get("amr_ipc_probabilities") or data.get("amr_ipc_recommendations")
+            ),
+        )
 
         return f"""
         <div class="{bc['container']}">
@@ -461,7 +550,10 @@ def generate_html_response(data: Dict, status_code: int = 200) -> str:
         </div>
         """
     except Exception as e:
-        logger.error(f"Fatal error during HTML generation for Note ID {data.get('note_id', 'N/A')}: {e}", exc_info=True)
+        logger.error(
+            f"Fatal error during HTML generation for Note ID {data.get('note_id', 'N/A')}: {e}",
+            exc_info=True,
+        )
         return f"""
         <div class="{bc['container']}">
             <div class="{bc['alert_danger']}">

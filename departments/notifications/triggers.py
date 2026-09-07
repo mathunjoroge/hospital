@@ -29,11 +29,11 @@ def _get_patient_email(patient_id: str) -> str:
 
     # Check PatientUser first
     patient_user = PatientUser.query.filter_by(patient_id=patient.id).first()
-    if patient_user and patient_user.username and '@' in patient_user.username:
+    if patient_user and patient_user.username and "@" in patient_user.username:
         return patient_user.username
 
     # Check patient.contact field if it looks like an email
-    if patient.contact and '@' in patient.contact:
+    if patient.contact and "@" in patient.contact:
         return patient.contact
 
     # Fallback placeholder for notification log tracking in sandbox/demo mode
@@ -63,7 +63,7 @@ def trigger_appointment_reminder(booking: ClinicBooking):
         subject=subject,
         body=body,
         patient_id=booking.patient_id,
-        channels=['email'],
+        channels=["email"],
     )
 
 
@@ -78,7 +78,7 @@ def trigger_lab_result_ready(lab_request):
 
     test_name = (
         lab_request.lab_test.test_name
-        if getattr(lab_request, 'lab_test', None)
+        if getattr(lab_request, "lab_test", None)
         else f"Lab Request #{lab_request.id}"
     )
 
@@ -96,7 +96,7 @@ def trigger_lab_result_ready(lab_request):
         subject=subject,
         body=body,
         patient_id=lab_request.patient_id,
-        channels=['email'],
+        channels=["email"],
     )
 
 
@@ -124,7 +124,7 @@ def trigger_invoice_due(invoice):
         subject=subject,
         body=body,
         patient_id=invoice.patient_id,
-        channels=['email'],
+        channels=["email"],
     )
 
 
@@ -153,7 +153,7 @@ def trigger_payment_received(payment):
         subject=subject,
         body=body,
         patient_id=patient_id,
-        channels=['email'],
+        channels=["email"],
     )
 
 
@@ -184,7 +184,7 @@ def trigger_claim_status_changed(claim):
         subject=subject,
         body=body,
         patient_id=patient_id,
-        channels=['email'],
+        channels=["email"],
     )
 
 
@@ -234,8 +234,7 @@ def trigger_staff_credential_expiry_check(app=None, window_days: int = 30) -> in
 
     # Query credentials expiring on or before cutoff_date (excluding renewed credentials)
     credentials = StaffCredential.query.filter(
-        StaffCredential.expiry_date <= cutoff_date,
-        StaffCredential.status != 'RENEWED'
+        StaffCredential.expiry_date <= cutoff_date, StaffCredential.status != "RENEWED"
     ).all()
 
     notifications_sent = 0
@@ -243,9 +242,9 @@ def trigger_staff_credential_expiry_check(app=None, window_days: int = 30) -> in
     for cred in credentials:
         days_until = (cred.expiry_date - today).days
 
-        if days_until < 0 or cred.status == 'EXPIRED':
+        if days_until < 0 or cred.status == "EXPIRED":
             event_type = EVENT_CREDENTIAL_EXPIRED
-            cred.status = 'EXPIRED'
+            cred.status = "EXPIRED"
             subject = f"EXPIRED: Staff Credential Alert — {cred.credential_type} ({cred.staff_name})"
             body = (
                 f"CRITICAL NOTICE:\n\n"
@@ -271,7 +270,11 @@ def trigger_staff_credential_expiry_check(app=None, window_days: int = 30) -> in
         )
 
         # Department admin email
-        dept_name = cred.employee.department if (cred.employee and cred.employee.department) else 'hr'
+        dept_name = (
+            cred.employee.department
+            if (cred.employee and cred.employee.department)
+            else "hr"
+        )
         admin_email = f"admin_{dept_name.lower().replace(' ', '_')}@hospital.org"
 
         for recipient in set([staff_email, admin_email]):
@@ -280,7 +283,8 @@ def trigger_staff_credential_expiry_check(app=None, window_days: int = 30) -> in
                 OutboundNotificationLog.recipient == recipient,
                 OutboundNotificationLog.event_type == event_type,
                 OutboundNotificationLog.body.like(f"%{cred.credential_number}%"),
-                OutboundNotificationLog.created_at >= datetime.utcnow() - timedelta(hours=24)
+                OutboundNotificationLog.created_at
+                >= datetime.utcnow() - timedelta(hours=24),
             ).first()
 
             if not recent:
@@ -289,7 +293,7 @@ def trigger_staff_credential_expiry_check(app=None, window_days: int = 30) -> in
                     recipient=recipient,
                     subject=subject,
                     body=body,
-                    channels=['email']
+                    channels=["email"],
                 )
                 notifications_sent += 1
 
@@ -299,7 +303,9 @@ def trigger_staff_credential_expiry_check(app=None, window_days: int = 30) -> in
         db.session.rollback()
         logger.error(f"Error committing credential status updates: {e}")
 
-    logger.info(f"Staff credential expiry check complete: {notifications_sent} notifications sent.")
+    logger.info(
+        f"Staff credential expiry check complete: {notifications_sent} notifications sent."
+    )
     return notifications_sent
 
 
@@ -316,8 +322,7 @@ def trigger_batch_expiry_check(app=None, window_days: int = 30) -> int:
     cutoff_date = today + timedelta(days=window_days)
 
     expiring_batches = Batch.query.filter(
-        Batch.expiry_date <= cutoff_date,
-        Batch.quantity_in_stock > 0
+        Batch.expiry_date <= cutoff_date, Batch.quantity_in_stock > 0
     ).all()
 
     notifications_sent = 0
@@ -347,7 +352,8 @@ def trigger_batch_expiry_check(app=None, window_days: int = 30) -> int:
         recent = OutboundNotificationLog.query.filter(
             OutboundNotificationLog.recipient == recipient,
             OutboundNotificationLog.body.like(f"%{batch.batch_number}%"),
-            OutboundNotificationLog.created_at >= datetime.utcnow() - timedelta(hours=24)
+            OutboundNotificationLog.created_at
+            >= datetime.utcnow() - timedelta(hours=24),
         ).first()
 
         if not recent:
@@ -356,10 +362,11 @@ def trigger_batch_expiry_check(app=None, window_days: int = 30) -> int:
                 recipient=recipient,
                 subject=subject,
                 body=body,
-                channels=['email']
+                channels=["email"],
             )
             notifications_sent += 1
 
-    logger.info(f"Batch expiry check complete: {notifications_sent} notifications dispatched.")
+    logger.info(
+        f"Batch expiry check complete: {notifications_sent} notifications dispatched."
+    )
     return notifications_sent
-

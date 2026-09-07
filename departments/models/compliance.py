@@ -33,18 +33,23 @@ class PatientConsent(db.Model):
     Patient Consent tracking under Kenya Data Protection Act 2019.
     Tracks explicit opt-in/opt-out for processing categories.
     """
-    __tablename__ = 'patient_consents'
+
+    __tablename__ = "patient_consents"
 
     id = Column(Integer, primary_key=True)
-    patient_id = Column(String(50), ForeignKey('patients.patient_id'), nullable=False, index=True)
-    consent_type = Column(String(100), nullable=False)  # e.g., 'ai_diagnosis', 'third_party_sharing', 'sms_notifications'
+    patient_id = Column(
+        String(50), ForeignKey("patients.patient_id"), nullable=False, index=True
+    )
+    consent_type = Column(
+        String(100), nullable=False
+    )  # e.g., 'ai_diagnosis', 'third_party_sharing', 'sms_notifications'
     is_granted = Column(Boolean, default=False, nullable=False)
     granted_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     revoked_at = Column(DateTime, nullable=True)
     ip_address = Column(String(50), nullable=True)
     notes = Column(Text, nullable=True)
 
-    patient = relationship('Patient', backref=db.backref('consents', lazy='dynamic'))
+    patient = relationship("Patient", backref=db.backref("consents", lazy="dynamic"))
 
     def revoke(self):
         """Revoke consent."""
@@ -52,9 +57,13 @@ class PatientConsent(db.Model):
         self.revoked_at = datetime.now(timezone.utc)
 
 
-def grant_patient_consent(patient_id: str, consent_type: str, ip_address: str = None, notes: str = None) -> PatientConsent:
+def grant_patient_consent(
+    patient_id: str, consent_type: str, ip_address: str = None, notes: str = None
+) -> PatientConsent:
     """Grant or update explicit consent for a patient."""
-    consent = PatientConsent.query.filter_by(patient_id=patient_id, consent_type=consent_type).first()
+    consent = PatientConsent.query.filter_by(
+        patient_id=patient_id, consent_type=consent_type
+    ).first()
     if consent:
         consent.is_granted = True
         consent.granted_at = datetime.now(timezone.utc)
@@ -67,7 +76,7 @@ def grant_patient_consent(patient_id: str, consent_type: str, ip_address: str = 
             consent_type=consent_type,
             is_granted=True,
             ip_address=ip_address,
-            notes=notes
+            notes=notes,
         )
         db.session.add(consent)
 
@@ -90,11 +99,15 @@ def has_ai_consent(patient_id: str) -> bool:
     if not patient_id:
         return False
 
-    consent = PatientConsent.query.filter_by(
-        patient_id=patient_id,
-        consent_type='ai_diagnosis',
-        is_granted=True,
-    ).filter(PatientConsent.revoked_at.is_(None)).first()
+    consent = (
+        PatientConsent.query.filter_by(
+            patient_id=patient_id,
+            consent_type="ai_diagnosis",
+            is_granted=True,
+        )
+        .filter(PatientConsent.revoked_at.is_(None))
+        .first()
+    )
 
     return consent is not None
 
@@ -112,12 +125,14 @@ def export_patient_sar_data(patient_id: str) -> dict:
     data = {
         "export_metadata": {
             "requested_at": datetime.now(timezone.utc).isoformat(),
-            "compliance": "Kenya Data Protection Act 2019 - Section 26 (Subject Access Request)"
+            "compliance": "Kenya Data Protection Act 2019 - Section 26 (Subject Access Request)",
         },
         "demographics": {
             "patient_id": patient.patient_id,
             "name": patient.name,
-            "date_of_birth": str(patient.date_of_birth) if patient.date_of_birth else None,
+            "date_of_birth": str(patient.date_of_birth)
+            if patient.date_of_birth
+            else None,
             "sex": patient.sex,
             "contact": patient.contact,
             "national_id": patient.national_id,
@@ -131,38 +146,44 @@ def export_patient_sar_data(patient_id: str) -> dict:
         },
         "consents": [],
         "invoices": [],
-        "insurance_policies": []
+        "insurance_policies": [],
     }
 
     # Consents
     consents = PatientConsent.query.filter_by(patient_id=patient_id).all()
     for c in consents:
-        data["consents"].append({
-            "consent_type": c.consent_type,
-            "is_granted": c.is_granted,
-            "granted_at": c.granted_at.isoformat() if c.granted_at else None,
-            "revoked_at": c.revoked_at.isoformat() if c.revoked_at else None,
-        })
+        data["consents"].append(
+            {
+                "consent_type": c.consent_type,
+                "is_granted": c.is_granted,
+                "granted_at": c.granted_at.isoformat() if c.granted_at else None,
+                "revoked_at": c.revoked_at.isoformat() if c.revoked_at else None,
+            }
+        )
 
     # Invoices
     invoices = Invoice.query.filter_by(patient_id=patient_id).all()
     for inv in invoices:
-        data["invoices"].append({
-            "invoice_number": inv.invoice_number,
-            "total_amount": float(inv.total_amount),
-            "balance_due": float(inv.balance_due),
-            "status": inv.status,
-            "created_at": inv.created_at.isoformat() if inv.created_at else None
-        })
+        data["invoices"].append(
+            {
+                "invoice_number": inv.invoice_number,
+                "total_amount": float(inv.total_amount),
+                "balance_due": float(inv.balance_due),
+                "status": inv.status,
+                "created_at": inv.created_at.isoformat() if inv.created_at else None,
+            }
+        )
 
     # Insurance
     policies = PatientInsurance.query.filter_by(patient_id=patient_id).all()
     for pol in policies:
-        data["insurance_policies"].append({
-            "scheme": pol.scheme.name if pol.scheme else None,
-            "member_number": pol.member_number,
-            "is_active": pol.is_active
-        })
+        data["insurance_policies"].append(
+            {
+                "scheme": pol.scheme.name if pol.scheme else None,
+                "member_number": pol.member_number,
+                "is_active": pol.is_active,
+            }
+        )
 
     return data
 
@@ -189,7 +210,9 @@ def anonymize_patient_data(patient_id: str, operator_id: int = None) -> bool:
     patient.soft_delete()
 
     db.session.commit()
-    logger.info(f"Patient {patient_id} anonymized successfully by operator {operator_id}")
+    logger.info(
+        f"Patient {patient_id} anonymized successfully by operator {operator_id}"
+    )
     return True
 
 
@@ -198,11 +221,14 @@ class AuditLog(db.Model):
     Persistent Audit Trail model tracking clinical and administrative actions.
     Append-only record of system activity for statutory compliance and SIEM export.
     """
-    __tablename__ = 'audit_logs'
+
+    __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)
+    timestamp = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True
+    )
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     username = Column(String(128), nullable=True)
 
     action = Column(String(64), nullable=False, index=True)
@@ -212,7 +238,9 @@ class AuditLog(db.Model):
     user_agent = Column(String(255), nullable=True)
     details = Column(Text, nullable=True)
 
-    user = relationship('User', foreign_keys=[user_id], backref=db.backref('audit_logs', lazy='dynamic'))
+    user = relationship(
+        "User", foreign_keys=[user_id], backref=db.backref("audit_logs", lazy="dynamic")
+    )
 
     def to_dict(self) -> dict:
         """Convert audit entry to dict representation."""
@@ -226,6 +254,7 @@ class AuditLog(db.Model):
             "resource_id": self.resource_id,
             "ip_address": self.ip_address,
             "user_agent": self.user_agent,
-            "details": json.loads(self.details) if self.details and self.details.startswith("{") else self.details
+            "details": json.loads(self.details)
+            if self.details and self.details.startswith("{")
+            else self.details,
         }
-

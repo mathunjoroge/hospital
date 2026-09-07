@@ -23,9 +23,11 @@ from departments.models.records import Patient
 def mar_app(app):
     return app
 
+
 @pytest.fixture
 def mar_client(mar_app):
     return mar_app.test_client()
+
 
 @pytest.fixture
 def mar_data(mar_app):
@@ -40,7 +42,7 @@ def mar_data(mar_app):
         next_of_kin="Kin",
         relationship_with_next_of_kin="Spouse",
         next_of_kin_contact="0700112233",
-        emergency_contact="0700112233"
+        emergency_contact="0700112233",
     )
     db.session.add(patient)
 
@@ -49,7 +51,7 @@ def mar_data(mar_app):
         sex="Male",
         number_of_beds=20,
         occupied_beds=5,
-        daily_charge=1500.0
+        daily_charge=1500.0,
     )
     db.session.add(ward)
     db.session.commit()
@@ -58,16 +60,17 @@ def mar_data(mar_app):
         patient_id=patient.patient_id,
         ward_id=ward.id,
         admission_criteria="Severe Malaria",
-        admitted_by=1
+        admitted_by=1,
     )
     db.session.add(admission)
     db.session.commit()
 
     return {"patient": patient, "ward": ward, "admission": admission}
 
+
 class TestInpatientMAR:
     def test_ward_occupancy(self, mar_client, mar_data):
-        resp = mar_client.get('/nursing/mar/occupancy')
+        resp = mar_client.get("/nursing/mar/occupancy")
         assert resp.status_code == 200
         data = resp.get_json()
         assert "occupancy" in data
@@ -77,12 +80,15 @@ class TestInpatientMAR:
         assert ward["available_beds"] == 15
 
     def test_chart_medication(self, mar_client, mar_data):
-        resp = mar_client.post('/nursing/mar/chart', json={
-            "patient_id": mar_data["patient"].patient_id,
-            "medication": "Paracetamol IV",
-            "dosage": "1000mg",
-            "nurse_id": 2
-        })
+        resp = mar_client.post(
+            "/nursing/mar/chart",
+            json={
+                "patient_id": mar_data["patient"].patient_id,
+                "medication": "Paracetamol IV",
+                "dosage": "1000mg",
+                "nurse_id": 2,
+            },
+        )
 
         assert resp.status_code == 201
         data = resp.get_json()
@@ -95,14 +101,16 @@ class TestInpatientMAR:
         assert record.dosage == "1000mg"
 
     def test_auto_billing(self, mar_client, mar_data):
-        resp = mar_client.post('/nursing/mar/auto_bill')
+        resp = mar_client.post("/nursing/mar/auto_bill")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["success"] is True
         assert data["patients_billed"] >= 1
 
         # Verify invoice created
-        invoice = Invoice.query.filter_by(patient_id=mar_data["patient"].patient_id).first()
+        invoice = Invoice.query.filter_by(
+            patient_id=mar_data["patient"].patient_id
+        ).first()
         assert invoice is not None
         assert invoice.grand_total >= 1500.0
 

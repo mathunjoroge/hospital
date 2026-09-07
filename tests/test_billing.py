@@ -12,7 +12,7 @@ def test_create_and_verify_billing_record(app):
             name="General Consultation",
             category_id=category.id,
             cost=1500.00,
-            description="Standard doctor consultation"
+            description="Standard doctor consultation",
         )
         db.session.add(charge)
         db.session.commit()
@@ -22,7 +22,7 @@ def test_create_and_verify_billing_record(app):
             charge_id=charge.id,
             quantity=2,
             total_cost=3000.00,
-            status=0
+            status=0,
         )
         db.session.add(bill)
         db.session.commit()

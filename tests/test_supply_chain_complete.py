@@ -92,7 +92,9 @@ def setup_complete_sc_data(app):
 def test_manual_po_creation_api(client, sc_user, setup_complete_sc_data):
     """Test manual creation of draft PO with supplier and line items."""
     supplier_id, drug_id, non_pharm_id, vh_id = setup_complete_sc_data
-    client.post("/login", data={"username": "sc_complete_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_complete_user", "password": "Password123!"}
+    )
 
     res = client.post(
         "/pharmacy/po/create",
@@ -124,16 +126,27 @@ def test_manual_po_creation_api(client, sc_user, setup_complete_sc_data):
     assert "PO-MAN-" in data["po_number"]
 
 
-def test_po_shipment_over_receipt_and_discrepancy_flag(client, app, sc_user, setup_complete_sc_data):
+def test_po_shipment_over_receipt_and_discrepancy_flag(
+    client, app, sc_user, setup_complete_sc_data
+):
     """Test receiving shipment with quantity variance flags RECEIVED_WITH_DISCREPANCY status."""
     supplier_id, drug_id, _, _ = setup_complete_sc_data
-    client.post("/login", data={"username": "sc_complete_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_complete_user", "password": "Password123!"}
+    )
 
     res_create = client.post(
         "/pharmacy/po/create",
         json={
             "supplier_id": supplier_id,
-            "items": [{"item_type": "DRUG", "drug_id": drug_id, "quantity_ordered": 100, "unit_cost": 20.0}],
+            "items": [
+                {
+                    "item_type": "DRUG",
+                    "drug_id": drug_id,
+                    "quantity_ordered": 100,
+                    "unit_cost": 20.0,
+                }
+            ],
         },
     )
     po_id = res_create.get_json()["purchase_order"]["id"]
@@ -166,10 +179,14 @@ def test_po_shipment_over_receipt_and_discrepancy_flag(client, app, sc_user, set
     assert body["discrepancies"][0]["variance"] == 20
 
 
-def test_direct_receipt_optional_vote_head_budget_check(client, app, sc_user, setup_complete_sc_data):
+def test_direct_receipt_optional_vote_head_budget_check(
+    client, app, sc_user, setup_complete_sc_data
+):
     """Test direct receipt encumbers VoteHead budget when specified and rejects if cap exceeded."""
     supplier_id, drug_id, _, vh_id = setup_complete_sc_data
-    client.post("/login", data={"username": "sc_complete_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_complete_user", "password": "Password123!"}
+    )
 
     # Direct receipt exceeding available budget (300 units @ 20.0 = KES 6,000 > KES 5,000 budget)
     res_fail = client.post(
@@ -216,10 +233,14 @@ def test_direct_receipt_optional_vote_head_budget_check(client, app, sc_user, se
         assert float(vh.encumbered_amount) == 1000.0
 
 
-def test_commodity_requisition_creation_api(client, app, sc_user, setup_complete_sc_data):
+def test_commodity_requisition_creation_api(
+    client, app, sc_user, setup_complete_sc_data
+):
     """Test multi-department requisition creation for non-pharm commodities."""
     _, _, non_pharm_id, _ = setup_complete_sc_data
-    client.post("/login", data={"username": "sc_complete_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_complete_user", "password": "Password123!"}
+    )
 
     res = client.post(
         "/stores/requisitions/create",
@@ -239,10 +260,14 @@ def test_commodity_requisition_creation_api(client, app, sc_user, setup_complete
         assert "kitchen" in req.notes
 
 
-def test_physical_stock_take_audit_and_ledger_adjustment(client, app, sc_user, setup_complete_sc_data):
+def test_physical_stock_take_audit_and_ledger_adjustment(
+    client, app, sc_user, setup_complete_sc_data
+):
     """Test physical stock count audit updates physical stock level and logs STOCK_TAKE_ADJUSTMENT ledger entries."""
     _, drug_id, non_pharm_id, _ = setup_complete_sc_data
-    client.post("/login", data={"username": "sc_complete_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_complete_user", "password": "Password123!"}
+    )
 
     # Book stock: drug = 100, non_pharm = 50
     # Audit count: drug = 92 (-8 shrinkage), non_pharm = 55 (+5 surplus count)
@@ -286,7 +311,9 @@ def test_physical_stock_take_audit_and_ledger_adjustment(client, app, sc_user, s
         assert mov_drug.quantity_delta == -8
 
         mov_np = StockMovement.query.filter_by(
-            item_type="NON_PHARM", item_id=non_pharm_id, movement_type="STOCK_TAKE_ADJUSTMENT"
+            item_type="NON_PHARM",
+            item_id=non_pharm_id,
+            movement_type="STOCK_TAKE_ADJUSTMENT",
         ).first()
         assert mov_np is not None
         assert mov_np.quantity_delta == 5

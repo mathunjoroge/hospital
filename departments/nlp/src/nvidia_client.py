@@ -22,7 +22,7 @@ CANCER_TYPES = [
     "prostate cancer",
     "liver cancer",
     "leukemia",
-    "lymphoma"
+    "lymphoma",
 ]
 
 AMR_IPC_CATEGORIES = [
@@ -31,8 +31,9 @@ AMR_IPC_CATEGORIES = [
     "amr_none",
     "ipc_adequate",
     "ipc_inadequate",
-    "ipc_none"
+    "ipc_none",
 ]
+
 
 class NvidiaNIMClient:
     """Client for interacting with NVIDIA NIM free hosted APIs for clinical NLP."""
@@ -42,19 +43,27 @@ class NvidiaNIMClient:
         self.model = model
         self.headers = {
             "Authorization": f"Bearer {self.api_key}" if self.api_key else "",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
     def is_available(self) -> bool:
         return bool(self.api_key and self.api_key.strip())
 
-    def _call_chat_completion(self, prompt: str, system_message: str = "You are a clinical NLP assistant.", patient_id: Optional[str] = None) -> Optional[str]:
+    def _call_chat_completion(
+        self,
+        prompt: str,
+        system_message: str = "You are a clinical NLP assistant.",
+        patient_id: Optional[str] = None,
+    ) -> Optional[str]:
         if patient_id:
             try:
                 from departments.api.audit import log_audit_event
                 from departments.models.compliance import has_ai_consent
+
                 if not has_ai_consent(patient_id):
-                    logger.warning(f"AI consent missing or revoked for patient {patient_id}. Refusing external API call.")
+                    logger.warning(
+                        f"AI consent missing or revoked for patient {patient_id}. Refusing external API call."
+                    )
                     log_audit_event(
                         action="AI_CONSENT_REFUSED",
                         resource_type="PatientConsent",
@@ -73,14 +82,16 @@ class NvidiaNIMClient:
             "model": self.model,
             "messages": [
                 {"role": "system", "content": system_message},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             "temperature": 0.1,
-            "max_tokens": 512
+            "max_tokens": 512,
         }
 
         try:
-            response = requests.post(NVIDIA_API_URL, headers=self.headers, json=payload, timeout=10)
+            response = requests.post(
+                NVIDIA_API_URL, headers=self.headers, json=payload, timeout=10
+            )
             response.raise_for_status()
             data = response.json()
             return data["choices"][0]["message"]["content"].strip()
@@ -88,7 +99,9 @@ class NvidiaNIMClient:
             logger.error(f"Error calling NVIDIA NIM API: {e}")
             return None
 
-    def predict_cancer_risk(self, text: str, patient_id: Optional[str] = None) -> Dict[str, float]:
+    def predict_cancer_risk(
+        self, text: str, patient_id: Optional[str] = None
+    ) -> Dict[str, float]:
         """Predict cancer risk probabilities using NVIDIA NIM model with offline fallback."""
         if not text or not text.strip():
             return {c: 1.0 / len(CANCER_TYPES) for c in CANCER_TYPES}
@@ -106,7 +119,9 @@ class NvidiaNIMClient:
             try:
                 # Extract JSON block if surrounded by markdown fence
                 if "```" in response_str:
-                    response_str = response_str.split("```")[1].replace("json", "").strip()
+                    response_str = (
+                        response_str.split("```")[1].replace("json", "").strip()
+                    )
                 res = json.loads(response_str)
                 # Ensure all cancer types present
                 probabilities = {}
@@ -124,7 +139,9 @@ class NvidiaNIMClient:
         # --- Rule-Based Offline Fallback ---
         return self._offline_cancer_risk_fallback(text)
 
-    def predict_amr_ipc(self, text: str, patient_id: Optional[str] = None) -> Dict[str, float]:
+    def predict_amr_ipc(
+        self, text: str, patient_id: Optional[str] = None
+    ) -> Dict[str, float]:
         """Predict AMR/IPC risk categories using NVIDIA NIM model with offline fallback."""
         if not text or not text.strip():
             return {cat: 1.0 / len(AMR_IPC_CATEGORIES) for cat in AMR_IPC_CATEGORIES}
@@ -141,7 +158,9 @@ class NvidiaNIMClient:
         if response_str:
             try:
                 if "```" in response_str:
-                    response_str = response_str.split("```")[1].replace("json", "").strip()
+                    response_str = (
+                        response_str.split("```")[1].replace("json", "").strip()
+                    )
                 res = json.loads(response_str)
                 probabilities = {}
                 for cat in AMR_IPC_CATEGORIES:
@@ -393,7 +412,7 @@ class NvidiaNIMClient:
 
         # Generic clinical response for unmatched queries
         return (
-            f"**Clinical Assessment for: \"{text.strip()}\"**\n\n"
+            f'**Clinical Assessment for: "{text.strip()}"**\n\n'
             "No specific clinical rule matched your query. A systematic approach is recommended:\n\n"
             "**Suggested Approach**:\n"
             "1. **History**: Obtain detailed HPI (onset, duration, severity, aggravating/relieving factors, "
@@ -439,15 +458,26 @@ class NvidiaNIMClient:
         scores = {}
 
         keywords_map = {
-            "breast cancer": ["breast", "mammo", "nipple", "lump in breast", "mastectomy"],
+            "breast cancer": [
+                "breast",
+                "mammo",
+                "nipple",
+                "lump in breast",
+                "mastectomy",
+            ],
             "lung cancer": ["lung", "hemoptysis", "coughing blood", "pulmonary nodule"],
             "colorectal cancer": ["colon", "rectal", "hematochezia", "polyp", "bowel"],
             "ovarian cancer": ["ovary", "ovarian", "pelvic mass", "adnexal"],
-            "pancreatic cancer": ["pancreatic", "pancreas", "painless jaundice", "ca 19-9"],
+            "pancreatic cancer": [
+                "pancreatic",
+                "pancreas",
+                "painless jaundice",
+                "ca 19-9",
+            ],
             "prostate cancer": ["prostate", "psa", "nocturia", "prostatic"],
             "liver cancer": ["liver", "hepatic", "afp", "hepatocellular", "cirrhosis"],
             "leukemia": ["leukemia", "blast cells", "white count", "petechiae"],
-            "lymphoma": ["lymphoma", "lymphadenopathy", "b symptoms", "reed-sternberg"]
+            "lymphoma": ["lymphoma", "lymphadenopathy", "b symptoms", "reed-sternberg"],
         }
 
         matched_any = False
@@ -468,11 +498,18 @@ class NvidiaNIMClient:
     def _offline_amr_ipc_fallback(self, text: str) -> Dict[str, float]:
         text_lower = text.lower()
         res = {
-            "amr_high": 0.0, "amr_low": 0.0, "amr_none": 1.0,
-            "ipc_adequate": 1.0, "ipc_inadequate": 0.0, "ipc_none": 0.0
+            "amr_high": 0.0,
+            "amr_low": 0.0,
+            "amr_none": 1.0,
+            "ipc_adequate": 1.0,
+            "ipc_inadequate": 0.0,
+            "ipc_none": 0.0,
         }
 
-        if any(w in text_lower for w in ["mrsa", "vre", "cre", "resistant", "multidrug-resistant", "esbl"]):
+        if any(
+            w in text_lower
+            for w in ["mrsa", "vre", "cre", "resistant", "multidrug-resistant", "esbl"]
+        ):
             res["amr_high"] = 0.8
             res["amr_none"] = 0.1
             res["amr_low"] = 0.1
@@ -481,16 +518,35 @@ class NvidiaNIMClient:
             res["amr_none"] = 0.3
             res["amr_high"] = 0.1
 
-        if any(w in text_lower for w in ["unwashed", "no PPE", "breach", "contamination", "isolation broken"]):
+        if any(
+            w in text_lower
+            for w in [
+                "unwashed",
+                "no PPE",
+                "breach",
+                "contamination",
+                "isolation broken",
+            ]
+        ):
             res["ipc_inadequate"] = 0.8
             res["ipc_adequate"] = 0.1
             res["ipc_none"] = 0.1
-        elif any(w in text_lower for w in ["isolation", "ppe", "glove", "mask", "hand hygiene", "sanitized"]):
+        elif any(
+            w in text_lower
+            for w in ["isolation", "ppe", "glove", "mask", "hand hygiene", "sanitized"]
+        ):
             res["ipc_adequate"] = 0.9
 
         return res
 
-    def analyze_radiology(self, modality: str, body_part: str, description: str = "", symptoms: str = "", patient_id: Optional[str] = None) -> Dict[str, any]:
+    def analyze_radiology(
+        self,
+        modality: str,
+        body_part: str,
+        description: str = "",
+        symptoms: str = "",
+        patient_id: Optional[str] = None,
+    ) -> Dict[str, any]:
         """Analyze radiology DICOM exam details using NVIDIA NIM Vision/LLM with offline fallback."""
         prompt = (
             f"You are an expert board-certified radiologist. Analyze the following imaging study details:\n"
@@ -512,13 +568,18 @@ class NvidiaNIMClient:
         if response_str:
             try:
                 if "```" in response_str:
-                    response_str = response_str.split("```")[1].replace("json", "").strip()
+                    response_str = (
+                        response_str.split("```")[1].replace("json", "").strip()
+                    )
                 res = json.loads(response_str)
                 return {
                     "predictions": res.get("predictions", ["Normal"]),
                     "confidence": float(res.get("confidence", 85.0)),
-                    "impression": res.get("impression", f"No acute abnormality identified on {modality} of the {body_part}."),
-                    "status": "success"
+                    "impression": res.get(
+                        "impression",
+                        f"No acute abnormality identified on {modality} of the {body_part}.",
+                    ),
+                    "status": "success",
                 }
             except Exception as e:
                 logger.error(f"Error parsing NVIDIA NIM radiology response: {e}")
@@ -528,7 +589,7 @@ class NvidiaNIMClient:
             "predictions": ["Normal"],
             "confidence": 88.0,
             "impression": f"Standard {modality} examination of {body_part} shows unremarkable anatomical features with no acute abnormality.",
-            "status": "success"
+            "status": "success",
         }
 
     # --- Pharmacy & Drug Discovery Models ---
@@ -546,13 +607,15 @@ class NvidiaNIMClient:
 
         fallback_smiles = [
             "CC(=O)OC1=CC=CC=C1C(=O)O",  # Aspirin
-            "CC(=O)NC1=CC=C(O)C=C1",     # Paracetamol
-            "CC(C)CC1=CC=C(C=C1)C(C)C(=O)O", # Ibuprofen
-            "CC(C1=CC2=C(C=C1)C=C(C=C2)OC)C(=O)O" # Naproxen
+            "CC(=O)NC1=CC=C(O)C=C1",  # Paracetamol
+            "CC(C)CC1=CC=C(C=C1)C(C)C(=O)O",  # Ibuprofen
+            "CC(C1=CC2=C(C=C1)C=C(C=C2)OC)C(=O)O",  # Naproxen
         ]
 
         if not self.is_available():
-            logger.warning("NVIDIA_API_KEY is not configured. Using offline candidate SMILES list.")
+            logger.warning(
+                "NVIDIA_API_KEY is not configured. Using offline candidate SMILES list."
+            )
             return fallback_smiles[:3]
 
         prompt = (
@@ -560,26 +623,35 @@ class NvidiaNIMClient:
             f"that match these target properties: {target_properties}.\n"
             f"IMPORTANT: Output ONLY valid, syntactically correct SMILES strings, one per line. Do not include markdown or explanations."
         )
-        response_str = self._call_chat_completion(prompt, system_message="You are a cheminformatics assistant.")
+        response_str = self._call_chat_completion(
+            prompt, system_message="You are a cheminformatics assistant."
+        )
 
         candidates = []
         if response_str:
-            lines = [s.strip().strip('`').strip('"').strip("'") for s in response_str.split('\n') if s.strip()]
+            lines = [
+                s.strip().strip("`").strip('"').strip("'")
+                for s in response_str.split("\n")
+                if s.strip()
+            ]
             for line in lines:
                 # Clean up any bullet points or numbers
-                if '. ' in line and line.split('. ', 1)[0].isdigit():
-                    line = line.split('. ', 1)[1].strip()
+                if ". " in line and line.split(". ", 1)[0].isdigit():
+                    line = line.split(". ", 1)[1].strip()
                 if line:
                     candidates.append(line)
 
         if not candidates:
-            logger.warning("LLM generated 0 candidate strings. Falling back to reference candidates.")
+            logger.warning(
+                "LLM generated 0 candidate strings. Falling back to reference candidates."
+            )
             return fallback_smiles[:3]
 
         return candidates
 
-
-    def predict_docking(self, ligand_smiles: str, protein_sequence: str) -> Dict[str, any]:
+    def predict_docking(
+        self, ligand_smiles: str, protein_sequence: str
+    ) -> Dict[str, any]:
         """Estimate molecular binding interaction between a ligand and a target protein sequence.
 
         Args:
@@ -594,15 +666,19 @@ class NvidiaNIMClient:
         # Validate ligand SMILES first
         mol = Chem.MolFromSmiles(ligand_smiles.strip() if ligand_smiles else "")
         if not mol:
-            return {"error": f"Invalid SMILES string: '{ligand_smiles}' could not be parsed by RDKit."}
+            return {
+                "error": f"Invalid SMILES string: '{ligand_smiles}' could not be parsed by RDKit."
+            }
 
         if not self.is_available():
-            logger.warning("NVIDIA_API_KEY is not configured. Using offline AI docking estimation fallback.")
+            logger.warning(
+                "NVIDIA_API_KEY is not configured. Using offline AI docking estimation fallback."
+            )
             return {
                 "binding_affinity_kcal_mol": -8.5,
                 "confidence_score": 0.88,
                 "status": "AI-estimated binding affinity (Offline fallback)",
-                "disclaimer": "AI-estimated score based on sequence heuristics. Not a physical docking simulation."
+                "disclaimer": "AI-estimated score based on sequence heuristics. Not a physical docking simulation.",
             }
 
         prompt = (
@@ -611,13 +687,19 @@ class NvidiaNIMClient:
             f"Protein Target (Sequence): {protein_sequence[:100]}...\n\n"
             f"Return ONLY a JSON object with 'binding_affinity_kcal_mol' (float between -14.0 and -2.0) and 'confidence_score' (float between 0.50 and 0.98)."
         )
-        response_str = self._call_chat_completion(prompt, system_message="You are a molecular docking AI.")
+        response_str = self._call_chat_completion(
+            prompt, system_message="You are a molecular docking AI."
+        )
         if response_str:
             try:
                 if "```" in response_str:
-                    response_str = response_str.split("```")[1].replace("json", "").strip()
+                    response_str = (
+                        response_str.split("```")[1].replace("json", "").strip()
+                    )
                 data = json.loads(response_str)
-                data["disclaimer"] = "AI-estimated score based on LLM sequence heuristics. Not a physical docking simulation."
+                data["disclaimer"] = (
+                    "AI-estimated score based on LLM sequence heuristics. Not a physical docking simulation."
+                )
                 return data
             except Exception as e:
                 logger.error(f"Error parsing AI docking response: {e}")
@@ -626,6 +708,5 @@ class NvidiaNIMClient:
             "binding_affinity_kcal_mol": -7.9,
             "confidence_score": 0.82,
             "status": "AI-estimated binding affinity",
-            "disclaimer": "AI-estimated score based on LLM sequence heuristics. Not a physical docking simulation."
+            "disclaimer": "AI-estimated score based on LLM sequence heuristics. Not a physical docking simulation.",
         }
-

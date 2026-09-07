@@ -13,22 +13,21 @@ from departments.pharmacy.cheminformatics import (
 
 
 class TestAIDiscoveryCheminformatics(unittest.TestCase):
-
     def setUp(self):
-        app.config['TESTING'] = True
-        app.config['WTF_CSRF_ENABLED'] = False
+        app.config["TESTING"] = True
+        app.config["WTF_CSRF_ENABLED"] = False
         self.client = app.test_client()
         self.app_context = app.app_context()
         self.app_context.push()
         db.create_all()
 
         # Ensure pharmacy user exists
-        user = User.query.filter_by(username='test_pharmacy_user').first()
+        user = User.query.filter_by(username="test_pharmacy_user").first()
         if not user:
             user = User(
-                username='test_pharmacy_user',
-                password=generate_password_hash('password123', method='pbkdf2:sha256'),
-                role='pharmacy'
+                username="test_pharmacy_user",
+                password=generate_password_hash("password123", method="pbkdf2:sha256"),
+                role="pharmacy",
             )
             db.session.add(user)
             db.session.commit()
@@ -92,19 +91,26 @@ class TestAIDiscoveryCheminformatics(unittest.TestCase):
 
     def test_ai_discovery_route_get(self):
         """Test GET /pharmacy/ai_discovery endpoint."""
-        self.client.post('/login', data={'username': 'test_pharmacy_user', 'password': 'password123'})
-        response = self.client.get('/pharmacy/ai_discovery')
+        self.client.post(
+            "/login", data={"username": "test_pharmacy_user", "password": "password123"}
+        )
+        response = self.client.get("/pharmacy/ai_discovery")
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"AI-Assisted Molecule Ideation", response.data)
 
     def test_ai_discovery_route_molmim_post(self):
         """Test POST /pharmacy/ai_discovery for candidate generation."""
-        self.client.post('/login', data={'username': 'test_pharmacy_user', 'password': 'password123'})
-        response = self.client.post('/pharmacy/ai_discovery', data={
-            'action': 'molmim',
-            'target_properties': 'high solubility COX-2 inhibitor'
-        })
+        self.client.post(
+            "/login", data={"username": "test_pharmacy_user", "password": "password123"}
+        )
+        response = self.client.post(
+            "/pharmacy/ai_discovery",
+            data={
+                "action": "molmim",
+                "target_properties": "high solubility COX-2 inhibitor",
+            },
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Generated Candidates for", response.data)
@@ -112,26 +118,30 @@ class TestAIDiscoveryCheminformatics(unittest.TestCase):
 
     def test_ai_discovery_shortlist_session(self):
         """Test adding, removing, and clearing shortlist items in Flask session."""
-        self.client.post('/login', data={'username': 'test_pharmacy_user', 'password': 'password123'})
+        self.client.post(
+            "/login", data={"username": "test_pharmacy_user", "password": "password123"}
+        )
 
         candidate = {
-            'smiles': 'CC(=O)Oc1ccccc1C(=O)O',
-            'mw': 180.16,
-            'logp': 1.31,
-            'tpsa': 63.6,
-            'lipinski_pass': True
+            "smiles": "CC(=O)Oc1ccccc1C(=O)O",
+            "mw": 180.16,
+            "logp": 1.31,
+            "tpsa": 63.6,
+            "lipinski_pass": True,
         }
 
         # Add
-        add_resp = self.client.post('/pharmacy/ai_discovery/shortlist/add', json={'candidate': candidate})
+        add_resp = self.client.post(
+            "/pharmacy/ai_discovery/shortlist/add", json={"candidate": candidate}
+        )
         self.assertEqual(add_resp.status_code, 200)
-        self.assertEqual(add_resp.json['count'], 1)
+        self.assertEqual(add_resp.json["count"], 1)
 
         # Clear
-        clear_resp = self.client.post('/pharmacy/ai_discovery/shortlist/clear')
+        clear_resp = self.client.post("/pharmacy/ai_discovery/shortlist/clear")
         self.assertEqual(clear_resp.status_code, 200)
-        self.assertEqual(clear_resp.json['count'], 0)
+        self.assertEqual(clear_resp.json["count"], 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

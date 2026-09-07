@@ -4,6 +4,7 @@ tests/test_insurance_claims.py
 Unit tests for Task 2.3: InsuranceScheme, PatientInsurance, Claim models
 and the Claim lifecycle state machine.
 """
+
 from datetime import date
 from decimal import Decimal
 
@@ -22,6 +23,7 @@ from extensions import db
 # ─────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────
+
 
 def _make_patient(pid):
     p = Patient(
@@ -84,6 +86,7 @@ def _make_claim(invoice, patient_id, scheme_id, amount=5000):
 # 1. InsuranceScheme
 # ─────────────────────────────────────────────
 
+
 class TestInsuranceScheme:
     def test_create_sha_scheme(self, app):
         with app.app_context():
@@ -104,7 +107,9 @@ class TestInsuranceScheme:
 
     def test_inactive_scheme(self, app):
         with app.app_context():
-            s = InsuranceScheme(code="OLD", name="Old Scheme", scheme_type="private", is_active=False)
+            s = InsuranceScheme(
+                code="OLD", name="Old Scheme", scheme_type="private", is_active=False
+            )
             db.session.add(s)
             db.session.commit()
             saved = InsuranceScheme.query.filter_by(code="OLD").first()
@@ -114,6 +119,7 @@ class TestInsuranceScheme:
 # ─────────────────────────────────────────────
 # 2. PatientInsurance
 # ─────────────────────────────────────────────
+
 
 class TestPatientInsurance:
     def test_enroll_patient_in_scheme(self, app):
@@ -141,10 +147,14 @@ class TestPatientInsurance:
             s1 = _make_scheme("SHA-A")
             s2 = _make_scheme("AAR-X")
             for s, mn in [(s1, "SHA-1001"), (s2, "AAR-2002")]:
-                db.session.add(PatientInsurance(
-                    patient_id="INS002", scheme_id=s.id,
-                    member_number=mn, relationship="self",
-                ))
+                db.session.add(
+                    PatientInsurance(
+                        patient_id="INS002",
+                        scheme_id=s.id,
+                        member_number=mn,
+                        relationship="self",
+                    )
+                )
             db.session.commit()
             memberships = PatientInsurance.query.filter_by(patient_id="INS002").all()
             assert len(memberships) == 2
@@ -153,6 +163,7 @@ class TestPatientInsurance:
 # ─────────────────────────────────────────────
 # 3. Claim creation & number generation
 # ─────────────────────────────────────────────
+
 
 class TestClaimCreation:
     def test_create_draft_claim(self, app):
@@ -178,6 +189,7 @@ class TestClaimCreation:
 # ─────────────────────────────────────────────
 # 4. Claim lifecycle state machine
 # ─────────────────────────────────────────────
+
 
 class TestClaimLifecycle:
     def test_draft_to_submitted(self, app):

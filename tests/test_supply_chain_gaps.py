@@ -86,10 +86,14 @@ def gap_drug_and_item(app):
         yield d.id, np.id
 
 
-def test_rtv_creation_and_dispatch(client, app, gap_user, gap_supplier, gap_drug_and_item):
+def test_rtv_creation_and_dispatch(
+    client, app, gap_user, gap_supplier, gap_drug_and_item
+):
     """Test creating draft RTV and dispatching it to supplier."""
     drug_id, np_id = gap_drug_and_item
-    client.post("/login", data={"username": gap_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": gap_user.username, "password": "Password123!"}
+    )
 
     # Create draft RTV
     create_resp = client.post(
@@ -104,17 +108,17 @@ def test_rtv_creation_and_dispatch(client, app, gap_user, gap_supplier, gap_drug
                     "batch_number": "B-RTV-001",
                     "quantity": 10,
                     "unit_cost": 100.0,
-                    "reason": "Vials broken in transit"
+                    "reason": "Vials broken in transit",
                 },
                 {
                     "item_type": "NON_PHARM",
                     "non_pharm_item_id": np_id,
                     "quantity": 20,
                     "unit_cost": 15.0,
-                    "reason": "Defective packaging"
-                }
-            ]
-        }
+                    "reason": "Defective packaging",
+                },
+            ],
+        },
     )
     assert create_resp.status_code == 201
     rtv_data = create_resp.get_json()["supplier_return"]
@@ -135,11 +139,15 @@ def test_rtv_creation_and_dispatch(client, app, gap_user, gap_supplier, gap_drug
         refreshed_np = db.session.get(NonPharmItem, np_id)
         assert refreshed_np.stock_level == 80  # 100 - 20
 
-        m1 = StockMovement.query.filter_by(item_type="DRUG", item_id=drug_id, movement_type="RETURN_TO_VENDOR").first()
+        m1 = StockMovement.query.filter_by(
+            item_type="DRUG", item_id=drug_id, movement_type="RETURN_TO_VENDOR"
+        ).first()
         assert m1 is not None
         assert m1.quantity_delta == -10
 
-        m2 = StockMovement.query.filter_by(item_type="NON_PHARM", item_id=np_id, movement_type="RETURN_TO_VENDOR").first()
+        m2 = StockMovement.query.filter_by(
+            item_type="NON_PHARM", item_id=np_id, movement_type="RETURN_TO_VENDOR"
+        ).first()
         assert m2 is not None
         assert m2.quantity_delta == -20
 
@@ -147,7 +155,9 @@ def test_rtv_creation_and_dispatch(client, app, gap_user, gap_supplier, gap_drug
 def test_stock_disposal_creation_and_approval(client, app, gap_user, gap_drug_and_item):
     """Test draft stock disposal board creation and execution of write-off."""
     drug_id, np_id = gap_drug_and_item
-    client.post("/login", data={"username": gap_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": gap_user.username, "password": "Password123!"}
+    )
 
     with app.app_context():
         b = Batch(drug_id=drug_id, batch_number="B-EXP-001", quantity_in_stock=10)
@@ -167,10 +177,10 @@ def test_stock_disposal_creation_and_approval(client, app, gap_user, gap_drug_an
                     "batch_id": batch_id,
                     "quantity": 5,
                     "unit_cost": 100.0,
-                    "reason": "Expired"
+                    "reason": "Expired",
                 }
-            ]
-        }
+            ],
+        },
     )
     assert create_resp.status_code == 201
     disp_data = create_resp.get_json()["disposal"]
@@ -191,14 +201,18 @@ def test_stock_disposal_creation_and_approval(client, app, gap_user, gap_drug_an
         refreshed_batch = db.session.get(Batch, batch_id)
         assert refreshed_batch.quantity_in_stock == 5  # 10 - 5
 
-        m = StockMovement.query.filter_by(item_type="DRUG", item_id=drug_id, movement_type="DISCARDED").first()
+        m = StockMovement.query.filter_by(
+            item_type="DRUG", item_id=drug_id, movement_type="DISCARDED"
+        ).first()
         assert m is not None
         assert m.quantity_delta == -5
 
 
 def test_supplier_otif_metrics_api(client, gap_user, gap_supplier):
     """Test GET /pharmacy/suppliers/<id>/metrics returns OTIF metrics."""
-    client.post("/login", data={"username": gap_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": gap_user.username, "password": "Password123!"}
+    )
 
     resp = client.get(f"/pharmacy/suppliers/{gap_supplier.id}/metrics")
     assert resp.status_code == 200
@@ -212,7 +226,9 @@ def test_supplier_otif_metrics_api(client, gap_user, gap_supplier):
 
 def test_smart_reorder_calculation(client, gap_user, gap_drug_and_item):
     """Test GET /pharmacy/smart-reorder returns ADC & dynamic ROP proposals."""
-    client.post("/login", data={"username": gap_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": gap_user.username, "password": "Password123!"}
+    )
 
     resp = client.get("/pharmacy/smart-reorder")
     assert resp.status_code == 200
@@ -220,12 +236,16 @@ def test_smart_reorder_calculation(client, gap_user, gap_drug_and_item):
     assert "total_items_analyzed" in data
     assert "proposals" in data
     assert len(data["proposals"]) >= 2
-    assert any(p["storage_condition"] == "Cold Chain (2-8°C)" for p in data["proposals"])
+    assert any(
+        p["storage_condition"] == "Cold Chain (2-8°C)" for p in data["proposals"]
+    )
 
 
 def test_gaps_ui_routes(client, gap_user):
     """Test UI rendering of RTV log, RTV new, Disposal Board, and Smart Reorder pages."""
-    client.post("/login", data={"username": gap_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": gap_user.username, "password": "Password123!"}
+    )
 
     r1 = client.get("/stores/rtv")
     assert r1.status_code == 200
@@ -237,8 +257,14 @@ def test_gaps_ui_routes(client, gap_user):
 
     r3 = client.get("/stores/disposals")
     assert r3.status_code == 200
-    assert b"Quarantine &amp; Stock Disposal Board" in r3.data or b"Quarantine & Stock Disposal Board" in r3.data
+    assert (
+        b"Quarantine &amp; Stock Disposal Board" in r3.data
+        or b"Quarantine & Stock Disposal Board" in r3.data
+    )
 
     r4 = client.get("/stores/smart-reorder")
     assert r4.status_code == 200
-    assert b"Smart Reorder &amp; Consumption Analytics" in r4.data or b"Smart Reorder & Consumption Analytics" in r4.data
+    assert (
+        b"Smart Reorder &amp; Consumption Analytics" in r4.data
+        or b"Smart Reorder & Consumption Analytics" in r4.data
+    )

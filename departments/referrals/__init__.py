@@ -1,5 +1,5 @@
 from flask import Blueprint
 
-from . import routes  # noqa: F401
-
 bp = Blueprint("referrals", __name__, url_prefix="/referrals")
+
+from . import routes  # noqa: E402, F401

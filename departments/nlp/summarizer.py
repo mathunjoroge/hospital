@@ -20,12 +20,13 @@ logger = logging.getLogger("HMIS-Clinical-Summarizer")
 
 # Configure logging for HMIS integration
 logging.basicConfig(
-    filename='hmis_summarizer_activity.log',
+    filename="hmis_summarizer_activity.log",
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(message)s",
 )
 
 # --- Clinical Summarizer Class for HMIS ---
+
 
 class ClinicalSummarizer:
     """
@@ -43,14 +44,50 @@ class ClinicalSummarizer:
 
     # Generic medical terms to filter out
     GENERIC_TERMS: Set[str] = {
-        'history', 'old', 'year', 'years', 'patient', 'presented', 'levels', 'elevated',
-        'diagnosed', 'admitted', 'examination', 'tests', 'high', 'low', 'year-old',
-        'blood tests', 'physical examination', 'contact', 'male', 'female', 'woman', 'man',
-        'positive', 'clinician', 'emergency room', 'clinical note', 'recent', 'recently',
-        'ago', 'daily', 'bid', 'po', 'iv', 'status', 'condition', 'finding', 'normal'
+        "history",
+        "old",
+        "year",
+        "years",
+        "patient",
+        "presented",
+        "levels",
+        "elevated",
+        "diagnosed",
+        "admitted",
+        "examination",
+        "tests",
+        "high",
+        "low",
+        "year-old",
+        "blood tests",
+        "physical examination",
+        "contact",
+        "male",
+        "female",
+        "woman",
+        "man",
+        "positive",
+        "clinician",
+        "emergency room",
+        "clinical note",
+        "recent",
+        "recently",
+        "ago",
+        "daily",
+        "bid",
+        "po",
+        "iv",
+        "status",
+        "condition",
+        "finding",
+        "normal",
     }
 
-    def __init__(self, model_name: str = "meta/llama-3.1-70b-instruct", device: Optional[str] = None):
+    def __init__(
+        self,
+        model_name: str = "meta/llama-3.1-70b-instruct",
+        device: Optional[str] = None,
+    ):
         """
         Initialize the ClinicalSummarizer with NVIDIA NIM API.
         """
@@ -74,7 +111,9 @@ class ClinicalSummarizer:
                     try:
                         cls._nlp = spacy.load("en_core_sci_sm")
                     except OSError:
-                        logger.warning("en_core_sci_sm not found. Falling back to en_core_web_sm.")
+                        logger.warning(
+                            "en_core_sci_sm not found. Falling back to en_core_web_sm."
+                        )
                         try:
                             cls._nlp = spacy.load("en_core_web_sm")
                         except OSError:
@@ -90,7 +129,13 @@ class ClinicalSummarizer:
                 logger.error(f"Failed to initialize HMIS models: {e}")
                 cls._initialized = True
 
-    def summarize(self, note: Union[str, Dict], patient_id: Optional[str] = None, max_length: int = 250, min_length: int = 50) -> str:
+    def summarize(
+        self,
+        note: Union[str, Dict],
+        patient_id: Optional[str] = None,
+        max_length: int = 250,
+        min_length: int = 50,
+    ) -> str:
         """
         Generate a clinical summary for HMIS integration.
 
@@ -109,35 +154,50 @@ class ClinicalSummarizer:
 
             pid = patient_id
             if not pid and isinstance(note, dict):
-                pid = note.get('patient_id')
+                pid = note.get("patient_id")
 
             if pid:
                 try:
                     from departments.api.audit import log_audit_event
                     from departments.models.compliance import has_ai_consent
+
                     if not has_ai_consent(pid):
-                        logger.warning(f"AI consent missing for patient {pid} in ClinicalSummarizer")
+                        logger.warning(
+                            f"AI consent missing for patient {pid} in ClinicalSummarizer"
+                        )
                         log_audit_event(
                             action="AI_CONSENT_REFUSED",
                             resource_type="PatientConsent",
                             resource_id=pid,
-                            details={"reason": "Missing or revoked ai_diagnosis consent"},
+                            details={
+                                "reason": "Missing or revoked ai_diagnosis consent"
+                            },
                         )
-                        return self._format_hmis_error(f"AI processing refused: Patient {pid} has not granted explicit AI diagnosis consent (DPA 2019 Section 30).")
+                        return self._format_hmis_error(
+                            f"AI processing refused: Patient {pid} has not granted explicit AI diagnosis consent (DPA 2019 Section 30)."
+                        )
                 except Exception as consent_err:
-                    logger.error(f"Error checking AI consent in ClinicalSummarizer: {consent_err}")
+                    logger.error(
+                        f"Error checking AI consent in ClinicalSummarizer: {consent_err}"
+                    )
 
             text = self._preprocess_input(note)
             if not text.strip():
-                return self._format_hmis_error("No valid clinical content found in input")
+                return self._format_hmis_error(
+                    "No valid clinical content found in input"
+                )
 
-            raw_summary = self._generate_summary(text, max_length, min_length, patient_id=pid)
+            raw_summary = self._generate_summary(
+                text, max_length, min_length, patient_id=pid
+            )
             verified_summary = self._verify_summary(text, raw_summary)
 
             if not verified_summary or "Unable to generate" in verified_summary:
                 return self._format_hmis_output(verified_summary, {}, is_error=True)
 
-            clinical_insights = self._generate_comprehensive_insights(verified_summary, text)
+            clinical_insights = self._generate_comprehensive_insights(
+                verified_summary, text
+            )
             return self._format_hmis_output(verified_summary, clinical_insights)
 
         except Exception as e:
@@ -161,18 +221,27 @@ class ClinicalSummarizer:
             raise TypeError(f"Unsupported HMIS input type: {type(note)}")
 
         # Normalize text
-        text = unicodedata.normalize('NFKC', text)
+        text = unicodedata.normalize("NFKC", text)
 
         # Basic abbreviation expansion
-        text = re.sub(r'°C', 'degrees Celsius', text)
-        text = re.sub(r'\bBP\b', 'blood pressure', text)
-        text = re.sub(r'\bHR\b', 'heart rate', text)
-        text = re.sub(r'\bRR\b', 'respiratory rate', text)
-        text = re.sub(r'\bSpO2\b', 'oxygen saturation', text)
+        text = re.sub(r"°C", "degrees Celsius", text)
+        text = re.sub(r"\bBP\b", "blood pressure", text)
+        text = re.sub(r"\bHR\b", "heart rate", text)
+        text = re.sub(r"\bRR\b", "respiratory rate", text)
+        text = re.sub(r"\bSpO2\b", "oxygen saturation", text)
 
-        return "Summarize the following clinical note accurately and concisely for hospital use: " + text
+        return (
+            "Summarize the following clinical note accurately and concisely for hospital use: "
+            + text
+        )
 
-    def _generate_summary(self, text: str, max_length: int, min_length: int, patient_id: Optional[str] = None) -> str:
+    def _generate_summary(
+        self,
+        text: str,
+        max_length: int,
+        min_length: int,
+        patient_id: Optional[str] = None,
+    ) -> str:
         """Generate summary using NVIDIA NIM model with fallback."""
         try:
             summary = self._nvidia_client.summarize_note(text, patient_id=patient_id)
@@ -192,9 +261,14 @@ class ClinicalSummarizer:
             filtered_sentences = self._filter_sentences(sentences, input_entities)
 
             # Enhance summary with inferred conditions
-            if 'metformin' in input_text.lower() and 'diabetes' not in summary.lower():
-                filtered_sentences.append("Patient has a history of diabetes managed with Metformin.")
-            if 'nasal congestion' in input_text.lower() or 'facial pain' in input_text.lower():
+            if "metformin" in input_text.lower() and "diabetes" not in summary.lower():
+                filtered_sentences.append(
+                    "Patient has a history of diabetes managed with Metformin."
+                )
+            if (
+                "nasal congestion" in input_text.lower()
+                or "facial pain" in input_text.lower()
+            ):
                 filtered_sentences.append("Symptoms suggest possible acute sinusitis.")
 
             if not filtered_sentences:
@@ -212,30 +286,35 @@ class ClinicalSummarizer:
         entities = set()
         for ent in doc.ents:
             entity_text = ent.text.lower().strip()
-            if (entity_text and
-                entity_text not in self.GENERIC_TERMS and
-                len(entity_text) > 2 and
-                not entity_text.isnumeric()):
+            if (
+                entity_text
+                and entity_text not in self.GENERIC_TERMS
+                and len(entity_text) > 2
+                and not entity_text.isnumeric()
+            ):
                 entities.add(entity_text)
         return entities
 
     def _split_sentences(self, text: str) -> List[str]:
         """Split text into sentences using spaCy."""
         if not self._nlp:
-            return [s.strip() for s in text.split('.') if s.strip()]
+            return [s.strip() for s in text.split(".") if s.strip()]
         doc = self._nlp(text)
         return [sent.text.strip() for sent in doc.sents if sent.text.strip()]
 
-    def _filter_sentences(self, sentences: List[str], input_entities: Set[str]) -> List[str]:
+    def _filter_sentences(
+        self, sentences: List[str], input_entities: Set[str]
+    ) -> List[str]:
         """Filter sentences based on clinical relevance."""
         filtered = []
         for sentence in sentences:
             sentence_doc = self._nlp(sentence.lower())
             sentence_entities = self._extract_medical_entities(sentence_doc)
 
-            if (sentence_entities and
-                (sentence_entities.intersection(input_entities) or
-                 self._is_clinically_relevant(sentence))):
+            if sentence_entities and (
+                sentence_entities.intersection(input_entities)
+                or self._is_clinically_relevant(sentence)
+            ):
                 filtered.append(sentence)
 
         return filtered
@@ -243,12 +322,23 @@ class ClinicalSummarizer:
     def _is_clinically_relevant(self, sentence: str) -> bool:
         """Check if sentence contains clinically relevant content."""
         clinical_indicators = [
-            'diagnosis', 'treatment', 'medication', 'symptom', 'test', 'result',
-            'procedure', 'therapy', 'management', 'assessment', 'plan'
+            "diagnosis",
+            "treatment",
+            "medication",
+            "symptom",
+            "test",
+            "result",
+            "procedure",
+            "therapy",
+            "management",
+            "assessment",
+            "plan",
         ]
         return any(indicator in sentence.lower() for indicator in clinical_indicators)
 
-    def _generate_comprehensive_insights(self, summary_text: str, input_text: str) -> Dict[str, List[str]]:
+    def _generate_comprehensive_insights(
+        self, summary_text: str, input_text: str
+    ) -> Dict[str, List[str]]:
         """Generate clinical insights using spaCy and keyword-based logic."""
         try:
             text_lower = input_text.lower()
@@ -258,15 +348,21 @@ class ClinicalSummarizer:
 
             # Infer diagnoses from entities and symptoms
             diagnoses = []
-            if 'nasal congestion' in text_lower or 'facial pain' in text_lower or 'sinusitis' in text_lower:
-                diagnoses.extend([
-                    "Acute Bacterial Sinusitis - consider if symptoms >10 days or worsening",
-                    "Viral Rhinosinusitis - common, typically self-limiting",
-                    "Allergic Rhinitis - consider if seasonal or allergen exposure"
-                ])
-            if 'metformin' in text_lower or 'diabetes' in text_lower:
+            if (
+                "nasal congestion" in text_lower
+                or "facial pain" in text_lower
+                or "sinusitis" in text_lower
+            ):
+                diagnoses.extend(
+                    [
+                        "Acute Bacterial Sinusitis - consider if symptoms >10 days or worsening",
+                        "Viral Rhinosinusitis - common, typically self-limiting",
+                        "Allergic Rhinitis - consider if seasonal or allergen exposure",
+                    ]
+                )
+            if "metformin" in text_lower or "diabetes" in text_lower:
                 diagnoses.append("Type 2 Diabetes - managed with Metformin")
-            if 'lisinopril' in text_lower or 'hypertension' in text_lower:
+            if "lisinopril" in text_lower or "hypertension" in text_lower:
                 diagnoses.append("Primary Hypertension - managed with Lisinopril")
             if not diagnoses:
                 diagnoses.append("Requires further clinical evaluation")
@@ -274,40 +370,41 @@ class ClinicalSummarizer:
             # Generate management recommendations
             recommendations = [
                 "Review medication list for interactions",
-                "Monitor vital signs regularly"
+                "Monitor vital signs regularly",
             ]
-            if 'nasal congestion' in text_lower or 'facial pain' in text_lower:
-                recommendations.extend([
-                    "Consider nasal endoscopy or sinus imaging",
-                    "Evaluate for antibiotics if bacterial sinusitis suspected"
-                ])
-            if 'chest pain' in text_lower:
+            if "nasal congestion" in text_lower or "facial pain" in text_lower:
+                recommendations.extend(
+                    [
+                        "Consider nasal endoscopy or sinus imaging",
+                        "Evaluate for antibiotics if bacterial sinusitis suspected",
+                    ]
+                )
+            if "chest pain" in text_lower:
                 recommendations.append("Obtain ECG and cardiac enzymes")
 
             # Generate diagnostic suggestions
-            suggestions = [
-                "Complete Blood Count (CBC)",
-                "Basic Metabolic Panel (BMP)"
-            ]
-            if 'nasal congestion' in text_lower or 'facial pain' in text_lower:
+            suggestions = ["Complete Blood Count (CBC)", "Basic Metabolic Panel (BMP)"]
+            if "nasal congestion" in text_lower or "facial pain" in text_lower:
                 suggestions.append("Sinus CT if symptoms persist")
-            if 'fever' in text_lower:
+            if "fever" in text_lower:
                 suggestions.append("Inflammatory markers (CRP, ESR)")
 
             # Generate critical considerations
             considerations = [
                 "Review allergies before administering medications",
-                "Assess fall risk and implement precautions"
+                "Assess fall risk and implement precautions",
             ]
-            if 'fever' in text_lower and 'nasal congestion' in text_lower:
-                considerations.append("**URGENT**: Assess for sinusitis complications (e.g., orbital cellulitis)")
+            if "fever" in text_lower and "nasal congestion" in text_lower:
+                considerations.append(
+                    "**URGENT**: Assess for sinusitis complications (e.g., orbital cellulitis)"
+                )
 
             insights = {
                 "primary_diagnoses": diagnoses[:5],
                 "management_recommendations": recommendations,
                 "diagnostic_suggestions": suggestions,
                 "critical_considerations": considerations,
-                "detected_entities": list(entities)
+                "detected_entities": list(entities),
             }
 
             logger.info(f"Generated insights with entities: {entities}")
@@ -320,14 +417,24 @@ class ClinicalSummarizer:
     def _get_fallback_insights(self) -> Dict[str, List[str]]:
         """Provide fallback insights when generation fails."""
         return {
-            "primary_diagnoses": ["Clinical correlation required for accurate diagnosis"],
-            "management_recommendations": ["Standard clinical assessment and monitoring recommended"],
-            "diagnostic_suggestions": ["Basic laboratory workup and imaging as clinically indicated"],
-            "critical_considerations": ["Ensure patient stability before proceeding with evaluation"],
-            "detected_entities": []
+            "primary_diagnoses": [
+                "Clinical correlation required for accurate diagnosis"
+            ],
+            "management_recommendations": [
+                "Standard clinical assessment and monitoring recommended"
+            ],
+            "diagnostic_suggestions": [
+                "Basic laboratory workup and imaging as clinically indicated"
+            ],
+            "critical_considerations": [
+                "Ensure patient stability before proceeding with evaluation"
+            ],
+            "detected_entities": [],
         }
 
-    def _format_hmis_output(self, summary: str, insights: Dict[str, List[str]], is_error: bool = False) -> str:
+    def _format_hmis_output(
+        self, summary: str, insights: Dict[str, List[str]], is_error: bool = False
+    ) -> str:
         """Format output for HMIS display with comprehensive clinical data."""
         summary = bleach.clean(summary)
         sanitized_insights = {
@@ -348,70 +455,91 @@ class ClinicalSummarizer:
         output_parts = [
             '<div class="hmis-clinical-summary">',
             '<div class="summary-section">',
-            '<h3>Clinical Summary</h3>',
-            '<div class="summary-content">'
+            "<h3>Clinical Summary</h3>",
+            '<div class="summary-content">',
         ]
 
         sentences = self._split_sentences(summary)
         if sentences:
-            output_parts.append('<ul>')
+            output_parts.append("<ul>")
             for sentence in sentences:
                 output_parts.append(f'<li>{sentence.rstrip(".")}.</li>')
-            output_parts.append('</ul>')
+            output_parts.append("</ul>")
         else:
-            output_parts.append('<p>No summary generated.</p>')
+            output_parts.append("<p>No summary generated.</p>")
 
-        output_parts.append('</div>')
+        output_parts.append("</div>")
 
-        if sanitized_insights.get('primary_diagnoses'):
-            output_parts.extend([
-                '<div class="insights-section">',
-                '<h4>Differential Diagnosis</h4>',
-                '<ul>'
-            ])
-            output_parts.extend(f'<li>{dx}</li>' for dx in sanitized_insights['primary_diagnoses'])
-            output_parts.append('</ul></div>')
+        if sanitized_insights.get("primary_diagnoses"):
+            output_parts.extend(
+                [
+                    '<div class="insights-section">',
+                    "<h4>Differential Diagnosis</h4>",
+                    "<ul>",
+                ]
+            )
+            output_parts.extend(
+                f"<li>{dx}</li>" for dx in sanitized_insights["primary_diagnoses"]
+            )
+            output_parts.append("</ul></div>")
 
-        if sanitized_insights.get('management_recommendations'):
-            output_parts.extend([
-                '<div class="insights-section">',
-                '<h4>Management Recommendations</h4>',
-                '<ul>'
-            ])
-            output_parts.extend(f'<li>{rec}</li>' for rec in sanitized_insights['management_recommendations'])
-            output_parts.append('</ul></div>')
+        if sanitized_insights.get("management_recommendations"):
+            output_parts.extend(
+                [
+                    '<div class="insights-section">',
+                    "<h4>Management Recommendations</h4>",
+                    "<ul>",
+                ]
+            )
+            output_parts.extend(
+                f"<li>{rec}</li>"
+                for rec in sanitized_insights["management_recommendations"]
+            )
+            output_parts.append("</ul></div>")
 
-        if sanitized_insights.get('diagnostic_suggestions'):
-            output_parts.extend([
-                '<div class="insights-section">',
-                '<h4>Diagnostic Considerations</h4>',
-                '<ul>'
-            ])
-            output_parts.extend(f'<li>{sug}</li>' for sug in sanitized_insights['diagnostic_suggestions'])
-            output_parts.append('</ul></div>')
+        if sanitized_insights.get("diagnostic_suggestions"):
+            output_parts.extend(
+                [
+                    '<div class="insights-section">',
+                    "<h4>Diagnostic Considerations</h4>",
+                    "<ul>",
+                ]
+            )
+            output_parts.extend(
+                f"<li>{sug}</li>"
+                for sug in sanitized_insights["diagnostic_suggestions"]
+            )
+            output_parts.append("</ul></div>")
 
-        if sanitized_insights.get('critical_considerations'):
-            output_parts.extend([
-                '<div class="critical-section">',
-                '<h4>Critical Considerations</h4>',
-                '<ul>'
-            ])
-            output_parts.extend(f'<li>{cons}</li>' for cons in sanitized_insights['critical_considerations'])
-            output_parts.append('</ul></div>')
+        if sanitized_insights.get("critical_considerations"):
+            output_parts.extend(
+                [
+                    '<div class="critical-section">',
+                    "<h4>Critical Considerations</h4>",
+                    "<ul>",
+                ]
+            )
+            output_parts.extend(
+                f"<li>{cons}</li>"
+                for cons in sanitized_insights["critical_considerations"]
+            )
+            output_parts.append("</ul></div>")
 
-        output_parts.extend([
-            '<div class="hmis-disclaimer">',
-            '<hr>',
-            f'<p><small>Generated by HMIS Clinical AI on {datetime.now().strftime("%Y-%m-%d %H:%M")}</small></p>',
-            '<p><strong>Disclaimer:</strong> This AI-generated clinical summary is for decision support only ',
-            'and must be verified by qualified healthcare providers. All treatment decisions ',
-            'require clinical judgment and patient-specific considerations.</p>',
-            '</div>',
-            '</div>',
-            '</div>'
-        ])
+        output_parts.extend(
+            [
+                '<div class="hmis-disclaimer">',
+                "<hr>",
+                f'<p><small>Generated by HMIS Clinical AI on {datetime.now().strftime("%Y-%m-%d %H:%M")}</small></p>',
+                "<p><strong>Disclaimer:</strong> This AI-generated clinical summary is for decision support only ",
+                "and must be verified by qualified healthcare providers. All treatment decisions ",
+                "require clinical judgment and patient-specific considerations.</p>",
+                "</div>",
+                "</div>",
+                "</div>",
+            ]
+        )
 
-        return '\n'.join(output_parts)
+        return "\n".join(output_parts)
 
     def _format_hmis_error(self, message: str) -> str:
         """Format error messages for HMIS."""
@@ -435,7 +563,7 @@ class ClinicalSummarizer:
             "initialized": self._initialized,
             "device": self.device,
             "models_loaded": bool(self._nvidia_client and self._nlp),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     def __repr__(self) -> str:

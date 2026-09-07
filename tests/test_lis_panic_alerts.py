@@ -33,15 +33,11 @@ def sample_lab_setup(app):
         next_of_kin="Kin",
         relationship_with_next_of_kin="Sibling",
         next_of_kin_contact="0700998866",
-        emergency_contact="0700998866"
+        emergency_contact="0700998866",
     )
     db.session.add(patient)
 
-    lab_test = LabTest(
-        test_name="Complete Blood Count",
-        cost=1000.0,
-        description="CBC"
-    )
+    lab_test = LabTest(test_name="Complete Blood Count", cost=1000.0, description="CBC")
     db.session.add(lab_test)
     db.session.commit()
 
@@ -75,13 +71,16 @@ class TestLISAPI:
         patient = sample_lab_setup["patient"]
         lab_test = sample_lab_setup["lab_test"]
 
-        resp = client.post('/laboratory/lis/enter', json={
-            "patient_id": patient.patient_id,
-            "lab_test_id": lab_test.id,
-            "parameter_name": "potassium",
-            "result_value": 4.5,
-            "tech_id": 2
-        })
+        resp = client.post(
+            "/laboratory/lis/enter",
+            json={
+                "patient_id": patient.patient_id,
+                "lab_test_id": lab_test.id,
+                "parameter_name": "potassium",
+                "result_value": 4.5,
+                "tech_id": 2,
+            },
+        )
 
         assert resp.status_code == 201
         data = resp.get_json()
@@ -98,13 +97,16 @@ class TestLISAPI:
         patient = sample_lab_setup["patient"]
         lab_test = sample_lab_setup["lab_test"]
 
-        resp = client.post('/laboratory/lis/enter', json={
-            "patient_id": patient.patient_id,
-            "lab_test_id": lab_test.id,
-            "parameter_name": "potassium",
-            "result_value": 7.0,  # Panic high
-            "tech_id": 2
-        })
+        resp = client.post(
+            "/laboratory/lis/enter",
+            json={
+                "patient_id": patient.patient_id,
+                "lab_test_id": lab_test.id,
+                "parameter_name": "potassium",
+                "result_value": 7.0,  # Panic high
+                "tech_id": 2,
+            },
+        )
 
         assert resp.status_code == 201
         data = resp.get_json()
@@ -124,17 +126,16 @@ class TestLISAPI:
             status="PENDING_VERIFICATION",
             panic_status="PANIC_CRITICAL",
             panic_message="CRITICAL PANIC HIGH: 7.0 mmol/L",
-            updated_by=2
+            updated_by=2,
         )
         db.session.add(lab_res)
         db.session.commit()
 
         # Verify it
-        resp = client.post('/laboratory/lis/verify', json={
-            "result_id": res_uuid,
-            "verifier_id": 5,
-            "action": "VERIFY"
-        })
+        resp = client.post(
+            "/laboratory/lis/verify",
+            json={"result_id": res_uuid, "verifier_id": 5, "action": "VERIFY"},
+        )
 
         assert resp.status_code == 200
         data = resp.get_json()
@@ -147,7 +148,7 @@ class TestLISAPI:
         assert "CRITICAL LAB PANIC ALERT" in notification.message
 
     def test_get_panic_alerts(self, client, sample_lab_setup):
-        resp = client.get('/laboratory/lis/panic_alerts')
+        resp = client.get("/laboratory/lis/panic_alerts")
         assert resp.status_code == 200
         data = resp.get_json()
         assert "panic_alerts" in data

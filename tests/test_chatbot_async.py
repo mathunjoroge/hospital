@@ -40,7 +40,9 @@ def test_chatbot_async_route_dispatches_task_immediately(client, logged_in_user)
     ) as mock_delay:
         resp = client.post(
             "/medicine/chatbot",
-            data={"clinical_note": "Patient presents with persistent cough and mild fever."},
+            data={
+                "clinical_note": "Patient presents with persistent cough and mild fever."
+            },
         )
 
         assert resp.status_code == 202
@@ -67,7 +69,11 @@ def test_chatbot_celery_task_execution(app):
             return_value=mock_html,
         ) as mock_answer:
             # Execute underlying task function directly (simulating Celery task execution)
-            task_func = getattr(process_clinical_chatbot_task, "__wrapped__", process_clinical_chatbot_task)
+            task_func = getattr(
+                process_clinical_chatbot_task,
+                "__wrapped__",
+                process_clinical_chatbot_task,
+            )
             result = task_func(
                 "Patient presents with fever and cough",
                 conversation_context=[],
@@ -93,7 +99,9 @@ def test_chatbot_polling_status_endpoint(client, logged_in_user):
         "input_note": "Fever test note",
     }
 
-    with patch("departments.medicine.chat_bot.AsyncResult", return_value=mock_async_res):
+    with patch(
+        "departments.medicine.chat_bot.AsyncResult", return_value=mock_async_res
+    ):
         resp = client.get("/medicine/chatbot/status/test-task-999")
         assert resp.status_code == 200
         data = resp.get_json()

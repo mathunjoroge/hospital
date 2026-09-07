@@ -37,6 +37,7 @@ def jwt_or_session_required(fn):
 
     Sets g.api_user to the resolved User object.
     """
+
     @wraps(fn)
     def wrapper(*args, **kwargs):
         # 1. Try JWT first (only if Authorization header is present)
@@ -52,14 +53,18 @@ def jwt_or_session_required(fn):
                 return fn(*args, **kwargs)
             except Exception as exc:
                 logger.warning("JWT verification failed: %s", exc)
-                return jsonify({"error": "Invalid or expired token", "detail": str(exc)}), 401
+                return jsonify(
+                    {"error": "Invalid or expired token", "detail": str(exc)}
+                ), 401
 
         # 2. Fall back to Flask-Login session
         if current_user.is_authenticated:
             g.api_user = current_user
             return fn(*args, **kwargs)
 
-        return jsonify({"error": "Authentication required. Provide a Bearer token or log in."}), 401
+        return jsonify(
+            {"error": "Authentication required. Provide a Bearer token or log in."}
+        ), 401
 
     return wrapper
 
@@ -112,16 +117,18 @@ def get_token():
     token = create_access_token(identity=str(user.id))
     logger.info("API token issued for user_id=%s role=%s", user.id, user.role)
 
-    return jsonify({
-        "access_token": token,
-        "token_type": "Bearer",
-        "expires_in": 86400,   # seconds (matches JWT_ACCESS_TOKEN_EXPIRES = 24 h)
-        "user": {
-            "id": user.id,
-            "username": user.username,
-            "role": user.role,
-        },
-    }), 200
+    return jsonify(
+        {
+            "access_token": token,
+            "token_type": "Bearer",
+            "expires_in": 86400,  # seconds (matches JWT_ACCESS_TOKEN_EXPIRES = 24 h)
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "role": user.role,
+            },
+        }
+    ), 200
 
 
 @bp.route("/auth/me", methods=["GET"])
@@ -129,8 +136,10 @@ def get_token():
 def whoami():
     """Return the identity of the currently authenticated caller."""
     u = g.api_user
-    return jsonify({
-        "id": u.id,
-        "username": u.username,
-        "role": u.role,
-    }), 200
+    return jsonify(
+        {
+            "id": u.id,
+            "username": u.username,
+            "role": u.role,
+        }
+    ), 200

@@ -13,12 +13,13 @@ try:
     import cryptography  # noqa: F401
 except ImportError:
     import pytest
+
     pytest.skip("cryptography not installed", allow_module_level=True)
 
 
 # Test Model using EncryptedString
 class EncryptedSecretModel(db.Model):
-    __tablename__ = 'test_encrypted_secrets'
+    __tablename__ = "test_encrypted_secrets"
     id = Column(Integer, primary_key=True)
     secret_data = Column(EncryptedString(255), nullable=True)
 

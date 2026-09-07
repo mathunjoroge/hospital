@@ -37,7 +37,7 @@ def sample_inventory(app):
         buying_price=10.0,
         selling_price=20.0,
         quantity_in_stock=100,
-        reorder_level=40
+        reorder_level=40,
     )
     db.session.add(drug)
     db.session.commit()
@@ -47,14 +47,14 @@ def sample_inventory(app):
         drug_id=drug.id,
         batch_number="BATCH-EARLY-01",
         expiry_date=date.today() + timedelta(days=20),
-        quantity_in_stock=30
+        quantity_in_stock=30,
     )
     # Batch 2: Expiring in 180 days (Later) - Qty 70
     b2 = Batch(
         drug_id=drug.id,
         batch_number="BATCH-LATE-02",
         expiry_date=date.today() + timedelta(days=180),
-        quantity_in_stock=70
+        quantity_in_stock=70,
     )
     db.session.add_all([b1, b2])
     db.session.commit()
@@ -70,7 +70,7 @@ def sample_inventory(app):
         next_of_kin="Kin",
         relationship_with_next_of_kin="Parent",
         next_of_kin_contact="0700998866",
-        emergency_contact="0700998866"
+        emergency_contact="0700998866",
     )
     db.session.add(patient)
     db.session.commit()
@@ -134,7 +134,9 @@ class TestInventoryAlerts:
 
         alerts = check_pharmacy_inventory_alerts(near_expiry_days=60)
         assert alerts["expiry_count"] >= 1
-        assert any(b["batch_number"] == "BATCH-EARLY-01" for b in alerts["expiry_alerts"])
+        assert any(
+            b["batch_number"] == "BATCH-EARLY-01" for b in alerts["expiry_alerts"]
+        )
 
         assert alerts["reorder_count"] >= 1
         assert any(d["drug_id"] == drug.id for d in alerts["reorder_alerts"])
@@ -143,7 +145,7 @@ class TestInventoryAlerts:
 class TestFEFOEndpoints:
     def test_preview_allocation_api(self, client, sample_inventory):
         drug = sample_inventory["drug"]
-        resp = client.get(f'/pharmacy/fefo/allocate?drug_id={drug.id}&quantity=25')
+        resp = client.get(f"/pharmacy/fefo/allocate?drug_id={drug.id}&quantity=25")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["success"] is True
@@ -153,18 +155,21 @@ class TestFEFOEndpoints:
         drug = sample_inventory["drug"]
         patient = sample_inventory["patient"]
 
-        resp = client.post('/pharmacy/fefo/dispense', json={
-            "patient_id": patient.patient_id,
-            "drug_id": drug.id,
-            "quantity": 10,
-            "prescription_id": "RX-TEST-001"
-        })
+        resp = client.post(
+            "/pharmacy/fefo/dispense",
+            json={
+                "patient_id": patient.patient_id,
+                "drug_id": drug.id,
+                "quantity": 10,
+                "prescription_id": "RX-TEST-001",
+            },
+        )
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["success"] is True
 
     def test_alerts_api(self, client, sample_inventory):
-        resp = client.get('/pharmacy/fefo/alerts?days=60')
+        resp = client.get("/pharmacy/fefo/alerts?days=60")
         assert resp.status_code == 200
         data = resp.get_json()
         assert "expiry_alerts" in data

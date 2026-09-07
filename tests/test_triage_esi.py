@@ -30,7 +30,7 @@ def sample_patient(app):
         next_of_kin="Kin Name",
         relationship_with_next_of_kin="Brother",
         next_of_kin_contact="0700112244",
-        emergency_contact="0700112244"
+        emergency_contact="0700112244",
     )
     db.session.add(patient)
     db.session.commit()
@@ -59,46 +59,65 @@ class TestVitalsValidation:
 class TestESICalculation:
     def test_esi_1_resuscitation(self):
         vitals = {"pulse": 150, "respiratory_rate": 35, "oxygen_saturation": 82}
-        esi, desc = calculate_esi_level(vitals, chief_complaint="Unresponsive", resources_needed=3, age_years=40)
+        esi, desc = calculate_esi_level(
+            vitals, chief_complaint="Unresponsive", resources_needed=3, age_years=40
+        )
         assert esi == 1
         assert "ESI Level 1" in desc
 
     def test_esi_2_emergent_chest_pain(self):
         vitals = {"pulse": 110, "respiratory_rate": 22, "oxygen_saturation": 95}
-        esi, desc = calculate_esi_level(vitals, chief_complaint="Severe chest pain", resources_needed=2, age_years=50)
+        esi, desc = calculate_esi_level(
+            vitals,
+            chief_complaint="Severe chest pain",
+            resources_needed=2,
+            age_years=50,
+        )
         assert esi == 2
 
     def test_esi_3_urgent_multi_resource(self):
         vitals = {"pulse": 72, "respiratory_rate": 16, "oxygen_saturation": 98}
-        esi, desc = calculate_esi_level(vitals, chief_complaint="Abdominal pain", resources_needed=2, age_years=30)
+        esi, desc = calculate_esi_level(
+            vitals, chief_complaint="Abdominal pain", resources_needed=2, age_years=30
+        )
         assert esi == 3
 
     def test_esi_4_less_urgent_single_resource(self):
         vitals = {"pulse": 70, "respiratory_rate": 14, "oxygen_saturation": 99}
-        esi, desc = calculate_esi_level(vitals, chief_complaint="Ankle sprain", resources_needed=1, age_years=25)
+        esi, desc = calculate_esi_level(
+            vitals, chief_complaint="Ankle sprain", resources_needed=1, age_years=25
+        )
         assert esi == 4
 
     def test_esi_5_non_urgent_no_resource(self):
         vitals = {"pulse": 68, "respiratory_rate": 15, "oxygen_saturation": 98}
-        esi, desc = calculate_esi_level(vitals, chief_complaint="Medication refill", resources_needed=0, age_years=20)
+        esi, desc = calculate_esi_level(
+            vitals,
+            chief_complaint="Medication refill",
+            resources_needed=0,
+            age_years=20,
+        )
         assert esi == 5
 
 
 class TestTriageEndpoints:
     def test_assess_patient_endpoint(self, client, sample_patient):
-        resp = client.post('/nursing/triage/assess', json={
-            "patient_id": sample_patient.patient_id,
-            "chief_complaint": "Severe shortness of breath",
-            "resources_needed": 2,
-            "vitals": {
-                "temperature": 38.5,
-                "pulse": 125,
-                "blood_pressure_systolic": 140,
-                "blood_pressure_diastolic": 90,
-                "respiratory_rate": 28,
-                "oxygen_saturation": 91
-            }
-        })
+        resp = client.post(
+            "/nursing/triage/assess",
+            json={
+                "patient_id": sample_patient.patient_id,
+                "chief_complaint": "Severe shortness of breath",
+                "resources_needed": 2,
+                "vitals": {
+                    "temperature": 38.5,
+                    "pulse": 125,
+                    "blood_pressure_systolic": 140,
+                    "blood_pressure_diastolic": 90,
+                    "respiratory_rate": 28,
+                    "oxygen_saturation": 91,
+                },
+            },
+        )
         assert resp.status_code == 201
         data = resp.get_json()
         assert data["success"] is True
@@ -107,14 +126,21 @@ class TestTriageEndpoints:
 
     def test_triage_queue_ordering(self, client, sample_patient):
         # Create non-urgent assessment (ESI 4)
-        client.post('/nursing/triage/assess', json={
-            "patient_id": sample_patient.patient_id,
-            "chief_complaint": "Minor cut",
-            "resources_needed": 1,
-            "vitals": {"pulse": 70, "respiratory_rate": 16, "oxygen_saturation": 98}
-        })
+        client.post(
+            "/nursing/triage/assess",
+            json={
+                "patient_id": sample_patient.patient_id,
+                "chief_complaint": "Minor cut",
+                "resources_needed": 1,
+                "vitals": {
+                    "pulse": 70,
+                    "respiratory_rate": 16,
+                    "oxygen_saturation": 98,
+                },
+            },
+        )
 
-        resp = client.get('/nursing/triage/queue')
+        resp = client.get("/nursing/triage/queue")
         assert resp.status_code == 200
         data = resp.get_json()
         assert "queue" in data

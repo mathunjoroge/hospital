@@ -54,13 +54,18 @@ from . import bp  # Import the blueprint
 
 # Define get_effective_role to support role switching
 def get_effective_role():
-    if current_user.is_authenticated and current_user.role == 'admin' and 'switched_user' in session:
-        return session['switched_user']
+    if (
+        current_user.is_authenticated
+        and current_user.role == "admin"
+        and "switched_user" in session
+    ):
+        return session["switched_user"]
     return current_user.role if current_user.is_authenticated else None
 
-@bp.route('/', methods=['GET'])
+
+@bp.route("/", methods=["GET"])
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def index():
     """HR dashboard displaying key metrics and recent changes."""
 
@@ -76,54 +81,62 @@ def index():
 
         # Fetch recent changes (e.g., log entries)
         recent_changes = [
-            {"description": "Employee E0001 marked as inactive.", "date": datetime.now() - timedelta(days=1)},
-            {"description": "New employee E0002 added to the system.", "date": datetime.now() - timedelta(days=2)}
+            {
+                "description": "Employee E0001 marked as inactive.",
+                "date": datetime.now() - timedelta(days=1),
+            },
+            {
+                "description": "New employee E0002 added to the system.",
+                "date": datetime.now() - timedelta(days=2),
+            },
         ]  # Replace with actual query logic
 
         return render_template(
-            'hr/index.html',
+            "hr/index.html",
             active_employees_count=active_employees_count,
             inactive_employees_count=inactive_employees_count,
             total_employees_count=total_employees_count,
-            recent_changes=recent_changes
+            recent_changes=recent_changes,
         )
 
     except Exception as e:
-        flash('Something went wrong. Please try again.', 'error')
+        flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.index: {e}")
-        return redirect(url_for('home'))
+        return redirect(url_for("home"))
 
-@bp.route('/employee_list', methods=['GET'])
+
+@bp.route("/employee_list", methods=["GET"])
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def employee_list():
     """Displays the list of all employees."""
 
     try:
         # Fetch all employees
         employees = Employee.query.order_by(Employee.date_hired.desc()).all()
-        return render_template('hr/employee_list.html', employees=employees)
+        return render_template("hr/employee_list.html", employees=employees)
 
     except Exception as e:
-        flash('Something went wrong. Please try again.', 'error')
+        flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.employee_list: {e}")
-        return redirect(url_for('home'))
+        return redirect(url_for("home"))
 
-@bp.route('/new_employee', methods=['GET', 'POST'])
+
+@bp.route("/new_employee", methods=["GET", "POST"])
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def new_employee():
     """Registers a new employee with allowances and deductions."""
 
     try:
-        if request.method == 'POST':
+        if request.method == "POST":
             # Extract form data
-            name = request.form.get('name')
-            role = request.form.get('role')
-            department = request.form.get('department')
-            job_group = request.form.get('job_group')
-            allowances = request.form.getlist('allowances')  # Selected allowances
-            deductions = request.form.getlist('deductions')  # Selected deductions
+            name = request.form.get("name")
+            role = request.form.get("role")
+            department = request.form.get("department")
+            job_group = request.form.get("job_group")
+            allowances = request.form.getlist("allowances")  # Selected allowances
+            deductions = request.form.getlist("deductions")  # Selected deductions
 
             # Validate input
             if not all([name, role, department, job_group]):
@@ -138,12 +151,14 @@ def new_employee():
                 name=name,
                 role=role,
                 department=department,
-                job_group=job_group
+                job_group=job_group,
             )
             db.session.add(new_employee)
 
             # Assign allowances
-            selected_allowances = Allowance.query.filter(Allowance.id.in_(allowances)).all()
+            selected_allowances = Allowance.query.filter(
+                Allowance.id.in_(allowances)
+            ).all()
             new_employee.allowances.extend(selected_allowances)
 
             # Assign deductions
@@ -154,29 +169,32 @@ def new_employee():
                         employee_id=new_employee.employee_id,
                         name=deduction.name,
                         type=deduction.type,
-                        value=deduction.value
+                        value=deduction.value,
                     )
                     db.session.add(new_deduction)
 
             db.session.commit()
-            flash(f'Employee {name} added successfully!', 'success')
-            return redirect(url_for('hr.employee_list'))
+            flash(f"Employee {name} added successfully!", "success")
+            return redirect(url_for("hr.employee_list"))
 
         # Fetch all allowances and deductions
         allowances = Allowance.query.all()
         deductions = Deduction.query.all()
 
-        return render_template('hr/new_employee.html', allowances=allowances, deductions=deductions)
+        return render_template(
+            "hr/new_employee.html", allowances=allowances, deductions=deductions
+        )
 
     except Exception as e:
-        flash('Something went wrong. Please try again.', 'error')
+        flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.new_employee: {e}")
         db.session.rollback()
-        return redirect(url_for('hr.index'))
+        return redirect(url_for("hr.index"))
 
-@bp.route('/update_employee/<int:employee_id>', methods=['GET', 'POST'])
+
+@bp.route("/update_employee/<int:employee_id>", methods=["GET", "POST"])
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def update_employee(employee_id):
     """Updates an existing employee."""
 
@@ -184,12 +202,12 @@ def update_employee(employee_id):
         # Fetch the employee by ID
         employee = Employee.query.get_or_404(employee_id)
 
-        if request.method == 'POST':
+        if request.method == "POST":
             # Extract form data
-            name = request.form.get('name')
-            role = request.form.get('role')
-            department = request.form.get('department')
-            is_active = request.form.get('is_active') == 'on'  # Checkbox handling
+            name = request.form.get("name")
+            role = request.form.get("role")
+            department = request.form.get("department")
+            is_active = request.form.get("is_active") == "on"  # Checkbox handling
 
             # Validate input
             if not all([name, role, department]):
@@ -203,20 +221,21 @@ def update_employee(employee_id):
             employee.updated_by = current_user.id
 
             db.session.commit()
-            flash(f'Employee {name} updated successfully!', 'success')
-            return redirect(url_for('hr.employee_list'))
+            flash(f"Employee {name} updated successfully!", "success")
+            return redirect(url_for("hr.employee_list"))
 
-        return render_template('hr/update_employee.html', employee=employee)
+        return render_template("hr/update_employee.html", employee=employee)
 
     except Exception as e:
-        flash('Something went wrong. Please try again.', 'error')
+        flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.update_employee: {e}")
         db.session.rollback()
-        return redirect(url_for('hr.employee_list'))
+        return redirect(url_for("hr.employee_list"))
 
-@bp.route('/delete_employee/<int:employee_id>', methods=['POST'])
+
+@bp.route("/delete_employee/<int:employee_id>", methods=["POST"])
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def delete_employee(employee_id):
     """Deletes an employee from the system."""
 
@@ -228,18 +247,19 @@ def delete_employee(employee_id):
         db.session.delete(employee)
         db.session.commit()
 
-        flash(f'Employee {employee.name} deleted successfully!', 'success')
-        return redirect(url_for('hr.employee_list'))
+        flash(f"Employee {employee.name} deleted successfully!", "success")
+        return redirect(url_for("hr.employee_list"))
 
     except Exception as e:
-        flash('Something went wrong. Please try again.', 'error')
+        flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.delete_employee: {e}")
         db.session.rollback()
-        return redirect(url_for('hr.employee_list'))
+        return redirect(url_for("hr.employee_list"))
 
-@bp.route('/rota_management', methods=['GET', 'POST'])
+
+@bp.route("/rota_management", methods=["GET", "POST"])
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def rota_management():
     """Manage employee shifts and schedules (rota)."""
 
@@ -254,22 +274,24 @@ def rota_management():
         rota_data = defaultdict(lambda: defaultdict(list))
         for rota in rotas:
             if rota.shift_8_5:
-                rota_data[rota.week_range]['morning'] = [name.strip() for name in rota.shift_8_5.split(',')]
+                rota_data[rota.week_range]["morning"] = [
+                    name.strip() for name in rota.shift_8_5.split(",")
+                ]
             if rota.shift_5_8:
-                rota_data[rota.week_range]['evening'] = [rota.shift_5_8.strip()]
+                rota_data[rota.week_range]["evening"] = [rota.shift_5_8.strip()]
             if rota.shift_8_8:
-                rota_data[rota.week_range]['night'] = [rota.shift_8_8.strip()]
+                rota_data[rota.week_range]["night"] = [rota.shift_8_8.strip()]
 
-        if request.method == 'POST':
+        if request.method == "POST":
             # Extract form data
-            week_range = request.form.get('week_range')  # Selected week range
+            week_range = request.form.get("week_range")  # Selected week range
             if not week_range:
                 raise ValueError("Week range is required!")
 
             # Automatically allocate shifts
-            start_date, end_date = week_range.split(' - ')
-            start_date = datetime.strptime(start_date.strip(), '%d/%m/%Y').date()
-            end_date = datetime.strptime(end_date.strip(), '%d/%m/%Y').date()
+            start_date, end_date = week_range.split(" - ")
+            start_date = datetime.strptime(start_date.strip(), "%d/%m/%Y").date()
+            end_date = datetime.strptime(end_date.strip(), "%d/%m/%Y").date()
 
             # Ensure the week range is valid
             if (end_date - start_date).days != 6:
@@ -282,25 +304,34 @@ def rota_management():
 
             # Randomly assign shifts while respecting constraints
             for emp in employees:
-                shift_options = ['morning', 'evening', 'night']
+                shift_options = ["morning", "evening", "night"]
                 assigned_shift = random.choice(shift_options)
 
                 # Prevent consecutive night/evening shifts
                 recent_shifts = Rota.query.filter(
                     Rota.week_range >= (start_date - timedelta(days=7)),
-                    Rota.week_range <= (start_date + timedelta(days=7))
+                    Rota.week_range <= (start_date + timedelta(days=7)),
                 ).all()
 
-                recent_morning = any(emp.name in r.shift_8_5.split(',') if r.shift_8_5 else False for r in recent_shifts)
-                recent_evening = any(emp.name == r.shift_5_8 if r.shift_5_8 else False for r in recent_shifts)
-                recent_night = any(emp.name == r.shift_8_8 if r.shift_8_8 else False for r in recent_shifts)
+                recent_morning = any(
+                    emp.name in r.shift_8_5.split(",") if r.shift_8_5 else False
+                    for r in recent_shifts
+                )
+                recent_evening = any(
+                    emp.name == r.shift_5_8 if r.shift_5_8 else False
+                    for r in recent_shifts
+                )
+                recent_night = any(
+                    emp.name == r.shift_8_8 if r.shift_8_8 else False
+                    for r in recent_shifts
+                )
 
                 # Apply constraints
-                if assigned_shift == 'morning' and not recent_morning:
+                if assigned_shift == "morning" and not recent_morning:
                     morning_shifts.append(emp.name)
-                elif assigned_shift == 'evening' and not recent_evening:
+                elif assigned_shift == "evening" and not recent_evening:
                     evening_shifts.append(emp.name)
-                elif assigned_shift == 'night' and not recent_night:
+                elif assigned_shift == "night" and not recent_night:
                     night_shifts.append(emp.name)
 
             # Ensure at least one employee per shift
@@ -322,41 +353,46 @@ def rota_management():
             rota.shift_8_8 = night_shifts[0] if night_shifts else None
 
             db.session.commit()
-            flash(f'Rota for {week_range} generated successfully!', 'success')
-            return redirect(url_for('hr.rota_management'))
+            flash(f"Rota for {week_range} generated successfully!", "success")
+            return redirect(url_for("hr.rota_management"))
 
         return render_template(
-            'hr/rota_management.html',
+            "hr/rota_management.html",
             employees=employees,
             rotas=rotas,
-            rota_data=dict(rota_data)  # Convert defaultdict to dict for Jinja2
+            rota_data=dict(rota_data),  # Convert defaultdict to dict for Jinja2
         )
 
     except Exception as e:
-        flash('Something went wrong. Please try again.', 'error')
+        flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.rota_management: {e}")
         db.session.rollback()
-        return redirect(url_for('hr.index'))
+        return redirect(url_for("hr.index"))
 
-@bp.route('/department_reports', methods=['GET'])
+
+@bp.route("/department_reports", methods=["GET"])
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def department_reports():
     """Generate department-wise employee distribution reports."""
 
     try:
         # Fetch all active employees grouped by department and role
         filters = {}
-        role_filter = request.args.get('role')  # Optional role filter from query parameters
+        role_filter = request.args.get(
+            "role"
+        )  # Optional role filter from query parameters
         if role_filter:
-            filters['role'] = role_filter
+            filters["role"] = role_filter
 
-        employees_by_department = Employee.query.filter_by(is_active=True, **filters).all()
+        employees_by_department = Employee.query.filter_by(
+            is_active=True, **filters
+        ).all()
 
         # Group employees by department
         department_data = defaultdict(lambda: defaultdict(int))
         for emp in employees_by_department:
-            department_data[emp.department]['total'] += 1
+            department_data[emp.department]["total"] += 1
             department_data[emp.department][emp.role] += 1
 
         # Convert defaultdict to dict for Jinja2 rendering
@@ -366,19 +402,20 @@ def department_reports():
         print(f"Debug: Department-wise employee distribution: {department_data}")
 
         return render_template(
-            'hr/department_reports.html',
+            "hr/department_reports.html",
             department_data=department_data,
-            role_filter=role_filter
+            role_filter=role_filter,
         )
 
     except Exception as e:
-        flash('Something went wrong. Please try again.', 'error')
+        flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.department_reports: {e}")
-        return redirect(url_for('hr.index'))
+        return redirect(url_for("hr.index"))
 
-@bp.route('/export_department_reports', methods=['GET'])
+
+@bp.route("/export_department_reports", methods=["GET"])
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def export_department_reports():
     """Export department-wise employee distribution reports to CSV."""
 
@@ -389,25 +426,40 @@ def export_department_reports():
         # Prepare data for CSV
         department_data = defaultdict(lambda: defaultdict(int))
         for emp in employees_by_department:
-            department_data[emp.department]['total'] += 1
+            department_data[emp.department]["total"] += 1
             department_data[emp.department][emp.role] += 1
 
         # Convert data to list of rows
-        csv_data = [["Department", "Total", "Records", "Nursing", "Pharmacy", "Medicine", "Laboratory", "Imaging", "Mortuary", "HR", "Stores", "Admin"]]
+        csv_data = [
+            [
+                "Department",
+                "Total",
+                "Records",
+                "Nursing",
+                "Pharmacy",
+                "Medicine",
+                "Laboratory",
+                "Imaging",
+                "Mortuary",
+                "HR",
+                "Stores",
+                "Admin",
+            ]
+        ]
         for dept, counts in department_data.items():
             row = [
                 dept,
-                counts['total'],
-                counts.get('records', 0),
-                counts.get('nursing', 0),
-                counts.get('pharmacy', 0),
-                counts.get('medicine', 0),
-                counts.get('laboratory', 0),
-                counts.get('imaging', 0),
-                counts.get('mortuary', 0),
-                counts.get('hr', 0),
-                counts.get('stores', 0),
-                counts.get('admin', 0)
+                counts["total"],
+                counts.get("records", 0),
+                counts.get("nursing", 0),
+                counts.get("pharmacy", 0),
+                counts.get("medicine", 0),
+                counts.get("laboratory", 0),
+                counts.get("imaging", 0),
+                counts.get("mortuary", 0),
+                counts.get("hr", 0),
+                counts.get("stores", 0),
+                counts.get("admin", 0),
             ]
             csv_data.append(row)
 
@@ -416,24 +468,27 @@ def export_department_reports():
         writer = csv.writer(si)
         writer.writerows(csv_data)
         output = make_response(si.getvalue())
-        output.headers["Content-Disposition"] = "attachment; filename=department_reports.csv"
+        output.headers["Content-Disposition"] = (
+            "attachment; filename=department_reports.csv"
+        )
         output.headers["Content-type"] = "text/csv"
         return output
 
     except Exception as e:
-        flash('Something went wrong. Please try again.', 'error')
+        flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.export_department_reports: {e}")
-        return redirect(url_for('hr.department_reports'))
+        return redirect(url_for("hr.department_reports"))
 
-@bp.route('/payroll')
+
+@bp.route("/payroll")
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def payroll_dashboard():
     """Display payroll dashboard with search and filter options."""
 
-    search_query = request.args.get('search', '')
-    month_filter = request.args.get('month', '')
-    department_filter = request.args.get('department', '')
+    search_query = request.args.get("search", "")
+    month_filter = request.args.get("month", "")
+    department_filter = request.args.get("department", "")
 
     query = Payroll.query.join(Employee)
     if search_query:
@@ -444,11 +499,12 @@ def payroll_dashboard():
         query = query.filter(Employee.department == department_filter)
 
     payrolls = query.all()
-    return render_template('hr/dashboard.html', payrolls=payrolls)
+    return render_template("hr/dashboard.html", payrolls=payrolls)
 
-@bp.route('/generate_payroll/<month>')
+
+@bp.route("/generate_payroll/<month>")
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def generate_payroll(month):
     """Generate payroll for a specific month."""
 
@@ -477,26 +533,30 @@ def generate_payroll(month):
             month=month,
             gross_pay=gross_pay,
             total_deductions=total_deductions,
-            net_pay=net_pay
+            net_pay=net_pay,
         )
         db.session.add(payroll)
     db.session.commit()
-    flash('Payroll generated successfully!', 'success')
-    return redirect(url_for('hr.payroll_dashboard'))
+    flash("Payroll generated successfully!", "success")
+    return redirect(url_for("hr.payroll_dashboard"))
 
-@bp.route('/employee_payroll/<int:employee_id>')
+
+@bp.route("/employee_payroll/<int:employee_id>")
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def employee_payroll(employee_id):
     """Display payroll details for a specific employee."""
 
     employee = Employee.query.get_or_404(employee_id)
     payrolls = Payroll.query.filter_by(employee_id=employee.id).all()
-    return render_template('hr/employee_payroll.html', employee=employee, payrolls=payrolls)
+    return render_template(
+        "hr/employee_payroll.html", employee=employee, payrolls=payrolls
+    )
 
-@bp.route('/add_deduction', methods=['GET', 'POST'])
+
+@bp.route("/add_deduction", methods=["GET", "POST"])
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def add_deduction():
     """Add a new deduction."""
 
@@ -505,34 +565,34 @@ def add_deduction():
         deduction = Deduction(
             name=form.name.data,
             value=form.value.data,
-            is_percentage=form.is_percentage.data
+            is_percentage=form.is_percentage.data,
         )
         db.session.add(deduction)
         db.session.commit()
-        flash('Deduction added successfully!', 'success')
-        return redirect(url_for('hr.payroll_dashboard'))
-    return render_template('hr/add_deduction.html', form=form)
+        flash("Deduction added successfully!", "success")
+        return redirect(url_for("hr.payroll_dashboard"))
+    return render_template("hr/add_deduction.html", form=form)
 
-@bp.route('/add_allowance', methods=['GET', 'POST'])
+
+@bp.route("/add_allowance", methods=["GET", "POST"])
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def add_allowance():
     """Add a new allowance."""
 
     form = AddAllowanceForm()
     if form.validate_on_submit():
         allowance = Allowance(
-            job_group=form.job_group.data,
-            name=form.name.data,
-            value=form.value.data
+            job_group=form.job_group.data, name=form.name.data, value=form.value.data
         )
         db.session.add(allowance)
         db.session.commit()
-        flash('Allowance added successfully!', 'success')
-        return redirect(url_for('hr.payroll_dashboard'))
-    return render_template('hr/add_allowance.html', form=form)
+        flash("Allowance added successfully!", "success")
+        return redirect(url_for("hr.payroll_dashboard"))
+    return render_template("hr/add_allowance.html", form=form)
 
-@bp.route('/leave_request', methods=['GET', 'POST'])
+
+@bp.route("/leave_request", methods=["GET", "POST"])
 @login_required
 def leave_request():
     """Submit a leave request for the current employee."""
@@ -543,23 +603,24 @@ def leave_request():
             employee_id=current_user.id,  # Use current_user.id instead of hardcoded value
             start_date=form.start_date.data,
             end_date=form.end_date.data,
-            type=form.type.data
+            type=form.type.data,
         )
         db.session.add(leave)
         db.session.commit()
-        flash('Leave request submitted successfully!', 'success')
-        return redirect(url_for('hr.index'))
-    return render_template('hr/leave_request.html', form=form)
+        flash("Leave request submitted successfully!", "success")
+        return redirect(url_for("hr.index"))
+    return render_template("hr/leave_request.html", form=form)
 
-@bp.route('/hr/reports')
+
+@bp.route("/hr/reports")
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def reports():
     """Generate payroll reports with filters."""
 
-    month = request.args.get('month')
-    employee_id = request.args.get('employee_id')
-    department = request.args.get('department')
+    month = request.args.get("month")
+    employee_id = request.args.get("employee_id")
+    department = request.args.get("department")
 
     query = Payroll.query.join(Employee)
     if month:
@@ -570,62 +631,68 @@ def reports():
         query = query.filter(Employee.department == department)
 
     payrolls = query.all()
-    return render_template('hr/reports.html', payrolls=payrolls)
+    return render_template("hr/reports.html", payrolls=payrolls)
 
-@bp.route('/audit_logs')
+
+@bp.route("/audit_logs")
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def audit_logs():
     """Display audit logs."""
 
     logs = AuditLog.query.all()
-    return render_template('hr/audit_logs.html', logs=logs)
+    return render_template("hr/audit_logs.html", logs=logs)
 
-@bp.route('/employee_profile/<int:employee_id>')
+
+@bp.route("/employee_profile/<int:employee_id>")
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def employee_profile(employee_id):
     """Display employee profile."""
 
     employee = Employee.query.get_or_404(employee_id)
-    return render_template('hr/employee_profile.html', employee=employee)
+    return render_template("hr/employee_profile.html", employee=employee)
 
-@bp.route('/update_profile/<int:employee_id>', methods=['POST'])
+
+@bp.route("/update_profile/<int:employee_id>", methods=["POST"])
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def update_profile(employee_id):
     """Update employee profile by HR/admin."""
 
     employee = Employee.query.get_or_404(employee_id)
-    employee.name = request.form.get('name')
-    employee.department = request.form.get('department')
-    employee.job_group = request.form.get('job_group')
+    employee.name = request.form.get("name")
+    employee.department = request.form.get("department")
+    employee.job_group = request.form.get("job_group")
     db.session.commit()
-    flash('Profile updated successfully!', 'success')
-    return redirect(url_for('hr.employee_profile', employee_id=employee.id))
+    flash("Profile updated successfully!", "success")
+    return redirect(url_for("hr.employee_profile", employee_id=employee.id))
 
-@bp.route('/leave_management')
+
+@bp.route("/leave_management")
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def leave_management():
     """Manage leave requests."""
 
     leaves = db.session.query(Leave, Employee).join(Employee).all()
-    return render_template('hr/leave_management.html', leaves=leaves)
+    return render_template("hr/leave_management.html", leaves=leaves)
 
-@bp.route('/reject_leave/<int:leave_id>')
+
+@bp.route("/reject_leave/<int:leave_id>")
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def reject_leave(leave_id):
     """Reject a leave request."""
 
     leave = Leave.query.get_or_404(leave_id)
-    leave.status = 'Rejected'
+    leave.status = "Rejected"
     db.session.commit()
-    flash('Leave request rejected successfully!', 'danger')
-    return redirect(url_for('hr.leave_management'))
+    flash("Leave request rejected successfully!", "danger")
+    return redirect(url_for("hr.leave_management"))
 
-@bp.route('/update_employee_profile', methods=['GET', 'POST'])
+
+@bp.route("/update_employee_profile", methods=["GET", "POST"])
 @login_required
 def update_employee_profile():
     """Update profile for the logged-in employee."""
@@ -639,8 +706,8 @@ def update_employee_profile():
         employee.bank_name = form.bank_name.data
         employee.bank_account = form.bank_account.data
         db.session.commit()
-        flash('Profile updated successfully!', 'success')
-        return redirect(url_for('hr.employee_profile', employee_id=employee.id))
+        flash("Profile updated successfully!", "success")
+        return redirect(url_for("hr.employee_profile", employee_id=employee.id))
 
     # Pre-fill the form with existing data
     form.email.data = employee.email
@@ -648,19 +715,21 @@ def update_employee_profile():
     form.bank_name.data = employee.bank_name
     form.bank_account.data = employee.bank_account
 
-    return render_template('hr/employee_profile.html', form=form, employee=employee)
+    return render_template("hr/employee_profile.html", form=form, employee=employee)
 
-@bp.route('/payslips')
+
+@bp.route("/payslips")
 @login_required
 def employee_payslips():
     """Display payslips for the logged-in employee."""
     # Allow all authenticated employees to view their own payslips
     payrolls = Payroll.query.filter_by(employee_id=current_user.id).all()
-    return render_template('hr/employee_payslips.html', payrolls=payrolls)
+    return render_template("hr/employee_payslips.html", payrolls=payrolls)
 
-@bp.route('/export_payroll_pdf')
+
+@bp.route("/export_payroll_pdf")
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def export_payroll_pdf():
     """Export payroll report as PDF."""
 
@@ -671,17 +740,25 @@ def export_payroll_pdf():
     p.drawString(100, 750, "Payroll Report")
     y = 730
     for payroll in payrolls:
-        p.drawString(100, y, f"{payroll.employee.name} - {payroll.month}: ${payroll.net_pay}")
+        p.drawString(
+            100, y, f"{payroll.employee.name} - {payroll.month}: ${payroll.net_pay}"
+        )
         y -= 20
     p.showPage()
     p.save()
 
     buffer.seek(0)
-    return send_file(buffer, as_attachment=True, download_name='payroll_report.pdf', mimetype='application/pdf')
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name="payroll_report.pdf",
+        mimetype="application/pdf",
+    )
 
-@bp.route('/export_payroll_excel')
+
+@bp.route("/export_payroll_excel")
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def export_payroll_excel():
     """Export payroll report as CSV (Excel-compatible)."""
 
@@ -689,20 +766,23 @@ def export_payroll_excel():
 
     si = StringIO()
     writer = csv.writer(si)
-    writer.writerow(['Employee', 'Month', 'Gross Pay', 'Deductions', 'Net Pay'])
+    writer.writerow(["Employee", "Month", "Gross Pay", "Deductions", "Net Pay"])
     for payroll in payrolls:
-        writer.writerow([
-            payroll.employee.name,
-            payroll.month,
-            payroll.gross_pay,
-            payroll.total_deductions,
-            payroll.net_pay,
-        ])
+        writer.writerow(
+            [
+                payroll.employee.name,
+                payroll.month,
+                payroll.gross_pay,
+                payroll.total_deductions,
+                payroll.net_pay,
+            ]
+        )
 
     output = make_response(si.getvalue())
-    output.headers['Content-Disposition'] = 'attachment; filename=payroll_report.csv'
-    output.headers['Content-type'] = 'text/csv'
+    output.headers["Content-Disposition"] = "attachment; filename=payroll_report.csv"
+    output.headers["Content-type"] = "text/csv"
     return output
+
 
 def send_email(subject, recipient, body):
     """Send an email notification."""
@@ -710,32 +790,34 @@ def send_email(subject, recipient, body):
     msg.body = body
     Mail.send(msg)
 
-@bp.route('/approve_leave/<int:leave_id>')
+
+@bp.route("/approve_leave/<int:leave_id>")
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def approve_leave(leave_id):
     """Approve a leave request."""
 
     leave = Leave.query.get_or_404(leave_id)
-    leave.status = 'Approved'
+    leave.status = "Approved"
     db.session.commit()
 
     employee = Employee.query.get(leave.employee_id)
     if employee:
         send_email(
-            subject='Leave Request Approved',
+            subject="Leave Request Approved",
             recipient=employee.email,
-            body=f'Your leave request from {leave.start_date} to {leave.end_date} has been approved.'
+            body=f"Your leave request from {leave.start_date} to {leave.end_date} has been approved.",
         )
     else:
-        flash('Employee not found for this leave request!', 'warning')
+        flash("Employee not found for this leave request!", "warning")
 
-    flash('Leave request approved successfully!', 'success')
-    return redirect(url_for('hr.leave_management'))
+    flash("Leave request approved successfully!", "success")
+    return redirect(url_for("hr.leave_management"))
 
-@bp.route('/process_payroll')
+
+@bp.route("/process_payroll")
 @login_required
-@roles_required('hr', 'admin')
+@roles_required("hr", "admin")
 def process_payroll():
     """Process payroll and send notifications."""
 
@@ -744,34 +826,42 @@ def process_payroll():
     for employee in employees:
         if employee.payrolls:  # Check if payroll exists
             send_email(
-                subject='Payroll Processed',
+                subject="Payroll Processed",
                 recipient=employee.email,
-                body=f'Your payroll for the month has been processed. Net Pay: ${employee.payrolls[-1].net_pay}'
+                body=f"Your payroll for the month has been processed. Net Pay: ${employee.payrolls[-1].net_pay}",
             )
 
-    flash('Payroll processed successfully!', 'success')
-    return redirect(url_for('hr.payroll_dashboard'))
+    flash("Payroll processed successfully!", "success")
+    return redirect(url_for("hr.payroll_dashboard"))
 
-@bp.route('/view_payslip/<int:payroll_id>')
+
+@bp.route("/view_payslip/<int:payroll_id>")
 @login_required
 def view_payslip(payroll_id):
     """View a specific payslip."""
     # Allow employees to view their own payslips, HR/admins to view all
     payroll = Payroll.query.get_or_404(payroll_id)
-    if get_effective_role() not in ['hr', 'admin'] and payroll.employee_id != current_user.id:
-        flash('Unauthorized access. You can only view your own payslips.', 'error')
-        return redirect(url_for('home'))
-    return render_template('hr/payslip.html', payroll=payroll)
+    if (
+        get_effective_role() not in ["hr", "admin"]
+        and payroll.employee_id != current_user.id
+    ):
+        flash("Unauthorized access. You can only view your own payslips.", "error")
+        return redirect(url_for("home"))
+    return render_template("hr/payslip.html", payroll=payroll)
 
-@bp.route('/download_payslip/<int:payroll_id>')
+
+@bp.route("/download_payslip/<int:payroll_id>")
 @login_required
 def download_payslip(payroll_id):
     """Download a specific payslip as PDF."""
     # Allow employees to download their own payslips, HR/admins to download all
     payroll = Payroll.query.get_or_404(payroll_id)
-    if get_effective_role() not in ['hr', 'admin'] and payroll.employee_id != current_user.id:
-        flash('Unauthorized access. You can only download your own payslips.', 'error')
-        return redirect(url_for('home'))
+    if (
+        get_effective_role() not in ["hr", "admin"]
+        and payroll.employee_id != current_user.id
+    ):
+        flash("Unauthorized access. You can only download your own payslips.", "error")
+        return redirect(url_for("home"))
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
@@ -779,12 +869,12 @@ def download_payslip(payroll_id):
     elements = []
 
     logo_path = "static/images/logo.png"  # Adjust the path as necessary
-    logo = Image(logo_path, width=1.5*inch, height=1*inch)
+    logo = Image(logo_path, width=1.5 * inch, height=1 * inch)
     elements.append(logo)
     elements.append(Spacer(1, 12))
 
-    elements.append(Paragraph("Payslip", styles['Title']))
-    elements.append(Paragraph(f"{payroll.month}", styles['Heading2']))
+    elements.append(Paragraph("Payslip", styles["Title"]))
+    elements.append(Paragraph(f"{payroll.month}", styles["Heading2"]))
     elements.append(Spacer(1, 12))
 
     employee_details = [
@@ -792,19 +882,23 @@ def download_payslip(payroll_id):
         ["Employee ID:", payroll.employee.employee_id],
         ["Department:", payroll.employee.department],
         ["Job Group:", payroll.employee.job_group],
-        ["Date Hired:", payroll.employee.date_hired.strftime('%Y-%m-%d')],
-        ["Status:", "Active" if payroll.employee.is_active else "Inactive"]
+        ["Date Hired:", payroll.employee.date_hired.strftime("%Y-%m-%d")],
+        ["Status:", "Active" if payroll.employee.is_active else "Inactive"],
     ]
-    employee_table = Table(employee_details, colWidths=[2*inch, 4*inch])
-    employee_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-    ]))
+    employee_table = Table(employee_details, colWidths=[2 * inch, 4 * inch])
+    employee_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+                ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
+                ("GRID", (0, 0), (-1, -1), 1, colors.black),
+            ]
+        )
+    )
     elements.append(employee_table)
     elements.append(Spacer(1, 12))
 
@@ -812,25 +906,39 @@ def download_payslip(payroll_id):
         ["Gross Pay:", f"${payroll.gross_pay}"],
         ["Total Deductions:", f"${payroll.total_deductions}"],
         ["Net Pay:", f"${payroll.net_pay}"],
-        ["Payment Date:", payroll.month]
+        ["Payment Date:", payroll.month],
     ]
-    payroll_table = Table(payroll_details, colWidths=[2*inch, 4*inch])
-    payroll_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-    ]))
+    payroll_table = Table(payroll_details, colWidths=[2 * inch, 4 * inch])
+    payroll_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+                ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
+                ("GRID", (0, 0), (-1, -1), 1, colors.black),
+            ]
+        )
+    )
     elements.append(payroll_table)
     elements.append(Spacer(1, 12))
 
-    elements.append(Paragraph("This is an official payslip generated by Your Company Name. For any discrepancies, please contact HR.", styles['BodyText']))
+    elements.append(
+        Paragraph(
+            "This is an official payslip generated by Your Company Name. For any discrepancies, please contact HR.",
+            styles["BodyText"],
+        )
+    )
     elements.append(Spacer(1, 12))
 
     doc.build(elements)
 
     buffer.seek(0)
-    return send_file(buffer, as_attachment=True, download_name=f"payslip_{payroll.employee.name}_{payroll.month}.pdf", mimetype='application/pdf')
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=f"payslip_{payroll.employee.name}_{payroll.month}.pdf",
+        mimetype="application/pdf",
+    )

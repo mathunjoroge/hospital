@@ -33,7 +33,8 @@ logger = logging.getLogger(__name__)
 # POST /emergency/break-glass/invoke
 # ─────────────────────────────────────────────────────────────────────────────
 
-@bp.route('/emergency/break-glass/invoke', methods=['POST'])
+
+@bp.route("/emergency/break-glass/invoke", methods=["POST"])
 @login_required
 def invoke():
     """
@@ -47,14 +48,16 @@ def invoke():
         duration_hours (int, optional) — override window in hours (1–8, default 4)
     """
     data = request.get_json(silent=True) or {}
-    reason = (data.get('reason') or '').strip()
+    reason = (data.get("reason") or "").strip()
     if not reason:
-        return jsonify({'error': 'A clinical reason is required for break-glass access.'}), 400
+        return jsonify(
+            {"error": "A clinical reason is required for break-glass access."}
+        ), 400
 
-    patient_id = data.get('patient_id')
-    resource_type = data.get('resource_type')
-    resource_id = data.get('resource_id')
-    duration_hours = int(data.get('duration_hours') or 4)
+    patient_id = data.get("patient_id")
+    resource_type = data.get("resource_type")
+    resource_id = data.get("resource_id")
+    duration_hours = int(data.get("duration_hours") or 4)
     duration_hours = max(1, min(duration_hours, 8))  # Clamp to 1–8 hours
 
     try:
@@ -66,27 +69,31 @@ def invoke():
             duration_hours=duration_hours,
         )
     except PermissionError as exc:
-        return jsonify({'error': str(exc)}), 403
+        return jsonify({"error": str(exc)}), 403
     except ValueError as exc:
-        return jsonify({'error': str(exc)}), 400
+        return jsonify({"error": str(exc)}), 400
 
-    return jsonify({
-        'message': 'Break-glass override granted.',
-        'grant': grant.to_dict(),
-    }), 201
+    return jsonify(
+        {
+            "message": "Break-glass override granted.",
+            "grant": grant.to_dict(),
+        }
+    ), 201
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /emergency/break-glass/status
 # ─────────────────────────────────────────────────────────────────────────────
 
-@bp.route('/emergency/break-glass/status', methods=['GET'])
+
+@bp.route("/emergency/break-glass/status", methods=["GET"])
 @login_required
 def status():
     """Return the active break-glass grants for the current user."""
     expire_stale_grants()
 
     from datetime import datetime
+
     now = datetime.now(timezone.utc)
     grants = (
         db.session.query(BreakGlassAccessLog)
@@ -98,14 +105,15 @@ def status():
         .order_by(BreakGlassAccessLog.invoked_at.desc())
         .all()
     )
-    return jsonify({'active_grants': [g.to_dict() for g in grants]}), 200
+    return jsonify({"active_grants": [g.to_dict() for g in grants]}), 200
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /emergency/break-glass/<int:grant_id>/revoke
 # ─────────────────────────────────────────────────────────────────────────────
 
-@bp.route('/emergency/break-glass/<int:grant_id>/revoke', methods=['POST'])
+
+@bp.route("/emergency/break-glass/<int:grant_id>/revoke", methods=["POST"])
 @login_required
 def revoke(grant_id):
     """
@@ -117,13 +125,13 @@ def revoke(grant_id):
         abort(404)
 
     # Authorisation: own grant or admin
-    if grant.user_id != current_user.id and current_user.role != 'admin':
+    if grant.user_id != current_user.id and current_user.role != "admin":
         abort(403)
 
     grant.revoke()
     db.session.commit()
 
-    return jsonify({'message': f'Grant {grant_id} revoked.', 'grant_id': grant_id}), 200
+    return jsonify({"message": f"Grant {grant_id} revoked.", "grant_id": grant_id}), 200
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -194,24 +202,21 @@ ADMIN_BREAK_GLASS_TEMPLATE = """
 """
 
 
-@bp.route('/admin/break-glass', methods=['GET'])
+@bp.route("/admin/break-glass", methods=["GET"])
 @login_required
-@roles_required('admin')
+@roles_required("admin")
 def admin_audit():
     """Admin-only view of all break-glass override events."""
     expire_stale_grants()
 
-    if request.args.get('format') == 'json':
-        logs = (
-            BreakGlassAccessLog.query
-            .order_by(BreakGlassAccessLog.invoked_at.desc())
-            .all()
-        )
-        return jsonify({'break_glass_events': [log.to_dict() for log in logs]}), 200
+    if request.args.get("format") == "json":
+        logs = BreakGlassAccessLog.query.order_by(
+            BreakGlassAccessLog.invoked_at.desc()
+        ).all()
+        return jsonify({"break_glass_events": [log.to_dict() for log in logs]}), 200
 
     logs = (
-        BreakGlassAccessLog.query
-        .order_by(BreakGlassAccessLog.invoked_at.desc())
+        BreakGlassAccessLog.query.order_by(BreakGlassAccessLog.invoked_at.desc())
         .limit(200)
         .all()
     )

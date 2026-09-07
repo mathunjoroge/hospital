@@ -26,25 +26,25 @@ from sqlalchemy.types import String, TypeDecorator
 logger = logging.getLogger(__name__)
 
 # Fallback deterministic key for development/testing if ENCRYPTION_KEY is not set
-DEV_FALLBACK_KEY = b'u8N_706K8i-8K2182K_X904L981L76K543210123456='
+DEV_FALLBACK_KEY = b"u8N_706K8i-8K2182K_X904L981L76K543210123456="
 
 
 def get_fernet_key() -> bytes:
     """Retrieve Fernet encryption key from Flask config or environment."""
     key = None
     try:
-        key = current_app.config.get('ENCRYPTION_KEY')
+        key = current_app.config.get("ENCRYPTION_KEY")
     except RuntimeError:
         pass  # Outside app context
 
     if not key:
-        key = os.environ.get('ENCRYPTION_KEY')
+        key = os.environ.get("ENCRYPTION_KEY")
 
     if not key:
         return DEV_FALLBACK_KEY
 
     if isinstance(key, str):
-        key_bytes = key.encode('utf-8')
+        key_bytes = key.encode("utf-8")
     else:
         key_bytes = key
 
@@ -71,7 +71,7 @@ def encrypt_value(value: str) -> str:
 
     key = get_fernet_key()
     f = Fernet(key)
-    encrypted_bytes = f.encrypt(value.encode('utf-8'))
+    encrypted_bytes = f.encrypt(value.encode("utf-8"))
     return f"enc_v1:{encrypted_bytes.decode('utf-8')}"
 
 
@@ -94,8 +94,8 @@ def decrypt_value(token: str) -> str:
     f = Fernet(key)
 
     try:
-        decrypted_bytes = f.decrypt(raw_token.encode('utf-8'))
-        return decrypted_bytes.decode('utf-8')
+        decrypted_bytes = f.decrypt(raw_token.encode("utf-8"))
+        return decrypted_bytes.decode("utf-8")
     except (InvalidToken, Exception) as e:
         logger.warning(f"Decryption failed for value: {e}")
         return token
@@ -106,6 +106,7 @@ class EncryptedString(TypeDecorator):
     SQLAlchemy Column Type for field-level encryption at rest.
     Encrypts on bind_param (DB INSERT/UPDATE), decrypts on process_result_value (DB SELECT).
     """
+
     impl = String
     cache_ok = True
 

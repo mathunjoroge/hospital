@@ -429,7 +429,6 @@ from departments.billing import bp as billing_bp  # noqa: E402
 from departments.billing.mpesa import mpesa_bp  # noqa: E402
 from departments.clinical_safety import bp as clinical_safety_bp  # noqa: E402
 from departments.consent import bp as consent_bp  # noqa: E402
-
 from departments.emergency import bp as emergency_bp  # noqa: E402
 from departments.hr import bp as hr_bp  # noqa: E402
 from departments.imaging import bp as imaging_bp  # noqa: E402
@@ -450,7 +449,6 @@ from departments.pharmacy.fefo import fefo_bp  # noqa: E402
 from departments.pharmacy.po_routes import po_bp  # noqa: E402
 from departments.public_health import bp as public_health_bp  # noqa: E402
 from departments.rcm import bp as rcm_bp  # noqa: E402
-
 from departments.records import bp as records_bp  # noqa: E402
 from departments.security_ops import bp as security_ops_bp  # noqa: E402
 from departments.stores import bp as stores_bp  # noqa: E402

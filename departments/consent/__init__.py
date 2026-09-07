@@ -1,5 +1,5 @@
 from flask import Blueprint
 
-from . import routes  # noqa: F401
-
 bp = Blueprint("consent", __name__, url_prefix="/consent")
+
+from . import routes  # noqa: E402, F401

@@ -15,12 +15,10 @@ HIMS_CONFIG = get_config()
 
 # UMLS Database Setup with connection pooling
 umls_engine = create_engine(
-    HIMS_CONFIG["UMLS_DB_URL"],
-    poolclass=QueuePool,
-    pool_size=5,
-    max_overflow=10
+    HIMS_CONFIG["UMLS_DB_URL"], poolclass=QueuePool, pool_size=5, max_overflow=10
 )
 UMLSSession = sessionmaker(bind=umls_engine)
+
 
 @contextmanager
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
@@ -36,6 +34,7 @@ def get_sqlite_connection():
     finally:
         conn.close()
 
+
 def fetch_soap_notes(limit: int = None) -> List[Dict]:
     """Fetch SOAP notes from the database."""
     try:
@@ -50,6 +49,7 @@ def fetch_soap_notes(limit: int = None) -> List[Dict]:
         logger.error(f"Error fetching SOAP notes: {e}")
         return []
 
+
 def fetch_single_soap_note(note_id: int) -> Optional[Dict]:
     """Fetch a single SOAP note by ID."""
     try:
@@ -61,6 +61,7 @@ def fetch_single_soap_note(note_id: int) -> Optional[Dict]:
     except sqlite3.Error as e:
         logger.error(f"Error fetching SOAP note {note_id}: {e}")
         return None
+
 
 def update_ai_analysis(note_id: int, ai_analysis_html: str, summary: str) -> bool:
     """Update AI analysis and summary for a specific note."""
@@ -74,7 +75,7 @@ def update_ai_analysis(note_id: int, ai_analysis_html: str, summary: str) -> boo
 
             cursor.execute(
                 "UPDATE soap_notes SET ai_analysis = ?, ai_notes = ? WHERE id = ?",
-                (ai_analysis_html, summary, note_id)
+                (ai_analysis_html, summary, note_id),
             )
             conn.commit()
             logger.info(f"Updated AI analysis for note ID {note_id}")

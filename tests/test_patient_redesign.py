@@ -5,6 +5,7 @@ Unit tests for Task 2.1: Patient model redesign — soft-delete, audit
 timestamps, nullable optional fields, PatientIdentifier, PatientMerge,
 duplicate detection, and the merge helper.
 """
+
 from datetime import date, datetime
 
 import pytest
@@ -17,6 +18,7 @@ from extensions import db
 # ─────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────
+
 
 def _make_patient(suffix, dob=None, contact=None, name=None, national_id=None):
     return Patient(
@@ -37,8 +39,12 @@ def _make_patient(suffix, dob=None, contact=None, name=None, national_id=None):
 
 def _make_user():
     from werkzeug.security import generate_password_hash
-    user = User(username="teststaff", role="records",
-                password=generate_password_hash("TestPass1!"))
+
+    user = User(
+        username="teststaff",
+        role="records",
+        password=generate_password_hash("TestPass1!"),
+    )
     db.session.add(user)
     db.session.commit()
     return user
@@ -47,6 +53,7 @@ def _make_user():
 # ─────────────────────────────────────────────
 # 1. nullable fields — national_id & blood_group
 # ─────────────────────────────────────────────
+
 
 class TestNullableFields:
     def test_register_without_national_id(self, app):
@@ -87,6 +94,7 @@ class TestNullableFields:
 # ─────────────────────────────────────────────
 # 2. Soft-delete
 # ─────────────────────────────────────────────
+
 
 class TestSoftDelete:
     def test_soft_delete_sets_is_active_false(self, app):
@@ -129,6 +137,7 @@ class TestSoftDelete:
 # 3. Audit timestamps
 # ─────────────────────────────────────────────
 
+
 class TestAuditTimestamps:
     def test_created_at_populated(self, app):
         with app.app_context():
@@ -150,6 +159,7 @@ class TestAuditTimestamps:
 # 4. PatientIdentifier
 # ─────────────────────────────────────────────
 
+
 class TestPatientIdentifier:
     def test_create_alternate_identifier(self, app):
         with app.app_context():
@@ -159,7 +169,7 @@ class TestPatientIdentifier:
             ident = PatientIdentifier(
                 patient_id="PTPI01",
                 identifier_type="Passport",
-                identifier_value="AB123456"
+                identifier_value="AB123456",
             )
             db.session.add(ident)
             db.session.commit()
@@ -178,11 +188,13 @@ class TestPatientIdentifier:
                 ("Birth Certificate", "BC-001"),
                 ("Refugee ID", "RF-999"),
             ]:
-                db.session.add(PatientIdentifier(
-                    patient_id="PTPI02",
-                    identifier_type=itype,
-                    identifier_value=ival
-                ))
+                db.session.add(
+                    PatientIdentifier(
+                        patient_id="PTPI02",
+                        identifier_type=itype,
+                        identifier_value=ival,
+                    )
+                )
             db.session.commit()
             idents = PatientIdentifier.query.filter_by(patient_id="PTPI02").all()
             assert len(idents) == 2
@@ -191,6 +203,7 @@ class TestPatientIdentifier:
 # ─────────────────────────────────────────────
 # 5. Duplicate detection
 # ─────────────────────────────────────────────
+
 
 class TestDuplicateDetection:
     def test_high_confidence_phone_dob_match(self, app):
@@ -201,17 +214,21 @@ class TestDuplicateDetection:
             db.session.add_all([p1, p2])
             db.session.commit()
             result = find_duplicate_candidates(p1)
-            assert any(r['confidence'] == 'HIGH' for r in result)
+            assert any(r["confidence"] == "HIGH" for r in result)
 
     def test_medium_confidence_name_dob_match(self, app):
         """Same DOB + shared name token → MEDIUM confidence."""
         with app.app_context():
-            p1 = _make_patient("DD03", dob=date(1992, 7, 20), name="John Kamau", contact="0700000001")
-            p2 = _make_patient("DD04", dob=date(1992, 7, 20), name="John Mwangi", contact="0700000002")
+            p1 = _make_patient(
+                "DD03", dob=date(1992, 7, 20), name="John Kamau", contact="0700000001"
+            )
+            p2 = _make_patient(
+                "DD04", dob=date(1992, 7, 20), name="John Mwangi", contact="0700000002"
+            )
             db.session.add_all([p1, p2])
             db.session.commit()
             result = find_duplicate_candidates(p1)
-            assert any(r['confidence'] == 'MEDIUM' for r in result)
+            assert any(r["confidence"] == "MEDIUM" for r in result)
 
     def test_no_match_different_dob(self, app):
         """Patients with different DOBs produce no candidates."""
@@ -233,12 +250,13 @@ class TestDuplicateDetection:
             p2.soft_delete()
             db.session.commit()
             result = find_duplicate_candidates(p1)
-            assert all(r['patient'].is_active for r in result)
+            assert all(r["patient"].is_active for r in result)
 
 
 # ─────────────────────────────────────────────
 # 6. Patient merge handler
 # ─────────────────────────────────────────────
+
 
 class TestPatientMerge:
     def test_merge_soft_deletes_source(self, app):
@@ -248,7 +266,9 @@ class TestPatientMerge:
             tgt = _make_patient("MG02")
             db.session.add_all([src, tgt])
             db.session.commit()
-            merge_patient_records("PTMG01", "PTMG02", user_id=user.id, notes="test merge")
+            merge_patient_records(
+                "PTMG01", "PTMG02", user_id=user.id, notes="test merge"
+            )
             src_db = Patient.query.filter_by(patient_id="PTMG01").first()
             assert src_db.is_active is False
             assert src_db.deleted_at is not None
@@ -271,10 +291,11 @@ class TestPatientMerge:
             tgt = _make_patient("MG06")
             db.session.add_all([src, tgt])
             db.session.commit()
-            merge_patient_records("PTMG05", "PTMG06", user_id=user.id, notes="audit check")
+            merge_patient_records(
+                "PTMG05", "PTMG06", user_id=user.id, notes="audit check"
+            )
             audit = PatientMerge.query.filter_by(
-                source_patient_id="PTMG05",
-                target_patient_id="PTMG06"
+                source_patient_id="PTMG05", target_patient_id="PTMG06"
             ).first()
             assert audit is not None
             assert audit.notes == "audit check"

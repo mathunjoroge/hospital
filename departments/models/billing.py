@@ -6,60 +6,87 @@ from extensions import db  # Use absolute import for db
 
 class ChargeCategory(db.Model):
     """Categories of charges (Consultation, Lab, Surgery, etc.)."""
-    __tablename__ = 'charge_categories'
+
+    __tablename__ = "charge_categories"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
 
+
 class Charge(db.Model):
     """Stores hospital charges."""
-    __tablename__ = 'charges'
+
+    __tablename__ = "charges"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    category_id = db.Column(db.Integer, db.ForeignKey('charge_categories.id'), nullable=False)
+    category_id = db.Column(
+        db.Integer, db.ForeignKey("charge_categories.id"), nullable=False
+    )
     cost = db.Column(db.Numeric(10, 2), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    created_at = db.Column(
+        db.DateTime, default=db.func.current_timestamp(), nullable=False
+    )
 
-    category = db.relationship('ChargeCategory', backref=db.backref('charges', lazy=True))
+    category = db.relationship(
+        "ChargeCategory", backref=db.backref("charges", lazy=True)
+    )
+
 
 class Billing(db.Model):
     """Links patients to charges, tracks payment status."""
-    __tablename__ = 'billing'
+
+    __tablename__ = "billing"
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)
-    charge_id = db.Column(db.Integer, db.ForeignKey('charges.id'), nullable=False)
+    patient_id = db.Column(
+        db.String(20), db.ForeignKey("patients.patient_id"), nullable=False
+    )
+    charge_id = db.Column(db.Integer, db.ForeignKey("charges.id"), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)
     total_cost = db.Column(db.Numeric(10, 2), nullable=False)
-    status = db.Column(db.Integer, nullable=False, default=0)  # 0 for Pending, 1 for Paid
+    status = db.Column(
+        db.Integer, nullable=False, default=0
+    )  # 0 for Pending, 1 for Paid
     billed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    receipt_number = db.Column(db.String(50), nullable=True)  # Receipt number for paid bills
+    receipt_number = db.Column(
+        db.String(50), nullable=True
+    )  # Receipt number for paid bills
 
-    patient = db.relationship('Patient', backref=db.backref('bills', lazy=True))
-    charge = db.relationship('Charge', backref=db.backref('billings', lazy=True))
+    patient = db.relationship("Patient", backref=db.backref("bills", lazy=True))
+    charge = db.relationship("Charge", backref=db.backref("billings", lazy=True))
 
     def calculate_total(self):
         """Calculate total cost based on charge."""
         self.total_cost = self.quantity * self.charge.cost
 
+
 class DrugsBill(db.Model):
     """Links patients to drugs and tracks payment status."""
-    __tablename__ = 'drugs_bill'
+
+    __tablename__ = "drugs_bill"
 
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)
-    drug_id = db.Column(db.Integer, db.ForeignKey('drugs.id'), nullable=True)  # Nullable for summary drug bills
+    patient_id = db.Column(
+        db.String(20), db.ForeignKey("patients.patient_id"), nullable=False
+    )
+    drug_id = db.Column(
+        db.Integer, db.ForeignKey("drugs.id"), nullable=True
+    )  # Nullable for summary drug bills
     quantity = db.Column(db.Integer, nullable=False, default=1)
     total_cost = db.Column(db.Numeric(10, 2), nullable=False)
-    status = db.Column(db.Integer, nullable=False, default=0)  # 0 for Pending, 1 for Paid
-    billed_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    status = db.Column(
+        db.Integer, nullable=False, default=0
+    )  # 0 for Pending, 1 for Paid
+    billed_at = db.Column(
+        db.DateTime, default=db.func.current_timestamp(), nullable=False
+    )
     receipt_number = db.Column(db.String(50), nullable=True)
     payment_method = db.Column(db.String(50), nullable=True)
     payment_reference = db.Column(db.String(255), nullable=True)
 
     # Relationships
-    patient = db.relationship('Patient', backref=db.backref('drug_bills', lazy=True))
-    drug = db.relationship('Drug', backref=db.backref('bills', lazy=True))
+    patient = db.relationship("Patient", backref=db.backref("drug_bills", lazy=True))
+    drug = db.relationship("Drug", backref=db.backref("bills", lazy=True))
 
     def calculate_total(self):
         """Calculate total cost based on drug selling price."""
@@ -71,29 +98,48 @@ class DrugsBill(db.Model):
 
 class PaidBill(db.Model):
     """Stores details of paid bills."""
-    __tablename__ = 'paid_bills'
+
+    __tablename__ = "paid_bills"
 
     id = db.Column(db.Integer, primary_key=True)
-    receipt_number = db.Column(db.String(50), unique=True, nullable=False)  # Unique receipt number
-    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)  # Link to Patient
-    grand_total = db.Column(db.Numeric(10, 2), nullable=False)  # Total cost of all unpaid bills
-    amount_paid = db.Column(db.Numeric(10, 2), nullable=False)  # Amount paid in this transaction
-    balance = db.Column(db.Numeric(10, 2), nullable=False)  # Remaining balance after payment
-    paid_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)  # Timestamp of payment
-    payment_method = db.Column(db.String(50), nullable=True)  # Payment method (e.g., Cash, M-Pesa)
+    receipt_number = db.Column(
+        db.String(50), unique=True, nullable=False
+    )  # Unique receipt number
+    patient_id = db.Column(
+        db.String(20), db.ForeignKey("patients.patient_id"), nullable=False
+    )  # Link to Patient
+    grand_total = db.Column(
+        db.Numeric(10, 2), nullable=False
+    )  # Total cost of all unpaid bills
+    amount_paid = db.Column(
+        db.Numeric(10, 2), nullable=False
+    )  # Amount paid in this transaction
+    balance = db.Column(
+        db.Numeric(10, 2), nullable=False
+    )  # Remaining balance after payment
+    paid_at = db.Column(
+        db.DateTime, default=datetime.utcnow, nullable=False
+    )  # Timestamp of payment
+    payment_method = db.Column(
+        db.String(50), nullable=True
+    )  # Payment method (e.g., Cash, M-Pesa)
 
     # Relationships
-    patient = db.relationship('Patient', backref=db.backref('paid_bills', lazy=True))
+    patient = db.relationship("Patient", backref=db.backref("paid_bills", lazy=True))
 
     @staticmethod
     def generate_receipt_number():
         """Generate a unique receipt number."""
         now = datetime.utcnow()
         prefix = f"REC-{now.strftime('%Y%m%d')}"
-        last_paid_bill = PaidBill.query.filter(PaidBill.receipt_number.like(f"{prefix}%")).order_by(PaidBill.id.desc()).first()
+        last_paid_bill = (
+            PaidBill.query.filter(PaidBill.receipt_number.like(f"{prefix}%"))
+            .order_by(PaidBill.id.desc())
+            .first()
+        )
         if last_paid_bill:
             try:
-                last_number = int(last_paid_bill.receipt_number.split('-')[-1])
+                last_number = int(last_paid_bill.receipt_number.split("-")[-1])
             except ValueError:
                 last_number = 0
         else:
@@ -101,92 +147,104 @@ class PaidBill(db.Model):
         new_number = last_number + 1
         return f"{prefix}-{new_number:04d}"
 
+
 class WardBill(db.Model):
-    __tablename__ = 'ward_bills'
+    __tablename__ = "ward_bills"
 
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)
+    patient_id = db.Column(
+        db.String(20), db.ForeignKey("patients.patient_id"), nullable=False
+    )
     total_paid = db.Column(db.Numeric(10, 2), nullable=False)
     receipt_number = db.Column(db.String(50), unique=True, nullable=True)
     billed_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     payment_method = db.Column(db.String(50), nullable=True)
     payment_reference = db.Column(db.String(255), nullable=True)
 
-    patient = db.relationship('Patient', backref=db.backref('ward_bills', lazy=True))
+    patient = db.relationship("Patient", backref=db.backref("ward_bills", lazy=True))
 
     def __repr__(self):
         return f"<WardBill(id={self.id}, patient_id={self.patient_id}, total_paid={self.total_paid}, receipt_number={self.receipt_number})>"
 
+
 # Lab Bills (for requested_labs)
 class LabBill(db.Model):
-    __tablename__ = 'lab_bills'
+    __tablename__ = "lab_bills"
 
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)
+    patient_id = db.Column(
+        db.String(20), db.ForeignKey("patients.patient_id"), nullable=False
+    )
     total_paid = db.Column(db.Numeric(10, 2), nullable=False)
     receipt_number = db.Column(db.String(50), unique=True, nullable=True)
     billed_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     payment_method = db.Column(db.String(50), nullable=True)
     payment_reference = db.Column(db.String(255), nullable=True)
 
-    patient = db.relationship('Patient', backref=db.backref('lab_bills', lazy=True))
+    patient = db.relationship("Patient", backref=db.backref("lab_bills", lazy=True))
 
     def __repr__(self):
         return f"<LabBill(id={self.id}, patient_id={self.patient_id}, total_paid={self.total_paid}, receipt_number={self.receipt_number})>"
 
+
 # Clinic Bills (for clinic_bookings)
 class ClinicBill(db.Model):
-    __tablename__ = 'clinic_bills'
+    __tablename__ = "clinic_bills"
 
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)
+    patient_id = db.Column(
+        db.String(20), db.ForeignKey("patients.patient_id"), nullable=False
+    )
     total_paid = db.Column(db.Numeric(10, 2), nullable=False)
     receipt_number = db.Column(db.String(50), unique=True, nullable=True)
     billed_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     payment_method = db.Column(db.String(50), nullable=True)
     payment_reference = db.Column(db.String(255), nullable=True)
 
-    patient = db.relationship('Patient', backref=db.backref('clinic_bills', lazy=True))
+    patient = db.relationship("Patient", backref=db.backref("clinic_bills", lazy=True))
 
     def __repr__(self):
         return f"<ClinicBill(id={self.id}, patient_id={self.patient_id}, total_paid={self.total_paid}, receipt_number={self.receipt_number})>"
 
+
 # Theatre Bills (for theatre_list)
 class TheatreBill(db.Model):
-    __tablename__ = 'theatre_bills'
+    __tablename__ = "theatre_bills"
 
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)
+    patient_id = db.Column(
+        db.String(20), db.ForeignKey("patients.patient_id"), nullable=False
+    )
     total_paid = db.Column(db.Numeric(10, 2), nullable=False)
     receipt_number = db.Column(db.String(50), unique=True, nullable=True)
     billed_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     payment_method = db.Column(db.String(50), nullable=True)
     payment_reference = db.Column(db.String(255), nullable=True)
 
-    patient = db.relationship('Patient', backref=db.backref('theatre_bills', lazy=True))
+    patient = db.relationship("Patient", backref=db.backref("theatre_bills", lazy=True))
 
     def __repr__(self):
         return f"<TheatreBill(id={self.id}, patient_id={self.patient_id}, total_paid={self.total_paid}, receipt_number={self.receipt_number})>"
 
+
 # Imaging Bills (for requested_images)
 class ImagingBill(db.Model):
-    __tablename__ = 'imaging_bills'
+    __tablename__ = "imaging_bills"
 
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False)
+    patient_id = db.Column(
+        db.String(20), db.ForeignKey("patients.patient_id"), nullable=False
+    )
     total_paid = db.Column(db.Numeric(10, 2), nullable=False)
     receipt_number = db.Column(db.String(50), unique=True, nullable=True)
     billed_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     payment_method = db.Column(db.String(50), nullable=True)
     payment_reference = db.Column(db.String(255), nullable=True)
 
-    patient = db.relationship('Patient', backref=db.backref('imaging_bills', lazy=True))
+    patient = db.relationship("Patient", backref=db.backref("imaging_bills", lazy=True))
 
     def __repr__(self):
         return f"<ImagingBill(id={self.id}, patient_id={self.patient_id}, total_paid={self.total_paid}, receipt_number={self.receipt_number})>"
-
-
-
 
 
 # ═══════════════════════════════════════════════════════
@@ -196,21 +254,22 @@ class ImagingBill(db.Model):
 # All new billing code should write to these models.
 # ═══════════════════════════════════════════════════════
 
+
 class InvoiceStatus(str, enum.Enum):
-    DRAFT    = 'draft'
-    ISSUED   = 'issued'
-    PARTIAL  = 'partial'
-    PAID     = 'paid'
-    VOID     = 'void'
+    DRAFT = "draft"
+    ISSUED = "issued"
+    PARTIAL = "partial"
+    PAID = "paid"
+    VOID = "void"
 
 
 class PaymentMethod(str, enum.Enum):
-    CASH      = 'cash'
-    MPESA     = 'mpesa'
-    INSURANCE = 'insurance'
-    BANK      = 'bank'
-    WAIVER    = 'waiver'
-    OTHER     = 'other'
+    CASH = "cash"
+    MPESA = "mpesa"
+    INSURANCE = "insurance"
+    BANK = "bank"
+    WAIVER = "waiver"
+    OTHER = "other"
 
 
 class Invoice(db.Model):
@@ -218,58 +277,75 @@ class Invoice(db.Model):
     Single unified invoice per patient encounter.
     Replaces the 6 legacy *Bill tables for new encounters.
     """
-    __tablename__ = 'invoices'
 
-    id             = db.Column(db.Integer, primary_key=True)
+    __tablename__ = "invoices"
+
+    id = db.Column(db.Integer, primary_key=True)
     invoice_number = db.Column(db.String(30), unique=True, nullable=False, index=True)
-    patient_id     = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False, index=True)
+    patient_id = db.Column(
+        db.String(20), db.ForeignKey("patients.patient_id"), nullable=False, index=True
+    )
 
-    status         = db.Column(db.Enum(InvoiceStatus), nullable=False, default=InvoiceStatus.DRAFT)
-    issued_at      = db.Column(db.DateTime, nullable=True)
-    due_date       = db.Column(db.Date, nullable=True)
+    status = db.Column(
+        db.Enum(InvoiceStatus), nullable=False, default=InvoiceStatus.DRAFT
+    )
+    issued_at = db.Column(db.DateTime, nullable=True)
+    due_date = db.Column(db.Date, nullable=True)
 
     # Totals (denormalised for query performance)
-    subtotal       = db.Column(db.Numeric(12, 2), nullable=False, default=0)
-    discount       = db.Column(db.Numeric(12, 2), nullable=False, default=0)
-    grand_total    = db.Column(db.Numeric(12, 2), nullable=False, default=0)
-    amount_paid    = db.Column(db.Numeric(12, 2), nullable=False, default=0)
-    balance        = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    subtotal = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    discount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    grand_total = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    amount_paid = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    balance = db.Column(db.Numeric(12, 2), nullable=False, default=0)
 
     # Insurance
-    insurance_scheme_id = db.Column(db.Integer, nullable=True)   # FK added by 2.3
+    insurance_scheme_id = db.Column(db.Integer, nullable=True)  # FK added by 2.3
     insurance_claim_ref = db.Column(db.String(100), nullable=True)
 
     # Audit
-    created_by     = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    created_at     = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at     = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    notes          = db.Column(db.Text, nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+    notes = db.Column(db.Text, nullable=True)
 
     # Legacy source tracking (to link backfilled records)
-    legacy_source  = db.Column(db.String(30), nullable=True)  # e.g. 'drugs_bill', 'ward_bill'
-    legacy_id      = db.Column(db.Integer, nullable=True)
+    legacy_source = db.Column(
+        db.String(30), nullable=True
+    )  # e.g. 'drugs_bill', 'ward_bill'
+    legacy_id = db.Column(db.Integer, nullable=True)
 
-    patient        = db.relationship('Patient', backref=db.backref('invoices', lazy='dynamic'))
-    line_items     = db.relationship('InvoiceLineItem', back_populates='invoice',
-                                     cascade='all, delete-orphan', lazy='dynamic')
-    payments       = db.relationship('Payment', back_populates='invoice',
-                                     cascade='all, delete-orphan', lazy='dynamic')
+    patient = db.relationship("Patient", backref=db.backref("invoices", lazy="dynamic"))
+    line_items = db.relationship(
+        "InvoiceLineItem",
+        back_populates="invoice",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
+    payments = db.relationship(
+        "Payment",
+        back_populates="invoice",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
 
     def __init__(self, **kwargs):
-        if 'total_amount' in kwargs:
-            kwargs['grand_total'] = kwargs.pop('total_amount')
-        if 'balance_due' in kwargs:
-            kwargs['balance'] = kwargs.pop('balance_due')
-        if 'invoice_number' not in kwargs:
-            kwargs['invoice_number'] = Invoice.generate_invoice_number()
-        if 'status' in kwargs and isinstance(kwargs['status'], str):
-            st_val = kwargs['status'].upper()
-            if st_val == 'UNPAID':
-                kwargs['status'] = InvoiceStatus.ISSUED
+        if "total_amount" in kwargs:
+            kwargs["grand_total"] = kwargs.pop("total_amount")
+        if "balance_due" in kwargs:
+            kwargs["balance"] = kwargs.pop("balance_due")
+        if "invoice_number" not in kwargs:
+            kwargs["invoice_number"] = Invoice.generate_invoice_number()
+        if "status" in kwargs and isinstance(kwargs["status"], str):
+            st_val = kwargs["status"].upper()
+            if st_val == "UNPAID":
+                kwargs["status"] = InvoiceStatus.ISSUED
             elif hasattr(InvoiceStatus, st_val):
-                kwargs['status'] = getattr(InvoiceStatus, st_val)
-            elif kwargs['status'].lower() in [e.value for e in InvoiceStatus]:
-                kwargs['status'] = InvoiceStatus(kwargs['status'].lower())
+                kwargs["status"] = getattr(InvoiceStatus, st_val)
+            elif kwargs["status"].lower() in [e.value for e in InvoiceStatus]:
+                kwargs["status"] = InvoiceStatus(kwargs["status"].lower())
         super().__init__(**kwargs)
 
     @property
@@ -293,13 +369,15 @@ class Invoice(db.Model):
         """Generate sequential invoice number INV-YYYYMMDD-NNNN."""
         now = datetime.utcnow()
         prefix = f"INV-{now.strftime('%Y%m%d')}"
-        last = Invoice.query.filter(
-            Invoice.invoice_number.like(f"{prefix}-%")
-        ).order_by(Invoice.id.desc()).first()
+        last = (
+            Invoice.query.filter(Invoice.invoice_number.like(f"{prefix}-%"))
+            .order_by(Invoice.id.desc())
+            .first()
+        )
         seq = 1
         if last:
             try:
-                seq = int(last.invoice_number.rsplit('-', 1)[-1]) + 1
+                seq = int(last.invoice_number.rsplit("-", 1)[-1]) + 1
             except ValueError:
                 pass
         return f"{prefix}-{seq:04d}"
@@ -326,30 +404,35 @@ class Invoice(db.Model):
 
 class InvoiceLineItem(db.Model):
     """A single charge line on an invoice (drug, lab, ward, etc.)."""
-    __tablename__ = 'invoice_line_items'
 
-    id          = db.Column(db.Integer, primary_key=True)
-    invoice_id  = db.Column(db.Integer, db.ForeignKey('invoices.id'), nullable=False, index=True)
+    __tablename__ = "invoice_line_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(
+        db.Integer, db.ForeignKey("invoices.id"), nullable=False, index=True
+    )
 
     description = db.Column(db.String(255), nullable=False)
-    category    = db.Column(db.String(50), nullable=False)    # drug / lab / ward / theatre / imaging / consult / other
-    quantity    = db.Column(db.Numeric(10, 3), nullable=False, default=1)
-    unit_price  = db.Column(db.Numeric(12, 2), nullable=False)
-    discount    = db.Column(db.Numeric(12, 2), nullable=False, default=0)
-    total       = db.Column(db.Numeric(12, 2), nullable=False)
+    category = db.Column(
+        db.String(50), nullable=False
+    )  # drug / lab / ward / theatre / imaging / consult / other
+    quantity = db.Column(db.Numeric(10, 3), nullable=False, default=1)
+    unit_price = db.Column(db.Numeric(12, 2), nullable=False)
+    discount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    total = db.Column(db.Numeric(12, 2), nullable=False)
 
     # Optional FK back to source domain tables
-    charge_id   = db.Column(db.Integer, db.ForeignKey('charges.id'), nullable=True)
+    charge_id = db.Column(db.Integer, db.ForeignKey("charges.id"), nullable=True)
 
-    invoice     = db.relationship('Invoice', back_populates='line_items')
+    invoice = db.relationship("Invoice", back_populates="line_items")
 
     def __init__(self, **kwargs):
-        if 'amount' in kwargs:
-            val = kwargs.pop('amount')
-            kwargs['unit_price'] = val
-            kwargs['total'] = val
-        if 'category' not in kwargs:
-            kwargs['category'] = 'other'
+        if "amount" in kwargs:
+            val = kwargs.pop("amount")
+            kwargs["unit_price"] = val
+            kwargs["total"] = val
+        if "category" not in kwargs:
+            kwargs["category"] = "other"
         super().__init__(**kwargs)
 
     @property
@@ -370,51 +453,68 @@ class InvoiceLineItem(db.Model):
 
 class Payment(db.Model):
     """A single payment transaction applied to an invoice (supports partial payments)."""
-    __tablename__ = 'payments'
 
-    id              = db.Column(db.Integer, primary_key=True)
-    invoice_id      = db.Column(db.Integer, db.ForeignKey('invoices.id'), nullable=False, index=True)
-    patient_id      = db.Column(db.String(20), db.ForeignKey('patients.patient_id'), nullable=False, index=True)
+    __tablename__ = "payments"
 
-    amount          = db.Column(db.Numeric(12, 2), nullable=False)
-    method          = db.Column(db.Enum(PaymentMethod), nullable=False, default=PaymentMethod.CASH)
-    reference       = db.Column(db.String(100), nullable=True)   # M-Pesa receipt, bank ref, etc.
-    receipt_number  = db.Column(db.String(30), unique=True, nullable=True)
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(
+        db.Integer, db.ForeignKey("invoices.id"), nullable=False, index=True
+    )
+    patient_id = db.Column(
+        db.String(20), db.ForeignKey("patients.patient_id"), nullable=False, index=True
+    )
 
-    paid_at         = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    recorded_by     = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    notes           = db.Column(db.Text, nullable=True)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    method = db.Column(
+        db.Enum(PaymentMethod), nullable=False, default=PaymentMethod.CASH
+    )
+    reference = db.Column(
+        db.String(100), nullable=True
+    )  # M-Pesa receipt, bank ref, etc.
+    receipt_number = db.Column(db.String(30), unique=True, nullable=True)
+
+    paid_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    recorded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
 
     # M-Pesa specific (populated by Task 2.4 Daraja integration)
-    mpesa_checkout_id   = db.Column(db.String(100), nullable=True)
-    mpesa_result_code   = db.Column(db.Integer, nullable=True)
+    mpesa_checkout_id = db.Column(db.String(100), nullable=True)
+    mpesa_result_code = db.Column(db.Integer, nullable=True)
 
-    _is_reconciled = db.Column('is_reconciled', db.Boolean, default=False, nullable=True)
+    _is_reconciled = db.Column(
+        "is_reconciled", db.Boolean, default=False, nullable=True
+    )
 
-    payment_method = db.synonym('method')
-    payment_reference = db.synonym('reference')
-    is_reconciled = db.synonym('_is_reconciled')
+    payment_method = db.synonym("method")
+    payment_reference = db.synonym("reference")
+    is_reconciled = db.synonym("_is_reconciled")
 
-    invoice  = db.relationship('Invoice', back_populates='payments')
-    patient  = db.relationship('Patient', backref=db.backref('unified_payments', lazy='dynamic'))
+    invoice = db.relationship("Invoice", back_populates="payments")
+    patient = db.relationship(
+        "Patient", backref=db.backref("unified_payments", lazy="dynamic")
+    )
 
     def __init__(self, **kwargs):
-        if 'payment_method' in kwargs:
-            kwargs['method'] = kwargs.pop('payment_method')
-        if 'payment_reference' in kwargs:
-            kwargs['reference'] = kwargs.pop('payment_reference')
-        if 'is_reconciled' in kwargs:
-            kwargs['_is_reconciled'] = kwargs.pop('is_reconciled')
-        if 'method' in kwargs and isinstance(kwargs['method'], str):
-            m_val = kwargs['method'].upper()
+        if "payment_method" in kwargs:
+            kwargs["method"] = kwargs.pop("payment_method")
+        if "payment_reference" in kwargs:
+            kwargs["reference"] = kwargs.pop("payment_reference")
+        if "is_reconciled" in kwargs:
+            kwargs["_is_reconciled"] = kwargs.pop("is_reconciled")
+        if "method" in kwargs and isinstance(kwargs["method"], str):
+            m_val = kwargs["method"].upper()
             if hasattr(PaymentMethod, m_val):
-                kwargs['method'] = getattr(PaymentMethod, m_val)
-            elif kwargs['method'].lower() in [e.value for e in PaymentMethod]:
-                kwargs['method'] = PaymentMethod(kwargs['method'].lower())
-        if 'invoice_id' in kwargs and 'patient_id' not in kwargs and kwargs['invoice_id']:
-            inv = Invoice.query.get(kwargs['invoice_id'])
+                kwargs["method"] = getattr(PaymentMethod, m_val)
+            elif kwargs["method"].lower() in [e.value for e in PaymentMethod]:
+                kwargs["method"] = PaymentMethod(kwargs["method"].lower())
+        if (
+            "invoice_id" in kwargs
+            and "patient_id" not in kwargs
+            and kwargs["invoice_id"]
+        ):
+            inv = Invoice.query.get(kwargs["invoice_id"])
             if inv:
-                kwargs['patient_id'] = inv.patient_id
+                kwargs["patient_id"] = inv.patient_id
         super().__init__(**kwargs)
 
     def __repr__(self):

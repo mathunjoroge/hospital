@@ -14,17 +14,28 @@ from extensions import db
 
 class VoteHead(db.Model):
     """Institutional vote-head budget allocation entity."""
-    __tablename__ = 'vote_heads'
+
+    __tablename__ = "vote_heads"
 
     id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(50), nullable=False, unique=True, index=True)  # e.g., 'VOTE-PHARM-2026'
-    name = db.Column(db.String(128), nullable=False)                         # e.g., 'Pharmacy Pharmaceuticals'
-    department = db.Column(db.String(50), nullable=False, index=True)        # e.g., 'pharmacy', 'laboratory', 'stores'
-    financial_year = db.Column(db.String(20), nullable=False, default='2026') # e.g., 'FY2025/2026'
+    code = db.Column(
+        db.String(50), nullable=False, unique=True, index=True
+    )  # e.g., 'VOTE-PHARM-2026'
+    name = db.Column(db.String(128), nullable=False)  # e.g., 'Pharmacy Pharmaceuticals'
+    department = db.Column(
+        db.String(50), nullable=False, index=True
+    )  # e.g., 'pharmacy', 'laboratory', 'stores'
+    financial_year = db.Column(
+        db.String(20), nullable=False, default="2026"
+    )  # e.g., 'FY2025/2026'
 
     allocated_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0.0)
-    encumbered_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0.0)  # Funds committed in ORDERED POs
-    spent_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0.0)       # Funds disbursed upon PO receiving
+    encumbered_amount = db.Column(
+        db.Numeric(12, 2), nullable=False, default=0.0
+    )  # Funds committed in ORDERED POs
+    spent_amount = db.Column(
+        db.Numeric(12, 2), nullable=False, default=0.0
+    )  # Funds disbursed upon PO receiving
 
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(
@@ -39,7 +50,11 @@ class VoteHead(db.Model):
     @property
     def available_amount(self) -> float:
         """Net unencumbered available funds."""
-        return float(self.allocated_amount) - float(self.encumbered_amount) - float(self.spent_amount)
+        return (
+            float(self.allocated_amount)
+            - float(self.encumbered_amount)
+            - float(self.spent_amount)
+        )
 
     def can_encumber(self, amount: float) -> bool:
         """Check if amount fits within available balance."""
@@ -49,7 +64,9 @@ class VoteHead(db.Model):
         """Encumber / reserve funds upon PO ordering."""
         amt = round(float(amount), 2)
         if not self.can_encumber(amt):
-            raise ValueError(f"Insufficient funds in vote-head {self.code}. Available: {self.available_amount}, requested: {amt}")
+            raise ValueError(
+                f"Insufficient funds in vote-head {self.code}. Available: {self.available_amount}, requested: {amt}"
+            )
         self.encumbered_amount = float(self.encumbered_amount) + amt
 
     def unencumber(self, amount: float):
@@ -65,15 +82,15 @@ class VoteHead(db.Model):
 
     def to_dict(self) -> dict:
         return {
-            'id': self.id,
-            'code': self.code,
-            'name': self.name,
-            'department': self.department,
-            'financial_year': self.financial_year,
-            'allocated_amount': float(self.allocated_amount),
-            'encumbered_amount': float(self.encumbered_amount),
-            'spent_amount': float(self.spent_amount),
-            'available_amount': self.available_amount,
-            'is_active': self.is_active,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            "id": self.id,
+            "code": self.code,
+            "name": self.name,
+            "department": self.department,
+            "financial_year": self.financial_year,
+            "allocated_amount": float(self.allocated_amount),
+            "encumbered_amount": float(self.encumbered_amount),
+            "spent_amount": float(self.spent_amount),
+            "available_amount": self.available_amount,
+            "is_active": self.is_active,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }

@@ -24,35 +24,38 @@ from departments.models.nursing import MedicationAdmin
 
 logger = logging.getLogger(__name__)
 
-mar_bp = Blueprint('mar', __name__, url_prefix='/nursing/mar')
+mar_bp = Blueprint("mar", __name__, url_prefix="/nursing/mar")
 
-@mar_bp.route('/occupancy', methods=['GET'])
+
+@mar_bp.route("/occupancy", methods=["GET"])
 def get_ward_occupancy():
     """Real-time Ward & Bed Occupancy Dashboard data."""
     wards = Ward.query.all()
     occupancy_data = []
 
     for ward in wards:
-        occupancy_data.append({
-            "ward_id": ward.id,
-            "name": ward.name,
-            "total_beds": ward.number_of_beds,
-            "occupied_beds": ward.occupied_beds,
-            "available_beds": ward.available_beds(),
-            "daily_charge": float(ward.daily_charge)
-        })
+        occupancy_data.append(
+            {
+                "ward_id": ward.id,
+                "name": ward.name,
+                "total_beds": ward.number_of_beds,
+                "occupied_beds": ward.occupied_beds,
+                "available_beds": ward.available_beds(),
+                "daily_charge": float(ward.daily_charge),
+            }
+        )
 
     return jsonify({"occupancy": occupancy_data, "count": len(occupancy_data)}), 200
 
 
-@mar_bp.route('/chart', methods=['POST'])
+@mar_bp.route("/chart", methods=["POST"])
 def chart_medication():
     """MAR charting endpoint for nurses to record medication administration."""
     data = request.get_json() or {}
-    patient_id = data.get('patient_id')
-    medication = data.get('medication')
-    dosage = data.get('dosage')
-    nurse_id = data.get('nurse_id')
+    patient_id = data.get("patient_id")
+    medication = data.get("medication")
+    dosage = data.get("dosage")
+    nurse_id = data.get("nurse_id")
 
     if not all([patient_id, medication, dosage, nurse_id]):
         return jsonify({"error": "Missing required fields"}), 400
@@ -62,22 +65,26 @@ def chart_medication():
         medication=medication,
         dosage=dosage,
         recorded_by=nurse_id,
-        time_administered=datetime.utcnow()
+        time_administered=datetime.utcnow(),
     )
     db.session.add(admin_record)
     db.session.commit()
 
-    return jsonify({
-        "success": True,
-        "message": "Medication administration recorded successfully.",
-        "record_id": admin_record.id
-    }), 201
+    return jsonify(
+        {
+            "success": True,
+            "message": "Medication administration recorded successfully.",
+            "record_id": admin_record.id,
+        }
+    ), 201
 
 
-@mar_bp.route('/auto_bill', methods=['POST'])
+@mar_bp.route("/auto_bill", methods=["POST"])
 def trigger_daily_billing():
     """Trigger daily room rate and nursing care auto-billing for admitted patients."""
-    admitted = AdmittedPatient.query.filter(AdmittedPatient.discharged_on.is_(None)).all()
+    admitted = AdmittedPatient.query.filter(
+        AdmittedPatient.discharged_on.is_(None)
+    ).all()
     billed_count = 0
     total_amount = 0.0
 
@@ -87,7 +94,9 @@ def trigger_daily_billing():
             continue
 
         # Check if an invoice already exists for this patient, otherwise create one
-        invoice = Invoice.query.filter_by(patient_id=admission.patient_id, status=InvoiceStatus.DRAFT).first()
+        invoice = Invoice.query.filter_by(
+            patient_id=admission.patient_id, status=InvoiceStatus.DRAFT
+        ).first()
         if not invoice:
             invoice = Invoice(
                 invoice_number=f"INV-{int(datetime.utcnow().timestamp())}-{admission.patient_id[:5]}",
@@ -96,19 +105,19 @@ def trigger_daily_billing():
                 grand_total=0.0,
                 amount_paid=0.0,
                 balance=0.0,
-                status=InvoiceStatus.DRAFT
+                status=InvoiceStatus.DRAFT,
             )
             db.session.add(invoice)
-            db.session.flush() # To get invoice ID
+            db.session.flush()  # To get invoice ID
 
         # Add daily ward charge
         line_item = InvoiceLineItem(
             invoice_id=invoice.id,
             description=f"Daily Ward Charge - {ward.name}",
-            category='ward',
+            category="ward",
             quantity=1,
             unit_price=float(ward.daily_charge),
-            total=float(ward.daily_charge)
+            total=float(ward.daily_charge),
         )
         invoice.subtotal = float(invoice.subtotal) + float(ward.daily_charge)
         invoice.grand_total = float(invoice.grand_total) + float(ward.daily_charge)
@@ -120,8 +129,10 @@ def trigger_daily_billing():
 
     db.session.commit()
 
-    return jsonify({
-        "success": True,
-        "patients_billed": billed_count,
-        "total_amount_billed": total_amount
-    }), 200
+    return jsonify(
+        {
+            "success": True,
+            "patients_billed": billed_count,
+            "total_amount_billed": total_amount,
+        }
+    ), 200

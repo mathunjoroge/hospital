@@ -2,18 +2,19 @@ import logging
 import sys
 from datetime import datetime
 
-sys.path.insert(0, '/home/mathu/projects/hospital')
+sys.path.insert(0, "/home/mathu/projects/hospital")
 
 from departments.nlp.src.nlp import DiseasePredictor
 from departments.nlp.src.utils import generate_html_response
 
 # Configure logging
 logging.basicConfig(
-    filename='test_note.log',
+    filename="test_note.log",
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("HIMS-NLP-TEST")
+
 
 def test_process_soap_note():
     """Test the processing of a sample SOAP note."""
@@ -43,7 +44,7 @@ def test_process_soap_note():
         "additional_notes": "Patient advised to maintain hydration, rest, and avoid contact with others to prevent spread. Discussed smoking cessation benefits given history.",
         "ai_notes": "",  # Initially empty, to be populated by NLP pipeline
         "ai_analysis": "",  # Initially empty, to be populated by NLP pipeline
-        "file_path": "/home/mathu/projects/hospital/uploads/P1000_note_1001.pdf"  # Example path
+        "file_path": "/home/mathu/projects/hospital/uploads/P1000_note_1001.pdf",  # Example path
     }
 
     # Process the note
@@ -54,7 +55,9 @@ def test_process_soap_note():
     processing_time = (datetime.now() - start_time).total_seconds()
 
     # Validate result
-    assert "error" not in result, f"Processing failed: {result.get('details', 'Unknown error')}"
+    assert (
+        "error" not in result
+    ), f"Processing failed: {result.get('details', 'Unknown error')}"
     assert result.get("note_id") == sample_note["id"], "Note ID mismatch"
     assert result.get("patient_id") == sample_note["patient_id"], "Patient ID mismatch"
     assert "primary_diagnosis" in result, "Primary diagnosis missing"
@@ -77,9 +80,13 @@ def test_process_soap_note():
     logger.info(f"HTML report saved to {output_file}")
 
     # Verify AMR/IPC content in HTML
-    assert any(term in html_output.lower() for term in ["amr/ipc analysis", "amr_high", "ipc_adequate"]), "AMR/IPC content missing in HTML"
+    assert any(
+        term in html_output.lower()
+        for term in ["amr/ipc analysis", "amr_high", "ipc_adequate"]
+    ), "AMR/IPC content missing in HTML"
 
     logger.info("All tests passed successfully!")
+
 
 if __name__ == "__main__":
     try:

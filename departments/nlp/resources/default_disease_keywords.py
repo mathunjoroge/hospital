@@ -39,7 +39,6 @@ DEFAULT_DISEASE_KEYWORDS = {
     "mumps": "C0026764",
     "rubella": "C0035799",
     "zika virus infection": "C4321343",
-
     # Respiratory / Cardiovascular
     "asthma": "C0004096",
     "acute asthma exacerbation": "C0152023",
@@ -56,7 +55,6 @@ DEFAULT_DISEASE_KEYWORDS = {
     "hypertension": "C0020538",
     "high blood pressure": "C0020538",
     "hypotension": "C0020649",
-
     # Endocrine
     "diabetes": "C0011849",
     "type 1 diabetes": "C0011854",
@@ -64,7 +62,6 @@ DEFAULT_DISEASE_KEYWORDS = {
     "diabetic ketoacidosis": "C0011864",
     "hypoglycemia": "C0020615",
     "hyperglycemia": "C0020456",
-
     # Gastrointestinal
     "abdominal pain": "C0000737",
     "appendicitis": "C0003615",
@@ -73,7 +70,6 @@ DEFAULT_DISEASE_KEYWORDS = {
     "liver cirrhosis": "C0023895",
     "hepatomegaly": "C0019199",
     "jaundice": "C0022346",
-
     # Renal / Urological
     "kidney stones": "C0022658",
     "renal colic": "C0264782",
@@ -81,7 +77,6 @@ DEFAULT_DISEASE_KEYWORDS = {
     "chronic kidney disease": "C1561643",
     "hematuria": "C0018965",
     "urinary retention": "C0042029",
-
     # Neurology
     "epilepsy": "C0014544",
     "seizure": "C0036572",
@@ -90,7 +85,6 @@ DEFAULT_DISEASE_KEYWORDS = {
     "delirium": "C0011206",
     "dementia": "C0011265",
     "parkinson's disease": "C0030567",
-
     # Musculoskeletal
     "back pain": "C0004604",
     "musculoskeletal back pain": "C0026857",
@@ -99,7 +93,6 @@ DEFAULT_DISEASE_KEYWORDS = {
     "osteoarthritis": "C0029408",
     "rheumatoid arthritis": "C0003873",
     "gout": "C0018099",
-
     # Obstetrics / Gynecology
     "pregnancy": "C0032961",
     "ectopic pregnancy": "C0013302",
@@ -107,7 +100,6 @@ DEFAULT_DISEASE_KEYWORDS = {
     "postpartum hemorrhage": "C0151827",
     "miscarriage": "C0232971",
     "menorrhagia": "C0025325",
-
     # Psychiatry / Behavioral
     "depression": "C0011581",
     "anxiety": "C0003467",
@@ -116,7 +108,6 @@ DEFAULT_DISEASE_KEYWORDS = {
     "psychosis": "C0033975",
     "bipolar disorder": "C0005586",
     "insomnia": "C0021311",
-
     # Dermatology / ENT
     "urticaria": "C0042210",
     "eczema": "C0013595",
@@ -126,7 +117,6 @@ DEFAULT_DISEASE_KEYWORDS = {
     "sinusitis": "C0037199",
     "tonsillitis": "C0040425",
     "pharyngitis": "C0031350",
-
     # Oncology
     "cancer": "C0006826",
     "breast cancer": "C0006142",
@@ -134,7 +124,6 @@ DEFAULT_DISEASE_KEYWORDS = {
     "prostate cancer": "C0033578",
     "leukemia": "C0023418",
     "lymphoma": "C0024299",
-
     # Toxicology / Emergency
     "snake bite": "C0027947",
     "poisoning": "C0032227",
@@ -143,5 +132,5 @@ DEFAULT_DISEASE_KEYWORDS = {
     "anaphylaxis": "C0002736",
     "burns": "C0006370",
     "head injury": "C0018671",
-    "drowning": "C0013173"
+    "drowning": "C0013173",
 }

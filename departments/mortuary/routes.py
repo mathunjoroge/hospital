@@ -11,15 +11,14 @@ from extensions import db
 from . import bp
 
 
-@bp.route('/', methods=['GET', 'POST'])
+@bp.route("/", methods=["GET", "POST"])
 @login_required
-@roles_required('mortuary', 'admin')
+@roles_required("mortuary", "admin")
 def index():
-
-    if request.method == 'POST':
-        deceased_id = request.form.get('deceased_id', '').strip()
-        date_str = request.form.get('date_of_death')
-        cause_of_death = request.form.get('cause_of_death', '').strip()
+    if request.method == "POST":
+        deceased_id = request.form.get("deceased_id", "").strip()
+        date_str = request.form.get("date_of_death")
+        cause_of_death = request.form.get("cause_of_death", "").strip()
 
         if not deceased_id or not date_str or not cause_of_death:
             flash("All fields are required for mortuary entry.", "warning")
@@ -29,21 +28,24 @@ def index():
                 flash(f"Patient ID {deceased_id} not found.", "danger")
             else:
                 try:
-                    date_of_death = datetime.strptime(date_str, '%Y-%m-%d').date()
+                    date_of_death = datetime.strptime(date_str, "%Y-%m-%d").date()
                     mortuary_rec = MortuaryData(
                         deceased_id=deceased_id,
                         date_of_death=date_of_death,
                         cause_of_death=cause_of_death,
-                        recorded_by=current_user.id
+                        recorded_by=current_user.id,
                     )
                     db.session.add(mortuary_rec)
                     db.session.commit()
-                    flash(f"Mortuary intake recorded for {deceased_id} successfully.", "success")
+                    flash(
+                        f"Mortuary intake recorded for {deceased_id} successfully.",
+                        "success",
+                    )
                 except Exception as e:
                     db.session.rollback()
                     flash(f"Error saving record: {str(e)}", "danger")
 
-        return redirect(url_for('mortuary.index'))
+        return redirect(url_for("mortuary.index"))
 
     records = MortuaryData.query.order_by(MortuaryData.recorded_at.desc()).all()
-    return render_template('mortuary.html', records=records)
+    return render_template("mortuary.html", records=records)

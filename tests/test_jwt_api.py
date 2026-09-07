@@ -21,7 +21,9 @@ def jwt_client(client):
     if not admin:
         admin = User(
             username="api_jwt_user",
-            password=generate_password_hash("AdminPassword123!", method="pbkdf2:sha256"),
+            password=generate_password_hash(
+                "AdminPassword123!", method="pbkdf2:sha256"
+            ),
             role="admin",
         )
         db.session.add(admin)

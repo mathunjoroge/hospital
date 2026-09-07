@@ -17,9 +17,12 @@ from urllib3.util.retry import Retry
 #                               CONFIGURATION                                 #
 # --------------------------------------------------------------------------- #
 
+
 @dataclass
 class Config:
-    BASE_PROJECT_DIR: str = os.path.join(os.path.expanduser("~"), "projects", "kenya_law")
+    BASE_PROJECT_DIR: str = os.path.join(
+        os.path.expanduser("~"), "projects", "kenya_law"
+    )
 
     # Directories and files - MATCHING TRAINER EXPECTATIONS
     LOG_DIR: str = field(init=False)
@@ -57,16 +60,20 @@ class Config:
             os.makedirs(d, exist_ok=True)
 
         # File paths - EXACTLY WHAT TRAINER EXPECTS
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.LOG_FILE = os.path.join(self.LOG_DIR, f"kenyalaw_scraper_{timestamp}.log")
         self.CONSTITUTION_FILE = os.path.join(self.DATA_DIR, "constitution.json")
         self.ACTS_FILE = os.path.join(self.DATA_DIR, "acts_of_kenya.json")
         self.COUNTIES_FILE = os.path.join(self.DATA_DIR, "county_legislation.json")
-        self.TRAINING_DATA_FILE = os.path.join(self.DATA_DIR, "kenya_law_training_data.jsonl")  # Key file!
+        self.TRAINING_DATA_FILE = os.path.join(
+            self.DATA_DIR, "kenya_law_training_data.jsonl"
+        )  # Key file!
+
 
 # --------------------------------------------------------------------------- #
 #                                 LOGGING                                    #
 # --------------------------------------------------------------------------- #
+
 
 def setup_logging(log_file: str) -> logging.Logger:
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
@@ -76,16 +83,20 @@ def setup_logging(log_file: str) -> logging.Logger:
 
     fh = logging.FileHandler(log_file, encoding="utf-8")
     ch = logging.StreamHandler()
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
     fh.setFormatter(formatter)
     ch.setFormatter(formatter)
     logger.addHandler(fh)
     logger.addHandler(ch)
     return logger
 
+
 # --------------------------------------------------------------------------- #
 #                          UNIVERSAL SCRAPING TOOLS                          #
 # --------------------------------------------------------------------------- #
+
 
 class LawScraper:
     def __init__(self, cfg: Config, log: logging.Logger):
@@ -95,25 +106,29 @@ class LawScraper:
 
     def _create_session(self):
         s = requests.Session()
-        retry = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
+        retry = Retry(
+            total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504]
+        )
         adapter = HTTPAdapter(max_retries=retry)
         s.mount("http://", adapter)
         s.mount("https://", adapter)
-        s.headers.update({
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br"
-        })
+        s.headers.update(
+            {
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+            }
+        )
         return s
 
     def extract_law_content(self, url: str) -> Tuple[Optional[str], Dict]:
         """Extract content from any law URL with metadata"""
         metadata = {
-            'url': url,
-            'scraped_at': datetime.now().isoformat(),
-            'title': '',
-            'word_count': 0
+            "url": url,
+            "scraped_at": datetime.now().isoformat(),
+            "title": "",
+            "word_count": 0,
         }
 
         try:
@@ -124,7 +139,9 @@ class LawScraper:
 
             # Extract title
             title_elem = soup.find("h1") or soup.find("title")
-            metadata['title'] = title_elem.get_text(strip=True) if title_elem else "Unknown Law"
+            metadata["title"] = (
+                title_elem.get_text(strip=True) if title_elem else "Unknown Law"
+            )
 
             # Extract HTML content - try multiple selectors
             content_selectors = [
@@ -134,7 +151,7 @@ class LawScraper:
                 "article",
                 "main",
                 ".law-content",
-                ".document-content"
+                ".document-content",
             ]
 
             content = None
@@ -144,19 +161,21 @@ class LawScraper:
                     break
 
             if not content:
-                content = soup.find('main') or soup.find('article') or soup.find('body')
+                content = soup.find("main") or soup.find("article") or soup.find("body")
 
             if content:
                 # Clean up content
-                for element in content.select("script, style, nav, header, footer, .nav, .header, .footer, .tools"):
+                for element in content.select(
+                    "script, style, nav, header, footer, .nav, .header, .footer, .tools"
+                ):
                     element.decompose()
 
                 # Extract text
                 text = content.get_text(separator="\n", strip=True)
-                text = re.sub(r'\n{3,}', '\n\n', text)
-                text = re.sub(r'\s+', ' ', text).strip()
+                text = re.sub(r"\n{3,}", "\n\n", text)
+                text = re.sub(r"\s+", " ", text).strip()
 
-                metadata['word_count'] = len(text.split())
+                metadata["word_count"] = len(text.split())
 
                 return text, metadata
 
@@ -174,10 +193,10 @@ class LawScraper:
             soup = BeautifulSoup(resp.text, "lxml")
 
             # Find all AKN links
-            akn_links = soup.find_all('a', href=re.compile(r'/akn/ke/'))
+            akn_links = soup.find_all("a", href=re.compile(r"/akn/ke/"))
             for link in akn_links:
                 title = link.get_text(strip=True)
-                href = link.get('href')
+                href = link.get("href")
                 if href and title and len(title) > 5:
                     full_url = urljoin(self.cfg.NEW_BASE_URL, href)
                     laws.append((title, full_url))
@@ -187,9 +206,11 @@ class LawScraper:
 
         return laws
 
+
 # --------------------------------------------------------------------------- #
 #                         CONSTITUTION SCRAPER                               #
 # --------------------------------------------------------------------------- #
+
 
 def scrape_constitution(cfg: Config, log: logging.Logger) -> Dict:
     """Scrape the Constitution of Kenya - IN TRAINER-COMPATIBLE FORMAT"""
@@ -197,7 +218,7 @@ def scrape_constitution(cfg: Config, log: logging.Logger) -> Dict:
 
     if os.path.exists(cfg.CONSTITUTION_FILE):
         log.info("Constitution already exists. Loading from file.")
-        with open(cfg.CONSTITUTION_FILE, 'r', encoding='utf-8') as f:
+        with open(cfg.CONSTITUTION_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
 
     scraper = LawScraper(cfg, log)
@@ -216,9 +237,9 @@ def scrape_constitution(cfg: Config, log: logging.Logger) -> Dict:
             if content and len(content.split()) > 1000:
                 # FORMAT FOR TRAINER: Simple title: content structure
                 constitution_data = {
-                    'Constitution of Kenya': content,
-                    'Preamble': extract_preamble(content),
-                    'Bill of Rights': extract_bill_of_rights(content)
+                    "Constitution of Kenya": content,
+                    "Preamble": extract_preamble(content),
+                    "Bill of Rights": extract_bill_of_rights(content),
                 }
                 break
         except Exception as e:
@@ -227,7 +248,7 @@ def scrape_constitution(cfg: Config, log: logging.Logger) -> Dict:
 
     # Save constitution data
     if constitution_data:
-        with open(cfg.CONSTITUTION_FILE, 'w', encoding='utf-8') as f:
+        with open(cfg.CONSTITUTION_FILE, "w", encoding="utf-8") as f:
             json.dump(constitution_data, f, ensure_ascii=False, indent=2)
         log.info(f"Constitution saved with {len(constitution_data)} sections")
     else:
@@ -235,49 +256,55 @@ def scrape_constitution(cfg: Config, log: logging.Logger) -> Dict:
 
     return constitution_data
 
+
 def extract_preamble(content: str) -> str:
     """Extract preamble from constitution content"""
     if not isinstance(content, str):
         return "Preamble content not found"
 
-    lines = content.split('\n')
+    lines = content.split("\n")
     preamble_lines = []
     in_preamble = False
 
     for line in lines:
         line = line.strip()
-        if 'preamble' in line.lower() or 'we the people' in line.lower():
+        if "preamble" in line.lower() or "we the people" in line.lower():
             in_preamble = True
-        if in_preamble and line and not line.lower().startswith('chapter'):
+        if in_preamble and line and not line.lower().startswith("chapter"):
             preamble_lines.append(line)
-        elif in_preamble and line.lower().startswith('chapter'):
+        elif in_preamble and line.lower().startswith("chapter"):
             break
 
-    return ' '.join(preamble_lines) if preamble_lines else "Preamble content not found"
+    return " ".join(preamble_lines) if preamble_lines else "Preamble content not found"
+
 
 def extract_bill_of_rights(content: str) -> str:
     """Extract bill of rights from constitution content"""
     if not isinstance(content, str):
         return "Bill of Rights content not found"
 
-    lines = content.split('\n')
+    lines = content.split("\n")
     rights_lines = []
     in_rights = False
 
     for line in lines:
         line = line.strip()
-        if 'bill of rights' in line.lower() or 'chapter four' in line.lower():
+        if "bill of rights" in line.lower() or "chapter four" in line.lower():
             in_rights = True
         if in_rights and line:
             rights_lines.append(line)
-        elif in_rights and 'chapter five' in line.lower():
+        elif in_rights and "chapter five" in line.lower():
             break
 
-    return ' '.join(rights_lines) if rights_lines else "Bill of Rights content not found"
+    return (
+        " ".join(rights_lines) if rights_lines else "Bill of Rights content not found"
+    )
+
 
 # --------------------------------------------------------------------------- #
 #                           ACTS OF KENYA SCRAPER                            #
 # --------------------------------------------------------------------------- #
+
 
 def scrape_acts_of_kenya(cfg: Config, log: logging.Logger) -> Dict[str, str]:
     """Scrape Acts of Kenya - IN TRAINER-COMPATIBLE FORMAT"""
@@ -285,7 +312,7 @@ def scrape_acts_of_kenya(cfg: Config, log: logging.Logger) -> Dict[str, str]:
 
     if os.path.exists(cfg.ACTS_FILE):
         log.info("Acts of Kenya already exist. Loading from file.")
-        with open(cfg.ACTS_FILE, 'r', encoding='utf-8') as f:
+        with open(cfg.ACTS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
 
     scraper = LawScraper(cfg, log)
@@ -294,7 +321,7 @@ def scrape_acts_of_kenya(cfg: Config, log: logging.Logger) -> Dict[str, str]:
     try:
         # Find acts from legislation home
         laws = scraper.find_akn_links(cfg.LEGISLATION_HOME)
-        acts = [law for law in laws if '/akn/ke/act/' in law[1]]
+        acts = [law for law in laws if "/akn/ke/act/" in law[1]]
 
         log.info(f"Found {len(acts)} potential acts")
 
@@ -317,15 +344,17 @@ def scrape_acts_of_kenya(cfg: Config, log: logging.Logger) -> Dict[str, str]:
         log.error(f"Acts scraping failed: {e}")
 
     # Save acts data
-    with open(cfg.ACTS_FILE, 'w', encoding='utf-8') as f:
+    with open(cfg.ACTS_FILE, "w", encoding="utf-8") as f:
         json.dump(acts_data, f, ensure_ascii=False, indent=2)
 
     log.info(f"Acts of Kenya scraping completed: {len(acts_data)} acts saved")
     return acts_data
 
+
 # --------------------------------------------------------------------------- #
 #                          COUNTY LEGISLATION SCRAPER                        #
 # --------------------------------------------------------------------------- #
+
 
 def scrape_county_legislation(cfg: Config, log: logging.Logger) -> Dict[str, Dict]:
     """Scrape county legislation - IN TRAINER-COMPATIBLE FORMAT"""
@@ -333,7 +362,7 @@ def scrape_county_legislation(cfg: Config, log: logging.Logger) -> Dict[str, Dic
 
     if os.path.exists(cfg.COUNTIES_FILE):
         log.info("County legislation already exists. Loading from file.")
-        with open(cfg.COUNTIES_FILE, 'r', encoding='utf-8') as f:
+        with open(cfg.COUNTIES_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
 
     scraper = LawScraper(cfg, log)
@@ -351,8 +380,8 @@ def scrape_county_legislation(cfg: Config, log: logging.Logger) -> Dict[str, Dic
 
         for element in county_elements:
             county_name = element.get_text(strip=True)
-            href = element.get('href')
-            if county_name and href and 'county' in county_name.lower():
+            href = element.get("href")
+            if county_name and href and "county" in county_name.lower():
                 full_url = urljoin(cfg.NEW_BASE_URL, href)
                 county_links.append((county_name, full_url))
 
@@ -372,15 +401,15 @@ def scrape_county_legislation(cfg: Config, log: logging.Logger) -> Dict[str, Dic
                     if content and len(content.split()) > 50:
                         # FORMAT FOR TRAINER: Nested county structure with laws
                         county_laws[law_title] = {
-                            'content': content,
-                            'url': law_url,
-                            'word_count': len(content.split())
+                            "content": content,
+                            "url": law_url,
+                            "word_count": len(content.split()),
                         }
 
                 if county_laws:
                     counties_data[county_name] = {
-                        'laws': county_laws,
-                        'total_laws': len(county_laws)
+                        "laws": county_laws,
+                        "total_laws": len(county_laws),
                     }
                     log.info(f"  ✓ {county_name}: {len(county_laws)} laws")
 
@@ -394,15 +423,19 @@ def scrape_county_legislation(cfg: Config, log: logging.Logger) -> Dict[str, Dic
         log.error(f"County legislation scraping failed: {e}")
 
     # Save counties data
-    with open(cfg.COUNTIES_FILE, 'w', encoding='utf-8') as f:
+    with open(cfg.COUNTIES_FILE, "w", encoding="utf-8") as f:
         json.dump(counties_data, f, ensure_ascii=False, indent=2)
 
-    log.info(f"County legislation scraping completed: {len(counties_data)} counties saved")
+    log.info(
+        f"County legislation scraping completed: {len(counties_data)} counties saved"
+    )
     return counties_data
+
 
 # --------------------------------------------------------------------------- #
 #                            CASE LAW SCRAPER                                #
 # --------------------------------------------------------------------------- #
+
 
 def scrape_case_law(cfg: Config, log: logging.Logger) -> List[Dict]:
     """Scrape case law - IN TRAINER-COMPATIBLE FORMAT"""
@@ -415,12 +448,12 @@ def scrape_case_law(cfg: Config, log: logging.Logger) -> List[Dict]:
 
         # Get judgments page
         laws = scraper.find_akn_links(cfg.JUDGMENTS_URL)
-        judgment_laws = [law for law in laws if '/judgment/' in law[1]]
+        judgment_laws = [law for law in laws if "/judgment/" in law[1]]
 
         log.info(f"Found {len(judgment_laws)} judgment URLs")
 
         # Process each judgment
-        for i, (title, url) in enumerate(judgment_laws[:cfg.MAX_CASES]):
+        for i, (title, url) in enumerate(judgment_laws[: cfg.MAX_CASES]):
             try:
                 log.info(f"Processing judgment {i+1}/{len(judgment_laws)}: {title}")
 
@@ -435,9 +468,9 @@ def scrape_case_law(cfg: Config, log: logging.Logger) -> List[Dict]:
                         "metadata": {
                             "court": extract_court_from_title(title),
                             "date": extract_date_from_title(title),
-                            "case_number": extract_case_number(title)
+                            "case_number": extract_case_number(title),
                         },
-                        "scraped_at": datetime.now().isoformat()
+                        "scraped_at": datetime.now().isoformat(),
                     }
 
                     case_data.append(case_info)
@@ -454,46 +487,60 @@ def scrape_case_law(cfg: Config, log: logging.Logger) -> List[Dict]:
 
     # Save to JSONL file - EXACTLY WHAT TRAINER EXPECTS
     if case_data:
-        with open(cfg.TRAINING_DATA_FILE, 'w', encoding='utf-8') as f:
+        with open(cfg.TRAINING_DATA_FILE, "w", encoding="utf-8") as f:
             for case in case_data:
-                f.write(json.dumps(case, ensure_ascii=False) + '\n')
+                f.write(json.dumps(case, ensure_ascii=False) + "\n")
         log.info(f"Case law saved to {cfg.TRAINING_DATA_FILE}: {len(case_data)} cases")
 
     return case_data
+
 
 def extract_court_from_title(title: str) -> str:
     """Extract court name from case title"""
     if not isinstance(title, str):
         return "Kenyan Court"
 
-    courts = ['Supreme Court', 'Court of Appeal', 'High Court', 'Magistrate Court',
-              'Employment Court', 'Environment Court', 'ELC', 'KECA', 'KEHC']
+    courts = [
+        "Supreme Court",
+        "Court of Appeal",
+        "High Court",
+        "Magistrate Court",
+        "Employment Court",
+        "Environment Court",
+        "ELC",
+        "KECA",
+        "KEHC",
+    ]
     for court in courts:
         if court in title:
             return court
     return "Kenyan Court"
+
 
 def extract_date_from_title(title: str) -> str:
     """Extract date from case title"""
     if not isinstance(title, str):
         return "Unknown date"
 
-    date_pattern = r'(\d{1,2}\s+\w+\s+\d{4})'
+    date_pattern = r"(\d{1,2}\s+\w+\s+\d{4})"
     match = re.search(date_pattern, title)
     return match.group(1) if match else "Unknown date"
+
 
 def extract_case_number(title: str) -> str:
     """Extract case number from title"""
     if not isinstance(title, str):
         return "Unknown case number"
 
-    case_pattern = r'[A-Za-z]+\s+[A-Za-z]+\s+[E\d]+\s+of\s+\d{4}'
+    case_pattern = r"[A-Za-z]+\s+[A-Za-z]+\s+[E\d]+\s+of\s+\d{4}"
     match = re.search(case_pattern, title)
     return match.group(0) if match else "Unknown case number"
+
 
 # --------------------------------------------------------------------------- #
 #                      SAFE WORD COUNT CALCULATION                           #
 # --------------------------------------------------------------------------- #
+
 
 def safe_word_count(data: any) -> int:
     """Safely calculate word count for any data type"""
@@ -518,9 +565,11 @@ def safe_word_count(data: any) -> int:
     else:
         return 0
 
+
 # --------------------------------------------------------------------------- #
 #                            MAIN SCRAPER CLASS                              #
 # --------------------------------------------------------------------------- #
+
 
 class KenyaLawScraper:
     def __init__(self, cfg: Config):
@@ -551,7 +600,9 @@ class KenyaLawScraper:
             case_data = scrape_case_law(self.cfg, self.log)
 
             # Print summary
-            self._print_scraping_summary(constitution_data, acts_data, counties_data, case_data)
+            self._print_scraping_summary(
+                constitution_data, acts_data, counties_data, case_data
+            )
 
         except Exception as e:
             self.log.error(f"Scraping failed: {e}", exc_info=True)
@@ -559,13 +610,17 @@ class KenyaLawScraper:
 
         return success
 
-    def _print_scraping_summary(self, constitution: Dict, acts: Dict, counties: Dict, cases: List):
+    def _print_scraping_summary(
+        self, constitution: Dict, acts: Dict, counties: Dict, cases: List
+    ):
         """Print a summary of scraping results"""
-        self.log.info("\n" + "="*60)
+        self.log.info("\n" + "=" * 60)
         self.log.info("KENYA LAW SCRAPING SUMMARY (TRAINER-COMPATIBLE)")
-        self.log.info("="*60)
+        self.log.info("=" * 60)
 
-        self.log.info(f"  Constitution sections: {len(constitution) if constitution else 0}")
+        self.log.info(
+            f"  Constitution sections: {len(constitution) if constitution else 0}"
+        )
         self.log.info(f"  Acts of Kenya: {len(acts) if acts else 0}")
         self.log.info(f"  Counties with laws: {len(counties) if counties else 0}")
         self.log.info(f"  Case Law judgments: {len(cases)}")
@@ -581,17 +636,19 @@ class KenyaLawScraper:
 
         self.log.info(f"  Total training words: {total_words:,}")
 
-        self.log.info("-"*60)
+        self.log.info("-" * 60)
         self.log.info("  KEY FILES CREATED:")
         self.log.info(f"  • {self.cfg.CONSTITUTION_FILE}")
         self.log.info(f"  • {self.cfg.ACTS_FILE}")
         self.log.info(f"  • {self.cfg.COUNTIES_FILE}")
         self.log.info(f"  • {self.cfg.TRAINING_DATA_FILE} (for trainer)")
-        self.log.info("="*60)
+        self.log.info("=" * 60)
+
 
 # --------------------------------------------------------------------------- #
 #                               MAIN EXECUTION                               #
 # --------------------------------------------------------------------------- #
+
 
 def main():
     """Main execution function"""
@@ -613,6 +670,7 @@ def main():
         print(f"📋 Files created: {', '.join(data_files)}")
     else:
         print(f"\n❌ Scraping failed. Check logs: {cfg.LOG_FILE}")
+
 
 if __name__ == "__main__":
     main()

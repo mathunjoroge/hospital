@@ -86,7 +86,7 @@ def test_notification_dispatcher_email_channel(app, sample_patient):
             subject="Reminder Notice",
             body="Your clinic appointment is tomorrow.",
             patient_id=sample_patient,
-            channels=['email'],
+            channels=["email"],
         )
 
         assert log is not None
@@ -99,7 +99,7 @@ def test_failed_delivery_handling(app, sample_patient):
     """Verify failed channel dispatches log status FAILED and record error message."""
     with app.app_context():
         with patch.object(
-            EmailChannel, 'send', side_effect=Exception('SMTP Connection Error')
+            EmailChannel, "send", side_effect=Exception("SMTP Connection Error")
         ):
             log = NotificationDispatcher.dispatch_event(
                 event_type=EVENT_LAB_RESULT_READY,
@@ -107,7 +107,7 @@ def test_failed_delivery_handling(app, sample_patient):
                 subject="Lab Result",
                 body="Your results are ready.",
                 patient_id=sample_patient,
-                channels=['email'],
+                channels=["email"],
             )
 
             assert log is not None
@@ -154,9 +154,7 @@ def test_all_five_event_triggers(app, sample_patient):
         assert log_lab.status == "SENT"
 
         # 3. Invoice Due Trigger
-        inv = Invoice(
-            patient_id=sample_patient, total_amount=2500.0, status='UNPAID'
-        )
+        inv = Invoice(patient_id=sample_patient, total_amount=2500.0, status="UNPAID")
         db.session.add(inv)
         db.session.commit()
 
@@ -255,7 +253,7 @@ def test_admin_outbound_notifications_endpoint(client, app, sample_patient):
     with app.app_context():
         admin_user = User(
             username="admin_notif_test",
-            password=generate_password_hash("Password123!", method='pbkdf2:sha256'),
+            password=generate_password_hash("Password123!", method="pbkdf2:sha256"),
             role="admin",
         )
         db.session.add(admin_user)
@@ -271,25 +269,26 @@ def test_admin_outbound_notifications_endpoint(client, app, sample_patient):
 
     # Login as admin
     client.post(
-        '/login',
-        data={'username': 'admin_notif_test', 'password': 'Password123!'},
+        "/login",
+        data={"username": "admin_notif_test", "password": "Password123!"},
     )
 
-    resp = client.get('/admin/outbound-notifications?format=json')
+    resp = client.get("/admin/outbound-notifications?format=json")
     assert resp.status_code == 200
     data = resp.get_json()
-    assert 'logs' in data
-    assert len(data['logs']) >= 1
-    assert data['logs'][0]['event_type'] == EVENT_APPOINTMENT_REMINDER
+    assert "logs" in data
+    assert len(data["logs"]) >= 1
+    assert data["logs"][0]["event_type"] == EVENT_APPOINTMENT_REMINDER
 
 
 def test_africas_talking_sms_channel_success(app, sample_patient):
     """Verify AfricasTalkingSMSChannel successfully delivers SMS when API responds with Success."""
     from unittest.mock import MagicMock
+
     with app.app_context():
-        app.config['SMS_CHANNEL'] = 'africastalking'
-        app.config['AT_API_KEY'] = 'mock_at_api_key_123'
-        app.config['AT_USERNAME'] = 'sandbox'
+        app.config["SMS_CHANNEL"] = "africastalking"
+        app.config["AT_API_KEY"] = "mock_at_api_key_123"
+        app.config["AT_USERNAME"] = "sandbox"
 
         mock_resp = MagicMock()
         mock_resp.status_code = 201
@@ -302,20 +301,20 @@ def test_africas_talking_sms_channel_success(app, sample_patient):
                         "number": "+254712345678",
                         "status": "Success",
                         "cost": "KES 0.8000",
-                        "messageId": "ATXid_test_12345"
+                        "messageId": "ATXid_test_12345",
                     }
-                ]
+                ],
             }
         }
 
-        with patch('requests.post', return_value=mock_resp) as mock_post:
+        with patch("requests.post", return_value=mock_resp) as mock_post:
             log = NotificationDispatcher.dispatch_event(
                 event_type=EVENT_APPOINTMENT_REMINDER,
                 recipient="+254712345678",
                 subject="Appointment Reminder",
                 body="Your appointment is tomorrow at 10 AM.",
                 patient_id=sample_patient,
-                channels=['sms']
+                channels=["sms"],
             )
 
             assert log is not None
@@ -323,15 +322,16 @@ def test_africas_talking_sms_channel_success(app, sample_patient):
             assert log.channel == "sms"
             mock_post.assert_called_once()
             call_kwargs = mock_post.call_args
-            assert call_kwargs[1]['headers']['ApiKey'] == 'mock_at_api_key_123'
+            assert call_kwargs[1]["headers"]["ApiKey"] == "mock_at_api_key_123"
 
 
 def test_africas_talking_sms_channel_delivery_failure(app, sample_patient):
     """Verify AfricasTalkingSMSChannel logs FAILED when provider reports recipient failure or error status."""
     from unittest.mock import MagicMock
+
     with app.app_context():
-        app.config['SMS_CHANNEL'] = 'africastalking'
-        app.config['AT_API_KEY'] = 'mock_at_api_key_123'
+        app.config["SMS_CHANNEL"] = "africastalking"
+        app.config["AT_API_KEY"] = "mock_at_api_key_123"
 
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -344,20 +344,20 @@ def test_africas_talking_sms_channel_delivery_failure(app, sample_patient):
                         "number": "+254700000000",
                         "status": "UserInBlackList",
                         "cost": "KES 0.0000",
-                        "messageId": "None"
+                        "messageId": "None",
                     }
-                ]
+                ],
             }
         }
 
-        with patch('requests.post', return_value=mock_resp):
+        with patch("requests.post", return_value=mock_resp):
             log = NotificationDispatcher.dispatch_event(
                 event_type=EVENT_APPOINTMENT_REMINDER,
                 recipient="+254700000000",
                 subject="Reminder",
                 body="Test notification body",
                 patient_id=sample_patient,
-                channels=['sms']
+                channels=["sms"],
             )
 
             assert log is not None
@@ -368,10 +368,11 @@ def test_africas_talking_sms_channel_delivery_failure(app, sample_patient):
 def test_africas_talking_sms_channel_missing_api_key(app, sample_patient):
     """Verify AfricasTalkingSMSChannel raises error and sets FAILED when AT_API_KEY is omitted."""
     with app.app_context():
-        app.config['SMS_CHANNEL'] = 'africastalking'
-        app.config.pop('AT_API_KEY', None)
+        app.config["SMS_CHANNEL"] = "africastalking"
+        app.config.pop("AT_API_KEY", None)
         import os
-        old_env_key = os.environ.pop('AT_API_KEY', None)
+
+        old_env_key = os.environ.pop("AT_API_KEY", None)
         try:
             log = NotificationDispatcher.dispatch_event(
                 event_type=EVENT_APPOINTMENT_REMINDER,
@@ -379,7 +380,7 @@ def test_africas_talking_sms_channel_missing_api_key(app, sample_patient):
                 subject="Reminder",
                 body="Test message",
                 patient_id=sample_patient,
-                channels=['sms']
+                channels=["sms"],
             )
 
             assert log is not None
@@ -387,5 +388,4 @@ def test_africas_talking_sms_channel_missing_api_key(app, sample_patient):
             assert "AT_API_KEY" in log.error_message
         finally:
             if old_env_key:
-                os.environ['AT_API_KEY'] = old_env_key
-
+                os.environ["AT_API_KEY"] = old_env_key

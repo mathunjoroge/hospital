@@ -22,9 +22,11 @@ from departments.models.records import Patient
 def radiology_app(app):
     return app
 
+
 @pytest.fixture
 def radiology_client(radiology_app):
     return radiology_app.test_client()
+
 
 @pytest.fixture
 def radiology_data(radiology_app):
@@ -39,14 +41,11 @@ def radiology_data(radiology_app):
         next_of_kin="Kin",
         relationship_with_next_of_kin="Spouse",
         next_of_kin_contact="0700112233",
-        emergency_contact="0700112233"
+        emergency_contact="0700112233",
     )
     db.session.add(patient)
 
-    imaging = Imaging(
-        imaging_type="X-Ray Chest",
-        cost=1500.0
-    )
+    imaging = Imaging(imaging_type="X-Ray Chest", cost=1500.0)
     db.session.add(imaging)
     db.session.commit()
 
@@ -54,16 +53,17 @@ def radiology_data(radiology_app):
         patient_id=patient.patient_id,
         imaging_id=imaging.id,
         status=0,
-        description="Routine chest x-ray"
+        description="Routine chest x-ray",
     )
     db.session.add(req_image)
     db.session.commit()
 
     return {"patient": patient, "imaging": imaging, "req_image": req_image}
 
+
 class TestDICOMIntegration:
     def test_modality_worklist(self, radiology_client, radiology_data):
-        resp = radiology_client.get('/imaging/dicom/mwl')
+        resp = radiology_client.get("/imaging/dicom/mwl")
         assert resp.status_code == 200
         data = resp.get_json()
         assert "mwl" in data
@@ -83,13 +83,13 @@ class TestDICOMIntegration:
             patient_id=req.patient_id,
             imaging_id=req.imaging_id,
             dicom_file_path="",
-            ai_generated=False
+            ai_generated=False,
         )
         db.session.add(result)
         req.result_id = result_id
         db.session.commit()
 
-        resp = radiology_client.get(f'/imaging/dicom/viewer/{result_id}')
+        resp = radiology_client.get(f"/imaging/dicom/viewer/{result_id}")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["count"] == 0
@@ -103,18 +103,21 @@ class TestDICOMIntegration:
             result_id=result_id,
             patient_id=req.patient_id,
             imaging_id=req.imaging_id,
-            ai_generated=False
+            ai_generated=False,
         )
         db.session.add(result)
         req.result_id = result_id
         db.session.commit()
 
-        resp = radiology_client.post('/imaging/dicom/report', json={
-            "result_id": result_id,
-            "findings": "Lungs are clear.",
-            "impression": "Normal chest X-ray.",
-            "radiologist_id": 5
-        })
+        resp = radiology_client.post(
+            "/imaging/dicom/report",
+            json={
+                "result_id": result_id,
+                "findings": "Lungs are clear.",
+                "impression": "Normal chest X-ray.",
+                "radiologist_id": 5,
+            },
+        )
 
         assert resp.status_code == 200
         data = resp.get_json()

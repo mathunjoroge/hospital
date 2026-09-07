@@ -12,7 +12,7 @@ def test_clinical_summarizer():
         "hpi": "Patient is a 60-year-old woman presenting with chest pain and shortness of breath for 2 days.",
         "medical_history": "History of hypertension and obesity. No known allergies.",
         "assessment": "Likely unstable angina. Needs further evaluation.",
-        "recommendation": "Admit to hospital. Start aspirin, oxygen, and monitor vitals. Order ECG and troponin levels."
+        "recommendation": "Admit to hospital. Start aspirin, oxygen, and monitor vitals. Order ECG and troponin levels.",
     }
 
     print("\n--- Test with structured dict ---")
@@ -34,6 +34,7 @@ def test_clinical_summarizer():
     print("\n--- Test with invalid input ---")
     summary3 = summarizer.summarize(12345)  # not a dict or string
     print(summary3)
+
 
 if __name__ == "__main__":
     test_clinical_summarizer()

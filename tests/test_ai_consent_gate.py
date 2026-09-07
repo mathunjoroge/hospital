@@ -20,11 +20,11 @@ from extensions import db, limiter
 
 class AIConsentGateTestCase(unittest.TestCase):
     def setUp(self):
-        app.config['TESTING'] = True
-        app.config['WTF_CSRF_ENABLED'] = False
-        app.config['RATELIMIT_ENABLED'] = False
+        app.config["TESTING"] = True
+        app.config["WTF_CSRF_ENABLED"] = False
+        app.config["RATELIMIT_ENABLED"] = False
         limiter.enabled = False
-        if hasattr(limiter, '_storage') and hasattr(limiter._storage, 'reset'):
+        if hasattr(limiter, "_storage") and hasattr(limiter._storage, "reset"):
             limiter._storage.reset()
         self.app = app.test_client()
         self.app_context = app.app_context()
@@ -33,9 +33,9 @@ class AIConsentGateTestCase(unittest.TestCase):
 
         # Seed admin user
         admin = User(
-            username='test_admin_ai',
-            password=generate_password_hash('password123', method='pbkdf2:sha256'),
-            role='admin'
+            username="test_admin_ai",
+            password=generate_password_hash("password123", method="pbkdf2:sha256"),
+            role="admin",
         )
         db.session.add(admin)
 
@@ -51,7 +51,7 @@ class AIConsentGateTestCase(unittest.TestCase):
             next_of_kin="Kin Test",
             relationship_with_next_of_kin="Sibling",
             next_of_kin_contact="0787654321",
-            emergency_contact="0711111111"
+            emergency_contact="0711111111",
         )
         db.session.add(self.patient)
         db.session.commit()
@@ -62,7 +62,9 @@ class AIConsentGateTestCase(unittest.TestCase):
         self.app_context.pop()
 
     def _login(self):
-        return self.app.post('/login', data={'username': 'test_admin_ai', 'password': 'password123'})
+        return self.app.post(
+            "/login", data={"username": "test_admin_ai", "password": "password123"}
+        )
 
     def test_has_ai_consent_helper(self):
         """Test has_ai_consent returns True only when explicit ai_diagnosis consent is granted and unrevoked."""
@@ -83,11 +85,11 @@ class AIConsentGateTestCase(unittest.TestCase):
         self._login()
 
         response = self.app.post(
-            '/medicine/chatbot',
+            "/medicine/chatbot",
             data={
-                'clinical_note': 'Patient presenting with fever',
-                'patient_id': 'P-TEST-CONSENT'
-            }
+                "clinical_note": "Patient presenting with fever",
+                "patient_id": "P-TEST-CONSENT",
+            },
         )
         self.assertEqual(response.status_code, 403)
         self.assertIn(b"AI-assisted summary unavailable", response.data)
@@ -98,14 +100,16 @@ class AIConsentGateTestCase(unittest.TestCase):
         grant_patient_consent("P-TEST-CONSENT", "ai_diagnosis")
         self._login()
 
-        with patch('departments.tasks.process_clinical_chatbot_task.delay') as mock_delay:
+        with patch(
+            "departments.tasks.process_clinical_chatbot_task.delay"
+        ) as mock_delay:
             mock_delay.return_value.id = "mock-task-1"
             response = self.app.post(
-                '/medicine/chatbot',
+                "/medicine/chatbot",
                 data={
-                    'clinical_note': 'Patient presenting with fever',
-                    'patient_id': 'P-TEST-CONSENT'
-                }
+                    "clinical_note": "Patient presenting with fever",
+                    "patient_id": "P-TEST-CONSENT",
+                },
             )
             self.assertEqual(response.status_code, 202)
             mock_delay.assert_called_once()
@@ -114,13 +118,13 @@ class AIConsentGateTestCase(unittest.TestCase):
         """POST to /medicine/chatbot without patient_id proceeds ungated."""
         self._login()
 
-        with patch('departments.tasks.process_clinical_chatbot_task.delay') as mock_delay:
+        with patch(
+            "departments.tasks.process_clinical_chatbot_task.delay"
+        ) as mock_delay:
             mock_delay.return_value.id = "mock-task-2"
             response = self.app.post(
-                '/medicine/chatbot',
-                data={
-                    'clinical_note': 'General clinical guidelines query'
-                }
+                "/medicine/chatbot",
+                data={"clinical_note": "General clinical guidelines query"},
             )
             self.assertEqual(response.status_code, 202)
             mock_delay.assert_called_once()
@@ -128,7 +132,7 @@ class AIConsentGateTestCase(unittest.TestCase):
     def test_oncology_summary_refuses_when_consent_missing(self):
         """GET/POST to /medicine/oncology/ai_summary/<patient_id> without consent returns 403."""
         self._login()
-        response = self.app.post('/medicine/oncology/ai_summary/P-TEST-CONSENT')
+        response = self.app.post("/medicine/oncology/ai_summary/P-TEST-CONSENT")
         self.assertEqual(response.status_code, 403)
         self.assertIn(b"AI_CONSENT_REQUIRED", response.data)
 
@@ -136,9 +140,11 @@ class AIConsentGateTestCase(unittest.TestCase):
         """GET/POST to /medicine/oncology/ai_summary/<patient_id> with consent returns 200."""
         grant_patient_consent("P-TEST-CONSENT", "ai_diagnosis")
         self._login()
-        with patch('departments.nlp.chatbot.UniversalClinicalSummarizer.answer') as mock_answer:
+        with patch(
+            "departments.nlp.chatbot.UniversalClinicalSummarizer.answer"
+        ) as mock_answer:
             mock_answer.return_value = "Oncology clinical summary response"
-            response = self.app.post('/medicine/oncology/ai_summary/P-TEST-CONSENT')
+            response = self.app.post("/medicine/oncology/ai_summary/P-TEST-CONSENT")
             self.assertEqual(response.status_code, 200)
             self.assertIn(b"Oncology clinical summary response", response.data)
 
@@ -146,8 +152,12 @@ class AIConsentGateTestCase(unittest.TestCase):
         """POST to /pharmacy/ai_discovery with patient_id when consent missing returns 403."""
         self._login()
         response = self.app.post(
-            '/pharmacy/ai_discovery',
-            data={'action': 'molmim', 'patient_id': 'P-TEST-CONSENT', 'target_properties': 'logp < 3'}
+            "/pharmacy/ai_discovery",
+            data={
+                "action": "molmim",
+                "patient_id": "P-TEST-CONSENT",
+                "target_properties": "logp < 3",
+            },
         )
         self.assertEqual(response.status_code, 403)
         self.assertIn(b"AI_CONSENT_REQUIRED", response.data)
@@ -156,15 +166,20 @@ class AIConsentGateTestCase(unittest.TestCase):
         """POST to /pharmacy/ai_discovery with patient_id when consent granted permits execution."""
         grant_patient_consent("P-TEST-CONSENT", "ai_diagnosis")
         self._login()
-        with patch('departments.nlp.src.nvidia_client.NvidiaNIMClient.generate_molecules') as mock_gen:
+        with patch(
+            "departments.nlp.src.nvidia_client.NvidiaNIMClient.generate_molecules"
+        ) as mock_gen:
             mock_gen.return_value = []
             response = self.app.post(
-                '/pharmacy/ai_discovery',
-                data={'action': 'molmim', 'patient_id': 'P-TEST-CONSENT', 'target_properties': 'logp < 3'}
+                "/pharmacy/ai_discovery",
+                data={
+                    "action": "molmim",
+                    "patient_id": "P-TEST-CONSENT",
+                    "target_properties": "logp < 3",
+                },
             )
             self.assertEqual(response.status_code, 200)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
-

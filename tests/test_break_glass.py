@@ -39,6 +39,7 @@ from extensions import db
 # Fixtures
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _make_user(role, suffix=""):
     return User(
         username=f"{role}_bg_test{suffix}",
@@ -110,6 +111,7 @@ def sample_patient(app):
 # 1. invoke_break_glass creates a valid grant
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_invoke_break_glass_creates_grant(app, doctor_user, sample_patient):
     """invoke_break_glass() returns a BreakGlassAccessLog with is_active=True."""
     with app.app_context():
@@ -122,7 +124,11 @@ def test_invoke_break_glass_creates_grant(app, doctor_user, sample_patient):
         assert grant.is_active is True
         assert grant.patient_id == sample_patient.patient_id
         assert grant.reason == "Patient unconscious, need immediate history"
-        expires = grant.expires_at if grant.expires_at.tzinfo is not None else grant.expires_at.replace(tzinfo=timezone.utc)
+        expires = (
+            grant.expires_at
+            if grant.expires_at.tzinfo is not None
+            else grant.expires_at.replace(tzinfo=timezone.utc)
+        )
         assert expires > datetime.now(timezone.utc)
         assert grant.supervisor_notified is True
 
@@ -130,6 +136,7 @@ def test_invoke_break_glass_creates_grant(app, doctor_user, sample_patient):
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. is_valid() respects expiry
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_break_glass_grant_validity(app, doctor_user):
     """is_valid() returns False for expired or revoked grants."""
@@ -165,6 +172,7 @@ def test_break_glass_grant_validity(app, doctor_user):
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. check_break_glass finds active grant, ignores expired/inactive
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_check_break_glass(app, doctor_user):
     """check_break_glass() returns valid grant and ignores expired ones."""
@@ -203,9 +211,12 @@ def test_check_break_glass(app, doctor_user):
 # 4–6. POST /emergency/break-glass/invoke — HTTP endpoint tests
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_invoke_endpoint_success(client, app, doctor_user, sample_patient):
     """POST /emergency/break-glass/invoke succeeds for eligible role."""
-    client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": doctor_user.username, "password": "Password123!"}
+    )
     resp = client.post(
         "/emergency/break-glass/invoke",
         json={
@@ -221,7 +232,9 @@ def test_invoke_endpoint_success(client, app, doctor_user, sample_patient):
 
 def test_invoke_endpoint_missing_reason(client, doctor_user):
     """POST /emergency/break-glass/invoke returns 400 when reason is absent."""
-    client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": doctor_user.username, "password": "Password123!"}
+    )
     resp = client.post("/emergency/break-glass/invoke", json={"patient_id": "P-BG-001"})
     assert resp.status_code == 400
     assert "reason" in resp.get_json()["error"].lower()
@@ -229,7 +242,9 @@ def test_invoke_endpoint_missing_reason(client, doctor_user):
 
 def test_invoke_endpoint_ineligible_role(client, records_user):
     """POST /emergency/break-glass/invoke returns 403 for ineligible role."""
-    client.post("/login", data={"username": records_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": records_user.username, "password": "Password123!"}
+    )
     resp = client.post(
         "/emergency/break-glass/invoke",
         json={"reason": "I shouldn't be able to do this"},
@@ -241,9 +256,12 @@ def test_invoke_endpoint_ineligible_role(client, records_user):
 # 7. GET /emergency/break-glass/status
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_status_endpoint(client, app, doctor_user):
     """GET /emergency/break-glass/status returns the user's active grants."""
-    client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": doctor_user.username, "password": "Password123!"}
+    )
     # Invoke one first
     client.post(
         "/emergency/break-glass/invoke",
@@ -260,9 +278,12 @@ def test_status_endpoint(client, app, doctor_user):
 # 8. POST /emergency/break-glass/<id>/revoke
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_revoke_endpoint(client, app, doctor_user):
     """POST /emergency/break-glass/<id>/revoke deactivates the grant."""
-    client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": doctor_user.username, "password": "Password123!"}
+    )
     inv_resp = client.post(
         "/emergency/break-glass/invoke",
         json={"reason": "Revoke test"},
@@ -281,9 +302,12 @@ def test_revoke_endpoint(client, app, doctor_user):
 # 9. GET /admin/break-glass (HTML + JSON)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_admin_audit_view(client, admin_user):
     """GET /admin/break-glass is admin-only and returns audit data."""
-    client.post("/login", data={"username": admin_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": admin_user.username, "password": "Password123!"}
+    )
     resp = client.get("/admin/break-glass")
     assert resp.status_code == 200
     assert b"Break-glass" in resp.data
@@ -291,7 +315,9 @@ def test_admin_audit_view(client, admin_user):
 
 def test_admin_audit_json(client, admin_user):
     """GET /admin/break-glass?format=json returns JSON with break_glass_events key."""
-    client.post("/login", data={"username": admin_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": admin_user.username, "password": "Password123!"}
+    )
     resp = client.get("/admin/break-glass?format=json")
     assert resp.status_code == 200
     data = resp.get_json()
@@ -300,7 +326,9 @@ def test_admin_audit_json(client, admin_user):
 
 def test_admin_audit_rbac(client, records_user):
     """Non-admin cannot access /admin/break-glass."""
-    client.post("/login", data={"username": records_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": records_user.username, "password": "Password123!"}
+    )
     resp = client.get("/admin/break-glass")
     assert resp.status_code in (403, 302)
 
@@ -308,6 +336,7 @@ def test_admin_audit_rbac(client, records_user):
 # ─────────────────────────────────────────────────────────────────────────────
 # 10. expire_stale_grants
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_expire_stale_grants(app, doctor_user):
     """expire_stale_grants() deactivates grants whose expires_at is in the past."""
@@ -337,6 +366,7 @@ def test_expire_stale_grants(app, doctor_user):
 # 11. ValueError on empty reason
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_invoke_empty_reason_raises(app, doctor_user):
     """invoke_break_glass raises ValueError for empty/blank reason."""
     with app.app_context():
@@ -348,16 +378,20 @@ def test_invoke_empty_reason_raises(app, doctor_user):
 # 12. PermissionError for ineligible role
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_invoke_ineligible_role_raises(app, records_user):
     """invoke_break_glass raises PermissionError for non-eligible roles."""
     with app.app_context():
         with pytest.raises(PermissionError, match="authorised"):
-            invoke_break_glass(reason="Attempting unauthorised override", user=records_user)
+            invoke_break_glass(
+                reason="Attempting unauthorised override", user=records_user
+            )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 13. AUDIT trail — BREAK_GLASS_OVERRIDE action recorded
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_break_glass_audit_trail(app, doctor_user, sample_patient):
     """invoking break-glass writes a BREAK_GLASS_OVERRIDE audit entry."""
@@ -370,8 +404,7 @@ def test_break_glass_audit_trail(app, doctor_user, sample_patient):
             user=doctor_user,
         )
         entry = (
-            AuditLog.query
-            .filter_by(action="BREAK_GLASS_OVERRIDE")
+            AuditLog.query.filter_by(action="BREAK_GLASS_OVERRIDE")
             .order_by(AuditLog.id.desc())
             .first()
         )

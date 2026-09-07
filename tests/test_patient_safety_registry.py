@@ -10,12 +10,13 @@ from extensions import db
 
 @pytest.fixture
 def client():
-    app.config['TESTING'] = True
-    app.config['WTF_CSRF_ENABLED'] = False
+    app.config["TESTING"] = True
+    app.config["WTF_CSRF_ENABLED"] = False
     with app.test_client() as client:
         with app.app_context():
             db.create_all()
             yield client
+
 
 @pytest.fixture
 def sample_patient(client):
@@ -33,11 +34,12 @@ def sample_patient(client):
                 next_of_kin="Kin",
                 relationship_with_next_of_kin="Sister",
                 next_of_kin_contact="0787654321",
-                emergency_contact="0711111111"
+                emergency_contact="0711111111",
             )
             db.session.add(p)
             db.session.commit()
         return p.patient_id
+
 
 def test_structured_allergy_registry_safety_check(client, sample_patient):
     """Test that structured PatientAllergy record triggers safety warning even with empty NursingNote text."""
@@ -49,7 +51,7 @@ def test_structured_allergy_registry_safety_check(client, sample_patient):
             allergen="Amoxicillin",
             category="DRUG",
             reaction="Severe Skin Rash & Bronchospasm",
-            severity="CRITICAL"
+            severity="CRITICAL",
         )
         db.session.add(allergy)
         db.session.commit()
@@ -63,6 +65,7 @@ def test_structured_allergy_registry_safety_check(client, sample_patient):
         assert "Amoxicillin" in report["alerts"][0]["message"]
         assert report["alerts"][0]["type"] == "ALLERGY_WARNING"
 
+
 def test_patient_problem_list_lifecycle(client, sample_patient):
     """Test active problem creation, status updates, and resolution tracking."""
     with app.app_context():
@@ -72,19 +75,21 @@ def test_patient_problem_list_lifecycle(client, sample_patient):
             icd10_code="E11.9",
             description="Type 2 Diabetes Mellitus",
             status="ACTIVE",
-            onset_date=date(2023, 6, 15)
+            onset_date=date(2023, 6, 15),
         )
         p2 = PatientProblem(
             patient_id=sample_patient,
             icd10_code="J06.9",
             description="Acute upper respiratory infection",
-            status="ACTIVE"
+            status="ACTIVE",
         )
         db.session.add_all([p1, p2])
         db.session.commit()
 
         # Verify initial active problems count
-        active_problems = PatientProblem.query.filter_by(patient_id=sample_patient, status="ACTIVE").all()
+        active_problems = PatientProblem.query.filter_by(
+            patient_id=sample_patient, status="ACTIVE"
+        ).all()
         assert len(active_problems) == 2
 
         # Mark acute infection as RESOLVED
@@ -93,8 +98,12 @@ def test_patient_problem_list_lifecycle(client, sample_patient):
         db.session.commit()
 
         # Re-query problem list
-        active_now = PatientProblem.query.filter_by(patient_id=sample_patient, status="ACTIVE").all()
-        resolved_now = PatientProblem.query.filter_by(patient_id=sample_patient, status="RESOLVED").all()
+        active_now = PatientProblem.query.filter_by(
+            patient_id=sample_patient, status="ACTIVE"
+        ).all()
+        resolved_now = PatientProblem.query.filter_by(
+            patient_id=sample_patient, status="RESOLVED"
+        ).all()
 
         assert len(active_now) == 1
         assert active_now[0].icd10_code == "E11.9"

@@ -1,14 +1,13 @@
 import sys
 import unittest
 
-sys.path.insert(0, '/home/mathu/projects/hospital')
+sys.path.insert(0, "/home/mathu/projects/hospital")
 
 from departments.nlp.src.nvidia_client import NvidiaNIMClient
 from departments.nlp.summarizer import ClinicalSummarizer
 
 
 class TestNvidiaNIMClient(unittest.TestCase):
-
     def setUp(self):
         self.client = NvidiaNIMClient()
 
@@ -59,7 +58,7 @@ class TestNvidiaNIMClient(unittest.TestCase):
             modality="CT",
             body_part="Chest",
             description="Rule out pulmonary embolism",
-            symptoms="Acute dyspnea and pleuritic chest pain"
+            symptoms="Acute dyspnea and pleuritic chest pain",
         )
 
         self.assertIsInstance(res, dict)
@@ -68,18 +67,19 @@ class TestNvidiaNIMClient(unittest.TestCase):
         self.assertIn("confidence", res)
         self.assertIn("impression", res)
 
-class TestClinicalSummarizer(unittest.TestCase):
 
+class TestClinicalSummarizer(unittest.TestCase):
     def test_summarize_dict_input(self):
         summarizer = ClinicalSummarizer()
         sample_dict = {
             "hpi": "60yo female with cough and fever.",
             "assessment": "Community acquired pneumonia.",
-            "recommendation": "Azithromycin 500mg daily."
+            "recommendation": "Azithromycin 500mg daily.",
         }
         res = summarizer.summarize(sample_dict)
         self.assertIsInstance(res, str)
         self.assertTrue(len(res) > 0)
+
 
 if __name__ == "__main__":
     unittest.main()

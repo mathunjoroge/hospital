@@ -13,7 +13,6 @@ DEFAULT_CLINICAL_TERMS = {
     "anorexia",
     "sweating",
     "night sweats",
-
     # Pain-related
     "pain",
     "ache",
@@ -22,7 +21,6 @@ DEFAULT_CLINICAL_TERMS = {
     "burning pain",
     "sharp pain",
     "stabbing pain",
-
     # Head & neurological
     "headache",
     "migraine",
@@ -40,7 +38,6 @@ DEFAULT_CLINICAL_TERMS = {
     "tingling",
     "tremor",
     "paralysis",
-
     # Respiratory
     "cough",
     "shortness of breath",
@@ -52,7 +49,6 @@ DEFAULT_CLINICAL_TERMS = {
     "tachypnea",
     "orthopnea",
     "paroxysmal nocturnal dyspnea",
-
     # Cardiovascular
     "chest pain",
     "palpitations",
@@ -62,7 +58,6 @@ DEFAULT_CLINICAL_TERMS = {
     "bradycardia",
     "leg swelling",
     "cyanosis",
-
     # Gastrointestinal
     "nausea",
     "vomiting",
@@ -77,7 +72,6 @@ DEFAULT_CLINICAL_TERMS = {
     "melena",
     "bloody stools",
     "loss of bowel control",
-
     # Genitourinary
     "back pain",
     "flank pain",
@@ -90,7 +84,6 @@ DEFAULT_CLINICAL_TERMS = {
     "inability to urinate",
     "nocturia",
     "painful urination",
-
     # Skin
     "rash",
     "itching",
@@ -101,7 +94,6 @@ DEFAULT_CLINICAL_TERMS = {
     "ulcers",
     "bruising",
     "lesions",
-
     # Musculoskeletal
     "joint pain",
     "muscle pain",
@@ -110,7 +102,6 @@ DEFAULT_CLINICAL_TERMS = {
     "limited movement",
     "cramps",
     "back stiffness",
-
     # Obstetric / Gynecologic
     "pelvic pain",
     "vaginal bleeding",
@@ -119,7 +110,6 @@ DEFAULT_CLINICAL_TERMS = {
     "spotting",
     "breast tenderness",
     "reduced fetal movement",
-
     # Psychological
     "anxiety",
     "depression",
@@ -128,5 +118,5 @@ DEFAULT_CLINICAL_TERMS = {
     "hallucinations",
     "suicidal thoughts",
     "panic attacks",
-    "agitation"
+    "agitation",
 }

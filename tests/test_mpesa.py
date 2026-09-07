@@ -33,12 +33,14 @@ def sample_invoice(app):
         next_of_kin="Next Kin",
         relationship_with_next_of_kin="Parent",
         next_of_kin_contact="0711111111",
-        emergency_contact="0722222222"
+        emergency_contact="0722222222",
     )
     db.session.add(patient)
     db.session.commit()
 
-    inv = Invoice(patient_id=patient.id, total_amount=2500.0, balance_due=2500.0, status="UNPAID")
+    inv = Invoice(
+        patient_id=patient.id, total_amount=2500.0, balance_due=2500.0, status="UNPAID"
+    )
     db.session.add(inv)
     db.session.commit()
 
@@ -76,7 +78,7 @@ class TestStkPushInitiation:
             phone_number="0712345678",
             amount=2500.0,
             account_reference=f"INV-{sample_invoice.id}",
-            invoice_id=sample_invoice.id
+            invoice_id=sample_invoice.id,
         )
         assert res["success"] is True
         assert "CheckoutRequestID" in res
@@ -108,9 +110,9 @@ class TestMpesaCallbackProcessing:
                             {"Name": "Amount", "Value": 2500.0},
                             {"Name": "MpesaReceiptNumber", "Value": "QHK1234567"},
                             {"Name": "TransactionDate", "Value": 20260905120000},
-                            {"Name": "PhoneNumber", "Value": 254712345678}
+                            {"Name": "PhoneNumber", "Value": 254712345678},
                         ]
-                    }
+                    },
                 }
             }
         }
@@ -125,7 +127,10 @@ class TestMpesaCallbackProcessing:
         assert payment.is_reconciled is True
 
         sample_invoice.recalculate()
-        assert sample_invoice.status in ("PAID", "paid", InvoiceStatus.PAID) or str(sample_invoice.status).upper() == "PAID"
+        assert (
+            sample_invoice.status in ("PAID", "paid", InvoiceStatus.PAID)
+            or str(sample_invoice.status).upper() == "PAID"
+        )
         assert sample_invoice.balance_due == 0.0
 
     def test_failed_callback_updates_notes(self, app, sample_invoice):
@@ -138,7 +143,7 @@ class TestMpesaCallbackProcessing:
                     "MerchantRequestID": "29182-1000000-1",
                     "CheckoutRequestID": checkout_id,
                     "ResultCode": 1032,
-                    "ResultDesc": "Request cancelled by user."
+                    "ResultDesc": "Request cancelled by user.",
                 }
             }
         }
@@ -161,11 +166,14 @@ class TestReconciliation:
 
 class TestMpesaEndpoints:
     def test_stkpush_api_endpoint(self, client, sample_invoice):
-        resp = client.post('/api/mpesa/stkpush', json={
-            "phone_number": "0712345678",
-            "amount": 1500.0,
-            "invoice_id": sample_invoice.id
-        })
+        resp = client.post(
+            "/api/mpesa/stkpush",
+            json={
+                "phone_number": "0712345678",
+                "amount": 1500.0,
+                "invoice_id": sample_invoice.id,
+            },
+        )
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["success"] is True
@@ -185,14 +193,14 @@ class TestMpesaEndpoints:
                         "Item": [
                             {"Name": "Amount", "Value": 2500.0},
                             {"Name": "MpesaReceiptNumber", "Value": "QHK7654321"},
-                            {"Name": "PhoneNumber", "Value": 254712345678}
+                            {"Name": "PhoneNumber", "Value": 254712345678},
                         ]
-                    }
+                    },
                 }
             }
         }
 
-        resp = client.post('/api/mpesa/callback', json=callback_payload)
+        resp = client.post("/api/mpesa/callback", json=callback_payload)
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["ResultCode"] == 0

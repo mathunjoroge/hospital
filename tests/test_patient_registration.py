@@ -21,7 +21,7 @@ def test_patient_registration_happy_path(app):
             relationship_with_next_of_kin="Brother",
             next_of_kin_contact="0711111111",
             national_id="12345678",
-            emergency_contact="0722222222"
+            emergency_contact="0722222222",
         )
         db.session.add(patient)
         db.session.commit()
@@ -30,6 +30,7 @@ def test_patient_registration_happy_path(app):
         assert saved is not None
         assert saved.name == "Alice Smith"
         assert saved.blood_group == "A+"
+
 
 def test_patient_registration_missing_national_id(app):
     with app.app_context():
@@ -46,13 +47,14 @@ def test_patient_registration_missing_national_id(app):
             relationship_with_next_of_kin="Parent",
             next_of_kin_contact="0711111112",
             national_id=None,
-            emergency_contact="0722222223"
+            emergency_contact="0722222223",
         )
         db.session.add(patient)
         db.session.commit()
         saved = Patient.query.filter_by(patient_id="PTEST101").first()
         assert saved is not None
         assert saved.national_id is None
+
 
 def test_patient_registration_missing_required_name(app):
     with app.app_context():
@@ -67,7 +69,7 @@ def test_patient_registration_missing_required_name(app):
             next_of_kin="Kin",
             relationship_with_next_of_kin="Parent",
             next_of_kin_contact="0711111112",
-            emergency_contact="0722222223"
+            emergency_contact="0722222223",
         )
         db.session.add(patient)
         with pytest.raises(Exception):

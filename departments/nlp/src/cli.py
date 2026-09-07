@@ -13,37 +13,54 @@ from .database import fetch_single_soap_note, fetch_soap_notes, get_sqlite_conne
 from .nlp import DiseasePredictor
 from .utils import generate_html_response
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # 0 = all logs, 1 = info, 2 = warnings, 3 = errors only
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = (
+    "2"  # 0 = all logs, 1 = info, 2 = warnings, 3 = errors only
+)
 logger = logging.getLogger("HIMS-NLP")
 HIMS_CONFIG = get_config()
 console = Console()
+
 
 class HIMSCLI:
     """Command-line interface for the HIMS Clinical NLP System."""
 
     def __init__(self):
         self.parser = argparse.ArgumentParser(
-            description='HIMS Clinical NLP System',
-            formatter_class=argparse.RawTextHelpFormatter
+            description="HIMS Clinical NLP System",
+            formatter_class=argparse.RawTextHelpFormatter,
         )
         self._setup_commands()
 
     def _setup_commands(self):
-        subparsers = self.parser.add_subparsers(dest='command')
-        status_parser = subparsers.add_parser('status', help='System status')
-        status_parser.add_argument('--detail', action='store_true', help='Detailed status')
+        subparsers = self.parser.add_subparsers(dest="command")
+        status_parser = subparsers.add_parser("status", help="System status")
+        status_parser.add_argument(
+            "--detail", action="store_true", help="Detailed status"
+        )
 
-        predict_parser = subparsers.add_parser('predict', help='Run prediction')
-        predict_parser.add_argument('text', help='Clinical text to analyze')
+        predict_parser = subparsers.add_parser("predict", help="Run prediction")
+        predict_parser.add_argument("text", help="Clinical text to analyze")
 
-        process_parser = subparsers.add_parser('process', help='Process SOAP notes')
-        process_parser.add_argument('--note-id', type=int, help='Process specific note by ID')
-        process_parser.add_argument('--all', action='store_true', help='Process all unprocessed notes')
-        process_parser.add_argument('--limit', type=int, default=10, help='Limit number of notes to process')
-        process_parser.add_argument('--latest', action='store_true', help='Process the most recently inserted note')
-        process_parser.add_argument('--parallel', action='store_true', help='Use parallel processing')
+        process_parser = subparsers.add_parser("process", help="Process SOAP notes")
+        process_parser.add_argument(
+            "--note-id", type=int, help="Process specific note by ID"
+        )
+        process_parser.add_argument(
+            "--all", action="store_true", help="Process all unprocessed notes"
+        )
+        process_parser.add_argument(
+            "--limit", type=int, default=10, help="Limit number of notes to process"
+        )
+        process_parser.add_argument(
+            "--latest",
+            action="store_true",
+            help="Process the most recently inserted note",
+        )
+        process_parser.add_argument(
+            "--parallel", action="store_true", help="Use parallel processing"
+        )
 
-        subparsers.add_parser('test', help='Run unit tests')
+        subparsers.add_parser("test", help="Run unit tests")
 
     def run(self):
         """Run the CLI with parsed arguments."""
@@ -52,13 +69,15 @@ class HIMSCLI:
             self.parser.print_help()
             return
 
-        if args.command == 'status':
+        if args.command == "status":
             self._show_status(args.detail)
-        elif args.command == 'predict':
+        elif args.command == "predict":
             self._run_prediction(args.text)
-        elif args.command == 'process':
-            self._process_notes(args.note_id, args.all, args.limit, args.latest, args.parallel)
-        elif args.command == 'test':
+        elif args.command == "process":
+            self._process_notes(
+                args.note_id, args.all, args.limit, args.latest, args.parallel
+            )
+        elif args.command == "test":
             self._run_tests()
 
     def _show_status(self, detail: bool = False):
@@ -69,7 +88,7 @@ class HIMSCLI:
             "UMLS Connection": HIMS_CONFIG["UMLS_DB_URL"],
             "API Endpoint": f"http://{HIMS_CONFIG['API_HOST']}:{HIMS_CONFIG['API_PORT']}",
             "Rate Limit": HIMS_CONFIG["RATE_LIMIT"],
-            "Max Workers": HIMS_CONFIG["MAX_WORKERS"]
+            "Max Workers": HIMS_CONFIG["MAX_WORKERS"],
         }
 
         try:
@@ -77,7 +96,9 @@ class HIMSCLI:
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM soap_notes")
                 note_count = cursor.fetchone()[0]
-                cursor.execute("SELECT COUNT(*) FROM soap_notes WHERE ai_analysis IS NOT NULL")
+                cursor.execute(
+                    "SELECT COUNT(*) FROM soap_notes WHERE ai_analysis IS NOT NULL"
+                )
                 processed_count = cursor.fetchone()[0]
                 status["SOAP Notes"] = f"{processed_count}/{note_count} processed"
 
@@ -119,10 +140,10 @@ class HIMSCLI:
 
                         for note in recent_notes:
                             note_table.add_row(
-                                str(note['id']),
-                                note['patient_id'],
-                                note['created_at'],
-                                note['status']
+                                str(note["id"]),
+                                note["patient_id"],
+                                note["created_at"],
+                                note["status"],
                             )
                         console.print(note_table)
             except Exception as e:
@@ -144,7 +165,10 @@ class HIMSCLI:
             table = Table(title="Primary Diagnosis")
             table.add_column("Disease", style="magenta")
             table.add_column("Score", style="green")
-            table.add_row(result["primary_diagnosis"]["disease"], str(result["primary_diagnosis"]["score"]))
+            table.add_row(
+                result["primary_diagnosis"]["disease"],
+                str(result["primary_diagnosis"]["score"]),
+            )
             console.print(table)
 
         if result["differential_diagnoses"]:
@@ -158,25 +182,35 @@ class HIMSCLI:
     def _process_single_note(self, note_id: int) -> bool:
         """Process a single SOAP note."""
         from .database import update_ai_analysis
+
         predictor = DiseasePredictor()
         note = fetch_single_soap_note(note_id)
         if note:
             result = predictor.process_soap_note(note)
             html_content = generate_html_response(result, 200)
-            return update_ai_analysis(note["id"], html_content, result['summary'])
+            return update_ai_analysis(note["id"], html_content, result["summary"])
         return False
 
-    def _process_notes(self, note_id: int, process_all: bool, limit: int, latest: bool = False, parallel: bool = False):
+    def _process_notes(
+        self,
+        note_id: int,
+        process_all: bool,
+        limit: int,
+        latest: bool = False,
+        parallel: bool = False,
+    ):
         """Process SOAP notes based on CLI arguments."""
         if latest:
             console.print(Panel("Processing Latest Note", style="bold green"))
             try:
                 with get_sqlite_connection() as conn:
                     cursor = conn.cursor()
-                    cursor.execute("SELECT id FROM soap_notes ORDER BY created_at DESC LIMIT 1")
+                    cursor.execute(
+                        "SELECT id FROM soap_notes ORDER BY created_at DESC LIMIT 1"
+                    )
                     result = cursor.fetchone()
                     if result:
-                        note_id = result['id']
+                        note_id = result["id"]
                     else:
                         console.print("[yellow]No notes found in database[/yellow]")
                         return
@@ -188,7 +222,11 @@ class HIMSCLI:
         if note_id:
             console.print(Panel(f"Processing Note ID: {note_id}", style="bold green"))
             success = self._process_single_note(note_id)
-            console.print(f"[green]Successfully processed note {note_id}[/green]" if success else f"[red]Failed to process note {note_id}[/red]")
+            console.print(
+                f"[green]Successfully processed note {note_id}[/green]"
+                if success
+                else f"[red]Failed to process note {note_id}[/red]"
+            )
         elif process_all:
             console.print(Panel("Processing All Notes", style="bold green"))
             notes = fetch_soap_notes()
@@ -197,34 +235,45 @@ class HIMSCLI:
                 return
 
             notes_to_process = notes[:limit]
-            note_ids = [note['id'] for note in notes_to_process]
+            note_ids = [note["id"] for note in notes_to_process]
 
             if parallel:
-                console.print(f"[cyan]Using parallel processing with {HIMS_CONFIG['MAX_WORKERS']} workers[/cyan]")
-                with ThreadPoolExecutor(max_workers=HIMS_CONFIG["MAX_WORKERS"]) as executor:
-                    results = list(track(
-                        executor.map(self._process_single_note, note_ids),
-                        total=len(note_ids),
-                        description="Processing..."
-                    ))
+                console.print(
+                    f"[cyan]Using parallel processing with {HIMS_CONFIG['MAX_WORKERS']} workers[/cyan]"
+                )
+                with ThreadPoolExecutor(
+                    max_workers=HIMS_CONFIG["MAX_WORKERS"]
+                ) as executor:
+                    results = list(
+                        track(
+                            executor.map(self._process_single_note, note_ids),
+                            total=len(note_ids),
+                            description="Processing...",
+                        )
+                    )
                     success_count = sum(results)
             else:
                 success_count = 0
                 for note in track(notes_to_process, description="Processing..."):
                     try:
-                        if self._process_single_note(note['id']):
+                        if self._process_single_note(note["id"]):
                             success_count += 1
                     except Exception as e:
                         logger.error(f"Failed to process note {note.get('id')}: {e}")
 
-            console.print(f"[green]Successfully processed {success_count}/{len(notes_to_process)} notes[/green]")
+            console.print(
+                f"[green]Successfully processed {success_count}/{len(notes_to_process)} notes[/green]"
+            )
         else:
-            console.print("[yellow]Specify --note-id, --all, or --latest to process notes[/yellow]")
+            console.print(
+                "[yellow]Specify --note-id, --all, or --latest to process notes[/yellow]"
+            )
 
     def _run_tests(self):
         """Run unit tests."""
         import unittest
 
         from tests.tests import TestNLPApi
+
         suite = unittest.TestLoader().loadTestsFromTestCase(TestNLPApi)
         unittest.TextTestRunner().run(suite)

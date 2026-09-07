@@ -39,7 +39,7 @@ def log_audit_event(
     resource_id: Optional[str] = None,
     details: Optional[Union[dict, str]] = None,
     user_id: Optional[int] = None,
-    username: Optional[str] = None
+    username: Optional[str] = None,
 ) -> Optional[AuditLog]:
     """
     Record an append-only audit log entry in the database.
@@ -61,9 +61,11 @@ def log_audit_event(
             try:
                 if current_user and current_user.is_authenticated:
                     if user_id is None:
-                        user_id = getattr(current_user, 'id', None)
+                        user_id = getattr(current_user, "id", None)
                     if username is None:
-                        username = getattr(current_user, 'username', None) or getattr(current_user, 'email', None)
+                        username = getattr(current_user, "username", None) or getattr(
+                            current_user, "email", None
+                        )
             except RuntimeError:
                 pass  # Outside request context
 
@@ -85,12 +87,14 @@ def log_audit_event(
             resource_id=str(resource_id) if resource_id is not None else None,
             ip_address=ip_addr,
             user_agent=user_agent,
-            details=formatted_details
+            details=formatted_details,
         )
 
         db.session.add(entry)
         db.session.commit()
-        logger.info(f"AUDIT | action={action} | resource={resource_type}:{resource_id} | user={username} ({user_id}) | ip={ip_addr}")
+        logger.info(
+            f"AUDIT | action={action} | resource={resource_type}:{resource_id} | user={username} ({user_id}) | ip={ip_addr}"
+        )
         return entry
     except Exception as e:
         db.session.rollback()
@@ -109,18 +113,23 @@ def audited(action: str, resource_type: Optional[str] = None):
         def view_patient(id):
             ...
     """
+
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             # Resolve resource_id from kwargs if available
-            res_id = kwargs.get('patient_id') or kwargs.get('id') or kwargs.get('pk')
+            res_id = kwargs.get("patient_id") or kwargs.get("id") or kwargs.get("pk")
             response = f(*args, **kwargs)
             log_audit_event(
                 action=action,
                 resource_type=resource_type,
                 resource_id=res_id,
-                details={"method": request.method, "path": request.path} if request else None
+                details={"method": request.method, "path": request.path}
+                if request
+                else None,
             )
             return response
+
         return decorated_function
+
     return decorator

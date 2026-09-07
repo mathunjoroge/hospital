@@ -41,8 +41,15 @@ def sample_data(app):
         db.session.commit()
 
         # Wards
-        ward1 = Ward(name="General Female Ward", sex="Female", number_of_beds=5, daily_charge=1500.0)
-        ward2 = Ward(name="VIP Private Ward", sex="Mixed", number_of_beds=2, daily_charge=5000.0)
+        ward1 = Ward(
+            name="General Female Ward",
+            sex="Female",
+            number_of_beds=5,
+            daily_charge=1500.0,
+        )
+        ward2 = Ward(
+            name="VIP Private Ward", sex="Mixed", number_of_beds=2, daily_charge=5000.0
+        )
         db.session.add_all([ward1, ward2])
         db.session.commit()
 
@@ -95,7 +102,9 @@ def sample_data(app):
         db.session.commit()
 
         # Claims
-        scheme = InsuranceScheme(name="SHA Health", code="SHA-ANAL", scheme_type="public")
+        scheme = InsuranceScheme(
+            name="SHA Health", code="SHA-ANAL", scheme_type="public"
+        )
         db.session.add(scheme)
         db.session.commit()
 
@@ -128,11 +137,11 @@ def test_bed_occupancy_stats_math(app, sample_data):
     """Verify bed occupancy calculation logic."""
     with app.app_context():
         stats = get_bed_occupancy_stats()
-        assert stats['total_beds'] == 7
-        assert stats['occupied_beds'] == 2
-        assert stats['available_beds'] == 5
-        assert stats['occupancy_rate'] == 28.6
-        assert len(stats['ward_breakdown']) == 2
+        assert stats["total_beds"] == 7
+        assert stats["occupied_beds"] == 2
+        assert stats["available_beds"] == 5
+        assert stats["occupancy_rate"] == 28.6
+        assert len(stats["ward_breakdown"]) == 2
 
 
 def test_inpatient_admission_trends(app, sample_data):
@@ -140,7 +149,7 @@ def test_inpatient_admission_trends(app, sample_data):
     with app.app_context():
         trends = get_inpatient_admission_trends(days=30)
         assert len(trends) == 30
-        total_adm_count = sum(t['admissions'] for t in trends)
+        total_adm_count = sum(t["admissions"] for t in trends)
         assert total_adm_count == 3
 
 
@@ -148,24 +157,24 @@ def test_revenue_and_claims_stats(app, sample_data):
     """Verify revenue aggregation and insurance claims stats."""
     with app.app_context():
         rev = get_revenue_summary()
-        assert rev['total_collected'] == 4500.0
-        assert rev['by_method'].get('MPESA') == 3000.0
-        assert rev['by_method'].get('CASH') == 1500.0
+        assert rev["total_collected"] == 4500.0
+        assert rev["by_method"].get("MPESA") == 3000.0
+        assert rev["by_method"].get("CASH") == 1500.0
 
         claims = get_insurance_claims_stats()
-        assert claims['total_claims'] == 1
-        assert claims['approved_claims'] == 1
-        assert claims['approval_rate'] == 100.0
+        assert claims["total_claims"] == 1
+        assert claims["approved_claims"] == 1
+        assert claims["approval_rate"] == 100.0
 
 
 def test_executive_kpi_summary(app, sample_data):
     """Verify consolidated KPI payload structure."""
     with app.app_context():
         kpis = get_executive_kpi_summary()
-        assert 'bed_occupancy' in kpis
-        assert 'admission_trends' in kpis
-        assert 'revenue_summary' in kpis
-        assert 'claims_stats' in kpis
+        assert "bed_occupancy" in kpis
+        assert "admission_trends" in kpis
+        assert "revenue_summary" in kpis
+        assert "claims_stats" in kpis
 
 
 def test_admin_analytics_route_rbac(client, app):
@@ -185,12 +194,16 @@ def test_admin_analytics_route_rbac(client, app):
         db.session.commit()
 
     # Login as nursing (non-admin)
-    client.post("/login", data={"username": "nurse_analytics_test", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "nurse_analytics_test", "password": "Password123!"}
+    )
     resp_staff = client.get("/admin/analytics")
     assert resp_staff.status_code in (403, 302)
 
     # Login as admin
-    client.post("/login", data={"username": "admin_analytics_test", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "admin_analytics_test", "password": "Password123!"}
+    )
     resp_admin = client.get("/admin/analytics")
     assert resp_admin.status_code == 200
     assert b"Executive Analytics Dashboard" in resp_admin.data
@@ -207,7 +220,9 @@ def test_admin_analytics_json_export(client, app, sample_data):
         db.session.add(admin)
         db.session.commit()
 
-    client.post("/login", data={"username": "admin_analytics_json", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "admin_analytics_json", "password": "Password123!"}
+    )
     resp = client.get("/admin/analytics?format=json")
     assert resp.status_code == 200
     data = resp.get_json()

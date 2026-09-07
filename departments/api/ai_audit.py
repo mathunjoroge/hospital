@@ -41,13 +41,14 @@ logger = logging.getLogger("HIMS.AIAudit")
 # Constants
 # ────────────────────────────────────────────────────────
 
-MAX_INPUT_LENGTH = 4000          # Characters — reject inputs longer than this
-MAX_INPUT_WORDS = 600            # Word-level guard against verbose prompt injection
-AUDIT_TRUNCATE_LENGTH = 200      # Max chars stored in audit log per field
+MAX_INPUT_LENGTH = 4000  # Characters — reject inputs longer than this
+MAX_INPUT_WORDS = 600  # Word-level guard against verbose prompt injection
+AUDIT_TRUNCATE_LENGTH = 200  # Max chars stored in audit log per field
 
 
 class AIMode(str, Enum):
     """Enum to distinguish live LLM calls from offline fallback, RDKit, rules, etc."""
+
     LIVE_LLM = "live_llm"
     OFFLINE_FALLBACK = "offline_fallback"
     RULE_BASED = "rule_based"
@@ -60,8 +61,10 @@ class AIMode(str, Enum):
 # Input Validation
 # ────────────────────────────────────────────────────────
 
+
 class AIInputValidationError(ValueError):
     """Raised when AI input fails validation checks."""
+
     pass
 
 
@@ -113,6 +116,7 @@ def validate_ai_input(text: str, feature: str = "unspecified") -> str:
 # Audit Logging
 # ────────────────────────────────────────────────────────
 
+
 def log_ai_call(
     feature: str,
     mode: AIMode,
@@ -121,7 +125,7 @@ def log_ai_call(
     user_id: Optional[int] = None,
     latency_ms: Optional[float] = None,
     error: Optional[str] = None,
-    metadata: Optional[dict] = None
+    metadata: Optional[dict] = None,
 ) -> None:
     """
     Write a structured AI audit log entry.
@@ -144,7 +148,11 @@ def log_ai_call(
     # Auto-resolve user_id from Flask request context if not provided
     if user_id is None:
         try:
-            user_id = current_user.id if current_user and current_user.is_authenticated else None
+            user_id = (
+                current_user.id
+                if current_user and current_user.is_authenticated
+                else None
+            )
         except RuntimeError:
             user_id = None  # Not in request context
 
@@ -161,22 +169,29 @@ def log_ai_call(
         "output_summary": output_truncated,
         "latency_ms": round(latency_ms, 2) if latency_ms is not None else None,
         "error": error,
-        "metadata": metadata or {}
+        "metadata": metadata or {},
     }
 
     if error:
-        logger.warning("AI_AUDIT | %(timestamp)s | feature=%(feature)s | mode=%(mode)s | "
-                       "user=%(user_id)s | latency=%(latency_ms)sms | ERROR: %(error)s | "
-                       "input=%(input_summary)r", entry)
+        logger.warning(
+            "AI_AUDIT | %(timestamp)s | feature=%(feature)s | mode=%(mode)s | "
+            "user=%(user_id)s | latency=%(latency_ms)sms | ERROR: %(error)s | "
+            "input=%(input_summary)r",
+            entry,
+        )
     else:
-        logger.info("AI_AUDIT | %(timestamp)s | feature=%(feature)s | mode=%(mode)s | "
-                    "user=%(user_id)s | latency=%(latency_ms)sms | "
-                    "input=%(input_summary)r | output=%(output_summary)r", entry)
+        logger.info(
+            "AI_AUDIT | %(timestamp)s | feature=%(feature)s | mode=%(mode)s | "
+            "user=%(user_id)s | latency=%(latency_ms)sms | "
+            "input=%(input_summary)r | output=%(output_summary)r",
+            entry,
+        )
 
 
 # ────────────────────────────────────────────────────────
 # Response Disclosure Helpers
 # ────────────────────────────────────────────────────────
+
 
 def add_disclosure(response_dict: dict, mode: AIMode, feature: str) -> dict:
     """
@@ -207,8 +222,10 @@ def add_disclosure(response_dict: dict, mode: AIMode, feature: str) -> dict:
     response_dict["_ai_disclosure"] = {
         "feature": feature,
         "mode": mode.value if isinstance(mode, AIMode) else str(mode),
-        "disclaimer": disclaimers.get(mode, "AI-generated output. Use with clinical judgment."),
-        "generated_at": datetime.now(timezone.utc).isoformat()
+        "disclaimer": disclaimers.get(
+            mode, "AI-generated output. Use with clinical judgment."
+        ),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     return response_dict
 
@@ -216,6 +233,7 @@ def add_disclosure(response_dict: dict, mode: AIMode, feature: str) -> dict:
 # ────────────────────────────────────────────────────────
 # Timing Context Manager
 # ────────────────────────────────────────────────────────
+
 
 class AITimer:
     """
@@ -236,7 +254,7 @@ class AITimer:
 
     @property
     def elapsed_ms(self) -> float:
-        return getattr(self, '_elapsed_ms', 0.0)
+        return getattr(self, "_elapsed_ms", 0.0)
 
     @elapsed_ms.setter
     def elapsed_ms(self, value: float):

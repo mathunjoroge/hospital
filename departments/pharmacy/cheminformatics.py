@@ -15,16 +15,48 @@ logger = logging.getLogger(__name__)
 
 # Reference Drug Library for Similarity Benchmarking
 REFERENCE_DRUGS = [
-    {"name": "Aspirin", "smiles": "CC(=O)Oc1ccccc1C(=O)O", "category": "NSAID / Analgesic"},
+    {
+        "name": "Aspirin",
+        "smiles": "CC(=O)Oc1ccccc1C(=O)O",
+        "category": "NSAID / Analgesic",
+    },
     {"name": "Ibuprofen", "smiles": "CC(C)Cc1ccc(cc1)C(C)C(=O)O", "category": "NSAID"},
-    {"name": "Paracetamol", "smiles": "CC(=O)Nc1ccc(O)cc1", "category": "Analgesic / Antipyretic"},
+    {
+        "name": "Paracetamol",
+        "smiles": "CC(=O)Nc1ccc(O)cc1",
+        "category": "Analgesic / Antipyretic",
+    },
     {"name": "Metformin", "smiles": "CN(C)C(=N)NC(=N)N", "category": "Antidiabetic"},
-    {"name": "Amoxicillin", "smiles": "CC1(C(N2C(S1)C(C2=O)NC(=O)C(c3ccc(cc3)O)N)C(=O)O)C", "category": "Antibiotic (Beta-lactam)"},
-    {"name": "Ciprofloxacin", "smiles": "C1CC1n2cc(c(=O)c3cc(c(cc23)N4CCNCC4)F)C(=O)O", "category": "Antibiotic (Fluoroquinolone)"},
-    {"name": "Atorvastatin", "smiles": "CC(C)c1c(c(c(n1CCC(CC(CC(=O)O)O)O)c2ccc(cc2)F)c3ccccc3)C(=O)Nc4ccccc4", "category": "Statin / Antihyperlipidemic"},
-    {"name": "Omeprazole", "smiles": "CC1=CN=C(C(=C1OC)C)CS(=O)C2=NC3=C(N2)C=CC(=C3)OC", "category": "Proton Pump Inhibitor"},
-    {"name": "Artemether", "smiles": "CC1CCC2C(C(C3C4(C(O3)OO2)C(CCC4C)C)OC)OC1", "category": "Antimalarial"},
-    {"name": "Dexamethasone", "smiles": "CC1CC2C3CCC4=CC(=O)C=CC4(C3(C(CC2(C1(C(=O)CO)O)C)O)F)C", "category": "Corticosteroid"}
+    {
+        "name": "Amoxicillin",
+        "smiles": "CC1(C(N2C(S1)C(C2=O)NC(=O)C(c3ccc(cc3)O)N)C(=O)O)C",
+        "category": "Antibiotic (Beta-lactam)",
+    },
+    {
+        "name": "Ciprofloxacin",
+        "smiles": "C1CC1n2cc(c(=O)c3cc(c(cc23)N4CCNCC4)F)C(=O)O",
+        "category": "Antibiotic (Fluoroquinolone)",
+    },
+    {
+        "name": "Atorvastatin",
+        "smiles": "CC(C)c1c(c(c(n1CCC(CC(CC(=O)O)O)O)c2ccc(cc2)F)c3ccccc3)C(=O)Nc4ccccc4",
+        "category": "Statin / Antihyperlipidemic",
+    },
+    {
+        "name": "Omeprazole",
+        "smiles": "CC1=CN=C(C(=C1OC)C)CS(=O)C2=NC3=C(N2)C=CC(=C3)OC",
+        "category": "Proton Pump Inhibitor",
+    },
+    {
+        "name": "Artemether",
+        "smiles": "CC1CCC2C(C(C3C4(C(O3)OO2)C(CCC4C)C)OC)OC1",
+        "category": "Antimalarial",
+    },
+    {
+        "name": "Dexamethasone",
+        "smiles": "CC1CC2C3CCC4=CC(=O)C=CC4(C3(C(CC2(C1(C(=O)CO)O)C)O)F)C",
+        "category": "Corticosteroid",
+    },
 ]
 
 
@@ -44,7 +76,7 @@ def validate_and_analyze_smiles(smiles: str) -> dict:
         return {
             "is_valid": False,
             "smiles": clean_smiles,
-            "error": "Invalid chemical SMILES syntax (RDKit parse failed)."
+            "error": "Invalid chemical SMILES syntax (RDKit parse failed).",
         }
 
     try:
@@ -82,14 +114,16 @@ def validate_and_analyze_smiles(smiles: str) -> dict:
             "lipinski_pass": len(violations) == 0,
             "lipinski_violations": violations,
             "lipinski_violations_count": len(violations),
-            "error": None
+            "error": None,
         }
     except Exception as e:
-        logger.error(f"Error computing RDKit descriptors for '{smiles}': {e}", exc_info=True)
+        logger.error(
+            f"Error computing RDKit descriptors for '{smiles}': {e}", exc_info=True
+        )
         return {
             "is_valid": False,
             "smiles": clean_smiles,
-            "error": f"Descriptor calculation failed: {str(e)}"
+            "error": f"Descriptor calculation failed: {str(e)}",
         }
 
 
@@ -152,21 +186,27 @@ def find_closest_reference_drugs(smiles: str, top_n: int = 3) -> list[dict]:
         return []
 
     try:
-        query_fp = rdMolDescriptors.GetMorganFingerprintAsBitVect(query_mol, 2, nBits=2048)
+        query_fp = rdMolDescriptors.GetMorganFingerprintAsBitVect(
+            query_mol, 2, nBits=2048
+        )
         matches = []
 
         for ref in REFERENCE_DRUGS:
             ref_mol = Chem.MolFromSmiles(ref["smiles"])
             if ref_mol:
-                ref_fp = rdMolDescriptors.GetMorganFingerprintAsBitVect(ref_mol, 2, nBits=2048)
+                ref_fp = rdMolDescriptors.GetMorganFingerprintAsBitVect(
+                    ref_mol, 2, nBits=2048
+                )
                 sim = float(DataStructs.TanimotoSimilarity(query_fp, ref_fp))
-                matches.append({
-                    "name": ref["name"],
-                    "smiles": ref["smiles"],
-                    "category": ref["category"],
-                    "similarity": round(sim, 3),
-                    "similarity_pct": round(sim * 100, 1)
-                })
+                matches.append(
+                    {
+                        "name": ref["name"],
+                        "smiles": ref["smiles"],
+                        "category": ref["category"],
+                        "similarity": round(sim, 3),
+                        "similarity_pct": round(sim * 100, 1),
+                    }
+                )
 
         matches.sort(key=lambda x: x["similarity"], reverse=True)
         return matches[:top_n]

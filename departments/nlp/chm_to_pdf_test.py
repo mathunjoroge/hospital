@@ -5,7 +5,9 @@ import traceback
 from langchain_huggingface import HuggingFaceEndpoint
 
 # Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = ""
 
@@ -14,7 +16,7 @@ try:
         repo_id="google/flan-t5-large",
         task="text2text-generation",
         temperature=0.1,
-        max_new_tokens=512
+        max_new_tokens=512,
     )
     logging.info("HuggingFaceEndpoint initialized successfully.")
 

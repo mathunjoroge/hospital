@@ -20,6 +20,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("HIMS-NLP")
 HIMS_CONFIG = get_config()
 
+
 class UMLSMapper:
     """
     Maps clinical terms to UMLS CUIs with a unified cache and comprehensive lookups.
@@ -32,7 +33,7 @@ class UMLSMapper:
     _lock = Lock()
 
     @classmethod
-    def get_instance(cls) -> 'UMLSMapper':
+    def get_instance(cls) -> "UMLSMapper":
         # Slightly more concise singleton pattern
         if cls._instance is None:
             with cls._lock:
@@ -41,7 +42,7 @@ class UMLSMapper:
         return cls._instance
 
     def __init__(self):
-        if hasattr(self, '_initialized') and self._initialized:
+        if hasattr(self, "_initialized") and self._initialized:
             return
 
         # Use a single, instance-level cache. This is essential for the batch
@@ -86,10 +87,10 @@ class UMLSMapper:
                 results = session.execute(
                     query,
                     {
-                        'term': normalized_term,
-                        'language': HIMS_CONFIG["UMLS_LANGUAGE"],
-                        'trusted_sources': tuple(HIMS_CONFIG["TRUSTED_SOURCES"])
-                    }
+                        "term": normalized_term,
+                        "language": HIMS_CONFIG["UMLS_LANGUAGE"],
+                        "trusted_sources": tuple(HIMS_CONFIG["TRUSTED_SOURCES"]),
+                    },
                 ).fetchall()
 
                 # Retrieve all CUIs, not just one.
@@ -135,10 +136,10 @@ class UMLSMapper:
                     db_results = session.execute(
                         query,
                         {
-                            'terms': tuple(uncached_normalized_terms),
-                            'language': HIMS_CONFIG["UMLS_LANGUAGE"],
-                            'trusted_sources': tuple(HIMS_CONFIG["TRUSTED_SOURCES"])
-                        }
+                            "terms": tuple(uncached_normalized_terms),
+                            "language": HIMS_CONFIG["UMLS_LANGUAGE"],
+                            "trusted_sources": tuple(HIMS_CONFIG["TRUSTED_SOURCES"]),
+                        },
                     ).fetchall()
 
                     term_map = defaultdict(list)
@@ -151,14 +152,21 @@ class UMLSMapper:
                         self.term_cache[term] = cuis
                         results[term] = cuis
             except Exception as e:
-                logger.error(f"Error in batch UMLS query: {e}. Falling back to single queries.")
+                logger.error(
+                    f"Error in batch UMLS query: {e}. Falling back to single queries."
+                )
                 # Fallback: if batch query fails, process one-by-one.
                 for term in uncached_normalized_terms:
                     results[term] = self.map_term_to_cui(term)
 
         # Map the results from normalized terms back to the original input terms.
-        final_results = {orig_term: results.get(norm_term, []) for orig_term, norm_term in norm_map.items()}
+        final_results = {
+            orig_term: results.get(norm_term, [])
+            for orig_term, norm_term in norm_map.items()
+        }
 
         duration = time.time() - start_time
-        logger.debug(f"Batch UMLS mapping for {len(terms)} terms took {duration:.3f} seconds.")
+        logger.debug(
+            f"Batch UMLS mapping for {len(terms)} terms took {duration:.3f} seconds."
+        )
         return final_results

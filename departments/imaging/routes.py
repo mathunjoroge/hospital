@@ -26,28 +26,36 @@ from extensions import db, socketio
 from . import bp
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Initialize NVIDIA NIM client
 nim_client = NvidiaNIMClient()
 
+
 def allowed_file(filename):
     """Check if the uploaded file has a valid DICOM extension."""
     logger.debug(f"Checking file: {filename}")
-    allowed = '.' in filename and filename.rsplit('.', 1)[1].lower() in {'dcm', 'dicom'}
+    allowed = "." in filename and filename.rsplit(".", 1)[1].lower() in {"dcm", "dicom"}
     logger.debug(f"File {filename} allowed: {allowed}")
     return allowed
+
 
 def validate_dicom_file(filepath):
     """Validate the DICOM file for pixel data and decompress if necessary."""
     logger.debug(f"Validating DICOM: {filepath}")
     try:
         dicom = pydicom.dcmread(filepath, force=True)
-        if not hasattr(dicom, 'PixelData'):
+        if not hasattr(dicom, "PixelData"):
             logger.error(f"No PixelData in {filepath}")
             return False, "DICOM file has no pixel data"
-        if hasattr(dicom, 'file_meta') and hasattr(dicom.file_meta, 'TransferSyntaxUID') and dicom.file_meta.TransferSyntaxUID.is_compressed:
+        if (
+            hasattr(dicom, "file_meta")
+            and hasattr(dicom.file_meta, "TransferSyntaxUID")
+            and dicom.file_meta.TransferSyntaxUID.is_compressed
+        ):
             logger.debug(f"Decompressing {filepath}")
             try:
                 dicom.decompress()
@@ -60,23 +68,34 @@ def validate_dicom_file(filepath):
         logger.error(f"DICOM validation failed for {filepath}: {e}")
         return False, f"Invalid DICOM file: {e}"
 
+
 def get_modality_and_body_part(dicom):
     """Extract modality, body part, and patient information from DICOM metadata."""
-    modality = getattr(dicom, 'Modality', 'Unknown').upper()
-    body_part = getattr(dicom, 'BodyPartExamined', 'Unknown').lower()
-    modality_map = {'CR': 'X-ray', 'DX': 'X-ray', 'CT': 'CT Scan', 'MR': 'MRI', 'PT': 'PET', 'CY': 'Cytology'}
+    modality = getattr(dicom, "Modality", "Unknown").upper()
+    body_part = getattr(dicom, "BodyPartExamined", "Unknown").lower()
+    modality_map = {
+        "CR": "X-ray",
+        "DX": "X-ray",
+        "CT": "CT Scan",
+        "MR": "MRI",
+        "PT": "PET",
+        "CY": "Cytology",
+    }
     modality = modality_map.get(modality, modality)
-    if body_part == 'unknown' and hasattr(dicom, 'StudyDescription'):
-        body_part = str(getattr(dicom, 'StudyDescription', '')).lower() or 'unspecified region'
+    if body_part == "unknown" and hasattr(dicom, "StudyDescription"):
+        body_part = (
+            str(getattr(dicom, "StudyDescription", "")).lower() or "unspecified region"
+        )
     patient_info = {
-        'patient_id': getattr(dicom, 'PatientID', 'Unknown'),
-        'patient_name': str(getattr(dicom, 'PatientName', 'Unknown')),
-        'patient_sex': getattr(dicom, 'PatientSex', 'Unknown'),
-        'patient_birth_date': getattr(dicom, 'PatientBirthDate', 'Unknown'),
-        'study_date': getattr(dicom, 'StudyDate', datetime.utcnow().strftime('%Y%m%d'))
+        "patient_id": getattr(dicom, "PatientID", "Unknown"),
+        "patient_name": str(getattr(dicom, "PatientName", "Unknown")),
+        "patient_sex": getattr(dicom, "PatientSex", "Unknown"),
+        "patient_birth_date": getattr(dicom, "PatientBirthDate", "Unknown"),
+        "study_date": getattr(dicom, "StudyDate", datetime.utcnow().strftime("%Y%m%d")),
     }
     logger.debug(f"Extracted: modality={modality}, body_part={body_part}")
     return modality, body_part, patient_info
+
 
 def analyze_dicom(dicom_path, description="", symptoms=""):
     """Analyze a DICOM image using NVIDIA NIM Vision model API with DICOM metadata extraction."""
@@ -95,18 +114,20 @@ def analyze_dicom(dicom_path, description="", symptoms=""):
             modality=modality,
             body_part=body_part,
             description=description,
-            symptoms=symptoms
+            symptoms=symptoms,
         )
 
         result = {
-            'predictions': nim_analysis.get('predictions', ['Normal']),
-            'confidence': nim_analysis.get('confidence', 88.0),
-            'impression': nim_analysis.get('impression', f"Unremarkable {modality} examination."),
-            'status': 'success',
-            'filename': os.path.basename(dicom_path),
-            'modality': modality,
-            'body_part': body_part,
-            'patient_info': patient_info
+            "predictions": nim_analysis.get("predictions", ["Normal"]),
+            "confidence": nim_analysis.get("confidence", 88.0),
+            "impression": nim_analysis.get(
+                "impression", f"Unremarkable {modality} examination."
+            ),
+            "status": "success",
+            "filename": os.path.basename(dicom_path),
+            "modality": modality,
+            "body_part": body_part,
+            "patient_info": patient_info,
         }
         logger.debug(f"Analysis result via NVIDIA NIM: {result}")
         return result
@@ -116,7 +137,15 @@ def analyze_dicom(dicom_path, description="", symptoms=""):
         return {"error": str(e), "status": "error"}
 
 
-def generate_report(analysis_results, patient_id, result_id, description=None, symptoms=None, custom_findings=None, custom_impression=None):
+def generate_report(
+    analysis_results,
+    patient_id,
+    result_id,
+    description=None,
+    symptoms=None,
+    custom_findings=None,
+    custom_impression=None,
+):
     """
     Generate a structured radiology report for any body part and imaging modality, avoiding false positives.
 
@@ -132,67 +161,75 @@ def generate_report(analysis_results, patient_id, result_id, description=None, s
     Returns:
         str: Generated radiology report.
     """
-    logger.debug(f"Generating report for patient_id={patient_id}, result_id={result_id}")
+    logger.debug(
+        f"Generating report for patient_id={patient_id}, result_id={result_id}"
+    )
 
     # Initialize report components
     report_lines = []
-    current_date = datetime.utcnow().strftime('%B %d, %Y')
+    current_date = datetime.utcnow().strftime("%B %d, %Y")
     confidence_threshold = 70.0  # Higher threshold to reduce false positives
 
     # Handle analysis results
-    successful = [r for r in analysis_results if r.get('status') == 'success']
-    errors = [r for r in analysis_results if r.get('status') != 'success']
+    successful = [r for r in analysis_results if r.get("status") == "success"]
+    errors = [r for r in analysis_results if r.get("status") != "success"]
     logger.debug(f"Successful analyses: {len(successful)}, Errors: {len(errors)}")
 
     # Extract patient information
     if successful:
-        patient_info = successful[0]['patient_info']
-        patient_name = patient_info.get('patient_name', 'Unknown')
-        patient_sex = patient_info.get('patient_sex', 'Unknown')
-        patient_birth_date = patient_info.get('patient_birth_date', 'Unknown')
-        study_date = patient_info.get('study_date', 'Unknown')
-        if study_date != 'Unknown':
+        patient_info = successful[0]["patient_info"]
+        patient_name = patient_info.get("patient_name", "Unknown")
+        patient_sex = patient_info.get("patient_sex", "Unknown")
+        patient_birth_date = patient_info.get("patient_birth_date", "Unknown")
+        study_date = patient_info.get("study_date", "Unknown")
+        if study_date != "Unknown":
             try:
-                study_date = datetime.strptime(study_date, '%Y%m%d').strftime('%B %d, %Y')
+                study_date = datetime.strptime(study_date, "%Y%m%d").strftime(
+                    "%B %d, %Y"
+                )
             except ValueError:
                 study_date = current_date
-        modality = successful[0].get('modality', 'Unknown')
-        body_part = successful[0].get('body_part', 'unspecified region').capitalize()
+        modality = successful[0].get("modality", "Unknown")
+        body_part = successful[0].get("body_part", "unspecified region").capitalize()
     else:
-        patient_name = 'Unknown'
-        patient_sex = 'Unknown'
-        patient_birth_date = 'Unknown'
+        patient_name = "Unknown"
+        patient_sex = "Unknown"
+        patient_birth_date = "Unknown"
         study_date = current_date
-        patient_info = {'patient_id': patient_id}
-        modality = 'Unknown'
-        body_part = 'Unspecified Region'
+        patient_info = {"patient_id": patient_id}
+        modality = "Unknown"
+        body_part = "Unspecified Region"
 
     # Calculate age
-    patient_age = 'Unknown'
-    if patient_birth_date != 'Unknown':
+    patient_age = "Unknown"
+    if patient_birth_date != "Unknown":
         try:
-            birth_date = datetime.strptime(patient_birth_date, '%Y%m%d')
+            birth_date = datetime.strptime(patient_birth_date, "%Y%m%d")
             today = datetime.utcnow()
-            patient_age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+            patient_age = (
+                today.year
+                - birth_date.year
+                - ((today.month, today.day) < (birth_date.month, birth_date.day))
+            )
             patient_age = f"{patient_age} years"
         except ValueError:
-            patient_age = 'Unknown'
+            patient_age = "Unknown"
 
     # Define modality-specific techniques
     modality_techniques = {
-        'MRI': {
-            'default': f"Multiplanar, multisequence MRI of the {body_part.lower()} performed without intravenous contrast, including T1-weighted, T2-weighted, and STIR sequences.",
-            'head': "Multiplanar, multisequence MRI of the head performed without intravenous contrast, including T1-weighted, T2-weighted, FLAIR, and gradient-echo (GRE) sequences."
+        "MRI": {
+            "default": f"Multiplanar, multisequence MRI of the {body_part.lower()} performed without intravenous contrast, including T1-weighted, T2-weighted, and STIR sequences.",
+            "head": "Multiplanar, multisequence MRI of the head performed without intravenous contrast, including T1-weighted, T2-weighted, FLAIR, and gradient-echo (GRE) sequences.",
         },
-        'CT Scan': f"Non-contrast CT scan of the {body_part.lower()} performed with 1 mm slice thickness in axial, coronal, and sagittal reconstructions.",
-        'X-ray': f"Standard posteroanterior and lateral radiographic views of the {body_part.lower()} obtained.",
-        'PET': f"PET/CT scan of the {body_part.lower()} performed with fluorodeoxyglucose (FDG) tracer, including low-dose CT for attenuation correction.",
-        'Cytology': f"Cytological imaging of the {body_part.lower()} performed with high-resolution microscopy.",
-        'Unknown': f"Imaging of the {body_part.lower()} performed with standard protocol."
+        "CT Scan": f"Non-contrast CT scan of the {body_part.lower()} performed with 1 mm slice thickness in axial, coronal, and sagittal reconstructions.",
+        "X-ray": f"Standard posteroanterior and lateral radiographic views of the {body_part.lower()} obtained.",
+        "PET": f"PET/CT scan of the {body_part.lower()} performed with fluorodeoxyglucose (FDG) tracer, including low-dose CT for attenuation correction.",
+        "Cytology": f"Cytological imaging of the {body_part.lower()} performed with high-resolution microscopy.",
+        "Unknown": f"Imaging of the {body_part.lower()} performed with standard protocol.",
     }
-    technique = modality_techniques.get(modality, modality_techniques['Unknown'])
+    technique = modality_techniques.get(modality, modality_techniques["Unknown"])
     if isinstance(technique, dict):
-        technique = technique.get(body_part.lower(), technique['default'])
+        technique = technique.get(body_part.lower(), technique["default"])
 
     # Start building the report
     report_lines.append("**Radiology Report**")
@@ -209,7 +246,11 @@ def generate_report(analysis_results, patient_id, result_id, description=None, s
     report_lines.append("")
 
     # Clinical Indication
-    clinical_indication = description or symptoms or f"Evaluation of {body_part.lower()} for suspected pathology."
+    clinical_indication = (
+        description
+        or symptoms
+        or f"Evaluation of {body_part.lower()} for suspected pathology."
+    )
     report_lines.append("**Clinical Indication:**")
     report_lines.append(clinical_indication)
     report_lines.append("")
@@ -227,60 +268,81 @@ def generate_report(analysis_results, patient_id, result_id, description=None, s
         findings = []
         predictions_seen = set()
         for res in successful:
-            predictions = res.get('predictions', [res.get('prediction', 'Unknown')]) if isinstance(res.get('predictions'), list) else [res.get('prediction', 'Unknown')]
-            confidence = res.get('confidence', 0)
-            finding_body_part = res.get('body_part', body_part).capitalize()
+            predictions = (
+                res.get("predictions", [res.get("prediction", "Unknown")])
+                if isinstance(res.get("predictions"), list)
+                else [res.get("prediction", "Unknown")]
+            )
+            confidence = res.get("confidence", 0)
+            finding_body_part = res.get("body_part", body_part).capitalize()
 
             finding_map = {
-                'Normal': f"{finding_body_part}: No significant abnormalities detected.",
-                'Inflammation': f"{finding_body_part}: Evidence of inflammation noted.",
-                'Mass': f"{finding_body_part}: Suspected mass lesion identified.",
-                'Nodule': f"{finding_body_part}: Nodule detected.",
-                'Cyst': f"{finding_body_part}: Cystic lesion noted.",
-                'Fracture': f"{finding_body_part}: {'Possible fracture noted' if confidence < confidence_threshold else 'Fracture identified'}.",
-                'Thickening': f"{finding_body_part}: Tissue thickening observed.",
-                'Edema': f"{finding_body_part}: Edema present.",
-                'Tumor': f"{finding_body_part}: Possible tumor detected.",
-                'Lesion': f"{finding_body_part}: Unspecified lesion noted.",
-                'Hemorrhage': f"{finding_body_part}: Intracranial hemorrhage identified with hyperintense signal on FLAIR and GRE sequences.",
-                'Midline Shift': f"{finding_body_part}: Midline shift observed, approximately 5 mm, secondary to mass effect.",
-                'Unknown': f"{finding_body_part}: Non-specific findings."
+                "Normal": f"{finding_body_part}: No significant abnormalities detected.",
+                "Inflammation": f"{finding_body_part}: Evidence of inflammation noted.",
+                "Mass": f"{finding_body_part}: Suspected mass lesion identified.",
+                "Nodule": f"{finding_body_part}: Nodule detected.",
+                "Cyst": f"{finding_body_part}: Cystic lesion noted.",
+                "Fracture": f"{finding_body_part}: {'Possible fracture noted' if confidence < confidence_threshold else 'Fracture identified'}.",
+                "Thickening": f"{finding_body_part}: Tissue thickening observed.",
+                "Edema": f"{finding_body_part}: Edema present.",
+                "Tumor": f"{finding_body_part}: Possible tumor detected.",
+                "Lesion": f"{finding_body_part}: Unspecified lesion noted.",
+                "Hemorrhage": f"{finding_body_part}: Intracranial hemorrhage identified with hyperintense signal on FLAIR and GRE sequences.",
+                "Midline Shift": f"{finding_body_part}: Midline shift observed, approximately 5 mm, secondary to mass effect.",
+                "Unknown": f"{finding_body_part}: Non-specific findings.",
             }
 
             for pred in predictions:
                 if pred not in predictions_seen:
                     predictions_seen.add(pred)
-                    finding = finding_map.get(pred, f"{finding_body_part}: {pred} noted.")
-                    if confidence < confidence_threshold and pred != 'Normal':
+                    finding = finding_map.get(
+                        pred, f"{finding_body_part}: {pred} noted."
+                    )
+                    if confidence < confidence_threshold and pred != "Normal":
                         finding += f" Low-confidence finding ({confidence:.1f}%) is non-specific and requires clinical correlation."
                     else:
                         finding += f" ({confidence:.1f}% confidence)."
                     findings.append(f"- {finding}")
 
             # Head-specific findings for MRI, only if no abnormalities detected
-            if modality == 'MRI' and body_part.lower() == 'head' and 'Normal' in predictions_seen:
-                findings.extend([
-                    "- Brain Parenchyma: No evidence of fracture, hemorrhage, or mass lesions identified.",
-                    "- Ventricles: Normal size and configuration, with no evidence of compression or hydrocephalus.",
-                    "- Midline Structures: No midline shift observed.",
-                    "- Cerebral Vasculature: No abnormal signal voids or evidence of vascular injury on GRE sequences.",
-                    "- Skull and Scalp: No osseous abnormalities or soft tissue abnormalities identified.",
-                    "- Other Findings: No additional abnormalities detected."
-                ])
-            elif modality == 'MRI' and body_part.lower() == 'head':
+            if (
+                modality == "MRI"
+                and body_part.lower() == "head"
+                and "Normal" in predictions_seen
+            ):
+                findings.extend(
+                    [
+                        "- Brain Parenchyma: No evidence of fracture, hemorrhage, or mass lesions identified.",
+                        "- Ventricles: Normal size and configuration, with no evidence of compression or hydrocephalus.",
+                        "- Midline Structures: No midline shift observed.",
+                        "- Cerebral Vasculature: No abnormal signal voids or evidence of vascular injury on GRE sequences.",
+                        "- Skull and Scalp: No osseous abnormalities or soft tissue abnormalities identified.",
+                        "- Other Findings: No additional abnormalities detected.",
+                    ]
+                )
+            elif modality == "MRI" and body_part.lower() == "head":
                 # Add related findings only if relevant
-                if 'Hemorrhage' in predictions_seen:
-                    findings.append("- Ventricles: Compressed due to mass effect from hemorrhage.")
-                elif 'Midline Shift' not in predictions_seen:
+                if "Hemorrhage" in predictions_seen:
+                    findings.append(
+                        "- Ventricles: Compressed due to mass effect from hemorrhage."
+                    )
+                elif "Midline Shift" not in predictions_seen:
                     findings.append("- Ventricles: Normal size and configuration.")
-                if 'Midline Shift' not in predictions_seen and 'Hemorrhage' not in predictions_seen:
+                if (
+                    "Midline Shift" not in predictions_seen
+                    and "Hemorrhage" not in predictions_seen
+                ):
                     findings.append("- Midline Structures: No midline shift observed.")
-                if 'Hemorrhage' not in predictions_seen:
-                    findings.append("- Other Findings: No evidence of intracranial hemorrhage or additional abnormalities.")
+                if "Hemorrhage" not in predictions_seen:
+                    findings.append(
+                        "- Other Findings: No evidence of intracranial hemorrhage or additional abnormalities."
+                    )
         if not findings:
             findings = [f"- {body_part}: No significant abnormalities identified."]
     else:
-        findings = [f"- {body_part}: Imaging findings are non-specific. No definitive abnormalities identified."]
+        findings = [
+            f"- {body_part}: Imaging findings are non-specific. No definitive abnormalities identified."
+        ]
     report_lines.extend(findings)
     report_lines.append("")
 
@@ -290,14 +352,23 @@ def generate_report(analysis_results, patient_id, result_id, description=None, s
         impression = custom_impression
     elif successful:
         impression = []
-        high_conf_findings = [f for f in findings if "no significant abnormalities" not in f.lower() and "low-confidence" not in f.lower()]
+        high_conf_findings = [
+            f
+            for f in findings
+            if "no significant abnormalities" not in f.lower()
+            and "low-confidence" not in f.lower()
+        ]
         low_conf_findings = [f for f in findings if "low-confidence" in f.lower()]
         if high_conf_findings:
             for idx, finding in enumerate(high_conf_findings, 1):
-                finding_text = finding.lstrip('- ').split(': ')[1].split(' (')[0]
-                impression.append(f"{idx}. {finding_text.capitalize()} in {body_part.lower()}.")
+                finding_text = finding.lstrip("- ").split(": ")[1].split(" (")[0]
+                impression.append(
+                    f"{idx}. {finding_text.capitalize()} in {body_part.lower()}."
+                )
         if low_conf_findings:
-            impression.append(f"{len(high_conf_findings) + 1}. Low-confidence findings are non-specific and require clinical correlation.")
+            impression.append(
+                f"{len(high_conf_findings) + 1}. Low-confidence findings are non-specific and require clinical correlation."
+            )
         if not impression:
             impression = ["1. No significant abnormalities detected."]
     else:
@@ -310,18 +381,36 @@ def generate_report(analysis_results, patient_id, result_id, description=None, s
     specialist = get_specialist(body_part)
     recommendations = []
     if any("hemorrhage" in f.lower() or "midline shift" in f.lower() for f in findings):
-        recommendations.append("Urgent correlation with clinical symptoms and neurological status is advised.")
-        recommendations.append(f"Immediate consultation with {specialist} is recommended for management of intracranial hemorrhage and/or midline shift, potentially requiring surgical intervention.")
-        recommendations.append("Consider repeat imaging (e.g., CT head) to assess hemorrhage progression and confirm other findings.")
-        recommendations.append("Close monitoring in a critical care setting is advised.")
+        recommendations.append(
+            "Urgent correlation with clinical symptoms and neurological status is advised."
+        )
+        recommendations.append(
+            f"Immediate consultation with {specialist} is recommended for management of intracranial hemorrhage and/or midline shift, potentially requiring surgical intervention."
+        )
+        recommendations.append(
+            "Consider repeat imaging (e.g., CT head) to assess hemorrhage progression and confirm other findings."
+        )
+        recommendations.append(
+            "Close monitoring in a critical care setting is advised."
+        )
     else:
-        recommendations.append("Correlation with clinical symptoms and laboratory findings is advised.")
-        if modality == 'MRI' and body_part.lower() == 'head' and any("fracture" in f.lower() for f in findings):
-            recommendations.append("Consider CT imaging of the head to evaluate for subtle fractures, as MRI may be less sensitive for osseous injuries.")
-        recommendations.extend([
-            f"{specialist} consultation is recommended for further evaluation and management if symptoms persist.",
-            "Follow-up imaging may be considered if symptoms worsen."
-        ])
+        recommendations.append(
+            "Correlation with clinical symptoms and laboratory findings is advised."
+        )
+        if (
+            modality == "MRI"
+            and body_part.lower() == "head"
+            and any("fracture" in f.lower() for f in findings)
+        ):
+            recommendations.append(
+                "Consider CT imaging of the head to evaluate for subtle fractures, as MRI may be less sensitive for osseous injuries."
+            )
+        recommendations.extend(
+            [
+                f"{specialist} consultation is recommended for further evaluation and management if symptoms persist.",
+                "Follow-up imaging may be considered if symptoms worsen.",
+            ]
+        )
     report_lines.extend(recommendations)
     report_lines.append("")
 
@@ -332,14 +421,18 @@ def generate_report(analysis_results, patient_id, result_id, description=None, s
     report_lines.append(f"Date: {study_date}")
     report_lines.append("")
     report_lines.append("---")
-    report_lines.append("**Note:** This report is for professional use and should be interpreted in the context of the patient’s clinical presentation. Please contact the radiology department for any clarification.")
+    report_lines.append(
+        "**Note:** This report is for professional use and should be interpreted in the context of the patient’s clinical presentation. Please contact the radiology department for any clarification."
+    )
 
     # Handle errors
     if errors:
         report_lines.append("")
         report_lines.append("**Processing Notes:**")
         for error in errors:
-            report_lines.append(f"- Error processing {error.get('filename', 'unknown file')}: {error.get('error', 'Unknown error')}")
+            report_lines.append(
+                f"- Error processing {error.get('filename', 'unknown file')}: {error.get('error', 'Unknown error')}"
+            )
         report_lines.append("")
 
     # Join lines into final report
@@ -347,27 +440,29 @@ def generate_report(analysis_results, patient_id, result_id, description=None, s
     logger.debug(f"Generated report: {final_report[:200]}...")
     return final_report
 
+
 def get_specialist(body_part):
     """Map body part to recommended specialist."""
     specialist_map = {
-        'sinuses': 'Otolaryngology (ENT)',
-        'brain': 'Neurology or Neurosurgery',
-        'head': 'Neurology or Neurosurgery',
-        'chest': 'Pulmonology or Thoracic Surgery',
-        'abdomen': 'Gastroenterology or General Surgery',
-        'pelvis': 'Urology or Gynecology',
-        'spine': 'Orthopedics or Neurosurgery',
-        'knee': 'Orthopedics',
-        'shoulder': 'Orthopedics',
-        'heart': 'Cardiology',
-        'liver': 'Hepatology',
-        'unspecified region': 'Appropriate specialist'
+        "sinuses": "Otolaryngology (ENT)",
+        "brain": "Neurology or Neurosurgery",
+        "head": "Neurology or Neurosurgery",
+        "chest": "Pulmonology or Thoracic Surgery",
+        "abdomen": "Gastroenterology or General Surgery",
+        "pelvis": "Urology or Gynecology",
+        "spine": "Orthopedics or Neurosurgery",
+        "knee": "Orthopedics",
+        "shoulder": "Orthopedics",
+        "heart": "Cardiology",
+        "liver": "Hepatology",
+        "unspecified region": "Appropriate specialist",
     }
-    return specialist_map.get(body_part.lower(), 'Appropriate specialist')
+    return specialist_map.get(body_part.lower(), "Appropriate specialist")
 
-@bp.route('/process_imaging_request/<int:request_id>', methods=['GET', 'POST'])
+
+@bp.route("/process_imaging_request/<int:request_id>", methods=["GET", "POST"])
 @login_required
-@roles_required('imaging', 'admin')
+@roles_required("imaging", "admin")
 def process_imaging_request(request_id):
     """Process an imaging request by analyzing uploaded DICOM files."""
     logger.debug(f"User {current_user.id} processing imaging request {request_id}")
@@ -378,22 +473,22 @@ def process_imaging_request(request_id):
         logger.debug(f"Loaded imaging request {request_id} and imaging {imaging.id}")
     except Exception as e:
         logger.error(f"Error fetching request {request_id}: {e}", exc_info=True)
-        flash(f"Error loading request: {str(e)}", 'error')
-        return redirect(url_for('imaging.index'))
+        flash(f"Error loading request: {str(e)}", "error")
+        return redirect(url_for("imaging.index"))
 
-    if request.method == 'POST':
+    if request.method == "POST":
         logger.debug(f"POST request for imaging request {request_id}")
-        if 'dicom_folder' not in request.files or not request.files['dicom_folder']:
+        if "dicom_folder" not in request.files or not request.files["dicom_folder"]:
             logger.debug("No DICOM files uploaded")
-            flash('No DICOM files uploaded', 'error')
+            flash("No DICOM files uploaded", "error")
             return redirect(request.url)
 
         result_id = str(uuid.uuid4())
-        upload_dir = os.path.join(current_app.config['DICOM_UPLOAD_FOLDER'], result_id)
+        upload_dir = os.path.join(current_app.config["DICOM_UPLOAD_FOLDER"], result_id)
         os.makedirs(upload_dir, exist_ok=True)
         logger.debug(f"Upload directory created: {upload_dir}")
 
-        files = request.files.getlist('dicom_folder')
+        files = request.files.getlist("dicom_folder")
         total_files = len(files)
         file_paths = []
         analysis_results = []
@@ -402,7 +497,9 @@ def process_imaging_request(request_id):
 
         for i, file in enumerate(files, 1):
             if not file or not allowed_file(file.filename):
-                logger.debug(f"Skipping invalid file: {file.filename if file else 'None'}")
+                logger.debug(
+                    f"Skipping invalid file: {file.filename if file else 'None'}"
+                )
                 continue
 
             filename = secure_filename(file.filename)
@@ -412,10 +509,10 @@ def process_imaging_request(request_id):
             try:
                 file.save(filepath)
                 result = analyze_dicom(filepath)
-                result['filename'] = filename
+                result["filename"] = filename
                 logger.debug(f"Analysis for {filename}: {result}")
 
-                if result.get('status') == 'success':
+                if result.get("status") == "success":
                     file_paths.append(filepath)
                     processed_count += 1
                     logger.debug(f"Successfully processed {filename}")
@@ -427,12 +524,18 @@ def process_imaging_request(request_id):
 
                 if i % 5 == 0 or i == total_files:
                     try:
-                        socketio.emit('progress', {
-                            'current': processed_count,
-                            'total': total_files,
-                            'request_id': request_id
-                        }, namespace='/imaging')
-                        logger.debug(f"Progress emitted: {processed_count}/{total_files}")
+                        socketio.emit(
+                            "progress",
+                            {
+                                "current": processed_count,
+                                "total": total_files,
+                                "request_id": request_id,
+                            },
+                            namespace="/imaging",
+                        )
+                        logger.debug(
+                            f"Progress emitted: {processed_count}/{total_files}"
+                        )
                     except Exception as emit_error:
                         logger.error(f"Progress emit failed: {emit_error}")
 
@@ -440,20 +543,22 @@ def process_imaging_request(request_id):
                 logger.error(f"Error processing {filename}: {file_error}")
                 if os.path.exists(filepath):
                     os.remove(filepath)
-                analysis_results.append({
-                    'filename': filename,
-                    'status': 'error',
-                    'error': str(file_error)
-                })
+                analysis_results.append(
+                    {"filename": filename, "status": "error", "error": str(file_error)}
+                )
 
         if not file_paths:
             logger.debug("No valid DICOM files processed")
-            flash('No valid DICOM images were processed', 'error')
+            flash("No valid DICOM images were processed", "error")
             return redirect(request.url)
 
         try:
-            ai_report = generate_report(analysis_results, imaging_request.patient_id, result_id)
-            final_report = request.form.get('result_notes', "AI-generated findings stored in AI Findings section.")
+            ai_report = generate_report(
+                analysis_results, imaging_request.patient_id, result_id
+            )
+            final_report = request.form.get(
+                "result_notes", "AI-generated findings stored in AI Findings section."
+            )
             logger.debug(f"AI report: {ai_report[:100]}...")
             logger.debug(f"Final report: {final_report[:100]}...")
         except Exception as report_error:
@@ -474,33 +579,47 @@ def process_imaging_request(request_id):
                 ai_generated=True,
                 files_processed=processed_count,
                 files_failed=total_files - processed_count,
-                processing_metadata={'file_metadata': analysis_results, 'model_version': 'DenseNet121'}
+                processing_metadata={
+                    "file_metadata": analysis_results,
+                    "model_version": "DenseNet121",
+                },
             )
             db.session.add(imaging_result)
-            imaging_request.status = 'completed'
+            imaging_request.status = "completed"
             imaging_request.result_id = result_id
             db.session.commit()
-            logger.debug(f"Saved result: request_id={request_id}, result_id={result_id}")
+            logger.debug(
+                f"Saved result: request_id={request_id}, result_id={result_id}"
+            )
 
             try:
-                socketio.emit('complete', {
-                    'request_id': request_id,
-                    'result_id': result_id,
-                    'processed': processed_count,
-                    'failed': total_files - processed_count
-                }, namespace='/imaging')
-                logger.debug(f"Completion emitted: processed={processed_count}, failed={total_files - processed_count}")
+                socketio.emit(
+                    "complete",
+                    {
+                        "request_id": request_id,
+                        "result_id": result_id,
+                        "processed": processed_count,
+                        "failed": total_files - processed_count,
+                    },
+                    namespace="/imaging",
+                )
+                logger.debug(
+                    f"Completion emitted: processed={processed_count}, failed={total_files - processed_count}"
+                )
             except Exception as emit_error:
                 logger.error(f"Completion emit failed: {emit_error}")
 
-            flash(f"Processed {processed_count} of {total_files} files successfully", 'success')
+            flash(
+                f"Processed {processed_count} of {total_files} files successfully",
+                "success",
+            )
             logger.debug(f"Redirecting to view_result: result_id={result_id}")
-            return redirect(url_for('imaging.view', result_id=result_id))
+            return redirect(url_for("imaging.view", result_id=result_id))
 
         except Exception as db_error:
             db.session.rollback()
             logger.error(f"Database error: {db_error}", exc_info=True)
-            flash('Error saving results to database', 'error')
+            flash("Error saving results to database", "error")
             return redirect(request.url)
 
     draft_report = ""
@@ -512,54 +631,64 @@ def process_imaging_request(request_id):
 
     logger.debug(f"Rendering process.html for request_id={request_id}")
     return render_template(
-        'imaging/process.html',
+        "imaging/process.html",
         imaging_request=imaging_request,
         imaging=imaging,
         draft_report=draft_report,
-        ai_enabled=nim_client is not None
+        ai_enabled=nim_client is not None,
     )
-@bp.route('/view_result/<string:result_id>', methods=['GET'])
+
+
+@bp.route("/view_result/<string:result_id>", methods=["GET"])
 @login_required
-@roles_required('imaging', 'admin')
+@roles_required("imaging", "admin")
 def view_result(result_id):
     """View the imaging result for a given result_id."""
     logger.debug(f"Viewing result {result_id} for user {current_user.id}")
 
     try:
-        imaging_result = ImagingResult.query.filter_by(result_id=result_id).first_or_404()
+        imaging_result = ImagingResult.query.filter_by(
+            result_id=result_id
+        ).first_or_404()
         imaging = Imaging.query.get_or_404(imaging_result.imaging_id)
-        imaging_request = RequestedImage.query.filter_by(result_id=result_id).first_or_404()
+        imaging_request = RequestedImage.query.filter_by(
+            result_id=result_id
+        ).first_or_404()
 
         logger.debug(f"Rendering view.html for result_id={result_id}")
         return render_template(
-            'imaging/view.html',
+            "imaging/view.html",
             imaging_result=imaging_result,
             imaging=imaging,
-            imaging_request=imaging_request
+            imaging_request=imaging_request,
         )
     except Exception as e:
         logger.error(f"Error viewing result {result_id}: {e}")
-        flash(f"Error: {str(e)}", 'error')
-        return redirect(url_for('imaging.index'))
+        flash(f"Error: {str(e)}", "error")
+        return redirect(url_for("imaging.index"))
 
-@bp.route('/download/<string:result_id>/<path:filename>', methods=['GET'])
+
+@bp.route("/download/<string:result_id>/<path:filename>", methods=["GET"])
 @login_required
-@roles_required('imaging', 'admin')
+@roles_required("imaging", "admin")
 def download_file(result_id, filename):
     """Serve a DICOM file for download."""
-    logger.debug(f"Download request for result_id={result_id}, filename={filename} by user {current_user.id}")
+    logger.debug(
+        f"Download request for result_id={result_id}, filename={filename} by user {current_user.id}"
+    )
 
-    upload_dir = os.path.join(current_app.config['DICOM_UPLOAD_FOLDER'], result_id)
+    upload_dir = os.path.join(current_app.config["DICOM_UPLOAD_FOLDER"], result_id)
     try:
         return send_from_directory(upload_dir, filename, as_attachment=True)
     except Exception as e:
         logger.error(f"Error downloading file {filename}: {e}")
-        flash(f"Error downloading file: {str(e)}", 'error')
-        return redirect(url_for('imaging.view_result', result_id=result_id))
+        flash(f"Error downloading file: {str(e)}", "error")
+        return redirect(url_for("imaging.view_result", result_id=result_id))
 
-@bp.route('/results', methods=['GET'])  # Changed from '/imaging_results'
+
+@bp.route("/results", methods=["GET"])  # Changed from '/imaging_results'
 @login_required
-@roles_required('medicine', 'imaging', 'admin')
+@roles_required("medicine", "imaging", "admin")
 def imaging_results():
     """Display a list of all processed imaging results."""
     logger.debug(f"Accessing imaging results list for user {current_user.id}")
@@ -568,38 +697,53 @@ def imaging_results():
         results = ImagingResult.query.order_by(ImagingResult.test_date.desc()).all()
         logger.debug(f"Retrieved {len(results)} imaging results from database")
 
-        return render_template(
-            'imaging/imaging_results.html',
-            results=results
-        )
+        return render_template("imaging/imaging_results.html", results=results)
     except Exception as e:
         logger.error(f"Error retrieving imaging results: {str(e)}", exc_info=True)
-        flash(f'Error retrieving results: {str(e)}', 'error')
-        return redirect(url_for('imaging.index'))
+        flash(f"Error retrieving results: {str(e)}", "error")
+        return redirect(url_for("imaging.index"))
 
-@bp.route('/view_imaging_results/<string:result_id>', methods=['GET'])
+
+@bp.route("/view_imaging_results/<string:result_id>", methods=["GET"])
 @login_required
-@roles_required('medicine', 'imaging', 'admin')
+@roles_required("medicine", "imaging", "admin")
 def view_imaging_results(result_id):
     logger.debug(f"User {current_user.id} viewing results for result_id={result_id}")
 
     try:
-        imaging_result = ImagingResult.query.filter_by(result_id=result_id).first_or_404()
-        imaging = Imaging.query.get(imaging_result.imaging_id) if imaging_result.imaging_id else None
+        imaging_result = ImagingResult.query.filter_by(
+            result_id=result_id
+        ).first_or_404()
+        imaging = (
+            Imaging.query.get(imaging_result.imaging_id)
+            if imaging_result.imaging_id
+            else None
+        )
         if not imaging:
-            logger.warning(f"No Imaging record found for imaging_id={imaging_result.imaging_id}")
+            logger.warning(
+                f"No Imaging record found for imaging_id={imaging_result.imaging_id}"
+            )
 
-        logger.debug(f"Found imaging_result: result_id={imaging_result.result_id}, patient_id={imaging_result.patient_id}")
+        logger.debug(
+            f"Found imaging_result: result_id={imaging_result.result_id}, patient_id={imaging_result.patient_id}"
+        )
 
-        file_paths = imaging_result.dicom_file_path.split(',') if imaging_result.dicom_file_path else []
+        file_paths = (
+            imaging_result.dicom_file_path.split(",")
+            if imaging_result.dicom_file_path
+            else []
+        )
         valid_file_paths = [path for path in file_paths if os.path.exists(path)]
         if len(valid_file_paths) < len(file_paths):
             missing_files = set(file_paths) - set(valid_file_paths)
             logger.warning(f"Missing DICOM files: {missing_files}")
-            flash(f"Warning: {len(missing_files)} DICOM file(s) could not be found on the server.", 'warning')
+            flash(
+                f"Warning: {len(missing_files)} DICOM file(s) could not be found on the server.",
+                "warning",
+            )
 
-        file_index = request.args.get('file_index', type=int)
-        action = request.args.get('action', 'view')
+        file_index = request.args.get("file_index", type=int)
+        action = request.args.get("action", "view")
         if file_index is not None:
             if 0 <= file_index < len(valid_file_paths):
                 file_path = valid_file_paths[file_index]
@@ -607,13 +751,17 @@ def view_imaging_results(result_id):
                 return send_from_directory(
                     directory=os.path.dirname(file_path),
                     path=os.path.basename(file_path),
-                    mimetype='application/dicom',
-                    as_attachment=(action == 'download'),
-                    download_name=os.path.basename(file_path) if action == 'download' else None
+                    mimetype="application/dicom",
+                    as_attachment=(action == "download"),
+                    download_name=os.path.basename(file_path)
+                    if action == "download"
+                    else None,
                 )
             else:
-                logger.debug(f"Invalid file_index={file_index}, range: 0 to {len(valid_file_paths)-1}")
-                flash('Invalid file index selected.', 'error')
+                logger.debug(
+                    f"Invalid file_index={file_index}, range: 0 to {len(valid_file_paths)-1}"
+                )
+                flash("Invalid file index selected.", "error")
 
         ai_findings = imaging_result.ai_findings or ""
         header = {}
@@ -621,7 +769,7 @@ def view_imaging_results(result_id):
         impression = []
         footer = {}
 
-        lines = ai_findings.split('\n')
+        lines = ai_findings.split("\n")
         current_section = None
         current_modality = None
 
@@ -629,71 +777,81 @@ def view_imaging_results(result_id):
             line = line.strip()
             if not line:
                 continue
-            if line.startswith('Radiology Report'):
-                current_section = 'header'
-            elif line.startswith('FINDINGS:'):
-                current_section = 'findings_intro'
-            elif line.startswith('IMPRESSION:'):
-                current_section = 'impression'
-            elif current_section == 'header' and ':' in line:
-                key, value = line.split(':', 1)
+            if line.startswith("Radiology Report"):
+                current_section = "header"
+            elif line.startswith("FINDINGS:"):
+                current_section = "findings_intro"
+            elif line.startswith("IMPRESSION:"):
+                current_section = "impression"
+            elif current_section == "header" and ":" in line:
+                key, value = line.split(":", 1)
                 header[key.strip()] = value.strip()
-            elif current_section == 'findings_intro' and not line.startswith('Image'):
-                findings.append({'intro': line})
-                current_section = 'findings'
-            elif current_section == 'findings' and line.endswith(':') and not line.startswith('Image'):
+            elif current_section == "findings_intro" and not line.startswith("Image"):
+                findings.append({"intro": line})
+                current_section = "findings"
+            elif (
+                current_section == "findings"
+                and line.endswith(":")
+                and not line.startswith("Image")
+            ):
                 current_modality = line
-                findings.append({'modality': current_modality})
-            elif current_section == 'findings' and line.startswith('Image'):
-                entry = {'text': line}
+                findings.append({"modality": current_modality})
+            elif current_section == "findings" and line.startswith("Image"):
+                entry = {"text": line}
                 if current_modality:
-                    entry['modality'] = current_modality
+                    entry["modality"] = current_modality
                 findings.append(entry)
-            elif current_section == 'findings' and findings and 'text' in findings[-1]:
-                findings[-1]['text'] += f"\n{line}"
-            elif current_section == 'impression' and line[0].isdigit():
+            elif current_section == "findings" and findings and "text" in findings[-1]:
+                findings[-1]["text"] += f"\n{line}"
+            elif current_section == "impression" and line[0].isdigit():
                 impression.append(line)
-            elif current_section != 'impression' and ':' in line:
-                key, value = line.split(':', 1)
+            elif current_section != "impression" and ":" in line:
+                key, value = line.split(":", 1)
                 footer[key.strip()] = value.strip()
 
-        imaging_type = imaging.imaging_type if imaging else 'Unknown'
-        logger.debug(f"Imaging type: {imaging_type}, Parsed AI findings: header={header}, findings={len(findings)}, impression={len(impression)}")
+        imaging_type = imaging.imaging_type if imaging else "Unknown"
+        logger.debug(
+            f"Imaging type: {imaging_type}, Parsed AI findings: header={header}, findings={len(findings)}, impression={len(impression)}"
+        )
 
         logger.debug(f"Rendering view.html for result_id={result_id}")
         return render_template(
-            'imaging/view.html',
+            "imaging/view.html",
             imaging_result=imaging_result,
             file_paths=valid_file_paths,
             imaging_type=imaging_type,
             ai_header=header,
             ai_findings=findings,
             ai_impression=impression,
-            ai_footer=footer
+            ai_footer=footer,
         )
 
     except Exception as e:
         logger.error(f"Error viewing result_id={result_id}: {str(e)}", exc_info=True)
-        flash(f"An error occurred while loading the imaging results: {str(e)}", 'error')
-        return redirect(url_for('imaging.index'))
-@bp.route('/', methods=['GET'])
+        flash(f"An error occurred while loading the imaging results: {str(e)}", "error")
+        return redirect(url_for("imaging.index"))
+
+
+@bp.route("/", methods=["GET"])
 @login_required
-@roles_required('imaging', 'admin')
+@roles_required("imaging", "admin")
 def index():
     """Display imaging waiting list"""
 
     try:
-        pending_requests = RequestedImage.query.filter_by(status=0).options(
-            joinedload(RequestedImage.patient),
-            joinedload(RequestedImage.imaging)
-        ).all()
+        pending_requests = (
+            RequestedImage.query.filter_by(status=0)
+            .options(
+                joinedload(RequestedImage.patient), joinedload(RequestedImage.imaging)
+            )
+            .all()
+        )
 
         return render_template(
-            'imaging/index.html',
+            "imaging/index.html",
             pending_requests=pending_requests or [],
-            models_loaded=nim_client is not None
+            models_loaded=nim_client is not None,
         )
     except Exception as e:
-        flash(f'Database error: {str(e)}', 'error')
-        return redirect(url_for('home'))
-
+        flash(f"Database error: {str(e)}", "error")
+        return redirect(url_for("home"))

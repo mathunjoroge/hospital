@@ -8,7 +8,6 @@ Tests for:
 4. Bin Card API and Reconciliation Report routes (Phase F)
 """
 
-
 import pytest
 from werkzeug.security import generate_password_hash
 
@@ -110,12 +109,15 @@ def test_facility_home_seeding(app):
         assert home.facility_code == "KMHFL-MAIN-001"
 
 
-
-def test_segregation_of_duties_approval_restriction(client, app, user_creator, test_setup):
+def test_segregation_of_duties_approval_restriction(
+    client, app, user_creator, test_setup
+):
     """Creator attempting to approve their own PO must receive 403 Forbidden."""
     drug_id, supplier_id = test_setup
 
-    client.post("/login", data={"username": "sc_creator_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_creator_user", "password": "Password123!"}
+    )
 
     with app.app_context():
         u = db.session.merge(user_creator)
@@ -135,7 +137,9 @@ def test_segregation_of_duties_approval_restriction(client, app, user_creator, t
     assert "segregation of duties" in res.get_json()["error"].lower()
 
 
-def test_segregation_of_duties_success_and_sod_warning(client, app, user_creator, user_approver, test_setup):
+def test_segregation_of_duties_success_and_sod_warning(
+    client, app, user_creator, user_approver, test_setup
+):
     """Different user approving PO succeeds; receiving by approver triggers sod_warning."""
     drug_id, supplier_id = test_setup
 
@@ -151,13 +155,17 @@ def test_segregation_of_duties_success_and_sod_warning(client, app, user_creator
         )
         db.session.add(po)
         db.session.flush()
-        poi = PurchaseOrderItem(po_id=po.id, drug_id=drug_id, quantity_ordered=50, unit_cost=5.0)
+        poi = PurchaseOrderItem(
+            po_id=po.id, drug_id=drug_id, quantity_ordered=50, unit_cost=5.0
+        )
         db.session.add(poi)
         db.session.commit()
         po_id = po.id
 
     # Log in as approver to approve PO
-    client.post("/login", data={"username": "sc_approver_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_approver_user", "password": "Password123!"}
+    )
     res_order = client.post(f"/pharmacy/po/{po_id}/order")
     assert res_order.status_code == 200
     assert res_order.get_json()["purchase_order"]["status"] == "ORDERED"
@@ -182,17 +190,25 @@ def test_segregation_of_duties_success_and_sod_warning(client, app, user_creator
     assert po_data["sod_warning"] is True
 
 
-def test_stock_movement_ledger_and_reconciliation(client, app, user_approver, test_setup):
+def test_stock_movement_ledger_and_reconciliation(
+    client, app, user_approver, test_setup
+):
     """Test append-only movement ledger entries and reconciliation helper."""
     drug_id, supplier_id = test_setup
 
-    client.post("/login", data={"username": "sc_approver_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_approver_user", "password": "Password123!"}
+    )
 
     with app.app_context():
-        po = PurchaseOrder(po_number="PO-LEDGER-001", supplier_id=supplier_id, status="ORDERED")
+        po = PurchaseOrder(
+            po_number="PO-LEDGER-001", supplier_id=supplier_id, status="ORDERED"
+        )
         db.session.add(po)
         db.session.flush()
-        poi = PurchaseOrderItem(po_id=po.id, drug_id=drug_id, quantity_ordered=100, unit_cost=5.0)
+        poi = PurchaseOrderItem(
+            po_id=po.id, drug_id=drug_id, quantity_ordered=100, unit_cost=5.0
+        )
         db.session.add(poi)
         db.session.commit()
         po_id = po.id
@@ -228,12 +244,15 @@ def test_stock_movement_ledger_and_reconciliation(client, app, user_approver, te
         assert recon["cached_balance"] == 200  # initial 100 + 100 received
 
 
-
-def test_bin_card_and_reconciliation_report_apis(client, app, user_approver, test_setup):
+def test_bin_card_and_reconciliation_report_apis(
+    client, app, user_approver, test_setup
+):
     """Test GET /stores/bin-card/DRUG/<id> and GET /stores/reconciliation-report endpoints."""
     drug_id, _ = test_setup
 
-    client.post("/login", data={"username": "sc_approver_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_approver_user", "password": "Password123!"}
+    )
 
     # Test Bin Card API
     res_bincard = client.get(
@@ -261,16 +280,23 @@ def test_bin_card_and_reconciliation_report_apis(client, app, user_approver, tes
 
 def test_suppliers_directory_ui_view(client, user_approver, test_setup):
     """Test GET /stores/suppliers renders suppliers directory UI page."""
-    client.post("/login", data={"username": "sc_approver_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_approver_user", "password": "Password123!"}
+    )
     res = client.get("/stores/suppliers")
     assert res.status_code == 200
-    assert b"Suppliers &amp; Vendors Directory" in res.data or b"Suppliers & Vendors Directory" in res.data
+    assert (
+        b"Suppliers &amp; Vendors Directory" in res.data
+        or b"Suppliers & Vendors Directory" in res.data
+    )
     assert b"Pharma Supply Co" in res.data
 
 
 def test_inter_facility_transfers_ui_views(client, user_approver):
     """Test GET /stores/transfers and /stores/transfers/new UI routes."""
-    client.post("/login", data={"username": "sc_approver_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_approver_user", "password": "Password123!"}
+    )
 
     res_list = client.get("/stores/transfers")
     assert res_list.status_code == 200
@@ -281,8 +307,9 @@ def test_inter_facility_transfers_ui_views(client, user_approver):
     assert b"Initiate Inter-Facility Transfer" in res_new.data
 
 
-
-def test_dispatch_blocked_for_non_source_facility(client, app, user_store_admin, test_setup):
+def test_dispatch_blocked_for_non_source_facility(
+    client, app, user_store_admin, test_setup
+):
     """A transfer whose source facility isn't this installation cannot be dispatched here."""
     drug_id, _supplier_id = test_setup
     with app.app_context():
@@ -298,25 +325,33 @@ def test_dispatch_blocked_for_non_source_facility(client, app, user_store_admin,
         )
         db.session.add(transfer)
         db.session.flush()
-        db.session.add(TransferOrderItem(
-            transfer_id=transfer.id,
-            item_type="DRUG",
-            drug_id=drug_id,
-            quantity_requested=10,
-        ))
+        db.session.add(
+            TransferOrderItem(
+                transfer_id=transfer.id,
+                item_type="DRUG",
+                drug_id=drug_id,
+                quantity_requested=10,
+            )
+        )
         db.session.commit()
         transfer_id = transfer.id
 
-    client.post("/login", data={"username": "sc_store_admin_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_store_admin_user", "password": "Password123!"}
+    )
     res = client.post(f"/stores/transfers/{transfer_id}/dispatch", json={})
     assert res.status_code == 403
     assert "Facility boundary violation" in res.get_json()["error"]
 
 
-def test_receive_blocked_for_non_target_facility(client, app, user_store_admin, test_setup):
+def test_receive_blocked_for_non_target_facility(
+    client, app, user_store_admin, test_setup
+):
     """A transfer this installation dispatched to another facility cannot be 'received' here too."""
     drug_id, _supplier_id = test_setup
-    client.post("/login", data={"username": "sc_store_admin_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_store_admin_user", "password": "Password123!"}
+    )
 
     with app.app_context():
         other_facility = Facility(name="Other County Hospital", is_self=False)
@@ -324,10 +359,15 @@ def test_receive_blocked_for_non_target_facility(client, app, user_store_admin, 
         db.session.commit()
         other_facility_id = other_facility.id
 
-    res_create = client.post("/stores/transfers/create", json={
-        "target_facility_id": other_facility_id,
-        "items": [{"item_type": "DRUG", "drug_id": drug_id, "quantity_requested": 10}],
-    })
+    res_create = client.post(
+        "/stores/transfers/create",
+        json={
+            "target_facility_id": other_facility_id,
+            "items": [
+                {"item_type": "DRUG", "drug_id": drug_id, "quantity_requested": 10}
+            ],
+        },
+    )
     assert res_create.status_code == 201
     transfer_id = res_create.get_json()["transfer"]["id"]
 
@@ -339,7 +379,9 @@ def test_receive_blocked_for_non_target_facility(client, app, user_store_admin, 
     assert "Facility boundary violation" in res_receive.get_json()["error"]
 
 
-def test_receive_succeeds_and_flags_variance_for_target_facility(client, app, user_store_admin, test_setup):
+def test_receive_succeeds_and_flags_variance_for_target_facility(
+    client, app, user_store_admin, test_setup
+):
     """This installation, as the genuine target facility, can receive and short/over receipt is flagged."""
     drug_id, _supplier_id = test_setup
     with app.app_context():
@@ -368,12 +410,23 @@ def test_receive_succeeds_and_flags_variance_for_target_facility(client, app, us
         transfer_id = transfer.id
         item_id = toi.id
 
-    client.post("/login", data={"username": "sc_store_admin_user", "password": "Password123!"})
+    client.post(
+        "/login", data={"username": "sc_store_admin_user", "password": "Password123!"}
+    )
 
     # Receive 12 against 10 dispatched — previously silently accepted with no flag at all.
-    res = client.post(f"/stores/transfers/{transfer_id}/receive", json={
-        "items": [{"item_id": item_id, "quantity_received": 12, "expiry_date": "2027-01-01"}],
-    })
+    res = client.post(
+        f"/stores/transfers/{transfer_id}/receive",
+        json={
+            "items": [
+                {
+                    "item_id": item_id,
+                    "quantity_received": 12,
+                    "expiry_date": "2027-01-01",
+                }
+            ],
+        },
+    )
     assert res.status_code == 200
     body = res.get_json()
     assert "discrepancies" in body
@@ -385,7 +438,9 @@ def test_receive_succeeds_and_flags_variance_for_target_facility(client, app, us
     with app.app_context():
         transfer2 = TransferOrder(
             transfer_number="TR-TESTVAR02",
-            source_facility_id=db.session.get(TransferOrder, transfer_id).source_facility_id,
+            source_facility_id=db.session.get(
+                TransferOrder, transfer_id
+            ).source_facility_id,
             target_facility_id=get_home_facility().id,
             status="DISPATCHED",
         )
@@ -403,9 +458,12 @@ def test_receive_succeeds_and_flags_variance_for_target_facility(client, app, us
         transfer2_id = transfer2.id
         item2_id = toi2.id
 
-    res_short = client.post(f"/stores/transfers/{transfer2_id}/receive", json={
-        "items": [{"item_id": item2_id, "quantity_received": 7}],
-    })
+    res_short = client.post(
+        f"/stores/transfers/{transfer2_id}/receive",
+        json={
+            "items": [{"item_id": item2_id, "quantity_received": 7}],
+        },
+    )
     assert res_short.status_code == 200
     body_short = res_short.get_json()
     assert body_short["discrepancies"][0]["kind"] == "SHORT_RECEIPT"
