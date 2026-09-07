@@ -1,5 +1,4 @@
 import logging
-import sqlite3  # Import sqlite3 module
 from datetime import datetime
 
 from flask import flash, redirect, render_template, request, url_for
@@ -9,6 +8,7 @@ from sqlalchemy.orm import joinedload
 from departments.models.admin import Log
 from departments.models.nursing import Partogram, Vitals
 from departments.models.records import Patient, PatientWaitingList
+from departments.models.user import User
 from departments.rbac import roles_required
 from extensions import db
 
@@ -387,83 +387,53 @@ def submit_partogram():
 @roles_required("nursing", "admin")
 def view_partogram(patient_id):
     """Displays partogram records for a specific patient, including graphs."""
-    conn = db.engine.raw_connection()
-    cursor = conn.cursor()
-
     try:
-        # Fetch partogram records for the specified patient
-        cursor.execute(
-            """
-            SELECT
-                time_hours,
-                cervical_dilation,
-                fetal_heart_rate,
-                contractions,
-                pulse,
-                bp_systolic,
-                bp_diastolic,
-                temperature,
-                amniotic_fluid,
-                moulding,
-                labour_status,
-                urine_protein,
-                urine_volume,
-                urine_acetone,
-                timestamp,
-                recorded_by
-            FROM partogram
-            WHERE patient_id = ?
-            ORDER BY time_hours
-        """,
-            (patient_id,),
+        records = (
+            Partogram.query.filter_by(patient_id=patient_id)
+            .order_by(Partogram.time_hours.asc())
+            .all()
         )
-        rows = cursor.fetchall()
 
-        if not rows:
+        if not records:
             flash(f"No partogram records found for patient {patient_id}.", "info")
             return redirect(url_for("nursing.index"))
 
-        # Convert rows to a list of dictionaries for easier template rendering
+        # Convert ORM objects to dicts for template rendering
         entries = [
             {
-                "time_hours": row[0],
-                "cervical_dilation": row[1],
-                "fetal_heart_rate": row[2],
-                "contractions": row[3],
-                "pulse": row[4],
-                "bp_systolic": row[5],
-                "bp_diastolic": row[6],
-                "temperature": row[7],
-                "amniotic_fluid": row[8],
-                "moulding": row[9],
-                "labour_status": row[10],
-                "urine_protein": row[11],
-                "urine_volume": row[12],
-                "urine_acetone": row[13],
-                "timestamp": row[14],  # ISO format string
-                "recorded_by": row[15],
+                "time_hours": r.time_hours,
+                "cervical_dilation": r.cervical_dilation,
+                "fetal_heart_rate": r.fetal_heart_rate,
+                "contractions": r.contractions,
+                "pulse": r.pulse,
+                "bp_systolic": r.bp_systolic,
+                "bp_diastolic": r.bp_diastolic,
+                "temperature": r.temperature,
+                "amniotic_fluid": r.amniotic_fluid,
+                "moulding": r.moulding,
+                "labour_status": r.labour_status,
+                "urine_protein": r.urine_protein,
+                "urine_volume": r.urine_volume,
+                "urine_acetone": r.urine_acetone,
+                "timestamp": r.timestamp,
+                "recorded_by": r.recorded_by,
             }
-            for row in rows
+            for r in records
         ]
 
-        # Fetch usernames for recorded_by mapping
-        recorded_by_ids = [
-            entry["recorded_by"] for entry in entries if entry["recorded_by"]
-        ]
+        # Build user_name_map via ORM — no raw SQL, no SQL injection risk
+        recorded_by_ids = list(
+            {entry["recorded_by"] for entry in entries if entry["recorded_by"]}
+        )
         if recorded_by_ids:
-            cursor.execute(
-                "SELECT id, username FROM users WHERE id IN ({})".format(
-                    ",".join("?" * len(recorded_by_ids))
-                ),
-                recorded_by_ids,
-            )  # nosec B608
-            user_rows = cursor.fetchall()
-            user_name_map = {row[0]: row[1] for row in user_rows}
+            users = User.query.filter(User.id.in_(recorded_by_ids)).all()
+            user_name_map = {u.id: u.username for u in users}
         else:
             user_name_map = {}
 
-        # Debugging
-        print(f"Debug: Found {len(entries)} partogram records for patient {patient_id}")
+        logger.info(
+            "Found %d partogram records for patient %s", len(entries), patient_id
+        )
 
         return render_template(
             "nursing/view_partogram.html",
@@ -472,13 +442,10 @@ def view_partogram(patient_id):
             user_name_map=user_name_map,
         )
 
-    except sqlite3.Error as e:
+    except Exception as e:
         flash(f"Error fetching partogram records: {str(e)}", "error")
-        print(f"Debug: Error in nursing.view_partogram: {str(e)}")
+        logger.error("Error in nursing.view_partogram: %s", e, exc_info=True)
         return redirect(url_for("nursing.index"))
-    finally:
-        cursor.close()
-        conn.close()
 
 
 # Route to view all partograms (paginated)
@@ -486,114 +453,44 @@ def view_partogram(patient_id):
 @login_required
 @roles_required("nursing", "admin")
 def view_partograms():
-    # Get query parameters
-    patient_id = request.args.get("patient_id", "").strip()
-    page = int(request.args.get("page", 1))
-    per_page = 10  # Number of records per page
-
-    from extensions import db
-
-    conn = db.engine.raw_connection()
-    cursor = conn.cursor()
+    """Displays all partogram records, paginated, with optional patient_id filter."""
+    patient_id_filter = request.args.get("patient_id", "").strip()
+    page = request.args.get("page", 1, type=int)
+    per_page = 10
 
     try:
-        # Fetch usernames for recorded_by mapping
-        cursor.execute("SELECT id, username FROM users")
-        user_name_map = {row[0]: row[1] for row in cursor.fetchall()}
+        # Build a subquery: most-recent timestamp per patient
+        from sqlalchemy import func
 
-        # Build the query to count total unique patients (for pagination)
-        count_query = "SELECT COUNT(DISTINCT patient_id) FROM partogram"
-        count_params = []
-        if patient_id:
-            count_query += " WHERE patient_id = ?"
-            count_params.append(patient_id)
-
-        cursor.execute(count_query, count_params)
-        total_records = cursor.fetchone()[0]
-
-        # Calculate pagination details
-        total_pages = (total_records + per_page - 1) // per_page
-        page = max(1, min(page, total_pages))  # Ensure page is within valid range
-        offset = (page - 1) * per_page
-
-        # Build the query to fetch the most recent partogram record for each patient
-        select_query = """
-            SELECT id, patient_id, timestamp, recorded_by
-            FROM partogram p1
-            WHERE timestamp = (
-                SELECT MAX(timestamp)
-                FROM partogram p2
-                WHERE p2.patient_id = p1.patient_id
+        latest_ts_sq = (
+            db.session.query(
+                Partogram.patient_id,
+                func.max(Partogram.timestamp).label("max_ts"),
             )
-        """
-        select_params = []
-        if patient_id:
-            select_query += " AND patient_id = ?"
-            select_params.append(patient_id)
-        select_query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
-        select_params.extend([per_page, offset])
+            .group_by(Partogram.patient_id)
+            .subquery()
+        )
 
-        cursor.execute(select_query, select_params)
-        rows = cursor.fetchall()
+        query = Partogram.query.join(
+            latest_ts_sq,
+            (Partogram.patient_id == latest_ts_sq.c.patient_id)
+            & (Partogram.timestamp == latest_ts_sq.c.max_ts),
+        ).order_by(Partogram.timestamp.desc())
 
-        # Convert rows to a list of dictionaries
-        partograms_list = [
-            {
-                "id": row[0],
-                "patient_id": row[1],
-                "timestamp": row[2],  # We'll parse this in the template
-                "recorded_by": row[3],
-            }
-            for row in rows
-        ]
+        if patient_id_filter:
+            query = query.filter(Partogram.patient_id == patient_id_filter)
 
-        # Create a pagination object (mimicking Flask-SQLAlchemy's pagination)
-        class Pagination:
-            def __init__(self, page, per_page, total, items):
-                self.page = page
-                self.per_page = per_page
-                self.total = total
-                self.items = items
+        partograms = query.paginate(page=page, per_page=per_page, error_out=False)
 
-            @property
-            def has_prev(self):
-                return self.page > 1
-
-            @property
-            def has_next(self):
-                return self.page < self.total_pages
-
-            @property
-            def prev_num(self):
-                return self.page - 1
-
-            @property
-            def next_num(self):
-                return self.page + 1
-
-            @property
-            def total_pages(self):
-                return (self.total + self.per_page - 1) // self.per_page
-
-            def iter_pages(
-                self, left_edge=2, left_current=2, right_current=5, right_edge=2
-            ):
-                last = 0
-                for num in range(1, self.total_pages + 1):
-                    if (
-                        num <= left_edge
-                        or (
-                            num > self.page - left_current - 1
-                            and num < self.page + right_current
-                        )
-                        or num > self.total_pages - right_edge
-                    ):
-                        if last + 1 != num:
-                            yield None
-                        yield num
-                        last = num
-
-        partograms = Pagination(page, per_page, total_records, partograms_list)
+        # Build user_name_map for all recorded_by ids on this page
+        recorded_by_ids = list(
+            {p.recorded_by for p in partograms.items if p.recorded_by}
+        )
+        if recorded_by_ids:
+            users = User.query.filter(User.id.in_(recorded_by_ids)).all()
+            user_name_map = {u.id: u.username for u in users}
+        else:
+            user_name_map = {}
 
         return render_template(
             "nursing/view_partograms.html",
@@ -601,14 +498,12 @@ def view_partograms():
             user_name_map=user_name_map,
         )
 
-    except sqlite3.Error as e:
-        print(f"Debug: Error in nursing.view_partograms: {str(e)}")
+    except Exception as e:
+        logger.error("Error in nursing.view_partograms: %s", e, exc_info=True)
         return render_template(
-            "nursing/error.html", errors=[f"Error fetching partogram records: {str(e)}"]
+            "nursing/error.html",
+            errors=[f"Error fetching partogram records: {str(e)}"],
         )
-    finally:
-        cursor.close()
-        conn.close()
 
 
 @bp.route("/vital_signs", methods=["GET", "POST"])
