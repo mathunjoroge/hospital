@@ -34,4 +34,4 @@ ENV FLASK_APP=app.py \
 EXPOSE 5000
 
 # Run database migrations then start gunicorn
-CMD ["sh", "-c", "python -m flask db upgrade && gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:5000 app:app"]
+CMD ["sh", "-c", "python -m flask db upgrade && gunicorn --worker-class eventlet -w ${WEB_CONCURRENCY:-4} --bind 0.0.0.0:5000 app:app"]

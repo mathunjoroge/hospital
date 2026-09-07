@@ -29,6 +29,17 @@ _default_db_uri = (
 SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI', _default_db_uri)
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+# Database Connection Pooling for high-traffic hospital environments (PostgreSQL)
+if os.getenv('FLASK_ENV') == 'testing' or SQLALCHEMY_DATABASE_URI.startswith('sqlite'):
+    SQLALCHEMY_ENGINE_OPTIONS = {}
+else:
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 20,
+        'max_overflow': 30,
+        'pool_timeout': 30,
+        'pool_recycle': 1800,
+    }
+
 # Cache Directory
 CACHE_DIR = os.getenv('CACHE_DIR', 'data_cache')
 
@@ -48,6 +59,7 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY')
     ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY')
     SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI
+    SQLALCHEMY_ENGINE_OPTIONS = SQLALCHEMY_ENGINE_OPTIONS
 
     SQLALCHEMY_TRACK_MODIFICATIONS = SQLALCHEMY_TRACK_MODIFICATIONS
     POSTGRES_HOST = POSTGRES_HOST

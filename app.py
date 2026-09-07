@@ -22,6 +22,7 @@ from flask_mail import Mail
 from flask_migrate import Migrate
 from flask_session import Session
 from markupsafe import Markup, escape
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash
 
 from config import Config
@@ -35,6 +36,9 @@ dotenv.load_dotenv()
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Apply ProxyFix for correct rate-limiting and logging behind reverse proxies
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Upload folders
 app.config['UPLOAD_FOLDER'] = os.path.join('Uploads')
@@ -117,8 +121,10 @@ if app.config.get('TESTING'):
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# JWT configuration — shares SECRET_KEY; tokens expire after 24 h
-app.config['JWT_SECRET_KEY'] = secret_key
+# JWT configuration — isolated from session SECRET_KEY for security
+# Falls back to SECRET_KEY if not explicitly set in environment
+jwt_secret = os.environ.get('JWT_SECRET_KEY', secret_key)
+app.config['JWT_SECRET_KEY'] = jwt_secret
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 app.config['JWT_TOKEN_LOCATION'] = ['headers']
 app.config['JWT_HEADER_NAME'] = 'Authorization'
@@ -410,14 +416,15 @@ if __name__ == '__main__':
 
             from departments.models.user import User
             if not User.query.filter_by(username='admin').first():
+                admin_pass = os.environ.get('DEFAULT_ADMIN_PASSWORD', 'AdminPassword123!')
                 admin = User(
                     username='admin',
-                    password=generate_password_hash('AdminPassword123!', method='pbkdf2:sha256'),
+                    password=generate_password_hash(admin_pass, method='pbkdf2:sha256'),
                     role='admin'
                 )
                 db.session.add(admin)
                 db.session.commit()
-                print("✅ Default admin user created (admin / AdminPassword123!)")
+                print(f"✅ Default admin user created (admin / {admin_pass})")
                 print("   Run `flask db upgrade` to ensure the schema is up to date.")
             else:
                 print("✅ Database connection verified & admin user exists.")
