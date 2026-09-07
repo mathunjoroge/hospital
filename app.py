@@ -456,6 +456,11 @@ from departments.stores import bp as stores_bp  # noqa: E402
 from departments.stores.transfer_routes import transfer_bp  # noqa: E402
 from departments.system_ops import bp as system_ops_bp  # noqa: E402
 from departments.telemedicine import bp as telemedicine_bp  # noqa: E402
+from departments.ui_billing import bp as ui_billing_bp  # noqa: E402
+from departments.ui_clinical import bp as ui_clinical_bp  # noqa: E402
+from departments.ui_dashboard import bp as ui_dashboard_bp  # noqa: E402
+from departments.ui_mch import bp as ui_mch_bp  # noqa: E402
+from departments.ui_referrals import bp as ui_referrals_bp  # noqa: E402
 
 app.register_blueprint(records_bp, url_prefix="/records")
 app.register_blueprint(billing_bp, url_prefix="/billing")
@@ -470,6 +475,11 @@ app.register_blueprint(nursing_bp, url_prefix="/nursing")
 app.register_blueprint(hr_bp, url_prefix="/hr")
 app.register_blueprint(mortuary_bp, url_prefix="/mortuary")
 app.register_blueprint(api_bp, url_prefix="/api")
+app.register_blueprint(ui_dashboard_bp)
+app.register_blueprint(ui_clinical_bp)
+app.register_blueprint(ui_mch_bp)
+app.register_blueprint(ui_billing_bp)
+app.register_blueprint(ui_referrals_bp)
 app.register_blueprint(consent_bp)
 app.register_blueprint(clinical_safety_bp)
 app.register_blueprint(mch_bp)
