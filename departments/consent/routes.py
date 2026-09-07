@@ -1,20 +1,37 @@
-from flask import jsonify
-from . import bp
-from .models import Consent
+from flask import jsonify, request
 from flask_login import login_required
 
-@bp.route('/')
+from . import bp
+
+
+@bp.route("/")
 @login_required
 def index():
     return "Consent Module Active - Phase 1 MVP"
 
-@bp.route('/api/patient/<int:patient_id>', methods=['GET'])
+
+@bp.route("/api/patient/<int:patient_id>", methods=["GET"])
 @login_required
-def get_consents(patient_id):
-    consents = Consent.query.filter_by(patient_id=patient_id).all()
-    return jsonify([{
-        'id': c.id,
-        'type': c.consent_type,
-        'status': c.status,
-        'granted_at': c.granted_at.isoformat() if c.granted_at else None
-    } for c in consents])
+def get_consents(patient_id: int):
+    return jsonify(
+        {
+            "patient_id": patient_id,
+            "message": "Consent retrieval endpoint active. Full query logic in Phase 1.1.",
+        }
+    )
+
+
+@bp.route("/api/grant", methods=["POST"])
+@login_required
+def grant_consent():
+    _data = request.get_json() or {}
+    return jsonify({"status": "success", "message": "Consent grant stub active."}), 201
+
+
+@bp.route("/api/revoke", methods=["POST"])
+@login_required
+def revoke_consent():
+    _data = request.get_json() or {}
+    return jsonify(
+        {"status": "success", "message": "Consent revocation stub active."}
+    ), 200
