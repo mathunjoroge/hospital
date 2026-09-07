@@ -455,6 +455,7 @@ from departments.records import bp as records_bp  # noqa: E402
 from departments.security_ops import bp as security_ops_bp  # noqa: E402
 from departments.stores import bp as stores_bp  # noqa: E402
 from departments.stores.transfer_routes import transfer_bp  # noqa: E402
+from departments.system_ops import bp as system_ops_bp  # noqa: E402
 from departments.telemedicine import bp as telemedicine_bp  # noqa: E402
 
 app.register_blueprint(records_bp, url_prefix="/records")
@@ -478,6 +479,7 @@ app.register_blueprint(offline_sync_bp)
 app.register_blueprint(public_health_bp)
 app.register_blueprint(security_ops_bp)
 app.register_blueprint(rcm_bp)
+app.register_blueprint(system_ops_bp)
 app.register_blueprint(patient_portal_bp, url_prefix="/portal")
 app.register_blueprint(telemedicine_bp, url_prefix="/telemedicine")  # Phase E
 
