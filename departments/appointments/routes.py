@@ -1,30 +1,168 @@
+"""
+Appointments and Queue Management API routes.
+"""
+
+from datetime import datetime
+
 from flask import jsonify, request
 from flask_login import login_required
 
 from . import bp
+from .engine import ScheduleEngine
+
+_engine = ScheduleEngine()
 
 
 @bp.route("/")
 @login_required
 def index():
-    return "Appointments Module Active - Phase 2 MVP"
-
-
-@bp.route("/api/provider/<int:provider_id>/today", methods=["GET"])
-@login_required
-def get_today_appointments(provider_id: int):
-    return jsonify(
-        {
-            "provider_id": provider_id,
-            "message": "Today schedule endpoint active. Query filters to be added in Phase 2.1.",
-        }
-    )
+    return "Appointments & Queue Module Active"
 
 
 @bp.route("/api/book", methods=["POST"])
 @login_required
 def book_appointment():
-    _data = request.get_json() or {}
+    """
+    Books a new appointment, enforcing double-booking prevention.
+    Body: { "patient_id": 1, "provider_id": 2, "start_time": "2025-01-01T09:00:00Z", "duration_minutes": 30 }
+    """
+    data = request.get_json(silent=True) or {}
+
+    patient_id = data.get("patient_id")
+    provider_id = data.get("provider_id")
+    start_time_str = data.get("start_time")
+
+    if not all([patient_id, provider_id, start_time_str]):
+        return jsonify(
+            {"error": "patient_id, provider_id, and start_time are required"}
+        ), 400
+
+    try:
+        from datetime import timezone
+
+        start_time = datetime.fromisoformat(start_time_str)
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return jsonify({"error": "Invalid start_time format. Use ISO 8601."}), 400
+
+    appt = _engine.book_appointment(
+        patient_id=patient_id,
+        provider_id=provider_id,
+        start_time=start_time,
+        duration_minutes=data.get("duration_minutes", 30),
+        appointment_type=data.get("appointment_type", "CONSULTATION"),
+        reason=data.get("reason"),
+    )
+
+    if not appt:
+        return jsonify(
+            {
+                "error": "Slot Unavailable",
+                "message": "The requested time slot is already booked or overlaps with an existing appointment.",
+            }
+        ), 409  # Conflict
+
     return jsonify(
-        {"status": "success", "message": "Appointment booking stub active."}
+        {
+            "status": "success",
+            "appointment_id": appt.id,
+            "scheduled_start": appt.scheduled_start.isoformat(),
+            "scheduled_end": appt.scheduled_end.isoformat(),
+        }
     ), 201
+
+
+@bp.route("/api/provider/<int:provider_id>/today", methods=["GET"])
+@login_required
+def get_today_appointments(provider_id: int):
+    """
+    Retrieves the full daily schedule for a provider.
+    """
+    from datetime import timezone
+
+    today = datetime.now(timezone.utc)
+    schedule = _engine.get_provider_schedule(provider_id, today)
+
+    return jsonify(
+        {
+            "provider_id": provider_id,
+            "date": today.date().isoformat(),
+            "total_appointments": len(schedule),
+            "appointments": [
+                {
+                    "id": a.id,
+                    "patient_id": a.patient_id,
+                    "start": a.scheduled_start.isoformat(),
+                    "end": a.scheduled_end.isoformat(),
+                    "status": a.status,
+                    "type": a.appointment_type,
+                }
+                for a in schedule
+            ],
+        }
+    ), 200
+
+
+@bp.route("/api/check-in/<string:appointment_id>", methods=["POST"])
+@login_required
+def check_in_patient(appointment_id: str):
+    """
+    Checks a patient in, moving them to the live waiting room queue.
+    """
+    appt = _engine.check_in(appointment_id)
+    if not appt:
+        return jsonify({"error": "Appointment not found or already checked in."}), 400
+
+    return jsonify(
+        {
+            "status": "success",
+            "message": "Patient checked in successfully.",
+            "appointment_id": appt.id,
+            "appointment_status": appt.status,
+        }
+    ), 200
+
+
+@bp.route("/api/queue/<int:provider_id>", methods=["GET"])
+@login_required
+def get_live_queue(provider_id: int):
+    """
+    Retrieves the live waiting room queue for the provider's display.
+    """
+    queue = _engine.get_live_queue(provider_id)
+
+    return jsonify(
+        {
+            "provider_id": provider_id,
+            "waiting_count": len(queue),
+            "queue": [
+                {
+                    "appointment_id": a.id,
+                    "patient_id": a.patient_id,
+                    "checked_in_at": a.updated_at.isoformat(),
+                    "type": a.appointment_type,
+                }
+                for a in queue
+            ],
+        }
+    ), 200
+
+
+@bp.route("/api/no-show/<string:appointment_id>", methods=["POST"])
+@login_required
+def mark_no_show(appointment_id: str):
+    """
+    Marks an appointment as a no-show.
+    """
+    appt = _engine.mark_no_show(appointment_id)
+    if not appt:
+        return jsonify({"error": "Appointment not found."}), 404
+
+    return jsonify(
+        {
+            "status": "success",
+            "message": "Patient marked as no-show.",
+            "appointment_id": appt.id,
+        }
+    ), 200
