@@ -166,3 +166,55 @@ def mark_no_show(appointment_id: str):
             "appointment_id": appt.id,
         }
     ), 200
+
+
+@bp.route("/api/queue/<int:provider_id>/rows", methods=["GET"])
+@login_required
+def get_live_queue_rows(provider_id: int):
+    """
+    Returns HTML table rows for the HTMX live queue dashboard.
+    """
+    queue = _engine.get_live_queue(provider_id)
+
+    if not queue:
+        return (
+            '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-400">'
+            "Queue is empty. No patients currently waiting.</td></tr>"
+        )
+
+    status_colors = {
+        "CHECKED_IN": "bg-amber-100 text-amber-800",
+        "IN_PROGRESS": "bg-green-100 text-green-800",
+        "SCHEDULED": "bg-blue-100 text-blue-800",
+    }
+
+    rows = []
+    for idx, appt in enumerate(queue, 1):
+        checked_in_time = (
+            appt.updated_at.strftime("%H:%M") if appt.updated_at else "--:--"
+        )
+        color = status_colors.get(appt.status, "bg-gray-100 text-gray-800")
+        status_label = appt.status.replace("_", " ")
+        disabled = (
+            'disabled class="opacity-50 cursor-not-allowed"'
+            if appt.status != "SCHEDULED"
+            else ""
+        )
+
+        rows.append(
+            f'<tr class="border-b border-gray-100 hover:bg-gray-50 transition">'
+            f'<td class="px-6 py-4 text-sm font-medium text-gray-900">{idx}</td>'
+            f'<td class="px-6 py-4 text-sm text-gray-500">Patient #{appt.patient_id}</td>'
+            f'<td class="px-6 py-4 text-sm text-gray-500">{checked_in_time}</td>'
+            f'<td class="px-6 py-4">'
+            f'<span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {color}">'
+            f"{status_label}</span></td>"
+            f'<td class="px-6 py-4 text-right text-sm font-medium">'
+            f'<button hx-post="/appointments/api/check-in/{appt.id}" '
+            f'hx-target="closest tr" hx-swap="outerHTML" '
+            f'class="text-blue-600 bg-blue-50 px-3 py-1 rounded-md text-xs font-medium '
+            f'hover:bg-blue-100 transition" {disabled}>Start Consultation</button>'
+            f"</td></tr>"
+        )
+
+    return "\n".join(rows)
