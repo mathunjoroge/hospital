@@ -2,22 +2,24 @@
 Billing reconciliation endpoints - compare legacy billing totals with unified Invoice system.
 """
 
+from datetime import datetime, timedelta
+
 from flask import Blueprint, jsonify, render_template, request
 from flask_login import login_required
-from extensions import db
+from sqlalchemy import func
+
 from departments.models.billing import (
+    Billing,
+    ClinicBill,
+    DrugsBill,
+    ImagingBill,
     Invoice,
     InvoiceLineItem,
-    Billing,
-    DrugsBill,
     LabBill,
-    ClinicBill,
     TheatreBill,
     WardBill,
-    ImagingBill,
 )
-from sqlalchemy import func
-from datetime import datetime, timedelta
+from extensions import db
 
 reconciliation_bp = Blueprint(
     "reconciliation", __name__, url_prefix="/admin/billing-reconciliation"

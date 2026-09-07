@@ -127,6 +127,13 @@ from departments.audit import register_audit_listeners  # noqa: E402
 
 register_audit_listeners()
 csrf.init_app(app)
+
+# Register billing sync event listeners
+from departments.billing.event_listeners import (  # noqa: E402
+    register_billing_sync_listeners,
+)
+
+register_billing_sync_listeners()
 # Exempt the JWT token endpoint from CSRF — API clients don't carry CSRF cookies
 from departments.api.auth import get_token as _api_get_token  # noqa: E402
 

@@ -7,10 +7,12 @@ system used by the patient portal, M-Pesa, and insurance claims.
 """
 
 import logging
-from flask import current_app
-from extensions import db
-from departments.models.billing import Invoice, InvoiceLineItem, Payment
 from datetime import datetime
+
+from flask import current_app
+
+from departments.models.billing import Invoice, InvoiceLineItem, Payment
+from extensions import db
 
 logger = logging.getLogger(__name__)
 
@@ -101,16 +103,17 @@ def sync_charge(
         category=category,
         quantity=quantity,
         unit_price=amount,
-        total_price=amount * quantity,
+        total=amount * quantity,
         source_table=source_table,
         source_id=source_id,
-        created_at=datetime.utcnow(),
     )
 
     db.session.add(line_item)
 
     # Update invoice total
-    invoice.grand_total = (invoice.grand_total or 0) + (amount * quantity)
+    current_gt = float(invoice.grand_total or 0)
+    invoice.grand_total = current_gt + (float(amount) * float(quantity))
+    invoice.balance = invoice.grand_total - float(invoice.amount_paid or 0)
 
     logger.info(
         f"Synced charge: {description} (${amount}x{quantity}) to invoice {invoice.id}"
@@ -168,10 +171,13 @@ def sync_payment(
     db.session.add(payment)
 
     # Update invoice
-    invoice.amount_paid = (invoice.amount_paid or 0) + amount
+    current_paid = float(invoice.amount_paid or 0)
+    invoice.amount_paid = current_paid + float(amount)
+    current_gt = float(invoice.grand_total or 0)
+    invoice.balance = current_gt - invoice.amount_paid
 
     # Recalculate status
-    if invoice.amount_paid >= invoice.grand_total:
+    if invoice.balance <= 0:
         invoice.status = "PAID"
         invoice.paid_at = datetime.utcnow()
     elif invoice.amount_paid > 0:

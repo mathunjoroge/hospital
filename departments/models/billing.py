@@ -426,11 +426,24 @@ class InvoiceLineItem(db.Model):
 
     invoice = db.relationship("Invoice", back_populates="line_items")
 
+    # Source tracking for billing sync (Phase 1)
+    source_table = db.Column(db.String(50), nullable=True)  # e.g., 'requested_lab', 'dispensed_drug'
+    source_id = db.Column(db.Integer, nullable=True)  # ID in the source table
+
+    __table_args__ = (
+        db.UniqueConstraint('source_table', 'source_id', name='uq_invoice_line_item_source'),
+    )
+
+
     def __init__(self, **kwargs):
+        if "total_price" in kwargs:
+            kwargs["total"] = kwargs.pop("total_price")
         if "amount" in kwargs:
             val = kwargs.pop("amount")
             kwargs["unit_price"] = val
             kwargs["total"] = val
+        if "created_at" in kwargs:
+            kwargs.pop("created_at")
         if "category" not in kwargs:
             kwargs["category"] = "other"
         super().__init__(**kwargs)
