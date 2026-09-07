@@ -436,6 +436,9 @@ from departments.api.fhir import fhir_bp  # noqa: E402
 from departments.billing import bp as billing_bp  # noqa: E402
 from departments.billing.mpesa import mpesa_bp  # noqa: E402
 from departments.billing.mpesa_api import mpesa_api_bp  # noqa: E402
+from departments.billing.reconciliation import (  # noqa: E402
+    reconciliation_bp,
+)
 from departments.clinical_safety import bp as clinical_safety_bp  # noqa: E402
 from departments.consent import bp as consent_bp  # noqa: E402
 from departments.emergency import bp as emergency_bp  # noqa: E402
@@ -506,6 +509,7 @@ app.register_blueprint(
 )  # Phase D: mounts /emergency/* and /admin/break-glass
 app.register_blueprint(mpesa_bp)
 app.register_blueprint(mpesa_api_bp)
+app.register_blueprint(reconciliation_bp)
 app.register_blueprint(triage_bp)
 app.register_blueprint(prescribe_bp)
 app.register_blueprint(fefo_bp)

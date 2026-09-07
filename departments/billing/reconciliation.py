@@ -39,50 +39,50 @@ def reconciliation_dashboard():
 
     # Billing (consultations)
     legacy_totals["consult"] = (
-        db.session.query(func.coalesce(func.sum(Billing.amount), 0))
-        .filter(Billing.created_at >= start_date)
+        db.session.query(func.coalesce(func.sum(Billing.total_cost), 0))
+        .filter(Billing.billed_at >= start_date)
         .scalar()
     )
 
     # DrugsBill
     legacy_totals["drug"] = (
-        db.session.query(func.coalesce(func.sum(DrugsBill.amount), 0))
-        .filter(DrugsBill.created_at >= start_date)
+        db.session.query(func.coalesce(func.sum(DrugsBill.total_cost), 0))
+        .filter(DrugsBill.billed_at >= start_date)
         .scalar()
     )
 
     # LabBill
     legacy_totals["lab"] = (
-        db.session.query(func.coalesce(func.sum(LabBill.amount), 0))
-        .filter(LabBill.created_at >= start_date)
+        db.session.query(func.coalesce(func.sum(LabBill.total_paid), 0))
+        .filter(LabBill.billed_at >= start_date)
         .scalar()
     )
 
     # ClinicBill
     legacy_totals["clinic"] = (
-        db.session.query(func.coalesce(func.sum(ClinicBill.amount), 0))
-        .filter(ClinicBill.created_at >= start_date)
+        db.session.query(func.coalesce(func.sum(ClinicBill.total_paid), 0))
+        .filter(ClinicBill.billed_at >= start_date)
         .scalar()
     )
 
     # TheatreBill
     legacy_totals["theatre"] = (
-        db.session.query(func.coalesce(func.sum(TheatreBill.amount), 0))
-        .filter(TheatreBill.created_at >= start_date)
+        db.session.query(func.coalesce(func.sum(TheatreBill.total_paid), 0))
+        .filter(TheatreBill.billed_at >= start_date)
         .scalar()
     )
 
     # WardBill
     legacy_totals["ward"] = (
-        db.session.query(func.coalesce(func.sum(WardBill.amount), 0))
-        .filter(WardBill.created_at >= start_date)
+        db.session.query(func.coalesce(func.sum(WardBill.total_paid), 0))
+        .filter(WardBill.billed_at >= start_date)
         .scalar()
     )
 
     # ImagingBill
     legacy_totals["imaging"] = (
-        db.session.query(func.coalesce(func.sum(ImagingBill.amount), 0))
-        .filter(ImagingBill.created_at >= start_date)
+        db.session.query(func.coalesce(func.sum(ImagingBill.total_paid), 0))
+        .filter(ImagingBill.billed_at >= start_date)
         .scalar()
     )
 
@@ -92,11 +92,11 @@ def reconciliation_dashboard():
 
     for category in categories:
         invoice_totals[category] = (
-            db.session.query(func.coalesce(func.sum(InvoiceLineItem.total_price), 0))
-            .join(Invoice)
+            db.session.query(func.coalesce(func.sum(InvoiceLineItem.total), 0))
+            .join(Invoice, InvoiceLineItem.invoice_id == Invoice.id)
             .filter(
                 InvoiceLineItem.category == category,
-                InvoiceLineItem.created_at >= start_date,
+                Invoice.created_at >= start_date,
             )
             .scalar()
         )

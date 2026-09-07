@@ -18,7 +18,7 @@ try:
 except ImportError:
     from extensions import db
 
-from departments.models.billing import Invoice, InvoiceLineItem, InvoiceStatus
+from departments.models.billing import InvoiceLineItem
 from departments.models.medicine import AdmittedPatient, Ward
 from departments.models.nursing import MedicationAdmin
 
@@ -94,21 +94,9 @@ def trigger_daily_billing():
             continue
 
         # Check if an invoice already exists for this patient, otherwise create one
-        invoice = Invoice.query.filter_by(
-            patient_id=admission.patient_id, status=InvoiceStatus.DRAFT
-        ).first()
-        if not invoice:
-            invoice = Invoice(
-                invoice_number=f"INV-{int(datetime.utcnow().timestamp())}-{admission.patient_id[:5]}",
-                patient_id=admission.patient_id,
-                subtotal=0.0,
-                grand_total=0.0,
-                amount_paid=0.0,
-                balance=0.0,
-                status=InvoiceStatus.DRAFT,
-            )
-            db.session.add(invoice)
-            db.session.flush()  # To get invoice ID
+        from departments.billing.sync import get_or_create_open_invoice
+
+        invoice = get_or_create_open_invoice(admission.patient_id)
 
         # Add daily ward charge
         line_item = InvoiceLineItem(

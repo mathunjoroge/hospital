@@ -19,7 +19,7 @@ try:
 except ImportError:
     from extensions import db
 
-from departments.models.billing import Invoice, InvoiceLineItem
+from departments.models.billing import InvoiceLineItem
 from departments.models.medicine import Medicine, PrescribedMedicine, SOAPNote
 from departments.models.nursing import NursingNote
 from departments.models.records import Patient, PatientAllergy
@@ -537,15 +537,9 @@ def handle_prescription_signoff():
         total_pharmacy_charge += cost
 
     # Automatically add to patient's active draft Invoice or create new Invoice
-    inv = Invoice.query.filter_by(patient_id=patient_id, status="DRAFT").first()
-    if not inv:
-        inv = Invoice(
-            patient_id=patient_id,
-            invoice_number=Invoice.generate_invoice_number(),
-            status="DRAFT",
-        )
-        db.session.add(inv)
-        db.session.flush()
+    from departments.billing.sync import get_or_create_open_invoice
+
+    inv = get_or_create_open_invoice(patient_id)
 
     line_item = InvoiceLineItem(
         invoice_id=inv.id,
