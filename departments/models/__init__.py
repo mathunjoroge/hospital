@@ -22,6 +22,7 @@ from .billing import (
 )
 from .break_glass import BreakGlassAccessLog
 from .budget import VoteHead
+from departments.consent.models import Consent
 from .facility import Facility, get_home_facility
 from .hr import (
     Allowance,
@@ -148,7 +149,7 @@ __all__ = [
     'Facility', 'get_home_facility',
     'StockMovement', 'record_movement', 'reconcile_stock_balance',
     'VoteHead', 'TransferOrder', 'TransferOrderItem',
-    'StockTake', 'StockTakeItem',
+    'StockTake', 'StockTakeItem', 'Consent',
 ]
 
 
