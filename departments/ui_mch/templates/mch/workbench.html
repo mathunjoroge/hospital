@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCH & Immunization Workbench</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans min-h-screen flex flex-col">
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-gray-900">MCH & Immunization Workbench</h1>
+            <a href="/ui/dashboard/queue/1" class="text-sm text-gray-500 hover:text-blue-600">Back to Dashboard</a>
+        </div>
+    </header>
+    <main class="flex-grow max-w-6xl mx-auto px-4 py-8 w-full" x-data="mchApp()">
+        <div class="flex space-x-1 bg-gray-200 p-1 rounded-lg mb-8 max-w-md">
+            <button @click="activeTab = 'immunization'" :class="activeTab === 'immunization' ? 'bg-white shadow text-gray-900' : 'text-gray-500'" class="flex-1 py-2 px-4 rounded-md text-sm font-medium transition">Immunization</button>
+            <button @click="activeTab = 'anc'" :class="activeTab === 'anc' ? 'bg-white shadow text-gray-900' : 'text-gray-500'" class="flex-1 py-2 px-4 rounded-md text-sm font-medium transition">ANC Visits</button>
+        </div>
+        <div x-show="activeTab === 'immunization'" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h2 class="text-sm font-semibold text-gray-500 uppercase mb-4">Child Lookup</h2>
+                    <div class="space-y-4">
+                        <input type="number" x-model="childId" placeholder="Child Patient ID" class="w-full rounded-lg border-gray-300 shadow-sm border p-2.5 text-sm">
+                        <input type="number" x-model="childAgeWeeks" placeholder="Age in Weeks" class="w-full rounded-lg border-gray-300 shadow-sm border p-2.5 text-sm">
+                        <button @click="fetchSchedule" :disabled="loadingSchedule" class="w-full py-2.5 px-4 bg-pink-600 text-white rounded-lg text-sm font-medium hover:bg-pink-700 transition disabled:opacity-50">
+                            <span x-show="!loadingSchedule">Load Vaccine Schedule</span>
+                            <span x-show="loadingSchedule">Loading...</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6" x-show="dueVaccines.length > 0">
+                    <h2 class="text-sm font-semibold text-gray-500 uppercase mb-4">Due & Overdue Vaccines</h2>
+                    <div class="space-y-3">
+                        <template x-for="vaccine in dueVaccines" :key="vaccine.vaccine_name + '_' + vaccine.dose_number">
+                            <div class="flex items-center justify-between p-3 rounded-lg border" :class="vaccine.status === 'OVERDUE' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'">
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-800" x-text="vaccine.vaccine_name + ' (Dose ' + vaccine.dose_number + ')'"></p>
+                                    <p class="text-xs mt-0.5" :class="vaccine.status === 'OVERDUE' ? 'text-red-600' : 'text-blue-600'" x-text="vaccine.status"></p>
+                                </div>
+                                <button @click="selectVaccine(vaccine)" class="px-3 py-1.5 bg-white border rounded-lg text-xs font-medium hover:bg-gray-50 transition">Administer</button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h2 class="text-lg font-bold text-gray-900 mb-6">Record Immunization</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Vaccine Name</label>
+                            <select x-model="selectedVaccine" class="w-full rounded-lg border-gray-300 shadow-sm border p-2.5 text-sm">
+                                <option value="">Select vaccine...</option>
+                                <option value="BCG">BCG</option>
+                                <option value="OPV">OPV</option>
+                                <option value="Pentavalent">Pentavalent</option>
+                                <option value="PCV">PCV</option>
+                                <option value="Rotavirus">Rotavirus</option>
+                                <option value="IPV">IPV</option>
+                                <option value="Measles-Rubella">Measles-Rubella</option>
+                                <option value="Yellow Fever">Yellow Fever</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Dose Number</label>
+                            <input type="number" x-model="doseNumber" min="1" max="4" class="w-full rounded-lg border-gray-300 shadow-sm border p-2.5 text-sm">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Batch Number</label>
+                            <input type="text" x-model="batchNumber" placeholder="e.g. OPV-2025-001" class="w-full rounded-lg border-gray-300 shadow-sm border p-2.5 text-sm">
+                        </div>
+                    </div>
+                    <div x-show="errorMessage" class="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm"><span x-text="errorMessage"></span></div>
+                    <div x-show="successMessage" class="mt-4 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm"><span x-text="successMessage"></span></div>
+                    <div class="mt-6 flex justify-end">
+                        <button @click="recordImmunization" :disabled="recording" class="px-6 py-2.5 bg-pink-600 text-white rounded-lg text-sm font-medium hover:bg-pink-700 transition disabled:opacity-50">
+                            <span x-show="!recording">Record Vaccination</span>
+                            <span x-show="recording">Recording...</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div x-show="activeTab === 'anc'" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h2 class="text-lg font-bold text-gray-900 mb-6">Log ANC Visit</h2>
+                <div class="space-y-4">
+                    <input type="number" x-model="ancPatientId" placeholder="Mother's Patient ID" class="w-full rounded-lg border-gray-300 shadow-sm border p-2.5 text-sm">
+                    <div class="grid grid-cols-2 gap-4">
+                        <select x-model="ancVisitNumber" class="w-full rounded-lg border-gray-300 shadow-sm border p-2.5 text-sm">
+                            <option value="1">ANC 1</option>
+                            <option value="2">ANC 2</option>
+                            <option value="3">ANC 3</option>
+                            <option value="4">ANC 4</option>
+                        </select>
+                        <input type="number" x-model="ancGestationWeeks" min="4" max="42" placeholder="Gestation Weeks" class="w-full rounded-lg border-gray-300 shadow-sm border p-2.5 text-sm">
+                    </div>
+                    <textarea x-model="ancRiskFactors" rows="2" placeholder="High risk factors (optional)" class="w-full rounded-lg border-gray-300 shadow-sm border p-2.5 text-sm"></textarea>
+                    <div x-show="ancError" class="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm"><span x-text="ancError"></span></div>
+                    <div x-show="ancSuccess" class="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm"><span x-text="ancSuccess"></span></div>
+                    <button @click="logAncVisit" :disabled="ancLoading" class="w-full py-2.5 px-4 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition disabled:opacity-50">
+                        <span x-show="!ancLoading">Log ANC Visit</span>
+                        <span x-show="ancLoading">Saving...</span>
+                    </button>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h2 class="text-lg font-bold text-gray-900 mb-6">MoH ANC Schedule Reference</h2>
+                <div class="space-y-4">
+                    <div class="p-3 rounded-lg bg-purple-50 border border-purple-100"><p class="text-sm font-semibold">ANC 1 - Before 16 weeks</p><p class="text-xs text-gray-500 mt-1">Baseline investigations, HIV testing</p></div>
+                    <div class="p-3 rounded-lg bg-purple-50 border border-purple-100"><p class="text-sm font-semibold">ANC 2 - 20 to 24 weeks</p><p class="text-xs text-gray-500 mt-1">Fetal movement, fundal height</p></div>
+                    <div class="p-3 rounded-lg bg-purple-50 border border-purple-100"><p class="text-sm font-semibold">ANC 3 - 28 to 32 weeks</p><p class="text-xs text-gray-500 mt-1">Fetal presentation, birth plan</p></div>
+                    <div class="p-3 rounded-lg bg-purple-50 border border-purple-100"><p class="text-sm font-semibold">ANC 4+ - 36 weeks onwards</p><p class="text-xs text-gray-500 mt-1">Weekly visits, delivery readiness</p></div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script>
+        function mchApp() {
+            return {
+                activeTab: 'immunization',
+                childId: '', childAgeWeeks: '', dueVaccines: [], loadingSchedule: false,
+                selectedVaccine: '', doseNumber: 1, batchNumber: '', recording: false,
+                errorMessage: '', successMessage: '',
+                ancPatientId: '', ancVisitNumber: '1', ancGestationWeeks: '', ancRiskFactors: '',
+                ancLoading: false, ancError: '', ancSuccess: '',
+                selectVaccine(v) { this.selectedVaccine = v.vaccine_name; this.doseNumber = v.dose_number; },
+                async fetchSchedule() {
+                    if (!this.childId || !this.childAgeWeeks) return;
+                    this.loadingSchedule = true; this.dueVaccines = [];
+                    try {
+                        const res = await fetch(`/mch/api/child/${this.childId}/schedule?age_weeks=${this.childAgeWeeks}`);
+                        const data = await res.json(); this.dueVaccines = data.vaccines || [];
+                    } catch (e) { alert("Error loading schedule."); }
+                    finally { this.loadingSchedule = false; }
+                },
+                async recordImmunization() {
+                    if (!this.childId || !this.selectedVaccine) { this.errorMessage = "Fill all fields."; return; }
+                    this.recording = true; this.errorMessage = ''; this.successMessage = '';
+                    try {
+                        const res = await fetch('/mch/api/immunize', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ child_patient_id: parseInt(this.childId), vaccine_name: this.selectedVaccine, dose_number: parseInt(this.doseNumber), batch_number: this.batchNumber || null }) });
+                        const data = await res.json();
+                        if (res.ok) { this.successMessage = data.message || "Recorded!"; this.fetchSchedule(); }
+                        else { this.errorMessage = data.error || "Failed."; }
+                    } catch (e) { this.errorMessage = "Network error."; }
+                    finally { this.recording = false; }
+                },
+                async logAncVisit() {
+                    if (!this.ancPatientId || !this.ancGestationWeeks) { this.ancError = "Fill required fields."; return; }
+                    this.ancLoading = true; this.ancError = ''; this.ancSuccess = '';
+                    try {
+                        const res = await fetch('/mch/api/anc-visit', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ patient_id: parseInt(this.ancPatientId), visit_number: parseInt(this.ancVisitNumber), gestation_weeks: parseInt(this.ancGestationWeeks), high_risk_factors: this.ancRiskFactors || null }) });
+                        const data = await res.json();
+                        if (res.ok) { this.ancSuccess = `Logged! Next: ${data.next_appointment_date}`; }
+                        else { this.ancError = data.error || "Failed."; }
+                    } catch (e) { this.ancError = "Network error."; }
+                    finally { this.ancLoading = false; }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
