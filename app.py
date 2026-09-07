@@ -472,6 +472,8 @@ from departments.ui_clinical import bp as ui_clinical_bp  # noqa: E402
 from departments.ui_dashboard import bp as ui_dashboard_bp  # noqa: E402
 from departments.ui_mch import bp as ui_mch_bp  # noqa: E402
 from departments.ui_referrals import bp as ui_referrals_bp  # noqa: E402
+from departments.appointments import bp as appointments_bp  # noqa: E402
+from departments.referrals import bp as referrals_bp  # noqa: E402
 
 app.register_blueprint(records_bp, url_prefix="/records")
 app.register_blueprint(billing_bp, url_prefix="/billing")
@@ -518,6 +520,8 @@ app.register_blueprint(dicom_bp)
 app.register_blueprint(mar_bp)
 app.register_blueprint(fhir_bp, url_prefix="/api/fhir/R4")
 app.register_blueprint(khis_bp, url_prefix="/api/khis")
+app.register_blueprint(appointments_bp)  # Engine: /appointments/* (Live Queue)
+app.register_blueprint(referrals_bp)  # Engine: /referrals/* (Referrals & Discharge)
 
 if __name__ == "__main__":
     with app.app_context():
