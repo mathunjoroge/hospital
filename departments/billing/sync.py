@@ -1,0 +1,189 @@
+"""
+Billing sync utilities - bridges legacy per-department billing with unified Invoice system.
+
+This module provides the sync layer that ensures charges created through the legacy
+billing workflow (DrugsBill, LabBill, etc.) are also reflected in the unified Invoice
+system used by the patient portal, M-Pesa, and insurance claims.
+"""
+
+import logging
+from flask import current_app
+from extensions import db
+from departments.models.billing import Invoice, InvoiceLineItem, Payment
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+
+def get_or_create_open_invoice(patient_id: str) -> Invoice:
+    """
+    Get the patient's current open invoice, or create one if none exists.
+
+    An "open" invoice is one with status DRAFT or ISSUED that can still accept
+    new line items. Once an invoice is marked PAID or PARTIAL, it's closed and
+    a new one will be created for subsequent charges.
+
+    Args:
+        patient_id: The patient's business key (e.g., "P0001")
+
+    Returns:
+        Invoice: The patient's current open invoice
+    """
+    # Check for existing open invoice
+    invoice = Invoice.query.filter_by(patient_id=patient_id, status="DRAFT").first()
+
+    if not invoice:
+        # Create new invoice
+        invoice = Invoice(
+            patient_id=patient_id,
+            status="DRAFT",
+            grand_total=0.0,
+            amount_paid=0.0,
+            created_at=datetime.utcnow(),
+        )
+        db.session.add(invoice)
+        db.session.flush()  # Get the ID without committing
+        logger.info(f"Created new invoice {invoice.id} for patient {patient_id}")
+
+    return invoice
+
+
+def sync_charge(
+    patient_id: str,
+    source_table: str,
+    source_id: int,
+    description: str,
+    category: str,
+    amount: float,
+    quantity: int = 1,
+) -> InvoiceLineItem:
+    """
+    Sync a charge from legacy billing to the unified Invoice system.
+
+    This is idempotent - calling it multiple times with the same source_table/source_id
+    will return the existing line item without creating duplicates.
+
+    Args:
+        patient_id: Patient's business key
+        source_table: Name of the source table (e.g., 'requested_lab', 'dispensed_drug')
+        source_id: ID in the source table
+        description: Human-readable description of the charge
+        category: Charge category (drug, lab, imaging, theatre, ward, consult)
+        amount: Unit price
+        quantity: Number of units (default 1)
+
+    Returns:
+        InvoiceLineItem: The created or existing line item
+    """
+    # Check if sync is enabled
+    if not current_app.config.get("BILLING_SYNC_ENABLED", True):
+        logger.debug(
+            f"Billing sync disabled, skipping charge sync for {source_table}:{source_id}"
+        )
+        return None
+
+    # Check for existing line item (idempotency)
+    existing = InvoiceLineItem.query.filter_by(
+        source_table=source_table, source_id=source_id
+    ).first()
+
+    if existing:
+        logger.debug(f"Line item already exists for {source_table}:{source_id}")
+        return existing
+
+    # Get or create the patient's open invoice
+    invoice = get_or_create_open_invoice(patient_id)
+
+    # Create the line item
+    line_item = InvoiceLineItem(
+        invoice_id=invoice.id,
+        description=description,
+        category=category,
+        quantity=quantity,
+        unit_price=amount,
+        total_price=amount * quantity,
+        source_table=source_table,
+        source_id=source_id,
+        created_at=datetime.utcnow(),
+    )
+
+    db.session.add(line_item)
+
+    # Update invoice total
+    invoice.grand_total = (invoice.grand_total or 0) + (amount * quantity)
+
+    logger.info(
+        f"Synced charge: {description} (${amount}x{quantity}) to invoice {invoice.id}"
+    )
+
+    return line_item
+
+
+def sync_payment(
+    patient_id: str,
+    amount: float,
+    payment_method: str,
+    reference_number: str = None,
+    receipt_number: str = None,
+) -> Payment:
+    """
+    Record a payment against the patient's open invoice.
+
+    This should be called whenever a payment is recorded in the legacy system
+    (via pay_bills, pay_all, etc.) to keep the unified Invoice system in sync.
+
+    Args:
+        patient_id: Patient's business key
+        amount: Amount paid
+        payment_method: Payment method (cash, mpesa, insurance, etc.)
+        reference_number: External reference (e.g., M-Pesa transaction ID)
+        receipt_number: Internal receipt number
+
+    Returns:
+        Payment: The created payment record
+    """
+    if not current_app.config.get("BILLING_SYNC_ENABLED", True):
+        logger.debug("Billing sync disabled, skipping payment sync")
+        return None
+
+    # Get the patient's open invoice
+    invoice = Invoice.query.filter_by(patient_id=patient_id, status="DRAFT").first()
+
+    if not invoice:
+        logger.warning(
+            f"No open invoice found for patient {patient_id}, cannot sync payment"
+        )
+        return None
+
+    # Create the payment
+    payment = Payment(
+        invoice_id=invoice.id,
+        amount=amount,
+        payment_method=payment_method,
+        reference_number=reference_number,
+        receipt_number=receipt_number,
+        payment_date=datetime.utcnow(),
+    )
+
+    db.session.add(payment)
+
+    # Update invoice
+    invoice.amount_paid = (invoice.amount_paid or 0) + amount
+
+    # Recalculate status
+    if invoice.amount_paid >= invoice.grand_total:
+        invoice.status = "PAID"
+        invoice.paid_at = datetime.utcnow()
+    elif invoice.amount_paid > 0:
+        invoice.status = "PARTIAL"
+
+    logger.info(
+        f"Synced payment: ${amount} via {payment_method} to invoice {invoice.id}"
+    )
+
+    return payment
+
+
+def check_billing_sync_enabled() -> bool:
+    """Check if billing sync is currently enabled."""
+    return current_app.config.get("BILLING_SYNC_ENABLED", True)

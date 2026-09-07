@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Billing Reconciliation{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">
+        <i class="fas fa-balance-scale"></i> Billing Reconciliation Dashboard
+    </h1>
+    
+    <div class="alert alert-info">
+        <strong>ℹ️ About this dashboard:</strong> This compares totals from the legacy billing system 
+        (DrugsBill, LabBill, etc.) against the unified Invoice system. Discrepancies indicate sync issues.
+    </div>
+    
+    <!-- Date Range Selector -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Date Range</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="form-inline">
+                <label class="mr-2">Show data from last:</label>
+                <select name="days" class="form-control mr-2" onchange="this.form.submit()">
+                    <option value="7" {% if days == 7 %}selected{% endif %}>7 days</option>
+                    <option value="30" {% if days == 30 %}selected{% endif %}>30 days</option>
+                    <option value="90" {% if days == 90 %}selected{% endif %}>90 days</option>
+                    <option value="365" {% if days == 365 %}selected{% endif %}>1 year</option>
+                </select>
+                <span class="text-muted">Since {{ start_date.strftime('%Y-%m-%d') }}</span>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Legacy Billing Total</h5>
+                    <h2 class="card-text">KSh {{ "%.2f"|format(total_legacy) }}</h2>
+                    <p class="card-text">From DrugsBill, LabBill, etc.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Unified Invoice Total</h5>
+                    <h2 class="card-text">KSh {{ "%.2f"|format(total_unified) }}</h2>
+                    <p class="card-text">From Invoice/InvoiceLineItem</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card {% if abs(total_discrepancy) < 0.01 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Discrepancy</h5>
+                    <h2 class="card-text">KSh {{ "%.2f"|format(total_discrepancy) }}</h2>
+                    <p class="card-text">{% if abs(total_discrepancy) < 0.01 %}✅ Fully synced{% else %}⚠️ Needs attention{% endif %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Detailed Breakdown -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Category Breakdown</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Legacy Total</th>
+                        <th>Unified Total</th>
+                        <th>Difference</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for category, data in discrepancies.items() %}
+                    <tr>
+                        <td><strong>{{ category|capitalize }}</strong></td>
+                        <td>KSh {{ "%.2f"|format(data.legacy) }}</td>
+                        <td>KSh {{ "%.2f"|format(data.unified) }}</td>
+                        <td class="{% if abs(data.difference) > 0.01 %}text-danger{% endif %}">
+                            KSh {{ "%.2f"|format(data.difference) }}
+                        </td>
+                        <td>{{ data.status }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Actions -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Actions</h5>
+        </div>
+        <div class="card-body">
+            <a href="{{ url_for('reconciliation.sync_status') }}" class="btn btn-info">
+                <i class="fas fa-sync"></i> Check Sync Status (API)
+            </a>
+            <button class="btn btn-warning" onclick="alert('Backfill script coming in Phase 2')">
+                <i class="fas fa-history"></i> Run Backfill (Phase 2)
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

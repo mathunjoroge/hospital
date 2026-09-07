@@ -374,6 +374,7 @@ def logout():
         db.session.commit()
         logger.error(f"Logout error: {e}", exc_info=True)
         flash("Something went wrong. Please try again.", "error")
+        return redirect(url_for("login"))
 
 
 @app.route("/healthz", methods=["GET"])

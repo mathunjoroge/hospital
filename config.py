@@ -56,6 +56,9 @@ CONFIDENCE_THRESHOLD = float(os.getenv('CONFIDENCE_THRESHOLD', 0.85))
 MIN_CONFIDENCE_THRESHOLD = float(os.getenv('MIN_CONFIDENCE_THRESHOLD', 0.6))
 
 class Config:
+    # Billing sync configuration
+    BILLING_SYNC_ENABLED = os.environ.get('BILLING_SYNC_ENABLED', 'true').lower() == 'true'
+
     SECRET_KEY = os.getenv('SECRET_KEY')
     ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY')
     SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI
