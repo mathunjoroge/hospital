@@ -1,78 +1,161 @@
+"""
+Revenue Cycle Management API routes.
+"""
+
+from datetime import datetime, timezone
+
 from flask import jsonify, request
 from flask_login import login_required
 
 from . import bp
+from .engine import RevenueCycleEngine
+
+_engine = RevenueCycleEngine()
 
 
 @bp.route("/")
 @login_required
 def index():
-    return "Revenue Cycle Management Module Active - Phase 10 MVP"
+    return "Revenue Cycle Management Module Active"
 
 
-@bp.route("/preauth", methods=["POST"])
+@bp.route("/api/preauth", methods=["POST"])
 @login_required
 def submit_preauth():
     """
-    Stub for submitting a pre-authorization request to SHA or private insurance.
+    Submits a pre-authorization request for SHA or private insurance.
     """
-    _data = request.get_json() or {}
-    return (
-        jsonify({"status": "success", "message": "Pre-authorization stub active."}),
-        201,
+    data = request.get_json(silent=True) or {}
+
+    patient_id = data.get("patient_id")
+    insurance_scheme_id = data.get("insurance_scheme_id")
+    procedure_code = data.get("procedure_code")
+    estimated_amount = data.get("estimated_amount")
+
+    if not all([patient_id, insurance_scheme_id, procedure_code, estimated_amount]):
+        return jsonify({"error": "Missing required fields for pre-authorization"}), 400
+
+    preauth = _engine.submit_preauth(
+        patient_id=patient_id,
+        insurance_scheme_id=insurance_scheme_id,
+        procedure_code=procedure_code,
+        estimated_amount=estimated_amount,
+        clinical_justification=data.get("clinical_justification"),
     )
 
-
-@bp.route("/claim/submit", methods=["POST"])
-@login_required
-def submit_claim():
-    """
-    Stub for submitting a claim after scrubbing and validation.
-    """
-    _data = request.get_json() or {}
-    return (
-        jsonify({"status": "success", "message": "Claim submission stub active."}),
-        201,
-    )
-
-
-@bp.route("/claim/status/<string:claim_id>", methods=["GET"])
-@login_required
-def get_claim_status(claim_id: str):
-    """
-    Stub for retrieving the current status of a claim.
-    """
     return jsonify(
         {
             "status": "success",
-            "message": "Claim status retrieval stub active.",
-            "claim_id": claim_id,
-            "current_status": "UNKNOWN",
+            "preauth_id": preauth.id,
+            "current_status": preauth.status,
         }
+    ), 201
+
+
+@bp.route("/api/claim/scrub", methods=["POST"])
+@login_required
+def scrub_claim():
+    """
+    Validates a claim before submission. Returns any errors found.
+    """
+    data = request.get_json(silent=True) or {}
+
+    try:
+        errors = _engine.scrub_claim(
+            patient_id=data.get("patient_id"),
+            billed_amount=data.get("billed_amount", 0),
+            service_start_date=datetime.fromisoformat(data["service_start_date"]),
+            service_end_date=datetime.fromisoformat(data["service_end_date"]),
+            primary_diagnosis_icd10=data.get("primary_diagnosis_icd10"),
+        )
+    except (KeyError, ValueError):
+        return jsonify({"error": "Invalid date format. Use ISO 8601."}), 400
+
+    if errors:
+        return jsonify({"is_clean": False, "errors": errors}), 422
+
+    return jsonify({"is_clean": True, "errors": []}), 200
+
+
+@bp.route("/api/claim/submit", methods=["POST"])
+@login_required
+def submit_claim():
+    """
+    Submits a claim. Automatically scrubs the claim first.
+    """
+    data = request.get_json(silent=True) or {}
+
+    try:
+        service_start = datetime.fromisoformat(data["service_start_date"])
+        service_end = datetime.fromisoformat(data["service_end_date"])
+
+        if service_start.tzinfo is None:
+            service_start = service_start.replace(tzinfo=timezone.utc)
+        if service_end.tzinfo is None:
+            service_end = service_end.replace(tzinfo=timezone.utc)
+    except (KeyError, ValueError):
+        return jsonify({"error": "Invalid date format. Use ISO 8601."}), 400
+
+    claim = _engine.submit_claim(
+        patient_id=data.get("patient_id"),
+        billed_amount=data.get("billed_amount", 0),
+        service_start_date=service_start,
+        service_end_date=service_end,
+        primary_diagnosis_icd10=data.get("primary_diagnosis_icd10"),
+        secondary_diagnosis_icd10=data.get("secondary_diagnosis_icd10"),
+        insurance_scheme_id=data.get("insurance_scheme_id"),
     )
 
+    if not claim:
+        return jsonify(
+            {
+                "error": "Claim failed scrubbing validation.",
+                "message": "Fix validation errors before submitting.",
+            }
+        ), 422
 
-@bp.route("/denial/appeal", methods=["POST"])
+    return jsonify(
+        {
+            "status": "success",
+            "claim_id": claim.id,
+            "current_status": claim.status,
+        }
+    ), 201
+
+
+@bp.route("/api/denial/appeal", methods=["POST"])
 @login_required
 def submit_appeal():
     """
-    Stub for appealing a denied claim.
+    Initiates an appeal for a denied claim.
     """
-    _data = request.get_json() or {}
-    return (
-        jsonify({"status": "success", "message": "Claim appeal stub active."}),
-        201,
-    )
+    data = request.get_json(silent=True) or {}
 
+    claim_id = data.get("claim_id")
+    denial_code = data.get("denial_code")
+    denial_reason = data.get("denial_reason")
+    appeal_justification = data.get("appeal_justification")
 
-@bp.route("/payment-plan", methods=["POST"])
-@login_required
-def create_payment_plan():
-    """
-    Stub for creating a patient installment payment plan.
-    """
-    _data = request.get_json() or {}
-    return (
-        jsonify({"status": "success", "message": "Payment plan stub active."}),
-        201,
-    )
+    if not all([claim_id, denial_code, denial_reason, appeal_justification]):
+        return jsonify({"error": "Missing required fields for appeal"}), 400
+
+    try:
+        denial = _engine.appeal_claim(
+            claim_id=claim_id,
+            denial_code=denial_code,
+            denial_reason=denial_reason,
+            appeal_justification=appeal_justification,
+        )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    if not denial:
+        return jsonify({"error": "Claim not found"}), 404
+
+    return jsonify(
+        {
+            "status": "success",
+            "denial_id": denial.id,
+            "appeal_status": denial.appeal_status,
+        }
+    ), 201
