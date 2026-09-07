@@ -366,7 +366,9 @@ class Invoice(db.Model):
 
     @staticmethod
     def generate_invoice_number():
-        """Generate sequential invoice number INV-YYYYMMDD-NNNN."""
+        """Generate unique sequential invoice number INV-YYYYMMDD-NNNN-UUID."""
+        import uuid
+
         now = datetime.utcnow()
         prefix = f"INV-{now.strftime('%Y%m%d')}"
         last = (
@@ -377,10 +379,13 @@ class Invoice(db.Model):
         seq = 1
         if last:
             try:
-                seq = int(last.invoice_number.rsplit("-", 1)[-1]) + 1
-            except ValueError:
+                parts = last.invoice_number.split("-")
+                if len(parts) >= 3:
+                    seq = int(parts[2]) + 1
+            except (ValueError, IndexError):
                 pass
-        return f"{prefix}-{seq:04d}"
+        unique_id = str(uuid.uuid4())[:6].upper()
+        return f"{prefix}-{seq:04d}-{unique_id}"
 
     def recalculate(self):
         """Recompute subtotal, grand_total, amount_paid, balance from child records."""

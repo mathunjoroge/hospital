@@ -38,7 +38,7 @@ def register_billing_sync_listeners():
         from departments.models.pharmacy import DispensedDrug
         from departments.models.records import ClinicBooking
 
-        @event.listens_for(db.session, "after_flush")
+        @event.listens_for(db.session, "after_flush_postexec")
         def sync_billing_events(session, flush_context):
             """
             Process newly inserted and updated billing objects to sync charges and payments
