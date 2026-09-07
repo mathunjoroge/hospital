@@ -367,6 +367,7 @@ from departments.imaging import bp as imaging_bp  # noqa: E402
 from departments.imaging.dicom import dicom_bp  # noqa: E402
 from departments.laboratory import bp as laboratory_bp  # noqa: E402
 from departments.laboratory.panic_alerts import lis_bp  # noqa: E402
+from departments.mch import bp as mch_bp  # noqa: E402
 from departments.medicine import bp as medicine_bp  # noqa: E402
 from departments.medicine.prescribe import prescribe_bp  # noqa: E402
 from departments.mortuary import bp as mortuary_bp  # noqa: E402
@@ -398,6 +399,7 @@ app.register_blueprint(mortuary_bp, url_prefix='/mortuary')
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(consent_bp)
 app.register_blueprint(clinical_safety_bp)
+app.register_blueprint(mch_bp)
 
 app.register_blueprint(patient_portal_bp, url_prefix='/portal')
 app.register_blueprint(telemedicine_bp, url_prefix='/telemedicine')  # Phase E
