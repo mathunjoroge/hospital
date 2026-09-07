@@ -149,14 +149,25 @@ def sync_payment(
         logger.debug("Billing sync disabled, skipping payment sync")
         return None
 
-    # Get the patient's open invoice
-    invoice = Invoice.query.filter_by(patient_id=patient_id, status="DRAFT").first()
-
-    if not invoice:
-        logger.warning(
-            f"No open invoice found for patient {patient_id}, cannot sync payment"
-        )
+    if amount is None or float(amount) <= 0:
         return None
+
+    # Idempotency checks
+    if receipt_number:
+        existing = Payment.query.filter_by(receipt_number=receipt_number).first()
+        if existing:
+            logger.debug(f"Payment already synced for receipt {receipt_number}")
+            return existing
+    if reference_number:
+        existing = Payment.query.filter_by(reference=reference_number).first()
+        if existing:
+            logger.debug(f"Payment already synced for reference {reference_number}")
+            return existing
+
+    # Get or create the patient's open invoice
+    invoice = Invoice.query.filter_by(patient_id=patient_id, status="DRAFT").first()
+    if not invoice:
+        invoice = get_or_create_open_invoice(patient_id)
 
     # Create the payment
     payment = Payment(

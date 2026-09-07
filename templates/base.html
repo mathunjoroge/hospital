@@ -739,6 +739,25 @@
     {% set effective_role = session.switched_user if session.switched_user else current_user.role %}
     {% include 'side_bars/' ~ effective_role ~ '.html' ignore missing %}
     {% endif %}
+    
+    <!-- ═══ WORLD-CLASS MODULES ═══ -->
+    <div class="sidebar-heading mt-4" style="color: #fbbf24 !important; font-weight: 800; letter-spacing: 0.1em;">✨ Advanced Tools</div>
+    <a href="/ui/dashboard/queue/1" title="Live Waiting Room Queue (Provider ID 1)">
+        <i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Queue
+    </a>
+    <a href="/ui/clinical/prescribe" title="Prescription Safety & Consent Gates">
+        <i class="bi bi-shield-check me-2" style="color: #ef4444;"></i> Rx Safety (CDS)
+    </a>
+    <a href="/ui/mch/workbench" title="Maternal & Child Health / Immunizations">
+        <i class="bi bi-heart-pulse me-2" style="color: #ec4899;"></i> MCH / Vax
+    </a>
+    <a href="/ui/billing/claims" title="Revenue Cycle & SHA Claims Scrubber">
+        <i class="bi bi-cash-stack me-2" style="color: #10b981;"></i> Claims & SHA
+    </a>
+    <a href="/ui/referrals/handover" title="Referrals & Discharge Handover">
+        <i class="bi bi-arrow-left-right me-2" style="color: #6366f1;"></i> Referrals
+    </a>
+    
     <a href="{{ url_for('medicine.chatbot_interface') }}" class="chat">
       <i class="bi bi-chat-dots me-2"></i> Chatbot
     </a>

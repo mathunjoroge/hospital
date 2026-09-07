@@ -43,7 +43,7 @@ def initiate_payment():
         )
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    except Exception as e:
+    except Exception:
         current_app.logger.exception("M-Pesa initiation failed")
         return jsonify({"error": "Failed to initiate payment."}), 500
 
