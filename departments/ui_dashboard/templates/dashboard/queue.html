@@ -1,122 +1,86 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clinic Queue Dashboard</title>
-    <!-- Tailwind CSS via CDN for rapid development -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- HTMX for dynamic API calls -->
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-</head>
-<body class="bg-gray-50 text-gray-800 font-sans">
+{% extends "base.html" %}
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        <!-- Header -->
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+{% block title %}Live Queue Dashboard{% endblock %}
+
+{% block content %}
+<!-- Load Tailwind just for this specific dashboard component -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div>
+            <h1 class="text-3xl font-bold" style="color: var(--text-color);">Outpatient Flow Dashboard</h1>
+            <p class="mt-1" style="color: #64748b;">Provider ID: <span id="provider-display" class="font-semibold text-blue-600"></span></p>
+        </div>
+        <button onclick="window.location.reload()" class="px-4 py-2 border rounded-lg text-sm font-medium shadow-sm transition" style="background-color: var(--card-bg); color: var(--text-color); border-color: #e2e8f0;">
+            <i class="bi bi-arrow-clockwise me-2"></i> Refresh
+        </button>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="rounded-xl shadow-sm border p-6 flex items-center justify-between" style="background-color: var(--card-bg); border-color: #e2e8f0;">
             <div>
-                <h1 class="text-3xl font-bold text-gray-900">Outpatient Flow Dashboard</h1>
-                <p class="text-gray-500 mt-1">Provider ID: <span id="provider-display" class="font-semibold text-blue-600"></span></p>
+                <p class="text-sm font-medium" style="color: #64748b;">Total Scheduled Today</p>
+                <p id="stat-total" class="text-3xl font-bold mt-1" style="color: var(--text-color);">--</p>
             </div>
-            <div class="flex space-x-3">
-                <button onclick="window.location.reload()" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition">
-                    Refresh Page
-                </button>
+            <div class="p-3 bg-blue-50 rounded-full text-blue-600">
+                <i class="bi bi-calendar3 text-2xl"></i>
             </div>
         </div>
-
-        <!-- Stats Row -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-500">Total Scheduled Today</p>
-                    <p id="stat-total" class="text-3xl font-bold text-gray-900 mt-1">--</p>
-                </div>
-                <div class="p-3 bg-blue-50 rounded-full text-blue-600">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                </div>
+        <div class="rounded-xl shadow-sm border p-6 flex items-center justify-between" style="background-color: var(--card-bg); border-color: #e2e8f0;">
+            <div>
+                <p class="text-sm font-medium" style="color: #64748b;">Waiting in Queue</p>
+                <p id="stat-waiting" class="text-3xl font-bold mt-1 text-amber-500">--</p>
             </div>
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-500">Waiting in Queue</p>
-                    <p id="stat-waiting" class="text-3xl font-bold text-amber-500 mt-1">--</p>
-                </div>
-                <div class="p-3 bg-amber-50 rounded-full text-amber-500">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </div>
-            </div>
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-500">Currently In Consultation</p>
-                    <p id="stat-in-progress" class="text-3xl font-bold text-green-600 mt-1">--</p>
-                </div>
-                <div class="p-3 bg-green-50 rounded-full text-green-600">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </div>
+            <div class="p-3 bg-amber-50 rounded-full text-amber-500">
+                <i class="bi bi-hourglass-split text-2xl"></i>
             </div>
         </div>
-
-        <!-- Live Queue Table -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 class="text-lg font-semibold text-gray-800">Live Waiting Room Queue</h2>
-                <span class="flex items-center text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
-                    <span class="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
-                    Auto-refreshing every 5s
-                </span>
+        <div class="rounded-xl shadow-sm border p-6 flex items-center justify-between" style="background-color: var(--card-bg); border-color: #e2e8f0;">
+            <div>
+                <p class="text-sm font-medium" style="color: #64748b;">In Consultation</p>
+                <p id="stat-in-progress" class="text-3xl font-bold mt-1 text-green-600">--</p>
             </div>
-
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Checked In</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                    </tr>
-                </thead>
-                <tbody id="queue-container"
-                       hx-get="/appointments/api/queue/1/rows"
-                       hx-trigger="load, every 5s"
-                       hx-swap="innerHTML">
-                    <tr>
-                        <td colspan="5" class="px-6 py-8 text-center text-gray-400">
-                            <svg class="animate-spin h-6 w-6 text-blue-600 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Connecting to live queue...
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="p-3 bg-green-50 rounded-full text-green-600">
+                <i class="bi bi-clipboard2-pulse text-2xl"></i>
+            </div>
         </div>
     </div>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const pathParts = window.location.pathname.split('/');
-            const providerId = pathParts[pathParts.length - 1];
-            document.getElementById('provider-display').textContent = providerId;
+    <!-- Live Queue Table -->
+    <div class="rounded-xl shadow-sm border overflow-hidden" style="background-color: var(--card-bg); border-color: #e2e8f0;">
+        <div class="px-6 py-4 border-b flex justify-between items-center" style="border-color: #e2e8f0;">
+            <h2 class="text-lg font-semibold" style="color: var(--text-color);">Live Waiting Room Queue</h2>
+            <span class="flex items-center text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
+                <span class="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
+                Auto-refreshing
+            </span>
+        </div>
+        
+        <div id="queue-container" 
+             hx-get="/appointments/api/queue/1" 
+             hx-trigger="load, every 5s"
+             hx-swap="innerHTML"
+             class="p-4">
+            <div class="text-center py-8" style="color: #64748b;">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2">Connecting to live queue...</p>
+            </div>
+        </div>
+    </div>
+</div>
 
-            const queueContainer = document.getElementById('queue-container');
-            queueContainer.setAttribute('hx-get', `/appointments/api/queue/${providerId}/rows`);
-            htmx.process(queueContainer);
-
-            // Fetch today's schedule stats
-            fetch(`/appointments/api/provider/${providerId}/today`)
-                .then(r => r.json())
-                .then(data => {
-                    document.getElementById('stat-total').textContent = data.total_appointments ?? '--';
-                    const waiting = data.appointments?.filter(a => a.status === 'CHECKED_IN').length ?? '--';
-                    const inProgress = data.appointments?.filter(a => a.status === 'IN_PROGRESS').length ?? '--';
-                    document.getElementById('stat-waiting').textContent = waiting;
-                    document.getElementById('stat-in-progress').textContent = inProgress;
-                })
-                .catch(() => {});
-        });
-    </script>
-</body>
-</html>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const pathParts = window.location.pathname.split('/');
+        const providerId = pathParts[pathParts.length - 1];
+        document.getElementById('provider-display').textContent = providerId;
+        
+        const queueContainer = document.getElementById('queue-container');
+        queueContainer.setAttribute('hx-get', `/appointments/api/queue/${providerId}`);
+        htmx.process(queueContainer);
+    });
+</script>
+{% endblock %}
