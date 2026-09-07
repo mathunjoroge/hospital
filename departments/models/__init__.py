@@ -2,6 +2,8 @@
 Central model exports for departments.models
 """
 
+from departments.consent.models import Consent
+
 from .admin import Log
 from .billing import (
     Billing,
@@ -22,7 +24,6 @@ from .billing import (
 )
 from .break_glass import BreakGlassAccessLog
 from .budget import VoteHead
-from departments.consent.models import Consent
 from .facility import Facility, get_home_facility
 from .hr import (
     Allowance,
