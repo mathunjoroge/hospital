@@ -443,6 +443,7 @@ from departments.mortuary import bp as mortuary_bp  # noqa: E402
 from departments.nursing import bp as nursing_bp  # noqa: E402
 from departments.nursing.mar import mar_bp  # noqa: E402
 from departments.nursing.triage import triage_bp  # noqa: E402
+from departments.offline_sync import bp as offline_sync_bp  # noqa: E402
 from departments.patient_portal import patient_portal_bp  # noqa: E402
 from departments.pharmacy import bp as pharmacy_bp  # noqa: E402
 from departments.pharmacy.fefo import fefo_bp  # noqa: E402
@@ -461,7 +462,6 @@ app.register_blueprint(imaging_bp, url_prefix="/imaging")
 app.register_blueprint(stores_bp, url_prefix="/stores")
 app.register_blueprint(transfer_bp)  # Phase E: mounts /stores/transfers/*
 app.register_blueprint(admin_bp, url_prefix="/admin")
-
 app.register_blueprint(nursing_bp, url_prefix="/nursing")
 app.register_blueprint(hr_bp, url_prefix="/hr")
 app.register_blueprint(mortuary_bp, url_prefix="/mortuary")
@@ -470,6 +470,7 @@ app.register_blueprint(consent_bp)
 app.register_blueprint(clinical_safety_bp)
 app.register_blueprint(mch_bp)
 app.register_blueprint(analytics_bp)
+app.register_blueprint(offline_sync_bp)
 app.register_blueprint(patient_portal_bp, url_prefix="/portal")
 app.register_blueprint(telemedicine_bp, url_prefix="/telemedicine")  # Phase E
 
