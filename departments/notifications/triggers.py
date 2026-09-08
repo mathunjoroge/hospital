@@ -11,8 +11,8 @@ from departments.notifications.dispatcher import (
     EVENT_CREDENTIAL_EXPIRING,
     EVENT_INVOICE_DUE,
     EVENT_LAB_RESULT_READY,
-    EVENT_PAYMENT_RECEIVED,
     EVENT_PASSWORD_RESET,
+    EVENT_PAYMENT_RECEIVED,
     NotificationDispatcher,
 )
 
