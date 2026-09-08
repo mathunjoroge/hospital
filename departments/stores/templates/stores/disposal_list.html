@@ -163,9 +163,14 @@ document.addEventListener('DOMContentLoaded', function() {
             this.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Writing off...';
 
             try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 const res = await fetch(`/stores/disposal/${id}/approve`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
                 });
                 const data = await res.json();
                 if (res.ok) {
@@ -323,9 +328,14 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Saving...';
 
         try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const res = await fetch('/stores/disposal/create', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
                 body: JSON.stringify({ reason: reason, items: items })
             });
 

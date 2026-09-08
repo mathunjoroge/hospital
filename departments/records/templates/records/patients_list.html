@@ -359,7 +359,12 @@ function submitBooking() {
   formData.append('clinic_id', clinic_id);
   formData.append('clinic_date', clinic_date);
 
-  fetch("{{ url_for('records.book_clinic') }}", { method: 'POST', body: formData })
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  fetch("{{ url_for('records.book_clinic') }}", {
+    method: 'POST',
+    headers: { 'X-CSRFToken': csrfToken },
+    body: formData
+  })
     .then(r => r.json())
     .then(data => {
       resultEl.innerHTML = `<div class="alert alert-${data.status === 'success' ? 'success' : 'danger'} py-2">${data.message}</div>`;

@@ -332,7 +332,7 @@
       color: #b2bec3;
     }
 
-    .nav-link {
+    .navbar-custom .nav-link {
       color: #fff;
       padding: 0.5rem 1rem;
       transition: all 0.3s ease;
@@ -340,10 +340,31 @@
       margin: 0 2px;
     }
 
-    .nav-link:hover {
+    .navbar-custom .nav-link:hover {
       color: #b2bec3;
       transform: scale(1.05);
       background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Nav Pills styling for content tabs */
+    .nav-pills .nav-link {
+      color: #475569;
+      background-color: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .nav-pills .nav-link:hover {
+      color: #0f172a;
+      background-color: #e2e8f0;
+    }
+
+    .nav-pills .nav-link.active {
+      color: #ffffff !important;
+      background-color: #2563eb !important;
+      border-color: #2563eb !important;
     }
 
     .navbar-text {
@@ -1001,33 +1022,40 @@
         }
 
         // Initialize patient search for all #patient_id elements
-        $(document).ready(function () {
-          initPatientSearch('#patient_id');
-        });
-        // 🔹 Reusable initializer for Clinic search
-        function initClinicSearch(selector) {
-          if ($(selector).length) {
-            $(selector).select2({
-              theme: 'bootstrap-5',
-              placeholder: "Enter clinic name...",
-              allowClear: false,
-              minimumInputLength: 1,
-              width: "100%",
-              dropdownParent: $('#bookClinicModal'),  // Attach to modal
-              ajax: {
-                url: "#", // Temporary fix for missing route records.search_clinics
-                dataType: 'json',
-                delay: 250,
-                data: function (params) {
-                  return { q: params.term };
-                },
-                processResults: function (data) {
-                  return { results: data };
-                },
-                cache: true
-              }
-            });
+          $(document).ready(function () {
+            initPatientSearch('#patient_id');
+          });
+          // 🔹 Reusable initializer for Clinic search
+          function initClinicSearch(selector) {
+            if ($(selector).length) {
+              $(selector).select2({
+                theme: 'bootstrap-5',
+                placeholder: "Enter clinic name...",
+                allowClear: false,
+                minimumInputLength: 1,
+                width: "100%",
+                dropdownParent: $('#bookClinicModal'),  // Attach to modal
+                ajax: {
+                  url: "#", // Temporary fix for missing route records.search_clinics
+                  dataType: 'json',
+                  delay: 250,
+                  data: function (params) {
+                    return { q: params.term };
+                  },
+                  processResults: function (data) {
+                    return { results: data };
+                  },
+                  cache: true
+                }
+              });
+            }
           }
+  
+          // ✅ Initialize patient & clinic inside modal
+          initPatientSearch('#patient_id');
+          initClinicSearch('#clinic_id');
+        } catch (e) {
+          console.error('Initialization error:', e);
         }
 
 
@@ -1231,6 +1259,8 @@
         }
 
         console.log("✅ Select2, Sidebar Nav & Bootstrap initialized successfully!");
+      });
+
     // 🔹 PWA Service Worker & Network Connectivity Monitoring
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {

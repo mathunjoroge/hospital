@@ -159,9 +159,13 @@ document.getElementById('stockTakeForm').addEventListener('submit', async functi
     }
 
     try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const res = await fetch('/stores/stock-take/create', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
             body: JSON.stringify({ notes, items })
         });
         const data = await res.json();

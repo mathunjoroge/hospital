@@ -90,9 +90,14 @@ document.addEventListener('DOMContentLoaded', function() {
             this.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Dispatching...';
 
             try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 const response = await fetch(`/pharmacy/rtv/${rtvId}/dispatch`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
                 });
                 const data = await response.json();
                 if (response.ok) {

@@ -176,11 +176,13 @@ document.addEventListener('DOMContentLoaded', function() {
             dispatchBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Dispatching...';
 
             try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 const response = await fetch(`/stores/transfers/{{ transfer.id }}/dispatch`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'X-CSRFToken': csrfToken
                     },
                     body: JSON.stringify({ items: items })
                 });
@@ -228,11 +230,13 @@ document.addEventListener('DOMContentLoaded', function() {
             receiveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Receiving...';
 
             try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 const response = await fetch(`/stores/transfers/{{ transfer.id }}/receive`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'X-CSRFToken': csrfToken
                     },
                     body: JSON.stringify({ items: items })
                 });

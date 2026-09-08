@@ -11,7 +11,7 @@ from datetime import datetime
 
 from flask import current_app
 
-from departments.models.billing import Invoice, InvoiceLineItem, Payment
+from departments.models.billing import Invoice, InvoiceLineItem, InvoiceStatus, Payment
 from extensions import db
 
 logger = logging.getLogger(__name__)
@@ -32,13 +32,13 @@ def get_or_create_open_invoice(patient_id: str) -> Invoice:
         Invoice: The patient's current open invoice
     """
     # Check for existing open invoice
-    invoice = Invoice.query.filter_by(patient_id=patient_id, status="DRAFT").first()
+    invoice = Invoice.query.filter_by(patient_id=patient_id, status=InvoiceStatus.DRAFT).first()
 
     if not invoice:
         # Create new invoice
         invoice = Invoice(
             patient_id=patient_id,
-            status="DRAFT",
+            status=InvoiceStatus.DRAFT,
             grand_total=0.0,
             amount_paid=0.0,
             created_at=datetime.utcnow(),
@@ -170,7 +170,7 @@ def sync_payment(
             return existing
 
     # Get or create the patient's open invoice
-    invoice = Invoice.query.filter_by(patient_id=patient_id, status="DRAFT").first()
+    invoice = Invoice.query.filter_by(patient_id=patient_id, status=InvoiceStatus.DRAFT).first()
     if not invoice:
         invoice = get_or_create_open_invoice(patient_id)
 
@@ -194,10 +194,10 @@ def sync_payment(
 
     # Recalculate status
     if invoice.balance <= 0:
-        invoice.status = "PAID"
+        invoice.status = InvoiceStatus.PAID
         invoice.paid_at = datetime.utcnow()
     elif invoice.amount_paid > 0:
-        invoice.status = "PARTIAL"
+        invoice.status = InvoiceStatus.PARTIAL
 
     logger.info(
         f"Synced payment: ${amount} via {payment_method} to invoice {invoice.id}"

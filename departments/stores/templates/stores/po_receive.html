@@ -213,11 +213,13 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Processing...';
 
         try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const response = await fetch(`/pharmacy/po/{{ po.id }}/receive`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({ items: itemsMap })
             });
