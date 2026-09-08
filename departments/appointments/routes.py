@@ -6,6 +6,7 @@ from datetime import datetime
 
 from flask import jsonify, request
 from flask_login import login_required
+
 from departments.rbac import roles_required
 
 from . import bp
