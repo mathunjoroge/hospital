@@ -84,11 +84,9 @@
                                 <label class="form-label fw-semibold">Vaccine</label>
                                 <select x-model="selectedVaccine" class="form-select">
                                     <option value="">Select vaccine...</option>
-                                    <option>BCG</option>
-                                    <option>OPV</option>
-                                    <option>Pentavalent</option>
-                                    <option>PCV</option>
-                                    <option>Measles-Rubella</option>
+                                    <template x-for="v in availableVaccines" :key="v">
+                                        <option :value="v" x-text="v"></option>
+                                    </template>
                                 </select>
                             </div>
                             <div class="col-md-6">
@@ -150,12 +148,29 @@ function mchApp() {
         childId: '',
         childAgeWeeks: '',
         dueVaccines: [],
+        availableVaccines: ['BCG', 'OPV', 'Pentavalent', 'PCV', 'Measles-Rubella', 'IPV', 'Rotavirus', 'HPV', 'Yellow Fever', 'Vitamin A'],
         selectedVaccine: '',
         doseNumber: 1,
         successMessage: '',
         ancPatientId: '',
         ancGestationWeeks: '',
         ancSuccess: '',
+        
+        async init() {
+            try {
+                const r = await fetch('/pharmacy/get_all_batches');
+                if (r.ok) {
+                    const data = await r.json();
+                    if (data && data.batches) {
+                        data.batches.forEach(b => {
+                            if (b.generic_name && b.generic_name.toLowerCase().includes('vac') && !this.availableVaccines.includes(b.generic_name)) {
+                                this.availableVaccines.push(b.generic_name);
+                            }
+                        });
+                    }
+                }
+            } catch(e) {}
+        },
         
         async fetchSchedule() {
             if(!this.childId || !this.childAgeWeeks) {

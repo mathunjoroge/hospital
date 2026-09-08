@@ -6,6 +6,8 @@ from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import login_required
 from psycopg2.extras import RealDictCursor
 
+from departments.clinical_safety.engine import ClinicalSafetyEngine
+from departments.consent.models import Consent
 from departments.medicine.orders import fetch_drugs_data
 from departments.models.medicine import (
     AdmittedPatient,
@@ -134,6 +136,40 @@ def prescribe_drugs(patient_id):
                     )
                 )
 
+        # Consent check
+        patient_int_id = None
+        try:
+            patient_int_id = int(patient_id)
+        except (ValueError, TypeError):
+            pass
+
+        consent_rec = None
+        if patient_int_id:
+            consent_rec = Consent.query.filter_by(
+                patient_id=patient_int_id, consent_type="TREATMENT"
+            ).first()
+        consent_status = (
+            "ACTIVE"
+            if (consent_rec and consent_rec.status == "ACTIVE" and consent_rec.revoked_at is None)
+            else "MISSING"
+        )
+
+        # CDS safety check
+        cds_alerts = []
+        if patient_int_id:
+            drug_ids_to_check = []
+            if request.method == "POST":
+                for d in request.form.getlist("drugs[]"):
+                    try:
+                        drug_ids_to_check.append(int(d))
+                    except (ValueError, TypeError):
+                        pass
+            engine = ClinicalSafetyEngine()
+            result = engine.check_prescription(
+                patient_id=patient_int_id, drug_ids=drug_ids_to_check
+            )
+            cds_alerts = [a.to_dict() for a in result.alerts]
+
         # Fetch prescribed medicines
         prescribed_medicines = PrescribedMedicine.query.filter_by(
             prescription_id=prescription_id
@@ -146,6 +182,8 @@ def prescribe_drugs(patient_id):
             prescribed_medicines=prescribed_medicines,
             prescription_id=prescription_id,
             dept=dept,
+            consent_status=consent_status,
+            cds_alerts=cds_alerts,
         )
 
     except Exception:

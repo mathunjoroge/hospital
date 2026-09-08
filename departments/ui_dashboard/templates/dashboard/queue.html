@@ -190,7 +190,11 @@ function queueApp() {
                     }
                 });
                 if (response.ok) {
+                    const data = await response.json();
                     await this.fetchQueue();
+                    if (data.consultation_url && confirm(`Patient called in! Open clinical consultation form for Patient ID ${data.patient_id}?`)) {
+                        window.location.href = data.consultation_url;
+                    }
                 } else {
                     const err = await response.json();
                     alert(err.error || 'Failed to call in patient');

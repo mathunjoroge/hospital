@@ -43,6 +43,24 @@ class Patient(db.Model):
         db.DateTime, default=db.func.current_timestamp(), nullable=False
     )
 
+    def __init__(self, **kwargs):
+        first_name = kwargs.pop("first_name", "")
+        last_name = kwargs.pop("last_name", "")
+        if first_name or last_name:
+            kwargs.setdefault("name", f"{first_name} {last_name}".strip())
+        if "gender" in kwargs:
+            kwargs.setdefault("sex", kwargs.pop("gender"))
+        if "dob" in kwargs:
+            kwargs.setdefault("date_of_birth", kwargs.pop("dob"))
+        kwargs.setdefault("place_of_residence", "N/A")
+        kwargs.setdefault("marital_status", "Single")
+        kwargs.setdefault("contact", "N/A")
+        kwargs.setdefault("next_of_kin", "N/A")
+        kwargs.setdefault("relationship_with_next_of_kin", "N/A")
+        kwargs.setdefault("next_of_kin_contact", "N/A")
+        kwargs.setdefault("emergency_contact", "N/A")
+        super().__init__(**kwargs)
+
     # Optional demographic / insurance fields
     insurance_provider = db.Column(db.String(100), nullable=True)
     insurance_policy_number = db.Column(db.String(100), nullable=True)

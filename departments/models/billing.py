@@ -258,6 +258,7 @@ class ImagingBill(db.Model):
 class InvoiceStatus(str, enum.Enum):
     DRAFT = "draft"
     ISSUED = "issued"
+    UNPAID = "issued"
     PARTIAL = "partial"
     PAID = "paid"
     VOID = "void"
@@ -338,6 +339,8 @@ class Invoice(db.Model):
     def __init__(self, **kwargs):
         if "total_amount" in kwargs:
             kwargs["grand_total"] = kwargs.pop("total_amount")
+        if "paid_amount" in kwargs:
+            kwargs["amount_paid"] = kwargs.pop("paid_amount")
         if "balance_due" in kwargs:
             kwargs["balance"] = kwargs.pop("balance_due")
         if "invoice_number" not in kwargs:
@@ -359,6 +362,14 @@ class Invoice(db.Model):
     @total_amount.setter
     def total_amount(self, value):
         self.grand_total = value
+
+    @property
+    def paid_amount(self):
+        return self.amount_paid
+
+    @paid_amount.setter
+    def paid_amount(self, value):
+        self.amount_paid = value
 
     @property
     def balance_due(self):

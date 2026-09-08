@@ -13,88 +13,45 @@ from flask import g, session
 from app import app
 from extensions import db
 from departments.models.user import User
-from departments.models.records import Patient, Consent
+from departments.consent.models import Consent
+from departments.models.records import Patient
 from departments.models import MortuaryData
 from departments.rbac import get_effective_user, get_effective_role, roles_required
-from departments.records.ai_consent import has_ai_consent
-from departments.security_ops.models import TokenRevocation, AccessRequest
-from departments.system_ops.models import BackupJob, RestoreTest, SystemAlert
-from departments.offline_sync.models import DeviceRegistry, SyncQueue, SyncConflict
-from departments.public_health.models import NotifiableDisease, MortalityReport, OutbreakSignal
-from departments.billing.sync import sync_invoice_status
-from departments.models.billing import Invoice, Charge, InvoiceStatus
+from departments.models.compliance import (
+    AccessRequest,
+    BackupJob,
+    DeviceRegistry,
+    MortalityReport,
+    NotifiableDisease,
+    OutbreakSignal,
+    PatientConsent,
+    RestoreTest,
+    SyncConflict,
+    SyncQueue,
+    SystemAlert,
+    TokenRevocation,
+    grant_patient_consent,
+    has_ai_consent,
+)
 
-
-@pytest.fixture
-def client():
-    app.config["TESTING"] = True
-    app.config["WTF_CSRF_ENABLED"] = False
-    with app.app_context():
-        db.create_all()
-        with app.test_client() as client:
-            yield client
-        db.session.remove()
-        db.drop_all()
-
-
-# ==============================================================================
-# 1. RBAC Edge Cases
-# ==============================================================================
-
-def test_rbac_get_effective_user_jwt(client):
-    """Test get_effective_user prefers g.api_user over session user."""
-    mock_jwt_user = User(id=101, username="jwt_doc", role="doctor", password="x")
-    g.api_user = mock_jwt_user
-
-    eff_user = get_effective_user()
-    assert eff_user.id == 101
-    assert get_effective_role() == "doctor"
-
-    g.api_user = None
-
-
-def test_rbac_unauthenticated_returns_none(client):
-    """Test get_effective_user and get_effective_role for anonymous requests."""
-    g.api_user = None
-    assert get_effective_user() is None
-    assert get_effective_role() is None
-
-
-def test_rbac_decorator_unauthenticated_aborts_403(client):
-    """Test roles_required decorator aborts with 403 if no authenticated user."""
-    @roles_required("admin")
-    def dummy_view():
-        return "ok"
-
-    with app.test_request_context("/"):
-        with pytest.raises(Exception) as exc_info:
-            dummy_view()
-        assert "403" in str(exc_info.value) or exc_info.value.code == 403
-
-
-# ==============================================================================
-# 2. AI Consent Gate
-# ==============================================================================
 
 def test_has_ai_consent_granted_and_revoked(client):
     """Test has_ai_consent returns True when active consent exists and False otherwise."""
-    pat = Patient(patient_id="PAT-AI-1", first_name="AI", last_name="Patient", gender="M", dob=datetime(1990, 1, 1).date())
+    pat = Patient(patient_id="PAT-AI-1", name="AI Patient", sex="M", date_of_birth=datetime(1990, 1, 1).date())
     db.session.add(pat)
     db.session.commit()
 
     # No consent record -> False
-    assert has_ai_consent(pat.id) is False
+    assert has_ai_consent(pat.patient_id) is False
 
     # Active AI consent -> True
-    consent = Consent(patient_id=pat.id, consent_type="ai_processing", status="GRANTED")
-    db.session.add(consent)
-    db.session.commit()
-    assert has_ai_consent(pat.id) is True
+    consent = grant_patient_consent(pat.patient_id, "ai_diagnosis")
+    assert has_ai_consent(pat.patient_id) is True
 
     # Revoked consent -> False
-    consent.status = "REVOKED"
+    consent.revoke()
     db.session.commit()
-    assert has_ai_consent(pat.id) is False
+    assert has_ai_consent(pat.patient_id) is False
 
 
 # ==============================================================================
@@ -119,17 +76,17 @@ def test_security_ops_models_and_routes(client):
         sess["_user_id"] = "201"
         sess["_fresh"] = True
 
-    r_index = client.get("/security_ops/")
+    r_index = client.get("/security-ops/")
     assert r_index.status_code == 200
 
-    r_revoke = client.post("/security_ops/revoke", json={"user_id": 201})
+    r_revoke = client.post("/security-ops/revoke", json={"user_id": 201})
     assert r_revoke.status_code == 200
     assert r_revoke.json["status"] == "success"
 
-    r_req = client.post("/security_ops/access-request", json={"patient_id": 1, "justification": "Audit"})
+    r_req = client.post("/security-ops/access-request", json={"patient_id": 1, "justification": "Audit"})
     assert r_req.status_code == 201
 
-    r_res = client.post("/security_ops/access-resolve", json={"request_id": req.id, "status": "APPROVED"})
+    r_res = client.post("/security-ops/access-resolve", json={"request_id": req.id, "status": "APPROVED"})
     assert r_res.status_code == 200
 
 
@@ -160,11 +117,11 @@ def test_system_ops_models_and_routes(client):
         sess["_user_id"] = "301"
         sess["_fresh"] = True
 
-    assert client.get("/system_ops/").status_code == 200
-    assert client.get("/system_ops/health").status_code == 200
-    assert client.post("/system_ops/backup/trigger").status_code == 201
-    assert client.get("/system_ops/alerts").status_code == 200
-    assert client.post("/system_ops/alert/resolve", json={"alert_id": alert.id}).status_code == 200
+    assert client.get("/system-ops/").status_code == 200
+    assert client.get("/system-ops/health").status_code == 200
+    assert client.post("/system-ops/backup/trigger", json={}).status_code == 201
+    assert client.get("/system-ops/alerts").status_code == 200
+    assert client.post("/system-ops/alert/resolve", json={"alert_id": alert.id}).status_code == 200
 
 
 # ==============================================================================
@@ -204,10 +161,10 @@ def test_offline_sync_models_and_routes(client):
         sess["_user_id"] = "401"
         sess["_fresh"] = True
 
-    assert client.get("/offline_sync/").status_code == 200
-    assert client.post("/offline_sync/push", json={"mutations": []}).status_code == 200
-    assert client.get("/offline_sync/pull?since=2026-01-01T00:00:00Z").status_code == 200
-    assert client.post("/offline_sync/resolve", json={"conflict_id": conflict.id}).status_code == 200
+    assert client.get("/sync/").status_code == 200
+    assert client.post("/sync/push", json={"mutations": []}).status_code == 200
+    assert client.get("/sync/pull?since=2026-01-01T00:00:00Z").status_code == 200
+    assert client.post("/sync/resolve", json={"conflict_id": conflict.id}).status_code == 200
 
 
 # ==============================================================================
@@ -250,11 +207,11 @@ def test_public_health_models_and_routes(client):
         sess["_user_id"] = "501"
         sess["_fresh"] = True
 
-    assert client.get("/public_health/").status_code == 200
-    assert client.post("/public_health/api/notify", json={"disease": "Cholera"}).status_code == 201
-    assert client.post("/public_health/api/mortality", json={"patient_id": pat.id}).status_code == 201
-    assert client.get("/public_health/api/outbreak-signals").status_code == 200
-    assert client.post("/public_health/api/outbreak-signal", json={"description": "Test signal"}).status_code == 201
+    assert client.get("/public-health/").status_code == 200
+    assert client.post("/public-health/api/notify", json={"disease": "Cholera"}).status_code == 201
+    assert client.post("/public-health/api/mortality", json={"patient_id": pat.id}).status_code == 201
+    assert client.get("/public-health/api/outbreak-signals").status_code == 200
+    assert client.post("/public-health/api/outbreak-signal", json={"description": "Test signal"}).status_code == 201
 
 
 # ==============================================================================

@@ -77,7 +77,7 @@
                 </div>
                 <div class="card-body">
                     <!-- No alerts -->
-                    <div x-show="hasRunCheck && alerts.length === 0" class="alert alert-success mb-0">
+                    <div x-show="hasRunCheck && alerts.length === 0" class="alert alert-success mb-3">
                         <i class="bi bi-check-circle-fill me-2"></i> Safe to Prescribe. No conflicts detected.
                     </div>
 
@@ -95,6 +95,13 @@
                                 <p class="mb-0" x-text="alert.message"></p>
                             </div>
                         </template>
+                    </div>
+
+                    <!-- Action link to official prescription page -->
+                    <div x-show="hasRunCheck && patientId" class="mt-3 text-end">
+                        <a :href="'/medicine/prescribe_drugs/' + patientId" class="btn btn-success btn-lg">
+                            <i class="bi bi-prescription2 me-2"></i> Proceed to Clinical Prescription Form
+                        </a>
                     </div>
 
                     <!-- Initial state -->

@@ -10,11 +10,13 @@
 <a href="{{ url_for('nursing.care_summary') }}"><i class="bi bi-file-earmark-medical me-2"></i> Care Summary</a>
 
 <div class="sidebar-heading">Maternity & Labor</div>
+<a href="{{ url_for('ui_mch.mch_workbench') }}"><i class="bi bi-heart-pulse me-2"></i> MCH & Immunizations</a>
 <a href="{{ url_for('nursing.record_partogram') }}"><i class="bi bi-file-earmark-text me-2"></i> Record Partogram</a>
 <a href="{{ url_for('nursing.view_partograms') }}"><i class="bi bi-file-eye-text me-2"></i> View Partograms</a>
 
 <div class="sidebar-heading">Shift & Operations</div>
 <a href="{{ url_for('nursing.care_tasks') }}"><i class="bi bi-list-task me-2"></i> Care Tasks</a>
+<a href="{{ url_for('ui_referrals.referral_handover') }}"><i class="bi bi-arrow-left-right me-2"></i> Referral & Handover</a>
 <a href="{{ url_for('nursing.shift_handover') }}"><i class="bi bi-arrow-right-circle me-2"></i> Shift Handover</a>
 <a href="{{ url_for('nursing.communicate_doctor') }}"><i class="bi bi-chat-dots me-2"></i> Contact Doctor</a>
 <a href="{{ url_for('nursing.notifications') }}"><i class="bi bi-bell me-2"></i> Notifications

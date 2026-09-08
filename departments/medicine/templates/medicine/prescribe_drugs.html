@@ -3,6 +3,60 @@
 <div class="container mt-5">
     <h2 class="mb-4 text-center">Prescribe Drugs for {{ patient.name }} ({{ patient.patient_id }})</h2>
 
+    <!-- DPA 2019 Consent & CDS Safety Status Bar -->
+    <div class="row mb-4 g-3">
+        <div class="col-md-6">
+            {% if consent_status == 'ACTIVE' %}
+            <div class="alert alert-success d-flex align-items-center mb-0" role="alert">
+                <i class="bi bi-shield-check fs-4 me-2"></i>
+                <div>
+                    <strong>DPA 2019 Consent Verified:</strong> Active treatment consent on file.
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-warning d-flex align-items-center mb-0" role="alert">
+                <i class="bi bi-exclamation-shield fs-4 me-2"></i>
+                <div>
+                    <strong>DPA 2019 Consent Status:</strong> {{ consent_status }} (Requires consent verification).
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="col-md-6">
+            {% if cds_alerts %}
+            <div class="alert alert-danger d-flex align-items-center mb-0" role="alert">
+                <i class="bi bi-exclamation-octagon-fill fs-4 me-2"></i>
+                <div>
+                    <strong>CDS Safety Alerts Triggered:</strong> {{ cds_alerts|length }} warning(s) detected for this prescription.
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info d-flex align-items-center mb-0" role="alert">
+                <i class="bi bi-check-circle-fill fs-4 me-2"></i>
+                <div>
+                    <strong>CDS Safety Engine:</strong> No allergy or duplicate therapy conflicts detected.
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if cds_alerts %}
+    <div class="mb-4">
+        {% for alert in cds_alerts %}
+        <div class="alert {% if alert.severity == 'CRITICAL' %}alert-danger{% else %}alert-warning{% endif %} mb-2" role="alert">
+            <h6 class="alert-heading mb-1 fw-bold">
+                <i class="bi bi-shield-exclamation me-1"></i> {{ alert.alert_type }} ({{ alert.severity }})
+            </h6>
+            <p class="mb-1">{{ alert.message }}</p>
+            {% if alert.recommendation %}
+            <small class="text-muted d-block"><strong>Recommendation:</strong> {{ alert.recommendation }}</small>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- Prescription Form -->
     <div class="container">
 <form method="POST" action="{{ url_for('medicine.prescribe_drugs', patient_id=patient.patient_id, dept=dept) }}">

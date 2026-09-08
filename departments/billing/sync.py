@@ -209,3 +209,22 @@ def sync_payment(
 def check_billing_sync_enabled() -> bool:
     """Check if billing sync is currently enabled."""
     return current_app.config.get("BILLING_SYNC_ENABLED", True)
+
+
+def sync_invoice_status(invoice: Invoice) -> InvoiceStatus:
+    """
+    Recalculate and update the status of an Invoice based on total, paid amount, and balance.
+    """
+    grand_total = float(getattr(invoice, "grand_total", None) or getattr(invoice, "total_amount", 0) or 0)
+    amount_paid = float(getattr(invoice, "amount_paid", None) or getattr(invoice, "paid_amount", 0) or 0)
+    invoice.balance = grand_total - amount_paid
+
+    if amount_paid >= grand_total and grand_total > 0:
+        invoice.status = InvoiceStatus.PAID
+    elif amount_paid > 0:
+        invoice.status = InvoiceStatus.PARTIAL
+    else:
+        invoice.status = InvoiceStatus.DRAFT
+    db.session.commit()
+    return invoice.status
+

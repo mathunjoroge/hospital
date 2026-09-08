@@ -199,17 +199,21 @@ def get_live_queue(provider_id: str):
 @roles_required("doctor", "nursing")
 def call_in_patient(appointment_id: str):
     """
-    Moves an appointment from CHECKED_IN to IN_PROGRESS.
+    Moves an appointment from CHECKED_IN to IN_PROGRESS and returns consultation link.
     """
     appt = _engine.call_in(appointment_id)
     if not appt:
         return jsonify({"error": "Appointment not found or not checked in."}), 400
+
+    consultation_url = f"/medicine/soap_notes/{appt.patient_id}"
 
     return jsonify(
         {
             "status": "success",
             "message": "Patient called in for consultation.",
             "appointment_id": appt.id,
+            "patient_id": appt.patient_id,
+            "consultation_url": consultation_url,
         }
     ), 200
 

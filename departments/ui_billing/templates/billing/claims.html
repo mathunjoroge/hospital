@@ -27,7 +27,12 @@
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Patient ID</label>
-                            <input type="number" x-model="patientId" class="form-control" placeholder="Enter Patient ID">
+                            <div class="input-group">
+                                <input type="number" x-model="patientId" class="form-control" placeholder="Enter Patient ID">
+                                <button @click="fetchPatientSummary" class="btn btn-outline-secondary" type="button">
+                                    <i class="bi bi-download me-1"></i> Auto-Fill
+                                </button>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Billed Amount</label>
@@ -90,6 +95,25 @@ function billingApp() {
         endDate: '',
         icd10: '',
         scrubResult: null,
+
+        async fetchPatientSummary() {
+            if(!this.patientId) {
+                alert('Please enter a Patient ID');
+                return;
+            }
+            try {
+                const r = await fetch(`/billing/api/patient-summary/${this.patientId}`);
+                if (!r.ok) throw new Error('Patient not found');
+                const data = await r.json();
+                this.amount = data.total_amount;
+                this.startDate = data.service_start_date;
+                this.endDate = data.service_end_date;
+                this.icd10 = data.icd10 || 'A01.00';
+            } catch(e) {
+                console.error(e);
+                alert('Failed to fetch patient billing summary');
+            }
+        },
         
         async scrubClaim() {
             if(!this.patientId || !this.amount) {
