@@ -86,4 +86,14 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
   1. **Vote-Head Structure**: Does the facility track formal vote-head/budget allocations per department or item category within the HMIS, or is budget management handled externally?
   2. **Control Enforcement**: Should LPO approval block if requested line items exceed an allocated vote-head budget cap?
 
+---
+
+## 10. Unified Billing Sync — Legacy Line Item Mutations & Deletions (HARD STOP)
+
+* **Context**: `departments/billing/sync.py` uses insertion-level idempotency (`if existing: return existing`). If a legacy bill (e.g. `DrugsBill`, `LabBill`) is updated or deleted in the legacy system after initial sync, `InvoiceLineItem` is not updated or deleted, creating potential discrepancies between legacy tables and the unified invoice.
+* **Questions / Decisions Required**:
+  1. **Retroactive Adjustment vs Credit Entry**: Should a legacy charge update/deletion directly modify or delete the corresponding `InvoiceLineItem`, or should it preserve an immutable audit trail by issuing an explicit credit/adjustment line item?
+  2. **Session Event Scope**: Should SQLAlchemy session listeners be expanded to handle `session.deleted` events for legacy billing models?
+
+
 

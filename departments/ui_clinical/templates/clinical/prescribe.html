@@ -3,9 +3,6 @@
 {% block title %}Prescription Safety Workbench{% endblock %}
 
 {% block content %}
-<!-- Load Alpine.js for reactivity -->
-<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
 <div class="container-fluid" x-data="prescriptionApp()">
     <div class="row mb-4">
         <div class="col">
@@ -142,9 +139,13 @@ function prescriptionApp() {
             }
             try {
                 const drugArray = this.drugIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 const res = await fetch('/clinical-safety/api/check', {
                     method: 'POST',
-                    headers: {'Content-Type':'application/json'},
+                    headers: {
+                        'Content-Type':'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
                     body: JSON.stringify({
                         patient_id: parseInt(this.patientId),
                         drug_ids: drugArray

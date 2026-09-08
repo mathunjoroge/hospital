@@ -45,6 +45,10 @@ def register_billing_sync_listeners():
             to the unified Invoice system after the flush completes.
             """
             processed = set()
+            # KNOWN LIMITATION (AUDIT FINDING - PRIORITY 5):
+            # Only session.new and session.dirty are inspected here. session.deleted is intentionally not handled,
+            # meaning deleted or reversed legacy bill records leave an orphaned InvoiceLineItem on the unified invoice.
+            # See DECISIONS_PENDING.md Section 10 for product governance options.
             items_to_check = list(session.new) + list(session.dirty)
 
             for instance in items_to_check:

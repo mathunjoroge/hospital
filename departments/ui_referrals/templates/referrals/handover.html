@@ -3,9 +3,6 @@
 {% block title %}Referral & Discharge Handover{% endblock %}
 
 {% block content %}
-<!-- Load Alpine.js for reactivity -->
-<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
 <div class="container-fluid" x-data="referralApp()">
     <div class="row mb-4">
         <div class="col">
@@ -123,9 +120,13 @@ function referralApp() {
                 return;
             }
             try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 const r = await fetch('/referrals/api/initiate', {
                     method:'POST',
-                    headers:{'Content-Type':'application/json'},
+                    headers:{
+                        'Content-Type':'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
                     body: JSON.stringify({
                         patient_id: parseInt(this.patientId),
                         referring_facility: 'Current',
@@ -152,9 +153,13 @@ function referralApp() {
                 return;
             }
             try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 const r = await fetch('/referrals/api/discharge', {
                     method:'POST',
-                    headers:{'Content-Type':'application/json'},
+                    headers:{
+                        'Content-Type':'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
                     body: JSON.stringify({
                         patient_id: parseInt(this.patientId),
                         primary_diagnosis: this.diagnosis,

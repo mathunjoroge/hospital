@@ -3,8 +3,6 @@
 {% block title %}Live Queue Dashboard{% endblock %}
 
 {% block content %}
-<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
 <div class="container-fluid" x-data="queueApp()" x-init="init()">
     <!-- Header -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
@@ -102,13 +100,13 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <template x-for="(patient, index) in queue" :key="patient.id || index">
+                        <template x-for="(patient, index) in queue" :key="patient.appointment_id || patient.id || index">
                             <tr>
                                 <td>
                                     <span class="badge bg-primary rounded-pill" x-text="index + 1"></span>
                                 </td>
                                 <td>
-                                    <div class="fw-bold" x-text="patient.name || 'Unknown Patient'"></div>
+                                    <div class="fw-bold" x-text="patient.patient_name || patient.name || 'Unknown Patient'"></div>
                                     <small class="text-muted" x-text="patient.patient_id || patient.id"></small>
                                 </td>
                                 <td class="text-muted" x-text="patient.check_in_time || '--'"></td>
@@ -164,13 +162,10 @@ function queueApp() {
                 const data = await response.json();
                 
                 // Map the API response to our UI state
-                // The API returns: {"provider_id":1,"queue":[],"waiting_count":0}
                 this.queue = data.queue || [];
-                this.waitingCount = data.waiting_count || this.queue.length;
-                
-                // Fallback stats if API doesn't provide them
-                this.totalScheduled = data.total_scheduled || this.queue.length;
-                this.inConsultation = data.in_consultation || 0;
+                this.waitingCount = data.waiting_count !== undefined ? data.waiting_count : this.queue.length;
+                this.totalScheduled = data.total_scheduled !== undefined ? data.total_scheduled : this.queue.length;
+                this.inConsultation = data.in_consultation !== undefined ? data.in_consultation : 0;
                 
                 this.loading = false;
             } catch (error) {
@@ -179,12 +174,31 @@ function queueApp() {
             }
         },
         
-        callPatient(patient) {
-            alert(`Calling ${patient.name || 'Patient'} into consultation room...`);
-            // In a full implementation, this would POST to an API to change the patient's status
-            // and remove them from the waiting queue
+        async callPatient(patient) {
+            const apptId = patient.appointment_id || patient.id;
+            if (!apptId) return;
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                const response = await fetch(`/appointments/api/call-in/${apptId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
+                });
+                if (response.ok) {
+                    await this.fetchQueue();
+                } else {
+                    const err = await response.json();
+                    alert(err.error || 'Failed to call in patient');
+                }
+            } catch (e) {
+                console.error('Error calling in patient:', e);
+                alert('Failed to call in patient');
+            }
         }
     }
 }
 </script>
+
 {% endblock %}

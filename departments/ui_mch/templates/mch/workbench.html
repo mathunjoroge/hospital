@@ -3,9 +3,6 @@
 {% block title %}MCH & Immunization Workbench{% endblock %}
 
 {% block content %}
-<!-- Load Alpine.js for reactivity -->
-<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
 <div class="container-fluid" x-data="mchApp()">
     <div class="row mb-4">
         <div class="col">
@@ -181,9 +178,13 @@ function mchApp() {
                 return;
             }
             try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 const r = await fetch('/mch/api/immunize', {
                     method:'POST',
-                    headers:{'Content-Type':'application/json'},
+                    headers:{
+                        'Content-Type':'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
                     body: JSON.stringify({
                         child_patient_id: parseInt(this.childId),
                         vaccine_name: this.selectedVaccine,
@@ -209,9 +210,13 @@ function mchApp() {
                 return;
             }
             try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 const r = await fetch('/mch/api/anc-visit', {
                     method:'POST',
-                    headers:{'Content-Type':'application/json'},
+                    headers:{
+                        'Content-Type':'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
                     body: JSON.stringify({
                         patient_id: parseInt(this.ancPatientId),
                         visit_number: 1,

@@ -274,8 +274,12 @@ class PaymentMethod(str, enum.Enum):
 
 class Invoice(db.Model):
     """
-    Single unified invoice per patient encounter.
-    Replaces the 6 legacy *Bill tables for new encounters.
+    Single unified running invoice per patient.
+
+    Operates as an open running balance for a patient until fully settled (status PAID/PARTIAL).
+    Subsequent charges after settlement initiate a new open invoice. Note: Per-encounter / per-visit
+    invoicing is deferred until a dedicated Encounter model is implemented.
+    Replaces the 6 legacy *Bill tables for new billing operations.
     """
 
     __tablename__ = "invoices"

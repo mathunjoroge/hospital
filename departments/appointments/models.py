@@ -40,5 +40,9 @@ class Appointment(db.Model):
     def check_in(self):
         self.status = "CHECKED_IN"
 
+    def start_consultation(self):
+        self.status = "IN_PROGRESS"
+
     def mark_no_show(self):
         self.status = "NO_SHOW"
+

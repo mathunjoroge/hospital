@@ -217,7 +217,12 @@
     async function postAndStream(formData, botBubble) {
       thinking.classList.add('active');
       try {
-        const response = await fetch(form.action, { method: 'POST', body: formData });
+        const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+        const response = await fetch(form.action, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrfToken },
+          body: formData
+        });
         if (!response.ok) throw new Error(`Response not OK: ${response.status}`);
         const reader = response.body.getReader();
         const decoder = new TextDecoder();

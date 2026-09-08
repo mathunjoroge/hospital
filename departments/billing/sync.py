@@ -50,6 +50,11 @@ def get_or_create_open_invoice(patient_id: str) -> Invoice:
     return invoice
 
 
+# KNOWN LIMITATION (AUDIT FINDING - PRIORITY 5):
+# sync_charge() is idempotent for insertions (if existing: return existing), which prevents duplicate line items.
+# However, post-facto updates (e.g. modifying price/quantity on an existing legacy bill) or deletions of legacy
+# charges will NOT automatically sync or update the InvoiceLineItem. Deleted legacy bills leave orphaned line items.
+# See DECISIONS_PENDING.md Section 10 for proposed product options (retroactive invoice adjustments vs credit lines).
 def sync_charge(
     patient_id: str,
     source_table: str,

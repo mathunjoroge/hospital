@@ -75,3 +75,9 @@ departments/imaging/model_cache/
 2022AA/
 data_cache/
 backups/
+
+# Coverage artifacts
+.coverage
+.coverage.*
+htmlcov/
+

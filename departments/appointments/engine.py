@@ -109,6 +109,28 @@ class ScheduleEngine:
         logger.info("PATIENT CHECKED IN: Appointment %s", appointment_id)
         return appt
 
+    def call_in(self, appointment_id: str) -> Appointment | None:
+        """
+        Moves a patient from CHECKED_IN to IN_PROGRESS.
+        """
+        appt = Appointment.query.get(appointment_id)
+        if not appt:
+            return None
+
+        if appt.status != "CHECKED_IN":
+            logger.warning(
+                "CALL-IN BLOCKED: Appointment %s is in status %s (expected CHECKED_IN)",
+                appointment_id,
+                appt.status,
+            )
+            return None
+
+        appt.start_consultation()
+        db.session.commit()
+        logger.info("PATIENT CALLED IN: Appointment %s", appointment_id)
+        return appt
+
+
     def mark_no_show(self, appointment_id: str) -> Appointment | None:
         """
         Marks a patient as a no-show, freeing up the provider's schedule.
