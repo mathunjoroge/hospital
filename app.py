@@ -431,7 +431,6 @@ def healthz():
 from departments.admin import bp as admin_bp  # noqa: E402
 from departments.analytics import bp as analytics_bp  # noqa: E402
 from departments.api import bp as api_bp  # noqa: E402
-from departments.appointments import bp as appointments_bp  # noqa: E402
 from departments.api.dhis2_exporter import khis_bp  # noqa: E402
 from departments.api.fhir import fhir_bp  # noqa: E402
 from departments.appointments import bp as appointments_bp  # noqa: E402
@@ -523,8 +522,6 @@ app.register_blueprint(dicom_bp)
 app.register_blueprint(mar_bp)
 app.register_blueprint(fhir_bp, url_prefix="/api/fhir/R4")
 app.register_blueprint(khis_bp, url_prefix="/api/khis")
-app.register_blueprint(appointments_bp)  # Engine: /appointments/* (Live Queue)
-app.register_blueprint(referrals_bp)  # Engine: /referrals/* (Referrals & Discharge)
 
 if __name__ == "__main__":
     with app.app_context():
