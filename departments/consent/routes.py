@@ -1,6 +1,9 @@
 from flask import jsonify, request
 from flask_login import login_required
 
+from departments.models.compliance import PatientConsent
+from departments.models.records import Patient
+
 from . import bp
 
 
@@ -21,6 +24,51 @@ def get_consents(patient_id: int):
     )
 
 
+@bp.route("/api/check", methods=["GET"])
+@login_required
+def check_consent():
+    """
+    Consent pre-flight check used by the clinical workbenches.
+
+    Query params:
+        patient_id (int, required): Patient.id, the internal numeric key
+            used throughout the appointments/clinical-safety/referrals
+            modules (as opposed to Patient.patient_id, the "P0001"-style
+            business identifier used by billing/insurance/consent records).
+        consent_type (str, required): e.g. "TREATMENT", "ai_diagnosis".
+
+    Response: { "status": "ACTIVE" | "NOT_GRANTED" | "REVOKED" }
+    """
+    patient_id_raw = request.args.get("patient_id")
+    consent_type = request.args.get("consent_type")
+
+    if not patient_id_raw or not consent_type:
+        return jsonify({"error": "patient_id and consent_type are required"}), 400
+
+    try:
+        patient_id = int(patient_id_raw)
+    except ValueError:
+        return jsonify({"error": "patient_id must be an integer"}), 400
+
+    patient = Patient.query.get(patient_id)
+    if not patient:
+        return jsonify({"error": "Patient not found"}), 404
+
+    consent = PatientConsent.query.filter_by(
+        patient_id=patient.patient_id,  # bridge to the string business ID
+        consent_type=consent_type,
+    ).first()
+
+    if consent is None:
+        status = "NOT_GRANTED"
+    elif consent.is_granted and consent.revoked_at is None:
+        status = "ACTIVE"
+    else:
+        status = "REVOKED"
+
+    return jsonify({"patient_id": patient_id, "consent_type": consent_type, "status": status})
+
+
 @bp.route("/api/grant", methods=["POST"])
 @login_required
 def grant_consent():
@@ -36,54 +84,4 @@ def revoke_consent():
         {"status": "success", "message": "Consent revocation stub active."}
     ), 200
 
-
-@bp.route("/api/check", methods=["GET"])
-@login_required
-def check_consent():
-    """
-    Pre-check for the Rx Safety (CDS) workbench.
-
-    Accepts either:
-      - ?patient_id=<int>   (engine numeric ID)
-      - ?patient_pid=<str>  (legacy string ID like 'P0001')
-
-    Returns consent status so the clinical-safety workbench can gate
-    drug interaction checks behind explicit patient consent.
-    """
-    patient_id = request.args.get("patient_id", type=int)
-    patient_pid = request.args.get("patient_pid", type=str)
-
-    if not patient_id and not patient_pid:
-        return jsonify({"error": "patient_id or patient_pid is required"}), 400
-
-    # Bridge the two ID schemes: resolve legacy patient_pid → numeric id
-    if patient_pid and not patient_id:
-        try:
-            from departments.models.medicine import Patient as LegacyPatient
-            p = LegacyPatient.query.filter_by(patient_id=patient_pid).first()
-            if p:
-                patient_id = p.id
-        except Exception:
-            pass  # Fall back gracefully if model differs
-
-    # Query actual consent records
-    has_consent = True  # Default: granted (non-blocking)
-    active_count = 0
-    try:
-        from departments.models.billing import PatientConsent
-        if patient_id:
-            consents = PatientConsent.query.filter_by(patient_id=patient_id).all()
-            has_consent = any(getattr(c, "is_active", True) for c in consents) if consents else True
-            active_count = sum(1 for c in consents if getattr(c, "is_active", True))
-    except Exception:
-        pass  # PatientConsent model may not exist; default to granted
-
-    return jsonify(
-        {
-            "patient_id": patient_id,
-            "patient_pid": patient_pid,
-            "consent_granted": has_consent,
-            "active_consents": active_count,
-        }
-    ), 200
 
