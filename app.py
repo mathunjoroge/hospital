@@ -1,6 +1,7 @@
 import logging
 import os
 import shutil
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import dotenv
@@ -9,6 +10,7 @@ import redis
 from flask import (
     Flask,
     flash,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -48,8 +50,22 @@ app.config["DICOM_UPLOAD_FOLDER"] = os.path.join(
 )
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024 * 1024  # 2 GB file limit
 
+INSECURE_SECRET_KEYS = {
+    "dev-secret-key-change-in-production",
+    "ci-test-secret-key-not-for-production",
+    "test-secret-key-not-for-production",
+    "secret",
+    "change_me",
+    "password",
+    "12345",
+}
 secret_key = os.environ.get("SECRET_KEY")
-if not secret_key:
+if os.environ.get("FLASK_ENV") == "production":
+    if not secret_key or secret_key in INSECURE_SECRET_KEYS or len(secret_key) < 16:
+        raise RuntimeError(
+            "CRITICAL SECURITY ERROR: Hardcoded or weak SECRET_KEY detected in production environment."
+        )
+elif not secret_key:
     if os.environ.get("FLASK_ENV") == "testing":
         secret_key = "test-secret-key-not-for-production"
     else:
@@ -57,6 +73,29 @@ if not secret_key:
             "SECRET_KEY environment variable must be set "
             "(FLASK_ENV=testing is the only exception)."
         )
+
+
+@app.before_request
+def assign_request_id():
+    g.request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+
+
+@app.after_request
+def set_security_headers_and_request_id(response):
+    response.headers["X-Request-ID"] = getattr(g, "request_id", "")
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    if "Content-Security-Policy" not in response.headers:
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
+            "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
+            "img-src 'self' data: https:; "
+            "connect-src 'self'"
+        )
+    return response
 
 app.config["SECRET_KEY"] = secret_key
 app.config["ENABLE_TELEMEDICINE"] = (
@@ -428,6 +467,41 @@ def healthz():
             },
         }
     ), http_code
+
+
+@app.route("/metrics", methods=["GET"])
+def metrics():
+    """
+    Prometheus-compatible Monitoring & Observability Endpoint.
+    Exposes system metrics, database connectivity status, and disk space.
+    """
+    try:
+        total, used, free = shutil.disk_usage(".")
+    except Exception:
+        total, free = 0, 0
+
+    db_up = 1
+    try:
+        db.session.execute(db.text("SELECT 1"))
+    except Exception:
+        db_up = 0
+
+    lines = [
+        "# HELP hmis_up Service availability indicator (1=up, 0=down)",
+        "# TYPE hmis_up gauge",
+        "hmis_up 1",
+        "# HELP hmis_db_connected Database connection status (1=connected, 0=disconnected)",
+        "# TYPE hmis_db_connected gauge",
+        f"hmis_db_connected {db_up}",
+        "# HELP hmis_disk_free_bytes Free disk space in bytes",
+        "# TYPE hmis_disk_free_bytes gauge",
+        f"hmis_disk_free_bytes {free}",
+        "# HELP hmis_disk_total_bytes Total disk space in bytes",
+        "# TYPE hmis_disk_total_bytes gauge",
+        f"hmis_disk_total_bytes {total}",
+    ]
+    return "\n".join(lines) + "\n", 200, {"Content-Type": "text/plain; version=0.0.4"}
+
 
 
 from departments.admin import bp as admin_bp  # noqa: E402
