@@ -17,12 +17,14 @@ _engine = ClinicalSafetyEngine()
 
 @bp.route("/")
 @login_required
+@roles_required("doctor", "pharmacist")
 def index():
     return "Clinical Safety & CDS Module Active - Phase 4 MVP"
 
 
 @bp.route("/api/check", methods=["POST"])
 @login_required
+@roles_required("doctor", "pharmacist")
 def check_safety():
     """
     Run safety checks for a prescription.
@@ -66,6 +68,7 @@ def check_safety():
 
 @bp.route("/api/override", methods=["POST"])
 @login_required
+@roles_required("doctor", "pharmacist")
 def log_override():
     """
     Log a safety alert override.
@@ -115,6 +118,7 @@ def log_override():
 
 @bp.route("/api/overrides/<int:patient_id>", methods=["GET"])
 @login_required
+@roles_required("doctor", "pharmacist")
 def get_patient_overrides(patient_id: int):
     """
     Retrieve all safety overrides for a patient (audit trail).

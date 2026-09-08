@@ -4,6 +4,7 @@ MCH, ANC, and Immunization API routes.
 
 from flask import jsonify, request
 from flask_login import login_required
+from departments.rbac import roles_required
 
 from . import bp
 from .engine import MchEngine
@@ -13,12 +14,14 @@ _engine = MchEngine()
 
 @bp.route("/")
 @login_required
+@roles_required("nursing")
 def index():
     return "MCH & Immunization Module Active"
 
 
 @bp.route("/api/anc-visit", methods=["POST"])
 @login_required
+@roles_required("nursing")
 def log_anc_visit():
     """
     Logs an ANC visit and automatically calculates the next appointment date.
@@ -57,6 +60,7 @@ def log_anc_visit():
 
 @bp.route("/api/immunize", methods=["POST"])
 @login_required
+@roles_required("nursing")
 def record_immunization():
     """
     Records a vaccine administration, enforcing dose sequencing.
@@ -95,6 +99,7 @@ def record_immunization():
 
 @bp.route("/api/child/<int:child_patient_id>/schedule", methods=["GET"])
 @login_required
+@roles_required("nursing")
 def get_child_schedule(child_patient_id: int):
     """
     Calculates due/overdue vaccines based on child's age.

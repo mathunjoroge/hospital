@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from flask import jsonify, request
 from flask_login import login_required
+from departments.rbac import roles_required
 
 from . import bp
 from .engine import RevenueCycleEngine
@@ -15,12 +16,14 @@ _engine = RevenueCycleEngine()
 
 @bp.route("/")
 @login_required
+@roles_required("billing", "admin")
 def index():
     return "Revenue Cycle Management Module Active"
 
 
 @bp.route("/api/preauth", methods=["POST"])
 @login_required
+@roles_required("billing", "admin")
 def submit_preauth():
     """
     Submits a pre-authorization request for SHA or private insurance.
@@ -54,6 +57,7 @@ def submit_preauth():
 
 @bp.route("/api/claim/scrub", methods=["POST"])
 @login_required
+@roles_required("billing", "admin")
 def scrub_claim():
     """
     Validates a claim before submission. Returns any errors found.
@@ -79,6 +83,7 @@ def scrub_claim():
 
 @bp.route("/api/claim/submit", methods=["POST"])
 @login_required
+@roles_required("billing", "admin")
 def submit_claim():
     """
     Submits a claim. Automatically scrubs the claim first.
@@ -125,6 +130,7 @@ def submit_claim():
 
 @bp.route("/api/denial/appeal", methods=["POST"])
 @login_required
+@roles_required("billing", "admin")
 def submit_appeal():
     """
     Initiates an appeal for a denied claim.

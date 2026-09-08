@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from flask import jsonify, request
 from flask_login import login_required
+from departments.rbac import roles_required
 
 from . import bp
 from .engine import DischargeEngine, ReferralEngine
@@ -16,12 +17,14 @@ _discharge_engine = DischargeEngine()
 
 @bp.route("/")
 @login_required
+@roles_required("doctor", "nursing")
 def index():
     return "Referrals & Continuity of Care Module Active"
 
 
 @bp.route("/api/initiate", methods=["POST"])
 @login_required
+@roles_required("doctor", "nursing")
 def initiate_referral():
     """
     Initiates a new inter-facility referral.
@@ -58,6 +61,7 @@ def initiate_referral():
 
 @bp.route("/api/status/<string:referral_id>", methods=["PATCH"])
 @login_required
+@roles_required("doctor", "nursing")
 def update_referral_status(referral_id: str):
     """
     Updates the status of an existing referral (e.g., PENDING -> ACCEPTED).
@@ -87,6 +91,7 @@ def update_referral_status(referral_id: str):
 
 @bp.route("/api/discharge", methods=["POST"])
 @login_required
+@roles_required("doctor", "nursing")
 def generate_discharge_summary():
     """
     Generates a structured discharge summary for a patient leaving the facility.

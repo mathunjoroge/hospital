@@ -6,6 +6,7 @@ from datetime import datetime
 
 from flask import jsonify, request
 from flask_login import login_required
+from departments.rbac import roles_required
 
 from . import bp
 from .engine import ScheduleEngine
@@ -15,12 +16,14 @@ _engine = ScheduleEngine()
 
 @bp.route("/")
 @login_required
+@roles_required("doctor", "nursing")
 def index():
     return "Appointments & Queue Module Active"
 
 
 @bp.route("/api/book", methods=["POST"])
 @login_required
+@roles_required("doctor", "nursing")
 def book_appointment():
     """
     Books a new appointment, enforcing double-booking prevention.
@@ -75,6 +78,7 @@ def book_appointment():
 
 @bp.route("/api/provider/<int:provider_id>/today", methods=["GET"])
 @login_required
+@roles_required("doctor", "nursing")
 def get_today_appointments(provider_id: int):
     """
     Retrieves the full daily schedule for a provider.
@@ -106,6 +110,7 @@ def get_today_appointments(provider_id: int):
 
 @bp.route("/api/check-in/<string:appointment_id>", methods=["POST"])
 @login_required
+@roles_required("doctor", "nursing")
 def check_in_patient(appointment_id: str):
     """
     Checks a patient in, moving them to the live waiting room queue.
@@ -126,6 +131,7 @@ def check_in_patient(appointment_id: str):
 
 @bp.route("/api/queue/<int:provider_id>", methods=["GET"])
 @login_required
+@roles_required("doctor", "nursing")
 def get_live_queue(provider_id: int):
     """
     Retrieves the live waiting room queue for the provider's display.
@@ -151,6 +157,7 @@ def get_live_queue(provider_id: int):
 
 @bp.route("/api/no-show/<string:appointment_id>", methods=["POST"])
 @login_required
+@roles_required("doctor", "nursing")
 def mark_no_show(appointment_id: str):
     """
     Marks an appointment as a no-show.
@@ -170,6 +177,7 @@ def mark_no_show(appointment_id: str):
 
 @bp.route("/api/queue/<int:provider_id>/rows", methods=["GET"])
 @login_required
+@roles_required("doctor", "nursing")
 def get_live_queue_rows(provider_id: int):
     """
     Returns HTML table rows for the HTMX live queue dashboard.
