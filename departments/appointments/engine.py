@@ -6,7 +6,7 @@ and live waiting room queue management.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from extensions import db
 
@@ -27,7 +27,7 @@ class ScheduleEngine:
     """
 
     def check_availability(
-        self, provider_id: int, start_time: datetime, duration_minutes: int = 30
+        self, provider_id: str | int, start_time: datetime, duration_minutes: int = 30
     ) -> bool:
         """
         Checks if a provider has a free slot at the requested time.
@@ -37,7 +37,7 @@ class ScheduleEngine:
 
         # Look for any appointment that overlaps with the requested window
         overlapping = Appointment.query.filter(
-            Appointment.provider_id == provider_id,
+            Appointment.provider_id == str(provider_id),
             Appointment.status.notin_(["CANCELLED", "NO_SHOW"]),
             Appointment.scheduled_start < end_time,
             Appointment.scheduled_end > start_time,
@@ -47,8 +47,8 @@ class ScheduleEngine:
 
     def book_appointment(
         self,
-        patient_id: int,
-        provider_id: int,
+        patient_id: str | int,
+        provider_id: str | int,
         start_time: datetime,
         duration_minutes: int = 30,
         appointment_type: str = "CONSULTATION",
@@ -69,8 +69,8 @@ class ScheduleEngine:
         end_time = start_time + timedelta(minutes=duration_minutes)
 
         appt = Appointment(
-            patient_id=patient_id,
-            provider_id=provider_id,
+            patient_id=str(patient_id),
+            provider_id=str(provider_id),
             scheduled_start=start_time,
             scheduled_end=end_time,
             appointment_type=appointment_type,
@@ -85,6 +85,34 @@ class ScheduleEngine:
             patient_id,
             provider_id,
             start_time.isoformat(),
+        )
+        return appt
+
+    def create_walk_in(
+        self,
+        patient_id: str | int,
+        provider_id: str | int = "1",
+        reason: str = "Walk-in Registration",
+    ) -> Appointment:
+        """
+        Creates a walk-in appointment pre-checked into the live queue.
+        """
+        now = datetime.now(timezone.utc)
+        appt = Appointment(
+            patient_id=str(patient_id),
+            provider_id=str(provider_id),
+            scheduled_start=now,
+            scheduled_end=now + timedelta(minutes=30),
+            appointment_type="WALK_IN",
+            reason_for_visit=reason,
+            status="CHECKED_IN",
+        )
+        db.session.add(appt)
+        db.session.commit()
+        logger.info(
+            "WALK-IN APPOINTMENT CREATED & CHECKED IN: Patient %s with Provider %s",
+            patient_id,
+            provider_id,
         )
         return appt
 
@@ -130,7 +158,6 @@ class ScheduleEngine:
         logger.info("PATIENT CALLED IN: Appointment %s", appointment_id)
         return appt
 
-
     def mark_no_show(self, appointment_id: str) -> Appointment | None:
         """
         Marks a patient as a no-show, freeing up the provider's schedule.
@@ -145,7 +172,7 @@ class ScheduleEngine:
         return appt
 
     def get_provider_schedule(
-        self, provider_id: int, date: datetime
+        self, provider_id: str | int, date: datetime
     ) -> list[Appointment]:
         """
         Retrieves all appointments for a provider on a specific date.
@@ -155,7 +182,7 @@ class ScheduleEngine:
 
         return (
             Appointment.query.filter(
-                Appointment.provider_id == provider_id,
+                Appointment.provider_id == str(provider_id),
                 Appointment.scheduled_start >= start_of_day,
                 Appointment.scheduled_start < end_of_day,
             )
@@ -163,16 +190,14 @@ class ScheduleEngine:
             .all()
         )
 
-    def get_live_queue(self, provider_id: int) -> list[Appointment]:
+    def get_live_queue(self, provider_id: str | int | None = None) -> list[Appointment]:
         """
-        Retrieves the current waiting room queue for a provider.
+        Retrieves the current waiting room queue for a provider (or all providers if None or 'all').
         Ordered by check-in time (approximated by updated_at timestamp).
         """
-        return (
-            Appointment.query.filter(
-                Appointment.provider_id == provider_id,
-                Appointment.status == "CHECKED_IN",
-            )
-            .order_by(Appointment.updated_at.asc())
-            .all()
-        )
+        query = Appointment.query.filter(Appointment.status == "CHECKED_IN")
+        if provider_id is not None and str(provider_id).lower() != "all":
+            query = query.filter(Appointment.provider_id == str(provider_id))
+
+        return query.order_by(Appointment.updated_at.asc()).all()
+

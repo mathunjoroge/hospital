@@ -10,6 +10,7 @@ from departments.models.nursing import Partogram, Vitals
 from departments.models.records import Patient, PatientWaitingList
 from departments.models.user import User
 from departments.rbac import roles_required
+from departments.shared.queue_constants import QueueStatus
 from extensions import db
 
 from . import bp
@@ -89,6 +90,9 @@ def vitals(patient_id):
                 else None,
             )
             db.session.add(vitals_data)
+            waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
+            if waiting_entry:
+                waiting_entry.seen = QueueStatus.VITALS_DONE
             db.session.commit()
             logger.info(
                 f"Nurse {current_user.id} recorded vitals for patient {patient_id}"
@@ -549,6 +553,9 @@ def vital_signs():
                 recorded_by=current_user.id,
             )
             db.session.add(new_vital_sign)
+            waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
+            if waiting_entry:
+                waiting_entry.seen = QueueStatus.VITALS_DONE
             db.session.commit()
             flash("Vital signs recorded.", "success")
             return redirect(url_for("nursing.vital_signs"))

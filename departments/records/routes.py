@@ -29,6 +29,8 @@ from departments.models.records import (
 # ─────────────────────────────────────────────
 from departments.rbac import roles_required
 from departments.records.merge import find_duplicate_candidates, merge_patient_records
+from departments.shared.queue_constants import QueueStatus
+from departments.appointments.engine import ScheduleEngine
 from extensions import db
 
 from . import bp
@@ -159,9 +161,17 @@ def new_patient():
         db.session.add(new_p)
         db.session.commit()
 
-        waiting_entry = PatientWaitingList(patient_id=new_p.patient_id, seen=4)
+        waiting_entry = PatientWaitingList(patient_id=new_p.patient_id, seen=QueueStatus.WAITING_TRIAGE)
         db.session.add(waiting_entry)
         db.session.commit()
+
+        # Bridge registration to live queue via Appointment
+        provider_id = str(getattr(current_user, "id", "1") or "1")
+        ScheduleEngine().create_walk_in(
+            patient_id=new_p.patient_id,
+            provider_id=provider_id,
+            reason="Walk-in Registration",
+        )
 
         flash(
             f"Patient {new_p.name} registered successfully with ID: {new_p.patient_id}!",
@@ -595,12 +605,19 @@ def book_clinic():
 
     waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
     if not waiting_entry:
-        waiting_entry = PatientWaitingList(patient_id=patient_id, seen=4)
+        waiting_entry = PatientWaitingList(patient_id=patient_id, seen=QueueStatus.WAITING_TRIAGE)
         db.session.add(waiting_entry)
     else:
-        waiting_entry.seen = 4
+        waiting_entry.seen = QueueStatus.WAITING_TRIAGE
 
     db.session.commit()
+
+    provider_id = str(getattr(current_user, "id", "1") or "1")
+    ScheduleEngine().create_walk_in(
+        patient_id=patient_id,
+        provider_id=provider_id,
+        reason=f"Clinic Booking: {clinic.name if clinic else 'General'}",
+    )
     return jsonify(
         {
             "status": "success",

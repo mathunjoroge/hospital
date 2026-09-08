@@ -141,7 +141,10 @@
 <script>
 function queueApp() {
     return {
-        providerId: window.location.pathname.split('/').pop() || '1',
+        providerId: (() => {
+            const raw = window.location.pathname.split('/').filter(Boolean).pop();
+            return (raw && raw !== 'queue') ? raw : 'all';
+        })(),
         queue: [],
         waitingCount: 0,
         totalScheduled: 0,

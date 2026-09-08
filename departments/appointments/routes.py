@@ -77,10 +77,10 @@ def book_appointment():
     ), 201
 
 
-@bp.route("/api/provider/<int:provider_id>/today", methods=["GET"])
+@bp.route("/api/provider/<provider_id>/today", methods=["GET"])
 @login_required
 @roles_required("doctor", "nursing")
-def get_today_appointments(provider_id: int):
+def get_today_appointments(provider_id: str):
     """
     Retrieves the full daily schedule for a provider.
     """
@@ -128,12 +128,13 @@ def check_in_patient(appointment_id: str):
     ), 200
 
 
-@bp.route("/api/queue/<int:provider_id>", methods=["GET"])
+@bp.route("/api/queue/<provider_id>", methods=["GET"], strict_slashes=False)
+@bp.route("/api/queue", methods=["GET"], defaults={"provider_id": "all"}, strict_slashes=False)
 @login_required
 @roles_required("doctor", "nursing")
-def get_live_queue(provider_id: int):
+def get_live_queue(provider_id: str):
     """
-    Retrieves the live waiting room queue for the provider's display.
+    Retrieves the live waiting room queue for the provider's display (or all providers).
     """
     queue = _engine.get_live_queue(provider_id)
     now_utc = datetime.now(timezone.utc)
@@ -141,15 +142,22 @@ def get_live_queue(provider_id: int):
     patient_ids = [a.patient_id for a in queue]
     patients = {}
     if patient_ids:
-        records = Patient.query.filter(Patient.id.in_(patient_ids)).all()
-        patients = {p.id: p.name for p in records}
+        records = Patient.query.filter(Patient.patient_id.in_(patient_ids)).all()
+        patients = {p.patient_id: p.name for p in records}
 
-    today_appts = _engine.get_provider_schedule(provider_id, now_utc)
+    if provider_id == "all":
+        today_appts = Appointment.query.filter(
+            Appointment.scheduled_start >= now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        ).all()
+        in_consultation = Appointment.query.filter(Appointment.status == "IN_PROGRESS").count()
+    else:
+        today_appts = _engine.get_provider_schedule(provider_id, now_utc)
+        in_consultation = Appointment.query.filter(
+            Appointment.provider_id == str(provider_id),
+            Appointment.status == "IN_PROGRESS",
+        ).count()
+
     total_scheduled = len(today_appts)
-    in_consultation = Appointment.query.filter(
-        Appointment.provider_id == provider_id,
-        Appointment.status == "IN_PROGRESS",
-    ).count()
 
     formatted_queue = []
     for a in queue:
@@ -165,7 +173,7 @@ def get_live_queue(provider_id: int):
                 "appointment_id": a.id,
                 "patient_id": a.patient_id,
                 "patient_name": patients.get(a.patient_id)
-                or f"Patient #{a.patient_id}",
+                or f"Patient {a.patient_id}",
                 "checked_in_at": a.updated_at.isoformat() if a.updated_at else "",
                 "check_in_time": a.updated_at.strftime("%H:%M")
                 if a.updated_at
@@ -226,10 +234,11 @@ def mark_no_show(appointment_id: str):
     ), 200
 
 
-@bp.route("/api/queue/<int:provider_id>/rows", methods=["GET"])
+@bp.route("/api/queue/<provider_id>/rows", methods=["GET"])
+@bp.route("/api/queue/rows", methods=["GET"], defaults={"provider_id": "all"})
 @login_required
 @roles_required("doctor", "nursing")
-def get_live_queue_rows(provider_id: int):
+def get_live_queue_rows(provider_id: str):
     """
     Returns HTML table rows for the HTMX live queue dashboard.
     """
@@ -240,6 +249,12 @@ def get_live_queue_rows(provider_id: int):
             '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-400">'
             "Queue is empty. No patients currently waiting.</td></tr>"
         )
+
+    patient_ids = [a.patient_id for a in queue]
+    patients = {}
+    if patient_ids:
+        records = Patient.query.filter(Patient.patient_id.in_(patient_ids)).all()
+        patients = {p.patient_id: p.name for p in records}
 
     status_colors = {
         "CHECKED_IN": "bg-amber-100 text-amber-800",
@@ -256,14 +271,15 @@ def get_live_queue_rows(provider_id: int):
         status_label = appt.status.replace("_", " ")
         disabled = (
             'disabled class="opacity-50 cursor-not-allowed"'
-            if appt.status != "SCHEDULED"
+            if appt.status != "CHECKED_IN"
             else ""
         )
+        patient_display = patients.get(appt.patient_id) or f"Patient {appt.patient_id}"
 
         rows.append(
             f'<tr class="border-b border-gray-100 hover:bg-gray-50 transition">'
             f'<td class="px-6 py-4 text-sm font-medium text-gray-900">{idx}</td>'
-            f'<td class="px-6 py-4 text-sm text-gray-500">Patient #{appt.patient_id}</td>'
+            f'<td class="px-6 py-4 text-sm text-gray-900 font-semibold">{patient_display} <span class="text-xs text-gray-400">({appt.patient_id})</span></td>'
             f'<td class="px-6 py-4 text-sm text-gray-500">{checked_in_time}</td>'
             f'<td class="px-6 py-4">'
             f'<span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {color}">'
@@ -277,4 +293,5 @@ def get_live_queue_rows(provider_id: int):
         )
 
     return "\n".join(rows)
+
 

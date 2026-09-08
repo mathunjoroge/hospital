@@ -31,6 +31,8 @@ from departments.models.records import Patient, PatientWaitingList
 from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.nlp.logging_setup import get_logger
 from departments.rbac import roles_required
+from departments.shared.queue_constants import QueueStatus
+from departments.appointments.models import Appointment
 from extensions import db
 
 from . import bp
@@ -205,6 +207,18 @@ def submit_soap_notes(patient_id):
                 "warning",
             )
 
+        # Update queue status to DISCHARGED and appointment to COMPLETED
+        waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
+        if waiting_entry:
+            waiting_entry.seen = QueueStatus.DISCHARGED
+        appts = Appointment.query.filter(
+            Appointment.patient_id == str(patient_id),
+            Appointment.status.in_(["CHECKED_IN", "IN_PROGRESS"])
+        ).all()
+        for appt in appts:
+            appt.status = "COMPLETED"
+        db.session.commit()
+
         flash("SOAP note submitted successfully!", "success")
         return redirect(url_for("medicine.notes", patient_id=patient_id))
 
@@ -249,9 +263,13 @@ def reprocess_note(note_id):
 def index():
     """Display the medicine waiting list."""
     try:
-        # Fetch all patients in the medicine waiting list who are not yet seen
+        # Fetch all patients in the medicine waiting list (waiting triage, vitals done, or in consultation)
         waiting_list = (
-            PatientWaitingList.query.filter_by(seen=4)
+            PatientWaitingList.query.filter(
+                PatientWaitingList.seen.in_(
+                    [QueueStatus.WAITING_TRIAGE, QueueStatus.VITALS_DONE, QueueStatus.IN_CONSULTATION]
+                )
+            )
             .options(joinedload(PatientWaitingList.patient))
             .all()
         )
@@ -318,6 +336,16 @@ def soap_notes(patient_id):
                 url_for("medicine.index")
             )  # Redirect to index if patient not found
         patient = patient_entry.patient
+
+        # Mark patient as IN_CONSULTATION
+        patient_entry.seen = QueueStatus.IN_CONSULTATION
+        appts = Appointment.query.filter(
+            Appointment.patient_id == str(patient_id),
+            Appointment.status == "CHECKED_IN",
+        ).all()
+        for appt in appts:
+            appt.status = "IN_PROGRESS"
+        db.session.commit()
 
         # Generate a unique prescription_id for the form
         import uuid
