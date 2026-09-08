@@ -1,9 +1,6 @@
 """
-from departments.models.billing import Invoice, InvoiceStatus
-from departments.billing.sync import sync_invoice_status
-tests/test_p2_coverage.py
-─────────────────────────
 Priority 2 (P2) Edge Case & High-Value Module Coverage Suite.
+
 Tests RBAC edge cases, billing sync deduplication, break-glass expiration,
 AI consent gate, security_ops, system_ops, offline_sync, public_health, and mortuary.
 """
