@@ -531,19 +531,15 @@ from departments.mortuary import bp as mortuary_bp  # noqa: E402
 from departments.nursing import bp as nursing_bp  # noqa: E402
 from departments.nursing.mar import mar_bp  # noqa: E402
 from departments.nursing.triage import triage_bp  # noqa: E402
-from departments.offline_sync import bp as offline_sync_bp  # noqa: E402
 from departments.patient_portal import patient_portal_bp  # noqa: E402
 from departments.pharmacy import bp as pharmacy_bp  # noqa: E402
 from departments.pharmacy.fefo import fefo_bp  # noqa: E402
 from departments.pharmacy.po_routes import po_bp  # noqa: E402
-from departments.public_health import bp as public_health_bp  # noqa: E402
 from departments.rcm import bp as rcm_bp  # noqa: E402
 from departments.records import bp as records_bp  # noqa: E402
 from departments.referrals import bp as referrals_bp  # noqa: E402
-from departments.security_ops import bp as security_ops_bp  # noqa: E402
 from departments.stores import bp as stores_bp  # noqa: E402
 from departments.stores.transfer_routes import transfer_bp  # noqa: E402
-from departments.system_ops import bp as system_ops_bp  # noqa: E402
 from departments.telemedicine import bp as telemedicine_bp  # noqa: E402
 from departments.ui_billing import bp as ui_billing_bp  # noqa: E402
 from departments.ui_clinical import bp as ui_clinical_bp  # noqa: E402
@@ -575,11 +571,7 @@ app.register_blueprint(consent_bp)
 app.register_blueprint(clinical_safety_bp)
 app.register_blueprint(mch_bp)
 app.register_blueprint(analytics_bp)
-app.register_blueprint(offline_sync_bp)
-app.register_blueprint(public_health_bp)
-app.register_blueprint(security_ops_bp)
 app.register_blueprint(rcm_bp)
-app.register_blueprint(system_ops_bp)
 app.register_blueprint(patient_portal_bp, url_prefix="/portal")
 app.register_blueprint(telemedicine_bp, url_prefix="/telemedicine")  # Phase E
 
