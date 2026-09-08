@@ -741,22 +741,50 @@
     {% endif %}
     
     <!-- ═══ WORLD-CLASS MODULES ═══ -->
+    {% if current_user.is_authenticated %}
+    {% set user_role = session.switched_user if session.switched_user else current_user.role %}
+    
+    {# Only show Advanced Tools to specific roles #}
+    {% if user_role in ['admin', 'doctor', 'nursing', 'pharmacist', 'billing'] %}
     <div class="sidebar-heading mt-4" style="color: #fbbf24 !important; font-weight: 800; letter-spacing: 0.1em;">✨ Advanced Tools</div>
+    
+    {# Live Queue: doctors and nurses #}
+    {% if user_role in ['admin', 'doctor', 'nursing'] %}
     <a href="/ui/dashboard/queue/1" title="Live Waiting Room Queue (Provider ID 1)">
         <i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Queue
     </a>
+    {% endif %}
+    
+    {# Rx Safety (CDS): doctors and pharmacists #}
+    {% if user_role in ['admin', 'doctor', 'pharmacist'] %}
     <a href="/ui/clinical/prescribe" title="Prescription Safety & Consent Gates">
         <i class="bi bi-shield-check me-2" style="color: #ef4444;"></i> Rx Safety (CDS)
     </a>
+    {% endif %}
+    
+    {# MCH / Vax: nurses only #}
+    {% if user_role in ['admin', 'nursing'] %}
     <a href="/ui/mch/workbench" title="Maternal & Child Health / Immunizations">
         <i class="bi bi-heart-pulse me-2" style="color: #ec4899;"></i> MCH / Vax
     </a>
+    {% endif %}
+    
+    {# Claims & SHA: billing staff and admin #}
+    {% if user_role in ['admin', 'billing'] %}
     <a href="/ui/billing/claims" title="Revenue Cycle & SHA Claims Scrubber">
         <i class="bi bi-cash-stack me-2" style="color: #10b981;"></i> Claims & SHA
     </a>
+    {% endif %}
+    
+    {# Referrals: doctors and nurses #}
+    {% if user_role in ['admin', 'doctor', 'nursing'] %}
     <a href="/ui/referrals/handover" title="Referrals & Discharge Handover">
         <i class="bi bi-arrow-left-right me-2" style="color: #6366f1;"></i> Referrals
     </a>
+    {% endif %}
+    
+    {% endif %}
+    {% endif %}
     
     <a href="{{ url_for('medicine.chatbot_interface') }}" class="chat">
       <i class="bi bi-chat-dots me-2"></i> Chatbot
