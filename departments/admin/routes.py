@@ -5,7 +5,7 @@ from datetime import datetime
 
 import pyotp
 import qrcode
-from flask import flash, redirect, render_template, request, session, url_for
+from flask import abort, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from werkzeug.security import generate_password_hash
@@ -59,8 +59,13 @@ class EditUserForm(FlaskForm):
 @bp.route("/admin/switch_user", methods=["POST"])
 @bp.route("/switch_user", methods=["POST"])
 @login_required
-@roles_required("admin")
 def switch_user():
+    # Guard against non-admins using the real role, NOT the effective role.
+    # Using @roles_required("admin") here would abort(403) when an admin is
+    # already switched to another role and tries to switch again.
+    if getattr(current_user, "role", None) != "admin":
+        abort(403)
+
     new_role = request.form.get("role")
     allowed_roles = [
         "records",
