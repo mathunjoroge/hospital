@@ -24,6 +24,7 @@ from flask import (
 )
 
 from departments.api.auth import jwt_or_session_required
+from departments.mch.models import AncVisit, ImmunizationRecord
 from departments.models.laboratory import LabResult
 from departments.models.medicine import AdmittedPatient, PrescribedMedicine, SOAPNote
 from departments.models.records import Patient
@@ -110,6 +111,17 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
     # 5. Prescriptions Issued (no timestamp column - count all)
     prescriptions_count = PrescribedMedicine.query.count()
 
+    # 6. MCH Antenatal Care (ANC) Visits (MOH 731)
+    anc_visits_count = AncVisit.query.filter(
+        AncVisit.visit_date >= start_date, AncVisit.visit_date <= end_date
+    ).count()
+
+    # 7. Child Immunizations Administered (MOH 710)
+    immunizations_count = ImmunizationRecord.query.filter(
+        ImmunizationRecord.administered_at >= start_date,
+        ImmunizationRecord.administered_at <= end_date,
+    ).count()
+
     period_str = f"{year}{month:02d}"
 
     data_elements = [
@@ -158,6 +170,16 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
             "category": "MOH 711",
             "value": prescriptions_count,
         },
+        {
+            "dataElement": "MOH731_ANC_VISITS_TOTAL",
+            "category": "MOH 731",
+            "value": anc_visits_count,
+        },
+        {
+            "dataElement": "MOH710_IMMUNIZATIONS_ADMINISTERED",
+            "category": "MOH 710",
+            "value": immunizations_count,
+        },
     ]
 
     return {
@@ -175,6 +197,8 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
             "discharges": discharges_count,
             "lab_tests": lab_tests_count,
             "prescriptions": prescriptions_count,
+            "anc_visits": anc_visits_count,
+            "immunizations": immunizations_count,
         },
         "top_diagnoses": sorted(
             [{"diagnosis": k, "count": v} for k, v in diagnosis_counts.items()],

@@ -4,6 +4,8 @@ from datetime import date, datetime
 from werkzeug.security import generate_password_hash
 
 from app import app, db
+from departments.mch.models import AncVisit, ImmunizationRecord
+from departments.models.encounter import Encounter
 from departments.models.medicine import SOAPNote
 from departments.models.nursing import Vitals
 from departments.models.records import Patient
@@ -96,6 +98,41 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
             db.session.add(soap)
             db.session.commit()
 
+        # Seed Encounter
+        enc = Encounter.query.filter_by(patient_id="P-FHIR-001").first()
+        if not enc:
+            enc = Encounter(
+                patient_id="P-FHIR-001",
+                encounter_type="OPD",
+                status="ACTIVE",
+                chief_complaint="Fever and chills",
+            )
+            db.session.add(enc)
+            db.session.commit()
+
+        # Seed ANC Visit (MCH)
+        anc = AncVisit.query.filter_by(patient_id=1).first()
+        if not anc:
+            anc = AncVisit(
+                patient_id=1,
+                visit_number=1,
+                gestation_weeks=12,
+            )
+            db.session.add(anc)
+            db.session.commit()
+
+        # Seed Immunization Record
+        imm = ImmunizationRecord.query.filter_by(child_patient_id=1).first()
+        if not imm:
+            imm = ImmunizationRecord(
+                child_patient_id=1,
+                vaccine_name="BCG",
+                dose_number=1,
+                batch_number="BATCH-2026-01",
+            )
+            db.session.add(imm)
+            db.session.commit()
+
         self.patient_id = "P-FHIR-001"
 
     def tearDown(self):
@@ -142,6 +179,20 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         self.assertGreater(data["total"], 0)
         self.assertEqual(data["entry"][0]["resource"]["code"]["text"], "Acute Malaria")
 
+    def test_fhir_encounter_search(self):
+        """Test GET /api/fhir/R4/Encounter?patient=<patient_id>."""
+        self.client.post(
+            "/login", data={"username": "test_admin_fhir", "password": "password123"}
+        )
+        res = self.client.get(f"/api/fhir/R4/Encounter?patient={self.patient_id}")
+
+        self.assertEqual(res.status_code, 200)
+        data = res.json
+        self.assertEqual(data["resourceType"], "Bundle")
+        self.assertGreater(data["total"], 0)
+        self.assertEqual(data["entry"][0]["resource"]["resourceType"], "Encounter")
+        self.assertEqual(data["entry"][0]["resource"]["status"], "in-progress")
+
     def test_dhis2_json_export(self):
         """Test GET /api/khis/export/dhis2_json."""
         self.client.post(
@@ -154,6 +205,9 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         self.assertEqual(data["dataSet"], "MOH_MONTHLY_SUMMARY_V2")
         self.assertIn("dataValues", data)
         self.assertTrue(len(data["dataValues"]) > 0)
+        element_names = [dv["dataElement"] for dv in data["dataValues"]]
+        self.assertIn("MOH731_ANC_VISITS_TOTAL", element_names)
+        self.assertIn("MOH710_IMMUNIZATIONS_ADMINISTERED", element_names)
 
     def test_dhis2_csv_export(self):
         """Test GET /api/khis/export/csv."""
@@ -165,6 +219,9 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.mimetype, "text/csv")
         self.assertIn(b"dataElement,period,orgUnit", res.data)
+        self.assertIn(b"MOH731_ANC_VISITS_TOTAL", res.data)
+        self.assertIn(b"MOH710_IMMUNIZATIONS_ADMINISTERED", res.data)
+
 
 
 if __name__ == "__main__":

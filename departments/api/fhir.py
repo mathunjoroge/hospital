@@ -18,6 +18,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 
 from departments.api.auth import jwt_or_session_required
+from departments.models.encounter import Encounter
 from departments.models.imaging import ImagingResult
 from departments.models.laboratory import LabResult
 from departments.models.medicine import PrescribedMedicine, SOAPNote
@@ -492,3 +493,102 @@ def search_fhir_medication_requests():
         "entry": entries,
     }
     return jsonify(bundle)
+
+
+def encounter_to_fhir(encounter: Encounter) -> dict:
+    """Map HIMS Encounter model to HL7 FHIR R4 Encounter Resource."""
+    status_map = {
+        "ACTIVE": "in-progress",
+        "DISCHARGED": "finished",
+        "CANCELLED": "cancelled",
+        "ABORTED": "entered-in-error",
+    }
+    fhir_status = status_map.get(encounter.status, "unknown")
+
+    type_code = encounter.encounter_type or "OPD"
+    class_map = {
+        "OPD": {"code": "AMB", "display": "ambulatory"},
+        "IPD": {"code": "IMP", "display": "inpatient encounter"},
+        "EMERGENCY": {"code": "EMER", "display": "emergency"},
+        "TELEHEALTH": {"code": "VR", "display": "virtual"},
+    }
+    class_info = class_map.get(type_code, {"code": "AMB", "display": "ambulatory"})
+
+    resource = {
+        "resourceType": "Encounter",
+        "id": encounter.encounter_id,
+        "status": fhir_status,
+        "class": {
+            "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+            "code": class_info["code"],
+            "display": class_info["display"],
+        },
+        "subject": {"reference": f"Patient/{encounter.patient_id}"},
+        "period": {
+            "start": encounter.started_at.isoformat()
+            if getattr(encounter, "started_at", None)
+            else None,
+            "end": encounter.ended_at.isoformat()
+            if getattr(encounter, "ended_at", None)
+            else None,
+        },
+        "reasonCode": [
+            {
+                "text": encounter.chief_complaint
+            }
+        ]
+        if encounter.chief_complaint
+        else [],
+    }
+    return resource
+
+
+@fhir_bp.route("/Encounter", methods=["GET"])
+@jwt_or_session_required
+@roles_required(
+    "admin",
+    "records",
+    "medicine",
+    "nursing",
+    "pharmacy",
+    "laboratory",
+    "imaging",
+    "api",
+)
+def search_fhir_encounters():
+    """Search FHIR R4 Encounter resources for a patient."""
+    patient_id = request.args.get("patient")
+    if not patient_id:
+        return jsonify(
+            {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "required",
+                        "diagnostics": "Query parameter 'patient' is required.",
+                    }
+                ],
+            }
+        ), 400
+
+    encounters = Encounter.query.filter_by(patient_id=patient_id).all()
+    entries = []
+
+    for enc in encounters:
+        res_data = encounter_to_fhir(enc)
+        entries.append(
+            {
+                "fullUrl": f"{request.host_url}api/fhir/R4/Encounter/{enc.encounter_id}",
+                "resource": res_data,
+            }
+        )
+
+    bundle = {
+        "resourceType": "Bundle",
+        "type": "searchset",
+        "total": len(entries),
+        "entry": entries,
+    }
+    return jsonify(bundle)
+
