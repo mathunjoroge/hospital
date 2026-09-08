@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -11,8 +12,10 @@ from flask import (
     url_for,
 )
 
+from departments.api.audit import log_audit_event
 from departments.models.patient_user import PatientUser
 from departments.models.records import Patient
+from departments.notifications.triggers import trigger_password_reset_email
 from extensions import db
 
 from . import patient_portal_bp
@@ -166,3 +169,86 @@ def logout():
     session.pop("patient_user_id", None)
     flash("You have been logged out of the patient portal.", "info")
     return redirect(url_for("patient_portal.login"))
+
+
+@patient_portal_bp.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    """Initiate password reset: generate a secure token and dispatch reset email."""
+    if session.get("patient_user_id"):
+        return redirect(url_for("patient_portal.dashboard"))
+
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+
+        if username:
+            user = PatientUser.query.filter_by(username=username).first()
+            if user and user.is_active:
+                token = secrets.token_urlsafe(32)
+                user.reset_token = token
+                user.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
+                db.session.commit()
+
+                reset_link = url_for(
+                    "patient_portal.reset_password", token=token, _external=True
+                )
+                trigger_password_reset_email(user, reset_link)
+
+        # Always show success to prevent email/username enumeration
+        flash(
+            "If an account with that username exists, a password reset link has been sent.",
+            "success",
+        )
+        return redirect(url_for("patient_portal.login"))
+
+    return render_template("patient_portal/forgot_password.html")
+
+
+@patient_portal_bp.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    """Validate reset token and allow patient to set a new password."""
+    if session.get("patient_user_id"):
+        return redirect(url_for("patient_portal.dashboard"))
+
+    user = PatientUser.query.filter_by(reset_token=token).first()
+
+    # Validate token existence and expiry
+    if (
+        not user
+        or not user.reset_token_expiry
+        or datetime.utcnow() > user.reset_token_expiry
+    ):
+        flash("This password reset link is invalid or has expired.", "danger")
+        return redirect(url_for("patient_portal.login"))
+
+    if request.method == "POST":
+        new_password = request.form.get("password") or ""
+        confirm_password = request.form.get("confirm_password") or ""
+
+        if not new_password or new_password != confirm_password:
+            flash("Passwords do not match.", "danger")
+            return render_template("patient_portal/reset_password.html", token=token)
+
+        if len(new_password) < 8:
+            flash("Password must be at least 8 characters long.", "danger")
+            return render_template("patient_portal/reset_password.html", token=token)
+
+        # Update password, clear token, and reset any lockout state
+        user.set_password(new_password)
+        user.reset_token = None
+        user.reset_token_expiry = None
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        db.session.commit()
+
+        log_audit_event(
+            action="PASSWORD_RESET",
+            resource_type="PatientUser",
+            resource_id=str(user.id),
+            details=f"Password successfully reset via token for patient_id={user.patient_id}",
+            user_id=user.id,
+        )
+
+        flash("Your password has been successfully reset. Please log in.", "success")
+        return redirect(url_for("patient_portal.login"))
+
+    return render_template("patient_portal/reset_password.html", token=token)

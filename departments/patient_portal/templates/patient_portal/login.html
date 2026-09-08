@@ -18,6 +18,9 @@
                 <input type="password" id="password" name="password" class="form-control" required>
             </div>
             <button type="submit" class="btn" style="width: 100%;">Log In</button>
+            <div style="margin-top: 0.75rem; text-align: right;">
+                <a href="{{ url_for('patient_portal.forgot_password') }}" style="color: var(--primary); font-size: 0.875rem;">Forgot Password?</a>
+            </div>
         </form>
 
         <hr style="border-color: var(--border); margin: 1.5rem 0;">

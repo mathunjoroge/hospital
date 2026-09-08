@@ -23,6 +23,8 @@ class PatientUser(UserMixin, db.Model):
 
     failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
     locked_until = db.Column(db.DateTime, nullable=True)
+    reset_token = db.Column(db.String(255), nullable=True, index=True)
+    reset_token_expiry = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

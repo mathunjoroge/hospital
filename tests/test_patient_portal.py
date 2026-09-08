@@ -7,9 +7,10 @@ Unit tests for Phase A: Patient Self-Service Portal
 - Data Isolation (Patient A vs Patient B tenant protection)
 - Lab Result Release Gating (unverified vs released results)
 - Patient Actions (Appointment booking & audited contact updates)
+- Password Reset Flow (token generation, valid reset, expired token)
 """
 
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from departments.models.billing import Invoice
 from departments.models.compliance import AuditLog
@@ -260,3 +261,129 @@ def test_appointment_booking_and_audited_profile_update(client, app):
         audit_entry = AuditLog.query.filter_by(action="UPDATE_PROFILE").first()
         assert audit_entry is not None
         assert "0799999999" in (audit_entry.details or "")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Password Reset Flow Tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_forgot_password_generates_token_and_does_not_enumerate(client, app):
+    """Submitting a valid username generates a reset token;
+    submitting an unknown username returns the same success flash (anti-enumeration).
+    """
+    pid1, _ = setup_test_patients(app)
+
+    with app.app_context():
+        p1 = Patient.query.filter_by(patient_id=pid1).first()
+        user = PatientUser(patient_id=p1.id, username="reset_test_user")
+        user.set_password("Pass1234!")
+        db.session.add(user)
+        db.session.commit()
+
+    # Submit with a valid username
+    resp = client.post(
+        "/portal/forgot-password",
+        data={"username": "reset_test_user"},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert b"password reset link has been sent" in resp.data
+
+    with app.app_context():
+        pu = PatientUser.query.filter_by(username="reset_test_user").first()
+        assert pu.reset_token is not None
+        assert pu.reset_token_expiry is not None
+        assert pu.reset_token_expiry > datetime.utcnow()
+
+    # Submit with an unknown username — must show the same message (no enumeration)
+    resp_unknown = client.post(
+        "/portal/forgot-password",
+        data={"username": "nonexistent_user"},
+        follow_redirects=True,
+    )
+    assert resp_unknown.status_code == 200
+    assert b"password reset link has been sent" in resp_unknown.data
+
+
+def test_reset_password_with_valid_token(client, app):
+    """A valid, non-expired token allows the patient to set a new password;
+    the token is consumed and the patient can log in with the new credentials.
+    The AuditLog must record the PASSWORD_RESET action.
+    """
+    pid1, _ = setup_test_patients(app)
+
+    with app.app_context():
+        p1 = Patient.query.filter_by(patient_id=pid1).first()
+        user = PatientUser(patient_id=p1.id, username="pw_reset_user")
+        user.set_password("OldPassword1!")
+        # Pre-seed a valid token with 1-hour expiry
+        user.reset_token = "validtoken123"
+        user.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
+        db.session.add(user)
+        db.session.commit()
+
+    resp = client.post(
+        "/portal/reset-password/validtoken123",
+        data={"password": "NewPassword1!", "confirm_password": "NewPassword1!"},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert b"successfully reset" in resp.data
+
+    with app.app_context():
+        pu = PatientUser.query.filter_by(username="pw_reset_user").first()
+        # Token must be cleared
+        assert pu.reset_token is None
+        assert pu.reset_token_expiry is None
+        # Lockout state must be cleared
+        assert pu.failed_login_attempts == 0
+        assert pu.locked_until is None
+        # New password must work
+        assert pu.check_password("NewPassword1!")
+
+    # Log in with the new password
+    login_resp = client.post(
+        "/portal/login",
+        data={"username": "pw_reset_user", "password": "NewPassword1!"},
+        follow_redirects=True,
+    )
+    assert login_resp.status_code == 200
+    assert b"Welcome back" in login_resp.data
+
+    with app.app_context():
+        audit = AuditLog.query.filter_by(action="PASSWORD_RESET").first()
+        assert audit is not None
+
+
+def test_reset_password_fails_with_expired_or_invalid_token(client, app):
+    """An expired token or a completely unknown token must be rejected
+    with an 'invalid or has expired' error and redirect to login.
+    """
+    pid1, _ = setup_test_patients(app)
+
+    with app.app_context():
+        p1 = Patient.query.filter_by(patient_id=pid1).first()
+        user = PatientUser(patient_id=p1.id, username="expired_token_user")
+        user.set_password("Pass1234!")
+        # Set an already-expired token (2 hours in the past)
+        user.reset_token = "expiredtoken456"
+        user.reset_token_expiry = datetime.utcnow() - timedelta(hours=2)
+        db.session.add(user)
+        db.session.commit()
+
+    # Expired token GET — must redirect to login with danger flash
+    resp_expired = client.get(
+        "/portal/reset-password/expiredtoken456",
+        follow_redirects=True,
+    )
+    assert resp_expired.status_code == 200
+    assert b"invalid or has expired" in resp_expired.data
+
+    # Completely unknown token — same protection
+    resp_invalid = client.get(
+        "/portal/reset-password/totallyfaketoken",
+        follow_redirects=True,
+    )
+    assert resp_invalid.status_code == 200
+    assert b"invalid or has expired" in resp_invalid.data

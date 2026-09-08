@@ -12,6 +12,7 @@ from departments.notifications.dispatcher import (
     EVENT_INVOICE_DUE,
     EVENT_LAB_RESULT_READY,
     EVENT_PAYMENT_RECEIVED,
+    EVENT_PASSWORD_RESET,
     NotificationDispatcher,
 )
 
@@ -38,6 +39,34 @@ def _get_patient_email(patient_id: str) -> str:
 
     # Fallback placeholder for notification log tracking in sandbox/demo mode
     return f"patient_{patient_id.lower()}@hospital.org"
+
+
+def trigger_password_reset_email(patient_user: PatientUser, reset_link: str):
+    """Trigger password reset email notification for a PatientUser."""
+    if not patient_user or not patient_user.patient:
+        return None
+
+    email = _get_patient_email(patient_user.patient.patient_id)
+    if not email:
+        return None
+
+    subject = "Password Reset Request — Hospital HMIS Patient Portal"
+    body = (
+        f"Dear Patient,\n\n"
+        f"We received a request to reset your password. Click the link below to set a new password:\n\n"
+        f"{reset_link}\n\n"
+        f"This link will expire in 1 hour. If you did not request this, please ignore this email.\n\n"
+        f"Hospital IT Support"
+    )
+
+    return NotificationDispatcher.dispatch_event(
+        event_type=EVENT_PASSWORD_RESET,
+        recipient=email,
+        subject=subject,
+        body=body,
+        patient_id=patient_user.patient.patient_id,
+        channels=["email"],
+    )
 
 
 def trigger_appointment_reminder(booking: ClinicBooking):

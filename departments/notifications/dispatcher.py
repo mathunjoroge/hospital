@@ -20,6 +20,7 @@ EVENT_CLAIM_STATUS_CHANGED = "claim_status_changed"
 EVENT_BREAK_GLASS = "break_glass_invoked"  # Phase D: emergency override alert
 EVENT_CREDENTIAL_EXPIRING = "staff_credential_expiring"
 EVENT_CREDENTIAL_EXPIRED = "staff_credential_expired"
+EVENT_PASSWORD_RESET = "password_reset_request"
 
 
 class BaseChannel:
