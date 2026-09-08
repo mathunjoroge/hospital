@@ -30,6 +30,8 @@ def roles_required(*roles):
     """
     Decorator to enforce role-based access control across department view functions.
     Supports both Flask-Login sessions and JWT Bearer tokens (via g.api_user).
+    
+    Admin users automatically have access to all routes (standard RBAC pattern).
     """
 
     def decorator(fn):
@@ -38,10 +40,18 @@ def roles_required(*roles):
             user = get_effective_user()
             if not user:
                 abort(403)
+            
             user_role = user.role
             effective_role = get_effective_role()
+            
+            # Admin always has access (standard RBAC pattern)
+            if user_role == "admin":
+                return fn(*args, **kwargs)
+            
+            # Check if user's role or effective role is in allowed roles
             if user_role not in roles and effective_role not in roles:
                 abort(403)
+            
             return fn(*args, **kwargs)
 
         return wrapper
