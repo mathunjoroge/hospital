@@ -3,84 +3,188 @@
 {% block title %}Live Queue Dashboard{% endblock %}
 
 {% block content %}
-<!-- Load Tailwind just for this specific dashboard component -->
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-<div class="max-w-7xl mx-auto px-4 py-6">
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+<div class="container-fluid" x-data="queueApp()" x-init="init()">
+    <!-- Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
         <div>
-            <h1 class="text-3xl font-bold" style="color: var(--text-color);">Outpatient Flow Dashboard</h1>
-            <p class="mt-1" style="color: #64748b;">Provider ID: <span id="provider-display" class="font-semibold text-blue-600"></span></p>
+            <h1 class="h3 mb-0">
+                <i class="bi bi-people-fill text-primary me-2"></i>
+                Outpatient Flow Dashboard
+            </h1>
+            <p class="text-muted mt-1 mb-0">
+                Provider ID: <span class="fw-bold text-primary" x-text="providerId"></span>
+            </p>
         </div>
-        <button onclick="window.location.reload()" class="px-4 py-2 border rounded-lg text-sm font-medium shadow-sm transition" style="background-color: var(--card-bg); color: var(--text-color); border-color: #e2e8f0;">
-            <i class="bi bi-arrow-clockwise me-2"></i> Refresh
+        <button @click="fetchQueue()" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-clockwise me-2"></i> Refresh Now
         </button>
     </div>
 
     <!-- Stats Row -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="rounded-xl shadow-sm border p-6 flex items-center justify-between" style="background-color: var(--card-bg); border-color: #e2e8f0;">
-            <div>
-                <p class="text-sm font-medium" style="color: #64748b;">Total Scheduled Today</p>
-                <p id="stat-total" class="text-3xl font-bold mt-1" style="color: var(--text-color);">--</p>
-            </div>
-            <div class="p-3 bg-blue-50 rounded-full text-blue-600">
-                <i class="bi bi-calendar3 text-2xl"></i>
-            </div>
-        </div>
-        <div class="rounded-xl shadow-sm border p-6 flex items-center justify-between" style="background-color: var(--card-bg); border-color: #e2e8f0;">
-            <div>
-                <p class="text-sm font-medium" style="color: #64748b;">Waiting in Queue</p>
-                <p id="stat-waiting" class="text-3xl font-bold mt-1 text-amber-500">--</p>
-            </div>
-            <div class="p-3 bg-amber-50 rounded-full text-amber-500">
-                <i class="bi bi-hourglass-split text-2xl"></i>
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted small mb-1">Total Scheduled</p>
+                        <p class="h2 mb-0 fw-bold" x-text="totalScheduled">--</p>
+                    </div>
+                    <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+                        <i class="bi bi-calendar3 fs-3 text-primary"></i>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="rounded-xl shadow-sm border p-6 flex items-center justify-between" style="background-color: var(--card-bg); border-color: #e2e8f0;">
-            <div>
-                <p class="text-sm font-medium" style="color: #64748b;">In Consultation</p>
-                <p id="stat-in-progress" class="text-3xl font-bold mt-1 text-green-600">--</p>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted small mb-1">Waiting in Queue</p>
+                        <p class="h2 mb-0 fw-bold text-warning" x-text="waitingCount">--</p>
+                    </div>
+                    <div class="bg-warning bg-opacity-10 rounded-circle p-3">
+                        <i class="bi bi-hourglass-split fs-3 text-warning"></i>
+                    </div>
+                </div>
             </div>
-            <div class="p-3 bg-green-50 rounded-full text-green-600">
-                <i class="bi bi-clipboard2-pulse text-2xl"></i>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted small mb-1">In Consultation</p>
+                        <p class="h2 mb-0 fw-bold text-success" x-text="inConsultation">--</p>
+                    </div>
+                    <div class="bg-success bg-opacity-10 rounded-circle p-3">
+                        <i class="bi bi-clipboard2-pulse fs-3 text-success"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Live Queue Table -->
-    <div class="rounded-xl shadow-sm border overflow-hidden" style="background-color: var(--card-bg); border-color: #e2e8f0;">
-        <div class="px-6 py-4 border-b flex justify-between items-center" style="border-color: #e2e8f0;">
-            <h2 class="text-lg font-semibold" style="color: var(--text-color);">Live Waiting Room Queue</h2>
-            <span class="flex items-center text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
-                <span class="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
-                Auto-refreshing
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Live Waiting Room Queue</h5>
+            <span class="badge bg-success bg-opacity-10 text-success">
+                <span class="spinner-grow spinner-grow-sm me-1" role="status"></span>
+                Auto-refreshing (5s)
             </span>
         </div>
-        
-        <div id="queue-container" 
-             hx-get="/appointments/api/queue/1" 
-             hx-trigger="load, every 5s"
-             hx-swap="innerHTML"
-             class="p-4">
-            <div class="text-center py-8" style="color: #64748b;">
+        <div class="card-body p-0">
+            <!-- Loading State -->
+            <div x-show="loading" class="text-center py-5">
                 <div class="spinner-border text-primary" role="status"></div>
-                <p class="mt-2">Connecting to live queue...</p>
+                <p class="text-muted mt-3">Loading queue...</p>
+            </div>
+
+            <!-- Empty State (No patients waiting) -->
+            <div x-show="!loading && queue.length === 0" class="text-center py-5">
+                <i class="bi bi-emoji-smile fs-1 text-success d-block mb-3"></i>
+                <h5 class="text-muted">All caught up!</h5>
+                <p class="text-muted mb-0">There are no patients currently waiting in the queue.</p>
+            </div>
+
+            <!-- Data Table -->
+            <div x-show="!loading && queue.length > 0" class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 60px;">#</th>
+                            <th>Patient Details</th>
+                            <th>Check-in Time</th>
+                            <th>Wait Time</th>
+                            <th>Status</th>
+                            <th class="text-end" style="width: 150px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="(patient, index) in queue" :key="patient.id || index">
+                            <tr>
+                                <td>
+                                    <span class="badge bg-primary rounded-pill" x-text="index + 1"></span>
+                                </td>
+                                <td>
+                                    <div class="fw-bold" x-text="patient.name || 'Unknown Patient'"></div>
+                                    <small class="text-muted" x-text="patient.patient_id || patient.id"></small>
+                                </td>
+                                <td class="text-muted" x-text="patient.check_in_time || '--'"></td>
+                                <td>
+                                    <!-- Color code wait times (Red if > 30 mins, Yellow if > 15) -->
+                                    <span class="badge" 
+                                          :class="{
+                                              'bg-danger': (patient.wait_time_mins || 0) > 30,
+                                              'bg-warning text-dark': (patient.wait_time_mins || 0) > 15 && (patient.wait_time_mins || 0) <= 30,
+                                              'bg-success': (patient.wait_time_mins || 0) <= 15
+                                          }" 
+                                          x-text="(patient.wait_time_mins || 0) + ' mins'">
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info text-white">Waiting</span>
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-success" @click="callPatient(patient)">
+                                        <i class="bi bi-megaphone me-1"></i> Call In
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const pathParts = window.location.pathname.split('/');
-        const providerId = pathParts[pathParts.length - 1];
-        document.getElementById('provider-display').textContent = providerId;
+function queueApp() {
+    return {
+        providerId: window.location.pathname.split('/').pop() || '1',
+        queue: [],
+        waitingCount: 0,
+        totalScheduled: 0,
+        inConsultation: 0,
+        loading: true,
         
-        const queueContainer = document.getElementById('queue-container');
-        queueContainer.setAttribute('hx-get', `/appointments/api/queue/${providerId}`);
-        htmx.process(queueContainer);
-    });
+        init() {
+            this.fetchQueue();
+            // Auto-refresh every 5 seconds
+            setInterval(() => this.fetchQueue(), 5000);
+        },
+        
+        async fetchQueue() {
+            try {
+                const response = await fetch(`/appointments/api/queue/${this.providerId}`);
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const data = await response.json();
+                
+                // Map the API response to our UI state
+                // The API returns: {"provider_id":1,"queue":[],"waiting_count":0}
+                this.queue = data.queue || [];
+                this.waitingCount = data.waiting_count || this.queue.length;
+                
+                // Fallback stats if API doesn't provide them
+                this.totalScheduled = data.total_scheduled || this.queue.length;
+                this.inConsultation = data.in_consultation || 0;
+                
+                this.loading = false;
+            } catch (error) {
+                console.error('Error fetching queue:', error);
+                this.loading = false;
+            }
+        },
+        
+        callPatient(patient) {
+            alert(`Calling ${patient.name || 'Patient'} into consultation room...`);
+            // In a full implementation, this would POST to an API to change the patient's status
+            // and remove them from the waiting queue
+        }
+    }
+}
 </script>
 {% endblock %}
