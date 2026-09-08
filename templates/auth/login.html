@@ -1,0 +1,65 @@
+{% extends "auth/base.html" %}
+
+{% block title %}Staff Login | HIMS{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+  <div class="text-center mb-4">
+    <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-25 rounded-circle p-3 mb-3" style="width: 64px; height: 64px;">
+      <i class="bi bi-hospital text-primary fs-2"></i>
+    </div>
+    <h2 class="fw-bold text-white mb-1">HIMS Portal</h2>
+    <p class="text-slate-400 small mb-0" style="color: #94a3b8;">Staff &amp; Clinician Access</p>
+  </div>
+
+  <form method="POST" action="{{ url_for('login') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+    {% if form and form.hidden_tag is defined %}
+      {{ form.hidden_tag() }}
+    {% endif %}
+
+    <div class="mb-3">
+      <label for="username" class="glass-label">Username</label>
+      {% if form and form.username is defined %}
+        {{ form.username(class="form-control glass-input", placeholder="Enter your username") }}
+      {% else %}
+        <input type="text" name="username" id="username" class="form-control glass-input" placeholder="Enter your username" required>
+      {% endif %}
+    </div>
+
+    <div class="mb-3">
+      <label for="password" class="glass-label">Password</label>
+      {% if form and form.password is defined %}
+        {{ form.password(class="form-control glass-input", placeholder="••••••••") }}
+      {% else %}
+        <input type="password" name="password" id="password" class="form-control glass-input" placeholder="••••••••" required>
+      {% endif %}
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between mb-4">
+      <div class="form-check">
+        {% if form and form.remember is defined %}
+          {{ form.remember(class="form-check-input bg-dark border-secondary") }}
+        {% else %}
+          <input class="form-check-input bg-dark border-secondary" type="checkbox" name="remember" id="remember">
+        {% endif %}
+        <label class="form-check-label small text-slate-400" for="remember" style="color: #94a3b8;">
+          Remember me
+        </label>
+      </div>
+      <a href="#" class="text-decoration-none small text-info">Forgot password?</a>
+    </div>
+
+    <button type="submit" class="btn btn-blue-cta w-100">
+      <i class="bi bi-box-arrow-in-right me-2"></i> Sign In
+    </button>
+  </form>
+
+  <div class="mt-4 pt-3 border-top border-white border-opacity-10 text-center">
+    <p class="small text-slate-400 mb-0" style="color: #94a3b8;">
+      Patient? <a href="{{ url_for('patient_portal.login') }}" class="text-cyan-400 text-decoration-none fw-semibold text-info">Access Patient Portal</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
