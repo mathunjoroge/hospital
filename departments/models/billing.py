@@ -278,8 +278,8 @@ class Invoice(db.Model):
     Single unified running invoice per patient.
 
     Operates as an open running balance for a patient until fully settled (status PAID/PARTIAL).
-    Subsequent charges after settlement initiate a new open invoice. Note: Per-encounter / per-visit
-    invoicing is deferred until a dedicated Encounter model is implemented.
+    Subsequent charges after settlement initiate a new open invoice. Invoices are automatically
+    scoped to the patient's active Encounter when available, enabling true per-visit billing.
     Replaces the 6 legacy *Bill tables for new billing operations.
     """
 
@@ -307,6 +307,7 @@ class Invoice(db.Model):
     # Insurance
     insurance_scheme_id = db.Column(db.Integer, nullable=True)  # FK added by 2.3
     insurance_claim_ref = db.Column(db.String(100), nullable=True)
+    encounter_id = db.Column(db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True)
 
     # Audit
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
@@ -443,6 +444,7 @@ class InvoiceLineItem(db.Model):
 
     # Optional FK back to source domain tables
     charge_id = db.Column(db.Integer, db.ForeignKey("charges.id"), nullable=True)
+    encounter_id = db.Column(db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True)
 
     invoice = db.relationship("Invoice", back_populates="line_items")
 

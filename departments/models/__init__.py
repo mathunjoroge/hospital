@@ -24,6 +24,7 @@ from .billing import (
 )
 from .break_glass import BreakGlassAccessLog
 from .budget import VoteHead
+from .encounter import Encounter
 from .facility import Facility, get_home_facility
 from .hr import (
     Allowance,
@@ -237,4 +238,5 @@ __all__ = [
     "StockTake",
     "StockTakeItem",
     "Consent",
+    "Encounter",
 ]

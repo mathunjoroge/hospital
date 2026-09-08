@@ -1,0 +1,60 @@
+import uuid
+from datetime import datetime, timezone
+
+from extensions import db
+
+
+class Encounter(db.Model):
+    """
+    Represents a single clinical interaction/visit (OPD, IPD, Telehealth, Emergency).
+    Acts as the central hub linking clinical orders and financial charges to a specific visit.
+    """
+
+    __tablename__ = "encounters"
+
+    id = db.Column(db.Integer, primary_key=True)
+    encounter_id = db.Column(
+        db.String(36), unique=True, nullable=False, index=True, default=lambda: str(uuid.uuid4())
+    )
+
+    # The patient involved in this visit
+    patient_id = db.Column(
+        db.String(20), db.ForeignKey("patients.patient_id"), nullable=False, index=True
+    )
+
+    # Links to the scheduling systems (Nullable to allow walk-ins/emergencies without prior booking)
+    appointment_id = db.Column(
+        db.String(36), db.ForeignKey("appointments.id"), nullable=True, index=True
+    )
+    clinic_booking_id = db.Column(
+        db.Integer, db.ForeignKey("clinic_bookings.id"), nullable=True, index=True
+    )
+
+    # OPD, IPD, EMERGENCY, TELEHEALTH
+    encounter_type = db.Column(db.String(20), nullable=False, default="OPD")
+    # ACTIVE, DISCHARGED, CANCELLED, ABORTED
+    status = db.Column(db.String(20), nullable=False, default="ACTIVE")
+
+    # The attending clinician for this encounter
+    provider_id = db.Column(db.String(50), nullable=True, index=True)
+    chief_complaint = db.Column(db.Text, nullable=True)
+
+    started_at = db.Column(
+        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    ended_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    created_at = db.Column(
+        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    def close(self):
+        """Marks the encounter as completed/discharged."""
+        self.status = "DISCHARGED"
+        self.ended_at = datetime.now(timezone.utc)

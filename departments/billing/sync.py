@@ -12,6 +12,7 @@ from datetime import datetime
 from flask import current_app
 
 from departments.models.billing import Invoice, InvoiceLineItem, InvoiceStatus, Payment
+from departments.models.encounter import Encounter
 from extensions import db
 
 logger = logging.getLogger(__name__)
@@ -31,13 +32,24 @@ def get_or_create_open_invoice(patient_id: str) -> Invoice:
     Returns:
         Invoice: The patient's current open invoice
     """
-    # Check for existing open invoice
-    invoice = Invoice.query.filter_by(patient_id=patient_id, status=InvoiceStatus.DRAFT).first()
+    # Find the most recent active encounter for this patient
+    active_encounter = Encounter.query.filter_by(
+        patient_id=patient_id, status="ACTIVE"
+    ).order_by(Encounter.started_at.desc()).first()
+    enc_id = active_encounter.id if active_encounter else None
+
+    # Check for existing open invoice scoped to this encounter (or unscoped if no encounter)
+    invoice = Invoice.query.filter_by(
+        patient_id=patient_id,
+        status=InvoiceStatus.DRAFT,
+        encounter_id=enc_id
+    ).first()
 
     if not invoice:
-        # Create new invoice
+        # Create new invoice scoped to the encounter
         invoice = Invoice(
             patient_id=patient_id,
+            encounter_id=enc_id,
             status=InvoiceStatus.DRAFT,
             grand_total=0.0,
             amount_paid=0.0,
@@ -45,7 +57,7 @@ def get_or_create_open_invoice(patient_id: str) -> Invoice:
         )
         db.session.add(invoice)
         db.session.flush()  # Get the ID without committing
-        logger.info(f"Created new invoice {invoice.id} for patient {patient_id}")
+        logger.info(f"Created new invoice {invoice.id} for patient {patient_id} (Encounter: {enc_id})")
 
     return invoice
 
@@ -101,9 +113,10 @@ def sync_charge(
     # Get or create the patient's open invoice
     invoice = get_or_create_open_invoice(patient_id)
 
-    # Create the line item
+    # Create the line item (inherit encounter_id from the invoice)
     line_item = InvoiceLineItem(
         invoice_id=invoice.id,
+        encounter_id=invoice.encounter_id,
         description=description,
         category=category,
         quantity=quantity,
