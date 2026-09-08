@@ -103,6 +103,7 @@ def switch_user():
 
 
 @bp.route("/admin/revert_user")
+@bp.route("/revert_user")
 @login_required
 def revert_user():
     if getattr(current_user, "role", None) == "admin":
