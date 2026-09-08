@@ -431,6 +431,7 @@ def healthz():
 from departments.admin import bp as admin_bp  # noqa: E402
 from departments.analytics import bp as analytics_bp  # noqa: E402
 from departments.api import bp as api_bp  # noqa: E402
+from departments.appointments import bp as appointments_bp  # noqa: E402
 from departments.api.dhis2_exporter import khis_bp  # noqa: E402
 from departments.api.fhir import fhir_bp  # noqa: E402
 from departments.billing import bp as billing_bp  # noqa: E402
@@ -462,6 +463,7 @@ from departments.pharmacy.po_routes import po_bp  # noqa: E402
 from departments.public_health import bp as public_health_bp  # noqa: E402
 from departments.rcm import bp as rcm_bp  # noqa: E402
 from departments.records import bp as records_bp  # noqa: E402
+from departments.referrals import bp as referrals_bp  # noqa: E402
 from departments.security_ops import bp as security_ops_bp  # noqa: E402
 from departments.stores import bp as stores_bp  # noqa: E402
 from departments.stores.transfer_routes import transfer_bp  # noqa: E402
@@ -486,6 +488,8 @@ app.register_blueprint(nursing_bp, url_prefix="/nursing")
 app.register_blueprint(hr_bp, url_prefix="/hr")
 app.register_blueprint(mortuary_bp, url_prefix="/mortuary")
 app.register_blueprint(api_bp, url_prefix="/api")
+app.register_blueprint(appointments_bp)  # backs ui_dashboard's live queue
+app.register_blueprint(referrals_bp)  # backs ui_referrals' handover workbench
 app.register_blueprint(ui_dashboard_bp)
 app.register_blueprint(ui_clinical_bp)
 app.register_blueprint(ui_mch_bp)
