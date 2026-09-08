@@ -1022,9 +1022,7 @@
         }
 
         // Initialize patient search for all #patient_id elements
-          $(document).ready(function () {
-            initPatientSearch('#patient_id');
-          });
+        initPatientSearch('#patient_id');
           // 🔹 Reusable initializer for Clinic search
           function initClinicSearch(selector) {
             if ($(selector).length) {
@@ -1051,12 +1049,9 @@
             }
           }
   
-          // ✅ Initialize patient & clinic inside modal
-          initPatientSearch('#patient_id');
-          initClinicSearch('#clinic_id');
-        } catch (e) {
-          console.error('Initialization error:', e);
-        }
+        // ✅ Initialize patient & clinic inside modal
+        initPatientSearch('#patient_id');
+        initClinicSearch('#clinic_id');
 
 
 
@@ -1259,7 +1254,10 @@
         }
 
         console.log("✅ Select2, Sidebar Nav & Bootstrap initialized successfully!");
-      });
+      } catch (e) {
+        console.error('Initialization error:', e);
+      }
+    });
 
     // 🔹 PWA Service Worker & Network Connectivity Monitoring
     if ('serviceWorker' in navigator) {
@@ -1283,7 +1281,7 @@
         }
       } else if (banner) {
         banner.remove();
-        showThemeToast('Network connection restored.');
+        showToast('Network connection restored.');
       }
     }
     window.addEventListener('online', updateOnlineStatus);
