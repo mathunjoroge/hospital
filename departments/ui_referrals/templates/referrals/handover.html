@@ -1,43 +1,176 @@
 {% extends "base.html" %}
+
 {% block title %}Referral & Discharge Handover{% endblock %}
+
 {% block content %}
-<script src="https://cdn.tailwindcss.com"></script>
+<!-- Load Alpine.js for reactivity -->
 <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-<div class="max-w-5xl mx-auto px-4 py-6" x-data="referralApp()">
-    <div class="flex space-x-1 bg-gray-200 p-1 rounded-lg mb-6 max-w-lg">
-        <button @click="tab='ref'" :class="tab==='ref'?'bg-white shadow text-gray-900':'text-gray-500'" class="flex-1 py-2 px-4 rounded-md text-sm font-medium">Referrals</button>
-        <button @click="tab='dis'" :class="tab==='dis'?'bg-white shadow text-gray-900':'text-gray-500'" class="flex-1 py-2 px-4 rounded-md text-sm font-medium">Discharge</button>
+
+<div class="container-fluid" x-data="referralApp()">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 mb-0">
+                <i class="bi bi-arrow-left-right text-indigo me-2"></i>
+                Referral & Discharge Handover
+            </h1>
+            <p class="text-muted mt-1">Continuity of Care Management</p>
+        </div>
     </div>
-    <div x-show="tab==='ref'" class="rounded-xl shadow-sm border p-6" style="background-color: var(--card-bg); border-color: #e2e8f0;">
-        <h2 class="text-lg font-bold mb-4" style="color: var(--text-color);">Initiate Inter-Facility Referral</h2>
-        <input type="number" x-model="patientId" placeholder="Patient ID" class="w-full rounded-lg border p-2.5 text-sm mb-3" style="background-color: var(--content-bg); color: var(--text-color); border-color: #cbd5e1;">
-        <select x-model="receiving" class="w-full rounded-lg border p-2.5 text-sm mb-3" style="background-color: var(--content-bg); color: var(--text-color); border-color: #cbd5e1;">
-            <option value="">Select Receiving Facility...</option>
-            <option>Level 3 - Health Centre</option><option>Level 4 - Sub-County</option><option>Level 5 - County Referral</option>
-        </select>
-        <textarea x-model="reason" placeholder="Reason for referral..." class="w-full rounded-lg border p-2.5 text-sm mb-3" rows="3" style="background-color: var(--content-bg); color: var(--text-color); border-color: #cbd5e1;"></textarea>
-        <button @click="initiate" class="w-full py-2.5 px-4 bg-indigo-600 text-white rounded-lg text-sm font-medium">Initiate Referral</button>
-        <div x-show="msg" class="mt-4 p-3 rounded bg-green-50 text-green-700 text-sm" x-text="msg"></div>
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-pills mb-4">
+        <li class="nav-item">
+            <button class="nav-link" :class="tab==='ref'?'active':''" @click="tab='ref'">
+                <i class="bi bi-hospital me-2"></i> Referrals
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" :class="tab==='dis'?'active':''" @click="tab='dis'">
+                <i class="bi bi-box-arrow-right me-2"></i> Discharge
+            </button>
+        </li>
+    </ul>
+
+    <!-- Referrals Tab -->
+    <div x-show="tab==='ref'">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="mb-0">
+                            <i class="bi bi-hospital me-2"></i>
+                            Initiate Inter-Facility Referral
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Patient ID</label>
+                            <input type="number" x-model="patientId" class="form-control" placeholder="Enter Patient ID">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Receiving Facility</label>
+                            <select x-model="receiving" class="form-select">
+                                <option value="">Select Receiving Facility...</option>
+                                <option>Level 3 - Health Centre</option>
+                                <option>Level 4 - Sub-County</option>
+                                <option>Level 5 - County Referral</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Reason for Referral</label>
+                            <textarea x-model="reason" class="form-control" rows="3" placeholder="Clinical reason for referral..."></textarea>
+                        </div>
+                        <button @click="initiate" class="btn btn-indigo w-100" style="background-color: #6366f1; color: white;">
+                            <i class="bi bi-send me-2"></i> Initiate Referral
+                        </button>
+                        <div x-show="msg" class="alert alert-success mt-3 mb-0">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            <span x-text="msg"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div x-show="tab==='dis'" class="rounded-xl shadow-sm border p-6" style="background-color: var(--card-bg); border-color: #e2e8f0;">
-        <h2 class="text-lg font-bold mb-4" style="color: var(--text-color);">Generate Discharge Summary</h2>
-        <input type="number" x-model="patientId" placeholder="Patient ID" class="w-full rounded-lg border p-2.5 text-sm mb-3" style="background-color: var(--content-bg); color: var(--text-color); border-color: #cbd5e1;">
-        <input type="text" x-model="diagnosis" placeholder="Primary Diagnosis" class="w-full rounded-lg border p-2.5 text-sm mb-3" style="background-color: var(--content-bg); color: var(--text-color); border-color: #cbd5e1;">
-        <button @click="discharge" class="w-full py-2.5 px-4 bg-teal-600 text-white rounded-lg text-sm font-medium">Generate Summary</button>
-        <div x-show="msg" class="mt-4 p-3 rounded bg-green-50 text-green-700 text-sm" x-text="msg"></div>
+
+    <!-- Discharge Tab -->
+    <div x-show="tab==='dis'">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="mb-0">
+                            <i class="bi bi-box-arrow-right me-2"></i>
+                            Generate Discharge Summary
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Patient ID</label>
+                            <input type="number" x-model="patientId" class="form-control" placeholder="Enter Patient ID">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Primary Diagnosis</label>
+                            <input type="text" x-model="diagnosis" class="form-control" placeholder="e.g., Community Acquired Pneumonia">
+                        </div>
+                        <button @click="discharge" class="btn btn-teal w-100" style="background-color: #14b8a6; color: white;">
+                            <i class="bi bi-file-earmark-text me-2"></i> Generate Summary
+                        </button>
+                        <div x-show="msg" class="alert alert-success mt-3 mb-0">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            <span x-text="msg"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
 <script>
 function referralApp() {
     return {
-        tab: 'ref', patientId: '', receiving: '', reason: '', diagnosis: '', msg: '',
+        tab: 'ref',
+        patientId: '',
+        receiving: '',
+        reason: '',
+        diagnosis: '',
+        msg: '',
+        
         async initiate() {
-            const r = await fetch('/referrals/api/initiate', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({patient_id:parseInt(this.patientId), referring_facility:'Current', receiving_facility:this.receiving, reason:this.reason, clinical_summary:this.reason})});
-            const d = await r.json(); if(r.ok) this.msg = 'Referral initiated: ' + d.referral_id;
+            if(!this.patientId || !this.receiving || !this.reason) {
+                alert('Please fill all fields');
+                return;
+            }
+            try {
+                const r = await fetch('/referrals/api/initiate', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        patient_id: parseInt(this.patientId),
+                        referring_facility: 'Current',
+                        receiving_facility: this.receiving,
+                        reason: this.reason,
+                        clinical_summary: this.reason
+                    })
+                });
+                const d = await r.json();
+                if(r.ok) {
+                    this.msg = 'Referral initiated: ' + d.referral_id;
+                } else {
+                    alert('Failed to initiate referral');
+                }
+            } catch (e) {
+                console.error('Referral initiation failed:', e);
+                alert('Failed to initiate referral');
+            }
         },
+        
         async discharge() {
-            const r = await fetch('/referrals/api/discharge', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({patient_id:parseInt(this.patientId), primary_diagnosis:this.diagnosis, admission_date:new Date().toISOString().split('T')[0]})});
-            const d = await r.json(); if(r.ok) this.msg = 'Summary generated: ' + d.summary_id;
+            if(!this.patientId || !this.diagnosis) {
+                alert('Please fill all fields');
+                return;
+            }
+            try {
+                const r = await fetch('/referrals/api/discharge', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        patient_id: parseInt(this.patientId),
+                        primary_diagnosis: this.diagnosis,
+                        admission_date: new Date().toISOString().split('T')[0]
+                    })
+                });
+                const d = await r.json();
+                if(r.ok) {
+                    this.msg = 'Summary generated: ' + d.summary_id;
+                } else {
+                    alert('Failed to generate discharge summary');
+                }
+            } catch (e) {
+                console.error('Discharge failed:', e);
+                alert('Failed to generate discharge summary');
+            }
         }
     }
 }

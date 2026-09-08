@@ -1,63 +1,233 @@
 {% extends "base.html" %}
+
 {% block title %}MCH & Immunization Workbench{% endblock %}
+
 {% block content %}
-<script src="https://cdn.tailwindcss.com"></script>
+<!-- Load Alpine.js for reactivity -->
 <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-<div class="max-w-6xl mx-auto px-4 py-6" x-data="mchApp()">
-    <div class="flex space-x-1 bg-gray-200 p-1 rounded-lg mb-6 max-w-md">
-        <button @click="activeTab = 'immunization'" :class="activeTab === 'immunization' ? 'bg-white shadow text-gray-900' : 'text-gray-500'" class="flex-1 py-2 px-4 rounded-md text-sm font-medium">Immunization</button>
-        <button @click="activeTab = 'anc'" :class="activeTab === 'anc' ? 'bg-white shadow text-gray-900' : 'text-gray-500'" class="flex-1 py-2 px-4 rounded-md text-sm font-medium">ANC Visits</button>
+
+<div class="container-fluid" x-data="mchApp()">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 mb-0">
+                <i class="bi bi-heart-pulse text-pink me-2"></i>
+                MCH & Immunization Workbench
+            </h1>
+            <p class="text-muted mt-1">Maternal & Child Health Management</p>
+        </div>
     </div>
-    <div x-show="activeTab === 'immunization'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-1 rounded-xl shadow-sm border p-6" style="background-color: var(--card-bg); border-color: #e2e8f0;">
-            <h2 class="text-sm font-semibold uppercase mb-4" style="color: #64748b;">Child Lookup</h2>
-            <input type="number" x-model="childId" placeholder="Child Patient ID" class="w-full rounded-lg border p-2.5 text-sm mb-3" style="background-color: var(--content-bg); color: var(--text-color); border-color: #cbd5e1;">
-            <input type="number" x-model="childAgeWeeks" placeholder="Age in Weeks" class="w-full rounded-lg border p-2.5 text-sm mb-3" style="background-color: var(--content-bg); color: var(--text-color); border-color: #cbd5e1;">
-            <button @click="fetchSchedule" class="w-full py-2.5 px-4 bg-pink-600 text-white rounded-lg text-sm font-medium">Load Schedule</button>
-            <div class="mt-4 space-y-2" x-show="dueVaccines.length > 0">
-                <template x-for="v in dueVaccines" :key="v.vaccine_name + v.dose_number">
-                    <div class="p-2 rounded border text-sm" :class="v.status === 'OVERDUE' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'">
-                        <span class="font-bold" x-text="v.vaccine_name + ' (Dose ' + v.dose_number + ')'"></span>
-                        <span class="text-xs ml-2" x-text="v.status"></span>
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-pills mb-4">
+        <li class="nav-item">
+            <button class="nav-link" :class="activeTab === 'immunization' ? 'active' : ''" @click="activeTab = 'immunization'">
+                <i class="bi bi-droplet me-2"></i> Immunization
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" :class="activeTab === 'anc' ? 'active' : ''" @click="activeTab = 'anc'">
+                <i class="bi bi-person-hearts me-2"></i> ANC Visits
+            </button>
+        </li>
+    </ul>
+
+    <!-- Immunization Tab -->
+    <div x-show="activeTab === 'immunization'">
+        <div class="row g-4">
+            <!-- Child Lookup -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="mb-0">
+                            <i class="bi bi-search me-2"></i>
+                            Child Lookup
+                        </h5>
                     </div>
-                </template>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Child Patient ID</label>
+                            <input type="number" x-model="childId" class="form-control" placeholder="Enter Child ID">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Age in Weeks</label>
+                            <input type="number" x-model="childAgeWeeks" class="form-control" placeholder="e.g., 24">
+                        </div>
+                        <button @click="fetchSchedule" class="btn btn-pink w-100" style="background-color: #ec4899; color: white;">
+                            <i class="bi bi-calendar-check me-2"></i> Load Schedule
+                        </button>
+
+                        <!-- Due Vaccines -->
+                        <div x-show="dueVaccines.length > 0" class="mt-4">
+                            <h6 class="fw-semibold mb-3">Due Vaccines</h6>
+                            <template x-for="v in dueVaccines" :key="v.vaccine_name + v.dose_number">
+                                <div class="alert mb-2 py-2 px-3" :class="v.status === 'OVERDUE' ? 'alert-danger' : 'alert-info'">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong x-text="v.vaccine_name + ' (Dose ' + v.dose_number + ')'"></strong>
+                                        <span class="badge" :class="v.status === 'OVERDUE' ? 'bg-danger' : 'bg-info'" x-text="v.status"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Record Immunization -->
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="mb-0">
+                            <i class="bi bi-pencil-square me-2"></i>
+                            Record Immunization
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Vaccine</label>
+                                <select x-model="selectedVaccine" class="form-select">
+                                    <option value="">Select vaccine...</option>
+                                    <option>BCG</option>
+                                    <option>OPV</option>
+                                    <option>Pentavalent</option>
+                                    <option>PCV</option>
+                                    <option>Measles-Rubella</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Dose Number</label>
+                                <input type="number" x-model="doseNumber" class="form-control" placeholder="1">
+                            </div>
+                        </div>
+                        <button @click="recordImmunization" class="btn btn-pink mt-3" style="background-color: #ec4899; color: white;">
+                            <i class="bi bi-check-circle me-2"></i> Record Vaccination
+                        </button>
+                        <div x-show="successMessage" class="alert alert-success mt-3 mb-0">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            <span x-text="successMessage"></span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="lg:col-span-2 rounded-xl shadow-sm border p-6" style="background-color: var(--card-bg); border-color: #e2e8f0;">
-            <h2 class="text-lg font-bold mb-4" style="color: var(--text-color);">Record Immunization</h2>
-            <select x-model="selectedVaccine" class="w-full rounded-lg border p-2.5 text-sm mb-3" style="background-color: var(--content-bg); color: var(--text-color); border-color: #cbd5e1;">
-                <option value="">Select vaccine...</option><option>BCG</option><option>OPV</option><option>Pentavalent</option><option>PCV</option><option>Measles-Rubella</option>
-            </select>
-            <input type="number" x-model="doseNumber" placeholder="Dose Number" class="w-full rounded-lg border p-2.5 text-sm mb-3" style="background-color: var(--content-bg); color: var(--text-color); border-color: #cbd5e1;">
-            <button @click="recordImmunization" class="px-6 py-2.5 bg-pink-600 text-white rounded-lg text-sm font-medium">Record Vaccination</button>
-            <div x-show="successMessage" class="mt-3 p-3 rounded bg-green-50 text-green-700 text-sm" x-text="successMessage"></div>
-        </div>
     </div>
-    <div x-show="activeTab === 'anc'" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="rounded-xl shadow-sm border p-6" style="background-color: var(--card-bg); border-color: #e2e8f0;">
-            <h2 class="text-lg font-bold mb-4" style="color: var(--text-color);">Log ANC Visit</h2>
-            <input type="number" x-model="ancPatientId" placeholder="Patient ID" class="w-full rounded-lg border p-2.5 text-sm mb-3" style="background-color: var(--content-bg); color: var(--text-color); border-color: #cbd5e1;">
-            <input type="number" x-model="ancGestationWeeks" placeholder="Gestation Weeks" class="w-full rounded-lg border p-2.5 text-sm mb-3" style="background-color: var(--content-bg); color: var(--text-color); border-color: #cbd5e1;">
-            <button @click="logAncVisit" class="w-full py-2.5 px-4 bg-purple-600 text-white rounded-lg text-sm font-medium">Log Visit</button>
-            <div x-show="ancSuccess" class="mt-3 p-3 rounded bg-green-50 text-green-700 text-sm" x-text="ancSuccess"></div>
+
+    <!-- ANC Tab -->
+    <div x-show="activeTab === 'anc'">
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom">
+                        <h5 class="mb-0">
+                            <i class="bi bi-person-hearts me-2"></i>
+                            Log ANC Visit
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Patient ID</label>
+                            <input type="number" x-model="ancPatientId" class="form-control" placeholder="Enter Patient ID">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Gestation Weeks</label>
+                            <input type="number" x-model="ancGestationWeeks" class="form-control" placeholder="e.g., 20">
+                        </div>
+                        <button @click="logAncVisit" class="btn btn-purple w-100" style="background-color: #a855f7; color: white;">
+                            <i class="bi bi-calendar-plus me-2"></i> Log Visit
+                        </button>
+                        <div x-show="ancSuccess" class="alert alert-success mt-3 mb-0">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            <span x-text="ancSuccess"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
 <script>
 function mchApp() {
     return {
-        activeTab: 'immunization', childId: '', childAgeWeeks: '', dueVaccines: [], selectedVaccine: '', doseNumber: 1, successMessage: '', ancPatientId: '', ancGestationWeeks: '', ancSuccess: '',
+        activeTab: 'immunization',
+        childId: '',
+        childAgeWeeks: '',
+        dueVaccines: [],
+        selectedVaccine: '',
+        doseNumber: 1,
+        successMessage: '',
+        ancPatientId: '',
+        ancGestationWeeks: '',
+        ancSuccess: '',
+        
         async fetchSchedule() {
-            if(!this.childId||!this.childAgeWeeks) return;
-            const r = await fetch(`/mch/api/child/${this.childId}/schedule?age_weeks=${this.childAgeWeeks}`); const d = await r.json(); this.dueVaccines = d.vaccines||[];
+            if(!this.childId || !this.childAgeWeeks) {
+                alert('Please enter Child ID and Age');
+                return;
+            }
+            try {
+                const r = await fetch(`/mch/api/child/${this.childId}/schedule?age_weeks=${this.childAgeWeeks}`);
+                const d = await r.json();
+                this.dueVaccines = d.vaccines || [];
+            } catch (e) {
+                console.error('Failed to fetch schedule:', e);
+                alert('Failed to load immunization schedule');
+            }
         },
+        
         async recordImmunization() {
-            const r = await fetch('/mch/api/immunize', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({child_patient_id:parseInt(this.childId), vaccine_name:this.selectedVaccine, dose_number:parseInt(this.doseNumber)})});
-            const d = await r.json(); if(r.ok) { this.successMessage = "Recorded!"; this.fetchSchedule(); }
+            if(!this.selectedVaccine) {
+                alert('Please select a vaccine');
+                return;
+            }
+            try {
+                const r = await fetch('/mch/api/immunize', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        child_patient_id: parseInt(this.childId),
+                        vaccine_name: this.selectedVaccine,
+                        dose_number: parseInt(this.doseNumber)
+                    })
+                });
+                const d = await r.json();
+                if(r.ok) {
+                    this.successMessage = "Immunization recorded successfully!";
+                    this.fetchSchedule();
+                } else {
+                    alert('Failed to record immunization');
+                }
+            } catch (e) {
+                console.error('Failed to record immunization:', e);
+                alert('Failed to record immunization');
+            }
         },
+        
         async logAncVisit() {
-            const r = await fetch('/mch/api/anc-visit', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({patient_id:parseInt(this.ancPatientId), visit_number:1, gestation_weeks:parseInt(this.ancGestationWeeks)})});
-            const d = await r.json(); if(r.ok) this.ancSuccess = "Logged! Next: " + d.next_appointment_date;
+            if(!this.ancPatientId || !this.ancGestationWeeks) {
+                alert('Please enter Patient ID and Gestation Weeks');
+                return;
+            }
+            try {
+                const r = await fetch('/mch/api/anc-visit', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        patient_id: parseInt(this.ancPatientId),
+                        visit_number: 1,
+                        gestation_weeks: parseInt(this.ancGestationWeeks)
+                    })
+                });
+                const d = await r.json();
+                if(r.ok) {
+                    this.ancSuccess = "Visit logged! Next appointment: " + d.next_appointment_date;
+                } else {
+                    alert('Failed to log ANC visit');
+                }
+            } catch (e) {
+                console.error('Failed to log ANC visit:', e);
+                alert('Failed to log ANC visit');
+            }
         }
     }
 }

@@ -1,52 +1,162 @@
 {% extends "base.html" %}
+
 {% block title %}Prescription Safety Workbench{% endblock %}
+
 {% block content %}
-<script src="https://cdn.tailwindcss.com"></script>
+<!-- Load Alpine.js for reactivity -->
 <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-<div class="max-w-5xl mx-auto px-4 py-6" x-data="prescriptionApp()">
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-1 space-y-6">
-            <div class="rounded-xl shadow-sm border p-6" style="background-color: var(--card-bg); border-color: #e2e8f0;">
-                <h2 class="text-sm font-semibold uppercase tracking-wider mb-4" style="color: #64748b;">DPA 2019 Consent Gate</h2>
-                <input type="number" x-model="patientId" placeholder="Patient ID" class="w-full rounded-lg border p-2.5 text-sm mb-3" style="background-color: var(--content-bg); color: var(--text-color); border-color: #cbd5e1;">
-                <button @click="checkConsent" class="w-full py-2.5 px-4 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-900">Verify Consent</button>
-                <div x-show="consentStatus === 'ACTIVE'" class="mt-3 p-3 rounded-lg bg-green-50 text-green-800 text-sm">✅ Consent Active</div>
-                <div x-show="consentStatus !== 'ACTIVE' && consentStatus !== null" class="mt-3 p-3 rounded-lg bg-red-50 text-red-800 text-sm">❌ Consent <span x-text="consentStatus"></span></div>
+
+<div class="container-fluid" x-data="prescriptionApp()">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 mb-0">
+                <i class="bi bi-shield-check text-danger me-2"></i>
+                Prescription Safety Workbench
+            </h1>
+            <p class="text-muted mt-1">DPA 2019 Consent & CDS Safety Checks</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left Column: Consent & Prescription Input -->
+        <div class="col-lg-4">
+            <!-- Consent Gate -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-check me-2"></i>
+                        DPA 2019 Consent Gate
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Patient ID</label>
+                        <input type="number" x-model="patientId" class="form-control" placeholder="Enter Patient ID">
+                    </div>
+                    <button @click="checkConsent" class="btn btn-dark w-100">
+                        <i class="bi bi-check-circle me-2"></i> Verify Consent
+                    </button>
+                    
+                    <div x-show="consentStatus === 'ACTIVE'" class="alert alert-success mt-3 mb-0">
+                        <i class="bi bi-check-circle-fill me-2"></i> Consent Active
+                    </div>
+                    <div x-show="consentStatus !== 'ACTIVE' && consentStatus !== null" class="alert alert-danger mt-3 mb-0">
+                        <i class="bi bi-x-circle-fill me-2"></i> Consent <span x-text="consentStatus"></span>
+                    </div>
+                </div>
             </div>
-            <div class="rounded-xl shadow-sm border p-6" style="background-color: var(--card-bg); border-color: #e2e8f0;">
-                <h2 class="text-sm font-semibold uppercase tracking-wider mb-4" style="color: #64748b;">New Prescription</h2>
-                <input type="text" x-model="drugIds" placeholder="Drug IDs (comma-separated)" class="w-full rounded-lg border p-2.5 text-sm mb-3" style="background-color: var(--content-bg); color: var(--text-color); border-color: #cbd5e1;">
-                <button @click="runSafetyCheck" :disabled="consentStatus !== 'ACTIVE'" class="w-full py-2.5 px-4 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">Run CDS Safety Check</button>
+
+            <!-- New Prescription -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0">
+                        <i class="bi bi-capsule me-2"></i>
+                        New Prescription
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Drug IDs (comma-separated)</label>
+                        <input type="text" x-model="drugIds" class="form-control" placeholder="e.g., 1, 2, 3">
+                    </div>
+                    <button @click="runSafetyCheck" :disabled="consentStatus !== 'ACTIVE'" class="btn btn-primary w-100">
+                        <i class="bi bi-shield-fill-check me-2"></i> Run CDS Safety Check
+                    </button>
+                    <small class="text-muted mt-2 d-block">
+                        <i class="bi bi-info-circle me-1"></i> Consent must be active to proceed
+                    </small>
+                </div>
             </div>
         </div>
-        <div class="lg:col-span-2 rounded-xl shadow-sm border p-6" style="background-color: var(--card-bg); border-color: #e2e8f0;">
-            <h2 class="text-lg font-bold mb-4" style="color: var(--text-color);">CDS Safety Alerts</h2>
-            <div x-show="hasRunCheck && alerts.length === 0" class="p-4 rounded-lg bg-green-50 text-green-800">✅ Safe to Prescribe. No conflicts detected.</div>
-            <div x-show="alerts.length > 0" class="space-y-3">
-                <template x-for="alert in alerts" :key="alert.message">
-                    <div class="p-4 rounded-lg border" :class="alert.severity === 'CRITICAL' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-yellow-50 border-yellow-200 text-yellow-800'">
-                        <div class="font-bold text-sm flex items-center"><span x-text="alert.alert_type"></span><span class="ml-2 px-2 py-0.5 rounded text-xs font-semibold" :class="alert.severity === 'CRITICAL' ? 'bg-red-200 text-red-900' : 'bg-yellow-200 text-yellow-900'" x-text="alert.severity"></span></div>
-                        <p class="text-sm mt-1" x-text="alert.message"></p>
+
+        <!-- Right Column: Safety Alerts -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        CDS Safety Alerts
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- No alerts -->
+                    <div x-show="hasRunCheck && alerts.length === 0" class="alert alert-success mb-0">
+                        <i class="bi bi-check-circle-fill me-2"></i> Safe to Prescribe. No conflicts detected.
                     </div>
-                </template>
+
+                    <!-- Alerts list -->
+                    <div x-show="alerts.length > 0">
+                        <template x-for="alert in alerts" :key="alert.message">
+                            <div class="alert mb-3" :class="alert.severity === 'CRITICAL' ? 'alert-danger' : 'alert-warning'">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <strong class="d-block">
+                                        <i class="bi me-2" :class="alert.severity === 'CRITICAL' ? 'bi-x-octagon-fill' : 'bi-exclamation-triangle-fill'"></i>
+                                        <span x-text="alert.alert_type"></span>
+                                    </strong>
+                                    <span class="badge" :class="alert.severity === 'CRITICAL' ? 'bg-danger' : 'bg-warning text-dark'" x-text="alert.severity"></span>
+                                </div>
+                                <p class="mb-0" x-text="alert.message"></p>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Initial state -->
+                    <div x-show="!hasRunCheck" class="text-center py-5 text-muted">
+                        <i class="bi bi-shield fs-1 d-block mb-3"></i>
+                        <p class="mb-0">Enter patient and drug information to run safety checks</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
 <script>
 function prescriptionApp() {
     return {
-        patientId: '', drugIds: '', consentStatus: null, hasRunCheck: false, alerts: [],
+        patientId: '', 
+        drugIds: '', 
+        consentStatus: null, 
+        hasRunCheck: false, 
+        alerts: [],
+        
         async checkConsent() {
-            if (!this.patientId) return;
-            const res = await fetch(`/consent/api/check?patient_id=${this.patientId}&consent_type=TREATMENT`);
-            const data = await res.json(); this.consentStatus = data.status;
+            if (!this.patientId) {
+                alert('Please enter a Patient ID');
+                return;
+            }
+            try {
+                const res = await fetch(`/consent/api/check?patient_id=${this.patientId}&consent_type=TREATMENT`);
+                const data = await res.json();
+                this.consentStatus = data.status;
+            } catch (e) {
+                console.error('Consent check failed:', e);
+                alert('Failed to check consent');
+            }
         },
+        
         async runSafetyCheck() {
-            if (!this.patientId || !this.drugIds) return;
-            const drugArray = this.drugIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-            const res = await fetch('/clinical-safety/api/check', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({patient_id: parseInt(this.patientId), drug_ids: drugArray}) });
-            const data = await res.json(); this.alerts = data.alerts || []; this.hasRunCheck = true;
+            if (!this.patientId || !this.drugIds) {
+                alert('Please enter Patient ID and Drug IDs');
+                return;
+            }
+            try {
+                const drugArray = this.drugIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+                const res = await fetch('/clinical-safety/api/check', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        patient_id: parseInt(this.patientId),
+                        drug_ids: drugArray
+                    })
+                });
+                const data = await res.json();
+                this.alerts = data.alerts || [];
+                this.hasRunCheck = true;
+            } catch (e) {
+                console.error('Safety check failed:', e);
+                alert('Failed to run safety check');
+            }
         }
     }
 }
