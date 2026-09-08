@@ -7,6 +7,7 @@ providing real-time safety checks during prescription workflows.
 
 from flask import jsonify, request
 from flask_login import current_user, login_required
+from departments.rbac import roles_required
 
 from . import bp
 from .engine import ClinicalSafetyEngine
