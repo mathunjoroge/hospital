@@ -19,7 +19,6 @@ def client():
 
 def test_unauthorized_role_returns_403(client):
     """Verify that accessing admin routes with non-admin role returns 403 Forbidden."""
-    # Create test user in DB
     user = User(id=999, username="nurse_user", password="password", role="nursing")
     db.session.add(user)
     db.session.commit()
@@ -30,3 +29,32 @@ def test_unauthorized_role_returns_403(client):
 
     resp = client.get("/admin/")
     assert resp.status_code == 403
+
+
+def test_admin_switched_user_role_enforcement(client):
+    """
+    Verify that when an admin switches role (e.g. to nursing), the effective role
+    restricts their access to non-nursing routes (e.g. 403 on admin-only route),
+    while an admin with no active switch retains full access.
+    """
+    admin_user = User(id=1000, username="admin_user", password="password", role="admin")
+    db.session.add(admin_user)
+    db.session.commit()
+
+    # 1. Admin without role switch -> Full access (200 OK)
+    with client.session_transaction() as sess:
+        sess["_user_id"] = "1000"
+        sess["_fresh"] = True
+        sess.pop("switched_user", None)
+
+    resp_normal = client.get("/admin/")
+    assert resp_normal.status_code == 200, f"Expected 200 for un-switched admin, got {resp_normal.status_code}"
+
+    # 2. Admin with switched_user = 'nursing' -> Restricted from admin route (403 Forbidden)
+    with client.session_transaction() as sess:
+        sess["_user_id"] = "1000"
+        sess["_fresh"] = True
+        sess["switched_user"] = "nursing"
+
+    resp_switched = client.get("/admin/")
+    assert resp_switched.status_code == 403, f"Expected 403 for admin switched to nursing, got {resp_switched.status_code}"

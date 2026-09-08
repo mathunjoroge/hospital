@@ -44,12 +44,12 @@ def roles_required(*roles):
             user_role = user.role
             effective_role = get_effective_role()
 
-            # Admin always has access (standard RBAC pattern)
-            if user_role == "admin":
+            # Admin always has access (standard RBAC pattern) unless role switch is active
+            if user_role == "admin" and "switched_user" not in session:
                 return fn(*args, **kwargs)
 
-            # Check if user's role or effective role is in allowed roles
-            if user_role not in roles and effective_role not in roles:
+            # Check if effective role is in allowed roles
+            if effective_role not in roles:
                 abort(403)
 
             return fn(*args, **kwargs)
