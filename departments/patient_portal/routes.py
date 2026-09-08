@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from flask import (
     flash,
@@ -10,7 +10,7 @@ from flask import (
 )
 
 from departments.api.audit import log_audit_event
-from departments.models.billing import Invoice, Payment
+from departments.models.billing import Invoice, InvoiceLineItem, Payment
 from departments.models.insurance import Claim, PatientInsurance
 from departments.models.medicine import RequestedLab
 from departments.models.records import Clinic, ClinicBooking
@@ -221,3 +221,107 @@ def update_profile():
 
     flash("Profile contact details updated successfully.", "success")
     return redirect(url_for("patient_portal.dashboard"))
+
+
+# ==============================================================================
+# PATIENT PORTAL: APPOINTMENT CANCELLATION & BILLING EXPANSION
+# ==============================================================================
+
+
+@patient_portal_bp.route("/appointments/<int:booking_id>/cancel", methods=["POST"])
+@patient_login_required
+def cancel_appointment(booking_id):
+    patient = g.current_patient
+
+    booking = ClinicBooking.query.filter_by(
+        id=booking_id,
+        patient_id=patient.patient_id,
+    ).first()
+
+    if not booking:
+        flash("Appointment not found.", "danger")
+    elif booking.clinic_date <= date.today():
+        flash("You cannot cancel past or today's appointments.", "warning")
+    elif booking.seen == 1:
+        flash("This appointment has already been attended.", "warning")
+    else:
+        clinic_date = booking.clinic_date
+        db.session.delete(booking)
+        db.session.commit()
+
+        log_audit_event(
+            action="CANCEL_APPOINTMENT",
+            resource_type="ClinicBooking",
+            resource_id=str(booking_id),
+            details=f"Patient {patient.name} cancelled appointment for {clinic_date}",
+            user_id=g.current_patient_user.id,
+        )
+
+        flash("Appointment successfully cancelled.", "success")
+
+    return redirect(url_for("patient_portal.appointments"))
+
+
+@patient_portal_bp.route("/billing/invoice/<int:invoice_id>")
+@patient_login_required
+def invoice_detail(invoice_id):
+    patient = g.current_patient
+
+    invoice = Invoice.query.filter_by(
+        id=invoice_id,
+        patient_id=patient.patient_id,
+    ).first()
+
+    if not invoice:
+        flash("Invoice not found.", "danger")
+        return redirect(url_for("patient_portal.billing"))
+
+    items = InvoiceLineItem.query.filter_by(invoice_id=invoice.id).all()
+    return render_template(
+        "patient_portal/invoice_detail.html", invoice=invoice, items=items
+    )
+
+
+@patient_portal_bp.route("/billing/invoice/<int:invoice_id>/pay", methods=["POST"])
+@patient_login_required
+def pay_invoice(invoice_id):
+    # Lazy import to avoid potential circular dependency with billing module
+    from departments.billing.mpesa import initiate_stk_push
+
+    patient = g.current_patient
+
+    invoice = Invoice.query.filter_by(
+        id=invoice_id,
+        patient_id=patient.patient_id,
+    ).first()
+
+    if not invoice:
+        flash("Invoice not found.", "danger")
+        return redirect(url_for("patient_portal.billing"))
+
+    phone = request.form.get("phone_number")
+    if not phone:
+        flash("Please enter a valid M-Pesa phone number.", "danger")
+        return redirect(url_for("patient_portal.invoice_detail", invoice_id=invoice.id))
+
+    amount = float(invoice.balance or invoice.grand_total)
+    if amount <= 0:
+        flash("This invoice is already fully paid.", "info")
+        return redirect(url_for("patient_portal.invoice_detail", invoice_id=invoice.id))
+
+    res = initiate_stk_push(
+        phone_number=phone,
+        amount=amount,
+        account_reference=invoice.invoice_number,
+        invoice_id=invoice.id,
+    )
+
+    if res.get("success"):
+        flash(
+            f"STK Push sent to {phone}. Please enter your PIN to complete payment.",
+            "success",
+        )
+    else:
+        flash(f"Payment failed: {res.get('error', 'Unknown error')}", "danger")
+
+    return redirect(url_for("patient_portal.invoice_detail", invoice_id=invoice.id))

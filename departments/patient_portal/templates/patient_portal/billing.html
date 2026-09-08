@@ -16,6 +16,7 @@
                     <th>Total Amount</th>
                     <th>Paid Amount</th>
                     <th>Status</th>
+                <th style="text-align: right;">Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -35,6 +36,10 @@
                         {% endif %}
                     </td>
                 </tr>
+                
+            <td style="text-align: right;">
+                <a href="{{ url_for('patient_portal.invoice_detail', invoice_id=invoice.id) }}" class="btn" style="padding: 0.3rem 0.8rem; font-size: 0.85rem; background-color: var(--primary);">View & Pay</a>
+            </td>
                 {% endfor %}
             </tbody>
         </table>

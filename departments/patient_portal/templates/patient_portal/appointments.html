@@ -35,7 +35,13 @@
                                 {% endif %}
                             </td>
                         </tr>
-                        {% endfor %}
+                        
+            <td style="text-align: right;">
+                <form action="{{ url_for('patient_portal.cancel_appointment', booking_id=b.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to cancel this appointment?');">
+                    <button type="submit" class="btn" style="background-color: var(--accent-red); padding: 0.3rem 0.6rem; font-size: 0.85rem;">Cancel</button>
+                </form>
+            </td>
+                {% endfor %}
                     </tbody>
                 </table>
             {% else %}

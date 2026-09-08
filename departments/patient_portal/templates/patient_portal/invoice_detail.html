@@ -1,0 +1,77 @@
+{% extends "patient_portal/layout.html" %}
+
+{% block title %}Invoice {{ invoice.invoice_number }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 2rem auto;">
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 style="margin: 0;">Invoice #{{ invoice.invoice_number }}</h2>
+            <span class="badge {% if invoice.status.name == 'PAID' %}badge-success{% elif invoice.status.name == 'DRAFT' %}badge-warning{% else %}badge-info{% endif %}">
+                {{ invoice.status.name }}
+            </span>
+        </div>
+        
+        <p style="color: var(--text-muted);">
+            Issued: {{ invoice.created_at.strftime('%Y-%m-%d') }} | 
+            Encounter: {{ invoice.encounter_id or 'N/A' }}
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th>Qty</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.description }}</td>
+                    <td>{{ item.category }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>KES {{ "%.2f"|format(item.unit_price) }}</td>
+                    <td>KES {{ "%.2f"|format(item.total) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="font-weight: bold; background-color: rgba(255,255,255,0.05);">
+                    <td colspan="4" style="text-align: right;">Grand Total:</td>
+                    <td>KES {{ "%.2f"|format(invoice.grand_total) }}</td>
+                </tr>
+                <tr style="color: var(--accent-green);">
+                    <td colspan="4" style="text-align: right;">Amount Paid:</td>
+                    <td>KES {{ "%.2f"|format(invoice.amount_paid) }}</td>
+                </tr>
+                <tr style="color: var(--accent-red); font-weight: bold; font-size: 1.2rem;">
+                    <td colspan="4" style="text-align: right;">Balance Due:</td>
+                    <td>KES {{ "%.2f"|format(invoice.balance) }}</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        {% if invoice.balance > 0 %}
+        <hr style="border-color: var(--border); margin: 2rem 0;">
+        <h3>Pay with M-Pesa</h3>
+        <p style="color: var(--text-muted);">Enter your Safaricom number to receive an STK push for KES {{ "%.2f"|format(invoice.balance) }}.</p>
+        <form action="{{ url_for('patient_portal.pay_invoice', invoice_id=invoice.id) }}" method="POST">
+            <div class="form-group">
+                <label for="phone_number">M-Pesa Phone Number</label>
+                <input type="tel" id="phone_number" name="phone_number" class="form-control" placeholder="e.g. 0712345678" required>
+            </div>
+            <button type="submit" class="btn" style="background-color: var(--accent-green);">
+                Pay KES {{ "%.2f"|format(invoice.balance) }} Now
+            </button>
+        </form>
+        {% endif %}
+        
+        <div style="margin-top: 2rem;">
+            <a href="{{ url_for('patient_portal.billing') }}" style="color: var(--primary);">&larr; Back to Billing</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
