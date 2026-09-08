@@ -16,37 +16,62 @@ depends_on = None
 
 
 def upgrade():
-    # Add soft-delete fields to patients and create new identifier/merge tables
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    tables = inspector.get_table_names()
+    patient_cols = [c['name'] for c in inspector.get_columns('patients')] if 'patients' in tables else []
+
     with op.batch_alter_table('patients', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('ix_patients_name'), ['name'], unique=False)
-        batch_op.create_index(batch_op.f('ix_patients_national_id'), ['national_id'], unique=True)
-        batch_op.create_index(batch_op.f('ix_patients_patient_id'), ['patient_id'], unique=True)
-    op.create_table('patient_identifiers',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('patient_id', sa.String(length=20), nullable=False),
-    sa.Column('identifier_type', sa.String(length=50), nullable=False),
-    sa.Column('identifier_value', sa.String(length=100), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['patient_id'], ['patients.patient_id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_table('patient_merges',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('source_patient_id', sa.String(length=20), nullable=False),
-    sa.Column('target_patient_id', sa.String(length=20), nullable=False),
-    sa.Column('merged_by', sa.Integer(), nullable=False),
-    sa.Column('merged_at', sa.DateTime(), nullable=False),
-    sa.Column('notes', sa.Text(), nullable=True),
-    sa.ForeignKeyConstraint(['merged_by'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
+        if 'is_active' not in patient_cols:
+            batch_op.add_column(sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('1')))
+        if 'deleted_at' not in patient_cols:
+            batch_op.add_column(sa.Column('deleted_at', sa.DateTime(), nullable=True))
+        if 'created_at' not in patient_cols:
+            batch_op.add_column(sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')))
+        if 'updated_at' not in patient_cols:
+            batch_op.add_column(sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')))
+        if 'created_by' not in patient_cols:
+            batch_op.add_column(sa.Column('created_by', sa.Integer(), nullable=True))
+            batch_op.create_foreign_key('fk_patients_created_by', 'users', ['created_by'], ['id'])
+        if 'updated_by' not in patient_cols:
+            batch_op.add_column(sa.Column('updated_by', sa.Integer(), nullable=True))
+            batch_op.create_foreign_key('fk_patients_updated_by', 'users', ['updated_by'], ['id'])
+
+    if 'patient_identifiers' not in tables:
+        op.create_table('patient_identifiers',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('patient_id', sa.String(length=20), nullable=False),
+        sa.Column('identifier_type', sa.String(length=50), nullable=False),
+        sa.Column('identifier_value', sa.String(length=100), nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(['patient_id'], ['patients.patient_id'], ),
+        sa.PrimaryKeyConstraint('id')
+        )
+    if 'patient_merges' not in tables:
+        op.create_table('patient_merges',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('source_patient_id', sa.String(length=20), nullable=False),
+        sa.Column('target_patient_id', sa.String(length=20), nullable=False),
+        sa.Column('merged_by', sa.Integer(), nullable=False),
+        sa.Column('merged_at', sa.DateTime(), nullable=False),
+        sa.Column('notes', sa.Text(), nullable=True),
+        sa.ForeignKeyConstraint(['merged_by'], ['users.id'], ),
+        sa.PrimaryKeyConstraint('id')
+        )
 
 
 def downgrade():
-    # Reverse: drop new tables and remove soft-delete columns
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    tables = inspector.get_table_names()
+    patient_cols = [c['name'] for c in inspector.get_columns('patients')] if 'patients' in tables else []
+
     with op.batch_alter_table('patients', schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f('ix_patients_patient_id'))
-        batch_op.drop_index(batch_op.f('ix_patients_national_id'))
-        batch_op.drop_index(batch_op.f('ix_patients_name'))
-    op.drop_table('patient_identifiers')
-    op.drop_table('patient_merges')
+        for col in ['updated_by', 'created_by', 'updated_at', 'created_at', 'deleted_at', 'is_active']:
+            if col in patient_cols:
+                batch_op.drop_column(col)
+
+    if 'patient_identifiers' in tables:
+        op.drop_table('patient_identifiers')
+    if 'patient_merges' in tables:
+        op.drop_table('patient_merges')

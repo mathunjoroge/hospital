@@ -39,6 +39,8 @@ def _get_encrypt_fn():
 
 def upgrade():
     bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    unique_constraints = [uc['name'] for uc in inspector.get_unique_constraints('patients') if uc.get('name')]
 
     # ── Step 1: widen the column (VARCHAR 50 → 500) ──────────────────────────
     with op.batch_alter_table('patients') as batch_op:
@@ -48,11 +50,8 @@ def upgrade():
             type_=sa.String(500),
             existing_nullable=True,
         )
-        # Drop unique constraint if it exists (name varies by DB; ignore if absent)
-        try:
+        if 'uq_patients_national_id' in unique_constraints:
             batch_op.drop_constraint('uq_patients_national_id', type_='unique')
-        except Exception:
-            pass  # Constraint may not exist or have a different name
 
     # ── Step 2: encrypt existing plaintext values (idempotent) ───────────────
     encrypt_value = _get_encrypt_fn()
