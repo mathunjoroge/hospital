@@ -90,14 +90,28 @@ RENAL_DOSE_DRUGS = {
 
 
 def query_drugcentral_ddi(drug1: str, drug2: str) -> list[dict]:
-    """Query live DrugCentral PostgreSQL database for drug-drug interactions between two drugs."""
-    try:
-        from departments.shared.drugcentral import get_drugcentral_connection
+    """
+    Query live DrugCentral PostgreSQL database for drug-drug interactions.
 
-        conn = get_drugcentral_connection()
+    Always returns [] on any failure (network timeout, circuit breaker open,
+    DB error) so that check_drug_interactions() unconditionally falls through
+    to the local KNOWN_INTERACTIONS matrix.  Never hangs: the psycopg2
+    connect_timeout in DRUGCENTRAL_DB_PARAMS provides the hard deadline.
+    """
+    import time
+
+    from departments.shared.drugcentral import (
+        DrugCentralUnavailable,
+        get_drugcentral_connection,
+    )
+
+    t0 = time.monotonic()
+    conn = None
+    try:
+        conn = get_drugcentral_connection()  # raises DrugCentralUnavailable on failure
         cur = conn.cursor()
 
-        # Step 1: Query drug class names for both drugs
+        # Step 1: Resolve drug names to class names
         def get_classes(drug: str) -> list[str]:
             q = """
                 SELECT DISTINCT c.name
@@ -114,10 +128,9 @@ def query_drugcentral_ddi(drug1: str, drug2: str) -> list[dict]:
         c2 = get_classes(drug2)
 
         if not c1 or not c2:
-            conn.close()
             return []
 
-        # Step 2: Query DDI table matching class pairs
+        # Step 2: Query DDI table for class-pair interactions
         q_ddi = """
             SELECT d.drug_class1, d.drug_class2, d.ddi_risk, d.description
             FROM ddi d
@@ -126,7 +139,6 @@ def query_drugcentral_ddi(drug1: str, drug2: str) -> list[dict]:
         """
         cur.execute(q_ddi, (c1, c2, c2, c1))
         rows = cur.fetchall()
-        conn.close()
 
         results = []
         for r in rows:
@@ -145,9 +157,36 @@ def query_drugcentral_ddi(drug1: str, drug2: str) -> list[dict]:
                 }
             )
         return results
-    except Exception as err:
-        logger.debug("DrugCentral DB lookup unavailable, using local rules: %s", err)
+
+    except DrugCentralUnavailable as exc:
+        latency_ms = (time.monotonic() - t0) * 1000
+        logger.warning(
+            "cdss.drugcentral_unavailable drug1=%s drug2=%s latency_ms=%.1f reason=%s "
+            "— falling back to local interaction matrix.",
+            drug1,
+            drug2,
+            latency_ms,
+            exc,
+        )
         return []
+    except Exception as exc:
+        latency_ms = (time.monotonic() - t0) * 1000
+        logger.warning(
+            "cdss.drugcentral_query_error drug1=%s drug2=%s latency_ms=%.1f error=%s: %s "
+            "— falling back to local interaction matrix.",
+            drug1,
+            drug2,
+            latency_ms,
+            type(exc).__name__,
+            exc,
+        )
+        return []
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 def check_drug_interactions(medications: list[str]) -> list[dict]:
