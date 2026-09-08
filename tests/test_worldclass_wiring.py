@@ -94,7 +94,7 @@ def test_book_checkin_and_live_queue(client):
     # The HTMX rows endpoint backing the Live Queue dashboard
     resp = client.get("/appointments/api/queue/1/rows")
     assert resp.status_code == 200
-    assert f"Patient #{patient_pk}" in resp.get_data(as_text=True)
+    assert f"Patient {patient_pk}" in resp.get_data(as_text=True)
     assert "Queue is empty" not in resp.get_data(as_text=True)
 
     # The JSON queue endpoint
@@ -102,7 +102,7 @@ def test_book_checkin_and_live_queue(client):
     assert resp.status_code == 200
     body = resp.get_json()
     assert body["waiting_count"] == 1
-    assert body["queue"][0]["patient_id"] == patient_pk
+    assert str(body["queue"][0]["patient_id"]) == str(patient_pk)
 
 
 def test_double_booking_rejected(client):

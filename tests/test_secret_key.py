@@ -30,7 +30,7 @@ def test_secret_key_enforcement(monkeypatch):
 
     try:
         with pytest.raises(
-            RuntimeError, match="SECRET_KEY environment variable must be set"
+            RuntimeError, match="Hardcoded or weak SECRET_KEY detected"
         ):
             if "app" in sys.modules:
                 importlib.reload(sys.modules["app"])
