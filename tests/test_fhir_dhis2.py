@@ -222,7 +222,19 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         self.assertIn(b"MOH731_ANC_VISITS_TOTAL", res.data)
         self.assertIn(b"MOH710_IMMUNIZATIONS_ADMINISTERED", res.data)
 
+    def test_khis_exporter_ui_route(self):
+        """Test GET /records/khis_exporter UI dashboard endpoint."""
+        self.client.post(
+            "/login", data={"username": "test_admin_fhir", "password": "password123"}
+        )
+        res = self.client.get("/records/khis_exporter")
+
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b"National KHIS & HL7 FHIR Exporter", res.data)
+        self.assertIn(b"Download KHIS CSV", res.data)
+        self.assertIn(b"View DHIS2 JSON", res.data)
 
 
 if __name__ == "__main__":
     unittest.main()
+

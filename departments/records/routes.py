@@ -904,3 +904,43 @@ def soft_delete_patient(patient_id):
     patient.soft_delete()
     db.session.commit()
     return jsonify({"status": "ok", "message": f"Patient {patient_id} soft-deleted."})
+
+
+@bp.route("/khis_exporter", methods=["GET"])
+@login_required
+@roles_required("admin", "records", "medicine", "nursing", "api")
+def khis_exporter_ui():
+    """Render National KHIS & HL7 FHIR Exporter UI Dashboard."""
+    from departments.api.dhis2_exporter import aggregate_monthly_khis_data
+
+    now = datetime.now()
+    year = request.args.get("year", default=now.year, type=int)
+    month = request.args.get("month", default=now.month, type=int)
+
+    aggregated = aggregate_monthly_khis_data(year, month)
+
+    available_years = [now.year - 1, now.year, now.year + 1]
+    available_months = [
+        (1, "January"),
+        (2, "February"),
+        (3, "March"),
+        (4, "April"),
+        (5, "May"),
+        (6, "June"),
+        (7, "July"),
+        (8, "August"),
+        (9, "September"),
+        (10, "October"),
+        (11, "November"),
+        (12, "December"),
+    ]
+
+    return render_template(
+        "records/khis_exporter.html",
+        aggregated=aggregated,
+        selected_year=year,
+        selected_month=month,
+        available_years=available_years,
+        available_months=available_months,
+    )
+

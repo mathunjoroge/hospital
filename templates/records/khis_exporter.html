@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-1"><i class="bi bi-cloud-upload-fill text-primary me-2"></i> National KHIS & HL7 FHIR Exporter</h2>
+      <p class="text-muted mb-0">Kenya Health Information System (KHIS / DHIS2) Monthly Exporter & HL7 FHIR R4 Interoperability Panel</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('khis.export_dhis2_csv', year=selected_year, month=selected_month) }}" class="btn btn-success shadow-sm">
+        <i class="bi bi-file-earmark-spreadsheet me-2"></i> Download KHIS CSV
+      </a>
+      <a href="{{ url_for('khis.export_dhis2_json', year=selected_year, month=selected_month) }}" target="_blank" class="btn btn-outline-primary shadow-sm">
+        <i class="bi bi-filetype-json me-2"></i> View DHIS2 JSON
+      </a>
+    </div>
+  </div>
+
+  <!-- Filter Card -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <form method="GET" action="{{ url_for('records.khis_exporter_ui') }}" class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label for="year" class="form-label fw-semibold">Reporting Year</label>
+          <select name="year" id="year" class="form-select">
+            {% for y in available_years %}
+            <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label for="month" class="form-label fw-semibold">Reporting Month</label>
+          <select name="month" id="month" class="form-select">
+            {% for m, name in available_months %}
+            <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-filter me-2"></i> Apply Filter
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Key Metrics Summary Grid -->
+  <div class="row g-3 mb-4">
+    <!-- Total OPD -->
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100 border-start border-4 border-primary">
+        <div class="card-body">
+          <span class="text-uppercase text-muted fw-bold small">Total OPD Attendances</span>
+          <h3 class="fw-bold my-2 text-primary">{{ aggregated.summary.total_opd_attendances }}</h3>
+          <span class="badge bg-primary-subtle text-primary">MOH 705A/B</span>
+        </div>
+      </div>
+    </div>
+    <!-- New Patients -->
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100 border-start border-4 border-info">
+        <div class="card-body">
+          <span class="text-uppercase text-muted fw-bold small">New Patients Registered</span>
+          <h3 class="fw-bold my-2 text-info">{{ aggregated.summary.new_patients }}</h3>
+          <span class="badge bg-info-subtle text-info">MOH 711</span>
+        </div>
+      </div>
+    </div>
+    <!-- Maternal ANC Visits -->
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
+        <div class="card-body">
+          <span class="text-uppercase text-muted fw-bold small">Maternal ANC Visits</span>
+          <h3 class="fw-bold my-2 text-success">{{ aggregated.summary.anc_visits }}</h3>
+          <span class="badge bg-success-subtle text-success">MOH 731 RH</span>
+        </div>
+      </div>
+    </div>
+    <!-- Child Immunizations -->
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100 border-start border-4 border-warning">
+        <div class="card-body">
+          <span class="text-uppercase text-muted fw-bold small">Immunizations Given</span>
+          <h3 class="fw-bold my-2 text-warning">{{ aggregated.summary.immunizations }}</h3>
+          <span class="badge bg-warning-subtle text-warning">MOH 710</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detailed Data Elements & Top Diagnoses -->
+  <div class="row g-4 mb-4">
+    <!-- Data Elements Table -->
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 border-0">
+          <h5 class="fw-bold mb-0"><i class="bi bi-list-check me-2 text-primary"></i> KHIS Data Element Values</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Category</th>
+                  <th>Data Element</th>
+                  <th class="text-end">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for elem in aggregated.data_elements %}
+                <tr>
+                  <td><span class="badge bg-secondary">{{ elem.category }}</span></td>
+                  <td class="fw-semibold text-dark">{{ elem.dataElement }}</td>
+                  <td class="text-end fw-bold text-primary">{{ elem.value }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Diagnoses Panel -->
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3 border-0">
+          <h5 class="fw-bold mb-0"><i class="bi bi-pie-chart me-2 text-primary"></i> Top Diagnoses (MOH 705)</h5>
+        </div>
+        <div class="card-body p-0">
+          <ul class="list-group list-group-flush">
+            {% for diag in aggregated.top_diagnoses %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span>{{ diag.diagnosis }}</span>
+              <span class="badge bg-primary rounded-pill">{{ diag.count }}</span>
+            </li>
+            {% else %}
+            <li class="list-group-item text-muted text-center py-3">No consultations recorded for selected period.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <!-- HL7 FHIR R4 Inspector Tool -->
+      <div class="card border-0 shadow-sm bg-dark text-white">
+        <div class="card-body">
+          <h5 class="fw-bold mb-2"><i class="bi bi-fire text-warning me-2"></i> HL7 FHIR R4 API Inspector</h5>
+          <p class="small text-white-50">Enter a Patient ID to generate standard HL7 FHIR R4 JSON resources.</p>
+          <div class="input-group mb-3">
+            <input type="text" id="fhirPatientInput" class="form-select-sm form-control" placeholder="e.g. P-001 or P-FHIR-001" value="P-FHIR-001">
+            <button class="btn btn-primary btn-sm" type="button" onclick="inspectFhir()">Inspect</button>
+          </div>
+          <div class="d-flex gap-2">
+            <a id="fhirPatientBtn" href="/api/fhir/R4/Patient/P-FHIR-001" target="_blank" class="btn btn-outline-light btn-sm flex-fill">
+              <i class="bi bi-person me-1"></i> Patient JSON
+            </a>
+            <a id="fhirEncounterBtn" href="/api/fhir/R4/Encounter?patient=P-FHIR-001" target="_blank" class="btn btn-outline-warning btn-sm flex-fill">
+              <i class="bi bi-hospital me-1"></i> Encounter JSON
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function inspectFhir() {
+  const pid = document.getElementById('fhirPatientInput').value.trim();
+  if (pid) {
+    document.getElementById('fhirPatientBtn').href = '/api/fhir/R4/Patient/' + encodeURIComponent(pid);
+    document.getElementById('fhirEncounterBtn').href = '/api/fhir/R4/Encounter?patient=' + encodeURIComponent(pid);
+    window.open('/api/fhir/R4/Patient/' + encodeURIComponent(pid), '_blank');
+  }
+}
+</script>
+{% endblock %}

@@ -10,6 +10,7 @@
 <a href="#" data-bs-toggle="modal" data-bs-target="#bookClinicModal"><i class="bi bi-calendar-plus me-2"></i> Book Clinic</a>
 
 <div class="sidebar-heading">Reports & Analytics</div>
+<a href="{{ url_for('records.khis_exporter_ui') }}"><i class="bi bi-cloud-upload-fill me-2"></i> KHIS & FHIR Exporter</a>
 <a href="{{ url_for('records.daily_opd_report') }}"><i class="bi bi-bar-chart-line-fill me-2"></i> Daily OPD Report</a>
 <a href="{{ url_for('records.clinic_attendance_report') }}"><i class="bi bi-pie-chart-fill me-2"></i> Clinic Attendance</a>
 <a href="{{ url_for('records.registration_report') }}"><i class="bi bi-graph-up-arrow me-2"></i> Registration Trends</a>
