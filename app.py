@@ -279,6 +279,7 @@ def login():
                         session["mfa_pending_user_id"] = user.id
                         return redirect(url_for("mfa_verify"))
 
+                    session.pop("switched_user", None)
                     login_user(user)
                     db.session.add(
                         Log(
@@ -363,6 +364,7 @@ def logout():
     try:
         user_id = current_user.id
         username = current_user.username
+        session.pop("switched_user", None)
         logout_user()
         db.session.add(
             Log(

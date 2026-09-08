@@ -58,3 +58,26 @@ def test_admin_switched_user_role_enforcement(client):
 
     resp_switched = client.get("/admin/")
     assert resp_switched.status_code == 403, f"Expected 403 for admin switched to nursing, got {resp_switched.status_code}"
+
+
+def test_admin_revert_user_route(client):
+    """
+    Verify that an admin in a switched role state can access /admin/revert_user
+    to clear switched_user and successfully revert back to full admin access.
+    """
+    admin_user = User(id=1001, username="revert_admin", password="password", role="admin")
+    db.session.add(admin_user)
+    db.session.commit()
+
+    with client.session_transaction() as sess:
+        sess["_user_id"] = "1001"
+        sess["_fresh"] = True
+        sess["switched_user"] = "nursing"
+
+    # Revert user route must be accessible without 403 Forbidden
+    resp = client.get("/admin/revert_user", follow_redirects=True)
+    assert resp.status_code == 200
+
+    # Verify switched_user session key was popped
+    with client.session_transaction() as sess:
+        assert "switched_user" not in sess

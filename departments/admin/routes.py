@@ -104,11 +104,12 @@ def switch_user():
 
 @bp.route("/admin/revert_user")
 @login_required
-@roles_required("admin")
 def revert_user():
-    session.pop("switched_user", None)
-    flash("Reverted to admin role.", "success")
-    return redirect(url_for("admin.index"))
+    if getattr(current_user, "role", None) == "admin":
+        session.pop("switched_user", None)
+        flash("Reverted to admin role.", "success")
+        return redirect(url_for("admin.index"))
+    abort(403)
 
 
 def get_effective_role():
