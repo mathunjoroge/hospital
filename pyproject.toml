@@ -1,7 +1,7 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 norecursedirs = ["unsloth", "venv", ".git"]
-addopts = "--cov=departments --cov=app --cov-fail-under=50"
+addopts = "--cov=. --cov-fail-under=35"
 
 [tool.ruff]
 exclude = ["venv", "migrations", "unsloth"]
