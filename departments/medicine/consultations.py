@@ -14,6 +14,7 @@ from flask import (
 from flask_login import login_required
 from sqlalchemy.orm import joinedload
 
+from departments.appointments.models import Appointment
 from departments.models.laboratory import LabResult
 from departments.models.medicine import (
     AdmittedPatient,
@@ -32,7 +33,6 @@ from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.nlp.logging_setup import get_logger
 from departments.rbac import roles_required
 from departments.shared.queue_constants import QueueStatus
-from departments.appointments.models import Appointment
 from extensions import db
 
 from . import bp

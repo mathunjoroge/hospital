@@ -6,6 +6,7 @@ from sqlalchemy import extract, func
 from sqlalchemy.orm import joinedload
 
 from departments.api.audit import log_audit_event
+from departments.appointments.engine import ScheduleEngine
 from departments.models.laboratory import LabResult
 from departments.models.medicine import (
     AdmittedPatient,
@@ -30,7 +31,6 @@ from departments.models.records import (
 from departments.rbac import roles_required
 from departments.records.merge import find_duplicate_candidates, merge_patient_records
 from departments.shared.queue_constants import QueueStatus
-from departments.appointments.engine import ScheduleEngine
 from extensions import db
 
 from . import bp

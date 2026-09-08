@@ -1,12 +1,10 @@
-import pytest
-from departments.shared.queue_constants import QueueStatus
+from werkzeug.security import generate_password_hash
+
 from departments.appointments.models import Appointment
 from departments.models.records import Patient, PatientWaitingList
 from departments.models.user import User
+from departments.shared.queue_constants import QueueStatus
 from extensions import db
-
-
-from werkzeug.security import generate_password_hash
 
 
 def test_unified_patient_flow(app, client):

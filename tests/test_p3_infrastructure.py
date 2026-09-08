@@ -6,8 +6,10 @@ Tests Request ID tracing, security headers, /metrics endpoint, cookie policy, an
 """
 
 import os
+
 import pytest
-from app import app, INSECURE_SECRET_KEYS
+
+from app import INSECURE_SECRET_KEYS, app
 
 
 @pytest.fixture

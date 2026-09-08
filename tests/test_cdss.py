@@ -12,8 +12,6 @@ Includes P0 regression tests for the DrugCentral unreachable-host safety fix:
 import time
 from unittest.mock import patch
 
-import pytest
-
 from departments.medicine.cdss import (
     calculate_dosing_adjustment,
     check_drug_interactions,
@@ -22,7 +20,6 @@ from departments.medicine.cdss import (
 )
 from departments.models.records import Patient
 from departments.shared.drugcentral import DrugCentralUnavailable
-
 
 # ---------------------------------------------------------------------------
 # Existing CDSS unit tests

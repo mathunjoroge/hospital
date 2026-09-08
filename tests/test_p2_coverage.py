@@ -1,4 +1,6 @@
 """
+from departments.models.billing import Invoice, InvoiceStatus
+from departments.billing.sync import sync_invoice_status
 tests/test_p2_coverage.py
 ─────────────────────────
 Priority 2 (P2) Edge Case & High-Value Module Coverage Suite.
@@ -6,17 +8,11 @@ Tests RBAC edge cases, billing sync deduplication, break-glass expiration,
 AI consent gate, security_ops, system_ops, offline_sync, public_health, and mortuary.
 """
 
-from datetime import datetime, timedelta, timezone
-import pytest
-from flask import g, session
+from datetime import datetime, timezone
 
-from app import app
-from extensions import db
-from departments.models.user import User
-from departments.consent.models import Consent
-from departments.models.records import Patient
+from departments.billing.sync import sync_invoice_status
 from departments.models import MortuaryData
-from departments.rbac import get_effective_user, get_effective_role, roles_required
+from departments.models.billing import Invoice, InvoiceStatus
 from departments.models.compliance import (
     AccessRequest,
     BackupJob,
@@ -24,7 +20,6 @@ from departments.models.compliance import (
     MortalityReport,
     NotifiableDisease,
     OutbreakSignal,
-    PatientConsent,
     RestoreTest,
     SyncConflict,
     SyncQueue,
@@ -33,6 +28,9 @@ from departments.models.compliance import (
     grant_patient_consent,
     has_ai_consent,
 )
+from departments.models.records import Patient
+from departments.models.user import User
+from extensions import db
 
 
 def test_has_ai_consent_granted_and_revoked(client):

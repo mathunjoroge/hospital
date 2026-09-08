@@ -73,6 +73,7 @@ def get_authenticated_session(base_url: str) -> requests.Session | None:
                 u = User.query.filter_by(username="bench_admin").first()
                 if not u:
                     from werkzeug.security import generate_password_hash
+
                     from extensions import db
                     u = User(username="bench_admin", password=generate_password_hash("password123", method="pbkdf2:sha256"), role="admin")
                     db.session.add(u)
@@ -117,7 +118,7 @@ def benchmark_endpoint(
                 worker_latencies.append(elapsed)
                 if r.status_code >= 500:
                     errors += 1
-            except requests.RequestException as exc:
+            except requests.RequestException:
                 elapsed = (time.monotonic() - t0) * 1000
                 worker_latencies.append(elapsed)
                 errors += 1
