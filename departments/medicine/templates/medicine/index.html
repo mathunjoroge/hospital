@@ -293,4 +293,36 @@
     </div>
   </div>
 </div>
+
+  <!-- Results Ready — recall to consult (Phase 1) -->
+  <div class="md-table-card mt-4">
+    <div class="md-table-header d-flex align-items-center justify-content-between">
+      <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-flask me-2" style="color: var(--md-primary);"></i>Results Ready — Recall to Consult</h5>
+      <span class="badge px-3 py-2 rounded-pill" style="background: var(--md-primary);">{{ results_ready|length if results_ready else 0 }}</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-md table-hover align-middle mb-0">
+        <thead>
+          <tr><th>Patient ID</th><th>Name</th><th>Results completed</th><th class="text-end">Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for item in results_ready or [] %}
+          <tr>
+            <td><span class="badge bg-secondary font-monospace fs-6">{{ item.patient_id }}</span></td>
+            <td class="fw-bold text-dark">{{ item.patient_name }}</td>
+            <td><small class="text-muted">{{ item.completed_at or "—" }}</small></td>
+            <td class="text-end">
+              <form method="post" action="{{ url_for('medicine.recall_to_consult', patient_id=item.patient_id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-md-primary btn"><i class="bi bi-arrow-return-left me-1"></i>Recall to Consult</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center py-4 text-muted">No completed results awaiting review.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 {% endblock %}

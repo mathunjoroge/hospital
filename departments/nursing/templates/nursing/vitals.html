@@ -78,7 +78,7 @@
           <a href="{{ url_for('nursing.vitals_chart', patient_id=patient_id) }}" class="btn btn-light rounded-pill px-3 shadow-sm text-ns-primary fw-semibold">
             <i class="bi bi-graph-up-arrow me-1"></i> Visual Trend Chart
           </a>
-          <a href="{{ url_for('nursing.patient_dashboard') }}?patient_id={{ patient_id }}" class="btn btn-outline-light rounded-pill px-3 shadow-sm">
+          <a href="{{ url_for('records.patient_profile', patient_id=patient_id) }}" class="btn btn-outline-light rounded-pill px-3 shadow-sm">
             <i class="bi bi-person-badge me-1"></i> Patient Kardex
           </a>
           <a href="{{ url_for('nursing.index') }}" class="btn btn-dark rounded-pill px-3 shadow-sm">

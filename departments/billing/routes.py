@@ -736,6 +736,11 @@ def pay_bills(patient_id):
             )
 
             db.session.commit()
+
+            # Phase 2: settlement may complete the visit.
+            from departments.shared.visit_closure import maybe_close_encounter
+
+            maybe_close_encounter(patient_id)
             logger.info(
                 f"Payment processed successfully! Receipt Number: {receipt_number}"
             )

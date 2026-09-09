@@ -416,6 +416,11 @@ class Invoice(db.Model):
         self.balance = float(self.grand_total or 0) - paid
         if self.balance <= 0:
             self.status = InvoiceStatus.PAID
+            # Fully settled: allow the visit to close if clinical work is done.
+            if self.encounter_id:
+                from departments.shared.visit_closure import maybe_close_encounter
+
+                maybe_close_encounter(self.patient_id)
         elif self.amount_paid > 0:
             self.status = InvoiceStatus.PARTIAL
 

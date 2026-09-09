@@ -5,9 +5,11 @@ from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
+from departments.appointments.engine import ScheduleEngine
 from departments.models.admin import Log
 from departments.models.nursing import Partogram, Vitals
 from departments.models.records import Patient, PatientWaitingList
+from departments.shared import queue_service
 from departments.models.user import User
 from departments.rbac import roles_required
 from departments.shared.queue_constants import QueueStatus
@@ -28,21 +30,8 @@ logger = logging.getLogger(__name__)
 def index():
     """Display the nursing waiting list."""
     try:
-        # Fetch all patients in the nursing waiting list who are not yet seen
-        nursing_waiting_list = (
-            PatientWaitingList.query.filter_by(seen=4)
-            .options(
-                joinedload(PatientWaitingList.patient)  # Eager load patient details
-            )
-            .all()
-        )
-
-        # Filter out entries with missing patient relationships
-        valid_waiting_list = [
-            entry
-            for entry in nursing_waiting_list
-            if entry.patient  # Ensure patient relationship exists
-        ]
+        # Phase 3: read from Encounter.stage via QueueService.
+        valid_waiting_list = queue_service.queue_for("nursing")
 
         return render_template("nursing/index.html", waiting_list=valid_waiting_list)
     except Exception as e:
@@ -94,6 +83,7 @@ def vitals(patient_id):
             if waiting_entry:
                 waiting_entry.seen = QueueStatus.VITALS_DONE
             db.session.commit()
+            ScheduleEngine().mark_triage_complete(patient_id)
             logger.info(
                 f"Nurse {current_user.id} recorded vitals for patient {patient_id}"
             )
@@ -557,6 +547,7 @@ def vital_signs():
             if waiting_entry:
                 waiting_entry.seen = QueueStatus.VITALS_DONE
             db.session.commit()
+            ScheduleEngine().mark_triage_complete(patient_id)
             flash("Vital signs recorded.", "success")
             return redirect(url_for("nursing.vital_signs"))
         except ValueError:

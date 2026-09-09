@@ -1,7 +1,14 @@
+import logging
 import uuid
 from datetime import datetime, timezone
 
 from extensions import db
+
+logger = logging.getLogger(__name__)
+
+# Late import used only in the relationship; declared here so templates
+# iterating over Encounters can access `encounter.patient` directly.
+from departments.models.records import Patient  # noqa: E402
 
 
 class Encounter(db.Model):
@@ -44,6 +51,10 @@ class Encounter(db.Model):
     )
     ended_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
+    patient = db.relationship("Patient", foreign_keys="Encounter.patient_id",
+                              primaryjoin="Encounter.patient_id == Patient.patient_id",
+                              lazy="joined", viewonly=True)
+
     created_at = db.Column(
         db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
@@ -54,7 +65,51 @@ class Encounter(db.Model):
         nullable=False,
     )
 
+
+    # Visit lifecycle stage (Phase 2). Independent of `status`, which
+    # billing/sync.py relies on to scope invoices to a visit.
+    stage = db.Column(db.String(30), nullable=True, index=True)
+
+    ALLOWED_STAGE_TRANSITIONS = {
+        None: {"REGISTERED", "WAITING_DOCTOR", "IN_CONSULTATION"},
+        "REGISTERED": {"WAITING_DOCTOR", "IN_CONSULTATION", "CANCELLED"},
+        "WAITING_DOCTOR": {"IN_CONSULTATION", "CANCELLED"},
+        "IN_CONSULTATION": {
+            "IN_CONSULTATION",
+            "AWAITING_RESULTS",
+            "AWAITING_PHARMACY",
+            "AWAITING_BILLING",
+        },
+        "AWAITING_RESULTS": {
+            "IN_CONSULTATION",
+            "AWAITING_RESULTS",
+            "AWAITING_PHARMACY",
+            "AWAITING_BILLING",
+        },
+        "AWAITING_PHARMACY": {"IN_CONSULTATION", "AWAITING_BILLING"},
+        "AWAITING_BILLING": {"DISCHARGED"},
+        "DISCHARGED": set(),
+        "CANCELLED": set(),
+    }
+
+    def set_stage(self, new_stage: str) -> bool:
+        """Advance the visit stage; refuses illegal transitions."""
+        allowed = self.ALLOWED_STAGE_TRANSITIONS.get(
+            self.stage, self.ALLOWED_STAGE_TRANSITIONS.get(None, set())
+        )
+        if new_stage not in allowed:
+            logger.warning(
+                "ENCOUNTER STAGE TRANSITION REFUSED: %s -> %s (encounter %s)",
+                self.stage,
+                new_stage,
+                self.id,
+            )
+            return False
+        self.stage = new_stage
+        return True
+
     def close(self):
         """Marks the encounter as completed/discharged."""
         self.status = "DISCHARGED"
         self.ended_at = datetime.now(timezone.utc)
+        self.stage = "DISCHARGED"

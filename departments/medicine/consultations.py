@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import requests
 from flask import (
@@ -14,7 +14,10 @@ from flask import (
 from flask_login import login_required
 from sqlalchemy.orm import joinedload
 
+from sqlalchemy import func
+
 from departments.appointments.models import Appointment
+from departments.models.encounter import Encounter
 from departments.models.laboratory import LabResult
 from departments.models.medicine import (
     AdmittedPatient,
@@ -32,6 +35,7 @@ from departments.models.records import Patient, PatientWaitingList
 from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.nlp.logging_setup import get_logger
 from departments.rbac import roles_required
+from departments.shared import queue_service
 from departments.shared.queue_constants import QueueStatus
 from extensions import db
 
@@ -207,17 +211,49 @@ def submit_soap_notes(patient_id):
                 "warning",
             )
 
-        # Update queue status to DISCHARGED and appointment to COMPLETED
+        # Phase 2: consult complete != visit complete. Route the visit to the
+        # next department and keep the Encounter open so post-consult charges
+        # (lab, drugs) still scope to this visit's invoice.
+        pending_labs = RequestedLab.query.filter_by(
+            patient_id=patient_id, status=0
+        ).count()
+        pending_imaging = RequestedImage.query.filter_by(
+            patient_id=patient_id, status=0
+        ).count()
+        pending_rx = PrescribedMedicine.query.filter_by(
+            patient_id=patient_id, status="0"
+        ).count()
+
         waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
+        encounter = (
+            Encounter.query.filter_by(patient_id=str(patient_id), status="ACTIVE")
+            .order_by(Encounter.started_at.desc())
+            .first()
+        )
+        if pending_labs or pending_imaging:
+            next_seen, next_stage = QueueStatus.AWAITING_RESULTS, "AWAITING_RESULTS"
+        elif pending_rx:
+            next_seen, next_stage = QueueStatus.AWAITING_PHARMACY, "AWAITING_PHARMACY"
+        else:
+            next_seen, next_stage = QueueStatus.AWAITING_BILLING, "AWAITING_BILLING"
         if waiting_entry:
-            waiting_entry.seen = QueueStatus.DISCHARGED
+            waiting_entry.seen = next_seen
+        if encounter:
+            encounter.set_stage(next_stage)
+
         appts = Appointment.query.filter(
             Appointment.patient_id == str(patient_id),
-            Appointment.status.in_(["CHECKED_IN", "IN_PROGRESS"])
+            Appointment.status.in_(["CHECKED_IN", "READY", "IN_PROGRESS"])
         ).all()
         for appt in appts:
             appt.status = "COMPLETED"
         db.session.commit()
+
+        # Close immediately only when nothing is pending and nothing is owed
+        # (e.g. a prepaid consult-only visit).
+        from departments.shared.visit_closure import maybe_close_encounter
+
+        maybe_close_encounter(str(patient_id))
 
         flash("SOAP note submitted successfully!", "success")
         return redirect(url_for("medicine.notes", patient_id=patient_id))
@@ -256,6 +292,55 @@ def reprocess_note(note_id):
     )
 
 
+def _results_ready_for_review(hours: int = 48):
+    """Patients whose lab results completed after their last SOAP note.
+
+    Closes the 'back for doctor' loop that today relies on doctors manually
+    opening the pending-lab views. Bounded in SQL by a completion cutoff.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    rows = (
+        db.session.query(
+            RequestedLab.patient_id,
+            func.max(LabResult.date_completed).label("completed_at"),
+        )
+        .join(
+            LabResult,
+            (LabResult.patient_id == RequestedLab.patient_id)
+            & (LabResult.lab_test_id == RequestedLab.lab_test_id),
+        )
+        .filter(RequestedLab.status == 1, LabResult.date_completed >= cutoff)
+        .group_by(RequestedLab.patient_id)
+        .all()
+    )
+    ready = []
+    for patient_id, completed_at in rows:
+        entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
+        if not entry or entry.patient is None:
+            continue
+        if entry.seen in (
+            QueueStatus.WAITING_TRIAGE,
+            QueueStatus.VITALS_DONE,
+            QueueStatus.IN_CONSULTATION,
+        ):
+            continue  # already in an active clinical queue
+        last_note = (
+            SOAPNote.query.filter_by(patient_id=patient_id)
+            .order_by(SOAPNote.created_at.desc())
+            .first()
+        )
+        if last_note and last_note.created_at and completed_at and last_note.created_at >= completed_at:
+            continue  # a later consult note already post-dates the results
+        ready.append(
+            {
+                "patient_id": patient_id,
+                "patient_name": entry.patient.name or "N/A",
+                "completed_at": completed_at,
+            }
+        )
+    return ready
+
+
 # Display the medicine waiting list
 @bp.route("/")
 @login_required
@@ -263,18 +348,8 @@ def reprocess_note(note_id):
 def index():
     """Display the medicine waiting list."""
     try:
-        # Fetch all patients in the medicine waiting list (waiting triage, vitals done, or in consultation)
-        waiting_list = (
-            PatientWaitingList.query.filter(
-                PatientWaitingList.seen.in_(
-                    [QueueStatus.WAITING_TRIAGE, QueueStatus.VITALS_DONE, QueueStatus.IN_CONSULTATION]
-                )
-            )
-            .options(joinedload(PatientWaitingList.patient))
-            .all()
-        )
-        # Filter out invalid entries (e.g., missing patient relationships)
-        valid_waiting_list = [entry for entry in waiting_list if entry.patient]
+        # Phase 3: read from Encounter.stage via QueueService.
+        valid_waiting_list = queue_service.queue_for("medicine")
         if not valid_waiting_list:
             flash(
                 "No patients in the medicine waiting list.", "info"
@@ -293,6 +368,8 @@ def index():
             logger.error(f"Error calculating dashboard KPIs: {e}")
             total_inpatients = pending_labs = pending_imaging = theatre_pending = 0
 
+        results_ready = _results_ready_for_review()
+
         return render_template(
             "medicine/index.html",
             waiting_list=valid_waiting_list,
@@ -300,6 +377,7 @@ def index():
             pending_labs=pending_labs,
             pending_imaging=pending_imaging,
             theatre_pending=theatre_pending,
+            results_ready=results_ready,
         )
     except Exception as e:
         db.session.rollback()
@@ -312,6 +390,7 @@ def index():
             pending_labs=0,
             pending_imaging=0,
             theatre_pending=0,
+            results_ready=[],
         )
 
 
@@ -339,9 +418,16 @@ def soap_notes(patient_id):
 
         # Mark patient as IN_CONSULTATION
         patient_entry.seen = QueueStatus.IN_CONSULTATION
+        open_enc = (
+            Encounter.query.filter_by(patient_id=str(patient_id), status="ACTIVE")
+            .order_by(Encounter.started_at.desc())
+            .first()
+        )
+        if open_enc:
+            open_enc.set_stage("IN_CONSULTATION")
         appts = Appointment.query.filter(
             Appointment.patient_id == str(patient_id),
-            Appointment.status == "CHECKED_IN",
+            Appointment.status.in_(["CHECKED_IN", "READY"]),
         ).all()
         for appt in appts:
             appt.status = "IN_PROGRESS"
@@ -381,6 +467,45 @@ def soap_notes(patient_id):
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in medicine.soap_notes: {e}")  # Debugging
         return redirect(url_for("medicine.index"))  # Redirect to index on error
+
+
+@bp.route("/recall/<patient_id>", methods=["POST"])
+@login_required
+@roles_required("medicine", "admin")
+def recall_to_consult(patient_id):
+    """Put a results-ready patient back in front of the doctor."""
+    entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
+    if not entry:
+        flash("Patient not found in the waiting list.", "error")
+        return redirect(url_for("medicine.index"))
+
+    entry.seen = QueueStatus.IN_CONSULTATION
+    enc = (
+        Encounter.query.filter_by(patient_id=str(patient_id), status="ACTIVE")
+        .order_by(Encounter.started_at.desc())
+        .first()
+    )
+    if enc and enc.appointment_id:
+        appt = Appointment.query.get(enc.appointment_id)
+        if appt and appt.status in ("CHECKED_IN", "READY", "COMPLETED"):
+            appt.status = "IN_PROGRESS"
+    db.session.commit()
+    flash(f"Patient {patient_id} recalled to consultation.", "success")
+    return redirect(url_for("medicine.soap_notes", patient_id=patient_id))
+
+
+@bp.route("/visit-discharge/<patient_id>", methods=["POST"])
+@login_required
+@roles_required("medicine", "admin")
+def manual_discharge_visit(patient_id):
+    """Staff-initiated discharge: closes the encounter even with pending work."""
+    from departments.shared.visit_closure import force_close_visit
+
+    if force_close_visit(str(patient_id), reason="manual discharge"):
+        flash(f"Patient {patient_id} discharged and encounter closed.", "success")
+    else:
+        flash("No active encounter found for this patient.", "error")
+    return redirect(url_for("medicine.index"))
 
 
 @bp.route("/lab_patients")

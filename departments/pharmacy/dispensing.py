@@ -2,8 +2,8 @@ import logging
 from collections import defaultdict
 from datetime import datetime
 
-from flask import flash, redirect, render_template, request, url_for
-from flask_login import login_required
+from flask import current_app, flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
 from departments.models.medicine import PrescribedMedicine
@@ -12,8 +12,10 @@ from departments.models.pharmacy import (  # Import PatientWaitingList and Patie
     DispensedDrug,
     Drug,
 )
+from departments.models.admin import Log
 from departments.models.records import Patient
 from departments.rbac import roles_required
+from departments.shared.payment_gate import has_unpaid_charges
 from extensions import db
 
 from . import bp  # Import the blueprint
@@ -127,6 +129,13 @@ def dispense_prescription(prescription_id):
                 "info",
             )
             return redirect(url_for("pharmacy.index"))
+
+        if has_unpaid_charges(prescribed_medicines[0].patient_id):
+            flash(
+                "Warning: this patient has unsettled charges — dispensing on credit."
+                " Set PHARMACY_REQUIRE_PAID=True to enforce payment first.",
+                "warning",
+            )
 
         drugs = Drug.query.all()
         drug_batches = {
@@ -490,6 +499,26 @@ def save_prescription(prescription_id):
             return redirect(url_for("pharmacy.index"))
 
         patient_id = prescribed_medicines[0].patient_id
+
+        # Phase-1 payment gate
+        unpaid = has_unpaid_charges(patient_id)
+        if unpaid and current_app.config.get("PHARMACY_REQUIRE_PAID", False):
+            flash(
+                "Dispensing blocked: patient has unsettled charges. "
+                "Complete billing first (or disable PHARMACY_REQUIRE_PAID).",
+                "error",
+            )
+            return redirect(url_for("pharmacy.view_prescriptions", patient_id=patient_id))
+        if unpaid:
+            db.session.add(
+                Log(
+                    level="WARNING",
+                    message=f"Pharmacy dispensing on credit for patient {patient_id} "
+                    f"(prescription {prescription_id}) with unsettled charges.",
+                    user_id=current_user.id,
+                    source="pharmacy",
+                )
+            )
 
         # Process each drug in the form
         for i, drug_id in enumerate(drug_ids):

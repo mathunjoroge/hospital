@@ -20,7 +20,7 @@ class Appointment(db.Model):
     scheduled_start = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
     scheduled_end = db.Column(db.DateTime(timezone=True), nullable=False)
 
-    # SCHEDULED, CHECKED_IN, IN_PROGRESS, COMPLETED, NO_SHOW, CANCELLED
+    # SCHEDULED, CHECKED_IN, READY, IN_PROGRESS, COMPLETED, NO_SHOW, CANCELLED
     status = db.Column(db.String(20), nullable=False, default="SCHEDULED")
 
     appointment_type = db.Column(
@@ -39,6 +39,10 @@ class Appointment(db.Model):
 
     def check_in(self):
         self.status = "CHECKED_IN"
+
+    def mark_ready(self):
+        """Triage/vitals complete: patient is ready for the clinician."""
+        self.status = "READY"
 
     def start_consultation(self):
         self.status = "IN_PROGRESS"

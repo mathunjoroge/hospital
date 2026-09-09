@@ -221,3 +221,15 @@ def admin_audit():
         .all()
     )
     return render_template_string(ADMIN_BREAK_GLASS_TEMPLATE, logs=logs), 200
+
+
+@bp.route("/emergency/dashboard", methods=["GET"])
+@bp.route("/emergency_dashboard", methods=["GET"])
+@bp.route("/", methods=["GET"])
+@login_required
+def emergency_dashboard():
+    """Emergency Unit Dashboard & Break-Glass Status endpoint."""
+    expire_stale_grants()
+    if getattr(current_user, "role", None) == "admin":
+        return admin_audit()
+    return status()

@@ -180,6 +180,7 @@ def get_live_queue(provider_id: str):
                 else "--:--",
                 "wait_time_mins": wait_mins,
                 "type": a.appointment_type,
+                "triage_done": a.status == "READY",
             }
         )
 
