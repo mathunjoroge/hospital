@@ -79,9 +79,6 @@ def vitals(patient_id):
                 else None,
             )
             db.session.add(vitals_data)
-            waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
-            if waiting_entry:
-                waiting_entry.seen = QueueStatus.VITALS_DONE
             db.session.commit()
             ScheduleEngine().mark_triage_complete(patient_id)
             logger.info(
@@ -543,9 +540,6 @@ def vital_signs():
                 recorded_by=current_user.id,
             )
             db.session.add(new_vital_sign)
-            waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
-            if waiting_entry:
-                waiting_entry.seen = QueueStatus.VITALS_DONE
             db.session.commit()
             ScheduleEngine().mark_triage_complete(patient_id)
             flash("Vital signs recorded.", "success")

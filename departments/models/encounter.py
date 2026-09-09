@@ -55,6 +55,26 @@ class Encounter(db.Model):
                               primaryjoin="Encounter.patient_id == Patient.patient_id",
                               lazy="joined", viewonly=True)
 
+    @property
+    def seen(self):
+        """Backward compat: maps stage to legacy QueueStatus integer for templates."""
+        from departments.shared.queue_constants import QueueStatus
+        stage_map = {
+            "REGISTERED": QueueStatus.WAITING_TRIAGE,
+            "WAITING_DOCTOR": QueueStatus.VITALS_DONE,
+            "IN_CONSULTATION": QueueStatus.IN_CONSULTATION,
+            "AWAITING_RESULTS": QueueStatus.AWAITING_RESULTS,
+            "AWAITING_PHARMACY": QueueStatus.AWAITING_PHARMACY,
+            "AWAITING_BILLING": QueueStatus.AWAITING_BILLING,
+            "DISCHARGED": QueueStatus.DISCHARGED,
+        }
+        return stage_map.get(self.stage, 0)
+
+    @property
+    def last_updated(self):
+        """Backward compat for templates expecting .last_updated."""
+        return self.started_at
+
     created_at = db.Column(
         db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )

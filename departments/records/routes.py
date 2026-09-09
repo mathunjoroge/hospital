@@ -161,10 +161,6 @@ def new_patient():
         db.session.add(new_p)
         db.session.commit()
 
-        waiting_entry = PatientWaitingList(patient_id=new_p.patient_id, seen=QueueStatus.WAITING_TRIAGE)
-        db.session.add(waiting_entry)
-        db.session.commit()
-
         # Bridge registration to live queue via Appointment
         provider_id = str(getattr(current_user, "id", "1") or "1")
         ScheduleEngine().create_walk_in(
@@ -603,13 +599,6 @@ def book_clinic():
     )
     db.session.add(new_booking)
 
-    waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
-    if not waiting_entry:
-        waiting_entry = PatientWaitingList(patient_id=patient_id, seen=QueueStatus.WAITING_TRIAGE)
-        db.session.add(waiting_entry)
-    else:
-        waiting_entry.seen = QueueStatus.WAITING_TRIAGE
-
     db.session.commit()
 
     provider_id = str(getattr(current_user, "id", "1") or "1")
@@ -633,9 +622,14 @@ def book_clinic():
 @login_required
 @roles_required("records", "admin")
 def waiting_list():
+    # Phase 4: read from Encounter instead of PatientWaitingList
+    from departments.models.encounter import Encounter
+
     waiting_list = (
-        db.session.query(PatientWaitingList, Patient)
-        .join(Patient, PatientWaitingList.patient_id == Patient.patient_id)
+        db.session.query(Encounter, Patient)
+        .join(Patient, Encounter.patient_id == Patient.patient_id)
+        .filter(Encounter.status == "ACTIVE")
+        .order_by(Encounter.started_at.asc())
         .all()
     )
     return render_template("records/waiting_list.html", waiting_list=waiting_list)

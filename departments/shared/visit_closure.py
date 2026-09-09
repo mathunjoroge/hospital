@@ -46,9 +46,6 @@ def maybe_close_encounter(patient_id: str) -> bool:
     if not enc or has_pending_work(patient_id):
         return False
     enc.close()
-    entry = PatientWaitingList.query.filter_by(patient_id=str(patient_id)).first()
-    if entry:
-        entry.seen = QueueStatus.DISCHARGED
     db.session.commit()
     logger.info("VISIT CLOSED: encounter %s for patient %s", enc.id, patient_id)
     return True
@@ -60,9 +57,6 @@ def force_close_visit(patient_id: str, reason: str = "") -> bool:
     if not enc:
         return False
     enc.close()
-    entry = PatientWaitingList.query.filter_by(patient_id=str(patient_id)).first()
-    if entry:
-        entry.seen = QueueStatus.DISCHARGED
     db.session.commit()
     logger.info("VISIT FORCE-CLOSED (%s): encounter %s", reason or "manual", enc.id)
     return True

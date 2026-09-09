@@ -224,20 +224,17 @@ def submit_soap_notes(patient_id):
             patient_id=patient_id, status="0"
         ).count()
 
-        waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
         encounter = (
             Encounter.query.filter_by(patient_id=str(patient_id), status="ACTIVE")
             .order_by(Encounter.started_at.desc())
             .first()
         )
         if pending_labs or pending_imaging:
-            next_seen, next_stage = QueueStatus.AWAITING_RESULTS, "AWAITING_RESULTS"
+            next_stage = "AWAITING_RESULTS"
         elif pending_rx:
-            next_seen, next_stage = QueueStatus.AWAITING_PHARMACY, "AWAITING_PHARMACY"
+            next_stage = "AWAITING_PHARMACY"
         else:
-            next_seen, next_stage = QueueStatus.AWAITING_BILLING, "AWAITING_BILLING"
-        if waiting_entry:
-            waiting_entry.seen = next_seen
+            next_stage = "AWAITING_BILLING"
         if encounter:
             encounter.set_stage(next_stage)
 
@@ -401,23 +398,13 @@ def index():
 def soap_notes(patient_id):
     """View or submit SOAP notes for a specific patient."""
     try:
-        # Fetch the patient from the waiting list
-        patient_entry = (
-            PatientWaitingList.query.filter_by(patient_id=patient_id)
-            .options(joinedload(PatientWaitingList.patient))
-            .first()
-        )
-        if not patient_entry or not patient_entry.patient:
-            flash(
-                f"Patient with ID {patient_id} not found in the waiting list!", "error"
-            )
-            return redirect(
-                url_for("medicine.index")
-            )  # Redirect to index if patient not found
-        patient = patient_entry.patient
+        # Fetch the patient
+        patient = Patient.query.filter_by(patient_id=patient_id).first()
+        if not patient:
+            flash(f"Patient with ID {patient_id} not found!", "error")
+            return redirect(url_for("medicine.index"))
 
         # Mark patient as IN_CONSULTATION
-        patient_entry.seen = QueueStatus.IN_CONSULTATION
         open_enc = (
             Encounter.query.filter_by(patient_id=str(patient_id), status="ACTIVE")
             .order_by(Encounter.started_at.desc())

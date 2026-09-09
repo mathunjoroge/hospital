@@ -56,10 +56,15 @@ def test_unified_patient_flow(app, client):
         assert patient is not None
         patient_id = patient.patient_id
 
-        # Check PatientWaitingList entry
+        # Phase 4: PatientWaitingList is retired. Check Encounter instead.
+        from departments.models.encounter import Encounter
+        enc = Encounter.query.filter_by(patient_id=patient_id).first()
+        assert enc is not None, "Encounter should be created on registration"
+        assert enc.stage == "REGISTERED", "New encounter should start at REGISTERED stage"
+            
+        # Legacy table should no longer be written to
         waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
-        assert waiting_entry is not None
-        assert waiting_entry.seen == QueueStatus.WAITING_TRIAGE
+        assert waiting_entry is None, "PatientWaitingList should not be created in Phase 4"
 
         # Check Appointment record (Bridging working!)
         appt = Appointment.query.filter_by(patient_id=patient_id).first()
@@ -91,14 +96,18 @@ def test_unified_patient_flow(app, client):
             follow_redirects=True,
         )
         assert vitals_resp.status_code == 200
-        waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
-        assert waiting_entry.seen == QueueStatus.VITALS_DONE
+        # Phase 4: Check Encounter instead of retired PatientWaitingList
+        enc = Encounter.query.filter_by(patient_id=patient_id).first()
+        assert enc is not None
+        assert enc.status == "ACTIVE"
 
         # 4. Doctor opens SOAP Notes
         soap_get_resp = client.get(f"/medicine/soap_notes/{patient_id}", follow_redirects=True)
         assert soap_get_resp.status_code == 200
-        waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
-        assert waiting_entry.seen == QueueStatus.IN_CONSULTATION
+        # Phase 4: Check Encounter instead of retired PatientWaitingList
+        enc = Encounter.query.filter_by(patient_id=patient_id).first()
+        assert enc is not None
+        assert enc.status == "ACTIVE"
         appt = Appointment.query.filter_by(patient_id=patient_id).first()
         assert appt.status == "IN_PROGRESS"
 
@@ -114,8 +123,10 @@ def test_unified_patient_flow(app, client):
             follow_redirects=True,
         )
         assert soap_post_resp.status_code == 200
-        waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
-        assert waiting_entry.seen == QueueStatus.DISCHARGED
+        # Phase 4: Check Encounter instead of retired PatientWaitingList
+        enc = Encounter.query.filter_by(patient_id=patient_id).first()
+        assert enc is not None
+        assert enc.status == "DISCHARGED"
         appt = Appointment.query.filter_by(patient_id=patient_id).first()
         assert appt.status == "COMPLETED"
 

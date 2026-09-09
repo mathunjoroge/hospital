@@ -69,8 +69,8 @@ def test_visit_closes_when_no_work_no_debt(app):
     assert visit_closure.maybe_close_encounter("P0001") is True
     enc = Encounter.query.filter_by(patient_id="P0001").first()
     assert enc.status == "DISCHARGED" and enc.ended_at is not None
-    entry = PatientWaitingList.query.filter_by(patient_id="P0001").first()
-    assert entry.seen == QueueStatus.DISCHARGED
+    # Phase 4: Encounter stage is the source of truth for closure
+    assert enc.stage == "DISCHARGED"
 
 
 def test_full_payment_closes_scoped_encounter(app):
