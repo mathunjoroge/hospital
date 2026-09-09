@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import requests
 from flask import current_app
@@ -236,7 +236,7 @@ class NotificationDispatcher:
                 success = driver.send(log_entry)
                 if success:
                     log_entry.status = "SENT"
-                    log_entry.sent_at = datetime.utcnow()
+                    log_entry.sent_at = datetime.now(timezone.utc)
                 else:
                     log_entry.status = "FAILED"
                     log_entry.error_message = "Driver returned failure"

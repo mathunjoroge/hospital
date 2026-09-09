@@ -13,7 +13,7 @@ Blueprint endpoints (registered under /api/fhir/R4):
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
@@ -110,10 +110,10 @@ def patient_to_fhir(patient: Patient) -> dict:
         "meta": {
             "versionId": "1",
             "lastUpdated": (
-                patient.updated_at or patient.date_registered or datetime.utcnow()
+                patient.updated_at or patient.date_registered or datetime.now(timezone.utc)
             ).isoformat()
             if hasattr(patient, "updated_at")
-            else datetime.utcnow().isoformat(),
+            else datetime.now(timezone.utc).isoformat(),
         },
     }
     return resource
@@ -178,7 +178,7 @@ def vitals_to_fhir_observations(vitals: Vitals) -> list[dict]:
                 "subject": {"reference": f"Patient/{vitals.patient_id}"},
                 "effectiveDateTime": vitals.timestamp.isoformat()
                 if getattr(vitals, "timestamp", None)
-                else datetime.utcnow().isoformat(),
+                else datetime.now(timezone.utc).isoformat(),
                 "valueQuantity": {
                     "value": float(val),
                     "unit": loinc["unit"],
@@ -312,7 +312,7 @@ def search_fhir_conditions():
                 "subject": {"reference": f"Patient/{patient_id}"},
                 "recordedDate": note.created_at.isoformat()
                 if getattr(note, "created_at", None)
-                else datetime.utcnow().isoformat(),
+                else datetime.now(timezone.utc).isoformat(),
             }
             entries.append(
                 {
@@ -380,7 +380,7 @@ def search_fhir_diagnostic_reports():
             "subject": {"reference": f"Patient/{patient_id}"},
             "issued": lab.timestamp.isoformat()
             if getattr(lab, "timestamp", None)
-            else datetime.utcnow().isoformat(),
+            else datetime.now(timezone.utc).isoformat(),
             "conclusion": str(getattr(lab, "result_value", "")),
         }
         entries.append(
@@ -414,7 +414,7 @@ def search_fhir_diagnostic_reports():
             "subject": {"reference": f"Patient/{patient_id}"},
             "issued": img.created_at.isoformat()
             if getattr(img, "created_at", None)
-            else datetime.utcnow().isoformat(),
+            else datetime.now(timezone.utc).isoformat(),
             "conclusion": getattr(img, "ai_impression", "")
             or getattr(img, "result_notes", "")
             or "Imaging Study Completed",
@@ -472,7 +472,7 @@ def search_fhir_medication_requests():
             "subject": {"reference": f"Patient/{patient_id}"},
             "authoredOn": rx.date_prescribed.isoformat()
             if getattr(rx, "date_prescribed", None)
-            else datetime.utcnow().isoformat(),
+            else datetime.now(timezone.utc).isoformat(),
             "dosageInstruction": [
                 {
                     "text": f"Dosage: {getattr(rx, 'dosage', 'As directed')}, Duration: {getattr(rx, 'duration', 'N/A')}"

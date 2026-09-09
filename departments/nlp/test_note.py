@@ -1,6 +1,6 @@
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 sys.path.insert(0, "/home/mathu/projects/hospital")
 
@@ -31,7 +31,7 @@ def test_process_soap_note():
     sample_note = {
         "id": 1001,  # Integer primary key
         "patient_id": "P1000",
-        "created_at": datetime.utcnow().isoformat() + "Z",
+        "created_at": datetime.now(timezone.utc).isoformat() + "Z",
         "situation": "Patient presents with fever, cough, and fatigue, consistent with a viral illness.",
         "hpi": "45-year-old male with a 3-day history of fever (up to 38.5°C), dry cough, and increasing fatigue. Reports myalgias, sore throat, and mild shortness of breath. Symptoms began after exposure to a family member with similar symptoms. No recent hospitalizations or antibiotic use. No known contact with resistant infections.",
         "symptoms": "fever, dry cough, fatigue, myalgias, sore throat, mild shortness of breath",

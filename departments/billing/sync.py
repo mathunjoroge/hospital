@@ -7,7 +7,7 @@ system used by the patient portal, M-Pesa, and insurance claims.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import current_app
 
@@ -53,7 +53,7 @@ def get_or_create_open_invoice(patient_id: str) -> Invoice:
             status=InvoiceStatus.DRAFT,
             grand_total=0.0,
             amount_paid=0.0,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
         db.session.add(invoice)
         db.session.flush()  # Get the ID without committing
@@ -194,7 +194,7 @@ def sync_payment(
         payment_method=payment_method,
         reference_number=reference_number,
         receipt_number=receipt_number,
-        payment_date=datetime.utcnow(),
+        payment_date=datetime.now(timezone.utc),
     )
 
     db.session.add(payment)
@@ -208,7 +208,7 @@ def sync_payment(
     # Recalculate status
     if invoice.balance <= 0:
         invoice.status = InvoiceStatus.PAID
-        invoice.paid_at = datetime.utcnow()
+        invoice.paid_at = datetime.now(timezone.utc)
     elif invoice.amount_paid > 0:
         invoice.status = InvoiceStatus.PARTIAL
 

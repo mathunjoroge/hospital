@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -215,7 +215,7 @@ def medication_admin():
                 patient_id=patient_id,
                 medication=medication,
                 dosage=dosage,
-                time_administered=datetime.utcnow(),
+                time_administered=datetime.now(timezone.utc),
                 recorded_by=current_user.id,
             )
             db.session.add(new_medication)
@@ -251,7 +251,7 @@ def mark_task_completed(task_id):
             return redirect(url_for("nursing.patient_dashboard", patient_id=patient_id))
 
         task.status = "Completed"
-        task.completed_at = datetime.utcnow()
+        task.completed_at = datetime.now(timezone.utc)
         db.session.commit()
         flash("Task marked as completed.", "success")
         return redirect(url_for("nursing.patient_dashboard", patient_id=patient_id))

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -175,7 +175,7 @@ def add_patient_note(patient_id):
 @roles_required("nursing", "admin", "medicine", "doctor")
 def shift_handover():
     try:
-        recent_time = datetime.utcnow() - timedelta(hours=12)
+        recent_time = datetime.now(timezone.utc) - timedelta(hours=12)
         patients = (
             db.session.query(Partogram.patient_id)
             .filter(Partogram.timestamp > recent_time)
@@ -241,7 +241,7 @@ def communicate_doctor(patient_id=None):
                 receiver_id=int(doctor_id),
                 patient_id=p_id or "",
                 message=message_text,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
             )
             db.session.add(new_message)
             db.session.commit()

@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -158,7 +158,7 @@ def request_reagent_restock():
         new_request = OtherOrder(
             item_id=item_id,
             quantity_requested=int(quantity),
-            request_date=datetime.utcnow(),
+            request_date=datetime.now(timezone.utc),
             status="Pending",
             requested_by=current_user.id,
         )

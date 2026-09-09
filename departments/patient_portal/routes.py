@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from flask import (
     flash,
@@ -28,7 +28,7 @@ def dashboard():
     # Upcoming bookings (ClinicBooking uses clinic_date, not booking_date)
     upcoming_bookings = (
         ClinicBooking.query.filter_by(patient_id=patient.patient_id)
-        .filter(ClinicBooking.clinic_date >= datetime.utcnow().date())
+        .filter(ClinicBooking.clinic_date >= datetime.now(timezone.utc).date())
         .all()
     )
 

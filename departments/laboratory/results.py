@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Response, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
@@ -77,7 +77,7 @@ def process_lab_request(request_id):
             lab_result = LabResult(
                 patient_id=lab_request.patient_id,
                 lab_test_id=lab_test.id,
-                test_date=datetime.utcnow(),
+                test_date=datetime.now(timezone.utc),
                 result_notes=request.form.get("result_notes", ""),  # Optional notes
                 result=json.dumps(results_dict),  # Store the results as a JSON string
                 result_id=result_id,  # Assign the unique result_id

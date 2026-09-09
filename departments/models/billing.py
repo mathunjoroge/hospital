@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 from extensions import db  # Use absolute import for db
 
@@ -130,7 +130,7 @@ class PaidBill(db.Model):
     @staticmethod
     def generate_receipt_number():
         """Generate a unique receipt number."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         prefix = f"REC-{now.strftime('%Y%m%d')}"
         last_paid_bill = (
             PaidBill.query.filter(PaidBill.receipt_number.like(f"{prefix}%"))
@@ -385,7 +385,7 @@ class Invoice(db.Model):
         """Generate unique sequential invoice number INV-YYYYMMDD-NNNN-UUID."""
         import uuid
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         prefix = f"INV-{now.strftime('%Y%m%d')}"
         last = (
             Invoice.query.filter(Invoice.invoice_number.like(f"{prefix}-%"))

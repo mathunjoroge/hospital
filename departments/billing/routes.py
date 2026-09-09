@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
@@ -352,7 +352,7 @@ def view_unpaid_bills(patient_id):
 
     admitted_patients_data = []
     for admission in admitted_patients:
-        days = (datetime.utcnow() - admission.admitted_on).days + 1
+        days = (datetime.now(timezone.utc) - admission.admitted_on).days + 1
         total_cost = Decimal(str(admission.ward.daily_charge or 0)) * Decimal(days)
         admitted_patients_data.append(
             {
@@ -473,7 +473,7 @@ def pay_all(patient_id):
             grand_total=grand_total,
             amount_paid=amount_paid,
             balance=balance,
-            paid_at=datetime.utcnow(),
+            paid_at=datetime.now(timezone.utc),
             payment_method=payment_method,
         )
         db.session.add(new_paid_bill)
@@ -604,7 +604,7 @@ def pay_bills(patient_id):
             else Decimal("0"),
             "Ward Admissions": sum(
                 Decimal(str(a.ward.daily_charge or 0))
-                * Decimal((datetime.utcnow() - a.admitted_on).days + 1)
+                * Decimal((datetime.now(timezone.utc) - a.admitted_on).days + 1)
                 for a in selected_items["admitted_patients"]
             )
             if selected_items["admitted_patients"]
@@ -645,7 +645,7 @@ def pay_bills(patient_id):
                     ]
                 elif category == "admitted_patients":
                     paid_items["Ward Admissions"] = [
-                        f"{item.ward.name} ({(datetime.utcnow() - item.admitted_on).days + 1} days)"
+                        f"{item.ward.name} ({(datetime.now(timezone.utc) - item.admitted_on).days + 1} days)"
                         for item in items
                     ]
 
@@ -657,7 +657,7 @@ def pay_bills(patient_id):
                 grand_total=grand_total,
                 amount_paid=amount_paid,
                 balance=balance,
-                paid_at=datetime.utcnow(),
+                paid_at=datetime.now(timezone.utc),
                 payment_method=payment_method or "Cash",
             )
             db.session.add(paid_bill_record)
@@ -676,7 +676,7 @@ def pay_bills(patient_id):
                             total_cost=total,
                             status=1,
                             receipt_number=receipt_number,
-                            billed_at=datetime.utcnow(),
+                            billed_at=datetime.now(timezone.utc),
                             payment_method=payment_method,
                             payment_reference=payment_reference,
                         )
@@ -806,7 +806,7 @@ def pay_bills(patient_id):
 
     admitted_patients_data = []
     for admission in admitted_patients:
-        days = (datetime.utcnow() - admission.admitted_on).days + 1
+        days = (datetime.now(timezone.utc) - admission.admitted_on).days + 1
         total_cost = Decimal(str(admission.ward.daily_charge or 0)) * Decimal(days)
         admitted_patients_data.append(
             {
@@ -1022,7 +1022,7 @@ def receipts_list():
 @login_required
 @roles_required("billing", "admin")
 def daily_revenue_report():
-    from datetime import date, timedelta
+    from datetime import date, timedelta, timezone
 
     start_str = request.args.get("start")
     end_str = request.args.get("end")

@@ -2,7 +2,7 @@
 Billing reconciliation endpoints - compare legacy billing totals with unified Invoice system.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, jsonify, render_template, request
 from flask_login import login_required
@@ -32,7 +32,7 @@ def reconciliation_dashboard():
     """Dashboard showing billing sync status and discrepancies."""
     # Get date range from query params (default: last 30 days)
     days = request.args.get("days", 30, type=int)
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
     # Calculate legacy billing totals by category
     legacy_totals = {}
@@ -146,6 +146,6 @@ def sync_status():
             "sync_enabled": enabled,
             "synced_invoices": synced_invoices,
             "synced_line_items": synced_line_items,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     )

@@ -74,10 +74,58 @@ elif not secret_key:
             "(FLASK_ENV=testing is the only exception)."
         )
 
+# ENCRYPTION_KEY guard — mirrors the SECRET_KEY check above.
+# A missing ENCRYPTION_KEY in production means patient PII is written to the DB
+# using the old static DEV_FALLBACK_KEY (now removed), which is equivalent to
+# no encryption. Refuse to start rather than silently degrade.
+_encryption_key = os.environ.get("ENCRYPTION_KEY")
+if os.environ.get("FLASK_ENV") == "production":
+    if not _encryption_key:
+        raise RuntimeError(
+            "CRITICAL SECURITY ERROR: ENCRYPTION_KEY environment variable is not set. "
+            "Patient identity fields cannot be encrypted. "
+            "Generate a key with: python3 -c \"from cryptography.fernet import Fernet; "
+            "print(Fernet.generate_key().decode())\" and add it to your .env file."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Prometheus-compatible in-process request metrics (lightweight, no dependency)
+# These are approximate counters — for a production scrape, replace with the
+# official prometheus_client library once DECISIONS_PENDING item 3 (telemetry
+# provider selection) is resolved.
+# ---------------------------------------------------------------------------
+import threading
+import time as _time  # noqa: E402 — needed before first request hook
+
+_metrics_lock = threading.Lock()
+_request_count_total: int = 0       # all requests
+_request_error_count: int = 0       # 4xx + 5xx responses
+_request_latency_sum_ms: float = 0.0
+_request_latency_count: int = 0     # number of timed requests
+
 
 @app.before_request
 def assign_request_id():
     g.request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    g._request_start_time = _time.monotonic()
+
+
+@app.after_request
+def record_request_metrics(response):
+    """Update in-process Prometheus counters for each completed request."""
+    global _request_count_total, _request_error_count
+    global _request_latency_sum_ms, _request_latency_count
+    start = getattr(g, "_request_start_time", None)
+    with _metrics_lock:
+        _request_count_total += 1
+        if response.status_code >= 400:
+            _request_error_count += 1
+        if start is not None:
+            elapsed_ms = (_time.monotonic() - start) * 1000.0
+            _request_latency_sum_ms += elapsed_ms
+            _request_latency_count += 1
+    return response
 
 
 @app.after_request
@@ -85,15 +133,43 @@ def set_security_headers_and_request_id(response):
     response.headers["X-Request-ID"] = getattr(g, "request_id", "")
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    # X-XSS-Protection is deprecated in modern browsers but kept for IE/legacy
     response.headers["X-XSS-Protection"] = "1; mode=block"
+
+    # Referrer-Policy: don't leak the URL to third-party scripts/CDNs
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # Permissions-Policy: lock down browser APIs not needed by a clinical app
+    response.headers["Permissions-Policy"] = (
+        "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+    )
+
+    # HSTS: only set over HTTPS (production). 1 year max-age; includeSubDomains.
+    # Not set in dev/test because it would break plain HTTP local dev.
+    if os.environ.get("FLASK_ENV") == "production":
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+
     if "Content-Security-Policy" not in response.headers:
+        # NOTE on 'unsafe-inline' in script-src:
+        #   The UI currently uses inline <script> blocks and onclick attributes
+        #   widely. Removing 'unsafe-inline' requires a template-level refactor
+        #   (nonce or hash per script block) and is tracked as a future hardening
+        #   item. 'unsafe-eval' has been removed — it was not required by any
+        #   identified feature and defeats eval-based XSS protection.
+        #
+        # NOTE on 'unsafe-inline' in style-src:
+        #   Bootstrap/Chart.js inject inline styles at runtime; this is kept
+        #   until the UI is migrated to a bundler that supports CSP nonces.
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
             "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
             "img-src 'self' data: https:; "
-            "connect-src 'self'"
+            "connect-src 'self'; "
+            "frame-ancestors 'self'"
         )
     return response
 
@@ -270,7 +346,7 @@ def inject_unread_notifications():
 
 def datetime_filter(value):
     if value == "now":
-        return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     return value
 
 
@@ -473,7 +549,21 @@ def healthz():
 def metrics():
     """
     Prometheus-compatible Monitoring & Observability Endpoint.
-    Exposes system metrics, database connectivity status, and disk space.
+
+    Metrics exposed:
+      hmis_up                         — service liveness
+      hmis_db_connected               — DB connectivity
+      hmis_disk_free_bytes            — disk free
+      hmis_disk_total_bytes           — disk total
+      hmis_requests_total             — all HTTP requests since startup
+      hmis_request_errors_total       — 4xx+5xx responses since startup
+      hmis_request_latency_ms_sum     — cumulative latency (for avg calculation)
+      hmis_request_latency_ms_count   — number of timed requests
+      hmis_celery_queue_depth         — tasks queued in Redis (0 if Redis unavailable)
+
+    NOTE: these are in-process approximations. Once DECISIONS_PENDING item 3
+    (telemetry provider selection) is resolved, replace with prometheus_client
+    for proper histogram buckets and multi-process aggregation.
     """
     try:
         total, used, free = shutil.disk_usage(".")
@@ -486,19 +576,57 @@ def metrics():
     except Exception:
         db_up = 0
 
+    # Celery queue depth via Redis LLEN on the default queue
+    celery_queue_depth = 0
+    try:
+        _redis = app.config.get("SESSION_REDIS")
+        if _redis:
+            celery_queue_depth = _redis.llen("celery") or 0
+    except Exception:
+        pass  # Redis unavailable — emit 0, don't crash metrics endpoint
+
+    with _metrics_lock:
+        req_total = _request_count_total
+        req_errors = _request_error_count
+        lat_sum = _request_latency_sum_ms
+        lat_count = _request_latency_count
+
     lines = [
         "# HELP hmis_up Service availability indicator (1=up, 0=down)",
         "# TYPE hmis_up gauge",
         "hmis_up 1",
+        "",
         "# HELP hmis_db_connected Database connection status (1=connected, 0=disconnected)",
         "# TYPE hmis_db_connected gauge",
         f"hmis_db_connected {db_up}",
+        "",
         "# HELP hmis_disk_free_bytes Free disk space in bytes",
         "# TYPE hmis_disk_free_bytes gauge",
         f"hmis_disk_free_bytes {free}",
+        "",
         "# HELP hmis_disk_total_bytes Total disk space in bytes",
         "# TYPE hmis_disk_total_bytes gauge",
         f"hmis_disk_total_bytes {total}",
+        "",
+        "# HELP hmis_requests_total Total HTTP requests handled since startup",
+        "# TYPE hmis_requests_total counter",
+        f"hmis_requests_total {req_total}",
+        "",
+        "# HELP hmis_request_errors_total HTTP 4xx+5xx responses since startup",
+        "# TYPE hmis_request_errors_total counter",
+        f"hmis_request_errors_total {req_errors}",
+        "",
+        "# HELP hmis_request_latency_ms_sum Cumulative request latency in milliseconds",
+        "# TYPE hmis_request_latency_ms_sum counter",
+        f"hmis_request_latency_ms_sum {lat_sum:.3f}",
+        "",
+        "# HELP hmis_request_latency_ms_count Number of timed requests (for avg: sum/count)",
+        "# TYPE hmis_request_latency_ms_count counter",
+        f"hmis_request_latency_ms_count {lat_count}",
+        "",
+        "# HELP hmis_celery_queue_depth Number of tasks queued in Celery default queue",
+        "# TYPE hmis_celery_queue_depth gauge",
+        f"hmis_celery_queue_depth {celery_queue_depth}",
     ]
     return "\n".join(lines) + "\n", 200, {"Content-Type": "text/plain; version=0.0.4"}
 

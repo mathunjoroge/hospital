@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from departments.models.admin import Log
 from departments.models.records import Patient, PatientMerge
@@ -73,13 +73,13 @@ def merge_patient_records(source_patient_id, target_patient_id, user_id, notes=N
         source_patient_id=source_patient_id,
         target_patient_id=target_patient_id,
         merged_by=user_id,
-        merged_at=datetime.utcnow(),
+        merged_at=datetime.now(timezone.utc),
         notes=notes,
     )
     db.session.add(merge_log)
 
     source.is_active = False
-    source.deleted_at = datetime.utcnow()
+    source.deleted_at = datetime.now(timezone.utc)
 
     db.session.add(
         Log(

@@ -10,7 +10,7 @@ Features:
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request, send_from_directory
 
@@ -49,7 +49,7 @@ def get_modality_worklist():
                 else "F"
                 if patient and patient.sex == "Female"
                 else "O",
-                "StudyInstanceUID": f"1.2.826.0.1.3680043.2.1125.{order.id}.{int(datetime.utcnow().timestamp())}",
+                "StudyInstanceUID": f"1.2.826.0.1.3680043.2.1125.{order.id}.{int(datetime.now(timezone.utc).timestamp())}",
                 "RequestedProcedureDescription": order.description
                 or "Imaging procedure",
                 "ScheduledProcedureStepStartDate": order.date_requested.strftime(

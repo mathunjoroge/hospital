@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 from flask import (
@@ -19,6 +19,21 @@ from departments.notifications.triggers import trigger_password_reset_email
 from extensions import db
 
 from . import patient_portal_bp
+
+
+def _as_utc(dt: "datetime | None") -> "datetime | None":
+    """
+    Return dt as a UTC-aware datetime.
+
+    SQLite strips timezone info on roundtrip even with DateTime(timezone=True).
+    Any naive datetime stored by this app was written as UTC, so we re-attach
+    UTC here before comparing against datetime.now(timezone.utc).
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 def patient_login_required(f):
@@ -77,7 +92,7 @@ def login():
         if not user.check_password(password):
             user.failed_login_attempts += 1
             if user.failed_login_attempts >= 5:
-                user.locked_until = datetime.utcnow() + timedelta(minutes=15)
+                user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
                 flash(
                     "Account locked for 15 minutes due to 5 failed login attempts.",
                     "danger",
@@ -90,7 +105,7 @@ def login():
         # Successful login
         user.failed_login_attempts = 0
         user.locked_until = None
-        user.last_login = datetime.utcnow()
+        user.last_login = datetime.now(timezone.utc)
         db.session.commit()
 
         session["patient_user_id"] = user.id
@@ -185,7 +200,7 @@ def forgot_password():
             if user and user.is_active:
                 token = secrets.token_urlsafe(32)
                 user.reset_token = token
-                user.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
+                user.reset_token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
                 db.session.commit()
 
                 reset_link = url_for(
@@ -215,7 +230,7 @@ def reset_password(token):
     if (
         not user
         or not user.reset_token_expiry
-        or datetime.utcnow() > user.reset_token_expiry
+        or datetime.now(timezone.utc) > _as_utc(user.reset_token_expiry)
     ):
         flash("This password reset link is invalid or has expired.", "danger")
         return redirect(url_for("patient_portal.login"))
