@@ -53,6 +53,9 @@ class PrescribedMedicine(db.Model):
     patient_id = db.Column(
         db.Text, db.ForeignKey("patients.patient_id"), nullable=False
     )
+    encounter_id = db.Column(
+        db.String(36), db.ForeignKey("encounters.id"), nullable=True, index=True
+    )  # NEW: visit scoping
     medicine_id = db.Column(db.Integer, db.ForeignKey("medicines.id"), nullable=False)
     dosage = db.Column(db.String(255), nullable=False)
     strength = db.Column(db.String(255), nullable=False)
@@ -105,6 +108,10 @@ class RequestedLab(db.Model):
     patient_id = db.Column(
         db.String(20), db.ForeignKey("patients.patient_id"), nullable=False
     )
+    encounter_id = db.Column(
+        db.String(36), db.ForeignKey("encounters.id"), nullable=True, index=True
+    )
+
     lab_test_id = db.Column(db.Integer, db.ForeignKey("labtests.id"), nullable=False)
     date_requested = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.Integer, default=0)
@@ -144,6 +151,15 @@ class RequestedImage(db.Model):
     patient_id = db.Column(
         db.Text, db.ForeignKey("patients.patient_id"), nullable=False
     )
+    encounter_id = db.Column(
+        db.String(36), db.ForeignKey("encounters.id"), nullable=True, index=True
+    )  # NEW: visit scoping
+    encounter_id = db.Column(
+        db.String(36), db.ForeignKey("encounters.id"), nullable=True, index=True
+    )  # NEW: visit scoping
+    encounter_id = db.Column(
+        db.String(36), db.ForeignKey("encounters.id"), nullable=True, index=True
+    )  # NEW: visit scoping
     imaging_id = db.Column(db.Integer, db.ForeignKey("imaging.id"), nullable=False)
     date_requested = db.Column(
         db.DateTime, default=db.func.current_timestamp(), nullable=False

@@ -54,6 +54,11 @@ class Encounter(db.Model):
                               primaryjoin="Encounter.patient_id == Patient.patient_id",
                               lazy="joined", viewonly=True)
 
+
+    # Clinical work relationships (for visit scoping)
+    requested_labs = db.relationship("RequestedLab", backref="encounter", lazy="dynamic")
+    requested_images = db.relationship("RequestedImage", backref="encounter", lazy="dynamic")
+    prescribed_medicines = db.relationship("PrescribedMedicine", backref="encounter", lazy="dynamic")
     @property
     def seen(self):
         """Backward compat: maps stage to legacy QueueStatus integer for templates."""
