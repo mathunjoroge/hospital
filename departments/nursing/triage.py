@@ -277,6 +277,18 @@ def assess_patient_triage():
     )
     db.session.add(assessment)
 
+    # Phase 5 (ESI): sync acuity onto the active Encounter so QueueService prioritizes
+    from departments.models.encounter import Encounter
+
+    enc = (
+        Encounter.query.filter_by(patient_id=str(patient_id), status='ACTIVE')
+        .order_by(Encounter.started_at.desc())
+        .first()
+    )
+    if enc:
+        enc.esi_level = esi_level
+        enc.set_stage('WAITING_DOCTOR')
+
     # Trigger alert notification if critical ESI 1 or 2
     if esi_level in (1, 2):
         alert_msg = f"EMERGENCY ESCALATION [ESI Level {esi_level}]: Patient {patient.name} ({patient_id}) — {chief_complaint}"

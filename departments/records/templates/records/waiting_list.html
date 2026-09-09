@@ -76,7 +76,7 @@
           {% for entry, patient in waiting_list %}
           <tr>
             <td><span class="patient-id-chip">{{ entry.patient_id }}</span></td>
-            <td><strong>{{ patient.name if patient else 'N/A' }}</strong></td>
+            <td><strong>{{ patient.name if patient else 'N/A' }} {% if entry.esi_level in (1, 2) %}<span class="badge bg-danger ms-1">EMERGENT</span>{% endif %}</strong></td>
             <td>
               {% if entry.seen == 1 %}
                 <span class="status-badge badge-seen"><i class="bi bi-check-circle"></i> Completed</span>

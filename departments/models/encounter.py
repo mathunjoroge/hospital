@@ -89,6 +89,7 @@ class Encounter(db.Model):
     # Visit lifecycle stage (Phase 2). Independent of `status`, which
     # billing/sync.py relies on to scope invoices to a visit.
     stage = db.Column(db.String(30), nullable=True, index=True)
+    esi_level = db.Column(db.Integer, nullable=True)  # 1-5 ESI acuity
 
     ALLOWED_STAGE_TRANSITIONS = {
         None: {"REGISTERED", "WAITING_DOCTOR", "IN_CONSULTATION"},
