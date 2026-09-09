@@ -8,6 +8,14 @@ os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite://"  # in-memory
 os.environ.setdefault("SECRET_KEY", "testing_secret_key_1234567890")
 os.environ.setdefault("SECURITY_PASSWORD_SALT", "testing_salt_1234567890")
 
+# A stable Fernet key for the entire test suite.
+# Without this, get_fernet_key() generates a NEW ephemeral key on every call
+# in test mode, so encrypt() and decrypt() use different keys and roundtrips
+# fail. Derived from a fixed seed; valid only for testing.
+os.environ.setdefault(
+    "ENCRYPTION_KEY", "thInEUT_C4EOAyIAvI7aHWq0gmhf29_LfWzD7G6sAwo="
+)
+
 from app import app as flask_app  # noqa: E402
 from extensions import db, limiter  # noqa: E402
 
