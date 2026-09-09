@@ -431,8 +431,11 @@ def save_dispensed_drugs():
         db.session.commit()
                 # FIX 4: Advance encounter stage after dispensing completion
         # FIX 4: Advance encounter stage after dispensing
+        # FIX 4: Advance encounter stage after dispensing completion
         from departments.shared.visit_closure import advance_after_completion
-        advance_after_completion(patient_id)
+        patient_id = prescribed_meds[0].patient_id if prescribed_meds else None
+        if patient_id:
+            advance_after_completion(patient_id)
         print("DEBUG: Database commit successful")
 
         # Verify after commit

@@ -266,8 +266,8 @@ class AdmittedPatient(db.Model):
         db.String(20), db.ForeignKey("patients.patient_id"), nullable=False
     )
     room_id = db.Column(db.Integer, db.ForeignKey("ward_rooms.id"), nullable=True)   # NEW
-    bed_id = db.Column(db.Integer, db.ForeignKey("beds.id"), nullable=True) 
-    
+    bed_id = db.Column(db.Integer, db.ForeignKey("beds.id"), nullable=True)
+
     ward_id = db.Column(db.Integer, db.ForeignKey("wards.id"), nullable=False)
     admitted_on = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     admission_criteria = db.Column(db.Text, nullable=False)

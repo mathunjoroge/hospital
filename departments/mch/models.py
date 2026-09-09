@@ -1,6 +1,8 @@
 import uuid
 from datetime import datetime, timezone
+
 from extensions import db
+
 
 class AncVisit(db.Model):
     __tablename__ = "anc_visits"

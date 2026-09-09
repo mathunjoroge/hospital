@@ -286,10 +286,10 @@ def discharge_patient(id):
         if not bed:
             bed = (
                 Bed.query.join(WardRoom, Bed.room_id == WardRoom.id)
-                .filter(WardRoom.ward_id == admission.ward_id, Bed.occupied == True)
+                .filter(WardRoom.ward_id == admission.ward_id, Bed.occupied.is_(True))
                 .first()
             )
-        
+
         if ward and ward.occupied_beds > 0:
             ward.occupied_beds -= 1
         if bed:
