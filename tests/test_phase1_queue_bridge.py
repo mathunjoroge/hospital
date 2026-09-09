@@ -38,19 +38,24 @@ def test_live_queue_includes_ready_excludes_in_progress(app):
     ids = {a.id for a in ScheduleEngine().get_live_queue()}
     assert a2.id in ids and a1.id not in ids
 
+
 def test_vitals_template_has_no_broken_url(app, client):
     """The vitals page must render without BuildError for any url_for call."""
-    from departments.models.user import User
     from werkzeug.security import generate_password_hash
+
+    from departments.models.user import User
+    from extensions import db
+
     with app.app_context():
         u = User(id=99, username="nursetpl",
                  password=generate_password_hash("p"), role="admin")
-        from extensions import db; db.session.add(u); db.session.commit()
-        client.post("/login", data={"username":"nursetpl","password":"p"})
-        resp = client.get("/nursing/vitals/P0001")
-        # Either 200 (rendered cleanly) or 404 (no such patient, but no BuildError).
-        # A BuildError would surface as 500 and be caught by the error handler.
-        assert resp.status_code in (200, 404), (
-            f"vitals template failed to render (status {resp.status_code}); "
-            f"likely a broken url_for in the template."
-        )    
+        db.session.add(u)
+        db.session.commit()
+    client.post("/login", data={"username": "nursetpl", "password": "p"})
+    resp = client.get("/nursing/vitals/P0001")
+    # Either 200 (rendered cleanly) or 404 (no such patient, but no BuildError).
+    # A BuildError would surface as 500 and be caught by the error handler.
+    assert resp.status_code in (200, 404), (
+        f"vitals template failed to render (status {resp.status_code}); "
+        f"likely a broken url_for in the template."
+    )

@@ -12,7 +12,6 @@ from flask import (
     url_for,
 )
 from flask_login import login_required
-
 from sqlalchemy import func
 
 from departments.appointments.models import Appointment

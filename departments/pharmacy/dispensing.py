@@ -6,13 +6,13 @@ from flask import current_app, flash, redirect, render_template, request, url_fo
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
+from departments.models.admin import Log
 from departments.models.medicine import PrescribedMedicine
 from departments.models.pharmacy import (  # Import PatientWaitingList and Patient models
     Batch,
     DispensedDrug,
     Drug,
 )
-from departments.models.admin import Log
 from departments.models.records import Patient
 from departments.rbac import roles_required
 from departments.shared.payment_gate import has_unpaid_charges

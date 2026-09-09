@@ -1,7 +1,15 @@
 # Phase 2: Encounter stage machine + single visit-closure authority.
+from datetime import date
+
+from werkzeug.security import generate_password_hash
+
 from departments.appointments.engine import ScheduleEngine
 from departments.models.billing import (
-    Invoice, InvoiceLineItem, InvoiceStatus, Payment, PaymentMethod,
+    Invoice,
+    InvoiceLineItem,
+    InvoiceStatus,
+    Payment,
+    PaymentMethod,
 )
 from departments.models.encounter import Encounter
 from departments.models.medicine import LabTest, RequestedLab
@@ -10,8 +18,6 @@ from departments.models.user import User
 from departments.shared import visit_closure
 from departments.shared.queue_constants import QueueStatus
 from extensions import db
-from datetime import date
-from werkzeug.security import generate_password_hash
 
 
 def _patient(pid):
