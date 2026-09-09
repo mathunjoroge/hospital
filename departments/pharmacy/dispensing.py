@@ -117,7 +117,7 @@ def dispense_prescription(prescription_id):
         prescribed_medicines = (
             PrescribedMedicine.query.filter_by(
                 prescription_id=prescription_id,
-                status="0",  # Add status='0' filter
+                status=0,  # Add status='0' filter
             )
             .options(joinedload(PrescribedMedicine.medicine))
             .all()
@@ -429,6 +429,10 @@ def save_dispensed_drugs():
             )
 
         db.session.commit()
+                # FIX 4: Advance encounter stage after dispensing completion
+        # FIX 4: Advance encounter stage after dispensing
+        from departments.shared.visit_closure import advance_after_completion
+        advance_after_completion(patient_id)
         print("DEBUG: Database commit successful")
 
         # Verify after commit

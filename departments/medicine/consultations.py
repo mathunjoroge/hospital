@@ -219,7 +219,7 @@ def submit_soap_notes(patient_id):
             patient_id=patient_id, status=0
         ).count()
         pending_rx = PrescribedMedicine.query.filter_by(
-            patient_id=patient_id, status="0"
+            patient_id=patient_id, status=0
         ).count()
 
         encounter = (
@@ -459,18 +459,18 @@ def soap_notes(patient_id):
 @roles_required("medicine", "admin")
 def recall_to_consult(patient_id):
     """Put a results-ready patient back in front of the doctor."""
-    entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
-    if not entry:
-        flash("Patient not found in the waiting list.", "error")
-        return redirect(url_for("medicine.index"))
-
-    entry.seen = QueueStatus.IN_CONSULTATION
     enc = (
         Encounter.query.filter_by(patient_id=str(patient_id), status="ACTIVE")
         .order_by(Encounter.started_at.desc())
         .first()
     )
-    if enc and enc.appointment_id:
+    if not enc:
+        flash("No active encounter found for this patient.", "error")
+        return redirect(url_for("medicine.index"))
+
+    enc.set_stage("IN_CONSULTATION")
+
+    if enc.appointment_id:
         appt = Appointment.query.get(enc.appointment_id)
         if appt and appt.status in ("CHECKED_IN", "READY", "COMPLETED"):
             appt.status = "IN_PROGRESS"

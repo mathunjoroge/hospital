@@ -99,7 +99,7 @@ def dispense_medication_fefo(
             patient_id=patient_id,
             prescription_id=prescription_id,
             quantity_dispensed=take_qty,
-            status="1",  # Dispensed
+            status=1,  # Dispensed
         )
         db.session.add(dispensed)
         dispensed_records.append(dispensed)

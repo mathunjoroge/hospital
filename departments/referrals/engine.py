@@ -31,7 +31,7 @@ class ReferralEngine:
 
     def initiate(
         self,
-        patient_id: int,
+        patient_id: str,
         referring_facility: str,
         receiving_facility: str,
         reason: str,
@@ -85,7 +85,7 @@ class DischargeEngine:
 
     def generate_summary(
         self,
-        patient_id: int,
+        patient_id: str,
         appointment_id: str | None,
         admission_date: datetime,
         primary_diagnosis: str,

@@ -585,9 +585,16 @@ def process_imaging_request(request_id):
                 },
             )
             db.session.add(imaging_result)
-            imaging_request.status = "completed"
+            imaging_request.status = 1
             imaging_request.result_id = result_id
             db.session.commit()
+            imaging_request.status = 1   # was "completed"
+            imaging_request.result_id = result_id
+            db.session.commit()
+
+            # FIX 4: Advance encounter stage after imaging completion
+            from departments.shared.visit_closure import advance_after_completion
+            advance_after_completion(imaging_request.patient_id)
             logger.debug(
                 f"Saved result: request_id={request_id}, result_id={result_id}"
             )

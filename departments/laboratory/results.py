@@ -93,6 +93,9 @@ def process_lab_request(request_id):
                 result_id  # Link the lab request to the result via result_id
             )
             db.session.commit()
+    # FIX 4: Advance encounter stage after lab completion
+            from departments.shared.visit_closure import advance_after_completion
+            advance_after_completion(lab_request.patient_id)
 
             # Trigger notification to patient that lab result is ready
             from departments.notifications.triggers import trigger_lab_result_ready

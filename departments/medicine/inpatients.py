@@ -241,6 +241,8 @@ def admit_patient():
             admission = AdmittedPatient(
                 patient_id=patient_id,
                 ward_id=ward_id,
+                room_id=room_id,   # NEW
+                bed_id=bed_id,     # NEW
                 admission_criteria=admission_criteria,
                 admitted_by=admitted_by,
                 admitted_on=datetime.now(timezone.utc),
@@ -279,12 +281,19 @@ def discharge_patient(id):
             return redirect(url_for("medicine.view_admitted_patients"))
 
         ward = Ward.query.get(admission.ward_id)
-        bed = Bed.query.filter_by(room_id=admission.ward_id, occupied=True).first()
-
+        # FIX 2: Use stored bed_id, fallback to searching the ward
+        bed = Bed.query.get(admission.bed_id) if admission.bed_id else None
+        if not bed:
+            bed = (
+                Bed.query.join(WardRoom, Bed.room_id == WardRoom.id)
+                .filter(WardRoom.ward_id == admission.ward_id, Bed.occupied == True)
+                .first()
+            )
+        
         if ward and ward.occupied_beds > 0:
-            ward.occupied_beds -= 1  # Free up a bed
+            ward.occupied_beds -= 1
         if bed:
-            bed.occupied = False  # Free up the bed
+            bed.occupied = False
 
         admission.discharged_on = datetime.now(timezone.utc)
         db.session.commit()

@@ -36,7 +36,7 @@ class MchEngine:
 
     def log_anc_visit(
         self,
-        patient_id: int,
+        patient_id: str,
         visit_number: int,
         gestation_weeks: int,
         high_risk_factors: str | None = None,
@@ -84,7 +84,7 @@ class MchEngine:
 
     def record_immunization(
         self,
-        child_patient_id: int,
+        child_patient_id: str,
         vaccine_name: str,
         dose_number: int,
         batch_number: str | None = None,
