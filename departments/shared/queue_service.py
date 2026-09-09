@@ -5,6 +5,7 @@ PatientWaitingList writes continue (dual-write) for one release as a
 rollback safety net; Phase 4 removes them.
 """
 from departments.models.encounter import Encounter
+from sqlalchemy import case
 
 
 # Which Encounter.stage values count as 'queued' for each department.
@@ -32,7 +33,14 @@ def queue_for(department: str):
             Encounter.status == "ACTIVE",
             Encounter.stage.in_(stages),
         )
-        .order_by(Encounter.started_at.asc())
+        .order_by(
+            case(
+                (Encounter.esi_level.in_([1, 2]), 0),  # Emergent first
+                (Encounter.esi_level.isnot(None), 1),  # Triaged (3-5) next
+                else_=2,                               # Untriaged last
+            ).asc(),
+            Encounter.started_at.asc(),
+        )
         .all()
     )
 
