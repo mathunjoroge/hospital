@@ -24,7 +24,8 @@ def _patient(pid):
 
 def test_stage_machine_legal_chain(app):
     enc = Encounter(patient_id="P1", encounter_type="OPD", status="ACTIVE")
-    db.session.add(enc); db.session.commit()
+    db.session.add(enc)
+    db.session.commit()
     for stage in ["REGISTERED", "WAITING_DOCTOR", "IN_CONSULTATION",
                   "AWAITING_RESULTS", "IN_CONSULTATION", "AWAITING_PHARMACY",
                   "AWAITING_BILLING"]:
@@ -35,7 +36,8 @@ def test_stage_machine_legal_chain(app):
 def test_stage_machine_refuses_illegal_jumps(app):
     enc = Encounter(patient_id="P1", encounter_type="OPD", status="ACTIVE",
                     stage="REGISTERED")
-    db.session.add(enc); db.session.commit()
+    db.session.add(enc)
+    db.session.commit()
     assert enc.set_stage("DISCHARGED") is False
     assert enc.set_stage("AWAITING_PHARMACY") is False
     assert enc.stage == "REGISTERED"
@@ -56,7 +58,9 @@ def test_walk_in_and_triage_set_stages(app):
 def test_visit_not_closed_while_labs_pending(app):
     _patient("P0001")
     ScheduleEngine().create_walk_in(patient_id="P0001")
-    lt = LabTest(test_name="CBC", cost=500); db.session.add(lt); db.session.commit()
+    lt = LabTest(test_name="CBC", cost=500)
+    db.session.add(lt)
+    db.session.commit()
     db.session.add(RequestedLab(patient_id="P0001", lab_test_id=lt.id, status=0))
     db.session.commit()
     assert visit_closure.maybe_close_encounter("P0001") is False
@@ -78,7 +82,8 @@ def test_full_payment_closes_scoped_encounter(app):
     ScheduleEngine().create_walk_in(patient_id="P0001")
     enc = visit_closure.active_encounter("P0001")
     inv = Invoice(patient_id="P0001", encounter_id=enc.id, status=InvoiceStatus.ISSUED)
-    db.session.add(inv); db.session.commit()
+    db.session.add(inv)
+    db.session.commit()
     db.session.add(InvoiceLineItem(invoice_id=inv.id, description="Consult",
                                    category="consult", quantity=1,
                                    unit_price=1000, total=1000))
