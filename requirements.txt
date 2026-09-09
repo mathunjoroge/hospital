@@ -22,6 +22,8 @@ email-validator==2.1.1
 Pillow>=10.4.0
 python-dateutil==2.9.0.post0
 psycopg2-binary==2.9.9
+tenacity>=8.5.0
+pytz>=2024.1
 markupsafe==2.1.5
 numpy==1.26.4
 scipy==1.13.0
