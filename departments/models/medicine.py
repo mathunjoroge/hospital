@@ -54,7 +54,7 @@ class PrescribedMedicine(db.Model):
         db.Text, db.ForeignKey("patients.patient_id"), nullable=False
     )
     encounter_id = db.Column(
-        db.String(36), db.ForeignKey("encounters.id"), nullable=True, index=True
+        db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
     )  # NEW: visit scoping
     medicine_id = db.Column(db.Integer, db.ForeignKey("medicines.id"), nullable=False)
     dosage = db.Column(db.String(255), nullable=False)
@@ -76,6 +76,7 @@ class PrescribedMedicine(db.Model):
         frequency,
         prescription_id,
         num_days,
+        encounter_id=None,
     ):
         self.patient_id = patient_id
         self.medicine_id = medicine_id
@@ -84,6 +85,7 @@ class PrescribedMedicine(db.Model):
         self.frequency = frequency
         self.prescription_id = prescription_id
         self.num_days = num_days
+        self.encounter_id = encounter_id
 
     def __repr__(self):
         return f"<PrescribedMedicine {self.medicine_id} for Patient {self.patient_id}>"
@@ -109,7 +111,7 @@ class RequestedLab(db.Model):
         db.String(20), db.ForeignKey("patients.patient_id"), nullable=False
     )
     encounter_id = db.Column(
-        db.String(36), db.ForeignKey("encounters.id"), nullable=True, index=True
+        db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
     )
 
     lab_test_id = db.Column(db.Integer, db.ForeignKey("labtests.id"), nullable=False)
@@ -152,13 +154,13 @@ class RequestedImage(db.Model):
         db.Text, db.ForeignKey("patients.patient_id"), nullable=False
     )
     encounter_id = db.Column(
-        db.String(36), db.ForeignKey("encounters.id"), nullable=True, index=True
+        db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
     )  # NEW: visit scoping
     encounter_id = db.Column(
-        db.String(36), db.ForeignKey("encounters.id"), nullable=True, index=True
+        db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
     )  # NEW: visit scoping
     encounter_id = db.Column(
-        db.String(36), db.ForeignKey("encounters.id"), nullable=True, index=True
+        db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
     )  # NEW: visit scoping
     imaging_id = db.Column(db.Integer, db.ForeignKey("imaging.id"), nullable=False)
     date_requested = db.Column(
