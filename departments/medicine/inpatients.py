@@ -241,8 +241,8 @@ def admit_patient():
             admission = AdmittedPatient(
                 patient_id=patient_id,
                 ward_id=ward_id,
-                room_id=room_id,   # NEW
-                bed_id=bed_id,     # NEW
+                room_id=room_id,
+                bed_id=bed_id,
                 admission_criteria=admission_criteria,
                 admitted_by=admitted_by,
                 admitted_on=datetime.now(timezone.utc),

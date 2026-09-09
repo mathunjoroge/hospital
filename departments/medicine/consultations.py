@@ -468,6 +468,7 @@ def recall_to_consult(patient_id):
         flash("No active encounter found for this patient.", "error")
         return redirect(url_for("medicine.index"))
 
+    # FIX 3: Update encounter stage instead of legacy PatientWaitingList write
     enc.set_stage("IN_CONSULTATION")
 
     if enc.appointment_id:
@@ -475,9 +476,9 @@ def recall_to_consult(patient_id):
         if appt and appt.status in ("CHECKED_IN", "READY", "COMPLETED"):
             appt.status = "IN_PROGRESS"
     db.session.commit()
+
     flash(f"Patient {patient_id} recalled to consultation.", "success")
     return redirect(url_for("medicine.soap_notes", patient_id=patient_id))
-
 
 @bp.route("/visit-discharge/<patient_id>", methods=["POST"])
 @login_required

@@ -585,10 +585,7 @@ def process_imaging_request(request_id):
                 },
             )
             db.session.add(imaging_result)
-            imaging_request.status = 1
-            imaging_request.result_id = result_id
-            db.session.commit()
-            imaging_request.status = 1   # was "completed"
+            imaging_request.status = 1  # 0=Pending, 1=Completed, 2=Cancelled
             imaging_request.result_id = result_id
             db.session.commit()
 

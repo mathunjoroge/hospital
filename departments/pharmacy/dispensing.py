@@ -111,7 +111,7 @@ def view_prescriptions(patient_id):
 @login_required
 @roles_required("pharmacy", "admin")
 def dispense_prescription(prescription_id):
-    """Displays prescribed medicines with status='0' and available stock for dispensing."""
+    """Displays prescribed medicines with status=0 and available stock for dispensing."""
     try:
         # Filter prescribed medicines by prescription_id and status='0'
         prescribed_medicines = (
@@ -416,6 +416,12 @@ def save_dispensed_drugs():
             .update({"status": 1})
         )
         print(f"DEBUG: Updated {updated_rows} prescribed medicine rows to status=1")
+
+        # FIX 4: Advance encounter stage after dispensing completion
+        from departments.shared.visit_closure import advance_after_completion
+        _patient_id = prescribed_meds[0].patient_id if prescribed_meds else None
+        if _patient_id:
+            advance_after_completion(_patient_id)
 
         # Verify before commit
         pre_commit_meds = (
