@@ -95,5 +95,15 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
   1. **Retroactive Adjustment vs Credit Entry**: Should a legacy charge update/deletion directly modify or delete the corresponding `InvoiceLineItem`, or should it preserve an immutable audit trail by issuing an explicit credit/adjustment line item?
   2. **Session Event Scope**: Should SQLAlchemy session listeners be expanded to handle `session.deleted` events for legacy billing models?
 
+---
+
+## 11. National Program Modules — HIV/ART, TB, Malaria (HARD STOP)
+
+* **Context**: `departments/mch` implements a real MCH/ANC and immunization workflow module. HIV/ART, TB, and malaria currently exist only as keyword references inside NLP disease-keyword resources (`departments/nlp/resources/`) and the general diagnosis catalog (`departments/medicine/prescribe.py`) — there is no dedicated regimen-tracking, adherence-monitoring, or program-specific reporting workflow for any of them, unlike MCH. This gap was flagged in `docs/worldclass/ROADMAP.md` section 5 ("National Program Modules") and confirmed by a code audit; it has not been implemented because these are clinically and legally specific (MOH/KHIS regimen-line reporting, ART adherence/viral-load tracking, DOTS adherence for TB) and require clinical review before building, per this repo's own process rules.
+* **Questions / Decisions Required**:
+  1. **Priority & Scope**: Should HIV/ART, TB, and malaria be built as full workflow modules (mirroring the depth of `departments/mch`) before first real-patient go-live, phased in afterward, or deferred indefinitely if this deployment's patient population doesn't need them?
+  2. **Clinical Reference**: Who is the clinical reviewer/source of truth for each program's Kenyan MOH-aligned data model and reporting fields (regimen lines, adherence codes, DOTS phases, etc.)?
+  3. **Reporting Integration**: Should these tie into the existing KHIS/DHIS2 export (`departments/api/dhis2_exporter.py`) from day one, or be built standalone first?
+
 
 

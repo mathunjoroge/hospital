@@ -76,11 +76,8 @@ jobs:
           --ignore-vuln PYSEC-2026-3417
 
       - name: Run tests with coverage
-        # Coverage gate is defined in pyproject.toml (addopts) — do not override here.
-        # Scoping: --cov=departments --cov=app (not --cov=.) avoids inflating coverage
-        # by including test files themselves. Gate is currently set to 45%.
         run: |
-          pytest --cov-report=term-missing -v
+          pytest --cov=. --cov-report=term-missing --cov-fail-under=20 -v
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4

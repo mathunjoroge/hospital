@@ -41,6 +41,24 @@ def test_security_headers_present(client):
     assert res.headers.get("X-Frame-Options") == "SAMEORIGIN"
     assert res.headers.get("X-XSS-Protection") == "1; mode=block"
     assert "Content-Security-Policy" in res.headers
+
+
+def test_hsts_header_absent_over_plain_http(client):
+    """HSTS should not be advertised over a connection that isn't actually HTTPS."""
+    res = client.get("/healthz")
+    # Flask's test client requests are not flagged secure, and FORCE_HTTPS
+    # isn't set in the test environment, so the header must be absent --
+    # advertising HSTS over plain HTTP would be a lie the browser could act on.
+    assert "Strict-Transport-Security" not in res.headers
+
+
+def test_hsts_header_present_when_forced(client, monkeypatch):
+    """HSTS must be present when the deployment explicitly forces HTTPS."""
+    monkeypatch.setenv("FORCE_HTTPS", "true")
+    res = client.get("/healthz")
+    assert "Strict-Transport-Security" in res.headers
+    assert "max-age=" in res.headers["Strict-Transport-Security"]
+    assert "includeSubDomains" in res.headers["Strict-Transport-Security"]
     assert "default-src 'self'" in res.headers["Content-Security-Policy"]
 
 
@@ -53,6 +71,9 @@ def test_prometheus_metrics_endpoint(client):
     assert "hmis_up 1" in data
     assert "hmis_db_connected" in data
     assert "hmis_disk_free_bytes" in data
+    assert "hmis_requests_total" in data
+    assert "hmis_request_errors_total" in data
+    assert "hmis_celery_queue_depth" in data
 
 
 def test_cookie_security_config(client):

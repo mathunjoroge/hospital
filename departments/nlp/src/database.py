@@ -1,4 +1,5 @@
 import logging
+import os
 import sqlite3
 from contextlib import contextmanager
 from typing import Dict, List, Optional
@@ -13,9 +14,32 @@ from departments.nlp.src.config import get_config
 logger = logging.getLogger("HIMS-NLP")
 HIMS_CONFIG = get_config()
 
-# UMLS Database Setup with connection pooling
+# UMLS connect_timeout is in seconds and is passed straight through to libpq
+# via psycopg2. NOTE: libpq silently floors connect_timeout at 2 seconds
+# regardless of a lower configured value (documented PostgreSQL client
+# library behavior) -- see the identical note in departments/shared/drugcentral.py.
+UMLS_CONNECT_TIMEOUT = int(os.environ.get("UMLS_CONNECT_TIMEOUT", "3"))
+
+# UMLS Database Setup with connection pooling.
+#
+# connect_args={"connect_timeout": ...} bounds how long a *new* connection
+# attempt can hang if the UMLS Postgres host is slow or unreachable.
+# pool_pre_ping issues a lightweight "is this connection still alive" check
+# before handing out a pooled connection, so a connection that went stale
+# (host restarted, network blip) is quietly recycled instead of raising a
+# confusing error deep inside a query. pool_recycle forces connections to be
+# refreshed periodically so none of them can go stale indefinitely under
+# QueuePool. Without any of this, a slow/unreachable UMLS host hangs NLP
+# term-lookup requests indefinitely -- the same failure mode the DrugCentral
+# P0 fix addressed for drug-interaction lookups.
 umls_engine = create_engine(
-    HIMS_CONFIG["UMLS_DB_URL"], poolclass=QueuePool, pool_size=5, max_overflow=10
+    HIMS_CONFIG["UMLS_DB_URL"],
+    poolclass=QueuePool,
+    pool_size=5,
+    max_overflow=10,
+    pool_pre_ping=True,
+    pool_recycle=1800,
+    connect_args={"connect_timeout": UMLS_CONNECT_TIMEOUT},
 )
 UMLSSession = sessionmaker(bind=umls_engine)
 
