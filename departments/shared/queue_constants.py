@@ -11,4 +11,5 @@ class QueueStatus:
     DISCHARGED = 7
     AWAITING_RESULTS = 8   # Consult done; patient at lab/imaging, may return
     AWAITING_PHARMACY = 9  # Cleared to collect drugs
+    ADMITTED = "ADMITTED"  # Inpatient ward admission
     AWAITING_BILLING = 10  # Services done; awaiting settlement before exit        # Doctor consultation completed

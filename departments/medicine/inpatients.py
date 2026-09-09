@@ -251,6 +251,17 @@ def admit_patient():
             bed.occupied = True  # Mark bed as occupied
 
             db.session.add(admission)
+
+            # Create IPD Encounter for visit tracking
+            from departments.models.encounter import Encounter
+            ipd_encounter = Encounter(
+                patient_id=patient_id,
+                encounter_type="IPD",
+                status="ACTIVE",
+                stage="ADMITTED",
+                started_at=datetime.now(timezone.utc)
+            )
+            db.session.add(ipd_encounter)
             db.session.commit()
 
             flash(
@@ -296,6 +307,20 @@ def discharge_patient(id):
             bed.occupied = False
 
         admission.discharged_on = datetime.now(timezone.utc)
+
+        # Close the IPD Encounter
+        from departments.models.encounter import Encounter
+        active_enc = Encounter.query.filter_by(
+            patient_id=admission.patient_id,
+            status="ACTIVE",
+            encounter_type="IPD"
+        ).order_by(Encounter.started_at.desc()).first()
+
+        if active_enc:
+            active_enc.status = "CLOSED"
+            active_enc.closed_at = datetime.now(timezone.utc)
+            active_enc.set_stage("DISCHARGED")
+
         db.session.commit()
 
         flash("Patient discharged and bed is now available!", "success")
