@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
@@ -265,7 +265,7 @@ def oncology_encounter(patient_id):
                 cancer_type=onco_form.cancer_type.data,
                 stage=onco_form.stage.data,
                 status=onco_form.status.data,
-                date_enrolled=datetime.utcnow(),
+                date_enrolled=datetime.now(timezone.utc),
             )
             db.session.add(onco_patient)
             flash("Oncology patient details created successfully.", "success")
@@ -596,8 +596,8 @@ def new_booking():
             purpose=purpose,
             status=status,
             notes=notes,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         db.session.add(new_booking)
         db.session.commit()

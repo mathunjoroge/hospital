@@ -8,6 +8,14 @@ Features:
   - EncryptedString SQLAlchemy TypeDecorator for column-level encryption
   - Automatic transparent encryption on WRITE and decryption on READ
   - Backward compatible: legacy unencrypted plaintext values fall back gracefully
+
+Security requirement:
+  ENCRYPTION_KEY must always be set explicitly. In production the app refuses
+  to start without it (same pattern as SECRET_KEY). In testing the test suite
+  sets it via conftest / environment before importing the app.
+  The old DEV_FALLBACK_KEY has been removed — a known static key in the git
+  history provides zero protection and silently corrupts production data when
+  the env var is accidentally omitted.
 """
 
 import base64
@@ -25,36 +33,58 @@ from sqlalchemy.types import String, TypeDecorator
 
 logger = logging.getLogger(__name__)
 
-# Fallback deterministic key for development/testing if ENCRYPTION_KEY is not set
-DEV_FALLBACK_KEY = b"u8N_706K8i-8K2182K_X904L981L76K543210123456="
-
 
 def get_fernet_key() -> bytes:
-    """Retrieve Fernet encryption key from Flask config or environment."""
+    """
+    Retrieve Fernet encryption key from Flask config or environment.
+
+    Raises RuntimeError if the key is absent and FLASK_ENV != 'testing'.
+    In testing the key is set by conftest.py via os.environ before import.
+    """
     key = None
     try:
         key = current_app.config.get("ENCRYPTION_KEY")
     except RuntimeError:
-        pass  # Outside app context
+        pass  # Outside app context — fall through to env var
 
     if not key:
         key = os.environ.get("ENCRYPTION_KEY")
 
     if not key:
-        return DEV_FALLBACK_KEY
+        flask_env = os.environ.get("FLASK_ENV", "")
+        if flask_env == "testing":
+            # Tests that exercise encryption paths must set ENCRYPTION_KEY.
+            # generate_key() is safe here because it's scoped to the test run.
+            if Fernet:
+                generated = Fernet.generate_key()
+                logger.warning(
+                    "ENCRYPTION_KEY not set in test environment — "
+                    "generating ephemeral key for this test run. "
+                    "Set ENCRYPTION_KEY in conftest.py to avoid this."
+                )
+                return generated
+            # cryptography not installed — return a dummy bytes value for tests
+            return b"0" * 44
+        raise RuntimeError(
+            "CRITICAL SECURITY ERROR: ENCRYPTION_KEY environment variable is not set. "
+            "Patient data cannot be encrypted safely. "
+            "Generate a key with: python3 -c \"from cryptography.fernet import Fernet; "
+            "print(Fernet.generate_key().decode())\" "
+            "and set it in your .env file."
+        )
 
     if isinstance(key, str):
         key_bytes = key.encode("utf-8")
     else:
         key_bytes = key
 
-    # Ensure key is valid 32-byte base64 URL-safe key
+    # Ensure key is a valid Fernet key (base64-url 32-byte)
     try:
         if Fernet:
             Fernet(key_bytes)
         return key_bytes
     except Exception:
-        # If raw 32-byte string was passed, base64 encode it
+        # If a raw 32-byte string was passed, base64-encode it
         return base64.urlsafe_b64encode(key_bytes.ljust(32)[:32])
 
 

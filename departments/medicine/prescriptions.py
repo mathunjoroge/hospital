@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import login_required
@@ -609,7 +609,7 @@ def new_prescription():
                 end_date=None,
                 prescribed_by=prescribed_by,
                 notes=notes,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
             )
             db.session.add(new_prescription)
             db.session.flush()  # Get prescription ID
@@ -629,7 +629,7 @@ def new_prescription():
                     infusion_fluid=details["infusion_fluid"]
                     or drug.reconstitution_fluid,
                     infusion_time=details["infusion_time"] or drug.infusion_time,
-                    created_at=datetime.utcnow(),
+                    created_at=datetime.now(timezone.utc),
                 )
                 db.session.add(drug_detail)
 

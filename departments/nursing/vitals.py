@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -223,7 +223,7 @@ def submit_partogram():
         urine_protein = request.form.get("urine_protein")
         urine_volume = request.form.get("urine_volume")
         urine_acetone = request.form.get("urine_acetone")
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
 
         # Step 1: Validate required fields
         required_fields = {
@@ -549,7 +549,7 @@ def vital_signs():
                 blood_glucose=float(blood_glucose) if blood_glucose else None,
                 weight=float(weight) if weight else None,
                 height=float(height) if height else None,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 recorded_by=current_user.id,
             )
             db.session.add(new_vital_sign)

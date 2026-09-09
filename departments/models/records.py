@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from departments.crypto import EncryptedString
 from extensions import db  # Use absolute import for db
@@ -103,7 +103,7 @@ class Patient(db.Model):
     def soft_delete(self):
         """Mark this patient as deleted without removing the DB row."""
         self.is_active = False
-        self.deleted_at = datetime.utcnow()
+        self.deleted_at = datetime.now(timezone.utc)
 
     def __repr__(self):
         return f"<Patient {self.patient_id}: {self.name}>"

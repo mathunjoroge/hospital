@@ -9,7 +9,7 @@ Features:
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
@@ -65,7 +65,7 @@ def chart_medication():
         medication=medication,
         dosage=dosage,
         recorded_by=nurse_id,
-        time_administered=datetime.utcnow(),
+        time_administered=datetime.now(timezone.utc),
     )
     db.session.add(admin_record)
     db.session.commit()

@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -78,8 +78,8 @@ def add_to_theatre():
                 status=0,
                 created_by=created_by,
                 notes_on_book=notes_on_book,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
             )
 
             db.session.add(new_entry)
@@ -165,7 +165,7 @@ def update_post_op(entry_id):
             # Update status and post-op notes
             theatre_entry.status = 1  # Mark as completed
             theatre_entry.notes_on_post_op = notes_on_post_op
-            theatre_entry.updated_at = datetime.utcnow()
+            theatre_entry.updated_at = datetime.now(timezone.utc)
 
             db.session.commit()
 
@@ -243,7 +243,7 @@ def admit_patient():
                 ward_id=ward_id,
                 admission_criteria=admission_criteria,
                 admitted_by=admitted_by,
-                admitted_on=datetime.utcnow(),
+                admitted_on=datetime.now(timezone.utc),
             )
 
             bed.occupied = True  # Mark bed as occupied
@@ -286,7 +286,7 @@ def discharge_patient(id):
         if bed:
             bed.occupied = False  # Free up the bed
 
-        admission.discharged_on = datetime.utcnow()
+        admission.discharged_on = datetime.now(timezone.utc)
         db.session.commit()
 
         flash("Patient discharged and bed is now available!", "success")

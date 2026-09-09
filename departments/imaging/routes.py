@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pydicom
 from flask import (
@@ -91,7 +91,7 @@ def get_modality_and_body_part(dicom):
         "patient_name": str(getattr(dicom, "PatientName", "Unknown")),
         "patient_sex": getattr(dicom, "PatientSex", "Unknown"),
         "patient_birth_date": getattr(dicom, "PatientBirthDate", "Unknown"),
-        "study_date": getattr(dicom, "StudyDate", datetime.utcnow().strftime("%Y%m%d")),
+        "study_date": getattr(dicom, "StudyDate", datetime.now(timezone.utc).strftime("%Y%m%d")),
     }
     logger.debug(f"Extracted: modality={modality}, body_part={body_part}")
     return modality, body_part, patient_info
@@ -167,7 +167,7 @@ def generate_report(
 
     # Initialize report components
     report_lines = []
-    current_date = datetime.utcnow().strftime("%B %d, %Y")
+    current_date = datetime.now(timezone.utc).strftime("%B %d, %Y")
     confidence_threshold = 70.0  # Higher threshold to reduce false positives
 
     # Handle analysis results
@@ -205,7 +205,7 @@ def generate_report(
     if patient_birth_date != "Unknown":
         try:
             birth_date = datetime.strptime(patient_birth_date, "%Y%m%d")
-            today = datetime.utcnow()
+            today = datetime.now(timezone.utc)
             patient_age = (
                 today.year
                 - birth_date.year
@@ -571,7 +571,7 @@ def process_imaging_request(request_id):
                 result_id=result_id,
                 patient_id=imaging_request.patient_id,
                 imaging_id=imaging.id,
-                test_date=datetime.utcnow(),
+                test_date=datetime.now(timezone.utc),
                 result_notes=final_report,
                 updated_by=current_user.id,
                 dicom_file_path=",".join(file_paths),

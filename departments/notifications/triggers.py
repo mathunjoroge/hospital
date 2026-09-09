@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from departments.models.notification_log import OutboundNotificationLog
 from departments.models.patient_user import PatientUser
@@ -220,7 +220,7 @@ def trigger_claim_status_changed(claim):
 def send_upcoming_appointment_reminders(app=None):
     """Scheduled task sending reminders for appointments happening in the next 24 hours."""
 
-    now = datetime.utcnow().date()
+    now = datetime.now(timezone.utc).date()
     tomorrow = now + timedelta(days=1)
 
     # Find bookings within next 24h
@@ -235,7 +235,7 @@ def send_upcoming_appointment_reminders(app=None):
             OutboundNotificationLog.patient_id == booking.patient_id,
             OutboundNotificationLog.event_type == EVENT_APPOINTMENT_REMINDER,
             OutboundNotificationLog.created_at
-            >= datetime.utcnow() - timedelta(hours=24),
+            >= datetime.now(timezone.utc) - timedelta(hours=24),
         ).first()
 
         if not already_sent:
@@ -253,7 +253,7 @@ def trigger_staff_credential_expiry_check(app=None, window_days: int = 30) -> in
     Scheduled task to query StaffCredential records and notify staff & department admin
     if credential is expiring within window_days or has already expired.
     """
-    from datetime import date
+    from datetime import date, timezone
 
     from departments.models.hr import StaffCredential
     from extensions import db
@@ -313,7 +313,7 @@ def trigger_staff_credential_expiry_check(app=None, window_days: int = 30) -> in
                 OutboundNotificationLog.event_type == event_type,
                 OutboundNotificationLog.body.like(f"%{cred.credential_number}%"),
                 OutboundNotificationLog.created_at
-                >= datetime.utcnow() - timedelta(hours=24),
+                >= datetime.now(timezone.utc) - timedelta(hours=24),
             ).first()
 
             if not recent:
@@ -343,7 +343,7 @@ def trigger_batch_expiry_check(app=None, window_days: int = 30) -> int:
     Scheduled task to query Batch records and notify pharmacy & store managers
     if drug batches are expiring within window_days or have already expired.
     """
-    from datetime import date
+    from datetime import date, timezone
 
     from departments.models.pharmacy import Batch
 
@@ -382,7 +382,7 @@ def trigger_batch_expiry_check(app=None, window_days: int = 30) -> int:
             OutboundNotificationLog.recipient == recipient,
             OutboundNotificationLog.body.like(f"%{batch.batch_number}%"),
             OutboundNotificationLog.created_at
-            >= datetime.utcnow() - timedelta(hours=24),
+            >= datetime.now(timezone.utc) - timedelta(hours=24),
         ).first()
 
         if not recent:

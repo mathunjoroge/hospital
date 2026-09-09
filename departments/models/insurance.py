@@ -10,7 +10,7 @@ Models:
 """
 
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 from extensions import db
 
@@ -166,7 +166,7 @@ class Claim(db.Model):
     @staticmethod
     def generate_claim_number():
         """Generate a sequential claim number CLM-YYYYMM-NNNN."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         prefix = f"CLM-{now.strftime('%Y%m')}"
         last = (
             Claim.query.filter(Claim.claim_number.like(f"{prefix}-%"))
@@ -186,7 +186,7 @@ class Claim(db.Model):
         if self.status != ClaimStatus.DRAFT:
             raise ValueError(f"Cannot submit claim in state {self.status}.")
         self.status = ClaimStatus.SUBMITTED
-        self.submitted_at = datetime.utcnow()
+        self.submitted_at = datetime.now(timezone.utc)
 
     def approve(self, approved_amount, pre_auth=None):
         """Approve claim with a given amount."""
@@ -194,7 +194,7 @@ class Claim(db.Model):
             raise ValueError(f"Cannot approve claim in state {self.status}.")
         self.status = ClaimStatus.APPROVED
         self.approved_amount = approved_amount
-        self.approved_at = datetime.utcnow()
+        self.approved_at = datetime.now(timezone.utc)
         if pre_auth:
             self.pre_auth_number = pre_auth
 
@@ -210,14 +210,14 @@ class Claim(db.Model):
         if self.status != ClaimStatus.APPROVED:
             raise ValueError(f"Cannot mark paid in state {self.status}.")
         self.status = ClaimStatus.PAID
-        self.paid_at = datetime.utcnow()
+        self.paid_at = datetime.now(timezone.utc)
 
     def appeal(self):
         """Appeal a rejected claim."""
         if self.status != ClaimStatus.REJECTED:
             raise ValueError(f"Cannot appeal claim in state {self.status}.")
         self.status = ClaimStatus.APPEALED
-        self.appeal_date = datetime.utcnow()
+        self.appeal_date = datetime.now(timezone.utc)
 
     def __repr__(self):
         return f"<Claim {self.claim_number} [{self.status}]>"

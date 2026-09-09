@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func
 
@@ -72,7 +72,7 @@ def get_inpatient_admission_trends(days=30):
     """
     Returns daily inpatient admission counts for the past `days` days.
     """
-    start_date = datetime.utcnow().date() - timedelta(days=days - 1)
+    start_date = datetime.now(timezone.utc).date() - timedelta(days=days - 1)
 
     # Group by date of admission
     results = (
@@ -175,7 +175,7 @@ def get_executive_kpi_summary():
     claims_stats = get_insurance_claims_stats()
 
     return {
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "bed_occupancy": bed_stats,
         "admission_trends": admission_trends,
         "revenue_summary": revenue_summary,

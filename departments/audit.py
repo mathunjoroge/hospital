@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import has_request_context
 from flask_login import current_user
@@ -53,7 +53,7 @@ def register_audit_listeners():
             msg = f"Audit [INSERT] {model_name} (ID: {rec_id})"
             connection.execute(
                 Log.__table__.insert().values(
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     level="INFO",
                     message=msg,
                     user_id=user_id,
@@ -75,7 +75,7 @@ def register_audit_listeners():
             msg = f"Audit [UPDATE] {model_name} (ID: {rec_id})"
             connection.execute(
                 Log.__table__.insert().values(
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     level="INFO",
                     message=msg,
                     user_id=user_id,
@@ -97,7 +97,7 @@ def register_audit_listeners():
             msg = f"Audit [DELETE] {model_name} (ID: {rec_id})"
             connection.execute(
                 Log.__table__.insert().values(
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     level="INFO",
                     message=msg,
                     user_id=user_id,

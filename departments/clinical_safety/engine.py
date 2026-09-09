@@ -18,10 +18,26 @@ from typing import Optional
 from departments.clinical_safety.models import SafetyAlertOverride
 from departments.models.medicine import PrescribedMedicine
 from departments.models.pharmacy import Drug
-from departments.models.records import PatientAllergy
+from departments.models.records import Patient, PatientAllergy
 from extensions import db
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_patient_pid(patient_id: int) -> "Optional[str]":
+    """
+    Resolve an integer patient PK to the string business key (patients.patient_id).
+
+    PatientAllergy.patient_id is a FK to patients.patient_id (String), not the
+    integer pk. The engine's public API accepts the integer pk for consistency
+    with other clinical modules; we resolve here before querying allergies.
+
+    Returns None if the patient record does not exist.
+    """
+    patient = db.session.get(Patient, patient_id)
+    if patient is None:
+        return None
+    return patient.patient_id
 
 
 # Severity levels for safety alerts
@@ -173,7 +189,12 @@ class ClinicalSafetyEngine:
         alerts = []
 
         # Get all allergies for this patient
-        patient_allergies = PatientAllergy.query.filter_by(patient_id=patient_id).all()
+        # PatientAllergy.patient_id is a string FK to patients.patient_id
+        # (the business key), not the integer PK. Resolve before querying.
+        patient_pid = _resolve_patient_pid(patient_id)
+        if patient_pid is None:
+            return alerts
+        patient_allergies = PatientAllergy.query.filter_by(patient_id=patient_pid).all()
 
         if not patient_allergies:
             return alerts
@@ -191,7 +212,13 @@ class ClinicalSafetyEngine:
         prescribed_drugs = Drug.query.filter(Drug.id.in_(drug_ids)).all()
 
         for drug in prescribed_drugs:
-            drug_name = getattr(drug, "name", None) or getattr(drug, "drug_name", None)
+            # Drug model uses generic_name as the primary name column.
+            # Fallback chain covers any future schema variants.
+            drug_name = (
+                getattr(drug, "generic_name", None)
+                or getattr(drug, "name", None)
+                or getattr(drug, "drug_name", None)
+            )
             if not drug_name:
                 continue
 
@@ -251,15 +278,22 @@ class ClinicalSafetyEngine:
         """
         alerts = []
 
-        # Find active prescriptions for this patient
+        # Find active prescriptions for this patient.
+        # PrescribedMedicine.patient_id is also the string business key.
+        dup_patient_pid = _resolve_patient_pid(patient_id)
+        if dup_patient_pid is None:
+            return alerts
         active_prescriptions = PrescribedMedicine.query.filter_by(
-            patient_id=patient_id
+            patient_id=dup_patient_pid
         ).all()
 
         active_drug_ids = set()
         for rx in active_prescriptions:
-            rx_drug_id = getattr(rx, "drug_id", None) or getattr(
-                rx, "medicine_id", None
+            # PrescribedMedicine uses medicine_id as the FK to the drug/medicine table.
+            # Fallback chain covers any future schema variants.
+            rx_drug_id = (
+                getattr(rx, "medicine_id", None)
+                or getattr(rx, "drug_id", None)
             )
             if rx_drug_id:
                 active_drug_ids.add(rx_drug_id)
@@ -267,11 +301,14 @@ class ClinicalSafetyEngine:
         # Check for duplicates
         for drug_id in drug_ids:
             if drug_id in active_drug_ids:
-                drug = Drug.query.get(drug_id)
+                drug = db.session.get(Drug, drug_id)
                 drug_name = "Unknown"
                 if drug:
-                    drug_name = getattr(drug, "name", None) or getattr(
-                        drug, "drug_name", "Unknown"
+                    drug_name = (
+                        getattr(drug, "generic_name", None)
+                        or getattr(drug, "name", None)
+                        or getattr(drug, "drug_name", None)
+                        or "Unknown"
                     )
 
                 alerts.append(
