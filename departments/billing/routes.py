@@ -1022,7 +1022,7 @@ def receipts_list():
 @login_required
 @roles_required("billing", "admin")
 def daily_revenue_report():
-    from datetime import date, timedelta, timezone
+    from datetime import date, timedelta
 
     start_str = request.args.get("start")
     end_str = request.args.get("end")

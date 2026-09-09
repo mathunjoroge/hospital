@@ -20,9 +20,6 @@ Model schema notes (required for correct fixtures):
 """
 
 import datetime
-import uuid
-
-import pytest
 
 from departments.clinical_safety.engine import (
     AlertSeverity,
@@ -33,7 +30,6 @@ from departments.clinical_safety.engine import (
 )
 from departments.clinical_safety.models import SafetyAlertOverride
 from extensions import db
-
 
 # ── Fixtures / factory helpers ────────────────────────────────────────────────
 
@@ -46,7 +42,7 @@ def _make_category(name: str = "Antibiotic"):
     return cat
 
 
-def _make_drug(generic_name: str, category_id: int) -> "Drug":
+def _make_drug(generic_name: str, category_id: int):
     """Create a Drug row with all required columns."""
     from departments.models.pharmacy import Drug
     drug = Drug(
@@ -64,7 +60,7 @@ def _make_drug(generic_name: str, category_id: int) -> "Drug":
     return drug
 
 
-def _make_patient(pid: str, name: str) -> "Patient":
+def _make_patient(pid: str, name: str):
     """Create a Patient row with all required columns."""
     from departments.models.records import Patient
     p = Patient(
@@ -85,7 +81,7 @@ def _make_patient(pid: str, name: str) -> "Patient":
     return p
 
 
-def _make_allergy(patient_pid: str, allergen: str, severity: str = "SEVERE") -> "PatientAllergy":
+def _make_allergy(patient_pid: str, allergen: str, severity: str = "SEVERE"):
     """
     Create a PatientAllergy row.
     patient_pid must be the string business key (patients.patient_id),

@@ -95,7 +95,7 @@ if os.environ.get("FLASK_ENV") == "production":
 # official prometheus_client library once DECISIONS_PENDING item 3 (telemetry
 # provider selection) is resolved.
 # ---------------------------------------------------------------------------
-import threading
+import threading  # noqa: E402
 import time as _time  # noqa: E402 — needed before first request hook
 
 _metrics_lock = threading.Lock()

@@ -24,6 +24,7 @@ Tests for the security hardening changes in this session:
 import os
 from unittest.mock import patch
 
+import pytest
 
 # ── ENCRYPTION_KEY guard ──────────────────────────────────────────────────────
 
@@ -32,7 +33,6 @@ class TestEncryptionKeyGuard:
         """get_fernet_key() must refuse to return the old static fallback key.
         When ENCRYPTION_KEY is absent and FLASK_ENV is not 'testing', it must
         raise RuntimeError rather than silently using a known static value."""
-        from departments.crypto import get_fernet_key
 
         with patch.dict(
             os.environ,
@@ -42,7 +42,6 @@ class TestEncryptionKeyGuard:
             # Temporarily unset the key so the guard triggers
             env_backup = os.environ.pop("ENCRYPTION_KEY", None)
             try:
-                import importlib
                 import departments.crypto as crypto_mod
                 # Call directly with no app context and no env var
                 orig_env = os.environ.get("FLASK_ENV")
@@ -68,6 +67,7 @@ class TestEncryptionKeyGuard:
     def test_get_fernet_key_returns_bytes_when_key_set(self):
         """When ENCRYPTION_KEY is set, get_fernet_key() returns valid bytes."""
         from cryptography.fernet import Fernet
+
         from departments.crypto import get_fernet_key
 
         test_key = Fernet.generate_key().decode()
@@ -100,6 +100,7 @@ class TestEncryptionKeyGuard:
     def test_encrypt_decrypt_with_explicit_key(self):
         """End-to-end: encrypt then decrypt with an explicit key round-trips correctly."""
         from cryptography.fernet import Fernet
+
         from departments.crypto import decrypt_value, encrypt_value
 
         test_key = Fernet.generate_key().decode()
