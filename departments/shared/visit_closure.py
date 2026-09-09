@@ -4,8 +4,6 @@ import logging
 from departments.models.billing import Billing, DrugsBill, Invoice, InvoiceStatus
 from departments.models.encounter import Encounter
 from departments.models.medicine import PrescribedMedicine, RequestedImage, RequestedLab
-from departments.models.records import PatientWaitingList
-from departments.shared.queue_constants import QueueStatus
 from extensions import db
 
 logger = logging.getLogger(__name__)

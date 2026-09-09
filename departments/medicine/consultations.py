@@ -12,7 +12,6 @@ from flask import (
     url_for,
 )
 from flask_login import login_required
-from sqlalchemy.orm import joinedload
 
 from sqlalchemy import func
 

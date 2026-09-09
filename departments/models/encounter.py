@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 # Late import used only in the relationship; declared here so templates
 # iterating over Encounters can access `encounter.patient` directly.
-from departments.models.records import Patient  # noqa: E402
 
 
 class Encounter(db.Model):

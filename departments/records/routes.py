@@ -22,7 +22,6 @@ from departments.models.records import (
     Patient,
     PatientAllergy,
     PatientProblem,
-    PatientWaitingList,
 )
 
 # ─────────────────────────────────────────────
@@ -30,7 +29,6 @@ from departments.models.records import (
 # ─────────────────────────────────────────────
 from departments.rbac import roles_required
 from departments.records.merge import find_duplicate_candidates, merge_patient_records
-from departments.shared.queue_constants import QueueStatus
 from extensions import db
 
 from . import bp

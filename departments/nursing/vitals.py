@@ -3,16 +3,14 @@ from datetime import datetime, timezone
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy.orm import joinedload
 
 from departments.appointments.engine import ScheduleEngine
 from departments.models.admin import Log
 from departments.models.nursing import Partogram, Vitals
-from departments.models.records import Patient, PatientWaitingList
+from departments.models.records import Patient
 from departments.shared import queue_service
 from departments.models.user import User
 from departments.rbac import roles_required
-from departments.shared.queue_constants import QueueStatus
 from extensions import db
 
 from . import bp
@@ -81,6 +79,38 @@ def vitals(patient_id):
             db.session.add(vitals_data)
             db.session.commit()
             ScheduleEngine().mark_triage_complete(patient_id)
+            # Phase 5.5: auto-stamp ESI from triage vitals (drives queue priority + EMERGENT badge)
+            try:
+                from datetime import date as _date
+                from departments.models.encounter import Encounter
+                from departments.nursing.triage import calculate_esi_level
+                _enc = (
+                    Encounter.query.filter_by(patient_id=str(patient_id), status="ACTIVE")
+                    .order_by(Encounter.started_at.desc())
+                    .first()
+                )
+                if _enc is not None:
+                    _age = 30.0
+                    if _enc.patient is not None and _enc.patient.date_of_birth:
+                        _age = (_date.today() - _enc.patient.date_of_birth).days / 365.25
+                    _esi, _ = calculate_esi_level(
+                        vitals_dict={
+                            "temperature": vitals_data.temperature,
+                            "pulse": vitals_data.pulse,
+                            "blood_pressure_systolic": vitals_data.blood_pressure_systolic,
+                            "blood_pressure_diastolic": vitals_data.blood_pressure_diastolic,
+                            "respiratory_rate": vitals_data.respiratory_rate,
+                            "oxygen_saturation": vitals_data.oxygen_saturation,
+                        },
+                        chief_complaint="Triage vitals",
+                        resources_needed=1,
+                        age_years=_age,
+                    )
+                    _enc.esi_level = _esi
+                    db.session.commit()
+            except Exception as _e:  # never block vitals capture on ESI math
+                db.session.rollback()
+                logger.warning(f"ESI auto-stamp skipped for {patient_id}: {_e}")
             logger.info(
                 f"Nurse {current_user.id} recorded vitals for patient {patient_id}"
             )
