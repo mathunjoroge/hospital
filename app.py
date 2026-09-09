@@ -144,9 +144,9 @@ def set_security_headers_and_request_id(response):
         "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
     )
 
-    # HSTS: only set over HTTPS (production). 1 year max-age; includeSubDomains.
-    # Not set in dev/test because it would break plain HTTP local dev.
-    if os.environ.get("FLASK_ENV") == "production":
+    # HSTS: set over HTTPS (production) or when FORCE_HTTPS=true. 1 year max-age; includeSubDomains.
+    # Not set in dev/test by default because it would break plain HTTP local dev.
+    if os.environ.get("FLASK_ENV") == "production" or os.environ.get("FORCE_HTTPS", "").lower() in ("true", "1"):
         response.headers["Strict-Transport-Security"] = (
             "max-age=31536000; includeSubDomains"
         )
@@ -274,6 +274,20 @@ mail = Mail(app)
 migrate = Migrate(app, db)
 socketio.init_app(app)
 
+# Error-tracking provider scaffold. DECISIONS_PENDING.md item 3 is still open
+# (Sentry SaaS vs self-hosted vs OpenTelemetry, pending a Data Protection Act
+# 2019 data-sovereignty decision) -- this deliberately does NOT pick or wire a
+# vendor SDK. It only makes the app ready to be pointed at one later: default
+# "none" sends nothing anywhere, and no telemetry-related dependency is added
+# until a human sets this and the corresponding SDK is actually installed.
+ERROR_TRACKING_PROVIDER = os.environ.get("ERROR_TRACKING_PROVIDER", "none").lower()
+if ERROR_TRACKING_PROVIDER != "none":
+    logging.getLogger(__name__).warning(
+        "ERROR_TRACKING_PROVIDER=%s was set, but no vendor SDK is wired up yet "
+        "(see DECISIONS_PENDING.md item 3). No telemetry is being sent.",
+        ERROR_TRACKING_PROVIDER,
+    )
+
 # Initialize APScheduler
 scheduler = APScheduler()
 scheduler.init_app(app)
@@ -287,6 +301,49 @@ def scheduled_staff_credential_check():
         )
 
         trigger_staff_credential_expiry_check()
+
+
+@scheduler.task("cron", id="database_backup_daily", hour=2, minute=0)
+def scheduled_database_backup():
+    """
+    Automated daily database backup. Previously this was a manual-only step
+    (scripts/backup_db.py existed and was verified to work, but nothing
+    invoked it on a schedule -- see docs/backup_restore_runbook.md). Every
+    run, success or failure, is written to the audit trail so a missed or
+    failed backup is visible the same way any other system action is,
+    instead of silently not happening.
+    """
+    with app.app_context():
+        from departments.api.audit import log_audit_event
+        from scripts.backup_db import perform_backup
+
+        started = datetime.now(timezone.utc)
+        backup_path = None
+        try:
+            backup_path = perform_backup()
+        except Exception as e:
+            logger.error(
+                f"Scheduled database backup raised an exception: {e}", exc_info=True
+            )
+
+        duration_s = (datetime.now(timezone.utc) - started).total_seconds()
+        if backup_path:
+            size_mb = round(os.path.getsize(backup_path) / (1024 * 1024), 2)
+            log_audit_event(
+                action="DATABASE_BACKUP_SUCCEEDED",
+                resource_type="System",
+                details={
+                    "backup_path": backup_path,
+                    "size_mb": size_mb,
+                    "duration_seconds": round(duration_s, 2),
+                },
+            )
+        else:
+            log_audit_event(
+                action="DATABASE_BACKUP_FAILED",
+                resource_type="System",
+                details={"duration_seconds": round(duration_s, 2)},
+            )
 
 
 if not scheduler.running and not app.config.get("TESTING"):

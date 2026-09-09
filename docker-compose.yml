@@ -48,6 +48,7 @@ services:
     volumes:
       - uploads:/app/Uploads
       - flask_session:/app/flask_session
+      - backups:/app/backups
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,3 +95,4 @@ volumes:
   redis_data:
   uploads:
   flask_session:
+  backups:
