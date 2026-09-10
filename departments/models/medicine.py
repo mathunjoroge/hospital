@@ -840,37 +840,3 @@ class CancerDetail(db.Model):
             "cancer_type_code": self.cancer_type.code if self.cancer_type else None,
             "cancer_type_name": self.cancer_type.name if self.cancer_type else None,
         }
-class DispensedDrug(db.Model):
-    """Model for tracking drugs dispensed to patients."""
-
-    __tablename__ = "dispensed_drugs"
-
-    id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(
-        db.Text, db.ForeignKey("patients.patient_id"), nullable=False
-    )
-    encounter_id = db.Column(
-        db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
-    )
-    medicine_id = db.Column(db.Integer, db.ForeignKey("medicines.id"), nullable=False)
-    prescription_id = db.Column(
-        db.String(36), db.ForeignKey("prescribed_medicines.prescription_id"),
-        nullable=True
-    )
-    quantity_dispensed = db.Column(db.Integer, nullable=False)
-    dosage = db.Column(db.String(255), nullable=False)
-    dispensed_by = db.Column(db.Integer, nullable=False)  # User ID of pharmacist
-    dispensed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    expiry_date = db.Column(db.Date, nullable=True)
-    batch_number = db.Column(db.String(100), nullable=True)
-    receipt_number = db.Column(
-        db.String(255), nullable=True
-    )  # Billing integration
-    notes = db.Column(db.Text, nullable=True)
-
-    # Relationships
-    patient = db.relationship("Patient", backref="dispensed_drugs")
-    medicine = db.relationship("Medicine", backref="dispensed_records")
-
-    def __repr__(self):
-        return f"<DispensedDrug {self.id} - Medicine {self.medicine_id} - Patient {self.patient_id}>"

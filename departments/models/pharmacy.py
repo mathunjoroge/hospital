@@ -77,7 +77,7 @@ class Purchase(db.Model):
 
 class DispensedDrug(db.Model):
     __tablename__ = "dispensed_drugs"
-
+    __table_args__ = {"extend_existing": True}
     id = db.Column(db.Integer, primary_key=True)
     drug_id = db.Column(db.Integer, db.ForeignKey("drugs.id"), nullable=False)
     batch_id = db.Column(
