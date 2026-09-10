@@ -1,5 +1,6 @@
-from flask_socketio import emit, join_room, leave_room
 from flask import request
+from flask_socketio import emit, join_room, leave_room
+
 from extensions import socketio
 
 active_rooms = {}

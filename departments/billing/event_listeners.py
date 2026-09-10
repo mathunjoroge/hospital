@@ -13,16 +13,17 @@ with correct encounter_id scoping for TELEHEALTH, ANC, REFERRAL, and IPD.
 """
 
 import logging
-from sqlalchemy import event
-from extensions import db
-from departments.models.billing import InvoiceLineItem
-from departments.models.medicine import (
-    RequestedLab,
-    RequestedImage,
-    PrescribedMedicine,
 
+from sqlalchemy import event
+
+from departments.models.medicine import (
     LabTest,
+    PrescribedMedicine,
+    RequestedImage,
+    RequestedLab,
 )
+from extensions import db
+
 from .sync import sync_charge
 
 logger = logging.getLogger(__name__)
@@ -35,13 +36,13 @@ _pending_charges = []
 def capture_pending_charges(session, flush_context):
     """
     Phase 1: Capture billing objects before they move to identity map.
-    
+
     At this point, session.new still contains the objects being inserted.
     We capture them here because by after_flush_postexec, session.new will be empty.
     """
     global _pending_charges
     _pending_charges = []
-    
+
     # Capture new billing-related objects
     for instance in list(session.new):
         if isinstance(instance, (RequestedLab, RequestedImage, PrescribedMedicine)):
@@ -50,7 +51,7 @@ def capture_pending_charges(session, flush_context):
                 'type': type(instance).__name__,
                 'instance': instance,
             })
-    
+
     if _pending_charges:
         logger.debug(f"Captured {len(_pending_charges)} pending billing charges")
 
@@ -59,25 +60,25 @@ def capture_pending_charges(session, flush_context):
 def sync_billing_events(session, flush_context):
     """
     Phase 2: Sync billing after flush completes and IDs are assigned.
-    
+
     By this point:
     - All objects have their IDs assigned
     - Foreign keys are resolved
     - session.new is now empty (objects moved to identity map)
-    
+
     We process the charges we captured in Phase 1.
     """
     global _pending_charges
-    
+
     if not _pending_charges:
         return
-    
+
     logger.info(f"Processing {len(_pending_charges)} pending billing charges")
-    
+
     for charge_data in _pending_charges:
         instance = charge_data['instance']
         charge_type = charge_data['type']
-        
+
         try:
             # Lab Requests
             if charge_type == 'RequestedLab':
@@ -94,7 +95,7 @@ def sync_billing_events(session, flush_context):
                             source_encounter_id=getattr(instance, "encounter_id", None),
                         )
                         logger.info(f"Synced lab charge for RequestedLab #{instance.id}")
-            
+
             # Imaging Requests
             elif charge_type == 'RequestedImage':
                 if hasattr(instance, "id") and instance.id is not None:
@@ -111,7 +112,7 @@ def sync_billing_events(session, flush_context):
                             source_encounter_id=getattr(instance, "encounter_id", None),
                         )
                         logger.info(f"Synced imaging charge for RequestedImage #{instance.id}")
-            
+
             # Prescribed Medicines
             elif charge_type == 'PrescribedMedicine':
                 if hasattr(instance, "id") and instance.id is not None:
@@ -128,11 +129,11 @@ def sync_billing_events(session, flush_context):
                         source_encounter_id=getattr(instance, "encounter_id", None),
                     )
                     logger.info(f"Synced prescription charge for PrescribedMedicine #{instance.id}")
-            
+
         except Exception as e:
             logger.error(f"Error syncing billing for {charge_type} #{getattr(instance, 'id', 'unknown')}: {e}", exc_info=True)
             continue
-    
+
     # Clear pending list for next flush cycle
     _pending_charges = []
 
@@ -140,7 +141,7 @@ def sync_billing_events(session, flush_context):
 def register_billing_sync_listeners():
     """
     Register all billing sync event listeners.
-    
+
     Call this function during app initialization to enable automatic
     billing synchronization for labs, imaging, prescriptions, and drugs.
     """
