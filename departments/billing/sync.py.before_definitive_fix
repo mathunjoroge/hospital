@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 
 def get_or_create_open_invoice(patient_id: str, _session=None) -> Invoice:
-    sess = _session if _session is not None else db.session
     """
     Get the patient's current open invoice, or create one if none exists.
 
@@ -79,7 +78,6 @@ def sync_charge(
     amount: float,
     quantity: int = 1,
     source_encounter_id: "int | None" = None,
-    _session=None,
 ) -> InvoiceLineItem:
     """
     Sync a charge from legacy billing to the unified Invoice system.
