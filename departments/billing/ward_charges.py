@@ -8,10 +8,10 @@ from datetime import date, datetime
 
 from sqlalchemy import and_
 
-from extensions import db
 from departments.models.billing import Invoice, InvoiceLineItem
 from departments.models.encounter import Encounter
 from departments.models.medicine import AdmittedPatient, Ward
+from extensions import db
 
 
 def post_daily_ward_charges():
