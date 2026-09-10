@@ -29,9 +29,12 @@ from departments.models.records import (
 # ─────────────────────────────────────────────
 from departments.rbac import roles_required
 from departments.records.merge import find_duplicate_candidates, merge_patient_records
-from extensions import db
 
 from . import bp
+from collections import defaultdict
+from departments.models.encounter import Encounter
+from extensions import db
+from flask_login import login_required
 
 
 @bp.route("/index")
@@ -621,8 +624,7 @@ def book_clinic():
 @roles_required("records", "admin")
 def waiting_list():
     # Phase 4: read from Encounter instead of PatientWaitingList
-    from departments.models.encounter import Encounter
-
+    
     waiting_list = (
         db.session.query(Encounter, Patient)
         .join(Patient, Encounter.patient_id == Patient.patient_id)
@@ -631,6 +633,36 @@ def waiting_list():
         .all()
     )
     return render_template("records/waiting_list.html", waiting_list=waiting_list)
+
+
+# --- UI Wiring: Active Encounters Summary ---
+
+@bp.route("/api/active_encounters_summary")
+@login_required
+def active_encounters_summary():
+    """
+    Returns a grouped summary of all ACTIVE encounters by type and stage.
+    Used by the dashboard to show real-time widgets (e.g., '2 Active Surgeries').
+    """
+    active_encounters = Encounter.query.filter_by(status="ACTIVE").all()
+    
+    summary = defaultdict(lambda: defaultdict(int))
+    total_active = 0
+    
+    for enc in active_encounters:
+        enc_type = enc.encounter_type or "UNKNOWN"
+        stage = enc.stage or "UNKNOWN"
+        summary[enc_type][stage] += 1
+        total_active += 1
+        
+    # Convert defaultdict to regular dict for clean JSON serialization
+    from flask import jsonify
+    return jsonify({
+        "total_active": total_active,
+        "by_type": {k: dict(v) for k, v in summary.items()}
+    })
+# ---------------------------------------------
+
 
 
 # ─────────────────────────────────────────────
