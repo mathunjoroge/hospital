@@ -23,6 +23,7 @@ except ImportError:
 
 from departments.api.ai_audit import AIMode, AITimer, log_ai_call
 from departments.nlp.chatbot import UniversalClinicalSummarizer
+from departments.billing.ward_charges import post_daily_ward_charges
 
 logger = logging.getLogger(__name__)
 
@@ -91,3 +92,14 @@ def process_clinical_chatbot_task(
             error=str(e),
         )
         raise e
+
+
+# --- T3.5: Ward Daily Charges ---
+
+def scheduled_midnight_ward_charges():
+    """Triggered by cron/celery at midnight."""
+    try:
+        post_daily_ward_charges()
+    except Exception as e:
+        print(f"❌ Error posting ward charges: {e}")
+# --------------------------------

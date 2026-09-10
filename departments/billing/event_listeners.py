@@ -4,9 +4,11 @@ SQLAlchemy event listeners for automatic billing sync.
 Uses session-level 'after_flush' event to safely sync charges to the
 unified Invoice system after legacy records are flushed to the database.
 """
+from departments.models.medicine import RequestedLab, RequestedImage, PrescribedMedicine
+from departments.models.billing import InvoiceLineItem
+from sqlalchemy import event, select
 import logging
 
-from sqlalchemy import event
 
 from extensions import db
 
@@ -235,3 +237,54 @@ def register_billing_sync_listeners():
 def unregister_billing_sync_listeners():
     """Unregister all event listeners (for testing/cleanup)."""
     logger.info("Billing sync listener unregistration not implemented")
+
+
+# --- T3.8: Encounter Scoping for Billing ---
+@event.listens_for(InvoiceLineItem, 'before_insert')
+@event.listens_for(InvoiceLineItem, 'before_update')
+def populate_encounter_id_on_line_item(mapper, connection, target):
+    """
+    Intercepts the creation/update of an InvoiceLineItem and backfills 
+    the encounter_id from the source clinical service if it's missing.
+    """
+    if getattr(target, 'encounter_id', None):
+        return
+
+    source_id = None
+    source_type = None
+
+    # Note: Adjust attribute names (e.g., requested_lab_id) if your schema differs
+    if hasattr(target, 'lab_request_id') and target.lab_request_id:
+        source_id = target.lab_request_id
+        source_type = 'lab'
+    elif hasattr(target, 'image_request_id') and target.image_request_id:
+        source_id = target.image_request_id
+        source_type = 'image'
+    elif hasattr(target, 'prescription_id') and target.prescription_id:
+        source_id = target.prescription_id
+        source_type = 'med'
+
+    if not source_id:
+        return
+
+    try:
+        encounter_id = None
+        if source_type == 'lab':
+            encounter_id = connection.execute(
+                select(RequestedLab.encounter_id).where(RequestedLab.id == source_id)
+            ).scalar_one_or_none()
+        elif source_type == 'image':
+            encounter_id = connection.execute(
+                select(RequestedImage.encounter_id).where(RequestedImage.id == source_id)
+            ).scalar_one_or_none()
+        elif source_type == 'med':
+            encounter_id = connection.execute(
+                select(PrescribedMedicine.encounter_id).where(PrescribedMedicine.id == source_id)
+            ).scalar_one_or_none()
+
+        if encounter_id:
+            target.encounter_id = encounter_id
+    except Exception:
+        # Fail gracefully: do not block billing creation if a source record is missing
+        pass
+# ---------------------------------------------
