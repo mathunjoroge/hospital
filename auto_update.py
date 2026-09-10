@@ -1,7 +1,8 @@
+import ast
 import subprocess
 import sys
-import ast
 from pathlib import Path
+
 
 def run_cmd(cmd):
     print(f"\n{'='*20} Executing: {cmd} {'='*20}")
