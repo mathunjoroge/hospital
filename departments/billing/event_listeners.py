@@ -327,16 +327,20 @@ def sync_billing_events(session, flush_context):
                 sync_session.rollback()
                 continue
 
-        # Commit all billing writes in the independent session
-        sync_session.commit()
-        logger.info("Billing sync committed successfully")
+        # Only commit if we created our own session (not in test mode)
+        if should_commit:
+            sync_session.commit()
+            logger.info("Billing sync committed successfully")
+        else:
+            logger.debug("Billing sync completed (test mode, no commit)")
 
     except Exception as e:
         logger.error(f"Billing sync session error: {e}", exc_info=True)
         sync_session.rollback()
 
     finally:
-        sync_session.close()
+        if should_commit:
+            sync_session.close()
         _clear_pending_charges()
 
 
