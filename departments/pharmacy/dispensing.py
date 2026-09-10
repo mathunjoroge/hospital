@@ -15,6 +15,7 @@ from departments.models.pharmacy import (  # Import PatientWaitingList and Patie
 )
 from departments.models.records import Patient
 from departments.rbac import roles_required
+from departments.shared.encounter_utils import is_encounter_open_for_dispensing
 from departments.shared.payment_gate import has_unpaid_charges
 from extensions import db
 
