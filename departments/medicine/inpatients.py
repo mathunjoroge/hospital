@@ -5,6 +5,7 @@ from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from departments.forms import AdmitPatientForm
+from departments.models.encounter import Encounter
 from departments.models.medicine import (
     AdmittedPatient,
     Bed,
@@ -71,19 +72,41 @@ def add_to_theatre():
                 flash("Procedure not found.", "danger")
                 return redirect(url_for("medicine.add_to_theatre"))
 
-            # Create theatre list entry
+            # Create SURGICAL encounter scoped to this booking (T3.2)
+            surgical_enc = create_surgical_encounter(
+                patient_id=patient_id,
+                provider_id=str(created_by) if created_by else None,
+                chief_complaint=f"Surgical procedure: {procedure.name}",
+            )
+
+            # Create theatre list entry linked to the surgical encounter
             new_entry = TheatreList(
                 patient_id=patient_id,
                 procedure_id=procedure_id,
                 status=0,
                 created_by=created_by,
                 notes_on_book=notes_on_book,
+                encounter_id=surgical_enc.id,
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
             )
 
             db.session.add(new_entry)
             db.session.commit()
+
+            # Explicitly sync the theatre charge to the SURGICAL encounter (T3.8)
+            if hasattr(procedure, 'cost') and procedure.cost:
+                from departments.billing.sync import sync_charge
+                sync_charge(
+                    patient_id=patient_id,
+                    source_table="theatre_list",
+                    source_id=new_entry.id,
+                    description=f"Theatre: {procedure.name}",
+                    category="theatre",
+                    amount=float(procedure.cost),
+                    source_encounter_id=surgical_enc.id,
+                )
+                db.session.commit()
 
             flash("Patient added to theatre list successfully!", "success")
             return redirect(url_for("medicine.get_theatre_list"))
@@ -112,6 +135,7 @@ def get_theatre_list():
         query = (
             TheatreList.query.join(Patient)
             .join(TheatreProcedure)
+            .outerjoin(Encounter, TheatreList.encounter_id == Encounter.id)
             .add_columns(
                 TheatreList.id,
                 TheatreList.patient_id,  # Fetch patient_id as text
@@ -120,6 +144,8 @@ def get_theatre_list():
                 TheatreList.status,
                 TheatreList.created_at,
                 TheatreList.notes_on_book,
+                TheatreList.encounter_id,
+                Encounter.stage.label("encounter_stage"),
             )
         )
 
@@ -167,6 +193,14 @@ def update_post_op(entry_id):
             theatre_entry.notes_on_post_op = notes_on_post_op
             theatre_entry.updated_at = datetime.now(timezone.utc)
 
+            # Advance the SURGICAL encounter through INTRA_OP -> POST_OP -> DISCHARGED (T3.2)
+            if getattr(theatre_entry, "encounter_id", None):
+                enc = Encounter.query.get(theatre_entry.encounter_id)
+                if enc and enc.stage not in ("DISCHARGED", "CANCELLED"):
+                    enc.set_stage("INTRA_OP")
+                    enc.set_stage("POST_OP")
+                    enc.close()  # POST_OP -> DISCHARGED
+
             db.session.commit()
 
             flash("Post-op notes updated successfully!", "success")
@@ -182,6 +216,24 @@ def update_post_op(entry_id):
         db.session.rollback()
         flash(f"An error occurred: {str(e)}", "danger")
         return redirect(url_for("medicine.get_theatre_list"))
+
+
+@bp.route("/theatre-transition/<int:entry_id>/<string:new_stage>", methods=["POST"])
+@login_required
+def transition_theatre_stage(entry_id, new_stage):
+    """Transitions a SURGICAL encounter to the next valid stage using the state machine."""
+    entry = TheatreList.query.get_or_404(entry_id)
+    if not entry.encounter_id:
+        flash("No surgical encounter found for this booking.", "danger")
+        return redirect(url_for("medicine.get_theatre_list"))
+
+    try:
+        transition_surgical_stage(entry.encounter_id, new_stage)
+        flash(f"Encounter stage successfully updated to {new_stage}.", "success")
+    except ValueError as e:
+        flash(f"Invalid stage transition: {str(e)}", "danger")
+
+    return redirect(url_for("medicine.get_theatre_list"))
 
 
 @bp.route("/admit-patient", methods=["GET", "POST"])

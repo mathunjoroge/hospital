@@ -75,6 +75,7 @@ def sync_charge(
     category: str,
     amount: float,
     quantity: int = 1,
+    source_encounter_id: "int | None" = None,
 ) -> InvoiceLineItem:
     """
     Sync a charge from legacy billing to the unified Invoice system.
@@ -113,10 +114,15 @@ def sync_charge(
     # Get or create the patient's open invoice
     invoice = get_or_create_open_invoice(patient_id)
 
-    # Create the line item (inherit encounter_id from the invoice)
+    # Resolve encounter_id: prefer source_encounter_id if provided
+    resolved_encounter_id = (
+        source_encounter_id if source_encounter_id is not None else invoice.encounter_id
+    )
+
+    # Create the line item, tagged with the resolved encounter
     line_item = InvoiceLineItem(
         invoice_id=invoice.id,
-        encounter_id=invoice.encounter_id,
+        encounter_id=resolved_encounter_id,
         description=description,
         category=category,
         quantity=quantity,

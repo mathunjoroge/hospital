@@ -240,9 +240,15 @@ class TheatreList(db.Model):
         db.String(255), nullable=True
     )  # Added for billing integration
 
+    # FK to the SURGICAL Encounter created when this case is booked (T3.2)
+    encounter_id = db.Column(
+        db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
+    )
+
     # Relationships
     patient = db.relationship("Patient", backref="theatre_entries")
     procedure = db.relationship("TheatreProcedure", backref="theatre_procedures")
+    encounter = db.relationship("Encounter", foreign_keys=[encounter_id], lazy="joined")
 
     def __repr__(self):
         return f"<TheatreList(id={self.id}, patient_id={self.patient_id}, procedure={self.procedure_id}, status={self.status})>"

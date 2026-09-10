@@ -36,7 +36,6 @@
     </div>
   </div>
 
-  <!-- Filter -->
   <div class="filter-bar">
     <form method="GET" action="{{ url_for('medicine.get_theatre_list') }}" class="d-flex gap-3 align-items-center flex-wrap">
       <label class="fw-bold text-muted small text-uppercase mb-0">Filter Status</label>
@@ -53,7 +52,9 @@
   <div class="md-card">
     <div class="md-card-header d-flex align-items-center justify-content-between">
       <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-clipboard-check me-2 text-danger"></i>Scheduled Procedures</h5>
-      <span class="badge rounded-pill" style="background: #e11d48; font-size:0.82rem; padding: 0.5rem 1rem;">{{ theatre_entries|length }} entr{{ 'ies' if theatre_entries|length != 1 else 'y' }}</span>
+      <span class="badge rounded-pill" style="background: #e11d48; font-size:0.82rem; padding: 0.5rem 1rem;">
+        {{ theatre_entries|length }} entr{{ 'ies' if theatre_entries|length != 1 else 'y' }}
+      </span>
     </div>
     <div class="table-responsive">
       <table class="table table-md table-hover align-middle mb-0">
@@ -61,6 +62,7 @@
           <tr>
             <th>Patient</th>
             <th>Procedure</th>
+            <th class="text-center">Stage</th>
             <th class="text-center">Status</th>
             <th>Booking Notes</th>
             <th>Booked On</th>
@@ -72,6 +74,23 @@
           <tr>
             <td class="fw-bold text-dark">{{ entry.patient_name }}</td>
             <td>{{ entry.procedure_name }}</td>
+            <td class="text-center">
+              {% if entry.encounter_stage %}
+                {% if entry.encounter_stage == 'PRE_OP' %}
+                  <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-2 rounded-pill">Pre-Op</span>
+                {% elif entry.encounter_stage == 'INTRA_OP' %}
+                  <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 rounded-pill animate__animated animate__pulse animate__infinite">Intra-Op</span>
+                {% elif entry.encounter_stage == 'POST_OP' %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">Post-Op</span>
+                {% elif entry.encounter_stage == 'DISCHARGED' %}
+                  <span class="badge bg-secondary-subtle text-secondary border px-3 py-2 rounded-pill">Discharged</span>
+                {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary border px-3 py-2 rounded-pill">{{ entry.encounter_stage }}</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted small">No Encounter</span>
+              {% endif %}
+            </td>
             <td class="text-center">
               {% if entry.status == 0 %}
                 <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 rounded-pill">Pending</span>
@@ -86,7 +105,23 @@
               <small>{{ entry.created_at.strftime('%d %b %Y') if entry.created_at else 'N/A' }}</small>
             </td>
             <td class="text-center">
-              {% if entry.status == 0 %}
+              {% if entry.encounter_stage == 'PRE_OP' %}
+                <form method="POST" action="{{ url_for('medicine.transition_theatre_stage', entry_id=entry.id, new_stage='INTRA_OP') }}" class="d-inline" onsubmit="return confirm('Start surgery and move to INTRA_OP?');">
+                  <button type="submit" class="btn btn-sm btn-warning fw-semibold">
+                    <i class="bi bi-play-fill me-1"></i>Start Surgery
+                  </button>
+                </form>
+              {% elif entry.encounter_stage == 'INTRA_OP' %}
+                <form method="POST" action="{{ url_for('medicine.transition_theatre_stage', entry_id=entry.id, new_stage='POST_OP') }}" class="d-inline" onsubmit="return confirm('Finish surgery and move to POST_OP?');">
+                  <button type="submit" class="btn btn-sm btn-success fw-semibold">
+                    <i class="bi bi-check-circle me-1"></i>Finish Surgery
+                  </button>
+                </form>
+              {% elif entry.encounter_stage == 'POST_OP' %}
+                <a href="{{ url_for('medicine.update_post_op', entry_id=entry.id) }}" class="btn btn-sm btn-info fw-semibold">
+                  <i class="bi bi-pencil me-1"></i>Post-Op Notes
+                </a>
+              {% elif entry.status == 0 %}
                 <a href="{{ url_for('medicine.update_post_op', entry_id=entry.id) }}" class="btn btn-sm btn-success fw-semibold">
                   <i class="bi bi-pencil me-1"></i>Post-Op Notes
                 </a>
@@ -97,7 +132,7 @@
           </tr>
           {% else %}
           <tr>
-            <td colspan="6" class="text-center py-5 text-muted">
+            <td colspan="7" class="text-center py-5 text-muted">
               <i class="bi bi-scissors display-4 d-block mb-2 opacity-50"></i>
               No procedures found.
             </td>
