@@ -1,5 +1,66 @@
 {% extends "base.html" %}
 {% block content %}
+
+<!-- 🚀 Active Encounters Dashboard Widget -->
+<div class="row mb-4 mt-3" id="encounter-summary-widget">
+    <div class="col-12">
+        <h4 class="mb-3">🏥 Active Encounters Overview</h4>
+        <div id="encounter-cards" class="d-flex flex-wrap gap-3">
+            <div class="text-muted">Loading active encounters...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    fetch('/records/api/active_encounters_summary')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('encounter-cards');
+            if (!data || data.total_active === 0) {
+                container.innerHTML = '<div class="alert alert-info w-100">No active encounters at the moment.</div>';
+                return;
+            }
+
+            const colors = {
+                'SURGICAL': 'danger', 'IPD': 'primary', 'OPD': 'secondary',
+                'TELEHEALTH': 'info', 'ANC': 'success', 'EMERGENCY': 'warning', 'REFERRAL': 'dark'
+            };
+            const icons = {
+                'SURGICAL': '🔪', 'IPD': '🛏️', 'OPD': '🩺',
+                'TELEHEALTH': '📱', 'ANC': '🤰', 'EMERGENCY': '🚑', 'REFERRAL': '🔀'
+            };
+
+            let html = '';
+            for (const [type, stages] of Object.entries(data.by_type)) {
+                const color = colors[type] || 'light';
+                const icon = icons[type] || '📋';
+                const totalForType = Object.values(stages).reduce((a, b) => a + b, 0);
+                
+                let stageDetails = Object.entries(stages)
+                    .map(([stage, count]) => `<span class="badge bg-light text-dark me-1">${stage.replace('_', ' ')}: ${count}</span>`)
+                    .join('');
+
+                html += `
+                    <div class="card border-${color} shadow-sm" style="min-width: 220px;">
+                        <div class="card-body">
+                            <h5 class="card-title text-${color}">${icon} ${type}</h5>
+                            <h2 class="card-text fw-bold">${totalForType}</h2>
+                            <div class="mt-2">${stageDetails}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        })
+        .catch(err => {
+            console.error('Failed to load encounter summary:', err);
+            document.getElementById('encounter-cards').innerHTML = '<div class="alert alert-warning">Could not load encounter summary.</div>';
+        });
+});
+</script>
+<!-- End Widget -->
+
 <style>
   :root {
     --md-primary: #0891b2;
