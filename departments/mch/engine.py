@@ -48,6 +48,9 @@ class MchEngine:
           - ANC 2: 20-24 weeks
           - ANC 3: 28-32 weeks
           - ANC 4+: 36 weeks / weekly until delivery
+
+        Also opens an ANC encounter scoped to this visit so that any orders
+        (immunizations, labs) placed during the visit are linked correctly.
         """
         if gestation_weeks < 0 or gestation_weeks > 42:
             raise ValueError("Invalid gestation weeks. Must be between 0 and 42.")
@@ -64,22 +67,58 @@ class MchEngine:
             datetime.now(timezone.utc) + timedelta(weeks=weeks_until_next)
         ).date()
 
+        # Open an ANC encounter for this visit
+        from departments.models.encounter import Encounter
+        enc = Encounter(
+            patient_id=patient_id,
+            encounter_type="ANC",
+            stage="IN_CONSULTATION",
+            status="ACTIVE",
+            chief_complaint=f"ANC Visit {visit_number} — {gestation_weeks} weeks gestation",
+        )
+        db.session.add(enc)
+        db.session.flush()  # populate enc.id before linking
+
         visit = AncVisit(
             patient_id=patient_id,
             visit_number=visit_number,
             gestation_weeks=gestation_weeks,
             high_risk_factors=high_risk_factors,
             next_appointment_date=next_appointment_date,
+            encounter_id=enc.id,
         )
         db.session.add(visit)
         db.session.commit()
 
         logger.info(
-            "ANC VISIT LOGGED: Patient %s (Visit %s, %s weeks)",
+            "ANC VISIT LOGGED: Patient %s (Visit %s, %s weeks, encounter %s)",
             patient_id,
             visit_number,
             gestation_weeks,
+            enc.id,
         )
+        return visit
+
+    def close_anc_visit(self, visit_id: str) -> AncVisit | None:
+        """
+        Closes an ANC visit by discharging the linked encounter.
+        Call this when the patient leaves the MCH clinic after the visit.
+        """
+        visit = AncVisit.query.get(visit_id)
+        if not visit:
+            return None
+
+        if visit.encounter_id:
+            from departments.models.encounter import Encounter
+            enc = Encounter.query.get(visit.encounter_id)
+            if enc and enc.stage != "DISCHARGED":
+                enc.close()
+                db.session.commit()
+                logger.info(
+                    "ANC VISIT CLOSED: Visit %s encounter %s -> DISCHARGED",
+                    visit_id,
+                    enc.id,
+                )
         return visit
 
     def record_immunization(
@@ -121,11 +160,17 @@ class MchEngine:
                     dose_number - 1,
                 )
 
+        # Link to the active ANC encounter for this child (if one is open)
+        from departments.shared.encounter_utils import active_encounter
+        enc = active_encounter(str(child_patient_id))
+        enc_id = enc.id if enc else None
+
         record = ImmunizationRecord(
             child_patient_id=child_patient_id,
             vaccine_name=vaccine_name,
             dose_number=dose_number,
             batch_number=batch_number,
+            encounter_id=enc_id,
         )
         db.session.add(record)
         db.session.commit()

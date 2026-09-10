@@ -123,3 +123,18 @@ def get_child_schedule(child_patient_id: int):
             "vaccines": due_vaccines,
         }
     ), 200
+
+
+@bp.route("/api/anc-visit/<visit_id>/close", methods=["POST"])
+@login_required
+@roles_required("nursing")
+def close_anc_visit(visit_id: str):
+    """
+    Close an ANC visit: discharges the linked encounter so the patient
+    can be billed and the encounter stage reflects DISCHARGED.
+    """
+    visit = _engine.close_anc_visit(visit_id)
+    if not visit:
+        return jsonify({"error": "ANC visit not found"}), 404
+
+    return jsonify({"status": "success", "visit_id": visit.id, "message": "ANC visit closed."}), 200
