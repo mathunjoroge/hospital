@@ -20,7 +20,7 @@ from departments.models.medicine import (
     RequestedLab,
     RequestedImage,
     PrescribedMedicine,
-    DispensedDrug,
+
     LabTest,
 )
 from .sync import sync_charge
@@ -44,7 +44,7 @@ def capture_pending_charges(session, flush_context):
     
     # Capture new billing-related objects
     for instance in list(session.new):
-        if isinstance(instance, (RequestedLab, RequestedImage, PrescribedMedicine, DispensedDrug)):
+        if isinstance(instance, (RequestedLab, RequestedImage, PrescribedMedicine)):
             # Store the instance for later processing
             _pending_charges.append({
                 'type': type(instance).__name__,
@@ -129,21 +129,6 @@ def sync_billing_events(session, flush_context):
                     )
                     logger.info(f"Synced prescription charge for PrescribedMedicine #{instance.id}")
             
-            # Dispensed Drugs
-            elif charge_type == 'DispensedDrug':
-                if hasattr(instance, "id") and instance.id is not None:
-                    sync_charge(
-                        patient_id=instance.patient_id,
-                        source_table="dispensed_drug",
-                        source_id=instance.id,
-                        description=f"Dispensed: {getattr(instance, 'drug_name', 'Medication')}",
-                        category="drug",
-                        amount=float(getattr(instance, "unit_price", 0) or 0),
-                        quantity=int(getattr(instance, "quantity", 1) or 1),
-                        source_encounter_id=getattr(instance, "encounter_id", None),
-                    )
-                    logger.info(f"Synced drug charge for DispensedDrug #{instance.id}")
-        
         except Exception as e:
             logger.error(f"Error syncing billing for {charge_type} #{getattr(instance, 'id', 'unknown')}: {e}", exc_info=True)
             continue
