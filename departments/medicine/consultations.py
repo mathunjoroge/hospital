@@ -400,7 +400,12 @@ def soap_notes(patient_id):
     """View or submit SOAP notes for a specific patient."""
     try:
         # Fetch the patient
-        patient = Patient.query.filter_by(patient_id=patient_id).first()
+        patient = Patient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            ).first()
         if not patient:
             flash(f"Patient with ID {patient_id} not found!", "error")
             return redirect(url_for("medicine.index"))

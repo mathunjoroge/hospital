@@ -18,7 +18,7 @@ from extensions import db
 logger = logging.getLogger(__name__)
 
 
-def get_or_create_open_invoice(patient_id: str) -> Invoice:
+def get_or_create_open_invoice(patient_id: str, _session=None) -> Invoice:
     """
     Get the patient's current open invoice, or create one if none exists.
 
@@ -32,14 +32,16 @@ def get_or_create_open_invoice(patient_id: str) -> Invoice:
     Returns:
         Invoice: The patient's current open invoice
     """
+    sess = _session if _session is not None else db.session
+
     # Find the most recent active encounter for this patient
-    active_encounter = Encounter.query.filter_by(
+    active_encounter = sess.query(Encounter).filter_by(
         patient_id=patient_id, status="ACTIVE"
     ).order_by(Encounter.started_at.desc()).first()
     enc_id = active_encounter.id if active_encounter else None
 
     # Check for existing open invoice scoped to this encounter (or unscoped if no encounter)
-    invoice = Invoice.query.filter_by(
+    invoice = sess.query(Invoice).filter_by(
         patient_id=patient_id,
         status=InvoiceStatus.DRAFT,
         encounter_id=enc_id
@@ -55,8 +57,8 @@ def get_or_create_open_invoice(patient_id: str) -> Invoice:
             amount_paid=0.0,
             created_at=datetime.now(timezone.utc),
         )
-        db.session.add(invoice)
-        db.session.flush()  # Get the ID without committing
+        sess.add(invoice)
+        sess.flush()  # Get the ID without committing
         logger.info(f"Created new invoice {invoice.id} for patient {patient_id} (Encounter: {enc_id})")
 
     return invoice
@@ -111,8 +113,8 @@ def sync_charge(
         logger.debug(f"Line item already exists for {source_table}:{source_id}")
         return existing
 
-    # Get or create the patient's open invoice
-    invoice = get_or_create_open_invoice(patient_id)
+    sess = _session if _session is not None else db.session
+    invoice = get_or_create_open_invoice(patient_id, _session=sess)
 
     # Resolve encounter_id: prefer source_encounter_id if provided
     resolved_encounter_id = (
@@ -132,7 +134,7 @@ def sync_charge(
         source_id=source_id,
     )
 
-    db.session.add(line_item)
+    sess.add(line_item)
 
     # Update invoice total
     current_gt = float(invoice.grand_total or 0)
@@ -189,7 +191,7 @@ def sync_payment(
             return existing
 
     # Get or create the patient's open invoice
-    invoice = Invoice.query.filter_by(patient_id=patient_id, status=InvoiceStatus.DRAFT).first()
+    invoice = sess.query(Invoice).filter_by(patient_id=patient_id, status=InvoiceStatus.DRAFT).first()
     if not invoice:
         invoice = get_or_create_open_invoice(patient_id)
 

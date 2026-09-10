@@ -191,7 +191,12 @@ def new_patient():
 @login_required
 @roles_required("records", "admin")
 def patient_profile(patient_id):
-    patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
+    patient = Patient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            ).first_or_404()
     log_audit_event("PATIENT_VIEW", resource_type="Patient", resource_id=patient_id)
     return render_template("records/patient_profile.html", patient=patient)
 
@@ -203,7 +208,12 @@ def patient_profile(patient_id):
 @login_required
 @roles_required("records", "admin")
 def edit_patient(patient_id):
-    patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
+    patient = Patient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            ).first_or_404()
 
     if request.method == "POST":
         patient.name = request.form["name"]
@@ -247,7 +257,12 @@ def edit_patient(patient_id):
 @login_required
 @roles_required("records", "admin")
 def patient_history(patient_id):
-    patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
+    patient = Patient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            ).first_or_404()
 
     soap_notes = (
         SOAPNote.query.filter_by(patient_id=patient_id)
@@ -292,7 +307,12 @@ def patient_history(patient_id):
     )
 
     admissions = (
-        AdmittedPatient.query.filter_by(patient_id=patient_id)
+        AdmittedPatient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            )
         .order_by(AdmittedPatient.admitted_on.desc())
         .all()
     )
@@ -338,7 +358,12 @@ def patient_history(patient_id):
 @bp.route("/patient/<patient_id>/allergies", methods=["GET", "POST"])
 @login_required
 def manage_patient_allergies(patient_id):
-    Patient.query.filter_by(patient_id=patient_id).first_or_404()
+    Patient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            ).first_or_404()
     if request.method == "POST":
         data = request.get_json() or request.form
         allergen = data.get("allergen")
@@ -397,7 +422,12 @@ def manage_patient_allergies(patient_id):
 @bp.route("/patient/<patient_id>/problems", methods=["GET", "POST"])
 @login_required
 def manage_patient_problems(patient_id):
-    Patient.query.filter_by(patient_id=patient_id).first_or_404()
+    Patient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            ).first_or_404()
     if request.method == "POST":
         data = request.get_json() or request.form
         description = data.get("description")
@@ -568,7 +598,12 @@ def book_clinic():
             {"status": "error", "message": "Invalid date format! Use YYYY-MM-DD."}
         ), 400
 
-    patient = Patient.query.filter_by(patient_id=patient_id).first()
+    patient = Patient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            ).first()
     if not patient:
         return jsonify(
             {

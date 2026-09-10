@@ -322,7 +322,12 @@ def oncology_ai_summary(patient_id):
             }
         ), 403
 
-    selected_patient = Patient.query.filter_by(patient_id=patient_id).first()
+    selected_patient = Patient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            ).first()
     if not selected_patient:
         return jsonify({"error": "Patient not found"}), 404
     notes = OncologyNote.query.filter_by(patient_id=selected_patient.patient_id).all()
@@ -554,7 +559,12 @@ def new_booking():
             return redirect(url_for("medicine.new_booking"))
 
         # Validate patient exists
-        patient = Patient.query.filter_by(patient_id=patient_id).first()
+        patient = Patient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            ).first()
         if not patient:
             flash("Selected patient does not exist.", "danger")
             return redirect(url_for("medicine.new_booking"))

@@ -455,7 +455,12 @@ def handle_soap_consultation():
     icd10_code = data.get("icd10_code", "")
     plan = data.get("plan", "")
 
-    patient = Patient.query.filter_by(patient_id=patient_id).first()
+    patient = Patient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            ).first()
     if not patient:
         return jsonify({"error": "Patient not found"}), 404
 

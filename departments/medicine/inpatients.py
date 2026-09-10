@@ -61,7 +61,12 @@ def add_to_theatre():
                 return redirect(url_for("medicine.add_to_theatre"))
 
             # Check if patient exists
-            patient = Patient.query.filter_by(patient_id=patient_id).first()
+            patient = Patient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            ).first()
             if not patient:
                 flash(f"Patient {patient_id} not found.", "danger")
                 return redirect(url_for("medicine.add_to_theatre"))
@@ -264,7 +269,12 @@ def admit_patient():
             admitted_by = request.form.get("admitted_by")
 
             # ✅ Check if patient exists
-            patient = Patient.query.filter_by(patient_id=patient_id).first()
+            patient = Patient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            ).first()
             if not patient:
                 flash("Patient not found.", "danger")
                 return redirect(url_for("medicine.admit_patient"))

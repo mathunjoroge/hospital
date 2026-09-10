@@ -77,7 +77,12 @@ def prescribe_drugs(patient_id):
             return redirect(url_for("medicine.index"))
 
         # Get patient record
-        patient = Patient.query.filter_by(patient_id=patient_id).first()
+        patient = Patient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            ).first()
         if not patient:
             flash(f"Patient with ID {patient_id} not found in the system!", "error")
             return redirect(url_for("medicine.index"))
@@ -698,7 +703,12 @@ def new_prescription():
 @bp.route("/prescriptions/<patient_id>", methods=["GET"])
 @login_required
 def list_prescriptions(patient_id):
-    patient = Patient.query.filter_by(patient_id=patient_id).first()
+    patient = Patient.query.filter(
+                db.or_(
+                    Patient.patient_id.ilike(f"%{patient_id}%"),
+                    Patient.name.ilike(f"%{patient_id}%"),
+                )
+            ).first()
     if not patient:
         flash("Patient does not exist.", "danger")
         return redirect(url_for("medicine.new_prescription"))
