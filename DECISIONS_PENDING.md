@@ -107,3 +107,50 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
 
 
 
+
+
+## Section 12: Billing Event Listener Architecture
+**Status:** DECIDED — 2026-09-11
+**Decision-maker:** Engineering Lead
+**Context:** The billing event listener was force-pushed back to an earlier draft that (a) only synced charges for RequestedLab/RequestedImage/PrescribedMedicine, and (b) reintroduced a module-level global list shared across requests (race condition).
+
+**Decision:**
+1. Use two-phase capture: `after_flush` captures objects as plain values, `after_flush_postexec` processes them with an independent session.
+2. Use `threading.local()` for pending charges storage to prevent race conditions.
+3. Use independent `Session(bind=db.engine)` for billing writes to avoid "Session is already flushing".
+4. Full coverage: RequestedLab, RequestedImage, PrescribedMedicine, DispensedDrug, TheatreList, AdmittedPatient, ClinicBooking, PaidBill, DrugsBill, Billing.
+
+**Rationale:** The original single-phase approach failed because `session.new` is always empty in `after_flush_postexec`. The independent session approach avoids flush-in-flush errors. Thread-local storage prevents concurrent request interference.
+
+**Implementation:** `departments/billing/event_listeners.py` — commit pending verification.
+
+
+
+## Section 13: Theatre Procedure Model Schema
+**Status:** DECIDED — 2026-09-11
+**Decision-maker:** Engineering Lead
+**Context:** T3.2 theatre tests used `TheatreProcedure(description=...)` but the model has no `description` column.
+
+**Decision:** Use `TheatreProcedure(name=..., type="General", cost=...)` in all test fixtures. The `type` column stores the procedure category.
+
+**Rationale:** The model schema is `name`, `type`, `cost`. Adding a `description` column would require a migration and is unnecessary for the current use case.
+
+**Implementation:** All test files updated to use `type="General"` instead of `description="..."`.
+
+
+
+## Section 14: Mock Data Cleanup Policy
+**Status:** DECIDED — 2026-09-11
+**Decision-maker:** Engineering Lead
+**Context:** Mock encounters (chief_complaint LIKE 'Mock %') were created during development and testing. These must be removed before any stakeholder demo or production deployment.
+
+**Decision:**
+1. Mock data is identified by `chief_complaint LIKE 'Mock %'`.
+2. Cleanup script at `scripts/cleanup_mock_data.py` with `--dry-run` option.
+3. Run cleanup before every stakeholder demo.
+4. Never commit mock data to production database.
+
+**Rationale:** Mock data pollutes analytics dashboards and billing reports. Stakeholders must see real data patterns.
+
+**Implementation:** `scripts/cleanup_mock_data.py` — run before demos.
+
