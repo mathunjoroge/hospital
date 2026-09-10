@@ -156,12 +156,6 @@ class RequestedImage(db.Model):
     encounter_id = db.Column(
         db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
     )  # NEW: visit scoping
-    encounter_id = db.Column(
-        db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
-    )  # NEW: visit scoping
-    encounter_id = db.Column(
-        db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
-    )  # NEW: visit scoping
     imaging_id = db.Column(db.Integer, db.ForeignKey("imaging.id"), nullable=False)
     date_requested = db.Column(
         db.DateTime, default=db.func.current_timestamp(), nullable=False

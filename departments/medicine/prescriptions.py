@@ -1,3 +1,4 @@
+from departments.shared.encounter_utils import active_encounter
 import os
 import uuid
 from datetime import datetime, timezone
@@ -109,9 +110,11 @@ def prescribe_drugs(patient_id):
                 )
 
             # Save prescriptions
+            encounter = active_encounter(patient.patient_id)
             for drug_id in drugs_selected:
                 prescribed = PrescribedMedicine(
                     patient_id=patient.patient_id,
+                    encounter_id=encounter.id if encounter else None,
                     medicine_id=drug_id,
                     dosage=dosage_form,
                     strength=strength.strip(),

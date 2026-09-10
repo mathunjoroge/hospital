@@ -73,6 +73,31 @@ def test_visit_not_closed_while_labs_pending(app):
     assert visit_closure.active_encounter("P0001").status == "ACTIVE"
 
 
+
+def test_old_closed_encounter_pending_lab_does_not_block_new_visit(app):
+    """Tier 2.4: a stale pending lab scoped to a PAST, closed encounter must
+    not block today's visit from closing - only work on the current
+    ACTIVE encounter (or unscoped work) should count."""
+    _patient("P0001")
+    lt = LabTest(test_name="CBC", cost=500)
+    db.session.add(lt)
+    db.session.commit()
+
+    # Old visit, already closed, with a lab that never got resulted.
+    old_enc = Encounter(patient_id="P0001", encounter_type="OPD", status="DISCHARGED")
+    db.session.add(old_enc)
+    db.session.commit()
+    db.session.add(
+        RequestedLab(patient_id="P0001", encounter_id=old_enc.id, lab_test_id=lt.id, status=0)
+    )
+    db.session.commit()
+
+    # New visit starts today - should be closable despite the old pending lab.
+    ScheduleEngine().create_walk_in(patient_id="P0001")
+    assert visit_closure.maybe_close_encounter("P0001") is True
+    new_enc = visit_closure.active_encounter("P0001")
+    assert new_enc is None or new_enc.status == "DISCHARGED"
+
 def test_visit_closes_when_no_work_no_debt(app):
     _patient("P0001")
     ScheduleEngine().create_walk_in(patient_id="P0001")

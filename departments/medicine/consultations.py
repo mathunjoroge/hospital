@@ -1,3 +1,4 @@
+from departments.shared.encounter_utils import active_encounter
 import json
 import os
 from datetime import datetime, timedelta, timezone
@@ -76,6 +77,7 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB max file size
 @login_required
 @roles_required("medicine", "admin")
 def submit_soap_notes(patient_id):
+    encounter = active_encounter(patient_id)
     try:
         # --- Form Data Retrieval ---
         situation = request.form.get("situation")
@@ -181,6 +183,7 @@ def submit_soap_notes(patient_id):
             if imaging_match:
                 requested_imaging = RequestedImage(
                     patient_id=patient_id,
+    encounter_id=encounter.id if encounter else None,
                     imaging_id=imaging_match.id,
                     description=recommendation,
                 )

@@ -1,3 +1,4 @@
+from departments.shared.encounter_utils import active_encounter
 import os
 import uuid
 from typing import Any, Dict, List, Optional
@@ -238,9 +239,13 @@ def unmatched_imaging():
         if unmatched_id and imaging_id:
             unmatched_request = UnmatchedImagingRequest.query.get(unmatched_id)
             if unmatched_request:
-                # Move to requested_images table
+                # Move to requested_images table. UnmatchedImagingRequest
+                # doesn't carry its own encounter_id, so scope to whatever
+                # encounter is active for the patient now (best effort).
+                encounter = active_encounter(unmatched_request.patient_id)
                 requested_imaging = RequestedImage(
                     patient_id=unmatched_request.patient_id,
+                    encounter_id=encounter.id if encounter else None,
                     imaging_id=imaging_id,
                     description=unmatched_request.description,
                 )

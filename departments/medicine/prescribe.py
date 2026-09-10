@@ -23,6 +23,7 @@ from departments.models.billing import InvoiceLineItem
 from departments.models.medicine import Medicine, PrescribedMedicine, SOAPNote
 from departments.models.nursing import NursingNote
 from departments.models.records import Patient, PatientAllergy
+from departments.shared.encounter_utils import active_encounter
 
 logger = logging.getLogger(__name__)
 
@@ -507,6 +508,7 @@ def handle_prescription_signoff():
     created_meds = []
     total_pharmacy_charge = 0.0
     rx_uuid = str(uuid.uuid4())
+    encounter = active_encounter(patient_id)
 
     for item in prescriptions:
         name = item.get("name")
@@ -525,6 +527,7 @@ def handle_prescription_signoff():
 
         rx_item = PrescribedMedicine(
             patient_id=patient_id,
+            encounter_id=encounter.id if encounter else None,
             medicine_id=med_obj.id,
             dosage=dosage,
             strength=strength,
