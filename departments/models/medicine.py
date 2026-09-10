@@ -842,9 +842,9 @@ class CancerDetail(db.Model):
         }
 class DispensedDrug(db.Model):
     """Model for tracking drugs dispensed to patients."""
-    
+
     __tablename__ = "dispensed_drugs"
-    
+
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(
         db.Text, db.ForeignKey("patients.patient_id"), nullable=False
@@ -854,7 +854,7 @@ class DispensedDrug(db.Model):
     )
     medicine_id = db.Column(db.Integer, db.ForeignKey("medicines.id"), nullable=False)
     prescription_id = db.Column(
-        db.String(36), db.ForeignKey("prescribed_medicines.prescription_id"), 
+        db.String(36), db.ForeignKey("prescribed_medicines.prescription_id"),
         nullable=True
     )
     quantity_dispensed = db.Column(db.Integer, nullable=False)
@@ -867,10 +867,10 @@ class DispensedDrug(db.Model):
         db.String(255), nullable=True
     )  # Billing integration
     notes = db.Column(db.Text, nullable=True)
-    
+
     # Relationships
     patient = db.relationship("Patient", backref="dispensed_drugs")
     medicine = db.relationship("Medicine", backref="dispensed_records")
-    
+
     def __repr__(self):
-        return f"<DispensedDrug {self.id} - Medicine {self.medicine_id} - Patient {self.patient_id}>"    
+        return f"<DispensedDrug {self.id} - Medicine {self.medicine_id} - Patient {self.patient_id}>"
