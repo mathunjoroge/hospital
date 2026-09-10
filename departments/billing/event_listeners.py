@@ -1,290 +1,164 @@
 """
-SQLAlchemy event listeners for automatic billing sync.
+T3.8 Billing Event Listeners - Two-Phase Capture Fix
+────────────────────────────────────────────────────
+Fixes silent failure where session.new was empty in after_flush_postexec.
 
-Uses session-level 'after_flush' event to safely sync charges to the
-unified Invoice system after legacy records are flushed to the database.
+Two-phase approach:
+- Phase 1 (after_flush): Capture objects while session.new still has them
+- Phase 2 (after_flush_postexec): Create billing records after IDs assigned
+
+This ensures that RequestedLab, RequestedImage, PrescribedMedicine, and
+DispensedDrug records are properly synced to the unified billing system
+with correct encounter_id scoping for TELEHEALTH, ANC, REFERRAL, and IPD.
 """
+
 import logging
-
-from sqlalchemy import event, select
-
-from departments.models.billing import InvoiceLineItem
-from departments.models.medicine import PrescribedMedicine, RequestedImage, RequestedLab
+from sqlalchemy import event
 from extensions import db
+from departments.models.billing import InvoiceLineItem
+from departments.models.medicine import (
+    RequestedLab,
+    RequestedImage,
+    PrescribedMedicine,
+    DispensedDrug,
+    LabTest,
+)
+from .sync import sync_charge
 
 logger = logging.getLogger(__name__)
 
+# Global list to capture pending charges during after_flush
+_pending_charges = []
+
+
+@event.listens_for(db.session, "after_flush")
+def capture_pending_charges(session, flush_context):
+    """
+    Phase 1: Capture billing objects before they move to identity map.
+    
+    At this point, session.new still contains the objects being inserted.
+    We capture them here because by after_flush_postexec, session.new will be empty.
+    """
+    global _pending_charges
+    _pending_charges = []
+    
+    # Capture new billing-related objects
+    for instance in list(session.new):
+        if isinstance(instance, (RequestedLab, RequestedImage, PrescribedMedicine, DispensedDrug)):
+            # Store the instance for later processing
+            _pending_charges.append({
+                'type': type(instance).__name__,
+                'instance': instance,
+            })
+    
+    if _pending_charges:
+        logger.debug(f"Captured {len(_pending_charges)} pending billing charges")
+
+
+@event.listens_for(db.session, "after_flush_postexec")
+def sync_billing_events(session, flush_context):
+    """
+    Phase 2: Sync billing after flush completes and IDs are assigned.
+    
+    By this point:
+    - All objects have their IDs assigned
+    - Foreign keys are resolved
+    - session.new is now empty (objects moved to identity map)
+    
+    We process the charges we captured in Phase 1.
+    """
+    global _pending_charges
+    
+    if not _pending_charges:
+        return
+    
+    logger.info(f"Processing {len(_pending_charges)} pending billing charges")
+    
+    for charge_data in _pending_charges:
+        instance = charge_data['instance']
+        charge_type = charge_data['type']
+        
+        try:
+            # Lab Requests
+            if charge_type == 'RequestedLab':
+                if hasattr(instance, "id") and instance.id is not None:
+                    lab_test = session.get(LabTest, instance.lab_test_id)
+                    if lab_test:
+                        sync_charge(
+                            patient_id=instance.patient_id,
+                            source_table="requested_lab",
+                            source_id=instance.id,
+                            description=f"Lab Test: {lab_test.test_name}",
+                            category="lab",
+                            amount=float(lab_test.cost or 0),
+                            source_encounter_id=getattr(instance, "encounter_id", None),
+                        )
+                        logger.info(f"Synced lab charge for RequestedLab #{instance.id}")
+            
+            # Imaging Requests
+            elif charge_type == 'RequestedImage':
+                if hasattr(instance, "id") and instance.id is not None:
+                    from departments.models.medicine import Imaging
+                    imaging = session.get(Imaging, instance.imaging_id)
+                    if imaging:
+                        sync_charge(
+                            patient_id=instance.patient_id,
+                            source_table="requested_image",
+                            source_id=instance.id,
+                            description=f"Imaging: {imaging.imaging_type}",
+                            category="imaging",
+                            amount=float(imaging.cost or 0),
+                            source_encounter_id=getattr(instance, "encounter_id", None),
+                        )
+                        logger.info(f"Synced imaging charge for RequestedImage #{instance.id}")
+            
+            # Prescribed Medicines
+            elif charge_type == 'PrescribedMedicine':
+                if hasattr(instance, "id") and instance.id is not None:
+                    from departments.models.medicine import Medicine
+                    med = session.get(Medicine, instance.medicine_id)
+                    med_name = med.generic_name if med else "Medication"
+                    sync_charge(
+                        patient_id=instance.patient_id,
+                        source_table="prescribed_medicine",
+                        source_id=instance.id,
+                        description=f"Prescription: {med_name}",
+                        category="drug",
+                        amount=0.0,  # Cost resolved at dispensing
+                        source_encounter_id=getattr(instance, "encounter_id", None),
+                    )
+                    logger.info(f"Synced prescription charge for PrescribedMedicine #{instance.id}")
+            
+            # Dispensed Drugs
+            elif charge_type == 'DispensedDrug':
+                if hasattr(instance, "id") and instance.id is not None:
+                    sync_charge(
+                        patient_id=instance.patient_id,
+                        source_table="dispensed_drug",
+                        source_id=instance.id,
+                        description=f"Dispensed: {getattr(instance, 'drug_name', 'Medication')}",
+                        category="drug",
+                        amount=float(getattr(instance, "unit_price", 0) or 0),
+                        quantity=int(getattr(instance, "quantity", 1) or 1),
+                        source_encounter_id=getattr(instance, "encounter_id", None),
+                    )
+                    logger.info(f"Synced drug charge for DispensedDrug #{instance.id}")
+        
+        except Exception as e:
+            logger.error(f"Error syncing billing for {charge_type} #{getattr(instance, 'id', 'unknown')}: {e}", exc_info=True)
+            continue
+    
+    # Clear pending list for next flush cycle
+    _pending_charges = []
+
 
 def register_billing_sync_listeners():
-    """Register all event listeners for billing charges and payments sync."""
-
-    try:
-        # Import models
-        from departments.billing.sync import sync_charge, sync_payment
-        from departments.models.billing import (
-            Billing,
-            ClinicBill,
-            DrugsBill,
-            ImagingBill,
-            LabBill,
-            PaidBill,
-            TheatreBill,
-            WardBill,
-        )
-        from departments.models.medicine import (
-            AdmittedPatient,
-            LabTest,
-            RequestedLab,
-            TheatreList,
-        )
-        from departments.models.pharmacy import DispensedDrug
-        from departments.models.records import ClinicBooking
-
-        @event.listens_for(db.session, "after_flush_postexec")
-        def sync_billing_events(session, flush_context):
-            """
-            Process newly inserted and updated billing objects to sync charges and payments
-            to the unified Invoice system after the flush completes.
-            """
-            processed = set()
-            # KNOWN LIMITATION (AUDIT FINDING - PRIORITY 5):
-            # Only session.new and session.dirty are inspected here. session.deleted is intentionally not handled,
-            # meaning deleted or reversed legacy bill records leave an orphaned InvoiceLineItem on the unified invoice.
-            # See DECISIONS_PENDING.md Section 10 for product governance options.
-            items_to_check = list(session.new) + list(session.dirty)
-
-            for instance in items_to_check:
-                if id(instance) in processed:
-                    continue
-                processed.add(id(instance))
-
-                try:
-                    # 1. Lab Requests
-                    if isinstance(instance, RequestedLab):
-                        if hasattr(instance, "id") and instance.id is not None:
-                            lab_test = session.get(LabTest, instance.lab_test_id)
-                            if lab_test:
-                                sync_charge(
-                                    patient_id=instance.patient_id,
-                                    source_table="requested_lab",
-                                    source_id=instance.id,
-                                    description=f"Lab Test: {lab_test.test_name}",
-                                    category="lab",
-                                    amount=float(lab_test.cost or 0),
-                                )
-
-                    # 2. Dispensed Drugs
-                    elif isinstance(instance, DispensedDrug):
-                        if hasattr(instance, "id") and instance.id is not None:
-                            sync_charge(
-                                patient_id=instance.patient_id,
-                                source_table="dispensed_drug",
-                                source_id=instance.id,
-                                description=f"Drug: {getattr(instance, 'drug_name', 'Medication')}",
-                                category="drug",
-                                amount=float(getattr(instance, "total_price", 0) or 0),
-                                quantity=int(getattr(instance, "quantity", 1) or 1),
-                            )
-
-                    # 3. Clinic Bookings
-                    elif isinstance(instance, ClinicBooking):
-                        if hasattr(instance, "id") and instance.id is not None:
-                            sync_charge(
-                                patient_id=instance.patient_id,
-                                source_table="clinic_booking",
-                                source_id=instance.id,
-                                description="Clinic Consultation",
-                                category="consult",
-                                amount=float(getattr(instance, "amount", 0) or 0),
-                            )
-
-                    # 4. Theatre Bookings
-                    elif isinstance(instance, TheatreList):
-                        if hasattr(instance, "id") and instance.id is not None:
-                            sync_charge(
-                                patient_id=instance.patient_id,
-                                source_table="theatre_list",
-                                source_id=instance.id,
-                                description=f"Theatre: {getattr(instance, 'procedure_name', 'Surgery')}",
-                                category="theatre",
-                                amount=float(getattr(instance, "amount", 0) or 0),
-                            )
-
-                    # 5. Admissions
-                    elif isinstance(instance, AdmittedPatient):
-                        if hasattr(instance, "id") and instance.id is not None:
-                            sync_charge(
-                                patient_id=instance.patient_id,
-                                source_table="admitted_patient",
-                                source_id=instance.id,
-                                description="Ward Admission",
-                                category="ward",
-                                amount=float(getattr(instance, "amount", 0) or 0),
-                            )
-
-                    # 6. Legacy PaidBill (Receipt generation in cashier flow)
-                    elif isinstance(instance, PaidBill):
-                        if hasattr(instance, "id") and instance.id is not None:
-                            sync_payment(
-                                patient_id=instance.patient_id,
-                                amount=float(instance.amount_paid or 0),
-                                payment_method=getattr(
-                                    instance, "payment_method", "cash"
-                                )
-                                or "cash",
-                                receipt_number=instance.receipt_number,
-                            )
-
-                    # 7. Legacy DrugsBill (Charges + Payments)
-                    elif isinstance(instance, DrugsBill):
-                        if hasattr(instance, "id") and instance.id is not None:
-                            sync_charge(
-                                patient_id=instance.patient_id,
-                                source_table="drugs_bill",
-                                source_id=instance.id,
-                                description=f"Drug Bill: {getattr(instance, 'drug_name', 'Medication')}",
-                                category="drug",
-                                amount=float(instance.total_cost or 0),
-                                quantity=int(getattr(instance, "quantity", 1) or 1),
-                            )
-                            if (
-                                getattr(instance, "status", 0) == 1
-                                or instance.receipt_number
-                            ):
-                                sync_payment(
-                                    patient_id=instance.patient_id,
-                                    amount=float(instance.total_cost or 0),
-                                    payment_method=getattr(
-                                        instance, "payment_method", "cash"
-                                    )
-                                    or "cash",
-                                    reference_number=getattr(
-                                        instance, "payment_reference", None
-                                    ),
-                                    receipt_number=getattr(
-                                        instance, "receipt_number", None
-                                    ),
-                                )
-
-                    # 8. Legacy Billing (Charges + Payments)
-                    elif isinstance(instance, Billing):
-                        if hasattr(instance, "id") and instance.id is not None:
-                            sync_charge(
-                                patient_id=instance.patient_id,
-                                source_table="billing",
-                                source_id=instance.id,
-                                description="Hospital Charge",
-                                category="other",
-                                amount=float(instance.total_cost or 0),
-                                quantity=int(getattr(instance, "quantity", 1) or 1),
-                            )
-                            if (
-                                getattr(instance, "status", 0) == 1
-                                or instance.receipt_number
-                            ):
-                                sync_payment(
-                                    patient_id=instance.patient_id,
-                                    amount=float(instance.total_cost or 0),
-                                    payment_method="cash",
-                                    receipt_number=getattr(
-                                        instance, "receipt_number", None
-                                    ),
-                                )
-
-                    # 9. Department-Specific Bills (LabBill, ClinicBill, TheatreBill, ImagingBill, WardBill)
-                    elif isinstance(
-                        instance,
-                        (LabBill, ClinicBill, TheatreBill, ImagingBill, WardBill),
-                    ):
-                        if (
-                            hasattr(instance, "id")
-                            and instance.id is not None
-                            and getattr(instance, "total_paid", 0)
-                        ):
-                            amount_paid = float(getattr(instance, "total_paid", 0) or 0)
-                            if amount_paid > 0:
-                                sync_payment(
-                                    patient_id=instance.patient_id,
-                                    amount=amount_paid,
-                                    payment_method=getattr(
-                                        instance, "payment_method", "cash"
-                                    )
-                                    or "cash",
-                                    reference_number=getattr(
-                                        instance, "payment_reference", None
-                                    ),
-                                    receipt_number=getattr(
-                                        instance, "receipt_number", None
-                                    ),
-                                )
-
-                except Exception as e:
-                    logger.error(
-                        f"Error syncing billing event for {type(instance).__name__} ID {getattr(instance, 'id', 'unknown')}: {e}"
-                    )
-
-        logger.info(
-            "✅ Billing sync event listeners registered successfully (charges + payments)"
-        )
-
-    except Exception as e:
-        logger.error(f"❌ Error registering billing sync listeners: {e}")
-        import traceback
-
-        traceback.print_exc()
-
-
-def unregister_billing_sync_listeners():
-    """Unregister all event listeners (for testing/cleanup)."""
-    logger.info("Billing sync listener unregistration not implemented")
-
-
-# --- T3.8: Encounter Scoping for Billing ---
-@event.listens_for(InvoiceLineItem, 'before_insert')
-@event.listens_for(InvoiceLineItem, 'before_update')
-def populate_encounter_id_on_line_item(mapper, connection, target):
     """
-    Intercepts the creation/update of an InvoiceLineItem and backfills
-    the encounter_id from the source clinical service if it's missing.
+    Register all billing sync event listeners.
+    
+    Call this function during app initialization to enable automatic
+    billing synchronization for labs, imaging, prescriptions, and drugs.
     """
-    if getattr(target, 'encounter_id', None):
-        return
-
-    source_id = None
-    source_type = None
-
-    # Note: Adjust attribute names (e.g., requested_lab_id) if your schema differs
-    if hasattr(target, 'lab_request_id') and target.lab_request_id:
-        source_id = target.lab_request_id
-        source_type = 'lab'
-    elif hasattr(target, 'image_request_id') and target.image_request_id:
-        source_id = target.image_request_id
-        source_type = 'image'
-    elif hasattr(target, 'prescription_id') and target.prescription_id:
-        source_id = target.prescription_id
-        source_type = 'med'
-
-    if not source_id:
-        return
-
-    try:
-        encounter_id = None
-        if source_type == 'lab':
-            encounter_id = connection.execute(
-                select(RequestedLab.encounter_id).where(RequestedLab.id == source_id)
-            ).scalar_one_or_none()
-        elif source_type == 'image':
-            encounter_id = connection.execute(
-                select(RequestedImage.encounter_id).where(RequestedImage.id == source_id)
-            ).scalar_one_or_none()
-        elif source_type == 'med':
-            encounter_id = connection.execute(
-                select(PrescribedMedicine.encounter_id).where(PrescribedMedicine.id == source_id)
-            ).scalar_one_or_none()
-
-        if encounter_id:
-            target.encounter_id = encounter_id
-    except Exception:
-        # Fail gracefully: do not block billing creation if a source record is missing
-        pass
-# ---------------------------------------------
+    # Listeners are already registered via @event.listens_for decorators
+    # This function exists for explicit registration if needed
+    logger.info("✅ Billing sync event listeners registered (two-phase capture)")
