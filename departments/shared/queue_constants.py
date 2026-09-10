@@ -12,4 +12,9 @@ class QueueStatus:
     AWAITING_RESULTS = 8   # Consult done; patient at lab/imaging, may return
     AWAITING_PHARMACY = 9  # Cleared to collect drugs
     ADMITTED = "ADMITTED"  # Inpatient ward admission
+    TELEHEALTH = "TELEHEALTH"  # Virtual consultation
+    ANC = "ANC"  # Antenatal care visit
+    REFERRAL = "REFERRAL"  # Inter-facility referral
+    REFERRED_OUT = "REFERRED_OUT"  # Patient referred out
+    SURGICAL = "SURGICAL"  # Theatre/surgical encounter
     AWAITING_BILLING = 10  # Services done; awaiting settlement before exit        # Doctor consultation completed

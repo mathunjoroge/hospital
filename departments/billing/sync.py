@@ -156,6 +156,7 @@ def sync_payment(
     payment_method: str,
     reference_number: str = None,
     receipt_number: str = None,
+    _session=None,
 ) -> Payment:
     """
     Record a payment against the patient's open invoice.
@@ -207,7 +208,7 @@ def sync_payment(
         payment_date=datetime.now(timezone.utc),
     )
 
-    db.session.add(payment)
+    sess.add(payment)
 
     # Update invoice
     current_paid = float(invoice.amount_paid or 0)

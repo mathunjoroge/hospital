@@ -1117,3 +1117,34 @@ def outstanding_report():
         outstanding_list=outstanding_list,
         grand_debt=grand_debt,
     )
+
+
+@bp.route("/analytics/revenue-by-encounter-type", methods=["GET"])
+@login_required
+def revenue_by_encounter_type():
+    """Revenue per Encounter Type using encounter_id tags on InvoiceLineItem."""
+    from departments.models.encounter import Encounter
+    from extensions import db
+    from sqlalchemy import func
+
+    results = db.session.query(
+        Encounter.encounter_type,
+        func.count(InvoiceLineItem.id).label("line_items"),
+        func.sum(InvoiceLineItem.total).label("total_revenue"),
+    ).join(
+        Encounter, InvoiceLineItem.encounter_id == Encounter.id
+    ).group_by(
+        Encounter.encounter_type
+    ).order_by(func.sum(InvoiceLineItem.total).desc()).all()
+
+    return jsonify({
+        "report": "Revenue per Encounter Type",
+        "data": [
+            {
+                "encounter_type": r.encounter_type,
+                "line_items": r.line_items,
+                "total_revenue": float(r.total_revenue or 0),
+            }
+            for r in results
+        ]
+    })

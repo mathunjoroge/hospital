@@ -96,7 +96,12 @@ class Encounter(db.Model):
     esi_level = db.Column(db.Integer, nullable=True)  # 1-5 ESI acuity
 
     ALLOWED_STAGE_TRANSITIONS = {
-        None: {"REGISTERED", "WAITING_DOCTOR", "IN_CONSULTATION"},
+        None: {"REGISTERED", "WAITING_DOCTOR", "IN_CONSULTATION", "ADMITTED", "PRE_OP"},
+        "ADMITTED": {"DISCHARGED", "CANCELLED"},
+        "PRE_OP": {"INTRA_OP", "DISCHARGED", "CANCELLED"},
+        "INTRA_OP": {"POST_OP", "DISCHARGED", "CANCELLED"},
+        "POST_OP": {"DISCHARGED", "CANCELLED"},
+        "REFERRED_OUT": {"DISCHARGED", "CANCELLED"},
         "REGISTERED": {"WAITING_DOCTOR", "IN_CONSULTATION", "CANCELLED"},
         "WAITING_DOCTOR": {"IN_CONSULTATION", "CANCELLED"},
         "IN_CONSULTATION": {

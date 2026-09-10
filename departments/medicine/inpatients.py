@@ -380,8 +380,8 @@ def discharge_patient(id):
 
         if active_enc:
             active_enc.status = "CLOSED"
-            active_enc.closed_at = datetime.now(timezone.utc)
-            active_enc.set_stage("DISCHARGED")
+            active_enc.ended_at = datetime.now(timezone.utc)
+            active_enc.close()
 
         db.session.commit()
 

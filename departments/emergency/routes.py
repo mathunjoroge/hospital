@@ -23,6 +23,7 @@ from departments.emergency.break_glass import (
 from departments.models.break_glass import BreakGlassAccessLog
 from departments.rbac import roles_required
 from extensions import db
+from departments.models.encounter import Encounter
 
 from . import bp
 
