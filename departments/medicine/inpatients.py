@@ -533,3 +533,37 @@ def add_ward_round():
         flash(f"Error: {str(e)}", "danger")
         return redirect(url_for("medicine.view_ward_rounds", admission_id=admission_id))
         # diseases
+
+
+# --- T3.2: Theatre Booking Stages ---
+def create_surgical_encounter(patient_id: str, provider_id: str = None, chief_complaint: str = "Surgical Procedure"):
+    """Creates a new SURGICAL encounter starting in PRE_OP stage."""
+    from departments.models.encounter import Encounter
+
+    enc = Encounter(
+        patient_id=patient_id,
+        encounter_type="SURGICAL",
+        stage="PRE_OP",
+        status="ACTIVE",
+        provider_id=str(provider_id) if provider_id else None,
+        chief_complaint=chief_complaint,
+    )
+    db.session.add(enc)
+    db.session.flush()  # Populate enc.id before any potential linking
+    return enc
+
+def transition_surgical_stage(encounter_id: int, new_stage: str):
+    """Transitions a SURGICAL encounter to the next valid stage using the state machine."""
+    from departments.models.encounter import Encounter
+
+    enc = db.session.get(Encounter, encounter_id)
+    if not enc:
+        raise ValueError("Encounter not found")
+    if enc.encounter_type != "SURGICAL":
+        raise ValueError("Encounter is not of type SURGICAL")
+
+    # set_stage enforces legal transitions (PRE_OP -> INTRA_OP -> POST_OP)
+    enc.set_stage(new_stage)
+    db.session.commit()
+    return enc
+# ------------------------------------

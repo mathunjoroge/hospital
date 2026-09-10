@@ -1,15 +1,17 @@
 """
 departments/billing/ward_charges.py
 
-T3.5: Midnight cron job to post daily room & board charges 
+T3.5: Midnight cron job to post daily room & board charges
 for all active IPD encounters.
 """
-from datetime import datetime, date
+from datetime import date, datetime
+
 from sqlalchemy import and_
+
 from app import db
-from departments.models.encounter import Encounter
 from departments.models.billing import Invoice, InvoiceLineItem
-from departments.models.medicine import AdmittedPatient, Ward 
+from departments.models.encounter import Encounter
+from departments.models.medicine import AdmittedPatient, Ward
 
 
 def post_daily_ward_charges():
@@ -18,7 +20,7 @@ def post_daily_ward_charges():
     and creates an InvoiceLineItem for today's room & board.
     """
     today = date.today()
-    
+
     # 1. Find all active IPD encounters
     active_ipds = db.session.query(Encounter).filter(
         and_(
@@ -37,7 +39,7 @@ def post_daily_ward_charges():
                 AdmittedPatient.discharged_on.is_(None)
             )
         ).first()
-        
+
         if not admission or not admission.ward_id:
             continue
 

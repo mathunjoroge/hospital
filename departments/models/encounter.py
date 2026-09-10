@@ -113,6 +113,11 @@ class Encounter(db.Model):
         },
         "AWAITING_PHARMACY": {"IN_CONSULTATION", "AWAITING_BILLING"},
         "AWAITING_BILLING": {"DISCHARGED"},
+        "ADMITTED": {"DISCHARGED", "REFERRED_OUT"},
+        "REFERRED_OUT": {"DISCHARGED"},
+        "PRE_OP": {"INTRA_OP", "CANCELLED"},
+        "INTRA_OP": {"POST_OP"},
+        "POST_OP": {"DISCHARGED"},
         "DISCHARGED": set(),
         "CANCELLED": set(),
     }
