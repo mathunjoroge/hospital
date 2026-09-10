@@ -73,9 +73,60 @@ class ReferralEngine:
             return None
 
         referral.status = new_status
+
+        if new_status == ReferralStatus.ACCEPTED:
+            self._handle_acceptance(referral)
+
         db.session.commit()
         logger.info("REFERRAL UPDATED: ID %s -> %s", referral_id, new_status)
         return referral
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _handle_acceptance(self, referral: Referral) -> None:
+        """
+        When a referral is accepted:
+        1. Close the source encounter by transitioning it to REFERRED_OUT
+           (uses close() since the stage machine has no REFERRED_OUT arc — we
+           set the stage directly after marking status to avoid blocking the
+           terminal set()).
+        2. Open a new REFERRAL encounter at the receiving facility side so
+           clinical orders at the destination are scoped to a distinct visit.
+        """
+        from departments.models.encounter import Encounter
+        from departments.shared.encounter_utils import active_encounter
+
+        patient_id = str(referral.patient_id)
+
+        # 1. Mark the active source encounter as referred-out
+        source_enc = active_encounter(patient_id)
+        if source_enc:
+            # close() sets status=DISCHARGED and stage=DISCHARGED; we override
+            # stage to REFERRED_OUT so the clinical record reflects the reason.
+            source_enc.close()
+            source_enc.stage = "REFERRED_OUT"
+            logger.info(
+                "REFERRAL ACCEPTED: source encounter %s -> REFERRED_OUT (patient %s)",
+                source_enc.id,
+                patient_id,
+            )
+
+        # 2. Open receiving-facility encounter
+        receiving_enc = Encounter(
+            patient_id=patient_id,
+            encounter_type="REFERRAL",
+            stage="IN_CONSULTATION",
+            status="ACTIVE",
+            chief_complaint=referral.reason_for_referral,
+        )
+        db.session.add(receiving_enc)
+        logger.info(
+            "REFERRAL ACCEPTED: receiving encounter created for patient %s (facility: %s)",
+            patient_id,
+            referral.receiving_facility,
+        )
 
 
 class DischargeEngine:
