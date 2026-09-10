@@ -8,17 +8,14 @@ This guarantees that TELEHEALTH, ANC, REFERRAL, and IPD charges land on
 the correct visit even when multiple encounter types co-exist for a patient.
 """
 
-from datetime import date, datetime
-from decimal import Decimal
-import pytest
+from datetime import date
 
 from departments.billing.sync import sync_charge
-from departments.models.billing import Invoice, InvoiceLineItem, InvoiceStatus
+from departments.models.billing import InvoiceLineItem
 from departments.models.encounter import Encounter
 from departments.models.medicine import (
     Imaging,
     LabTest,
-    PrescribedMedicine,
     RequestedImage,
     RequestedLab,
 )
@@ -72,7 +69,6 @@ class TestSyncChargeEncounterTagging:
         with app.app_context():
             _patient("P-BILL-01")
             # Two encounters: the invoice will be scoped to enc_a but the lab is from enc_b
-            enc_a = _encounter("P-BILL-01", enc_type="OPD")
             enc_b = _encounter("P-BILL-01", enc_type="TELEHEALTH")
             line = sync_charge(
                 patient_id="P-BILL-01",
