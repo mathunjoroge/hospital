@@ -55,7 +55,7 @@ def process_lab_result(lab_result, test_name):
         "result_value": getattr(lab_result, "result_value", "N/A"),
         "reference_range": getattr(lab_result, "reference_range", "N/A"),
         "unit": getattr(lab_result, "unit", ""),
-        "date": getattr(lab_result, "date_completed", None),
+        "date": getattr(lab_result, "test_date", None),
     }
 
 
@@ -300,14 +300,14 @@ def _results_ready_for_review(hours: int = 48):
     rows = (
         db.session.query(
             RequestedLab.patient_id,
-            func.max(LabResult.date_completed).label("completed_at"),
+            func.max(LabResult.test_date).label("completed_at"),
         )
         .join(
             LabResult,
             (LabResult.patient_id == RequestedLab.patient_id)
             & (LabResult.lab_test_id == RequestedLab.lab_test_id),
         )
-        .filter(RequestedLab.status == 1, LabResult.date_completed >= cutoff)
+        .filter(RequestedLab.status == 1, LabResult.test_date >= cutoff)
         .group_by(RequestedLab.patient_id)
         .all()
     )
