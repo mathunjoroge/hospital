@@ -103,7 +103,7 @@ def room_ui(session_uuid):
 @bp.route("/session/<session_uuid>/start", methods=["POST"])
 @login_required
 def start_session(session_uuid):
-    """Mark telemedicine session as ACTIVE."""
+    """Mark telemedicine session as ACTIVE and open a TELEHEALTH encounter."""
     user = get_effective_user()
     session = TelemedicineSession.query.filter_by(
         session_uuid=session_uuid
@@ -113,12 +113,27 @@ def start_session(session_uuid):
         return jsonify({"error": "Unauthorized"}), 403
 
     session.start_session()
+
+    # Create the clinical encounter for this telehealth session
+    from departments.models.encounter import Encounter
+    enc = Encounter(
+        patient_id=session.patient_id,
+        encounter_type="TELEHEALTH",
+        stage="IN_CONSULTATION",
+        status="ACTIVE",
+        provider_id=str(user.id),
+    )
+    db.session.add(enc)
+    db.session.flush()           # populate enc.id before linking
+    session.encounter_id = enc.id
+
     db.session.commit()
 
     log_audit_event(
         action="START_TELEMEDICINE_SESSION",
         resource_type="TelemedicineSession",
         resource_id=session.session_uuid,
+        details={"encounter_id": enc.id},
     )
 
     return jsonify({"message": "Session started", "session": session.to_dict()})
@@ -147,7 +162,7 @@ def save_notes(session_uuid):
 @login_required
 @roles_required("doctor", "medicine", "admin")
 def complete_session(session_uuid):
-    """End virtual consultation and mark COMPLETED."""
+    """End virtual consultation, mark COMPLETED, and discharge the encounter."""
     data = request.get_json() or {}
     notes = data.get("notes")
 
@@ -155,6 +170,14 @@ def complete_session(session_uuid):
         session_uuid=session_uuid
     ).first_or_404()
     session.end_session(notes=notes)
+
+    # Discharge the linked TELEHEALTH encounter
+    if getattr(session, "encounter_id", None):
+        from departments.models.encounter import Encounter
+        enc = Encounter.query.get(session.encounter_id)
+        if enc and enc.stage != "DISCHARGED":
+            enc.close()
+
     db.session.commit()
 
     log_audit_event(

@@ -34,6 +34,10 @@ class TelemedicineSession(db.Model):
     )
     patient_id = db.Column(db.String(50), nullable=False, index=True)
     appointment_id = db.Column(db.Integer, nullable=True)
+    # FK to the Encounter created when the session starts (nullable until started)
+    encounter_id = db.Column(
+        db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
+    )
 
     status = db.Column(
         db.String(20),
