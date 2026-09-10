@@ -9,13 +9,7 @@ Phase 2 (after_flush_postexec): Process captured data using an INDEPENDENT
     session to avoid "Session is already flushing" errors.
 
 Covers: RequestedLab, RequestedImage, PrescribedMedicine, DispensedDrug,
-        TheatreList, ClinicBooking, PaidBill, DrugsBill, Billing
-
-Note: AdmittedPatient/ward charges are intentionally NOT auto-billed here.
-    Ward.daily_charge is a per-day rate, not a one-time admission fee, and
-    /nursing/mar/auto_bill (departments/nursing/mar.py) is the single,
-    explicit, auditable engine for billing it once per admitted day. Syncing
-    a charge here too would double-bill day one every time.
+        TheatreList, AdmittedPatient, ClinicBooking, PaidBill, DrugsBill, Billing
 
 Thread-safe: Uses threading.local() instead of module-level globals to
     prevent race conditions under concurrent requests.
@@ -59,12 +53,13 @@ def capture_pending_charges(session, flush_context):
     """
     from departments.models.billing import Billing, DrugsBill, PaidBill
     from departments.models.medicine import (
+        AdmittedPatient,
+        DispensedDrug,
         PrescribedMedicine,
         RequestedImage,
         RequestedLab,
         TheatreList,
     )
-    from departments.models.pharmacy import DispensedDrug
     from departments.models.records import ClinicBooking
 
     pending = _get_pending_charges()
@@ -120,6 +115,16 @@ def capture_pending_charges(session, flush_context):
                         'patient_id': instance.patient_id,
                         'source_id': instance.id,
                         'procedure_id': instance.procedure_id,
+                        'encounter_id': getattr(instance, 'encounter_id', None),
+                    })
+
+            elif isinstance(instance, AdmittedPatient):
+                if hasattr(instance, "id") and instance.id is not None:
+                    pending.append({
+                        'type': 'AdmittedPatient',
+                        'patient_id': instance.patient_id,
+                        'source_id': instance.id,
+                        'ward_id': instance.ward_id,
                         'encounter_id': getattr(instance, 'encounter_id', None),
                     })
 
@@ -188,6 +193,7 @@ def sync_billing_events(session, flush_context):
         LabTest,
         Medicine,
         TheatreProcedure,
+        Ward,
     )
 
     from .sync import sync_charge, sync_payment
@@ -201,18 +207,11 @@ def sync_billing_events(session, flush_context):
 
     # SQLite in-memory databases are isolated per connection, so an
     # independent Session(bind=db.engine) would write to a different
-    # database than the one tests read from. In test mode we instead bind
-    # a *separate* Session object to the outer session's own connection —
-    # this keeps it on the same in-memory database/transaction (so it can
-    # see the not-yet-committed rows and participates in the same
-    # commit/rollback), while still being a distinct Session instance.
-    # Reusing db.session itself here would trip SQLAlchemy's "Session is
-    # already flushing" guard, since after_flush_postexec fires while the
-    # outer session's flush() call is still on the stack.
+    # database than the one tests read from. Reuse the request-scoped
+    # db.session in test mode instead, and only commit/close a session
+    # we created ourselves.
     should_commit = not current_app.config.get("TESTING", False)
-    sync_session = (
-        Session(bind=db.engine) if should_commit else Session(bind=session.connection())
-    )
+    sync_session = Session(bind=db.engine) if should_commit else db.session
 
     try:
         for charge_data in pending:
@@ -294,6 +293,21 @@ def sync_billing_events(session, flush_context):
                         )
                         logger.info(f"Synced theatre charge for TheatreList #{charge_data['source_id']}")
 
+                elif charge_type == 'AdmittedPatient':
+                    ward = sync_session.get(Ward, charge_data['ward_id'])
+                    if ward:
+                        sync_charge(
+                            patient_id=charge_data['patient_id'],
+                            source_table="admitted_patient",
+                            source_id=charge_data['source_id'],
+                            description=f"Ward Admission: {ward.name}",
+                            category="ward",
+                            amount=float(ward.admission_fee or 0),
+                            source_encounter_id=charge_data.get('encounter_id'),
+                            _session=sync_session,
+                        )
+                        logger.info(f"Synced ward charge for AdmittedPatient #{charge_data['source_id']}")
+
                 elif charge_type == 'ClinicBooking':
                     sync_charge(
                         patient_id=charge_data['patient_id'],
@@ -323,29 +337,20 @@ def sync_billing_events(session, flush_context):
                 sync_session.rollback()
                 continue
 
-        # sync_session is always its own Session object now (either bound to
-        # the engine in production, or to the outer session's connection in
-        # test mode). Committing it is safe and necessary in both cases:
-        # in production it commits an independent transaction; in test mode
-        # (connection-bound) it only releases that Session's own SAVEPOINT
-        # into the still-open outer transaction, making the synced rows
-        # visible to the outer db.session without prematurely committing it.
-        sync_session.commit()
-        logger.info(
-            "Billing sync committed successfully"
-            if should_commit else
-            "Billing sync completed (test mode, savepoint released)"
-        )
+        # Only commit if we created our own session (not in test mode)
+        if should_commit:
+            sync_session.commit()
+            logger.info("Billing sync committed successfully")
+        else:
+            logger.debug("Billing sync completed (test mode, no commit)")
 
     except Exception as e:
         logger.error(f"Billing sync session error: {e}", exc_info=True)
         sync_session.rollback()
 
     finally:
-        # Safe in both cases: when bound to an explicit Connection (test
-        # mode) close() only expunges objects/detaches — it does not close
-        # a connection the Session doesn't own.
-        sync_session.close()
+        if should_commit:
+            sync_session.close()
         _clear_pending_charges()
 
 
