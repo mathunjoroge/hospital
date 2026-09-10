@@ -14,6 +14,7 @@ from departments.models.billing import (
     ClinicBill,
     DrugsBill,
     ImagingBill,
+    InvoiceLineItem,
     LabBill,
     PaidBill,
     TheatreBill,
@@ -1123,9 +1124,10 @@ def outstanding_report():
 @login_required
 def revenue_by_encounter_type():
     """Revenue per Encounter Type using encounter_id tags on InvoiceLineItem."""
+    from sqlalchemy import func
+
     from departments.models.encounter import Encounter
     from extensions import db
-    from sqlalchemy import func
 
     results = db.session.query(
         Encounter.encounter_type,

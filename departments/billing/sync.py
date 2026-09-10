@@ -208,7 +208,7 @@ def sync_payment(
         payment_date=datetime.now(timezone.utc),
     )
 
-    sess.add(payment)
+    db.session.add(payment)
 
     # Update invoice
     current_paid = float(invoice.amount_paid or 0)

@@ -17,8 +17,10 @@ Thread-safe: Uses threading.local() instead of module-level globals to
 
 import logging
 import threading
+
 from sqlalchemy import event
 from sqlalchemy.orm import Session
+
 from extensions import db
 
 logger = logging.getLogger(__name__)
@@ -49,16 +51,16 @@ def capture_pending_charges(session, flush_context):
     instead of holding references to SQLAlchemy objects, which may become
     invalid when we try to use them with an independent session.
     """
-    from departments.models.medicine import (
-        RequestedLab,
-        RequestedImage,
-        PrescribedMedicine,
-        DispensedDrug,
-        TheatreList,
-        AdmittedPatient,
-    )
-    from departments.models.billing import PaidBill, DrugsBill, Billing
     from departments.appointments.models import ClinicBooking
+    from departments.models.billing import Billing, DrugsBill, PaidBill
+    from departments.models.medicine import (
+        AdmittedPatient,
+        DispensedDrug,
+        PrescribedMedicine,
+        RequestedImage,
+        RequestedLab,
+        TheatreList,
+    )
 
     pending = _get_pending_charges()
 
@@ -184,14 +186,15 @@ def sync_billing_events(session, flush_context):
     (LabTest, Imaging, Medicine, etc.) using the independent session, then
     call sync_charge/sync_payment with that session.
     """
-    from .sync import sync_charge, sync_payment
     from departments.models.medicine import (
-        LabTest,
         Imaging,
+        LabTest,
         Medicine,
         TheatreProcedure,
         Ward,
     )
+
+    from .sync import sync_charge, sync_payment
 
     pending = _get_pending_charges()
 
