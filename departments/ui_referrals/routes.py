@@ -12,6 +12,6 @@ from . import bp
 
 @bp.route("/handover")
 @login_required
-@roles_required("doctor", "nursing")
+@roles_required("doctor", "nursing", "medicine", "admin")
 def referral_handover():
     return render_template("referrals/handover.html")
