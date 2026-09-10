@@ -51,7 +51,6 @@ def capture_pending_charges(session, flush_context):
     instead of holding references to SQLAlchemy objects, which may become
     invalid when we try to use them with an independent session.
     """
-    from departments.appointments.models import ClinicBooking
     from departments.models.billing import Billing, DrugsBill, PaidBill
     from departments.models.medicine import (
         AdmittedPatient,
@@ -61,6 +60,7 @@ def capture_pending_charges(session, flush_context):
         RequestedLab,
         TheatreList,
     )
+    from departments.models.records import ClinicBooking
 
     pending = _get_pending_charges()
 
