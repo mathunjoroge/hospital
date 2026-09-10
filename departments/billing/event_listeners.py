@@ -186,6 +186,8 @@ def sync_billing_events(session, flush_context):
     (LabTest, Imaging, Medicine, etc.) using the independent session, then
     call sync_charge/sync_payment with that session.
     """
+    from flask import current_app
+
     from departments.models.medicine import (
         Imaging,
         LabTest,
@@ -203,8 +205,13 @@ def sync_billing_events(session, flush_context):
 
     logger.info(f"Processing {len(pending)} pending billing charges")
 
-    # Open an independent session for billing writes
-    sync_session = Session(bind=db.engine)
+    # SQLite in-memory databases are isolated per connection, so an
+    # independent Session(bind=db.engine) would write to a different
+    # database than the one tests read from. Reuse the request-scoped
+    # db.session in test mode instead, and only commit/close a session
+    # we created ourselves.
+    should_commit = not current_app.config.get("TESTING", False)
+    sync_session = Session(bind=db.engine) if should_commit else db.session
 
     try:
         for charge_data in pending:
