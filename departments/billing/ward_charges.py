@@ -8,7 +8,7 @@ from datetime import date, datetime
 
 from sqlalchemy import and_
 
-from app import db
+from extensions import db
 from departments.models.billing import Invoice, InvoiceLineItem
 from departments.models.encounter import Encounter
 from departments.models.medicine import AdmittedPatient, Ward
