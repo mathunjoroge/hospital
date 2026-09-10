@@ -1,4 +1,3 @@
-from departments.shared.encounter_utils import active_encounter
 import os
 import uuid
 from datetime import datetime, timezone
@@ -28,6 +27,7 @@ from departments.rbac import roles_required
 from departments.shared.drugcentral import (
     get_drugcentral_connection as get_db_connection,
 )
+from departments.shared.encounter_utils import active_encounter
 from extensions import db
 
 from . import bp

@@ -1,11 +1,12 @@
 """Phase 2: single authority for closing a visit (Encounter + legacy queue)."""
 import logging
 
+from sqlalchemy import or_
+
 from departments.models.billing import Billing, DrugsBill, Invoice
 from departments.models.medicine import PrescribedMedicine, RequestedImage, RequestedLab
-from extensions import db
-from sqlalchemy import or_
 from departments.shared.encounter_utils import active_encounter
+from extensions import db
 
 logger = logging.getLogger(__name__)
 

@@ -1,4 +1,3 @@
-from departments.shared.encounter_utils import active_encounter
 import os
 import uuid
 from typing import Any, Dict, List, Optional
@@ -20,6 +19,7 @@ from departments.models.records import Patient, PatientWaitingList
 from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.nlp.logging_setup import get_logger
 from departments.rbac import roles_required
+from departments.shared.encounter_utils import active_encounter
 from extensions import db, socketio
 
 from . import bp

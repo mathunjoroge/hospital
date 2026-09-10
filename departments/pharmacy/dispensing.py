@@ -395,6 +395,12 @@ def save_dispensed_drugs():
             .filter_by(prescription_id=prescription_id)
             .all()
         )
+
+        # --- T3.7: Encounter Scoping Check ---
+        if prescribed_meds and not is_encounter_open_for_dispensing(prescribed_meds[0].encounter_id):
+            flash('Cannot dispense: The associated encounter is closed or the patient has been discharged.', 'danger')
+            return redirect(request.referrer or url_for('pharmacy.index'))
+        # -------------------------------------
         print(f"DEBUG: Found {len(prescribed_meds)} prescribed medicines")
         for med in prescribed_meds:
             print(

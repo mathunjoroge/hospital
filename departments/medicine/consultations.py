@@ -1,4 +1,3 @@
-from departments.shared.encounter_utils import active_encounter
 import json
 import os
 from datetime import datetime, timedelta, timezone
@@ -35,6 +34,7 @@ from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.nlp.logging_setup import get_logger
 from departments.rbac import roles_required
 from departments.shared import queue_service
+from departments.shared.encounter_utils import active_encounter
 from departments.shared.queue_constants import QueueStatus
 from extensions import db
 
