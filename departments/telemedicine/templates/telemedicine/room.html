@@ -6,12 +6,18 @@
   <title>Telemedicine Consultation — {{ session.session_uuid[:8] }}</title>
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <style>
     body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
     .video-canvas { background-color: #1e293b; border-radius: 12px; height: 380px; position: relative; overflow: hidden; }
     .remote-video { width: 100%; height: 100%; object-fit: cover; background: #000; }
     .local-video { width: 120px; height: 90px; position: absolute; bottom: 12px; right: 12px; border-radius: 8px; border: 2px solid #38bdf8; background: #000; }
     .card-panel { background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+    .connection-status { position: absolute; top: 12px; left: 12px; z-index: 10; }
+    .status-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    .status-connecting { background: #fbbf24; color: #000; }
+    .status-connected { background: #10b981; color: #fff; }
+    .status-error { background: #ef4444; color: #fff; }
   </style>
 </head>
 <body class="p-3">
@@ -27,12 +33,14 @@
     </div>
 
     <div class="row g-3">
-      <!-- Left Column: Video Room Canvas -->
       <div class="col-lg-7">
         <div class="video-canvas d-flex justify-content-center align-items-center">
+          <div class="connection-status">
+            <span id="connection-badge" class="status-badge status-connecting">Connecting...</span>
+          </div>
           <div class="text-center" id="video-placeholder">
             <div class="fs-1 mb-2">📹</div>
-            <h5>WebRTC Telemedicine Room Connected</h5>
+            <h5>Initializing Video Connection...</h5>
             <p class="text-secondary small">Room Token: {{ session.room_token }}</p>
           </div>
           <video id="remote-stream" class="remote-video d-none" autoplay playsinline></video>
@@ -40,17 +48,16 @@
         </div>
 
         <div class="d-flex justify-content-center gap-2 mt-3">
-          <button class="btn btn-outline-light" id="btn-toggle-cam">📷 Toggle Camera</button>
-          <button class="btn btn-outline-light" id="btn-toggle-mic">🎙️ Toggle Mic</button>
+          <button class="btn btn-outline-light" id="btn-toggle-cam" onclick="toggleCamera()">📷 Toggle Camera</button>
+          <button class="btn btn-outline-light" id="btn-toggle-mic" onclick="toggleMicrophone()">🎙️ Toggle Mic</button>
           <button class="btn btn-danger" id="btn-end-call" onclick="completeSession()">🛑 End Consultation</button>
         </div>
       </div>
 
-      <!-- Right Column: Consultation Clinical Notes -->
       <div class="col-lg-5">
         <div class="card-panel p-3">
           <h5 class="text-light mb-3">📝 Doctor Consultation Notes</h5>
-          <textarea id="notes-input" class="form-control bg-dark text-light border-secondary mb-3" rows="10" placeholder="Type clinical findings, diagnosis, and treatment plan during call...">{{ session.clinical_notes or '' }}</textarea>
+          <textarea id="notes-input" class="form-control bg-dark text-light border-secondary mb-3" rows="10" placeholder="Type clinical findings...">{{ session.clinical_notes or '' }}</textarea>
           <div class="d-flex justify-content-between">
             <button class="btn btn-primary" onclick="saveNotes()">💾 Save Notes</button>
             <button class="btn btn-success" onclick="completeSession()">✅ Finalize Consultation</button>
@@ -62,35 +69,138 @@
 
   <script>
     const sessionUuid = "{{ session.session_uuid }}";
+    const roomToken = "{{ session.room_token }}";
+    let localStream = null;
+    let peerConnection = null;
+    let socket = null;
+
+    const rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await initializeCall();
+    });
+
+    async function initializeCall() {
+      try {
+        updateConnectionStatus('connecting', 'Initializing...');
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1280, height: 720 },
+          audio: true
+        });
+
+        const localVideo = document.getElementById('local-stream');
+        localVideo.srcObject = localStream;
+        localVideo.classList.remove('d-none');
+        document.getElementById('video-placeholder').classList.add('d-none');
+
+        socket = io();
+        socket.emit('join_room', { room_token: roomToken, session_uuid: sessionUuid });
+
+        peerConnection = new RTCPeerConnection(rtcConfig);
+        localStream.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStream);
+        });
+
+        peerConnection.ontrack = (event) => {
+          const remoteVideo = document.getElementById('remote-stream');
+          remoteVideo.srcObject = event.streams[0];
+          remoteVideo.classList.remove('d-none');
+          updateConnectionStatus('connected', 'Connected');
+        };
+
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            socket.emit('ice_candidate', { room_token: roomToken, candidate: event.candidate });
+          }
+        };
+
+        socket.on('user_joined', async (data) => {
+          if (data.is_initiator) {
+            await createOffer();
+          }
+        });
+
+        socket.on('offer', async (data) => {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          socket.emit('answer', { room_token: roomToken, answer: answer });
+        });
+
+        socket.on('answer', async (data) => {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+        });
+
+        socket.on('ice_candidate', async (data) => {
+          try {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+          } catch (e) {
+            console.error('Error adding ICE candidate:', e);
+          }
+        });
+
+        updateConnectionStatus('connecting', 'Waiting for peer...');
+      } catch (error) {
+        console.error('Error initializing call:', error);
+        updateConnectionStatus('error', 'Error: ' + error.message);
+      }
+    }
+
+    async function createOffer() {
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      socket.emit('offer', { room_token: roomToken, offer: offer });
+    }
+
+    function toggleCamera() {
+      if (localStream) {
+        const videoTrack = localStream.getVideoTracks()[0];
+        videoTrack.enabled = !videoTrack.enabled;
+      }
+    }
+
+    function toggleMicrophone() {
+      if (localStream) {
+        const audioTrack = localStream.getAudioTracks()[0];
+        audioTrack.enabled = !audioTrack.enabled;
+      }
+    }
+
+    function updateConnectionStatus(status, message) {
+      const badge = document.getElementById('connection-badge');
+      badge.className = 'status-badge status-' + status;
+      badge.textContent = message;
+    }
 
     async function saveNotes() {
       const notes = document.getElementById('notes-input').value;
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-      const res = await fetch(`/telemedicine/session/${sessionUuid}/notes`, {
+      await fetch(`/telemedicine/session/${sessionUuid}/notes`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken
-        },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
         body: JSON.stringify({ notes: notes })
       });
-      const data = await res.json();
-      if (res.ok) alert("Notes saved successfully!");
+      alert("Notes saved!");
     }
 
     async function completeSession() {
+      if (!confirm('End consultation?')) return;
       const notes = document.getElementById('notes-input').value;
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
       const res = await fetch(`/telemedicine/session/${sessionUuid}/complete`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken
-        },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
         body: JSON.stringify({ notes: notes })
       });
       if (res.ok) {
-        document.getElementById('session-status').innerText = 'COMPLETED';
+        if (peerConnection) peerConnection.close();
+        if (localStream) localStream.getTracks().forEach(track => track.stop());
+        if (socket) socket.disconnect();
         alert("Consultation finalized.");
         window.location.href = "/";
       }

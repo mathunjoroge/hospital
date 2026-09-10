@@ -208,3 +208,10 @@ def list_sessions():
 
     sessions = query.order_by(TelemedicineSession.created_at.desc()).all()
     return jsonify({"sessions": [s.to_dict() for s in sessions]})
+
+
+@bp.route("/sessions/list", methods=["GET"])
+@login_required
+def sessions_list():
+    """Render the sessions list page."""
+    return render_template("telemedicine/sessions.html")
