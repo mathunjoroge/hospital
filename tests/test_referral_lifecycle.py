@@ -4,7 +4,7 @@ tests/test_referral_lifecycle.py
 T3.3 — Referral Lifecycle: source encounter transitions to REFERRED_OUT
 and a new REFERRAL encounter is opened for the receiving facility.
 """
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 
