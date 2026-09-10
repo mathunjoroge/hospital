@@ -12,7 +12,7 @@ from . import bp
 
 @bp.route("/prescribe")
 @login_required
-@roles_required("doctor", "pharmacist")
+@roles_required("doctor", "pharmacist", "medicine", "admin")
 def prescription_workbench():
     """
     Renders the interactive prescription safety and consent workbench.
