@@ -40,11 +40,11 @@ def _patient(pid: str) -> Patient:
     return p
 
 
-def _procedure(name: str = "Appendectomy") -> TheatreProcedure:
+def _procedure(name: str = "Appendectomy") -> int:
     proc = TheatreProcedure(name=name, type="General", cost=5000.0)
     db.session.add(proc)
     db.session.commit()
-    return proc
+    return proc.id
 
 
 class TestSurgicalStageMachine:
@@ -115,10 +115,10 @@ class TestTheatreBookingRoute:
         client.post("/login", data={"username": doctor.username, "password": "Password123!"})
         with app.app_context():
             _patient("P-TH-R-01")
-            proc = _procedure("Appendectomy")
+            proc_id = _procedure("Appendectomy")
         resp = client.post("/medicine/add-to-theatre", data={
             "patient_id": "P-TH-R-01",
-            "procedure_id": str(proc.id),
+            "procedure_id": str(proc_id),
             "created_by": str(doctor.id),
             "notes_on_book": "Routine appendectomy",
         })
@@ -138,10 +138,10 @@ class TestTheatreBookingRoute:
         client.post("/login", data={"username": doctor.username, "password": "Password123!"})
         with app.app_context():
             _patient("P-TH-R-02")
-            proc = _procedure("Cholecystectomy")
+            proc_id = _procedure("Cholecystectomy")
         client.post("/medicine/add-to-theatre", data={
             "patient_id": "P-TH-R-02",
-            "procedure_id": str(proc.id),
+            "procedure_id": str(proc_id),
             "created_by": str(doctor.id),
         })
         with app.app_context():
@@ -163,10 +163,10 @@ class TestTheatreBookingRoute:
         client.post("/login", data={"username": doctor.username, "password": "Password123!"})
         with app.app_context():
             _patient("P-TH-R-05")
-            proc = _procedure("Hernia Repair")
+            proc_id = _procedure("Hernia Repair")
         client.post("/medicine/add-to-theatre", data={
             "patient_id": "P-TH-R-05",
-            "procedure_id": str(proc.id),
+            "procedure_id": str(proc_id),
             "created_by": str(doctor.id),
         })
         with app.app_context():
