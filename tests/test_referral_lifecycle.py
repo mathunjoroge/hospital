@@ -14,7 +14,6 @@ from departments.referrals.engine import ReferralEngine, ReferralStatus
 from departments.shared.queue_constants import QueueStatus
 from extensions import db
 
-
 # ── helpers ────────────────────────────────────────────────────────
 
 

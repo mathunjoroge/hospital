@@ -22,8 +22,8 @@ except ImportError:
 
 
 from departments.api.ai_audit import AIMode, AITimer, log_ai_call
-from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.billing.ward_charges import post_daily_ward_charges
+from departments.nlp.chatbot import UniversalClinicalSummarizer
 
 logger = logging.getLogger(__name__)
 

@@ -12,13 +12,12 @@ import pytest
 from werkzeug.security import generate_password_hash
 
 from departments.mch.engine import MchEngine
-from departments.mch.models import AncVisit, ImmunizationRecord
+from departments.mch.models import AncVisit
 from departments.models.encounter import Encounter
 from departments.models.records import Patient, PatientWaitingList
 from departments.models.user import User
 from departments.shared.queue_constants import QueueStatus
 from extensions import db
-
 
 # ── fixtures ───────────────────────────────────────────────────────
 
