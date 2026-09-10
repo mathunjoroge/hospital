@@ -13,6 +13,7 @@ Provides:
 import logging
 
 from departments.models.records import Patient
+from extensions import db
 
 logger = logging.getLogger(__name__)
 

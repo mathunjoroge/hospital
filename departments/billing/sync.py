@@ -193,7 +193,7 @@ def sync_payment(
             return existing
 
     # Get or create the patient's open invoice
-    invoice = sess.query(Invoice).filter_by(patient_id=patient_id, status=InvoiceStatus.DRAFT).first()
+    invoice = db.session.query(Invoice).filter_by(patient_id=patient_id, status=InvoiceStatus.DRAFT).first()
     if not invoice:
         invoice = get_or_create_open_invoice(patient_id)
 
