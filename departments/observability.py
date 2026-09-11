@@ -110,14 +110,13 @@ def setup_observability(app, celery=None, exporter=None):
     return provider
 
 
-def _register_slow_query_listener(app):
+def _register_slow_query_listener(app, provider):
     """Emit a span for any DB query taking >= SLOW_QUERY_THRESHOLD_MS."""
-    from opentelemetry import trace
     from sqlalchemy import event
 
     from extensions import db
 
-    tracer = trace.get_tracer("db.slow_query")
+    tracer = provider.get_tracer("db.slow_query")
 
     with app.app_context():
         engine = db.engine
