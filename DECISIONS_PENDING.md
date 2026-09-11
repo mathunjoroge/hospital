@@ -211,3 +211,13 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
 3. **Scope Model**: Add `oauth_scopes` column to User model for fine-grained FHIR access control.
 **Rationale:** Authlib is production-tested, supports SMART scopes natively, and integrates cleanly with Flask-JWT-Extended. EHR Launch is the standard SMART flow for hospital HMIS integration.
 **Implementation:** Proceeding on `feat/phase6-sso-smart-fhir`.
+
+## Section 21: Phase 1 Terminology & Licensing Fallbacks
+**Status:** DECIDED (Interim) — 2026-09-12
+**Decision-maker:** Solo Developer / System Administrator
+**Context:** Phase 1 requires ICD-10, SNOMED, and LOINC integration. Formal API credentials and SNOMED Affiliate Licenses are pending hospital management sign-off.
+**Decisions:**
+1. **ICD-10 (Resolves Item 4):** Use the free NLM UMLS ICD-10 flat file to populate a local `icd10_codes` database table with Full-Text Search (FTS) capabilities. This replaces the hardcoded `ICD10_DATABASE` list in `prescribe.py`.
+2. **SNOMED CT (P1-06):** Use the SNOMED CT CORE subset (available via NLM UMLS value sets) as the interim path. 
+*Note:* Both decisions are flagged as **INTERIM**. Formal UMLS/SNOMED licensing sign-off from hospital IT/Management is required before production deployment.
+**Implementation:** Proceeding on `feat/phase1-terminology-cdss`.

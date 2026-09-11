@@ -98,6 +98,7 @@ class LabTest(db.Model):
     test_name = db.Column(db.String(100), nullable=False)
     cost = db.Column(db.Float, nullable=False)
     description = db.Column(db.Text)
+    loinc_code = db.Column(db.String(50), nullable=True, index=True)  # Phase 1: LOINC
 
     def __repr__(self):
         return f"<LabTest {self.test_name}>"
