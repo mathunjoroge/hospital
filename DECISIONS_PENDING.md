@@ -25,10 +25,15 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
 
 ## 3. Telemetry & Error Tracking Service Selection
 
-* **Context**: Operational maturity (Phase 2.1) calls for error tracking and metrics monitoring (e.g. Sentry integration).
-* **Questions / Decisions Required**:
-  1. **Provider Selection**: Is Sentry SaaS (free tier/paid) acceptable for error tracking, or does the hospital require self-hosted error tracking (e.g. Sentry On-Premise, GlitchTip, or OpenTelemetry/Jaeger) due to data sovereignty rules under the Data Protection Act 2019?
-  2. **Volume & Budget**: Does the anticipated log/error volume fit within free tier limits, or is budget allocated for telemetry ingestion?
+* **Status:** DECIDED — 2026-09-11
+* **Decision-maker:** Solo Developer / System Administrator
+* **Context**: Operational maturity (Phase 2.1) calls for error tracking and metrics monitoring.
+* **Decisions**:
+  1. **Provider Selection**: Self-Hosted Sentry (via official docker-compose).
+     *Rationale:* Ensures 100% data sovereignty for PHI under Kenya DPA 2019. Eliminates legal ambiguity regarding cross-border data transfers to SaaS providers.
+  2. **OpenTelemetry Collector (P2-01)**: Grafana Tempo.
+     *Rationale:* Object-storage backed (cheaper) and integrates natively with Grafana for the P2-04 uptime dashboard, creating a unified observability stack.
+  3. **Volume & Budget**: Self-hosted infrastructure handles volume without SaaS tier limits.
 
 ---
 
@@ -176,3 +181,13 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
    *Rationale:* Implementation uses a single `controlled_drug_balances` table for data integrity, but application logic and PDF exports strictly filter and separate Schedule II and Schedule IV records to mirror physical PPB audit books.
 
 **Implementation:** Proceeding with Phase 3 work items P3-01 through P3-08.
+
+
+## Section 18: Phase 2 Disaster Recovery SLA (P2-06)
+**Status:** DECIDED — 2026-09-11 (Pending Formal Management Sign-Off)
+**Decision-maker:** Solo Developer / System Administrator
+**Context:** Resolves P2-06 requirement to document RPO/RTO as a signed SLA.
+**Decision:** 
+* **RPO (Recovery Point Objective):** 4 hours (maximum acceptable data loss).
+* **RTO (Recovery Time Objective):** 1 hour (maximum acceptable downtime).
+*Note:* Formal management sign-off on this SLA is pending and will be explicitly flagged in the Phase 2 PR description as required by the prompt rules.

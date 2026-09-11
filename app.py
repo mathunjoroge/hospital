@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 import dotenv
 import pyotp
 import redis
+import sentry_sdk
 from flask import (
     Flask,
     flash,
@@ -24,6 +25,9 @@ from flask_mail import Mail
 from flask_migrate import Migrate
 from flask_session import Session
 from markupsafe import Markup, escape
+from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.flask import FlaskIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash
 
@@ -274,12 +278,22 @@ mail = Mail(app)
 migrate = Migrate(app, db)
 socketio.init_app(app)
 
-# Error-tracking provider scaffold. DECISIONS_PENDING.md item 3 is still open
-# (Sentry SaaS vs self-hosted vs OpenTelemetry, pending a Data Protection Act
-# 2019 data-sovereignty decision) -- this deliberately does NOT pick or wire a
-# vendor SDK. It only makes the app ready to be pointed at one later: default
-# "none" sends nothing anywhere, and no telemetry-related dependency is added
-# until a human sets this and the corresponding SDK is actually installed.
+# ── Phase 2: Observability & Error Tracking (P2-02, P2-03) ──────────────────
+# Resolved in DECISIONS_PENDING.md Item 3: Self-hosted Sentry + Grafana Tempo.
+# Data residency compliant with Kenya DPA 2019.
+sentry_dsn = os.environ.get("SENTRY_DSN")
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[
+            FlaskIntegration(),
+            SqlalchemyIntegration(),
+            CeleryIntegration(),
+        ],
+        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+        environment=os.environ.get("FLASK_ENV", "production"),
+        send_default_pii=False,  # DPA 2019: Do not send PHI to error tracker
+    )
 ERROR_TRACKING_PROVIDER = os.environ.get("ERROR_TRACKING_PROVIDER", "none").lower()
 if ERROR_TRACKING_PROVIDER != "none":
     logging.getLogger(__name__).warning(
