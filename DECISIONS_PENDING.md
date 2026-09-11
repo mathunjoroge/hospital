@@ -154,3 +154,10 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
 
 **Implementation:** `scripts/cleanup_mock_data.py` — run before demos.
 
+
+
+## Section 15: Ward Admission Auto-Billing Removal (Phase 0)
+**Decision:** Stop auto-billing ward charges at admission time via the `AdmittedPatient` event listener.
+**Context:** The previous implementation auto-created a "Ward Admission" `InvoiceLineItem` priced at the ward's *daily* rate when a patient was admitted. However, `/nursing/mar/auto_bill` already bills that same daily rate for every currently-admitted patient (with no de-duplication of its own). This resulted in patients being charged the daily ward rate twice on their first day.
+**Resolution:** Since the `Ward` model only has one price field (`daily_charge`) and no separate "admission fee" concept, the soundest fix is to stop auto-billing ward charges at admission time entirely. `/nursing/mar/auto_bill` remains the single, explicit, auditable source of truth for ward billing (as it already is for every day after the first).
+**Status:** ✅ Resolved in Phase 0 cleanup. `AdmittedPatient` removed from `departments/billing/event_listeners.py`.

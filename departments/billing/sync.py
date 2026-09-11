@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from flask import current_app
 
-from departments.models.billing import Invoice, InvoiceLineItem, InvoiceStatus, Payment
+from departments.models.billing import Invoice, InvoiceLineItem, InvoiceStatus, Payment, PaymentMethod
 from departments.models.encounter import Encounter
 from extensions import db
 
@@ -163,16 +163,6 @@ def sync_payment(
 
     This should be called whenever a payment is recorded in the legacy system
     (via pay_bills, pay_all, etc.) to keep the unified Invoice system in sync.
-
-    Args:
-        patient_id: Patient's business key
-        amount: Amount paid
-        payment_method: Payment method (cash, mpesa, insurance, etc.)
-        reference_number: External reference (e.g., M-Pesa transaction ID)
-        receipt_number: Internal receipt number
-
-    Returns:
-        Payment: The created payment record
     """
     if not current_app.config.get("BILLING_SYNC_ENABLED", True):
         logger.debug("Billing sync disabled, skipping payment sync")
@@ -181,34 +171,43 @@ def sync_payment(
     if amount is None or float(amount) <= 0:
         return None
 
+    sess = _session if _session is not None else db.session
+
     # Idempotency checks
     if receipt_number:
-        existing = Payment.query.filter_by(receipt_number=receipt_number).first()
+        existing = sess.query(Payment).filter_by(receipt_number=receipt_number).first()
         if existing:
             logger.debug(f"Payment already synced for receipt {receipt_number}")
             return existing
     if reference_number:
-        existing = Payment.query.filter_by(reference=reference_number).first()
+        existing = sess.query(Payment).filter_by(reference=reference_number).first()
         if existing:
             logger.debug(f"Payment already synced for reference {reference_number}")
             return existing
 
     # Get or create the patient's open invoice
-    invoice = db.session.query(Invoice).filter_by(patient_id=patient_id, status=InvoiceStatus.DRAFT).first()
+    invoice = sess.query(Invoice).filter_by(patient_id=patient_id, status=InvoiceStatus.DRAFT).first()
     if not invoice:
-        invoice = get_or_create_open_invoice(patient_id)
+        invoice = get_or_create_open_invoice(patient_id, _session=sess)
 
-    # Create the payment
+    # Resolve Enum safely
+    try:
+        method_enum = PaymentMethod(payment_method) if isinstance(payment_method, str) else payment_method
+    except ValueError:
+        method_enum = PaymentMethod.OTHER
+
+    # Create the payment (FIXED: correct kwargs and required patient_id)
     payment = Payment(
         invoice_id=invoice.id,
+        patient_id=patient_id,
         amount=amount,
-        payment_method=payment_method,
-        reference_number=reference_number,
+        method=method_enum,
+        reference=reference_number,
         receipt_number=receipt_number,
-        payment_date=datetime.now(timezone.utc),
+        paid_at=datetime.now(timezone.utc),
     )
 
-    db.session.add(payment)
+    sess.add(payment)
 
     # Update invoice
     current_paid = float(invoice.amount_paid or 0)

@@ -11,15 +11,18 @@ the correct visit even when multiple encounter types co-exist for a patient.
 from datetime import date
 
 from departments.billing.sync import sync_charge
-from departments.models.billing import InvoiceLineItem
+from departments.models.billing import InvoiceLineItem, PaidBill, Payment
 from departments.models.encounter import Encounter
 from departments.models.medicine import (
     Imaging,
     LabTest,
     RequestedImage,
     RequestedLab,
+    TheatreList,
+    TheatreProcedure,
 )
-from departments.models.records import Patient
+from departments.models.pharmacy import DispensedDrug
+from departments.models.records import ClinicBooking, Patient
 from extensions import db
 
 
@@ -220,3 +223,111 @@ class TestEventListenerEncounterTagging:
             ).first()
             assert line is not None
             assert line.encounter_id == anc_enc.id
+
+
+# ── Phase 0: Restored Event Listener Coverage Tests ───────────────
+class TestRestoredEventListenerCoverage:
+    """Tests for source types restored in Phase 0 cleanup."""
+
+    def test_dispensed_drug_creates_line_item(self, app):
+        """DispensedDrug must trigger a drug category InvoiceLineItem."""
+        with app.app_context():
+            _patient("P-DISP-01")
+            enc = _encounter("P-DISP-01", enc_type="OPD")
+
+            drug = DispensedDrug(
+                patient_id="P-DISP-01",
+                drug_id=1,
+                batch_id=1,
+                prescription_id="RX-001",
+                quantity_dispensed=2,
+            )
+            # Attributes expected by the event listener via getattr
+            drug.drug_name = "Paracetamol"
+            drug.unit_price = 50.0
+            drug.quantity = 2
+            drug.encounter_id = enc.id
+
+            db.session.add(drug)
+            db.session.commit()
+
+            line = InvoiceLineItem.query.filter_by(
+                source_table="dispensed_drug", source_id=drug.id
+            ).first()
+            assert line is not None
+            assert line.category == "drug"
+            assert float(line.unit_price) == 50.0
+            assert line.encounter_id == enc.id
+
+    def test_theatre_list_creates_line_item(self, app):
+        """TheatreList must trigger a theatre category InvoiceLineItem."""
+        with app.app_context():
+            _patient("P-THEATRE-01")
+            enc = _encounter("P-THEATRE-01", enc_type="SURGICAL")
+
+            proc = TheatreProcedure(
+                name="Appendectomy", type="General", cost=15000.0
+            )
+            db.session.add(proc)
+            db.session.commit()
+
+            theatre = TheatreList(
+                patient_id="P-THEATRE-01",
+                procedure_id=proc.id,
+                encounter_id=enc.id,
+            )
+            db.session.add(theatre)
+            db.session.commit()
+
+            line = InvoiceLineItem.query.filter_by(
+                source_table="theatre_list", source_id=theatre.id
+            ).first()
+            assert line is not None
+            assert line.category == "theatre"
+            assert float(line.unit_price) == 15000.0
+            assert line.encounter_id == enc.id
+
+    def test_clinic_booking_creates_line_item(self, app):
+        """ClinicBooking must trigger a consult category InvoiceLineItem."""
+        with app.app_context():
+            _patient("P-CLINIC-01")
+            enc = _encounter("P-CLINIC-01", enc_type="OPD")
+
+            booking = ClinicBooking(
+                patient_id="P-CLINIC-01", clinic_id=1, clinic_date=date.today()
+            )
+            booking.consultation_fee = 500.0
+            booking.encounter_id = enc.id
+
+            db.session.add(booking)
+            db.session.commit()
+
+            line = InvoiceLineItem.query.filter_by(
+                source_table="clinic_booking", source_id=booking.id
+            ).first()
+            assert line is not None
+            assert line.category == "consult"
+            assert float(line.unit_price) == 500.0
+            assert line.encounter_id == enc.id
+
+    def test_paid_bill_syncs_payment(self, app):
+        """PaidBill must trigger sync_payment and create a payment record."""
+        with app.app_context():
+            _patient("P-PAID-01")
+
+            paid = PaidBill(
+                receipt_number="REC-TEST-001",
+                patient_id="P-PAID-01",
+                grand_total=1000.0,
+                amount_paid=1000.0,
+                balance=0.0,
+                payment_method="cash",
+            )
+            db.session.add(paid)
+            db.session.commit()
+
+            payment = Payment.query.filter_by(
+                patient_id="P-PAID-01", amount=1000.0
+            ).first()
+            assert payment is not None
+            assert payment.method.value == "cash"

@@ -315,7 +315,8 @@ def sync_billing_events(session, flush_context):
                             amount=charge_data['amount'],
                             payment_method=charge_data['payment_method'],
                             receipt_number=charge_data.get('receipt_number'),
-                        )
+                                _session=sync_session,
+                            )
                         logger.info(f"Synced payment for {charge_type} #{charge_data.get('source_id', 'N/A')}")
 
             except Exception as e:
