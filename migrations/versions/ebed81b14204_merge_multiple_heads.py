@@ -5,8 +5,6 @@ Revises: 0f5def37a442, add_fk_indexes_20260907_205220
 Create Date: 2026-09-07 21:07:11.158159
 
 """
-from alembic import op
-import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.

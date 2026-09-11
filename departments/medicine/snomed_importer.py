@@ -3,11 +3,12 @@ SNOMED CT importer for loading SNOMED CT CORE subset data.
 """
 import csv
 import os
-from typing import List, Dict
+from typing import Dict, List
 
 from flask import current_app
-from extensions import db
+
 from departments.models.terminology import SnomedCode
+from extensions import db
 
 
 def load_snomed_from_csv(filepath: str) -> List[Dict]:
@@ -70,6 +71,7 @@ def import_snomed_codes(filepath: str = None) -> int:
 if __name__ == '__main__':
     # For testing the importer directly
     import sys
+
     from app import app
     with app.app_context():
         imported = import_snomed_codes(sys.argv[1] if len(sys.argv) > 1 else None)

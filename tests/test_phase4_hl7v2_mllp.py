@@ -455,6 +455,7 @@ class TestPanicWiring:
     def test_evaluate_panic_level_not_modified(self):
         """Confirm the function signature hasn't drifted."""
         import inspect
+
         from departments.laboratory.panic_alerts import evaluate_panic_level
         sig = inspect.signature(evaluate_panic_level)
         params = list(sig.parameters.keys())
@@ -511,12 +512,12 @@ class TestMllpAckBuilder:
     )
 
     def test_ack_starts_with_start_block(self):
-        from departments.hl7.mllp_daemon import _build_ack, MLLP_SB
+        from departments.hl7.mllp_daemon import MLLP_SB, _build_ack
         ack = _build_ack(self.RAW_ORU, "AA")
         assert ack[0:1] == MLLP_SB
 
     def test_ack_ends_with_eb_cr(self):
-        from departments.hl7.mllp_daemon import _build_ack, MLLP_EB, MLLP_CR
+        from departments.hl7.mllp_daemon import MLLP_CR, MLLP_EB, _build_ack
         ack = _build_ack(self.RAW_ORU, "AA")
         assert ack[-2:-1] == MLLP_EB
         assert ack[-1:] == MLLP_CR
@@ -560,8 +561,8 @@ class TestLoadScaffold:
     N = 50
 
     def _seed_load_patient(self, db, patient_id, name):
-        from departments.models.records import Patient
         from departments.models.medicine import LabTest
+        from departments.models.records import Patient
         p = Patient(
             patient_id=patient_id,
             name=name,

@@ -5,8 +5,9 @@ Revises:
 Create Date: 2026-09-07 20:52:20
 
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
+
 
 def safe_create_index(index_name, table_name, columns):
     try:

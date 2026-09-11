@@ -19,11 +19,11 @@ try:
 except ImportError:
     from extensions import db
 
+from departments.medicine.cdss import evaluate_prescription_safety
 from departments.models.billing import InvoiceLineItem
 from departments.models.medicine import Medicine, PrescribedMedicine, SOAPNote
 from departments.models.records import Patient
 from departments.shared.encounter_utils import active_encounter
-from departments.medicine.cdss import evaluate_prescription_safety
 
 logger = logging.getLogger(__name__)
 

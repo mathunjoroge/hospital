@@ -32,10 +32,10 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash
 
 from config import Config
+from departments.api.oauth2_provider import init_oauth, oauth_bp
 from departments.models.admin import Log
 from departments.models.nursing import Notifications
 from departments.models.user import User
-from departments.api.oauth2_provider import oauth_bp, init_oauth
 from departments.observability import setup_observability
 from extensions import csrf, db, jwt, limiter, login_manager, socketio
 

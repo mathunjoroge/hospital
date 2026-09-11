@@ -5,10 +5,10 @@ import csv
 import os
 from typing import Dict, List
 
-from extensions import db
 from flask import current_app
 
 from departments.models.terminology import LoincCode
+from extensions import db
 
 
 def load_loinc_from_csv(filepath: str) -> List[Dict]:
@@ -71,6 +71,7 @@ def import_loinc_codes(filepath: str = None) -> int:
 if __name__ == '__main__':
     # For testing the importer directly
     import sys
+
     from app import app
     with app.app_context():
         imported = import_loinc_codes(sys.argv[1] if len(sys.argv) > 1 else None)

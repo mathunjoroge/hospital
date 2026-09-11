@@ -5,10 +5,10 @@ Revises: 973086681bee
 Create Date: 2026-09-07 11:51:41.601658
 
 """
-from alembic import op
 import sqlalchemy as sa
-import departments.crypto
+from alembic import op
 
+import departments.crypto
 
 # revision identifiers, used by Alembic.
 revision = '0f5def37a442'
