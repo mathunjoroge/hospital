@@ -11,7 +11,13 @@ from datetime import datetime, timezone
 
 from flask import current_app
 
-from departments.models.billing import Invoice, InvoiceLineItem, InvoiceStatus, Payment, PaymentMethod
+from departments.models.billing import (
+    Invoice,
+    InvoiceLineItem,
+    InvoiceStatus,
+    Payment,
+    PaymentMethod,
+)
 from departments.models.encounter import Encounter
 from extensions import db
 

@@ -3,67 +3,68 @@
 
 *Full gap closure roadmap — from strong regional prototype to Tier 1 hospital deployment*
 
-*Version 1.0 · Architecture Review Board · 2025*
-
+*Version 1.1 · Updated September 10, 2026 (verified against the live `mathunjoroge/hospital` repo) · supersedes Version 1.0, 2025*
 
 **Current implementation status at a glance**
 
-| **Capability**                | **Status**     | **Gap / Next step**                                    |
-|-------------------------------|----------------|--------------------------------------------------------|
-| MFA + RBAC + account lockout  | **✓ Complete** | Periodic review; add adaptive MFA for high-risk roles  |
-| AES-128 encryption at rest    | **✓ Complete** | Extend to lab results, imaging metadata, notes fields  |
-| HL7 FHIR R4 API               | **✓ Complete** | Add SMART on FHIR auth layer (Phase 6)                 |
-| Append-only audit trail       | **✓ Complete** | Wire to SIEM platform; define retention schedule       |
-| CDSS drug-drug interactions   | **✓ Complete** | Tune tiered suppression; P&T review workflow (Phase 1) |
-| Allergy safety checks         | **✓ Complete** | Cross-sensitivity rules; free-text allergy parsing     |
-| Encounter state machine       | **✓ Complete** | Theatre handover UX; ANC continuity of care gaps       |
-| Break-glass emergency access  | **✓ Complete** | Expiry audit; quarterly review cadence                 |
-| PostgreSQL + Alembic + Docker | **✓ Complete** | HA setup; read replicas; automated backup testing      |
-| Celery async tasks + Redis    | **✓ Complete** | Dead-letter queue; task retry policy formalisation     |
-| ICD-10 (50 codes)             | **~ Partial**  | Ingest full WHO ICD-10-CM/PCS 14,000+ codes (Phase 1)  |
-| LOINC mapping                 | **~ Partial**  | Expand to full lab orders, not just vitals (Phase 1)   |
-| Lab instrument interfacing    | **~ Partial**  | Build HL7 v2 MLLP engine (Phase 4)                     |
-| DICOM imaging                 | **~ Partial**  | Integrate Orthanc PACS + DICOMweb viewer (Phase 5)     |
-| SMART on FHIR / OAuth2 / SSO  | **✗ Missing**  | Critical blocker — Phase 6 (6 months)                  |
-| LDAP / Active Directory       | **✗ Missing**  | Phase 6, alongside SSO implementation                  |
-| SNOMED CT coding              | **✗ Missing**  | Phase 1 — problem list & procedure coding              |
-| HL7 v2 MLLP interface engine  | **✗ Missing**  | Phase 4 — connect physical lab analyzers               |
-| Automated DR failover         | **✗ Missing**  | Phase 2 — RPO <4h, RTO <1h targets                   |
-| Observability stack           | **✗ Missing**  | Phase 2 — OpenTelemetry + Sentry                       |
-| HIV/ART, TB, Malaria modules  | **✗ Missing**  | Phase 7 — after clinical review board sign-off         |
-| Controlled drug register      | **✗ Missing**  | Phase 3 — legal blocker for narcotics dispensing       |
-| HIMSS EMRAM Stage 6/7         | **✗ Missing**  | Phase 8 — after Phases 1–7 complete                    |
-| Third-party penetration test  | **✗ Missing**  | Phase 8 — engage firm immediately for scoping          |
+| **Capability**                | **Status**     | **Gap / Next step**                                                                                  |
+|-------------------------------|----------------|--------------------------------------------------------------------------------------------------------|
+| MFA + RBAC + account lockout  | **✓ Complete** | Periodic review; add adaptive MFA for high-risk roles                                                  |
+| AES-128 encryption at rest    | **✓ Complete** | Extend to lab results, imaging metadata, notes fields                                                  |
+| HL7 FHIR R4 API               | **✓ Complete** | Add SMART on FHIR auth layer (Phase 6)                                                                 |
+| Append-only audit trail       | **✓ Complete** | Wire to SIEM platform; define retention schedule                                                       |
+| CDSS drug-drug interactions   | **✓ Complete** | Tune tiered suppression; P&T review workflow (Phase 1)                                                 |
+| Allergy safety checks         | **✓ Complete** | Cross-sensitivity rules; free-text allergy parsing                                                     |
+| Encounter state machine       | **~ Partial**  | Theatre handover UX wired (T3.2, Sep 2026) but has a known test/fixture bug — see Known Regressions; ANC continuity-of-care gaps still open |
+| Break-glass emergency access  | **✓ Complete** | Expiry audit; quarterly review cadence                                                                 |
+| PostgreSQL + Alembic + Docker | **✓ Complete** | Automated backup script now in place (Sep 2026) — HA setup, read replicas, and restore-drill testing still open |
+| Celery async tasks + Redis    | **✓ Complete** | Dead-letter queue; task retry policy formalisation                                                     |
+| TLS/HSTS baseline             | **✓ Complete** | HSTS header shipped (Sep 2026); CSP headers and full XSS/SQLi suite still open (P2-13)                 |
+| Consent enforcement (DPA 2019)| **✓ Complete** | Not in v1.0 scope — built since; periodic review against Phase 1 terminology work                      |
+| Referrals & appointments      | **✓ Complete** | Not in v1.0 scope — built since; wired to consent checks                                               |
+| ICD-10 (50 codes)             | **~ Partial**  | Ingest full WHO ICD-10-CM/PCS 14,000+ codes (Phase 1)                                                  |
+| LOINC mapping                 | **~ Partial**  | Expand to full lab orders, not just vitals (Phase 1)                                                   |
+| Lab instrument interfacing    | **~ Partial**  | Build HL7 v2 MLLP engine (Phase 4)                                                                      |
+| DICOM imaging                 | **~ Partial**  | Integrate Orthanc PACS + DICOMweb viewer (Phase 5)                                                     |
+| SMART on FHIR / OAuth2 / SSO  | **✗ Missing**  | Critical blocker — Phase 6                                                                              |
+| LDAP / Active Directory       | **✗ Missing**  | Phase 6, alongside SSO implementation                                                                  |
+| SNOMED CT coding              | **✗ Missing**  | Phase 1 — problem list & procedure coding                                                              |
+| HL7 v2 MLLP interface engine  | **✗ Missing**  | Phase 4 — connect physical lab analyzers                                                               |
+| Automated DR failover         | **✗ Missing**  | Phase 2 — RPO <4h, RTO <1h targets                                                                      |
+| Observability stack           | **✗ Missing**  | Phase 2 — OpenTelemetry + Sentry (still only an inert config flag)                                     |
+| HIV/ART, TB, Malaria modules  | **✗ Missing**  | Phase 7 — after clinical review board sign-off (DECISIONS_PENDING.md #11, HARD STOP)                   |
+| Controlled drug register      | **✗ Missing**  | Phase 3 — legal blocker; policy decision still open (DECISIONS_PENDING.md #5, HARD STOP)                |
+| HIMSS EMRAM Stage 6/7         | **✗ Missing**  | Phase 8 — after Phases 1–7 complete                                                                    |
+| Third-party penetration test  | **✗ Missing**  | Phase 8 — engage firm immediately for scoping                                                          |
 
-**1. Guiding principles**
+**Changes since v1.0**
 
-Every implementation decision must satisfy all five of the following criteria before work begins.
+- Encounter state machine's theatre-handover gap was worked (T3.2) but landed with a broken test fixture (`TheatreProcedure(description=...)` — no such column) — fix is written but not yet merged as of this update.
+- Two Phase 2 security items shipped early: HSTS header (P2-11) and automated DB backups (part of P2-07).
+- Consent enforcement and referrals/appointments — not called out in v1.0 at all — are now built and wired together.
+- No progress on Phases 1, 3, 4, 5, 6, 7. Phase 8 cannot start until they do.
 
-- **Clinical safety first:** No feature that touches prescribing, dispensing, or diagnostic reporting goes live without a signed-off clinical review. The existing CDSS engine is a tool to assist, not replace, clinician judgment.
+**Known regression — read before resuming Phase 0/T3.8 work**
 
-- **No schema drift:** Every database change ships with an Alembic migration and a rollback script. Feature branches that alter models must pass migration tests in CI before merge.
+`departments/billing/event_listeners.py` was force-pushed back to an earlier draft that (a) only syncs charges for `RequestedLab`/`RequestedImage`/`PrescribedMedicine` — drug dispensing, theatre, ward admission, clinic booking, and *all* payment sync (`PaidBill`, `DrugsBill`, `Billing`) are silently unwired — and (b) reintroduced a module-level global list (`_pending_charges`) shared across requests, which is a race condition under any concurrent load. This has no test coverage to catch it. Restoring the pre-force-push version should be treated as a Phase 0 blocker, not a lint fix.
 
-- **Audit everything:** Every state transition — patient record access, prescription sign-off, drug dispensing, break-glass invocation — generates an immutable AuditLog row. SIEM export must be on before any new module goes to production.
+**2. Roadmap overview — replanned from today**
 
-- **Standards over bespoke:** Where an international standard exists (FHIR, HL7 v2, SNOMED CT, LOINC, ICD-10, DICOM), implement it. Custom data models are a last resort.
+The original Gantt assumed a multi-role team (DevOps, Backend, Frontend, QA, Security, Clinical Lead, Data Eng, Platform Eng) running phases in parallel from Q1 2025, finishing Q4 2026. Actual progress by Sep 2026 shows a much smaller team; the schedule below replans from today against that reality — phases mostly sequential, two short overlaps where a decision (§5, §11) can be worked while the prior phase's code finishes.
 
-- **Decisions gate delivery:** All 11 items in DECISIONS_PENDING.md require a named human decision-maker before the corresponding module is built. Code does not substitute for governance.
+| **Phase**                              | **Q3 26** | **Q4 26** | **Q1 27** | **Q2 27** | **Q3 27** | **Q4 27** | **Q1 28** | **Q2 28** |
+|----------------------------------------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|
+| Phase 0 – Consolidate ✓ items (finish) | ███       |           |           |           |           |           |           |           |
+| Phase 1 – Terminology & CDSS hardening | ███       | ███       |           |           |           |           |           |           |
+| Phase 2 – Observability & DR           |           | ███       | ███       |           |           |           |           |           |
+| Phase 3 – Controlled Drug Register     |           |           | ███       | ███       |           |           |           |           |
+| Phase 4 – HL7 v2 MLLP Interface Engine |           |           |           | ███       | ███       |           |           |           |
+| Phase 5 – PACS / DICOMweb              |           |           |           |           | ███       | ███       |           |           |
+| Phase 6 – SMART on FHIR / SSO          |           |           |           |           |           | ███       | ███       | ███       |
+| Phase 7 – National Disease Programs    |           |           |           |           |           |           | ███       | ███       |
+| Phase 8 – Pen Test + HIMSS readiness   |           |           |           |           |           |           |           | ███       |
 
-**2. Roadmap overview — 9 phases across 8 quarters**
-
-The plan groups work into nine sequential phases. Phases 0–2 are prerequisites for all downstream work. Phases 3–7 can be partially parallelised with separate squads. Phase 8 is a gate, not a sprint — it requires all prior phases to be production-stable.
-
-| **Phase**                              | **Q1 2025** | **Q2 2025** | **Q3 2025** | **Q4 2025** | **Q1 2026** | **Q2 2026** | **Q3 2026** | **Q4 2026** |
-|----------------------------------------|-------------|-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| Phase 0 – Consolidate ✓ items          | ███         | ███         |             |             |             |             |             |             |
-| Phase 1 – Terminology & CDSS hardening | ███         | ███         |             |             |             |             |             |             |
-| Phase 2 – Observability & Audit        |             | ███         | ███         |             |             |             |             |             |
-| Phase 3 – Controlled Drug Register     |             | ███         | ███         |             |             |             |             |             |
-| Phase 4 – HL7 v2 MLLP Interface Engine |             |             | ███         | ███         |             |             |             |             |
-| Phase 5 – PACS / DICOMweb              |             |             |             | ███         | ███         |             |             |             |
-| Phase 6 – SMART on FHIR / SSO          |             |             |             | ███         | ███         | ███         |             |             |
-| Phase 7 – National Disease Programs    |             |             |             |             | ███         | ███         | ███         |             |
-| Phase 8 – Pen Test + HIMSS readiness   |             |             |             |             |             | ███         | ███         | ███         |
+Roughly 21 months from today (Q3 2026 → Q2 2028), versus ~18 months remaining on the original schedule if it hadn't slipped. Phase 3 and Phase 7 can each start their decision process (DECISIONS_PENDING.md #5, #11) now, in parallel with Phase 1 — only the code has to wait.
 
 ## Phase 0 Consolidate existing ✓ items
 
