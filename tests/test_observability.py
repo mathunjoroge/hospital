@@ -4,6 +4,7 @@ import importlib
 import time
 from unittest.mock import MagicMock, patch
 
+import requests
 from flask import Flask
 from opentelemetry import trace
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
@@ -16,7 +17,6 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
 )
 from sqlalchemy import event
 
-import requests
 from celery_app import celery
 from departments.observability import setup_observability
 from extensions import db
