@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -9,7 +9,7 @@ from reportlab.pdfgen import canvas
 def create_lab_report_pdf(filename="sample_lab_report.pdf"):
     # Create a PDF canvas
     c = canvas.Canvas(filename, pagesize=letter)
-    width, height = letter
+    _width, height = letter
     margin = 0.5 * inch
     y_position = height - margin
 
@@ -31,7 +31,7 @@ def create_lab_report_pdf(filename="sample_lab_report.pdf"):
         "Phone: (123) 456-7890 | Email: lab@hmis.org", margin, y_position, size=10
     )
     y_position = draw_text(
-        f"Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        f"Report Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}",
         margin,
         y_position,
         size=10,

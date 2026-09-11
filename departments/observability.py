@@ -83,13 +83,13 @@ def setup_observability(app, celery=None, exporter=None):
     # Flask routes (covers FHIR endpoints) -> spans.
     try:
         FlaskInstrumentor().instrument_app(app)
-    except Exception as exc:  # already instrumented
+    except Exception as exc:  # already instrumented  # noqa: BLE001
         logger.debug("FlaskInstrumentor skipped: %s", exc)
 
     # External API calls (M-Pesa, NLP, notifications) -> spans.
     try:
         RequestsInstrumentor().instrument()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.debug("RequestsInstrumentor skipped: %s", exc)
 
     # Celery trace-context propagation.
@@ -97,13 +97,13 @@ def setup_observability(app, celery=None, exporter=None):
         from opentelemetry.instrumentation.celery import CeleryInstrumentor
 
         CeleryInstrumentor().instrument()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.debug("CeleryInstrumentor skipped: %s", exc)
 
     # Slow DB query spans.
     try:
         _register_slow_query_listener(app, provider)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.debug("Slow-query listener not registered: %s", exc)
 
     logger.info("OpenTelemetry initialized (service=%s)", service_name)

@@ -20,6 +20,4 @@ def is_encounter_open_for_dispensing(encounter_id: int) -> bool:
     if not enc:
         return True
     terminal_stages = ['DISCHARGED', 'CLOSED']
-    if getattr(enc, 'stage', None) in terminal_stages:
-        return False
-    return True
+    return getattr(enc, 'stage', None) not in terminal_stages

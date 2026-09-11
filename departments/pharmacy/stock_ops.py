@@ -7,7 +7,7 @@ from dispensing.py to keep file sizes modular and clean.
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
@@ -63,7 +63,7 @@ def remove_dispensed(dispense_id):
             )
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         logger.error(f"Error in pharmacy.remove_dispensed: {e}")
         db.session.rollback()
@@ -155,7 +155,7 @@ def process_dispense(prescription_id):
             patient_id=patient_id,
             prescription_id=prescription_id,
             quantity_dispensed=quantity_dispensed,
-            date_dispensed=datetime.today().date(),
+            date_dispensed=datetime.now(timezone.utc).date(),
             status="Pending",
         )
         db.session.add(new_dispensed_drug)
@@ -220,7 +220,7 @@ def process_dispense(prescription_id):
             dispensed_drugs=dispensed_drugs_list,
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         logger.error(f"Error in pharmacy.process_dispense: {e}")

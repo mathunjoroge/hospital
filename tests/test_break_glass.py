@@ -92,7 +92,7 @@ def sample_patient(app):
             patient_id="P-BG-001",
             name="Test Patient BG",
             sex="Male",
-            date_of_birth=datetime(1990, 1, 1).date(),
+            date_of_birth=datetime(1990, 1, 1).date(),  # noqa: DTZ001
             marital_status="Single",
             contact="0700000001",
             place_of_residence="Nairobi",
@@ -369,9 +369,8 @@ def test_expire_stale_grants(app, doctor_user):
 
 def test_invoke_empty_reason_raises(app, doctor_user):
     """invoke_break_glass raises ValueError for empty/blank reason."""
-    with app.app_context():
-        with pytest.raises(ValueError, match="reason"):
-            invoke_break_glass(reason="   ", user=doctor_user)
+    with app.app_context(), pytest.raises(ValueError, match="reason"):
+        invoke_break_glass(reason="   ", user=doctor_user)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -381,11 +380,10 @@ def test_invoke_empty_reason_raises(app, doctor_user):
 
 def test_invoke_ineligible_role_raises(app, records_user):
     """invoke_break_glass raises PermissionError for non-eligible roles."""
-    with app.app_context():
-        with pytest.raises(PermissionError, match="authorised"):
-            invoke_break_glass(
-                reason="Attempting unauthorised override", user=records_user
-            )
+    with app.app_context(), pytest.raises(PermissionError, match="authorised"):
+        invoke_break_glass(
+            reason="Attempting unauthorised override", user=records_user
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

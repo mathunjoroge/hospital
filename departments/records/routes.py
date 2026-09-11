@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -42,7 +42,7 @@ from . import bp
 def index():
     patients = Patient.query.order_by(Patient.date_registered.desc()).all()
     clinics = Clinic.query.all()
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     today_count = Patient.query.filter(
         func.date(Patient.date_registered) == today
     ).count()
@@ -132,7 +132,7 @@ def new_patient():
             return redirect(url_for("records.new_patient"))
 
         try:
-            date_of_birth = datetime.strptime(date_of_birth, "%Y-%m-%d").date()
+            date_of_birth = datetime.strptime(date_of_birth, "%Y-%m-%d").date()  # noqa: DTZ007
         except ValueError:
             flash("Invalid date format for Date of Birth! Use YYYY-MM-DD.", "danger")
             return redirect(url_for("records.new_patient"))
@@ -220,7 +220,7 @@ def edit_patient(patient_id):
         patient.place_of_residence = request.form["place_of_residence"]
         patient.sex = request.form["sex"]
         try:
-            patient.date_of_birth = datetime.strptime(
+            patient.date_of_birth = datetime.strptime(  # noqa: DTZ007
                 request.form["date_of_birth"], "%Y-%m-%d"
             ).date()
         except ValueError:
@@ -499,7 +499,7 @@ def update_patient_problem_status(patient_id, problem_id):
 
     problem.status = new_status
     if new_status == "RESOLVED":
-        problem.resolved_date = date.today()
+        problem.resolved_date = datetime.now(timezone.utc).date()
     db.session.commit()
     log_audit_event(
         "PATIENT_PROBLEM_UPDATE",
@@ -592,7 +592,7 @@ def book_clinic():
         return jsonify({"status": "error", "message": "All fields are required!"}), 400
 
     try:
-        clinic_date = datetime.strptime(clinic_date, "%Y-%m-%d").date()
+        clinic_date = datetime.strptime(clinic_date, "%Y-%m-%d").date()  # noqa: DTZ007
     except ValueError:
         return jsonify(
             {"status": "error", "message": "Invalid date format! Use YYYY-MM-DD."}
@@ -712,16 +712,16 @@ def daily_opd_report():
 
     try:
         start_date = (
-            datetime.strptime(start_str, "%Y-%m-%d").date()
+            datetime.strptime(start_str, "%Y-%m-%d").date()  # noqa: DTZ007
             if start_str
-            else date.today() - timedelta(days=29)
+            else datetime.now(timezone.utc).date() - timedelta(days=29)
         )
         end_date = (
-            datetime.strptime(end_str, "%Y-%m-%d").date() if end_str else date.today()
+            datetime.strptime(end_str, "%Y-%m-%d").date() if end_str else datetime.now(timezone.utc).date()  # noqa: DTZ007
         )
     except ValueError:
-        start_date = date.today() - timedelta(days=29)
-        end_date = date.today()
+        start_date = datetime.now(timezone.utc).date() - timedelta(days=29)
+        end_date = datetime.now(timezone.utc).date()
 
     # OPD = patients registered (waiting list created) per day
     # Use PatientWaitingList as proxy for OPD visits (new registrations)
@@ -776,16 +776,16 @@ def clinic_attendance_report():
     end_str = request.args.get("end")
     try:
         start_date = (
-            datetime.strptime(start_str, "%Y-%m-%d").date()
+            datetime.strptime(start_str, "%Y-%m-%d").date()  # noqa: DTZ007
             if start_str
-            else date.today().replace(day=1)
+            else datetime.now(timezone.utc).date().replace(day=1)
         )
         end_date = (
-            datetime.strptime(end_str, "%Y-%m-%d").date() if end_str else date.today()
+            datetime.strptime(end_str, "%Y-%m-%d").date() if end_str else datetime.now(timezone.utc).date()  # noqa: DTZ007
         )
     except ValueError:
-        start_date = date.today().replace(day=1)
-        end_date = date.today()
+        start_date = datetime.now(timezone.utc).date().replace(day=1)
+        end_date = datetime.now(timezone.utc).date()
 
     clinics = Clinic.query.all()
     attendance_data = []
@@ -825,9 +825,9 @@ def clinic_attendance_report():
 def registration_report():
     year_str = request.args.get("year")
     try:
-        year = int(year_str) if year_str else date.today().year
+        year = int(year_str) if year_str else datetime.now(timezone.utc).date().year
     except ValueError:
-        year = date.today().year
+        year = datetime.now(timezone.utc).date().year
 
     monthly_data = (
         db.session.query(
@@ -971,7 +971,7 @@ def khis_exporter_ui():
     """Render National KHIS & HL7 FHIR Exporter UI Dashboard."""
     from departments.api.dhis2_exporter import aggregate_monthly_khis_data
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     year = request.args.get("year", default=now.year, type=int)
     month = request.args.get("month", default=now.month, type=int)
 

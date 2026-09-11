@@ -62,7 +62,7 @@ def run_backfill():
                 )
                 if res:
                     counts["charges"] += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error backfilling RequestedLab {lab.id}: {e}")
                 counts["errors"] += 1
 
@@ -81,7 +81,7 @@ def run_backfill():
                 )
                 if res:
                     counts["charges"] += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error backfilling DispensedDrug {d.id}: {e}")
                 counts["errors"] += 1
 
@@ -99,7 +99,7 @@ def run_backfill():
                 )
                 if res:
                     counts["charges"] += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error backfilling ClinicBooking {b.id}: {e}")
                 counts["errors"] += 1
 
@@ -117,7 +117,7 @@ def run_backfill():
                 )
                 if res:
                     counts["charges"] += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error backfilling TheatreList {t.id}: {e}")
                 counts["errors"] += 1
 
@@ -135,7 +135,7 @@ def run_backfill():
                 )
                 if res:
                     counts["charges"] += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error backfilling AdmittedPatient {a.id}: {e}")
                 counts["errors"] += 1
 
@@ -165,7 +165,7 @@ def run_backfill():
                     )
                     if p_res:
                         counts["payments"] += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error backfilling Billing {bill.id}: {e}")
                 counts["errors"] += 1
 
@@ -194,7 +194,7 @@ def run_backfill():
                     )
                     if p_res:
                         counts["payments"] += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error backfilling DrugsBill {dbill.id}: {e}")
                 counts["errors"] += 1
 
@@ -210,7 +210,7 @@ def run_backfill():
                 )
                 if p_res:
                     counts["payments"] += 1
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error backfilling PaidBill {pb.id}: {e}")
                 counts["errors"] += 1
 
@@ -230,7 +230,7 @@ def run_backfill():
                         )
                         if p_res:
                             counts["payments"] += 1
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     logger.error(f"Error backfilling {model.__name__} {b.id}: {e}")
                     counts["errors"] += 1
 

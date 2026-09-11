@@ -78,13 +78,13 @@ def _parse_oru_r01(raw: str) -> dict:
     # python-hl7 field indexing: [0]=segment name, [1]=field sep, [2]=encoding chars, [3]=sending app
     try:
         source_system = str(msg["MSH"][0][3][0]) or "UNKNOWN_LIS"
-    except Exception:
+    except Exception:  # noqa: BLE001
         source_system = "UNKNOWN_LIS"
 
     # PID-3: Patient Identifier List (first CX)
     try:
         patient_id = str(msg["PID"][0][3][0][0])
-    except Exception:
+    except Exception:  # noqa: BLE001
         raise ValueError("Cannot extract patient ID from PID-3")
 
     # OBX-3: Observation Identifier (local code)
@@ -102,7 +102,7 @@ def _parse_oru_r01(raw: str) -> dict:
     # NTE-3: Notes (optional)
     try:
         result_notes = str(msg["NTE"][0][3][0])
-    except Exception:
+    except Exception:  # noqa: BLE001
         result_notes = ""
 
     return {
@@ -285,7 +285,7 @@ def receive_oru():
         return jsonify({"error": str(exc)}), 422
 
     except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("HL7 ingest unexpected error: %s", exc)
+        logger.exception("HL7 ingest unexpected error: %s", exc)  # noqa: TRY401
         return jsonify({"error": "Internal server error"}), 500
 
 

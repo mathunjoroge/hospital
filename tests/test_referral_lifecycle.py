@@ -20,7 +20,7 @@ from extensions import db
 def _patient_with_encounter(patient_id: str, stage: str = "IN_CONSULTATION"):
     """Create a patient with an active OPD encounter at the given stage."""
     p = Patient(patient_id=patient_id, name=f"Test {patient_id}", sex="M",
-                date_of_birth=datetime(1985, 6, 15))
+                date_of_birth=datetime(1985, 6, 15))  # noqa: DTZ001
     db.session.add(p)
     db.session.add(PatientWaitingList(patient_id=patient_id, seen=QueueStatus.WAITING_TRIAGE))
     enc = Encounter(
@@ -122,7 +122,7 @@ def test_referral_acceptance_no_active_encounter_is_safe(app):
     with app.app_context():
         # Patient exists but has no encounter
         p = Patient(patient_id="P-REF-04", name="No Enc", sex="F",
-                    date_of_birth=datetime(1992, 3, 1))
+                    date_of_birth=datetime(1992, 3, 1))  # noqa: DTZ001
         db.session.add(p)
         db.session.commit()
 

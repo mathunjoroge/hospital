@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -32,7 +32,7 @@ def sample_employee(app):
 def test_staff_credential_expiring_soon_notification(app, sample_employee):
     """Verify credential expiring in 5 days triggers 'staff_credential_expiring' notification."""
     with app.app_context():
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         cred = StaffCredential(
             employee_id=sample_employee,
             staff_name="Dr. Alice Smith",
@@ -63,7 +63,7 @@ def test_staff_credential_expiring_soon_notification(app, sample_employee):
 def test_staff_credential_already_expired_notification(app, sample_employee):
     """Verify already expired credential (-2 days) triggers 'staff_credential_expired' notification and updates status."""
     with app.app_context():
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         cred = StaffCredential(
             employee_id=sample_employee,
             staff_name="Dr. Alice Smith",
@@ -98,7 +98,7 @@ def test_staff_credential_already_expired_notification(app, sample_employee):
 def test_staff_credential_valid_no_notification(app, sample_employee):
     """Verify valid credential expiring in 60 days (outside 30-day window) generates no notification."""
     with app.app_context():
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         cred = StaffCredential(
             employee_id=sample_employee,
             staff_name="Dr. Alice Smith",

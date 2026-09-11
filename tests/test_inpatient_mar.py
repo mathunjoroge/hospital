@@ -36,7 +36,7 @@ def mar_data(mar_app):
         name="MAR Test Patient",
         place_of_residence="Nairobi",
         sex="Male",
-        date_of_birth=datetime(1985, 5, 5).date(),
+        date_of_birth=datetime(1985, 5, 5).date(),  # noqa: DTZ001
         marital_status="Married",
         contact="0700112233",
         next_of_kin="Kin",

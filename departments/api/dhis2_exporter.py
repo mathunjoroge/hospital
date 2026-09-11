@@ -41,7 +41,7 @@ def calculate_age(dob: date | None) -> int:
     """Calculate age in years from date of birth."""
     if not dob:
         return 25  # default to adult if unknown
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
 
@@ -51,8 +51,8 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
     Returns structured data dictionary.
     """
     _, last_day = monthrange(year, month)
-    start_date = datetime(year, month, 1, 0, 0, 0)
-    end_date = datetime(year, month, last_day, 23, 59, 59)
+    start_date = datetime(year, month, 1, 0, 0, 0)  # noqa: DTZ001
+    end_date = datetime(year, month, last_day, 23, 59, 59)  # noqa: DTZ001
 
     # 1. Total Patients Registered in Month
     new_patients_count = Patient.query.filter(
@@ -214,7 +214,7 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
 @roles_required("admin", "records", "medicine", "hr", "api")
 def export_dhis2_json():
     """Export monthly aggregated values formatted as standard DHIS2 dataValueSets JSON."""
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     year = request.args.get("year", default=now.year, type=int)
     month = request.args.get("month", default=now.month, type=int)
 
@@ -247,7 +247,7 @@ def export_dhis2_json():
 @roles_required("admin", "records", "medicine", "hr", "api")
 def export_dhis2_csv():
     """Export monthly aggregated values formatted as downloadable CSV for KHIS upload."""
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     year = request.args.get("year", default=now.year, type=int)
     month = request.args.get("month", default=now.month, type=int)
 
@@ -282,7 +282,7 @@ def export_dhis2_csv():
 @roles_required("admin", "records", "medicine", "hr", "api")
 def khis_monthly_report_dashboard():
     """Render preview dashboard for KHIS / DHIS2 monthly reporting metrics."""
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     year = request.args.get("year", default=now.year, type=int)
     month = request.args.get("month", default=now.month, type=int)
 

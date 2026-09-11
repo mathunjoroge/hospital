@@ -68,7 +68,7 @@ class PatientSearchForm(FlaskForm):
     submit_search = SubmitField("Search")
 
     def __init__(self, *args, **kwargs):
-        super(PatientSearchForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.patient_id.choices = [
             (p.patient_id, f"{p.name} ({p.patient_id})")
             for p in Patient.query.order_by(Patient.name).all()
@@ -99,7 +99,7 @@ class OncoPatientForm(FlaskForm):
     submit_update = SubmitField("Update Oncology Details")
 
     def __init__(self, *args, **kwargs):
-        super(OncoPatientForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Load cancer types from DB: [(id, name), ...]
         self.cancer_type.choices = [

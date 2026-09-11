@@ -407,7 +407,7 @@ class TestPanicWiring:
     def test_panic_status_persisted_to_db(self, app):
         with app.app_context():
             from extensions import db
-            patient, _ = _seed(db)
+            _patient, _ = _seed(db)
 
             from departments.api.hl7_receiver import ingest_lab_result
             result = ingest_lab_result(
@@ -639,7 +639,7 @@ class TestLoadScaffold:
                 )
                 with lock:
                     results.append(rv.status_code)
-            except Exception as exc:  # pylint: disable=broad-except
+            except Exception as exc:  # pylint: disable=broad-except  # noqa: BLE001
                 with lock:
                     errors.append(str(exc))
 

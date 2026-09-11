@@ -58,7 +58,7 @@ class PatientConsent(db.Model):
 
 
 def grant_patient_consent(
-    patient_id: str, consent_type: str, ip_address: str = None, notes: str = None
+    patient_id: str, consent_type: str, ip_address: str | None = None, notes: str | None = None
 ) -> PatientConsent:
     """Grant or update explicit consent for a patient."""
     consent = PatientConsent.query.filter_by(
@@ -188,7 +188,7 @@ def export_patient_sar_data(patient_id: str) -> dict:
     return data
 
 
-def anonymize_patient_data(patient_id: str, operator_id: int = None) -> bool:
+def anonymize_patient_data(patient_id: str, operator_id: int | None = None) -> bool:
     """
     Anonymize patient personal identifiers under Right to Erasure / Anonymization (DPA 2019 Section 40).
     Anonymizes name, phone, national ID, kin info while retaining anonymized clinical structure for statutory medical audit.

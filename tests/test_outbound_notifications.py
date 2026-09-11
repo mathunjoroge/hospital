@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -37,7 +37,7 @@ def sample_patient(app):
             patient_id="P-TEST-001",
             name="John Doe",
             sex="Male",
-            date_of_birth=datetime(1990, 1, 1).date(),
+            date_of_birth=datetime(1990, 1, 1).date(),  # noqa: DTZ001
             marital_status="Single",
             contact="johndoe@example.com",
             place_of_residence="Nairobi",
@@ -63,7 +63,7 @@ def test_outbound_log_persistence(app, sample_patient):
             subject="Test Subject",
             body="Test Body Content",
             status="SENT",
-            sent_at=datetime.utcnow(),
+            sent_at=datetime.now(timezone.utc),
         )
         db.session.add(log)
         db.session.commit()
@@ -97,22 +97,21 @@ def test_notification_dispatcher_email_channel(app, sample_patient):
 
 def test_failed_delivery_handling(app, sample_patient):
     """Verify failed channel dispatches log status FAILED and record error message."""
-    with app.app_context():
-        with patch.object(
-            EmailChannel, "send", side_effect=Exception("SMTP Connection Error")
-        ):
-            log = NotificationDispatcher.dispatch_event(
-                event_type=EVENT_LAB_RESULT_READY,
-                recipient="johndoe@example.com",
-                subject="Lab Result",
-                body="Your results are ready.",
-                patient_id=sample_patient,
-                channels=["email"],
-            )
+    with app.app_context(), patch.object(
+        EmailChannel, "send", side_effect=Exception("SMTP Connection Error")
+    ):
+        log = NotificationDispatcher.dispatch_event(
+            event_type=EVENT_LAB_RESULT_READY,
+            recipient="johndoe@example.com",
+            subject="Lab Result",
+            body="Your results are ready.",
+            patient_id=sample_patient,
+            channels=["email"],
+        )
 
-            assert log is not None
-            assert log.status == "FAILED"
-            assert "SMTP Connection Error" in log.error_message
+        assert log is not None
+        assert log.status == "FAILED"
+        assert "SMTP Connection Error" in log.error_message
 
 
 def test_all_five_event_triggers(app, sample_patient):
@@ -126,7 +125,7 @@ def test_all_five_event_triggers(app, sample_patient):
         booking = ClinicBooking(
             patient_id=sample_patient,
             clinic_id=clinic.clinic_id,
-            clinic_date=datetime.utcnow().date() + timedelta(days=1),
+            clinic_date=datetime.now(timezone.utc).date() + timedelta(days=1),
             seen=0,
         )
         db.session.add(booking)
@@ -234,7 +233,7 @@ def test_scheduled_appointment_reminders_job(app, sample_patient):
         booking = ClinicBooking(
             patient_id=sample_patient,
             clinic_id=clinic.clinic_id,
-            clinic_date=datetime.utcnow().date(),
+            clinic_date=datetime.now(timezone.utc).date(),
             seen=0,
         )
         db.session.add(booking)

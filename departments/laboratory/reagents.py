@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -57,7 +57,7 @@ def reagents_order():
 
             # Create a new reagent order
             new_order = OtherOrder(
-                request_date=date.today(),
+                request_date=datetime.now(timezone.utc).date(),
                 status="Pending",
                 requested_by=current_user.id,
                 item_id=item_id,
@@ -109,7 +109,7 @@ def reagents_order():
             lab_reagents=lab_reagents,
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.reagents_order: {e}")
@@ -135,7 +135,7 @@ def lab_reagent_inventory():
             "laboratory/lab_reagent_inventory.html", reagents=reagents
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.lab_reagent_inventory: {e}")
         return redirect(url_for("laboratory.index"))
@@ -169,7 +169,7 @@ def request_reagent_restock():
         flash("Reagent restock request submitted!", "success")
         return redirect(url_for("laboratory.lab_reagent_inventory"))
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.request_reagent_restock: {e}")
         return redirect(url_for("laboratory.lab_reagent_inventory"))

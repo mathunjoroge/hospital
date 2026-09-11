@@ -2,7 +2,7 @@ import csv
 import io
 import random
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 
 from flask import (
@@ -83,11 +83,11 @@ def index():
         recent_changes = [
             {
                 "description": "Employee E0001 marked as inactive.",
-                "date": datetime.now() - timedelta(days=1),
+                "date": datetime.now(timezone.utc) - timedelta(days=1),
             },
             {
                 "description": "New employee E0002 added to the system.",
-                "date": datetime.now() - timedelta(days=2),
+                "date": datetime.now(timezone.utc) - timedelta(days=2),
             },
         ]  # Replace with actual query logic
 
@@ -99,7 +99,7 @@ def index():
             recent_changes=recent_changes,
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.index: {e}")
         return redirect(url_for("home"))
@@ -116,7 +116,7 @@ def employee_list():
         employees = Employee.query.order_by(Employee.date_hired.desc()).all()
         return render_template("hr/employee_list.html", employees=employees)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.employee_list: {e}")
         return redirect(url_for("home"))
@@ -185,7 +185,7 @@ def new_employee():
             "hr/new_employee.html", allowances=allowances, deductions=deductions
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.new_employee: {e}")
         db.session.rollback()
@@ -226,7 +226,7 @@ def update_employee(employee_id):
 
         return render_template("hr/update_employee.html", employee=employee)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.update_employee: {e}")
         db.session.rollback()
@@ -250,7 +250,7 @@ def delete_employee(employee_id):
         flash(f"Employee {employee.name} deleted successfully!", "success")
         return redirect(url_for("hr.employee_list"))
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.delete_employee: {e}")
         db.session.rollback()
@@ -290,8 +290,8 @@ def rota_management():
 
             # Automatically allocate shifts
             start_date, end_date = week_range.split(" - ")
-            start_date = datetime.strptime(start_date.strip(), "%d/%m/%Y").date()
-            end_date = datetime.strptime(end_date.strip(), "%d/%m/%Y").date()
+            start_date = datetime.strptime(start_date.strip(), "%d/%m/%Y").date()  # noqa: DTZ007
+            end_date = datetime.strptime(end_date.strip(), "%d/%m/%Y").date()  # noqa: DTZ007
 
             # Ensure the week range is valid
             if (end_date - start_date).days != 6:
@@ -363,7 +363,7 @@ def rota_management():
             rota_data=dict(rota_data),  # Convert defaultdict to dict for Jinja2
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.rota_management: {e}")
         db.session.rollback()
@@ -407,7 +407,7 @@ def department_reports():
             role_filter=role_filter,
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.department_reports: {e}")
         return redirect(url_for("hr.index"))
@@ -474,7 +474,7 @@ def export_department_reports():
         output.headers["Content-type"] = "text/csv"
         return output
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in hr.export_department_reports: {e}")
         return redirect(url_for("hr.department_reports"))

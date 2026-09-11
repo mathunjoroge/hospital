@@ -31,7 +31,6 @@ import logging
 import time
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
 
 from flask_login import current_user
 
@@ -65,7 +64,6 @@ class AIMode(str, Enum):
 class AIInputValidationError(ValueError):
     """Raised when AI input fails validation checks."""
 
-    pass
 
 
 def validate_ai_input(text: str, feature: str = "unspecified") -> str:
@@ -122,10 +120,10 @@ def log_ai_call(
     mode: AIMode,
     input_summary: str,
     output_summary: str,
-    user_id: Optional[int] = None,
-    latency_ms: Optional[float] = None,
-    error: Optional[str] = None,
-    metadata: Optional[dict] = None,
+    user_id: int | None = None,
+    latency_ms: float | None = None,
+    error: str | None = None,
+    metadata: dict | None = None,
 ) -> None:
     """
     Write a structured AI audit log entry.

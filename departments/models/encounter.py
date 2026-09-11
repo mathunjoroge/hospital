@@ -96,7 +96,7 @@ class Encounter(db.Model):
     stage = db.Column(db.String(30), nullable=True, index=True)
     esi_level = db.Column(db.Integer, nullable=True)  # 1-5 ESI acuity
 
-    ALLOWED_STAGE_TRANSITIONS = {
+    ALLOWED_STAGE_TRANSITIONS = {  # noqa: RUF012
         None: {"REGISTERED", "WAITING_DOCTOR", "IN_CONSULTATION", "ADMITTED", "PRE_OP"},
         "REGISTERED": {"WAITING_DOCTOR", "IN_CONSULTATION", "CANCELLED"},
         "WAITING_DOCTOR": {"IN_CONSULTATION", "CANCELLED"},

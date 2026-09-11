@@ -16,8 +16,8 @@ os.environ.setdefault(
     "ENCRYPTION_KEY", "thInEUT_C4EOAyIAvI7aHWq0gmhf29_LfWzD7G6sAwo="
 )
 
-from app import app as flask_app  # noqa: E402
-from extensions import db, limiter  # noqa: E402
+from app import app as flask_app
+from extensions import db, limiter
 
 
 @pytest.fixture(autouse=True)

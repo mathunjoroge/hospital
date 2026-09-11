@@ -13,7 +13,6 @@ import concurrent.futures
 import os
 import sys
 import time
-from typing import Dict, List
 
 import numpy as np
 from werkzeug.security import generate_password_hash
@@ -22,12 +21,12 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from datetime import date  # noqa: E402
+from datetime import date
 
-from app import app  # noqa: E402
-from departments.models.records import Patient  # noqa: E402
-from departments.models.user import User  # noqa: E402
-from extensions import db, limiter  # noqa: E402
+from app import app
+from departments.models.records import Patient
+from departments.models.user import User
+from extensions import db, limiter
 
 
 def setup_test_data():
@@ -60,8 +59,8 @@ def setup_test_data():
         db.session.commit()
 
 
-def benchmark_endpoint(endpoint_func, num_requests: int, concurrency: int, authenticate: bool = True) -> Dict:
-    latencies: List[float] = []
+def benchmark_endpoint(endpoint_func, num_requests: int, concurrency: int, authenticate: bool = True) -> dict:
+    latencies: list[float] = []
     failures: int = 0
     successes: int = 0
 
@@ -87,7 +86,7 @@ def benchmark_endpoint(endpoint_func, num_requests: int, concurrency: int, authe
                         thread_latencies.append(elapsed)
                     else:
                         failures += 1
-                except Exception:
+                except Exception:  # noqa: BLE001
                     failures += 1
         return thread_latencies
 
@@ -119,7 +118,9 @@ def benchmark_endpoint(endpoint_func, num_requests: int, concurrency: int, authe
     }
 
 
-def run_all_benchmarks(concurrency_levels=[5, 20]):
+def run_all_benchmarks(concurrency_levels=None):
+    if concurrency_levels is None:
+        concurrency_levels = [5, 20]
     app.config['TESTING'] = True
     app.config['WTF_CSRF_ENABLED'] = False
     app.config['RATELIMIT_ENABLED'] = False

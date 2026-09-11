@@ -59,12 +59,12 @@ def validate_dicom_file(filepath):
             logger.debug(f"Decompressing {filepath}")
             try:
                 dicom.decompress()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning(f"Could not decompress pixel data: {e}")
         _ = dicom.pixel_array
         logger.debug(f"Validated DICOM: {filepath}, shape: {dicom.pixel_array.shape}")
         return True, "Valid DICOM image"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"DICOM validation failed for {filepath}: {e}")
         return False, f"Invalid DICOM file: {e}"
 
@@ -132,7 +132,7 @@ def analyze_dicom(dicom_path, description="", symptoms=""):
         logger.debug(f"Analysis result via NVIDIA NIM: {result}")
         return result
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Analysis failed for {dicom_path}: {e}")
         return {"error": str(e), "status": "error"}
 
@@ -184,7 +184,7 @@ def generate_report(
         study_date = patient_info.get("study_date", "Unknown")
         if study_date != "Unknown":
             try:
-                study_date = datetime.strptime(study_date, "%Y%m%d").strftime(
+                study_date = datetime.strptime(study_date, "%Y%m%d").strftime(  # noqa: DTZ007
                     "%B %d, %Y"
                 )
             except ValueError:
@@ -204,7 +204,7 @@ def generate_report(
     patient_age = "Unknown"
     if patient_birth_date != "Unknown":
         try:
-            birth_date = datetime.strptime(patient_birth_date, "%Y%m%d")
+            birth_date = datetime.strptime(patient_birth_date, "%Y%m%d")  # noqa: DTZ007
             today = datetime.now(timezone.utc)
             patient_age = (
                 today.year
@@ -472,8 +472,8 @@ def process_imaging_request(request_id):
         imaging = Imaging.query.get_or_404(imaging_request.imaging_id)
         logger.debug(f"Loaded imaging request {request_id} and imaging {imaging.id}")
     except Exception as e:
-        logger.error(f"Error fetching request {request_id}: {e}", exc_info=True)
-        flash(f"Error loading request: {str(e)}", "error")
+        logger.exception("Error fetching request {request_id}: ")
+        flash(f"Error loading request: {e!s}", "error")
         return redirect(url_for("imaging.index"))
 
     if request.method == "POST":
@@ -536,10 +536,10 @@ def process_imaging_request(request_id):
                         logger.debug(
                             f"Progress emitted: {processed_count}/{total_files}"
                         )
-                    except Exception as emit_error:
+                    except Exception as emit_error:  # noqa: BLE001
                         logger.error(f"Progress emit failed: {emit_error}")
 
-            except Exception as file_error:
+            except Exception as file_error:  # noqa: BLE001
                 logger.error(f"Error processing {filename}: {file_error}")
                 if os.path.exists(filepath):
                     os.remove(filepath)
@@ -561,7 +561,7 @@ def process_imaging_request(request_id):
             )
             logger.debug(f"AI report: {ai_report[:100]}...")
             logger.debug(f"Final report: {final_report[:100]}...")
-        except Exception as report_error:
+        except Exception as report_error:  # noqa: BLE001
             logger.error(f"Report generation failed: {report_error}")
             ai_report = "Report generation failed. Raw AI findings available."
             final_report = "Report generation failed. Basic findings available."
@@ -610,7 +610,7 @@ def process_imaging_request(request_id):
                 logger.debug(
                     f"Completion emitted: processed={processed_count}, failed={total_files - processed_count}"
                 )
-            except Exception as emit_error:
+            except Exception as emit_error:  # noqa: BLE001
                 logger.error(f"Completion emit failed: {emit_error}")
 
             flash(
@@ -620,9 +620,9 @@ def process_imaging_request(request_id):
             logger.debug(f"Redirecting to view_result: result_id={result_id}")
             return redirect(url_for("imaging.view", result_id=result_id))
 
-        except Exception as db_error:
+        except Exception:
             db.session.rollback()
-            logger.error(f"Database error: {db_error}", exc_info=True)
+            logger.exception("Database error: ")
             flash("Error saving results to database", "error")
             return redirect(request.url)
 
@@ -666,9 +666,9 @@ def view_result(result_id):
             imaging=imaging,
             imaging_request=imaging_request,
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error viewing result {result_id}: {e}")
-        flash(f"Error: {str(e)}", "error")
+        flash(f"Error: {e!s}", "error")
         return redirect(url_for("imaging.index"))
 
 
@@ -684,9 +684,9 @@ def download_file(result_id, filename):
     upload_dir = os.path.join(current_app.config["DICOM_UPLOAD_FOLDER"], result_id)
     try:
         return send_from_directory(upload_dir, filename, as_attachment=True)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error downloading file {filename}: {e}")
-        flash(f"Error downloading file: {str(e)}", "error")
+        flash(f"Error downloading file: {e!s}", "error")
         return redirect(url_for("imaging.view_result", result_id=result_id))
 
 
@@ -703,8 +703,8 @@ def imaging_results():
 
         return render_template("imaging/imaging_results.html", results=results)
     except Exception as e:
-        logger.error(f"Error retrieving imaging results: {str(e)}", exc_info=True)
-        flash(f"Error retrieving results: {str(e)}", "error")
+        logger.exception(f"Error retrieving imaging results: {e!s}")  # noqa: TRY401
+        flash(f"Error retrieving results: {e!s}", "error")
         return redirect(url_for("imaging.index"))
 
 
@@ -831,8 +831,8 @@ def view_imaging_results(result_id):
         )
 
     except Exception as e:
-        logger.error(f"Error viewing result_id={result_id}: {str(e)}", exc_info=True)
-        flash(f"An error occurred while loading the imaging results: {str(e)}", "error")
+        logger.exception("Error viewing result_id=: {e!s}")
+        flash(f"An error occurred while loading the imaging results: {e!s}", "error")
         return redirect(url_for("imaging.index"))
 
 
@@ -856,6 +856,6 @@ def index():
             pending_requests=pending_requests or [],
             models_loaded=nim_client is not None,
         )
-    except Exception as e:
-        flash(f"Database error: {str(e)}", "error")
+    except Exception as e:  # noqa: BLE001
+        flash(f"Database error: {e!s}", "error")
         return redirect(url_for("home"))

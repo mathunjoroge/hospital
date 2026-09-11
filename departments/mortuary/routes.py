@@ -28,7 +28,7 @@ def index():
                 flash(f"Patient ID {deceased_id} not found.", "danger")
             else:
                 try:
-                    date_of_death = datetime.strptime(date_str, "%Y-%m-%d").date()
+                    date_of_death = datetime.strptime(date_str, "%Y-%m-%d").date()  # noqa: DTZ007
                     mortuary_rec = MortuaryData(
                         deceased_id=deceased_id,
                         date_of_death=date_of_death,
@@ -41,9 +41,9 @@ def index():
                         f"Mortuary intake recorded for {deceased_id} successfully.",
                         "success",
                     )
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     db.session.rollback()
-                    flash(f"Error saving record: {str(e)}", "danger")
+                    flash(f"Error saving record: {e!s}", "danger")
 
         return redirect(url_for("mortuary.index"))
 

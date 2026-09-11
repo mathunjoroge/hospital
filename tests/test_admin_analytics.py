@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from werkzeug.security import generate_password_hash
@@ -27,7 +27,7 @@ def sample_data(app):
             patient_id="P-ANAL-001",
             name="Alice Smith",
             sex="Female",
-            date_of_birth=datetime(1995, 5, 12).date(),
+            date_of_birth=datetime(1995, 5, 12).date(),  # noqa: DTZ001
             marital_status="Single",
             contact="0711223344",
             place_of_residence="Nairobi",
@@ -57,7 +57,7 @@ def sample_data(app):
         adm1 = AdmittedPatient(
             patient_id=p.patient_id,
             ward_id=ward1.id,
-            admitted_on=datetime.utcnow() - timedelta(days=2),
+            admitted_on=datetime.now(timezone.utc) - timedelta(days=2),
             admission_criteria="Acute Severe Fever",
             admitted_by=1,
             discharged_on=None,
@@ -65,15 +65,15 @@ def sample_data(app):
         adm2 = AdmittedPatient(
             patient_id=p.patient_id,
             ward_id=ward1.id,
-            admitted_on=datetime.utcnow() - timedelta(days=10),
+            admitted_on=datetime.now(timezone.utc) - timedelta(days=10),
             admission_criteria="Pneumonia",
             admitted_by=1,
-            discharged_on=datetime.utcnow() - timedelta(days=5),
+            discharged_on=datetime.now(timezone.utc) - timedelta(days=5),
         )
         adm3 = AdmittedPatient(
             patient_id=p.patient_id,
             ward_id=ward2.id,
-            admitted_on=datetime.utcnow() - timedelta(days=1),
+            admitted_on=datetime.now(timezone.utc) - timedelta(days=1),
             admission_criteria="Post-Op Observation",
             admitted_by=1,
             discharged_on=None,

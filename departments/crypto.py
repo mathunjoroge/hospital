@@ -83,7 +83,7 @@ def get_fernet_key() -> bytes:
         if Fernet:
             Fernet(key_bytes)
         return key_bytes
-    except Exception:
+    except Exception:  # noqa: BLE001
         # If a raw 32-byte string was passed, base64-encode it
         return base64.urlsafe_b64encode(key_bytes.ljust(32)[:32])
 
@@ -126,7 +126,7 @@ def decrypt_value(token: str) -> str:
     try:
         decrypted_bytes = f.decrypt(raw_token.encode("utf-8"))
         return decrypted_bytes.decode("utf-8")
-    except (InvalidToken, Exception) as e:
+    except (InvalidToken, Exception) as e:  # noqa: BLE001
         logger.warning(f"Decryption failed for value: {e}")
         return token
 
@@ -141,7 +141,7 @@ class EncryptedString(TypeDecorator):
     cache_ok = True
 
     def __init__(self, length=255, *args, **kwargs):
-        super().__init__(length=length, *args, **kwargs)
+        super().__init__(length=length, *args, **kwargs)  # noqa: B026
 
     def process_bind_param(self, value, dialect):
         if value is None:

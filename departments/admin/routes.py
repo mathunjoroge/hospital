@@ -1,7 +1,7 @@
 import base64
 import io
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pyotp
 import qrcode
@@ -155,11 +155,11 @@ def index():
         return render_template("admin/index.html", users=users, department=department)
     except Exception as e:
         flash("Something went wrong. Please try again.", "error")
-        logger.error(f"Error in admin.index: {e}", exc_info=True)
+        logger.exception("Error in admin.index: ")
         db.session.add(
             Log(
                 level="ERROR",
-                message=f"Error loading dashboard: {str(e)}",
+                message=f"Error loading dashboard: {e!s}",
                 user_id=current_user.id,
                 source="admin",
             )
@@ -237,11 +237,11 @@ def add_user():
         except Exception as e:
             db.session.rollback()
             flash("Something went wrong. Please try again.", "error")
-            logger.error(f"Error in admin.add_user: {e}", exc_info=True)
+            logger.exception("Error in admin.add_user: ")
             db.session.add(
                 Log(
                     level="ERROR",
-                    message=f"Error adding user: {str(e)}",
+                    message=f"Error adding user: {e!s}",
                     user_id=current_user.id,
                     source="admin",
                 )
@@ -273,11 +273,11 @@ def manage_users():
         return render_template("admin/manage_users.html", users=users)
     except Exception as e:
         flash("Something went wrong. Please try again.", "error")
-        logger.error(f"Error in admin.manage_users: {e}", exc_info=True)
+        logger.exception("Error in admin.manage_users: ")
         db.session.add(
             Log(
                 level="ERROR",
-                message=f"Error loading manage users page: {str(e)}",
+                message=f"Error loading manage users page: {e!s}",
                 user_id=current_user.id,
                 source="admin",
             )
@@ -335,11 +335,11 @@ def edit_user(user_id):
         except Exception as e:
             db.session.rollback()
             flash("Something went wrong. Please try again.", "error")
-            logger.error(f"Error in admin.edit_user: {e}", exc_info=True)
+            logger.exception("Error in admin.edit_user: ")
             db.session.add(
                 Log(
                     level="ERROR",
-                    message=f"Error updating user {user.id}: {str(e)}",
+                    message=f"Error updating user {user.id}: {e!s}",
                     user_id=current_user.id,
                     source="admin",
                 )
@@ -391,11 +391,11 @@ def delete_user(user_id):
     except Exception as e:
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
-        logger.error(f"Error in admin.delete_user: {e}", exc_info=True)
+        logger.exception("Error in admin.delete_user: ")
         db.session.add(
             Log(
                 level="ERROR",
-                message=f"Error deleting user {user_id}: {str(e)}",
+                message=f"Error deleting user {user_id}: {e!s}",
                 user_id=current_user.id,
                 source="admin",
             )
@@ -425,11 +425,11 @@ def system_overview():
         return render_template("admin/system_overview.html", user_count=user_count)
     except Exception as e:
         flash("Something went wrong. Please try again.", "error")
-        logger.error(f"Error in admin.system_overview: {e}", exc_info=True)
+        logger.exception("Error in admin.system_overview: ")
         db.session.add(
             Log(
                 level="ERROR",
-                message=f"Error loading system overview: {str(e)}",
+                message=f"Error loading system overview: {e!s}",
                 user_id=current_user.id,
                 source="admin",
             )
@@ -461,11 +461,11 @@ def logs():
         return render_template("admin/logs.html", logs=logs)
     except Exception as e:
         flash("Something went wrong. Please try again.", "error")
-        logger.error(f"Error in admin.logs: {e}", exc_info=True)
+        logger.exception("Error in admin.logs: ")
         db.session.add(
             Log(
                 level="ERROR",
-                message=f"Error loading logs: {str(e)}",
+                message=f"Error loading logs: {e!s}",
                 user_id=current_user.id,
                 source="admin",
             )
@@ -561,7 +561,7 @@ def export_audit_trail():
     return jsonify(
         {
             "system": "HMIS",
-            "exported_at": datetime.now().isoformat(),
+            "exported_at": datetime.now(timezone.utc).isoformat(),
             "count": len(logs),
             "audit_logs": [log_item.to_dict() for log_item in logs],
         }
@@ -678,7 +678,7 @@ def staff_credentials():
         from datetime import datetime
 
         try:
-            expiry_date = datetime.strptime(expiry_date_str, "%Y-%m-%d").date()
+            expiry_date = datetime.strptime(expiry_date_str, "%Y-%m-%d").date()  # noqa: DTZ007
         except ValueError:
             return jsonify({"error": "expiry_date must be formatted YYYY-MM-DD"}), 400
 
@@ -732,14 +732,14 @@ def staff_credentials():
 @roles_required("admin", "hr")
 def staff_credential_alerts():
     """API endpoint returning staff credentials expiring within N threshold days (default 30 days)."""
-    from datetime import date, timedelta
+    from datetime import timedelta
 
     from flask import jsonify
 
     from departments.models.hr import StaffCredential
 
     threshold_days = request.args.get("days", 30, type=int)
-    cutoff_date = date.today() + timedelta(days=threshold_days)
+    cutoff_date = datetime.now(timezone.utc).date() + timedelta(days=threshold_days)
 
     expiring = (
         StaffCredential.query.filter(StaffCredential.expiry_date <= cutoff_date)

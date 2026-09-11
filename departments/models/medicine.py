@@ -288,8 +288,6 @@ class AdmittedPatient(db.Model):
     bed_id = db.Column(db.Integer, db.ForeignKey("beds.id"), nullable=True)
 
     ward_id = db.Column(db.Integer, db.ForeignKey("wards.id"), nullable=False)
-    room_id = db.Column(db.Integer, db.ForeignKey("ward_rooms.id"), nullable=True)
-    bed_id = db.Column(db.Integer, db.ForeignKey("beds.id"), nullable=True)
     admitted_on = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     admission_criteria = db.Column(db.Text, nullable=False)
     admitted_by = db.Column(
@@ -308,8 +306,6 @@ class AdmittedPatient(db.Model):
     patient = db.relationship("Patient", backref=db.backref("admitted_records", lazy=True))
     room = db.relationship("WardRoom", foreign_keys=[room_id])
     bed = db.relationship("Bed", foreign_keys=[bed_id])
-    room = db.relationship("WardRoom", foreign_keys=[room_id])   # NEW
-    bed = db.relationship("Bed", foreign_keys=[bed_id])          # NEW
 
     def __repr__(self):
         return f"<AdmittedPatient {self.patient_id} - Ward: {self.ward_id} - Admitted On: {self.admitted_on}>"

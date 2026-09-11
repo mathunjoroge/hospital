@@ -29,10 +29,7 @@ def has_pending_work(patient_id: str) -> bool:
         return True
     if DrugsBill.query.filter_by(patient_id=patient_id, status=0).count():
         return True
-    if Invoice.query.filter_by(patient_id=patient_id, status=0).count():
-        return True
-
-    return False
+    return bool(Invoice.query.filter_by(patient_id=patient_id, status=0).count())
 
 
 def maybe_close_encounter(patient_id: str) -> bool:

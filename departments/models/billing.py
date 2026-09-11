@@ -258,7 +258,7 @@ class ImagingBill(db.Model):
 class InvoiceStatus(str, enum.Enum):
     DRAFT = "draft"
     ISSUED = "issued"
-    UNPAID = "issued"
+    UNPAID = "issued"  # noqa: PIE796
     PARTIAL = "partial"
     PAID = "paid"
     VOID = "void"

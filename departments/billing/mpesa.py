@@ -56,7 +56,7 @@ def format_phone_number(phone: str) -> str:
     cleaned = "".join(filter(str.isdigit, str(phone)))
     if cleaned.startswith("0"):
         return "254" + cleaned[1:]
-    elif cleaned.startswith("7") or cleaned.startswith("1"):
+    elif cleaned.startswith(("7", "1")):
         return "254" + cleaned
     elif cleaned.startswith("254") and len(cleaned) == 12:
         return cleaned
@@ -81,7 +81,7 @@ def get_mpesa_access_token() -> str:
         res = requests.get(url, auth=auth, timeout=10)
         res.raise_for_status()
         return res.json().get("access_token", "")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Failed to fetch M-Pesa access token: {e}")
         return ""
 
@@ -90,7 +90,7 @@ def initiate_stk_push(
     phone_number: str,
     amount: float,
     account_reference: str,
-    invoice_id: int = None,
+    invoice_id: int | None = None,
     transaction_desc: str = "Hospital Bill Payment",
 ) -> dict:
     """
@@ -176,7 +176,7 @@ def initiate_stk_push(
                 "error": data.get("CustomerMessage", "STK push failed"),
                 **data,
             }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error initiating STK push: {e}")
         return {"success": False, "error": str(e)}
 
@@ -234,7 +234,7 @@ def process_mpesa_callback(callback_data: dict) -> dict:
                 db.session.commit()
             return {"status": "failed", "code": result_code, "desc": result_desc}
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error processing M-Pesa callback: {e}")
         db.session.rollback()
         return {"status": "error", "error": str(e)}

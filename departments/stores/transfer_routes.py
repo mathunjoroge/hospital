@@ -181,7 +181,7 @@ def dispatch_transfer(transfer_id):
         expiry_str = dispatch_info.get("expiry_date")
         if expiry_str:
             try:
-                toi.expiry_date = datetime.strptime(
+                toi.expiry_date = datetime.strptime(  # noqa: DTZ007
                     str(expiry_str).strip(), "%Y-%m-%d"
                 ).date()
             except ValueError:
@@ -333,7 +333,7 @@ def receive_transfer(transfer_id):
             expiry_str = receive_info.get("expiry_date")
             if expiry_str:
                 try:
-                    exp_date = datetime.strptime(
+                    exp_date = datetime.strptime(  # noqa: DTZ007
                         str(expiry_str).strip(), "%Y-%m-%d"
                     ).date()
                 except ValueError:

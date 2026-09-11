@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime, timezone
 
 import pytest
 
@@ -54,7 +54,7 @@ def controlled_drug(app):
 
 def test_dispense_without_second_signatory_fails(app, controlled_drug):
     """P3-07: Dispense without valid second signatory should fail."""
-    with app.app_context():
+    with app.app_context():  # noqa: SIM117
         with pytest.raises(ControlledDrugError, match="cannot be the same person"):
             dispense_controlled_drug(
                 patient_id="P-001", drug_id=controlled_drug.id, dose_mg=10.0,
@@ -64,7 +64,7 @@ def test_dispense_without_second_signatory_fails(app, controlled_drug):
 
 def test_negative_balance_alert_fires(app, controlled_drug):
     """P3-07: Dispensing more than available balance must trigger CRITICAL alert."""
-    with app.app_context():
+    with app.app_context():  # noqa: SIM117
         with pytest.raises(ControlledDrugError, match="CRITICAL.*negative balance"):
             dispense_controlled_drug(
                 patient_id="P-001", drug_id=controlled_drug.id, dose_mg=150.0,
@@ -74,10 +74,10 @@ def test_negative_balance_alert_fires(app, controlled_drug):
 
 def test_shift_reconciliation_variance_blocks_close(app, controlled_drug):
     """P3-07: Shift reconciliation with variance > 0 must block close."""
-    with app.app_context():
+    with app.app_context():  # noqa: SIM117
         with pytest.raises(ControlledDrugError, match="DISCREPANCY DETECTED"):
             submit_shift_reconciliation(
-                drug_id=controlled_drug.id, shift_date=date.today(),
+                drug_id=controlled_drug.id, shift_date=datetime.now(timezone.utc).date(),
                 shift_type="NIGHT", physical_count=95.0,
                 user_id=1
             )

@@ -203,9 +203,9 @@ def submit_soap_notes(patient_id):
             try:
                 message = f"Unmatched imaging requests for patient {patient_id}: {', '.join(unmatched_requests)}"
                 notify_admin(message)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(
-                    f"Failed to notify admin about unmatched imaging: {str(e)}"
+                    f"Failed to notify admin about unmatched imaging: {e!s}"
                 )
             flash(
                 f"The following imaging requests need manual review: {', '.join(unmatched_requests)}",
@@ -257,10 +257,10 @@ def submit_soap_notes(patient_id):
         return redirect(url_for("medicine.notes", patient_id=patient_id))
 
     except Exception as e:
-        flash(f"An unexpected error occurred: {str(e)}", "error")
+        flash(f"An unexpected error occurred: {e!s}", "error")
         db.session.rollback()
-        logger.error(
-            f"Critical error in submit_soap_notes for patient {patient_id}: {str(e)}",
+        logger.error(  # noqa: G201
+            f"Critical error in submit_soap_notes for patient {patient_id}: {e!s}",
             exc_info=True,
         )
         return redirect(url_for("medicine.soap_notes", patient_id=patient_id))
@@ -361,7 +361,7 @@ def index():
             pending_labs = RequestedLab.query.filter_by(status=0).count()
             pending_imaging = RequestedImage.query.filter_by(status=0).count()
             theatre_pending = TheatreList.query.filter_by(status=0).count()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             db.session.rollback()
             logger.error(f"Error calculating dashboard KPIs: {e}")
             total_inpatients = pending_labs = pending_imaging = theatre_pending = 0
@@ -377,7 +377,7 @@ def index():
             theatre_pending=theatre_pending,
             results_ready=results_ready,
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
         logger.error(f"Error in medicine.index: {e}")
         flash("Something went wrong loading the clinical dashboard.", "error")
@@ -456,7 +456,7 @@ def soap_notes(patient_id):
             drugs=drugs,
             prescription_id=prescription_id,  # Pass the prescription_id to the template
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in medicine.soap_notes: {e}")  # Debugging
         return redirect(url_for("medicine.index"))  # Redirect to index on error
@@ -530,7 +530,7 @@ def lab_patients():
         date_requested = lab.date_requested
         if isinstance(date_requested, str):
             try:
-                date_requested = datetime.strptime(date_requested, "%Y-%m-%d %H:%M:%S")
+                date_requested = datetime.strptime(date_requested, "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007
             except (ValueError, TypeError):
                 date_requested = None
 
@@ -612,7 +612,7 @@ def pending_lab_patients():
         date_requested = lab.date_requested
         if isinstance(date_requested, str):
             try:
-                date_requested = datetime.strptime(date_requested, "%Y-%m-%d %H:%M:%S")
+                date_requested = datetime.strptime(date_requested, "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007
             except (ValueError, TypeError):
                 date_requested = None
 

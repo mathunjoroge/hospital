@@ -13,15 +13,13 @@ This engine is designed to be called from any clinical workflow:
 
 import logging
 from datetime import datetime, timezone
-from typing import Optional
 
 from departments.clinical_safety.models import SafetyAlertOverride
 from departments.models.medicine import PrescribedMedicine
+from departments.models.nursing import NursingNote
 from departments.models.pharmacy import Drug
 from departments.models.records import Patient, PatientAllergy
-from departments.models.nursing import NursingNote
 from extensions import db
-
 
 # Allergy groups for cross-reactivity checking (duplicate from prescribe.py to avoid circular import)
 
@@ -148,7 +146,7 @@ KNOWN_INTERACTIONS = [
 logger = logging.getLogger(__name__)
 
 
-def _resolve_patient_pid(patient_id: int) -> "Optional[str]":
+def _resolve_patient_pid(patient_id: int) -> "str | None":
     """
     Resolve an integer patient PK to the string business key (patients.patient_id).
 
@@ -189,9 +187,9 @@ class SafetyAlert:
         severity: str,
         message: str,
         patient_id: int,
-        drug_id: Optional[int] = None,
-        allergen: Optional[str] = None,
-        recommendation: Optional[str] = None,
+        drug_id: int | None = None,
+        allergen: str | None = None,
+        recommendation: str | None = None,
     ):
         self.alert_type = alert_type
         self.severity = severity
@@ -269,7 +267,7 @@ class ClinicalSafetyEngine:
         self,
         patient_id: int,
         drug_ids: list[int],
-        clinician_id: Optional[int] = None,
+        clinician_id: int | None = None,
     ) -> SafetyCheckResult:
         """
         Run all safety checks for a prescription.
@@ -533,7 +531,7 @@ class ClinicalSafetyEngine:
             else:
                 # Check group cross-reactivity
                 for group_name, drug_list in ALLERGY_GROUPS.items():
-                    if any(d in drug for d in drug_list):
+                    if any(d in drug for d in drug_list):  # noqa: SIM102
                         if any(
                             group_name in allergy or any(d in allergy for d in drug_list)
                             for allergy in documented_allergies

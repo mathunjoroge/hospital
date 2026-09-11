@@ -7,7 +7,7 @@ Usage:
     python scripts/generate_product_pdf.py
 """
 
-from datetime import date
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -104,7 +104,7 @@ class NumberedCanvas(canvas.Canvas):
         self.rect(0, 0, PAGE_WIDTH, 1.5, fill=1, stroke=0)
         self.setFont("Helvetica", 8)
         self.setFillColor(SLATE_500)
-        self.drawString(20 * mm, 4 * mm, f"© {date.today().year} — All rights reserved")
+        self.drawString(20 * mm, 4 * mm, f"© {datetime.now(timezone.utc).date().year} — All rights reserved")
         self.drawRightString(PAGE_WIDTH - 20 * mm, 4 * mm, f"Page {self._pageNumber} of {page_count}")
         self.restoreState()
 
@@ -281,7 +281,7 @@ def build_story(styles: dict[str, ParagraphStyle]) -> list[Flowable]:
     story.append(Spacer(1, 4 * mm))
     story.append(Paragraph("Product Overview &amp; Capability Reference", styles["cover_sub"]))
     story.append(Spacer(1, 14 * mm))
-    story.append(Paragraph(f"Version 1.0  ·  {date.today().strftime('%B %Y')}  ·  Confidential", styles["cover_date"]))
+    story.append(Paragraph(f"Version 1.0  ·  {datetime.now(timezone.utc).date().strftime('%B %Y')}  ·  Confidential", styles["cover_date"]))
     story.append(PageBreak())
 
     # Inner Pages Switch
@@ -323,37 +323,37 @@ def build_story(styles: dict[str, ParagraphStyle]) -> list[Flowable]:
     story.append(create_hr())
     story.append(build_feature_table(styles, [
         ("Outpatient / OPD",
-         "Patient registration with UUID, triage vitals capture, OPD waiting-list queue, "
+         ("Patient registration with UUID, triage vitals capture, OPD waiting-list queue, "
          "SOAP/SBAR consultation notes, ICD-10 diagnosis coding (50+ curated codes), "
-         "AI Clinical Assistant (chatbot with audit trail &amp; consent gate)."),
+         "AI Clinical Assistant (chatbot with audit trail &amp; consent gate).")),
         ("Ward Rounds &amp; Inpatients",
-         "Admit/discharge workflow, ward-bed history, daily ward round notes, "
-         "Medication Administration Record (MAR), nurse notification system."),
+         ("Admit/discharge workflow, ward-bed history, daily ward round notes, "
+         "Medication Administration Record (MAR), nurse notification system.")),
         ("Prescribing &amp; CDSS",
-         "Drug prescribing with Clinical Decision Support: 7,621 live drug–drug interaction "
+         ("Drug prescribing with Clinical Decision Support: 7,621 live drug–drug interaction "
          "rules via DrugCentral PostgreSQL, allergen class screening (5 classes), renal dose "
-         "adjustment, Patient Global Allergy Registry, Active Problem List."),
+         "adjustment, Patient Global Allergy Registry, Active Problem List.")),
         ("Pharmacy",
-         "Dispensing workflow, FEFO (First-Expiry-First-Out) batch inventory, automated "
+         ("Dispensing workflow, FEFO (First-Expiry-First-Out) batch inventory, automated "
          "low-stock scanning, auto-generated Supplier Purchase Orders, AI drug-discovery "
-         "assistant, cheminformatics fingerprint search."),
+         "assistant, cheminformatics fingerprint search.")),
         ("Laboratory",
-         "Lab test ordering from consultation, LIS result entry, panic-value alert system "
-         "(LIS blueprint), result gating before patient-portal release."),
+         ("Lab test ordering from consultation, LIS result entry, panic-value alert system "
+         "(LIS blueprint), result gating before patient-portal release.")),
         ("Imaging / Radiology",
-         "DICOM study upload (up to 2 GB), Cornerstone.js in-browser viewer, "
-         "unmatched-imaging reconciliation queue, PACS/HL7 interfacing research documented."),
+         ("DICOM study upload (up to 2 GB), Cornerstone.js in-browser viewer, "
+         "unmatched-imaging reconciliation queue, PACS/HL7 interfacing research documented.")),
         ("Theatre &amp; Oncology",
-         "Theatre booking and list management, post-operative note update, "
+         ("Theatre booking and list management, post-operative note update, "
          "Oncology clinic with chemotherapy regimen tracking, AI treatment summary "
-         "(consent-gated)."),
+         "(consent-gated).")),
         ("Emergency Access",
-         "Break-glass emergency override with full audit trail, time-limited access tokens, "
-         "supervisor alert dispatching, admin audit-trail view."),
+         ("Break-glass emergency override with full audit trail, time-limited access tokens, "
+         "supervisor alert dispatching, admin audit-trail view.")),
         ("Telemedicine",
-         "WebRTC virtual consultation room with real-time signalling via Socket.IO, "
+         ("WebRTC virtual consultation room with real-time signalling via Socket.IO, "
          "in-call clinical notes, prescription drafting. Feature-flagged "
-         "(ENABLE_TELEMEDICINE) pending regulatory sign-off."),
+         "(ENABLE_TELEMEDICINE) pending regulatory sign-off.")),
     ]))
     story.append(Spacer(1, 6 * mm))
 
@@ -362,35 +362,35 @@ def build_story(styles: dict[str, ParagraphStyle]) -> list[Flowable]:
     story.append(create_hr())
     story.append(build_feature_table(styles, [
         ("Billing &amp; Finance",
-         "Invoice generation, multi-payment allocation (cash, M-Pesa STK Push, insurance), "
-         "unreconciled-charges aggregation, revenue analytics."),
+         ("Invoice generation, multi-payment allocation (cash, M-Pesa STK Push, insurance), "
+         "unreconciled-charges aggregation, revenue analytics.")),
         ("M-Pesa Integration",
-         "Safaricom Daraja API STK Push and C2B callback handling, payment receipting, "
-         "patient-portal self-pay flow."),
+         ("Safaricom Daraja API STK Push and C2B callback handling, payment receipting, "
+         "patient-portal self-pay flow.")),
         ("SHA/SHIF Insurance",
-         "InsuranceScheme &amp; PatientInsurance models, claim adjudication workflow, "
-         "approval/rejection tracking, analytics breakdown."),
+         ("InsuranceScheme &amp; PatientInsurance models, claim adjudication workflow, "
+         "approval/rejection tracking, analytics breakdown.")),
         ("HR &amp; Credentialing",
-         "Staff roster management, professional-licence upload, expiry-date warning alerts, "
-         "StaffCredential model with admin view."),
+         ("Staff roster management, professional-licence upload, expiry-date warning alerts, "
+         "StaffCredential model with admin view.")),
         ("Stores &amp; Inventory",
          "Central stores issue/return workflow, stock-level tracking, reorder triggers."),
         ("Mortuary",
          "Deceased-patient registration, body release workflow."),
         ("Analytics Dashboard",
-         "Executive dashboard (Chart.js): bed occupancy trend, 30-day admission curve, "
+         ("Executive dashboard (Chart.js): bed occupancy trend, 30-day admission curve, "
          "revenue breakdown by payment channel, insurance claim approval ratios. "
-         "JSON API for BI tool integration."),
+         "JSON API for BI tool integration.")),
         ("Patient Self-Service Portal",
-         "Separate PatientUser authentication, appointment booking, lab-result viewing "
-         "(gated), billing history, M-Pesa self-pay, profile management with audit log."),
+         ("Separate PatientUser authentication, appointment booking, lab-result viewing "
+         "(gated), billing history, M-Pesa self-pay, profile management with audit log.")),
         ("Outbound Communications",
-         "Flask-Mail email driver, SMS sandbox abstraction, OutboundNotificationLog, "
+         ("Flask-Mail email driver, SMS sandbox abstraction, OutboundNotificationLog, "
          "5 event triggers (appointments, labs, billing, payments, claims), "
-         "24-hour appointment reminder scheduler."),
+         "24-hour appointment reminder scheduler.")),
         ("Audit &amp; Logging",
-         "AuditLog DB model, @audited decorator on all write routes, SIEM-export endpoint, "
-         "full structured event log with user/IP/timestamp/diff."),
+         ("AuditLog DB model, @audited decorator on all write routes, SIEM-export endpoint, "
+         "full structured event log with user/IP/timestamp/diff.")),
     ]))
     story.append(Spacer(1, 6 * mm))
 
@@ -399,22 +399,22 @@ def build_story(styles: dict[str, ParagraphStyle]) -> list[Flowable]:
     story.append(create_hr())
     story.append(build_feature_table(styles, [
         ("FHIR R4 API",
-         "RESTful /api/fhir/R4 endpoints for Patient, Observation, MedicationRequest, "
-         "DiagnosticReport resources. Enables integration with national health exchanges."),
+         ("RESTful /api/fhir/R4 endpoints for Patient, Observation, MedicationRequest, "
+         "DiagnosticReport resources. Enables integration with national health exchanges.")),
         ("DHIS2 / KHIS Export",
-         "/api/khis blueprint: automated aggregate report generation and push to Kenya's "
-         "national DHIS2 instance for MOH reporting compliance."),
+         ("/api/khis blueprint: automated aggregate report generation and push to Kenya's "
+         "national DHIS2 instance for MOH reporting compliance.")),
         ("JWT REST API",
-         "Bearer-token authenticated /api/* endpoints for mobile clients, "
-         "third-party EHR connectors, and BI dashboards."),
+         ("Bearer-token authenticated /api/* endpoints for mobile clients, "
+         "third-party EHR connectors, and BI dashboards.")),
         ("M-Pesa (Daraja)",
          "STK Push initiation and C2B webhook for real-time payment reconciliation."),
         ("ICD-10 Coding",
-         "50+ curated ICD-10-CM codes across all departments; WHO API credential "
-         "requirement documented for full 70,000-code database ingestion."),
+         ("50+ curated ICD-10-CM codes across all departments; WHO API credential "
+         "requirement documented for full 70,000-code database ingestion.")),
         ("DICOM / PACS",
-         "DICOM Web upload &amp; Cornerstone.js viewer. HL7 MLLP/ASTM LIS interfacing "
-         "architecture documented; implementation pending vendor selection."),
+         ("DICOM Web upload &amp; Cornerstone.js viewer. HL7 MLLP/ASTM LIS interfacing "
+         "architecture documented; implementation pending vendor selection.")),
     ]))
     story.append(Spacer(1, 6 * mm))
 
@@ -426,21 +426,21 @@ def build_story(styles: dict[str, ParagraphStyle]) -> list[Flowable]:
         styles["body"],
     ))
     story.append(build_feature_table(styles, [
-        ("Authentication", "TOTP-based MFA, 5-attempt account lockout (15-minute timeout), "
-         "bcrypt/PBKDF2 password hashing, session signed with SECRET_KEY."),
-        ("Authorisation", "Role-based access control (RBAC) across 12 roles; "
-         "@break_glass_required decorator for emergency overrides with full audit trail."),
-        ("Encryption at Rest", "Fernet AES-128-CBC + HMAC EncryptedString column type "
-         "applied to all patient PII identity fields."),
-        ("Data Protection Act 2019", "PatientConsent model, Subject Access Request JSON export, "
-         "patient anonymisation route, data-residency hard stop documented."),
-        ("CSRF Protection", "Flask-WTF CSRF tokens on all state-changing forms; "
-         "JWT API endpoints explicitly exempted."),
+        ("Authentication", ("TOTP-based MFA, 5-attempt account lockout (15-minute timeout), "
+         "bcrypt/PBKDF2 password hashing, session signed with SECRET_KEY.")),
+        ("Authorisation", ("Role-based access control (RBAC) across 12 roles; "
+         "@break_glass_required decorator for emergency overrides with full audit trail.")),
+        ("Encryption at Rest", ("Fernet AES-128-CBC + HMAC EncryptedString column type "
+         "applied to all patient PII identity fields.")),
+        ("Data Protection Act 2019", ("PatientConsent model, Subject Access Request JSON export, "
+         "patient anonymisation route, data-residency hard stop documented.")),
+        ("CSRF Protection", ("Flask-WTF CSRF tokens on all state-changing forms; "
+         "JWT API endpoints explicitly exempted.")),
         ("Rate Limiting", "Flask-Limiter on login (5/min POST), disabled in test mode."),
-        ("CI Security Gates", "pip-audit (17 known advisories documented), bandit SAST, "
-         "import-order linting — all enforced in GitHub Actions without bypasses."),
-        ("Session Security", "Redis-backed sessions, 30-minute idle timeout, SameSite=Lax, "
-         "HttpOnly, Secure cookie flags."),
+        ("CI Security Gates", ("pip-audit (17 known advisories documented), bandit SAST, "
+         "import-order linting — all enforced in GitHub Actions without bypasses.")),
+        ("Session Security", ("Redis-backed sessions, 30-minute idle timeout, SameSite=Lax, "
+         "HttpOnly, Secure cookie flags.")),
     ], col_widths=[4.5 * cm, 12.5 * cm]))
     story.append(Spacer(1, 6 * mm))
 
@@ -483,14 +483,14 @@ def build_story(styles: dict[str, ParagraphStyle]) -> list[Flowable]:
     ))
     for doc_name, desc in [
         ("security_audit_readiness.md",
-         "Maps OWASP Top-10 controls to implementation routes. "
-         "Identifies 17 open pip-audit advisories with risk ratings and mitigations."),
+         ("Maps OWASP Top-10 controls to implementation routes. "
+         "Identifies 17 open pip-audit advisories with risk ratings and mitigations.")),
         ("clinical_safety_review_packaging.md",
-         "Documents Clinical Decision Support rules, AI governance framework "
-         "(input validation, consent gating, audit timer), and allergy registry."),
+         ("Documents Clinical Decision Support rules, AI governance framework "
+         "(input validation, consent gating, audit timer), and allergy registry.")),
         ("accessibility_audit_report.md",
-         "WCAG 2.1 AA compliance verification covering keyboard navigation, ARIA landmarks, "
-         "and screen-reader compatibility."),
+         ("WCAG 2.1 AA compliance verification covering keyboard navigation, ARIA landmarks, "
+         "and screen-reader compatibility.")),
     ]:
         story.append(Paragraph(f"<b>docs/{doc_name}</b>", styles["sub_h"]))
         story.append(Paragraph(desc, styles["body"]))
@@ -519,7 +519,7 @@ def build_story(styles: dict[str, ParagraphStyle]) -> list[Flowable]:
         styles["body"],
     ))
     story.append(Spacer(1, 4 * mm))
-    story.append(Paragraph(f"Document generated: {date.today().strftime('%d %B %Y')}", styles["caption"]))
+    story.append(Paragraph(f"Document generated: {datetime.now(timezone.utc).date().strftime('%d %B %Y')}", styles["caption"]))
 
     return story
 

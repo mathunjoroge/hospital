@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-from typing import Dict, List, Optional
 
 import requests
 from dotenv import load_dotenv
@@ -38,7 +37,7 @@ AMR_IPC_CATEGORIES = [
 class NvidiaNIMClient:
     """Client for interacting with NVIDIA NIM free hosted APIs for clinical NLP."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = DEFAULT_MODEL):
+    def __init__(self, api_key: str | None = None, model: str = DEFAULT_MODEL):
         self.api_key = api_key or os.getenv("NVIDIA_API_KEY")
         self.model = model
         self.headers = {
@@ -53,8 +52,8 @@ class NvidiaNIMClient:
         self,
         prompt: str,
         system_message: str = "You are a clinical NLP assistant.",
-        patient_id: Optional[str] = None,
-    ) -> Optional[str]:
+        patient_id: str | None = None,
+    ) -> str | None:
         if patient_id:
             try:
                 from departments.api.audit import log_audit_event
@@ -71,7 +70,7 @@ class NvidiaNIMClient:
                         details={"reason": "Missing or revoked ai_diagnosis consent"},
                     )
                     return None
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error checking AI consent for patient {patient_id}: {e}")
 
         if not self.is_available():
@@ -95,13 +94,13 @@ class NvidiaNIMClient:
             response.raise_for_status()
             data = response.json()
             return data["choices"][0]["message"]["content"].strip()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Error calling NVIDIA NIM API: {e}")
             return None
 
     def predict_cancer_risk(
-        self, text: str, patient_id: Optional[str] = None
-    ) -> Dict[str, float]:
+        self, text: str, patient_id: str | None = None
+    ) -> dict[str, float]:
         """Predict cancer risk probabilities using NVIDIA NIM model with offline fallback."""
         if not text or not text.strip():
             return {c: 1.0 / len(CANCER_TYPES) for c in CANCER_TYPES}
@@ -133,15 +132,15 @@ class NvidiaNIMClient:
 
                 if total > 0:
                     return {k: v / total for k, v in probabilities.items()}
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Failed to parse NVIDIA NIM cancer risk response: {e}")
 
         # --- Rule-Based Offline Fallback ---
         return self._offline_cancer_risk_fallback(text)
 
     def predict_amr_ipc(
-        self, text: str, patient_id: Optional[str] = None
-    ) -> Dict[str, float]:
+        self, text: str, patient_id: str | None = None
+    ) -> dict[str, float]:
         """Predict AMR/IPC risk categories using NVIDIA NIM model with offline fallback."""
         if not text or not text.strip():
             return {cat: 1.0 / len(AMR_IPC_CATEGORIES) for cat in AMR_IPC_CATEGORIES}
@@ -166,7 +165,7 @@ class NvidiaNIMClient:
                 for cat in AMR_IPC_CATEGORIES:
                     probabilities[cat] = float(res.get(cat, 0.0))
                 return probabilities
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Failed to parse NVIDIA NIM AMR/IPC response: {e}")
 
         # --- Rule-Based Offline Fallback ---
@@ -427,7 +426,7 @@ class NvidiaNIMClient:
             "an AI backend must be configured.**"
         )
 
-    def summarize_note(self, text: str, patient_id: Optional[str] = None) -> str:
+    def summarize_note(self, text: str, patient_id: str | None = None) -> str:
         """Summarize clinical note using NVIDIA NIM LLM with offline fallback."""
         if not text or not text.strip():
             return "No content provided for summary."
@@ -453,7 +452,7 @@ class NvidiaNIMClient:
             return self.answer_clinical_question(text)
         return ". ".join(sentences[:2]) + "."
 
-    def _offline_cancer_risk_fallback(self, text: str) -> Dict[str, float]:
+    def _offline_cancer_risk_fallback(self, text: str) -> dict[str, float]:
         text_lower = text.lower()
         scores = {}
 
@@ -495,7 +494,7 @@ class NvidiaNIMClient:
         total = sum(scores.values())
         return {k: v / total for k, v in scores.items()}
 
-    def _offline_amr_ipc_fallback(self, text: str) -> Dict[str, float]:
+    def _offline_amr_ipc_fallback(self, text: str) -> dict[str, float]:
         text_lower = text.lower()
         res = {
             "amr_high": 0.0,
@@ -545,8 +544,8 @@ class NvidiaNIMClient:
         body_part: str,
         description: str = "",
         symptoms: str = "",
-        patient_id: Optional[str] = None,
-    ) -> Dict[str, any]:
+        patient_id: str | None = None,
+    ) -> dict[str, any]:
         """Analyze radiology DICOM exam details using NVIDIA NIM Vision/LLM with offline fallback."""
         prompt = (
             f"You are an expert board-certified radiologist. Analyze the following imaging study details:\n"
@@ -581,7 +580,7 @@ class NvidiaNIMClient:
                     ),
                     "status": "success",
                 }
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error parsing NVIDIA NIM radiology response: {e}")
 
         # Fallback if API fails or unavailable
@@ -594,7 +593,7 @@ class NvidiaNIMClient:
 
     # --- Pharmacy & Drug Discovery Models ---
 
-    def generate_molecules(self, target_properties: str) -> List[str]:
+    def generate_molecules(self, target_properties: str) -> list[str]:
         """Generate drug-like candidate molecules based on desired properties using LLM prompting
         validated via RDKit cheminformatics.
 
@@ -651,7 +650,7 @@ class NvidiaNIMClient:
 
     def predict_docking(
         self, ligand_smiles: str, protein_sequence: str
-    ) -> Dict[str, any]:
+    ) -> dict[str, any]:
         """Estimate molecular binding interaction between a ligand and a target protein sequence.
 
         Args:
@@ -701,7 +700,7 @@ class NvidiaNIMClient:
                     "AI-estimated score based on LLM sequence heuristics. Not a physical docking simulation."
                 )
                 return data
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error parsing AI docking response: {e}")
 
         return {

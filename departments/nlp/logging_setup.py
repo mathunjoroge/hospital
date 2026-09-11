@@ -8,12 +8,10 @@ class ThirdPartyFilter(logging.Filter):
 
     def filter(self, record):
         # Suppress specific third-party logs below INFO if needed
-        if record.name.startswith("spacy") and record.levelno < logging.INFO:
-            return False
-        return True
+        return not (record.name.startswith("spacy") and record.levelno < logging.INFO)
 
 
-def setup_logging(log_dir: str = None, debug: bool = False) -> logging.Logger:
+def setup_logging(log_dir: str | None = None, debug: bool = False) -> logging.Logger:
     """Set up logging with separate handlers for detailed and error logs."""
     log_dir = log_dir or os.getenv("LOG_DIR", "/home/mathu/projects/hospital/logs")
     try:
@@ -45,7 +43,7 @@ def setup_logging(log_dir: str = None, debug: bool = False) -> logging.Logger:
         clinical_file_handler.setFormatter(detailed_formatter)
         clinical_file_handler.addFilter(ThirdPartyFilter())
         logger.addHandler(clinical_file_handler)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Failed to set up clinical log file {clinical_log_path}: {e}")
 
     try:
@@ -56,7 +54,7 @@ def setup_logging(log_dir: str = None, debug: bool = False) -> logging.Logger:
         error_file_handler.setFormatter(simple_formatter)
         error_file_handler.addFilter(ThirdPartyFilter())
         logger.addHandler(error_file_handler)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Failed to set up error log file {error_log_path}: {e}")
 
     console_handler = logging.StreamHandler()

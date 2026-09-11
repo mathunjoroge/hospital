@@ -144,7 +144,7 @@ def ai_discovery_shortlist_add():
     if isinstance(candidate, str):
         try:
             candidate = json.loads(candidate)
-        except Exception:
+        except Exception:  # noqa: BLE001
             candidate = None
 
     if not candidate and isinstance(data, dict) and "smiles" in data:

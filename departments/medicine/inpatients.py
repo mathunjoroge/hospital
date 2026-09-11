@@ -116,9 +116,9 @@ def add_to_theatre():
             flash("Patient added to theatre list successfully!", "success")
             return redirect(url_for("medicine.get_theatre_list"))
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             db.session.rollback()
-            flash(f"An error occurred: {str(e)}", "danger")
+            flash(f"An error occurred: {e!s}", "danger")
             return redirect(url_for("medicine.add_to_theatre"))
 
     # If GET request, render the form
@@ -163,7 +163,7 @@ def get_theatre_list():
             "medicine/theatre_list.html", theatre_entries=theatre_entries
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return jsonify({"error": str(e)}), 500
 
 
@@ -217,9 +217,9 @@ def update_post_op(entry_id):
             patient_name=patient_name,
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
-        flash(f"An error occurred: {str(e)}", "danger")
+        flash(f"An error occurred: {e!s}", "danger")
         return redirect(url_for("medicine.get_theatre_list"))
 
 
@@ -236,7 +236,7 @@ def transition_theatre_stage(entry_id, new_stage):
         transition_surgical_stage(entry.encounter_id, new_stage)
         flash(f"Encounter stage successfully updated to {new_stage}.", "success")
     except ValueError as e:
-        flash(f"Invalid stage transition: {str(e)}", "danger")
+        flash(f"Invalid stage transition: {e!s}", "danger")
 
     return redirect(url_for("medicine.get_theatre_list"))
 
@@ -332,9 +332,9 @@ def admit_patient():
             )
             return redirect(url_for("medicine.view_admitted_patients"))
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             db.session.rollback()
-            flash(f"Error: {str(e)}", "danger")
+            flash(f"Error: {e!s}", "danger")
             return redirect(url_for("medicine.admit_patient"))
 
     return render_template(
@@ -388,9 +388,9 @@ def discharge_patient(id):
         flash("Patient discharged and bed is now available!", "success")
         return redirect(url_for("medicine.view_admitted_patients"))
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
+        flash(f"Error: {e!s}", "danger")
         return redirect(url_for("medicine.view_admitted_patients"))
 
 
@@ -419,8 +419,8 @@ def view_admitted_patients():
 
         return render_template("medicine/admitted_patients.html", patients=patients)
 
-    except Exception as e:
-        flash(f"Error: {str(e)}", "danger")
+    except Exception as e:  # noqa: BLE001
+        flash(f"Error: {e!s}", "danger")
         return redirect(url_for("medicine.admit_patient"))
 
 
@@ -444,8 +444,8 @@ def ward_bed_history(ward_id):
             "medicine/ward_bed_history.html", ward=ward, history=history
         )
 
-    except Exception as e:
-        flash(f"Error: {str(e)}", "danger")
+    except Exception as e:  # noqa: BLE001
+        flash(f"Error: {e!s}", "danger")
         return redirect(url_for("medicine.view_admitted_patients"))
 
 
@@ -463,7 +463,7 @@ def available_rooms(ward_id):
                 ]
             }
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return jsonify({"error": str(e)}), 500
 
 
@@ -476,7 +476,7 @@ def available_beds(room_id):
         return jsonify(
             {"beds": [{"id": bed.id, "bed_number": bed.bed_number} for bed in beds]}
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return jsonify({"error": str(e)}), 500
 
 
@@ -536,9 +536,9 @@ def ward_rounds():
             flash("Ward round notes updated successfully!", "success")
             return redirect(url_for("medicine.ward_rounds"))
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             db.session.rollback()
-            flash(f"Error: {str(e)}", "danger")
+            flash(f"Error: {e!s}", "danger")
             return redirect(url_for("medicine.ward_rounds"))
 
     # Fetch admitted patients and their details
@@ -590,15 +590,15 @@ def add_ward_round():
         flash("Ward round note added successfully!", "success")
         return redirect(url_for("medicine.view_ward_rounds", admission_id=admission_id))
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
+        flash(f"Error: {e!s}", "danger")
         return redirect(url_for("medicine.view_ward_rounds", admission_id=admission_id))
         # diseases
 
 
 # --- T3.2: Theatre Booking Stages ---
-def create_surgical_encounter(patient_id: str, provider_id: str = None, chief_complaint: str = "Surgical Procedure"):
+def create_surgical_encounter(patient_id: str, provider_id: str | None = None, chief_complaint: str = "Surgical Procedure"):
     """Creates a new SURGICAL encounter starting in PRE_OP stage."""
     from departments.models.encounter import Encounter
 

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from extensions import db
 
@@ -174,9 +174,8 @@ class StaffCredential(db.Model):
     def days_until_expiry(self) -> int:
         if not self.expiry_date:
             return 999
-        from datetime import date
 
-        return (self.expiry_date - date.today()).days
+        return (self.expiry_date - datetime.now(timezone.utc).date()).days
 
     def __repr__(self):
         return f"<StaffCredential {self.staff_name} - {self.credential_type} ({self.credential_number})>"

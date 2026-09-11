@@ -10,7 +10,7 @@ Features:
 """
 
 import logging
-from datetime import date, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, jsonify, request
 
@@ -115,7 +115,7 @@ def check_pharmacy_inventory_alerts(near_expiry_days: int = 60) -> dict:
     """
     Check inventory for near-expiry batches and low-stock drugs below reorder levels.
     """
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     cutoff_date = today + timedelta(days=near_expiry_days)
 
     # 1. Near-Expiry Batches

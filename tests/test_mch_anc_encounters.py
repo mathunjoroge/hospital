@@ -40,7 +40,7 @@ def _patient(patient_id: str):
         patient_id=patient_id,
         name=f"Test {patient_id}",
         sex="F",
-        date_of_birth=datetime(1995, 4, 20),
+        date_of_birth=datetime(1995, 4, 20),  # noqa: DTZ001
     )
     db.session.add(p)
     db.session.add(PatientWaitingList(patient_id=patient_id, seen=QueueStatus.WAITING_TRIAGE))

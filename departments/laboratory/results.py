@@ -121,7 +121,7 @@ def process_lab_request(request_id):
             result_id=session.get("result_id"),  # Pass the result_id to the template
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         db.session.rollback()  # Rollback changes in case of error
         print(f"Debug: Error in laboratory.process_lab_request: {e}")  # Debugging
@@ -206,7 +206,7 @@ def view_lab_results(result_id):
             test_presentation=test_presentation,
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.view_lab_results: {e}")  # Debugging
         return redirect(url_for("laboratory.index"))
@@ -233,7 +233,7 @@ def pending_lab_results():
             pending_lab_requests=pending_lab_requests,
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.pending_lab_results: {e}")
         return redirect(url_for("laboratory.index"))
@@ -278,7 +278,7 @@ def processed_lab_results():
             processed_lab_results=processed_lab_results,
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.processed_lab_results: {e}")  # Debugging
         return redirect(url_for("laboratory.index"))
@@ -420,14 +420,14 @@ def abnormal_results():
                         }
                     )
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"Error processing lab result {result.id}: {e}")
 
         return render_template(
             "laboratory/abnormal_results.html", flagged_results=flagged_results
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.abnormal_results: {e}")
         return redirect(url_for("laboratory.index"))

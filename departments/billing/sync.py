@@ -160,8 +160,8 @@ def sync_payment(
     patient_id: str,
     amount: float,
     payment_method: str,
-    reference_number: str = None,
-    receipt_number: str = None,
+    reference_number: str | None = None,
+    receipt_number: str | None = None,
     _session=None,
 ) -> Payment:
     """
@@ -248,7 +248,7 @@ def sync_invoice_status(invoice: Invoice) -> InvoiceStatus:
     amount_paid = float(getattr(invoice, "amount_paid", None) or getattr(invoice, "paid_amount", 0) or 0)
     invoice.balance = grand_total - amount_paid
 
-    if amount_paid >= grand_total and grand_total > 0:
+    if amount_paid >= grand_total > 0:
         invoice.status = InvoiceStatus.PAID
     elif amount_paid > 0:
         invoice.status = InvoiceStatus.PARTIAL

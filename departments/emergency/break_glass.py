@@ -33,9 +33,9 @@ DEFAULT_BREAK_GLASS_DURATION_HOURS = 4
 
 def invoke_break_glass(
     reason: str,
-    patient_id: str = None,
-    resource_type: str = None,
-    resource_id: str = None,
+    patient_id: str | None = None,
+    resource_type: str | None = None,
+    resource_id: str | None = None,
     duration_hours: int = DEFAULT_BREAK_GLASS_DURATION_HOURS,
     user=None,
 ) -> BreakGlassAccessLog:
@@ -117,7 +117,7 @@ def invoke_break_glass(
 
 
 def check_break_glass(
-    user_id: int, patient_id: str = None
+    user_id: int, patient_id: str | None = None
 ) -> BreakGlassAccessLog | None:
     """
     Return the most-recent valid (active & not expired) break-glass grant for
@@ -254,7 +254,7 @@ def _notify_supervisors(log_entry: BreakGlassAccessLog):
         log_entry.supervisor_notified_at = datetime.now(timezone.utc)
         db.session.commit()
 
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.error(
             "Failed to notify supervisors of break-glass event (grant_id=%s): %s",
             log_entry.id,

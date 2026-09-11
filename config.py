@@ -48,12 +48,12 @@ MODEL_NAME = os.getenv('MODEL_NAME', 'microsoft/BiomedNLP-PubMedBERT-base-uncase
 DEVICE = os.getenv('DEVICE', 'cpu')
 
 # Processing Parameters
-MAX_LENGTH = int(os.getenv('MAX_LENGTH', 512))
-BATCH_SIZE = int(os.getenv('BATCH_SIZE', 8))
-EMBEDDING_DIM = int(os.getenv('EMBEDDING_DIM', 768))
-SIMILARITY_THRESHOLD = float(os.getenv('SIMILARITY_THRESHOLD', 0.9))
-CONFIDENCE_THRESHOLD = float(os.getenv('CONFIDENCE_THRESHOLD', 0.85))
-MIN_CONFIDENCE_THRESHOLD = float(os.getenv('MIN_CONFIDENCE_THRESHOLD', 0.6))
+MAX_LENGTH = int(os.getenv('MAX_LENGTH', 512))  # noqa: PLW1508
+BATCH_SIZE = int(os.getenv('BATCH_SIZE', 8))  # noqa: PLW1508
+EMBEDDING_DIM = int(os.getenv('EMBEDDING_DIM', 768))  # noqa: PLW1508
+SIMILARITY_THRESHOLD = float(os.getenv('SIMILARITY_THRESHOLD', 0.9))  # noqa: PLW1508
+CONFIDENCE_THRESHOLD = float(os.getenv('CONFIDENCE_THRESHOLD', 0.85))  # noqa: PLW1508
+MIN_CONFIDENCE_THRESHOLD = float(os.getenv('MIN_CONFIDENCE_THRESHOLD', 0.6))  # noqa: PLW1508
 
 class Config:
     # Billing sync configuration

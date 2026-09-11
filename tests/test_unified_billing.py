@@ -50,10 +50,10 @@ def _make_invoice(patient_id, discount=0):
         patient_id=patient_id,
         status=InvoiceStatus.DRAFT,
         discount=Decimal(str(discount)),
-        subtotal=Decimal("0"),
-        grand_total=Decimal("0"),
-        amount_paid=Decimal("0"),
-        balance=Decimal("0"),
+        subtotal=Decimal(0),
+        grand_total=Decimal(0),
+        amount_paid=Decimal(0),
+        balance=Decimal(0),
     )
     db.session.add(inv)
     db.session.commit()
@@ -130,7 +130,7 @@ class TestInvoiceLineItem:
             inv = _make_invoice("LI001")
             li = _add_line(inv, "Consultation", "consult", 500)
             assert li.id is not None
-            assert li.total == Decimal("500")
+            assert li.total == Decimal(500)
 
     def test_add_multiple_line_items(self, app):
         with app.app_context():
@@ -146,7 +146,7 @@ class TestInvoiceLineItem:
             _make_patient("LI003")
             inv = _make_invoice("LI003")
             li = _add_line(inv, "Theatre Charge", "theatre", 10000, discount=500)
-            assert li.total == Decimal("9500")
+            assert li.total == Decimal(9500)
 
     def test_calculate_total_method(self, app):
         with app.app_context():
@@ -156,13 +156,13 @@ class TestInvoiceLineItem:
                 invoice_id=inv.id,
                 description="Ward Charge",
                 category="ward",
-                unit_price=Decimal("2000"),
-                quantity=Decimal("3"),
-                discount=Decimal("100"),
-                total=Decimal("0"),
+                unit_price=Decimal(2000),
+                quantity=Decimal(3),
+                discount=Decimal(100),
+                total=Decimal(0),
             )
             li.calculate_total()
-            assert li.total == Decimal("5900")
+            assert li.total == Decimal(5900)
 
 
 # ─────────────────────────────────────────────
@@ -178,7 +178,7 @@ class TestPayment:
             pmt = Payment(
                 invoice_id=inv.id,
                 patient_id="PAY001",
-                amount=Decimal("500"),
+                amount=Decimal(500),
                 method=PaymentMethod.CASH,
                 receipt_number="REC-001",
             )
@@ -195,7 +195,7 @@ class TestPayment:
             pmt = Payment(
                 invoice_id=inv.id,
                 patient_id="PAY002",
-                amount=Decimal("1500"),
+                amount=Decimal(1500),
                 method=PaymentMethod.MPESA,
                 reference="QJN8A1234X",
                 receipt_number="REC-MPE-001",
@@ -224,7 +224,7 @@ class TestPayment:
             db.session.commit()
             payments = Payment.query.filter_by(invoice_id=inv.id).all()
             assert len(payments) == 3
-            assert sum(p.amount for p in payments) == Decimal("1000")
+            assert sum(p.amount for p in payments) == Decimal(1000)
 
 
 # ─────────────────────────────────────────────
@@ -241,10 +241,10 @@ class TestInvoiceRecalculate:
             _add_line(inv, "Lab FBC", "lab", 300)
             inv.recalculate()
             db.session.commit()
-            assert inv.subtotal == Decimal("800")
-            assert inv.grand_total == Decimal("800")
-            assert inv.amount_paid == Decimal("0")
-            assert inv.balance == Decimal("800")
+            assert inv.subtotal == Decimal(800)
+            assert inv.grand_total == Decimal(800)
+            assert inv.amount_paid == Decimal(0)
+            assert inv.balance == Decimal(800)
 
     def test_recalculate_status_paid(self, app):
         with app.app_context():
@@ -255,7 +255,7 @@ class TestInvoiceRecalculate:
                 Payment(
                     invoice_id=inv.id,
                     patient_id="CALC02",
-                    amount=Decimal("500"),
+                    amount=Decimal(500),
                     method=PaymentMethod.CASH,
                     receipt_number="REC-CALC-001",
                 )
@@ -274,7 +274,7 @@ class TestInvoiceRecalculate:
                 Payment(
                     invoice_id=inv.id,
                     patient_id="CALC03",
-                    amount=Decimal("1000"),
+                    amount=Decimal(1000),
                     method=PaymentMethod.MPESA,
                     receipt_number="REC-CALC-002",
                 )
@@ -282,7 +282,7 @@ class TestInvoiceRecalculate:
             db.session.commit()
             inv.recalculate()
             assert inv.status == InvoiceStatus.PARTIAL
-            assert inv.balance == Decimal("1000")
+            assert inv.balance == Decimal(1000)
 
     def test_recalculate_with_invoice_discount(self, app):
         with app.app_context():
@@ -290,8 +290,8 @@ class TestInvoiceRecalculate:
             inv = _make_invoice("CALC04", discount=100)
             _add_line(inv, "Theatre", "theatre", 1000)
             inv.recalculate()
-            assert inv.grand_total == Decimal("900")
-            assert inv.balance == Decimal("900")
+            assert inv.grand_total == Decimal(900)
+            assert inv.balance == Decimal(900)
 
 
 # ─────────────────────────────────────────────
@@ -308,11 +308,11 @@ class TestLegacySourceTracking:
                 invoice_number=Invoice.generate_invoice_number(),
                 patient_id="LEG001",
                 status=InvoiceStatus.PAID,
-                subtotal=Decimal("500"),
-                discount=Decimal("0"),
-                grand_total=Decimal("500"),
-                amount_paid=Decimal("500"),
-                balance=Decimal("0"),
+                subtotal=Decimal(500),
+                discount=Decimal(0),
+                grand_total=Decimal(500),
+                amount_paid=Decimal(500),
+                balance=Decimal(0),
                 legacy_source="drugs_bill",
                 legacy_id=42,
             )
@@ -322,4 +322,4 @@ class TestLegacySourceTracking:
                 legacy_source="drugs_bill", legacy_id=42
             ).first()
             assert saved is not None
-            assert saved.grand_total == Decimal("500")
+            assert saved.grand_total == Decimal(500)

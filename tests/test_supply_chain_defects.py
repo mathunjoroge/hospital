@@ -6,7 +6,7 @@ Phase A defect fixes:
 2. Verify explicit expiry_date and batch_number validation.
 """
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 from werkzeug.security import generate_password_hash
@@ -168,7 +168,7 @@ def test_issue_request_requires_expiry_date(
         drug = db.session.merge(drug)
 
         req_obj = DrugRequest(
-            request_date=date.today(), status="Pending", requested_by=stores_user.id
+            request_date=datetime.now(timezone.utc).date(), status="Pending", requested_by=stores_user.id
         )
         db.session.add(req_obj)
         db.session.flush()

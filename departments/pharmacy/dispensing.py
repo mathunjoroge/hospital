@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -46,7 +46,7 @@ def prescriptions():
             "pharmacy/prescriptions.html", prescriptions=active_prescriptions
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in pharmacy.prescriptions: {e}")
         return redirect(url_for("pharmacy.index"))
@@ -101,7 +101,7 @@ def view_prescriptions(patient_id):
             prescription_list=prescription_list,
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         # Debug: Log the exception details
         print(f"Debug: Error fetching prescriptions: {e}")
         flash("Something went wrong. Please try again.", "error")
@@ -159,7 +159,7 @@ def dispense_prescription(prescription_id):
             dispensed_drugs=dispensed_drugs,
         )
 
-    except Exception:
+    except Exception:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
 
         return redirect(url_for("pharmacy.index"))
@@ -187,7 +187,7 @@ def delete_dispensed_drug(dispensed_drug_id):
 
         flash("Dispensed drug deleted successfully!", "success")
 
-    except Exception:
+    except Exception:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
 
@@ -466,9 +466,9 @@ def save_dispensed_drugs():
         print("DEBUG: Redirecting to pharmacy.index with success message")
         return redirect(url_for("pharmacy.index"))
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
-        print(f"DEBUG: Exception occurred: {str(e)}")
+        print(f"DEBUG: Exception occurred: {e!s}")
         flash("Something went wrong. Please try again.", "error")
         print("DEBUG: Redirecting to pharmacy.index with error message")
         return redirect(url_for("pharmacy.index"))
@@ -582,7 +582,7 @@ def save_prescription(prescription_id):
                 patient_id=patient_id,
                 prescription_id=prescription_id,
                 quantity_dispensed=quantity_dispensed,
-                date_dispensed=datetime.today().date(),
+                date_dispensed=datetime.now(timezone.utc).date(),
             )
             db.session.add(new_dispensed_drug)
 
@@ -596,7 +596,7 @@ def save_prescription(prescription_id):
         flash("Drugs dispensed successfully!", "success")
         return redirect(url_for("pharmacy.view_prescriptions", patient_id=patient_id))
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in pharmacy.save_prescription: {e}")
         db.session.rollback()  # Rollback changes in case of error

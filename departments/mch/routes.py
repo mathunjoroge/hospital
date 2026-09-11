@@ -92,8 +92,7 @@ def record_immunization():
         {
             "status": "success",
             "record_id": record.id,
-            "message": "%s Dose %s recorded successfully."
-            % (vaccine_name, dose_number),
+            "message": f"{vaccine_name} Dose {dose_number} recorded successfully.",
         }
     ), 201
 

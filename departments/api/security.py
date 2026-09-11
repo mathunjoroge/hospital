@@ -6,12 +6,11 @@ Enforces statutory password complexity rules for user accounts.
 """
 
 import re
-from typing import Tuple
 
 MIN_PASSWORD_LENGTH = 8
 
 
-def validate_password_strength(password: str) -> Tuple[bool, str]:
+def validate_password_strength(password: str) -> tuple[bool, str]:
     """
     Validate password against enterprise complexity policy:
     1. Minimum 8 characters in length

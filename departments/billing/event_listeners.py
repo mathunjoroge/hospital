@@ -154,7 +154,7 @@ def capture_pending_charges(session, flush_context):
                         'receipt_number': getattr(instance, 'receipt_number', None),
                     })
 
-            elif isinstance(instance, Billing):
+            elif isinstance(instance, Billing):  # noqa: SIM102
                 if hasattr(instance, "id") and instance.id is not None:
                     pending.append({
                         'type': 'Billing',
@@ -164,8 +164,8 @@ def capture_pending_charges(session, flush_context):
                         'receipt_number': getattr(instance, 'receipt_number', None),
                     })
 
-        except Exception as e:
-            logger.error(f"Error capturing charge data: {e}", exc_info=True)
+        except Exception:
+            logger.exception("Error capturing charge data: ")
             continue
 
     if pending:
@@ -319,8 +319,8 @@ def sync_billing_events(session, flush_context):
                             )
                         logger.info(f"Synced payment for {charge_type} #{charge_data.get('source_id', 'N/A')}")
 
-            except Exception as e:
-                logger.error(f"Error syncing billing for {charge_data.get('type', 'unknown')}: {e}", exc_info=True)
+            except Exception:
+                logger.exception("Error syncing billing for {charge_data.get('type', 'unknown')}: ")
                 sync_session.rollback()
                 continue
 
@@ -338,8 +338,8 @@ def sync_billing_events(session, flush_context):
             "Billing sync completed (test mode, savepoint released)"
         )
 
-    except Exception as e:
-        logger.error(f"Billing sync session error: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Billing sync session error: ")
         sync_session.rollback()
 
     finally:

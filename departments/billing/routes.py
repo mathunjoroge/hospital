@@ -62,7 +62,7 @@ def index():
         if bill.patient_id not in patient_bills:
             patient_bills[bill.patient_id] = {
                 "patient": bill.patient,
-                "total_cost": Decimal("0"),  # Use Decimal for precise arithmetic
+                "total_cost": Decimal(0),  # Use Decimal for precise arithmetic
             }
 
         # Add bill's total cost to the patient's total
@@ -372,36 +372,36 @@ def view_unpaid_bills(patient_id):
             for d in dispensed_drugs
         )
         if dispensed_drugs
-        else Decimal("0"),
+        else Decimal(0),
         "Lab Tests": sum(Decimal(str(r.lab_test.cost or 0)) for r in requested_labs)
         if requested_labs
-        else Decimal("0"),
+        else Decimal(0),
         "Clinic Bookings": sum(Decimal(str(b.clinic.fee or 0)) for b in clinic_bookings)
         if clinic_bookings
-        else Decimal("0"),
+        else Decimal(0),
         "Theatre Procedures": sum(
             Decimal(str(t.procedure.cost or 0)) for t in theatre_list
         )
         if theatre_list
-        else Decimal("0"),
+        else Decimal(0),
         "Imaging": sum(Decimal(str(i.imaging.cost or 0)) for i in requested_images)
         if requested_images
-        else Decimal("0"),
+        else Decimal(0),
         "Ward Admissions": sum(
             Decimal(str(a["total_cost"])) for a in admitted_patients_data
         )
         if admitted_patients_data
-        else Decimal("0"),
+        else Decimal(0),
         "Existing Billings": sum(
             Decimal(str(b.total_cost or 0)) for b in unpaid_billings
         )
         if unpaid_billings
-        else Decimal("0"),
+        else Decimal(0),
         "Existing Drug Bills": sum(
             Decimal(str(b.total_cost or 0)) for b in unpaid_drug_bills
         )
         if unpaid_drug_bills
-        else Decimal("0"),
+        else Decimal(0),
     }
     grand_total = sum(totals.values())
 
@@ -465,7 +465,7 @@ def pay_all(patient_id):
             )
             return redirect(url_for("billing.view_unpaid_bills", patient_id=patient_id))
 
-        balance = max(grand_total - amount_paid, Decimal("0"))
+        balance = max(grand_total - amount_paid, Decimal(0))
         receipt_number = PaidBill.generate_receipt_number()
 
         new_paid_bill = PaidBill(
@@ -492,7 +492,7 @@ def pay_all(patient_id):
         )
         return redirect(url_for("billing.view_unpaid_bills", patient_id=patient_id))
 
-    except Exception:
+    except Exception:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         return redirect(url_for("billing.view_unpaid_bills", patient_id=patient_id))
@@ -563,7 +563,7 @@ def pay_bills(patient_id):
 
         selected_items = {}
         if action == "pay_selected":
-            for category in all_items:
+            for category in all_items:  # noqa: PLC0206
                 selected_ids = request.form.getlist(category)
                 selected_items[category] = [
                     item for item in all_items[category] if str(item.id) in selected_ids
@@ -578,38 +578,38 @@ def pay_bills(patient_id):
                 for d in selected_items["dispensed_drugs"]
             )
             if selected_items["dispensed_drugs"]
-            else Decimal("0"),
+            else Decimal(0),
             "Lab Tests": sum(
                 Decimal(str(r.lab_test.cost or 0))
                 for r in selected_items["requested_labs"]
             )
             if selected_items["requested_labs"]
-            else Decimal("0"),
+            else Decimal(0),
             "Clinic Bookings": sum(
                 Decimal(str(b.clinic.fee or 0))
                 for b in selected_items["clinic_bookings"]
             )
             if selected_items["clinic_bookings"]
-            else Decimal("0"),
+            else Decimal(0),
             "Theatre Procedures": sum(
                 Decimal(str(t.procedure.cost or 0))
                 for t in selected_items["theatre_list"]
             )
             if selected_items["theatre_list"]
-            else Decimal("0"),
+            else Decimal(0),
             "Imaging": sum(
                 Decimal(str(i.imaging.cost or 0))
                 for i in selected_items["requested_images"]
             )
             if selected_items["requested_images"]
-            else Decimal("0"),
+            else Decimal(0),
             "Ward Admissions": sum(
                 Decimal(str(a.ward.daily_charge or 0))
                 * Decimal((datetime.now(timezone.utc) - a.admitted_on).days + 1)
                 for a in selected_items["admitted_patients"]
             )
             if selected_items["admitted_patients"]
-            else Decimal("0"),
+            else Decimal(0),
         }
         grand_total = sum(totals.values())
 
@@ -620,7 +620,7 @@ def pay_bills(patient_id):
             flash("Amount paid cannot be negative!", "error")
             return redirect(url_for("billing.pay_bills", patient_id=patient_id))
 
-        balance = max(grand_total - amount_paid, Decimal("0"))
+        balance = max(grand_total - amount_paid, Decimal(0))
 
         paid_items = {}
         for category, items in selected_items.items():
@@ -779,7 +779,7 @@ def pay_bills(patient_id):
 
         except Exception as e:
             db.session.rollback()
-            logger.error(
+            logger.error(  # noqa: G201
                 f"Error processing payment for patient {patient_id}: {e}", exc_info=True
             )
             flash(
@@ -831,36 +831,36 @@ def pay_bills(patient_id):
             for d in dispensed_drugs
         )
         if dispensed_drugs
-        else Decimal("0"),
+        else Decimal(0),
         "Lab Tests": sum(Decimal(str(r.lab_test.cost or 0)) for r in requested_labs)
         if requested_labs
-        else Decimal("0"),
+        else Decimal(0),
         "Clinic Bookings": sum(Decimal(str(b.clinic.fee or 0)) for b in clinic_bookings)
         if clinic_bookings
-        else Decimal("0"),
+        else Decimal(0),
         "Theatre Procedures": sum(
             Decimal(str(t.procedure.cost or 0)) for t in theatre_list
         )
         if theatre_list
-        else Decimal("0"),
+        else Decimal(0),
         "Imaging": sum(Decimal(str(i.imaging.cost or 0)) for i in requested_images)
         if requested_images
-        else Decimal("0"),
+        else Decimal(0),
         "Ward Admissions": sum(
             Decimal(str(a["total_cost"])) for a in admitted_patients_data
         )
         if admitted_patients_data
-        else Decimal("0"),
+        else Decimal(0),
         "Existing Billings": sum(
             Decimal(str(b.total_cost or 0)) for b in unpaid_billings
         )
         if unpaid_billings
-        else Decimal("0"),
+        else Decimal(0),
         "Existing Drug Bills": sum(
             Decimal(str(b.total_cost or 0)) for b in unpaid_drug_bills
         )
         if unpaid_drug_bills
-        else Decimal("0"),
+        else Decimal(0),
     }
     grand_total = sum(totals.values())
 
@@ -914,7 +914,7 @@ def add_charge():
             cost = Decimal(cost)
             if cost < 0:
                 raise ValueError()
-        except Exception:
+        except Exception:  # noqa: BLE001
             flash("Cost must be a positive number.", "error")
             return redirect(url_for("billing.add_charge"))
 
@@ -955,7 +955,7 @@ def edit_charge(charge_id):
         cost_str = request.form.get("cost", "").strip()
         try:
             charge.cost = Decimal(cost_str)
-        except Exception:
+        except Exception:  # noqa: BLE001
             flash("Invalid cost value.", "error")
             return redirect(url_for("billing.edit_charge", charge_id=charge_id))
         charge.description = request.form.get("description", charge.description).strip()
@@ -1028,22 +1028,22 @@ def receipts_list():
 @login_required
 @roles_required("billing", "admin")
 def daily_revenue_report():
-    from datetime import date, timedelta
+    from datetime import timedelta
 
     start_str = request.args.get("start")
     end_str = request.args.get("end")
     try:
         start_date = (
-            datetime.strptime(start_str, "%Y-%m-%d").date()
+            datetime.strptime(start_str, "%Y-%m-%d").date()  # noqa: DTZ007
             if start_str
-            else date.today() - timedelta(days=29)
+            else datetime.now(timezone.utc).date() - timedelta(days=29)
         )
         end_date = (
-            datetime.strptime(end_str, "%Y-%m-%d").date() if end_str else date.today()
+            datetime.strptime(end_str, "%Y-%m-%d").date() if end_str else datetime.now(timezone.utc).date()  # noqa: DTZ007
         )
     except ValueError:
-        start_date = date.today() - timedelta(days=29)
-        end_date = date.today()
+        start_date = datetime.now(timezone.utc).date() - timedelta(days=29)
+        end_date = datetime.now(timezone.utc).date()
 
     paid_records = (
         PaidBill.query.filter(
@@ -1056,10 +1056,10 @@ def daily_revenue_report():
     )
 
     total_revenue = (
-        sum(r.amount_paid for r in paid_records) if paid_records else Decimal("0")
+        sum(r.amount_paid for r in paid_records) if paid_records else Decimal(0)
     )
     total_balance = (
-        sum(r.balance for r in paid_records) if paid_records else Decimal("0")
+        sum(r.balance for r in paid_records) if paid_records else Decimal(0)
     )
 
     # Group revenue by payment method
@@ -1067,7 +1067,7 @@ def daily_revenue_report():
     for r in paid_records:
         method = r.payment_method or "Cash"
         by_method[method] = float(
-            by_method.get(method, Decimal("0")) + Decimal(str(r.amount_paid or 0))
+            by_method.get(method, Decimal(0)) + Decimal(str(r.amount_paid or 0))
         )
 
     return render_template(
@@ -1102,7 +1102,7 @@ def outstanding_report():
         if pid not in patient_debt:
             patient_debt[pid] = {
                 "patient": b.patient,
-                "total": Decimal("0"),
+                "total": Decimal(0),
                 "items_count": 0,
             }
         patient_debt[pid]["total"] += Decimal(str(b.total_cost or 0))

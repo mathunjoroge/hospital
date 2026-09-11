@@ -7,9 +7,8 @@ from app import app
 def client():
     app.config["TESTING"] = True
     app.config["WTF_CSRF_ENABLED"] = True  # Enforce CSRF checking
-    with app.test_client() as client:
-        with app.app_context():
-            yield client
+    with app.test_client() as client, app.app_context():
+        yield client
 
 
 def test_post_without_csrf_token_rejected(client):

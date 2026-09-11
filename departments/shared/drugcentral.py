@@ -25,7 +25,7 @@ import logging
 import os
 import threading
 import time
-from typing import Any, Dict
+from typing import Any
 
 import psycopg2
 
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Connection parameters
 # ---------------------------------------------------------------------------
-DRUGCENTRAL_DB_PARAMS: Dict[str, Any] = {
+DRUGCENTRAL_DB_PARAMS: dict[str, Any] = {
     "dbname": os.environ.get("DRUGCENTRAL_DB", "drugcentral"),
     "user": os.environ.get("DRUGCENTRAL_USER", "drugman"),
     "password": os.environ.get("DRUGCENTRAL_PASSWORD", "dosage"),
@@ -65,7 +65,7 @@ def _cb_is_open() -> bool:
     with _cb_lock:
         if _cb_open_since == 0.0:
             return False
-        if time.monotonic() - _cb_open_since >= _CB_COOLDOWN:
+        if time.monotonic() - _cb_open_since >= _CB_COOLDOWN:  # noqa: SIM103
             return False  # cooldown elapsed; let probe through
         return True
 

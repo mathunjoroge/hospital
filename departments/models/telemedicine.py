@@ -82,7 +82,7 @@ class TelemedicineSession(db.Model):
         if not self.actual_start:
             self.actual_start = datetime.now(timezone.utc)
 
-    def end_session(self, notes: str = None):
+    def end_session(self, notes: str | None = None):
         """Complete the virtual consultation."""
         self.status = "COMPLETED"
         self.ended_at = datetime.now(timezone.utc)

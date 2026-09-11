@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 @shared_task
 def process_clinical_chatbot_task(
-    combined_input: str, conversation_context: list = None, patient_id: str = None
+    combined_input: str, conversation_context: list | None = None, patient_id: str | None = None
 ):
     """
     Celery task to run UniversalClinicalSummarizer asynchronously for the clinical chatbot.
@@ -83,7 +83,7 @@ def process_clinical_chatbot_task(
             "input_note": combined_input,
         }
     except Exception as e:
-        logger.error(f"[Celery Task] Error generating response: {e}", exc_info=True)
+        logger.exception("[Celery Task] Error generating response: ")
         log_ai_call(
             feature="clinical_chatbot",
             mode=AIMode.OFFLINE_FALLBACK,
@@ -91,7 +91,7 @@ def process_clinical_chatbot_task(
             output_summary="",
             error=str(e),
         )
-        raise e
+        raise
 
 
 # --- T3.5: Ward Daily Charges ---
@@ -100,6 +100,6 @@ def scheduled_midnight_ward_charges():
     """Triggered by cron/celery at midnight."""
     try:
         post_daily_ward_charges()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"❌ Error posting ward charges: {e}")
 # --------------------------------

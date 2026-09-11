@@ -113,7 +113,7 @@ def test_segregation_of_duties_approval_restriction(
     client, app, user_creator, test_setup
 ):
     """Creator attempting to approve their own PO must receive 403 Forbidden."""
-    drug_id, supplier_id = test_setup
+    _drug_id, supplier_id = test_setup
 
     client.post(
         "/login", data={"username": "sc_creator_user", "password": "Password123!"}

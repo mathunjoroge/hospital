@@ -89,9 +89,8 @@ def _get_icd10_database():
         codes = ICD10Code.query.limit(100).all()
         if codes:
             return [{"code": c.code, "description": c.description, "category": c.chapter or "General"} for c in codes]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"Failed to fetch ICD-10 codes from database: {e}")
-        pass
     # Minimal fallback for tests/empty DB (preserves existing test behavior)
     return [
         {"code": "J00", "description": "Acute nasopharyngitis [common cold]", "category": "Respiratory"},
@@ -108,9 +107,8 @@ def _get_snomed_database():
         codes = SnomedCode.query.limit(100).all()
         if codes:
             return [{"code": c.code, "description": c.description} for c in codes]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"Failed to fetch SNOMED codes from database: {e}")
-        pass
     # Minimal fallback for tests/empty DB
     return [
         {"code": "404684003", "description": "Clinical finding"},
@@ -126,9 +124,8 @@ def _get_loinc_database():
         codes = LoincCode.query.limit(100).all()
         if codes:
             return [{"code": c.code, "description": c.description} for c in codes]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"Failed to fetch LOINC codes from database: {e}")
-        pass
     # Minimal fallback for tests/empty DB
     return [
         {"code": "8302-2", "description": "Body temperature"},
@@ -145,9 +142,8 @@ def _get_icd10_database():
         codes = ICD10Code.query.limit(100).all()
         if codes:
             return [{"code": c.code, "description": c.description, "category": c.chapter or "General"} for c in codes]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"Failed to fetch ICD-10 codes from database: {e}")
-        pass
     # Minimal fallback for tests/empty DB (preserves existing test behavior)
     return [
         {"code": "J00", "description": "Acute nasopharyngitis [common cold]", "category": "Respiratory"},
@@ -164,9 +160,8 @@ def _get_snomed_database():
         codes = SnomedCode.query.limit(100).all()
         if codes:
             return [{"code": c.code, "description": c.description} for c in codes]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"Failed to fetch SNOMED codes from database: {e}")
-        pass
     # Minimal fallback for tests/empty DB
     return [
         {"code": "404684003", "description": "Clinical finding"},
@@ -182,9 +177,8 @@ def _get_loinc_database():
         codes = LoincCode.query.limit(100).all()
         if codes:
             return [{"code": c.code, "description": c.description} for c in codes]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"Failed to fetch LOINC codes from database: {e}")
-        pass
     # Minimal fallback for tests/empty DB
     return [
         {"code": "8302-2", "description": "Body temperature"},

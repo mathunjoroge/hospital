@@ -4,8 +4,7 @@ import os
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime, timezone
 from urllib.parse import urljoin
 
 import requests
@@ -60,7 +59,7 @@ class Config:
             os.makedirs(d, exist_ok=True)
 
         # File paths - EXACTLY WHAT TRAINER EXPECTS
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         self.LOG_FILE = os.path.join(self.LOG_DIR, f"kenyalaw_scraper_{timestamp}.log")
         self.CONSTITUTION_FILE = os.path.join(self.DATA_DIR, "constitution.json")
         self.ACTS_FILE = os.path.join(self.DATA_DIR, "acts_of_kenya.json")
@@ -122,11 +121,11 @@ class LawScraper:
         )
         return s
 
-    def extract_law_content(self, url: str) -> Tuple[Optional[str], Dict]:
+    def extract_law_content(self, url: str) -> tuple[str | None, dict]:
         """Extract content from any law URL with metadata"""
         metadata = {
             "url": url,
-            "scraped_at": datetime.now().isoformat(),
+            "scraped_at": datetime.now(timezone.utc).isoformat(),
             "title": "",
             "word_count": 0,
         }
@@ -179,12 +178,12 @@ class LawScraper:
 
                 return text, metadata
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.log.error(f"Failed to extract content from {url}: {e}")
 
         return None, metadata
 
-    def find_akn_links(self, base_url: str) -> List[Tuple[str, str]]:
+    def find_akn_links(self, base_url: str) -> list[tuple[str, str]]:
         """Find all AKN (Akoma Ntoso) law links on a page"""
         laws = []
         try:
@@ -201,7 +200,7 @@ class LawScraper:
                     full_url = urljoin(self.cfg.NEW_BASE_URL, href)
                     laws.append((title, full_url))
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.log.error(f"Failed to find AKN links on {base_url}: {e}")
 
         return laws
@@ -212,7 +211,7 @@ class LawScraper:
 # --------------------------------------------------------------------------- #
 
 
-def scrape_constitution(cfg: Config, log: logging.Logger) -> Dict:
+def scrape_constitution(cfg: Config, log: logging.Logger) -> dict:
     """Scrape the Constitution of Kenya - IN TRAINER-COMPATIBLE FORMAT"""
     log.info("Scraping Constitution of Kenya...")
 
@@ -233,7 +232,7 @@ def scrape_constitution(cfg: Config, log: logging.Logger) -> Dict:
 
     for source in sources:
         try:
-            content, metadata = scraper.extract_law_content(source)
+            content, _metadata = scraper.extract_law_content(source)
             if content and len(content.split()) > 1000:
                 # FORMAT FOR TRAINER: Simple title: content structure
                 constitution_data = {
@@ -242,7 +241,7 @@ def scrape_constitution(cfg: Config, log: logging.Logger) -> Dict:
                     "Bill of Rights": extract_bill_of_rights(content),
                 }
                 break
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.warning(f"Constitution source {source} failed: {e}")
             continue
 
@@ -306,7 +305,7 @@ def extract_bill_of_rights(content: str) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def scrape_acts_of_kenya(cfg: Config, log: logging.Logger) -> Dict[str, str]:
+def scrape_acts_of_kenya(cfg: Config, log: logging.Logger) -> dict[str, str]:
     """Scrape Acts of Kenya - IN TRAINER-COMPATIBLE FORMAT"""
     log.info("Scraping Acts of Kenya...")
 
@@ -332,7 +331,7 @@ def scrape_acts_of_kenya(cfg: Config, log: logging.Logger) -> Dict[str, str]:
 
             log.info(f"Processing act {i+1}/{len(acts)}: {title}")
 
-            content, metadata = scraper.extract_law_content(url)
+            content, _metadata = scraper.extract_law_content(url)
             if content and len(content.split()) > 100:
                 # FORMAT FOR TRAINER: Simple title: content structure
                 acts_data[title] = content
@@ -340,7 +339,7 @@ def scrape_acts_of_kenya(cfg: Config, log: logging.Logger) -> Dict[str, str]:
 
             time.sleep(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         log.error(f"Acts scraping failed: {e}")
 
     # Save acts data
@@ -356,7 +355,7 @@ def scrape_acts_of_kenya(cfg: Config, log: logging.Logger) -> Dict[str, str]:
 # --------------------------------------------------------------------------- #
 
 
-def scrape_county_legislation(cfg: Config, log: logging.Logger) -> Dict[str, Dict]:
+def scrape_county_legislation(cfg: Config, log: logging.Logger) -> dict[str, dict]:
     """Scrape county legislation - IN TRAINER-COMPATIBLE FORMAT"""
     log.info("Scraping County Legislation...")
 
@@ -397,7 +396,7 @@ def scrape_county_legislation(cfg: Config, log: logging.Logger) -> Dict[str, Dic
                 laws = scraper.find_akn_links(county_url)
 
                 for law_title, law_url in laws[:3]:  # Limit laws per county
-                    content, metadata = scraper.extract_law_content(law_url)
+                    content, _metadata = scraper.extract_law_content(law_url)
                     if content and len(content.split()) > 50:
                         # FORMAT FOR TRAINER: Nested county structure with laws
                         county_laws[law_title] = {
@@ -415,11 +414,11 @@ def scrape_county_legislation(cfg: Config, log: logging.Logger) -> Dict[str, Dic
 
                 time.sleep(2)
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 log.error(f"Failed to process county {county_name}: {e}")
                 continue
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         log.error(f"County legislation scraping failed: {e}")
 
     # Save counties data
@@ -437,7 +436,7 @@ def scrape_county_legislation(cfg: Config, log: logging.Logger) -> Dict[str, Dic
 # --------------------------------------------------------------------------- #
 
 
-def scrape_case_law(cfg: Config, log: logging.Logger) -> List[Dict]:
+def scrape_case_law(cfg: Config, log: logging.Logger) -> list[dict]:
     """Scrape case law - IN TRAINER-COMPATIBLE FORMAT"""
     log.info("Scraping Case Law...")
 
@@ -457,7 +456,7 @@ def scrape_case_law(cfg: Config, log: logging.Logger) -> List[Dict]:
             try:
                 log.info(f"Processing judgment {i+1}/{len(judgment_laws)}: {title}")
 
-                content, metadata = scraper.extract_law_content(url)
+                content, _metadata = scraper.extract_law_content(url)
                 if content and len(content.split()) > 200:
                     # FORMAT FOR TRAINER: Exact structure expected
                     case_info = {
@@ -470,7 +469,7 @@ def scrape_case_law(cfg: Config, log: logging.Logger) -> List[Dict]:
                             "date": extract_date_from_title(title),
                             "case_number": extract_case_number(title),
                         },
-                        "scraped_at": datetime.now().isoformat(),
+                        "scraped_at": datetime.now(timezone.utc).isoformat(),
                     }
 
                     case_data.append(case_info)
@@ -478,18 +477,17 @@ def scrape_case_law(cfg: Config, log: logging.Logger) -> List[Dict]:
 
                 time.sleep(1)
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 log.error(f"Failed to process judgment {url}: {e}")
                 continue
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         log.error(f"Case law scraping failed: {e}")
 
     # Save to JSONL file - EXACTLY WHAT TRAINER EXPECTS
     if case_data:
         with open(cfg.TRAINING_DATA_FILE, "w", encoding="utf-8") as f:
-            for case in case_data:
-                f.write(json.dumps(case, ensure_ascii=False) + "\n")
+            f.writelines(json.dumps(case, ensure_ascii=False) + "\n" for case in case_data)
         log.info(f"Case law saved to {cfg.TRAINING_DATA_FILE}: {len(case_data)} cases")
 
     return case_data
@@ -605,13 +603,13 @@ class KenyaLawScraper:
             )
 
         except Exception as e:
-            self.log.error(f"Scraping failed: {e}", exc_info=True)
+            self.log.exception(f"Scraping failed: {e}")  # noqa: TRY401
             success = False
 
         return success
 
     def _print_scraping_summary(
-        self, constitution: Dict, acts: Dict, counties: Dict, cases: List
+        self, constitution: dict, acts: dict, counties: dict, cases: list
     ):
         """Print a summary of scraping results"""
         self.log.info("\n" + "=" * 60)

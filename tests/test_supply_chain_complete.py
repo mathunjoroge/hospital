@@ -10,7 +10,7 @@ Tests for:
 6. Automated Batch Expiry Notification Scanner
 """
 
-from datetime import date, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from werkzeug.security import generate_password_hash
@@ -323,7 +323,7 @@ def test_batch_expiry_notification_trigger(app, setup_complete_sc_data):
     """Test automated batch expiry scanner queries expiring stock and dispatches alerts."""
     _, drug_id, _, _ = setup_complete_sc_data
     with app.app_context():
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
 
         # Batch 1: Expiring in 10 days
         b1 = Batch(

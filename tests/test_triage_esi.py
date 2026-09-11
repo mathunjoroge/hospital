@@ -67,7 +67,7 @@ class TestESICalculation:
 
     def test_esi_2_emergent_chest_pain(self):
         vitals = {"pulse": 110, "respiratory_rate": 22, "oxygen_saturation": 95}
-        esi, desc = calculate_esi_level(
+        esi, _desc = calculate_esi_level(
             vitals,
             chief_complaint="Severe chest pain",
             resources_needed=2,
@@ -77,21 +77,21 @@ class TestESICalculation:
 
     def test_esi_3_urgent_multi_resource(self):
         vitals = {"pulse": 72, "respiratory_rate": 16, "oxygen_saturation": 98}
-        esi, desc = calculate_esi_level(
+        esi, _desc = calculate_esi_level(
             vitals, chief_complaint="Abdominal pain", resources_needed=2, age_years=30
         )
         assert esi == 3
 
     def test_esi_4_less_urgent_single_resource(self):
         vitals = {"pulse": 70, "respiratory_rate": 14, "oxygen_saturation": 99}
-        esi, desc = calculate_esi_level(
+        esi, _desc = calculate_esi_level(
             vitals, chief_complaint="Ankle sprain", resources_needed=1, age_years=25
         )
         assert esi == 4
 
     def test_esi_5_non_urgent_no_resource(self):
         vitals = {"pulse": 68, "respiratory_rate": 15, "oxygen_saturation": 98}
-        esi, desc = calculate_esi_level(
+        esi, _desc = calculate_esi_level(
             vitals,
             chief_complaint="Medication refill",
             resources_needed=0,

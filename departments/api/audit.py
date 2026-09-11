@@ -8,7 +8,6 @@ Supports helper function `log_audit_event` and route decorator `@audited`.
 import json
 import logging
 from functools import wraps
-from typing import Optional, Union
 
 from flask import request
 from flask_login import current_user
@@ -23,7 +22,7 @@ from departments.models.compliance import AuditLog
 logger = logging.getLogger("HIMS.AuditTrail")
 
 
-def get_client_ip() -> Optional[str]:
+def get_client_ip() -> str | None:
     """Extract client IP address, handling proxy headers."""
     if not request:
         return None
@@ -35,12 +34,12 @@ def get_client_ip() -> Optional[str]:
 
 def log_audit_event(
     action: str,
-    resource_type: Optional[str] = None,
-    resource_id: Optional[str] = None,
-    details: Optional[Union[dict, str]] = None,
-    user_id: Optional[int] = None,
-    username: Optional[str] = None,
-) -> Optional[AuditLog]:
+    resource_type: str | None = None,
+    resource_id: str | None = None,
+    details: dict | str | None = None,
+    user_id: int | None = None,
+    username: str | None = None,
+) -> AuditLog | None:
     """
     Record an append-only audit log entry in the database.
 
@@ -96,13 +95,13 @@ def log_audit_event(
             f"AUDIT | action={action} | resource={resource_type}:{resource_id} | user={username} ({user_id}) | ip={ip_addr}"
         )
         return entry
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        logger.error(f"Failed to record audit log: {e}", exc_info=True)
+        logger.exception("Failed to record audit log: ")
         return None
 
 
-def audited(action: str, resource_type: Optional[str] = None):
+def audited(action: str, resource_type: str | None = None):
     """
     Route decorator to automatically audit invocations of Flask routes.
 

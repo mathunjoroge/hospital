@@ -134,7 +134,7 @@ def prescribe_drugs(patient_id):
             try:
                 db.session.commit()
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 db.session.rollback()
                 logger.error(f"Database commit failed: {e}")
                 flash("Something went wrong. Please try again.", "error")
@@ -285,7 +285,7 @@ def delete_prescribed_medicine(medicine_id):
         db.session.commit()
         flash("Prescribed medicine deleted successfully!", "success")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
         logger.error(f"Error deleting prescribed medicine: {e}")
         flash("Something went wrong. Please try again.", "error")
@@ -323,7 +323,7 @@ def save_prescription(prescription_id, patient_id):
         else:
             return redirect(url_for("medicine.index"))
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error finalizing prescription: {e}")
         flash("Something went wrong. Please try again.", "error")
         return redirect(
@@ -343,7 +343,7 @@ def get_edit_form():
             "medicine/edit_prescribed_medicine.html",
             prescribed_medicine=prescribed_medicine,
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Debug: Error in medicine.get_edit_form: {e}")
         return "Error loading edit form."
 
@@ -502,8 +502,8 @@ def drug_details(drug: str):
                 grouped_data=grouped_data,
                 struct_id=struct_id,
             )
-    except Exception as e:
-        print(f"Database error: {str(e)}")
+    except Exception as e:  # noqa: BLE001
+        print(f"Database error: {e!s}")
         return render_template(
             "medicine/error.html",
             message="An error occurred while fetching drug details.",
@@ -576,7 +576,7 @@ def new_prescription():
 
         # Parse start_date
         try:
-            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()  # noqa: DTZ007
         except ValueError as e:
             print(f"Date parsing error: {e}")
             flash("Invalid date format. Use YYYY-MM-DD.", "danger")
@@ -646,7 +646,7 @@ def new_prescription():
             return redirect(
                 url_for("medicine.list_prescriptions", patient_id=booking.patient_id)
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             db.session.rollback()
             print(f"Error creating prescription: {e}")
             flash("An error occurred while creating the prescription.", "danger")

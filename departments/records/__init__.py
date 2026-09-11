@@ -7,4 +7,4 @@ from extensions import db  # noqa: F401
 bp = Blueprint("records", __name__, template_folder="templates")
 
 # Import routes to register them with the blueprint
-from . import routes  # noqa: F401, E402
+from . import routes  # noqa: F401

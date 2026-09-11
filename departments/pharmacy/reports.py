@@ -2,7 +2,7 @@ import csv
 import json
 import logging
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 
 from flask import (
@@ -40,7 +40,7 @@ def expiries_report():
     """Generates a report of expired batches removed within a date range."""
     try:
         # Default date range: last 30 days
-        default_end = datetime.today().date()
+        default_end = datetime.now(timezone.utc).date()
         default_start = default_end - timedelta(days=30)
 
         start_date = request.form.get("start_date", default_start.strftime("%Y-%m-%d"))
@@ -48,8 +48,8 @@ def expiries_report():
 
         # Convert string dates to datetime objects
         try:
-            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()  # noqa: DTZ007
+            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()  # noqa: DTZ007
         except ValueError:
             flash("Invalid date format. Use YYYY-MM-DD.", "error")
             start_date, end_date = default_start, default_end
@@ -81,7 +81,7 @@ def expiries_report():
             total_removed=total_removed,
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in pharmacy.expiries_report: {e}")
         return redirect(url_for("pharmacy.index"))
@@ -90,12 +90,12 @@ def expiries_report():
 @bp.route("/analytics", methods=["GET", "POST"])
 @login_required
 def analytics():
-    end_date = datetime.now()
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=30)
 
     if request.method == "POST":
-        start_date = datetime.strptime(request.form.get("start_date"), "%Y-%m-%d")
-        end_date = datetime.strptime(request.form.get("end_date"), "%Y-%m-%d")
+        start_date = datetime.strptime(request.form.get("start_date"), "%Y-%m-%d")  # noqa: DTZ007
+        end_date = datetime.strptime(request.form.get("end_date"), "%Y-%m-%d")  # noqa: DTZ007
 
     # Sales Trends (from drugs_bill, only paid bills)
     sales = DrugsBill.query.filter(
@@ -157,7 +157,7 @@ def analytics():
     # Expiry Risks (with additional fields)
     expiry_risks = (
         Batch.query.filter(
-            Batch.expiry_date <= (datetime.now() + timedelta(days=90)),
+            Batch.expiry_date <= (datetime.now(timezone.utc) + timedelta(days=90)),
             Batch.quantity_in_stock > 0,
         )
         .join(Drug, Batch.drug_id == Drug.id)
@@ -202,13 +202,13 @@ def analytics():
 def export_analytics():
     sales_data = session.get("sales_data", {})
     start_date = session.get(
-        "start_date", (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+        "start_date", (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
     )
-    end_date = session.get("end_date", datetime.now().strftime("%Y-%m-%d"))
+    end_date = session.get("end_date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
     if not sales_data:
-        start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")  # noqa: DTZ007
+        end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")  # noqa: DTZ007
         sales = DrugsBill.query.filter(
             DrugsBill.billed_at.between(start_date_dt, end_date_dt),
             DrugsBill.status == 1,

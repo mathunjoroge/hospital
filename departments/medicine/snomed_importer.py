@@ -3,7 +3,6 @@ SNOMED CT importer for loading SNOMED CT CORE subset data.
 """
 import csv
 import os
-from typing import Dict, List
 
 from flask import current_app
 
@@ -11,7 +10,7 @@ from departments.models.terminology import SnomedCode
 from extensions import db
 
 
-def load_snomed_from_csv(filepath: str) -> List[Dict]:
+def load_snomed_from_csv(filepath: str) -> list[dict]:
     """
     Load SNOMED CT codes from a CSV file.
     Expected columns: CODE, DESCRIPTION
@@ -27,7 +26,7 @@ def load_snomed_from_csv(filepath: str) -> List[Dict]:
     return codes
 
 
-def import_snomed_codes(filepath: str = None) -> int:
+def import_snomed_codes(filepath: str | None = None) -> int:
     """
     Import SNOMED CT codes into the database.
     If filepath is not provided, uses the environment variable SNOMED_CSV_PATH
@@ -50,7 +49,7 @@ def import_snomed_codes(filepath: str = None) -> int:
     try:
         num_deleted = db.session.query(SnomedCode).delete()
         current_app.logger.info(f"Deleted {num_deleted} existing SNOMED codes")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         current_app.logger.error(f"Error deleting existing SNOMED codes: {e}")
         db.session.rollback()
         return 0
@@ -62,7 +61,7 @@ def import_snomed_codes(filepath: str = None) -> int:
         db.session.commit()
         current_app.logger.info(f"Imported {len(codes)} SNOMED codes")
         return len(codes)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         current_app.logger.error(f"Error importing SNOMED codes: {e}")
         db.session.rollback()
         return 0

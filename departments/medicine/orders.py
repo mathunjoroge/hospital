@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import login_required
@@ -122,9 +122,9 @@ def request_lab_tests(patient_id):
             dept=dept,
         )
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        logger.error(f"Error in medicine.request_lab_tests: {e}", exc_info=True)
+        logger.exception("Error in medicine.request_lab_tests: ")
         flash("Something went wrong. Please try again.", "error")
         return redirect(url_for("medicine.soap_notes", patient_id=patient_id))
 
@@ -219,9 +219,9 @@ def request_imaging(patient_id):
             dept=dept,
         )
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        logger.error(f"Error in medicine.request_imaging: {e}", exc_info=True)
+        logger.exception("Error in medicine.request_imaging: ")
         flash("Something went wrong. Please try again.", "error")
         return redirect(url_for("medicine.soap_notes", patient_id=patient_id))
 
@@ -314,15 +314,15 @@ def get_unmatched_count():
 @bp.context_processor
 def inject_unmatched_count():
     """Inject the unmatched count into the template context."""
-    return dict(unmatched_count=get_unmatched_count())
+    return {"unmatched_count": get_unmatched_count()}
 
 
-from departments.shared.drugcentral import (  # noqa: E402
+from departments.shared.drugcentral import (
     get_drugcentral_connection as get_db_connection,
 )
 
 
-def fetch_drugs_data(search_query: Optional[str] = None) -> List[Dict[str, Any]]:
+def fetch_drugs_data(search_query: str | None = None) -> list[dict[str, Any]]:
     """Fetch distinct product data with optional search by generic name or brand name."""
     try:
         with get_db_connection() as conn, conn.cursor(
@@ -344,6 +344,6 @@ def fetch_drugs_data(search_query: Optional[str] = None) -> List[Dict[str, Any]]
             base_query += " ORDER BY generic_name"
             cur.execute(base_query, params)
             return cur.fetchall()
-    except Exception as e:
-        print(f"Database error: {str(e)}")
+    except Exception as e:  # noqa: BLE001
+        print(f"Database error: {e!s}")
         return []

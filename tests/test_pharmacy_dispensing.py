@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from departments.models.pharmacy import Batch, DispensedDrug, Drug, DrugCategory
 from extensions import db
@@ -40,7 +40,7 @@ def test_pharmacy_dispensing_decrements_stock(app):
             patient_id="PTEST100",
             prescription_id="RX100",
             quantity_dispensed=15,
-            date_dispensed=datetime.utcnow(),
+            date_dispensed=datetime.now(timezone.utc),
         )
         batch.quantity_in_stock -= 15
         drug.quantity_in_stock -= 15

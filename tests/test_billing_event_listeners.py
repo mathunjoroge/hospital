@@ -8,7 +8,7 @@ This guarantees that TELEHEALTH, ANC, REFERRAL, and IPD charges land on
 the correct visit even when multiple encounter types co-exist for a patient.
 """
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 from departments.billing.sync import sync_charge
 from departments.models.billing import InvoiceLineItem, PaidBill, Payment
@@ -294,7 +294,7 @@ class TestRestoredEventListenerCoverage:
             enc = _encounter("P-CLINIC-01", enc_type="OPD")
 
             booking = ClinicBooking(
-                patient_id="P-CLINIC-01", clinic_id=1, clinic_date=date.today()
+                patient_id="P-CLINIC-01", clinic_id=1, clinic_date=datetime.now(timezone.utc).date()
             )
             booking.consultation_fee = 500.0
             booking.encounter_id = enc.id

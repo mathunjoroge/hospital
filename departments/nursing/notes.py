@@ -47,11 +47,11 @@ def view_notes():
         return render_template("nursing/view_notes.html", notes=notes)
     except Exception as e:
         flash("Something went wrong. Please try again.", "error")
-        logger.error(f"Error in nursing.view_notes: {e}", exc_info=True)
+        logger.exception("Error in nursing.view_notes: ")
         db.session.add(
             Log(
                 level="ERROR",
-                message=f"Error loading nursing notes: {str(e)}",
+                message=f"Error loading nursing notes: {e!s}",
                 user_id=current_user.id,
                 source="nursing",
             )
@@ -106,11 +106,11 @@ def add_note():
         except Exception as e:
             db.session.rollback()
             flash("Something went wrong. Please try again.", "error")
-            logger.error(f"Error in nursing.add_note: {e}", exc_info=True)
+            logger.exception("Error in nursing.add_note: ")
             db.session.add(
                 Log(
                     level="ERROR",
-                    message=f"Error adding note: {str(e)}",
+                    message=f"Error adding note: {e!s}",
                     user_id=current_user.id,
                     source="nursing",
                 )
@@ -123,9 +123,9 @@ def add_note():
     try:
         patients = Patient.query.order_by(Patient.name).all()
         return render_template("nursing/add_note.html", patients=patients)
-    except Exception as e:
+    except Exception:
         flash("Something went wrong. Please try again.", "error")
-        logger.error(f"Error in nursing.add_note: {e}", exc_info=True)
+        logger.exception("Error in nursing.add_note: ")
         return render_template("nursing/add_note.html", patients=[])
 
 
@@ -157,8 +157,8 @@ def patient_dashboard(patient_id):
             notes=notes,
             tasks=tasks,
         )
-    except Exception as e:
-        flash(f"Error fetching patient dashboard data: {str(e)}", "error")
+    except Exception as e:  # noqa: BLE001
+        flash(f"Error fetching patient dashboard data: {e!s}", "error")
         return redirect(url_for("nursing.index"))
 
 
@@ -213,8 +213,8 @@ def shift_handover():
         return render_template(
             "nursing/shift_handover.html", handover_data=handover_data
         )
-    except Exception as e:
-        flash(f"Error fetching shift handover data: {str(e)}", "error")
+    except Exception as e:  # noqa: BLE001
+        flash(f"Error fetching shift handover data: {e!s}", "error")
         return redirect(url_for("nursing.index"))
 
 
@@ -258,9 +258,9 @@ def communicate_doctor(patient_id=None):
                 if patient_id
                 else url_for("nursing.communicate_doctor")
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             db.session.rollback()
-            flash(f"Error sending message: {str(e)}", "error")
+            flash(f"Error sending message: {e!s}", "error")
             return redirect(
                 url_for("nursing.communicate_doctor", patient_id=patient_id)
                 if patient_id
@@ -277,10 +277,10 @@ def communicate_doctor(patient_id=None):
             "nursing/communicate_doctor.html", doctors=doctors, patient_id=patient_id
         )
     except Exception as e:
-        logger.error(
+        logger.error(  # noqa: G201
             f"Error fetching doctors in communicate_doctor: {e}", exc_info=True
         )
-        flash(f"Error fetching doctors: {str(e)}", "error")
+        flash(f"Error fetching doctors: {e!s}", "error")
         return redirect(url_for("nursing.index"))
 
 
@@ -298,8 +298,8 @@ def get_notifications():
         return render_template(
             "nursing/notifications.html", notifications=notifications
         )
-    except Exception as e:
-        flash(f"Error fetching notifications: {str(e)}", "error")
+    except Exception as e:  # noqa: BLE001
+        flash(f"Error fetching notifications: {e!s}", "error")
         return redirect(url_for("nursing.index"))
 
 
@@ -322,9 +322,9 @@ def mark_notification_read(notification_id):
         db.session.commit()
         flash("Notification marked as read.", "success")
         return redirect(url_for("nursing.notifications"))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
-        flash(f"Error marking notification as read: {str(e)}", "error")
+        flash(f"Error marking notification as read: {e!s}", "error")
         return redirect(url_for("nursing.notifications"))
 
 

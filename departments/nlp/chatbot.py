@@ -3,8 +3,8 @@ import csv
 import logging
 import os
 import re
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any
 
 import bleach
 from PIL import Image
@@ -54,7 +54,7 @@ nlp = None
 if spacy:
     try:
         nlp = spacy.load("en_core_web_sm")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"SpaCy model 'en_core_web_sm' not available: {e}")
 
 # --- Allowed File Types ---
@@ -71,7 +71,7 @@ def allowed_file(filename: str) -> bool:
 class UniversalClinicalSummarizer:
     """A medical chatbot using NVIDIA NIM and Gemini API for detailed, clinician-focused responses."""
 
-    SAFETY_FILTERS: Dict[str, Any] = {
+    SAFETY_FILTERS: dict[str, Any] = {  # noqa: RUF012
         "dangerous_advice": [
             r"self-diagnose",
             r"self-treat",
@@ -97,8 +97,8 @@ class UniversalClinicalSummarizer:
 
     def __init__(
         self,
-        gemini_api_key: Optional[str] = None,
-        nvidia_api_key: Optional[str] = None,
+        gemini_api_key: str | None = None,
+        nvidia_api_key: str | None = None,
         user_type: str = "doctor",
     ):
         """Initialize the chatbot with optional NVIDIA NIM or Gemini API key and user type."""
@@ -112,10 +112,10 @@ class UniversalClinicalSummarizer:
 
     async def _query_gemini_async(
         self,
-        contents: List[Dict[str, Any]],
+        contents: list[dict[str, Any]],
         max_tokens: int = 3000,
         max_retries: int = 5,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Query Gemini API asynchronously with Google Search grounding and exponential backoff."""
         url = f"{API_BASE_URL}/{GEMINI_MODEL}:generateContent?key={self.gemini_api_key}"
 
@@ -211,7 +211,7 @@ class UniversalClinicalSummarizer:
 
                         candidate = result["candidates"][0]
                         text = candidate["content"]["parts"][0]["text"].strip()
-                        sources: List[Dict[str, str]] = []
+                        sources: list[dict[str, str]] = []
 
                         grounding_metadata = candidate.get("groundingMetadata")
                         if grounding_metadata and grounding_metadata.get(
@@ -235,7 +235,7 @@ class UniversalClinicalSummarizer:
                         )
                         return {"text": text, "sources": sources}
 
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     logger.warning(
                         f"API Request failed (Attempt {attempt+1}/{max_retries}): {e}"
                     )
@@ -249,10 +249,10 @@ class UniversalClinicalSummarizer:
 
     def _query_gemini(
         self,
-        contents: List[Dict[str, Any]],
+        contents: list[dict[str, Any]],
         max_tokens: int = 3000,
         max_retries: int = 5,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Synchronous wrapper for async Gemini query."""
         return asyncio.run(self._query_gemini_async(contents, max_tokens, max_retries))
 
@@ -263,7 +263,7 @@ class UniversalClinicalSummarizer:
             try:
                 doc = nlp(question_lower)
                 q_text = doc.text
-            except Exception:
+            except Exception:  # noqa: BLE001
                 q_text = question_lower
         else:
             q_text = question_lower
@@ -280,7 +280,7 @@ class UniversalClinicalSummarizer:
                 return specialty
         return "general"
 
-    def parse_clinical_data(self, clinical_data: Dict[str, Any]) -> str:
+    def parse_clinical_data(self, clinical_data: dict[str, Any]) -> str:
         """Parse structured clinical data (e.g., labs, vitals) to include in the query context."""
         try:
             vitals = clinical_data.get("vitals", {})
@@ -301,7 +301,7 @@ class UniversalClinicalSummarizer:
 
             logger.info("Parsed clinical data successfully.")
             return context
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Error parsing clinical data: {e}")
             return ""
 
@@ -353,11 +353,11 @@ class UniversalClinicalSummarizer:
                 logger.warning(f"Unsupported file type: {filename}")
                 return "Unsupported file type."
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Error extracting content from file {filename}: {e}")
-            return f"Error processing file: {str(e)}"
+            return f"Error processing file: {e!s}"
 
-    def _check_emergency(self, question: str) -> Optional[str]:
+    def _check_emergency(self, question: str) -> str | None:
         """Check if the question indicates a medical emergency using NLP."""
         question_lower = question.lower()
         if nlp:
@@ -368,7 +368,7 @@ class UniversalClinicalSummarizer:
                     for ent in doc.ents
                     if ent.label_ in ["SYMPTOM", "CONDITION"]
                 ]
-            except Exception:
+            except Exception:  # noqa: BLE001
                 emergency_entities = [question_lower]
         else:
             emergency_entities = [question_lower]
@@ -428,11 +428,11 @@ This chatbot provides general, educational information only.
     def answer(
         self,
         question: str,
-        conversation_history: List[Dict[str, str]] = None,
-        clinical_data: Dict[str, Any] = None,
+        conversation_history: list[dict[str, str]] | None = None,
+        clinical_data: dict[str, Any] | None = None,
         file_stream: Any = None,
-        filename: str = None,
-        patient_id: Optional[str] = None,
+        filename: str | None = None,
+        patient_id: str | None = None,
     ) -> str:
         """Answer a medical question with optional clinical data or file input."""
         try:
@@ -470,7 +470,7 @@ This chatbot provides general, educational information only.
                             question=question,
                             is_error=True,
                         )
-                except Exception as consent_err:
+                except Exception as consent_err:  # noqa: BLE001
                     logger.error(
                         f"Error checking AI consent in chatbot.answer: {consent_err}"
                     )
@@ -611,7 +611,7 @@ This chatbot provides general, educational information only.
                 sources=sources,
             )
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Critical error processing question or file: {e}")
             return self._format_output(
                 self._safe_fallback_response(question or "File analysis"),
@@ -622,8 +622,8 @@ This chatbot provides general, educational information only.
     def _format_output(
         self,
         response: str,
-        question: str = None,
-        sources: List[Dict[str, str]] = None,
+        question: str | None = None,
+        sources: list[dict[str, str]] | None = None,
         is_error: bool = False,
     ) -> str:
         """Format the response as beautiful, safety-focused HTML."""
@@ -664,7 +664,7 @@ This chatbot provides general, educational information only.
             </div>
             {source_html}
             <div class="disclaimer">
-                <p><em>Response generated on {datetime.now().strftime('%Y-%m-%d at %H:%M')}</em></p>
+                <p><em>Response generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d at %H:%M')}</em></p>
                 <p><em>Powered by Gemini AI with medical source verification</em></p>
             </div>
         </div>

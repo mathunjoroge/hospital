@@ -85,14 +85,13 @@ elif not secret_key:
 # using the old static DEV_FALLBACK_KEY (now removed), which is equivalent to
 # no encryption. Refuse to start rather than silently degrade.
 _encryption_key = os.environ.get("ENCRYPTION_KEY")
-if os.environ.get("FLASK_ENV") == "production":
-    if not _encryption_key:
-        raise RuntimeError(
-            "CRITICAL SECURITY ERROR: ENCRYPTION_KEY environment variable is not set. "
-            "Patient identity fields cannot be encrypted. "
-            "Generate a key with: python3 -c \"from cryptography.fernet import Fernet; "
-            "print(Fernet.generate_key().decode())\" and add it to your .env file."
-        )
+if os.environ.get("FLASK_ENV") == "production" and not _encryption_key:
+    raise RuntimeError(
+        "CRITICAL SECURITY ERROR: ENCRYPTION_KEY environment variable is not set. "
+        "Patient identity fields cannot be encrypted. "
+        "Generate a key with: python3 -c \"from cryptography.fernet import Fernet; "
+        "print(Fernet.generate_key().decode())\" and add it to your .env file."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -101,8 +100,8 @@ if os.environ.get("FLASK_ENV") == "production":
 # official prometheus_client library once DECISIONS_PENDING item 3 (telemetry
 # provider selection) is resolved.
 # ---------------------------------------------------------------------------
-import threading  # noqa: E402
-import time as _time  # noqa: E402 — needed before first request hook
+import threading
+import time as _time
 
 _metrics_lock = threading.Lock()
 _request_count_total: int = 0       # all requests
@@ -188,7 +187,7 @@ app.config["ENABLE_TELEMEDICINE"] = (
 )
 app.config["SESSION_TYPE"] = "redis"
 redis_host = os.environ.get("REDIS_HOST", "localhost")
-redis_port = int(os.environ.get("REDIS_PORT", 6379))
+redis_port = int(os.environ.get("REDIS_PORT", "6379"))
 app.config["SESSION_REDIS"] = redis.Redis(host=redis_host, port=redis_port, db=0)
 app.config["SESSION_PERMANENT"] = True
 app.config["PERMANENT_SESSION_LIFETIME"] = 1800  # 30 minutes
@@ -244,19 +243,19 @@ os.makedirs(app.config["DICOM_UPLOAD_FOLDER"], exist_ok=True)
 
 # Initialize extensions
 db.init_app(app)
-from departments.audit import register_audit_listeners  # noqa: E402
+from departments.audit import register_audit_listeners
 
 register_audit_listeners()
 csrf.init_app(app)
 
 # Register billing sync event listeners
-from departments.billing.event_listeners import (  # noqa: E402
+from departments.billing.event_listeners import (
     register_billing_sync_listeners,
 )
 
 register_billing_sync_listeners()
 # Exempt the JWT token endpoint from CSRF — API clients don't carry CSRF cookies
-from departments.api.auth import get_token as _api_get_token  # noqa: E402
+from departments.api.auth import get_token as _api_get_token
 
 csrf.exempt(_api_get_token)
 
@@ -338,7 +337,7 @@ def scheduled_database_backup():
         try:
             backup_path = perform_backup()
         except Exception as e:
-            logger.error(
+            logger.error(  # noqa: G201
                 f"Scheduled database backup raised an exception: {e}", exc_info=True
             )
 
@@ -365,7 +364,7 @@ def scheduled_database_backup():
 if not scheduler.running and not app.config.get("TESTING"):
     try:
         scheduler.start()
-    except Exception:
+    except Exception:  # noqa: S110, BLE001
         pass
 
 # Logging (Moved here for proper config application)
@@ -411,10 +410,10 @@ def inject_unread_notifications():
             ).count()
         else:
             count = 0
-        return dict(unread_notifications=count)
-    except Exception as e:
+        return {"unread_notifications": count}
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error in inject_unread_notifications: {e}")
-        return dict(unread_notifications=0)
+        return {"unread_notifications": 0}
 
 
 def datetime_filter(value):
@@ -505,9 +504,9 @@ def login():
                     Log(level="ERROR", message=f"Login error: {e}", source="auth")
                 )
                 db.session.commit()
-            except Exception:
+            except Exception:  # noqa: BLE001
                 db.session.rollback()
-            logger.error(f"Login error: {e}", exc_info=True)
+            logger.exception("Login error: ")
             flash("Something went wrong. Please try again.", "error")
     return render_template("login.html")
 
@@ -569,7 +568,7 @@ def logout():
         db.session.rollback()
         db.session.add(Log(level="ERROR", message=f"Logout error: {e}", source="auth"))
         db.session.commit()
-        logger.error(f"Logout error: {e}", exc_info=True)
+        logger.exception("Logout error: ")
         flash("Something went wrong. Please try again.", "error")
         return redirect(url_for("login"))
 
@@ -586,17 +585,17 @@ def healthz():
     # 1. Test database ping query
     try:
         db.session.execute(db.text("SELECT 1"))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db_status = f"disconnected: {e}"
         http_code = 503
 
     # 2. Check disk space
     try:
-        total, used, free = shutil.disk_usage(".")
+        total, _used, free = shutil.disk_usage(".")
         total_gb = round(total / (1024**3), 2)
         free_gb = round(free / (1024**3), 2)
         percent_free = round((free / total) * 100, 1)
-    except Exception:
+    except Exception:  # noqa: BLE001
         total_gb, free_gb, percent_free = 0, 0, 0
 
     status_str = "ok" if http_code == 200 else "degraded"
@@ -639,14 +638,14 @@ def metrics():
     for proper histogram buckets and multi-process aggregation.
     """
     try:
-        total, used, free = shutil.disk_usage(".")
-    except Exception:
+        total, _used, free = shutil.disk_usage(".")
+    except Exception:  # noqa: BLE001
         total, free = 0, 0
 
     db_up = 1
     try:
         db.session.execute(db.text("SELECT 1"))
-    except Exception:
+    except Exception:  # noqa: BLE001
         db_up = 0
 
     # Celery queue depth via Redis LLEN on the default queue
@@ -655,7 +654,7 @@ def metrics():
         _redis = app.config.get("SESSION_REDIS")
         if _redis:
             celery_queue_depth = _redis.llen("celery") or 0
-    except Exception:
+    except Exception:  # noqa: S110, BLE001
         pass  # Redis unavailable — emit 0, don't crash metrics endpoint
 
     with _metrics_lock:
@@ -705,49 +704,49 @@ def metrics():
 
 
 
-from departments.admin import bp as admin_bp  # noqa: E402
-from departments.analytics import bp as analytics_bp  # noqa: E402
-from departments.api import bp as api_bp  # noqa: E402
-from departments.api.dhis2_exporter import khis_bp  # noqa: E402
-from departments.api.fhir import fhir_bp  # noqa: E402
-from departments.api.hl7_receiver import hl7_bp  # noqa: E402  Phase 4
-from departments.appointments import bp as appointments_bp  # noqa: E402
-from departments.billing import bp as billing_bp  # noqa: E402
-from departments.billing.mpesa import mpesa_bp  # noqa: E402
-from departments.billing.mpesa_api import mpesa_api_bp  # noqa: E402
-from departments.billing.reconciliation import (  # noqa: E402
+from departments.admin import bp as admin_bp
+from departments.analytics import bp as analytics_bp
+from departments.api import bp as api_bp
+from departments.api.dhis2_exporter import khis_bp
+from departments.api.fhir import fhir_bp
+from departments.api.hl7_receiver import hl7_bp
+from departments.appointments import bp as appointments_bp
+from departments.billing import bp as billing_bp
+from departments.billing.mpesa import mpesa_bp
+from departments.billing.mpesa_api import mpesa_api_bp
+from departments.billing.reconciliation import (
     reconciliation_bp,
 )
-from departments.clinical_safety import bp as clinical_safety_bp  # noqa: E402
-from departments.consent import bp as consent_bp  # noqa: E402
-from departments.emergency import bp as emergency_bp  # noqa: E402
-from departments.hr import bp as hr_bp  # noqa: E402
-from departments.imaging import bp as imaging_bp  # noqa: E402
-from departments.imaging.dicom import dicom_bp  # noqa: E402
-from departments.laboratory import bp as laboratory_bp  # noqa: E402
-from departments.laboratory.panic_alerts import lis_bp  # noqa: E402
-from departments.mch import bp as mch_bp  # noqa: E402
-from departments.medicine import bp as medicine_bp  # noqa: E402
-from departments.medicine.prescribe import prescribe_bp  # noqa: E402
-from departments.mortuary import bp as mortuary_bp  # noqa: E402
-from departments.nursing import bp as nursing_bp  # noqa: E402
-from departments.nursing.mar import mar_bp  # noqa: E402
-from departments.nursing.triage import triage_bp  # noqa: E402
-from departments.patient_portal import patient_portal_bp  # noqa: E402
-from departments.pharmacy import bp as pharmacy_bp  # noqa: E402
-from departments.pharmacy.fefo import fefo_bp  # noqa: E402
-from departments.pharmacy.po_routes import po_bp  # noqa: E402
-from departments.rcm import bp as rcm_bp  # noqa: E402
-from departments.records import bp as records_bp  # noqa: E402
-from departments.referrals import bp as referrals_bp  # noqa: E402
-from departments.stores import bp as stores_bp  # noqa: E402
-from departments.stores.transfer_routes import transfer_bp  # noqa: E402
-from departments.telemedicine import bp as telemedicine_bp  # noqa: E402
-from departments.ui_billing import bp as ui_billing_bp  # noqa: E402
-from departments.ui_clinical import bp as ui_clinical_bp  # noqa: E402
-from departments.ui_dashboard import bp as ui_dashboard_bp  # noqa: E402
-from departments.ui_mch import bp as ui_mch_bp  # noqa: E402
-from departments.ui_referrals import bp as ui_referrals_bp  # noqa: E402
+from departments.clinical_safety import bp as clinical_safety_bp
+from departments.consent import bp as consent_bp
+from departments.emergency import bp as emergency_bp
+from departments.hr import bp as hr_bp
+from departments.imaging import bp as imaging_bp
+from departments.imaging.dicom import dicom_bp
+from departments.laboratory import bp as laboratory_bp
+from departments.laboratory.panic_alerts import lis_bp
+from departments.mch import bp as mch_bp
+from departments.medicine import bp as medicine_bp
+from departments.medicine.prescribe import prescribe_bp
+from departments.mortuary import bp as mortuary_bp
+from departments.nursing import bp as nursing_bp
+from departments.nursing.mar import mar_bp
+from departments.nursing.triage import triage_bp
+from departments.patient_portal import patient_portal_bp
+from departments.pharmacy import bp as pharmacy_bp
+from departments.pharmacy.fefo import fefo_bp
+from departments.pharmacy.po_routes import po_bp
+from departments.rcm import bp as rcm_bp
+from departments.records import bp as records_bp
+from departments.referrals import bp as referrals_bp
+from departments.stores import bp as stores_bp
+from departments.stores.transfer_routes import transfer_bp
+from departments.telemedicine import bp as telemedicine_bp
+from departments.ui_billing import bp as ui_billing_bp
+from departments.ui_clinical import bp as ui_clinical_bp
+from departments.ui_dashboard import bp as ui_dashboard_bp
+from departments.ui_mch import bp as ui_mch_bp
+from departments.ui_referrals import bp as ui_referrals_bp
 
 app.register_blueprint(records_bp, url_prefix="/records")
 app.register_blueprint(billing_bp, url_prefix="/billing")
@@ -822,14 +821,13 @@ def set_rls_session_variable():
             home = get_home_facility(create_if_missing=False)
             if home:
                 facility_id = home.id
-    except Exception:
-        # Fail silently if DB doesn't support the query (e.g. table missing in test SQLite)
+    except Exception:  # noqa: S110, BLE001        # Fail silently if DB doesn't support the query (e.g. table missing in test SQLite)
         pass
 
     if facility_id:
         try:
             db.session.execute(db.text(f"SET app.current_facility_id = '{facility_id}'"))
-        except Exception:
+        except Exception:  # noqa: S110, BLE001
             pass  # Fail silently if DB doesn't support SET (e.g. SQLite fallback)
 
 if __name__ == "__main__":
@@ -856,7 +854,7 @@ if __name__ == "__main__":
                 print("   Run `flask db upgrade` to ensure the schema is up to date.")
             else:
                 print("✅ Database connection verified & admin user exists.")
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             print(f"⚠️  Startup note: {exc}")
             print("   If the database is not initialised, run: flask db upgrade")
 

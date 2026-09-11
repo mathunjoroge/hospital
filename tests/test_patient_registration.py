@@ -72,6 +72,6 @@ def test_patient_registration_missing_required_name(app):
             emergency_contact="0722222223",
         )
         db.session.add(patient)
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             db.session.commit()
         db.session.rollback()

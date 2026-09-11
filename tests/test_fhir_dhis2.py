@@ -1,5 +1,5 @@
 import unittest
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from werkzeug.security import generate_password_hash
 
@@ -78,7 +78,7 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
                 oxygen_saturation=98,
                 weight=65.0,
                 height=168.0,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
             )
             db.session.add(vitals)
             db.session.commit()
@@ -93,7 +93,7 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
                 assessment="Acute Malaria",
                 recommendation="Prescribe Coartem 80/480mg",
                 symptoms="Fever, headache, chills",
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
             )
             db.session.add(soap)
             db.session.commit()

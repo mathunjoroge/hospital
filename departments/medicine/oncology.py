@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
@@ -151,7 +151,7 @@ def edit_disease(disease_id):
                     test.description = desc
 
         # Detect deleted tests
-        submitted_ids = set(int(i) for i in lab_test_ids if i != "new")
+        submitted_ids = {int(i) for i in lab_test_ids if i != "new"}
         for test in lab_tests:
             if test.id not in submitted_ids:
                 db.session.delete(test)
@@ -216,7 +216,7 @@ def oncology_encounter(patient_id):
     selected_patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
 
     # Add age attribute based on date_of_birth
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     dob = selected_patient.date_of_birth
     selected_patient.age = (
         today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
@@ -354,7 +354,7 @@ def add_onco_patient():
             diagnosis=diagnosis,
             cancer_type=cancer_type,
             stage=stage,
-            diagnosis_date=datetime.strptime(diagnosis_date, "%Y-%m-%d"),
+            diagnosis_date=datetime.strptime(diagnosis_date, "%Y-%m-%d"),  # noqa: DTZ007
         )
         db.session.add(onco_patient)
         db.session.commit()
@@ -512,7 +512,7 @@ def bookings():
     chemotherapy_booking_count = OncologyBooking.query.filter_by(
         purpose="Chemotherapy"
     ).count()
-    current_month = datetime.now().strftime("%Y-%m")
+    current_month = datetime.now(timezone.utc).strftime("%Y-%m")
     new_booking_count = OncologyBooking.query.filter(
         func.strftime("%Y-%m", OncologyBooking.created_at) == current_month
     ).count()
@@ -593,7 +593,7 @@ def new_booking():
 
         # Parse booking_date
         try:
-            booking_date = datetime.strptime(booking_date, "%Y-%m-%d").date()
+            booking_date = datetime.strptime(booking_date, "%Y-%m-%d").date()  # noqa: DTZ007
         except ValueError as e:
             print(f"Date parsing error: {e}")
             flash("Invalid date format. Use YYYY-MM-DD.", "danger")
@@ -645,7 +645,7 @@ def process_lab_result(lab_result, test_name):
     test_date = lab_result.test_date
     if isinstance(test_date, str):
         try:
-            test_date = datetime.strptime(test_date, "%Y-%m-%d %H:%M:%S")
+            test_date = datetime.strptime(test_date, "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007
         except (ValueError, TypeError):
             test_date = None
 

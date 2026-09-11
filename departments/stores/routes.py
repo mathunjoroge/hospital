@@ -68,13 +68,13 @@ def index():
             user_name_map=user_name_map,
         )
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        current_app.logger.error(  # noqa: G201
             "[%s -> index()] Database error: %s", FILE_NAME, str(e), exc_info=True
         )
         flash("Database error occurred while loading dashboard", "error")
         return redirect(url_for("stores.index"))
     except Exception as e:
-        current_app.logger.error(
+        current_app.logger.error(  # noqa: G201
             "[%s -> index()] Unexpected error: %s", FILE_NAME, str(e), exc_info=True
         )
         flash("An unexpected error occurred loading dashboard", "error")
@@ -89,13 +89,13 @@ def inventory():
         drugs = Drug.query.order_by(Drug.generic_name).all()
         return render_template("stores/inventory.html", drugs=drugs)
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        current_app.logger.error(  # noqa: G201
             "[%s -> inventory()] Database error: %s", FILE_NAME, str(e), exc_info=True
         )
         flash("Database error fetching inventory", "error")
         return redirect(url_for("stores.index"))
     except Exception as e:
-        current_app.logger.error(
+        current_app.logger.error(  # noqa: G201
             "[%s -> inventory()] Error fetching inventory: %s",
             FILE_NAME,
             str(e),
@@ -121,7 +121,7 @@ def list_issue_requests():
             title="Pending Drug Requests",
         )
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        current_app.logger.error(  # noqa: G201
             "[%s -> list_issue_requests()] Database error: %s",
             FILE_NAME,
             str(e),
@@ -130,7 +130,7 @@ def list_issue_requests():
         flash("Database error occurred while fetching requests", "error")
         return redirect(url_for("stores.index")), 500
     except Exception as e:
-        current_app.logger.error(
+        current_app.logger.error(  # noqa: G201
             "[%s -> list_issue_requests()] Unexpected error: %s",
             FILE_NAME,
             str(e),
@@ -194,7 +194,7 @@ def issue_request(request_id):
                             ), 400
 
                         try:
-                            expiry_date = datetime.strptime(
+                            expiry_date = datetime.strptime(  # noqa: DTZ007
                                 expiry_date_str.strip(), "%Y-%m-%d"
                             ).date()
                         except ValueError:
@@ -259,7 +259,7 @@ def issue_request(request_id):
 
             except SQLAlchemyError as e:
                 db.session.rollback()
-                current_app.logger.error(
+                current_app.logger.error(  # noqa: G201
                     "[%s -> issue_request()] Database error for request %d: %s",
                     FILE_NAME,
                     request_id,
@@ -280,7 +280,7 @@ def issue_request(request_id):
         )
 
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        current_app.logger.error(  # noqa: G201
             "[%s -> issue_request()] Database query error for request %d: %s",
             FILE_NAME,
             request_id,
@@ -290,7 +290,7 @@ def issue_request(request_id):
         flash("Database error occurred while fetching request", "error")
         return redirect(url_for("stores.list_issue_requests")), 500
     except Exception as e:
-        current_app.logger.error(
+        current_app.logger.error(  # noqa: G201
             "[%s -> issue_request()] Unexpected error for request %d: %s",
             FILE_NAME,
             request_id,
@@ -332,13 +332,13 @@ def non_pharms():
             category_name_map=category_name_map,
         )
     except SQLAlchemyError as e:
-        current_app.logger.error(
+        current_app.logger.error(  # noqa: G201
             "[%s -> non_pharms()] Database error: %s", FILE_NAME, str(e), exc_info=True
         )
         flash("Database error loading items", "error")
         return redirect(url_for("stores.index"))
     except Exception as e:
-        current_app.logger.error(
+        current_app.logger.error(  # noqa: G201
             "[%s -> non_pharms()] Error loading items: %s",
             FILE_NAME,
             str(e),
@@ -390,7 +390,7 @@ def manage_reagent_requests():
 
     except SQLAlchemyError as e:
         db.session.rollback()
-        current_app.logger.error(
+        current_app.logger.error(  # noqa: G201
             "[%s -> manage_reagent_requests()] DB error: %s",
             FILE_NAME,
             str(e),
@@ -400,7 +400,7 @@ def manage_reagent_requests():
         return redirect(url_for("stores.index"))
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(
+        current_app.logger.error(  # noqa: G201
             "[%s -> manage_reagent_requests()] Unexpected error: %s",
             FILE_NAME,
             str(e),

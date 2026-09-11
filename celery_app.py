@@ -49,4 +49,4 @@ def make_celery(flask_app):
     return celery_instance
 
 celery = make_celery(app)
-import departments.tasks  # noqa: F401, E402
+import departments.tasks  # noqa: F401

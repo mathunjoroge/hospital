@@ -57,11 +57,11 @@ def _make_invoice(patient_id):
         invoice_number=Invoice.generate_invoice_number(),
         patient_id=patient_id,
         status=InvoiceStatus.ISSUED,
-        subtotal=Decimal("5000"),
-        discount=Decimal("0"),
-        grand_total=Decimal("5000"),
-        amount_paid=Decimal("0"),
-        balance=Decimal("5000"),
+        subtotal=Decimal(5000),
+        discount=Decimal(0),
+        grand_total=Decimal(5000),
+        amount_paid=Decimal(0),
+        balance=Decimal(5000),
     )
     db.session.add(inv)
     db.session.commit()
@@ -101,7 +101,7 @@ class TestInsuranceScheme:
             _make_scheme("NHIF01")
             s2 = InsuranceScheme(code="NHIF01", name="Duplicate", scheme_type="public")
             db.session.add(s2)
-            with pytest.raises(Exception):
+            with pytest.raises(Exception):  # noqa: B017
                 db.session.commit()
             db.session.rollback()
 
@@ -210,10 +210,10 @@ class TestClaimLifecycle:
             inv = _make_invoice("LC002")
             claim = _make_claim(inv, "LC002", s.id)
             claim.submit()
-            claim.approve(approved_amount=Decimal("4500"), pre_auth="PA-12345")
+            claim.approve(approved_amount=Decimal(4500), pre_auth="PA-12345")
             db.session.commit()
             assert claim.status == ClaimStatus.APPROVED
-            assert claim.approved_amount == Decimal("4500")
+            assert claim.approved_amount == Decimal(4500)
             assert claim.pre_auth_number == "PA-12345"
 
     def test_submitted_to_rejected(self, app):
@@ -235,7 +235,7 @@ class TestClaimLifecycle:
             inv = _make_invoice("LC004")
             claim = _make_claim(inv, "LC004", s.id)
             claim.submit()
-            claim.approve(approved_amount=Decimal("5000"))
+            claim.approve(approved_amount=Decimal(5000))
             claim.mark_paid()
             db.session.commit()
             assert claim.status == ClaimStatus.PAID

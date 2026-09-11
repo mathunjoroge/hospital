@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from departments.models.laboratory import LabResult
 from departments.models.medicine import LabTest, RequestedLab
@@ -21,7 +21,7 @@ def test_lab_flow_request_to_result(app):
         lab_request = RequestedLab(
             patient_id="PTEST100",
             lab_test_id=lab_test.id,
-            date_requested=datetime.utcnow(),
+            date_requested=datetime.now(timezone.utc),
             status=0,
         )
         db.session.add(lab_request)
@@ -34,7 +34,7 @@ def test_lab_flow_request_to_result(app):
         lab_result = LabResult(
             patient_id="PTEST100",
             lab_test_id=lab_test.id,
-            test_date=datetime.utcnow(),
+            test_date=datetime.now(timezone.utc),
             result=results_data,
             result_notes="Normal blood parameters",
             result_id="RES-1001",

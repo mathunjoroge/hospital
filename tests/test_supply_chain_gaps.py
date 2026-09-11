@@ -154,7 +154,7 @@ def test_rtv_creation_and_dispatch(
 
 def test_stock_disposal_creation_and_approval(client, app, gap_user, gap_drug_and_item):
     """Test draft stock disposal board creation and execution of write-off."""
-    drug_id, np_id = gap_drug_and_item
+    drug_id, _np_id = gap_drug_and_item
     client.post(
         "/login", data={"username": gap_user.username, "password": "Password123!"}
     )

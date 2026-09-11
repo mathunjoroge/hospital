@@ -253,12 +253,12 @@ def trigger_staff_credential_expiry_check(app=None, window_days: int = 30) -> in
     Scheduled task to query StaffCredential records and notify staff & department admin
     if credential is expiring within window_days or has already expired.
     """
-    from datetime import date, timezone
+    from datetime import timezone
 
     from departments.models.hr import StaffCredential
     from extensions import db
 
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     cutoff_date = today + timedelta(days=window_days)
 
     # Query credentials expiring on or before cutoff_date (excluding renewed credentials)
@@ -306,7 +306,7 @@ def trigger_staff_credential_expiry_check(app=None, window_days: int = 30) -> in
         )
         admin_email = f"admin_{dept_name.lower().replace(' ', '_')}@hospital.org"
 
-        for recipient in set([staff_email, admin_email]):
+        for recipient in {staff_email, admin_email}:
             # Deduplicate if already notified in past 24 hours
             recent = OutboundNotificationLog.query.filter(
                 OutboundNotificationLog.recipient == recipient,
@@ -328,7 +328,7 @@ def trigger_staff_credential_expiry_check(app=None, window_days: int = 30) -> in
 
     try:
         db.session.commit()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
         logger.error(f"Error committing credential status updates: {e}")
 
@@ -343,11 +343,11 @@ def trigger_batch_expiry_check(app=None, window_days: int = 30) -> int:
     Scheduled task to query Batch records and notify pharmacy & store managers
     if drug batches are expiring within window_days or have already expired.
     """
-    from datetime import date, timezone
+    from datetime import timezone
 
     from departments.models.pharmacy import Batch
 
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     cutoff_date = today + timedelta(days=window_days)
 
     expiring_batches = Batch.query.filter(

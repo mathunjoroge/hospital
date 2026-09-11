@@ -2,4 +2,4 @@ from flask import Blueprint
 
 bp = Blueprint("appointments", __name__, url_prefix="/appointments")
 
-from . import routes  # noqa: E402, F401
+from . import routes  # noqa: F401

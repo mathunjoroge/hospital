@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 from flask import (
     flash,
@@ -91,7 +91,7 @@ def book_appointment():
         return redirect(url_for("patient_portal.appointments"))
 
     try:
-        booking_date = datetime.strptime(booking_date_str, "%Y-%m-%d").date()
+        booking_date = datetime.strptime(booking_date_str, "%Y-%m-%d").date()  # noqa: DTZ007
     except ValueError:
         flash("Invalid booking date format.", "danger")
         return redirect(url_for("patient_portal.appointments"))
@@ -240,7 +240,7 @@ def cancel_appointment(booking_id):
 
     if not booking:
         flash("Appointment not found.", "danger")
-    elif booking.clinic_date <= date.today():
+    elif booking.clinic_date <= datetime.now(timezone.utc).date():
         flash("You cannot cancel past or today's appointments.", "warning")
     elif booking.seen == 1:
         flash("This appointment has already been attended.", "warning")

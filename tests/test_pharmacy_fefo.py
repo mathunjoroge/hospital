@@ -4,7 +4,7 @@ tests/test_pharmacy_fefo.py
 Unit tests for Task 3.3: Pharmacy FEFO & Inventory Management
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -46,14 +46,14 @@ def sample_inventory(app):
     b1 = Batch(
         drug_id=drug.id,
         batch_number="BATCH-EARLY-01",
-        expiry_date=date.today() + timedelta(days=20),
+        expiry_date=datetime.now(timezone.utc).date() + timedelta(days=20),
         quantity_in_stock=30,
     )
     # Batch 2: Expiring in 180 days (Later) - Qty 70
     b2 = Batch(
         drug_id=drug.id,
         batch_number="BATCH-LATE-02",
-        expiry_date=date.today() + timedelta(days=180),
+        expiry_date=datetime.now(timezone.utc).date() + timedelta(days=180),
         quantity_in_stock=70,
     )
     db.session.add_all([b1, b2])

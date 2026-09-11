@@ -58,7 +58,7 @@ class EmailChannel(BaseChannel):
             return True
         except Exception as e:
             logger.error(f"Failed to send email to {log_entry.recipient}: {e}")
-            raise e
+            raise
 
 
 class SandboxSMSChannel(BaseChannel):
@@ -157,7 +157,7 @@ class AfricasTalkingSMSChannel(BaseChannel):
             logger.error(
                 f"[AfricasTalkingSMSChannel] Delivery error to {log_entry.recipient}: {e}"
             )
-            raise e
+            raise
 
 
 class InAppChannel(BaseChannel):
@@ -203,8 +203,8 @@ class NotificationDispatcher:
         recipient: str,
         subject: str,
         body: str,
-        patient_id: str = None,
-        channels: list = None,
+        patient_id: str | None = None,
+        channels: list | None = None,
     ) -> OutboundNotificationLog:
         """
         Dispatch a notification event to the specified recipient over selected channels.
@@ -240,7 +240,7 @@ class NotificationDispatcher:
                 else:
                     log_entry.status = "FAILED"
                     log_entry.error_message = "Driver returned failure"
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 log_entry.status = "FAILED"
                 log_entry.error_message = str(exc)
 
@@ -248,7 +248,7 @@ class NotificationDispatcher:
 
         try:
             db.session.commit()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             db.session.rollback()
             logger.error(f"Error committing notification logs: {e}")
 

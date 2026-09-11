@@ -11,7 +11,7 @@ Features:
 """
 
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
@@ -30,11 +30,11 @@ triage_bp = Blueprint("triage", __name__, url_prefix="/nursing/triage")
 
 def validate_vitals(
     age_years: float,
-    hr: int = None,
-    rr: int = None,
-    sbp: int = None,
-    temp: float = None,
-    spo2: int = None,
+    hr: int | None = None,
+    rr: int | None = None,
+    sbp: int | None = None,
+    temp: float | None = None,
+    spo2: int | None = None,
 ) -> dict:
     """
     Validate vitals against age-adjusted pediatric and adult physiological reference ranges.
@@ -222,10 +222,10 @@ def assess_patient_triage():
         dob = patient.date_of_birth
         if isinstance(dob, str):
             try:
-                dob = datetime.strptime(dob, "%Y-%m-%d").date()
+                dob = datetime.strptime(dob, "%Y-%m-%d").date()  # noqa: DTZ007
             except ValueError:
                 dob = date(1995, 1, 1)
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         age_years = (today - dob).days / 365.25
 
     # Compute ESI level

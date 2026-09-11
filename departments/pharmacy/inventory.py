@@ -1,6 +1,6 @@
 import logging
 import uuid  # Import the uuid module
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import (
     flash,
@@ -53,8 +53,8 @@ def index():
             "pharmacy/index.html",
             prescriptions=[(p, pt) for p, pt in pending_prescriptions],
         )
-    except Exception as e:
-        logger.error(f"Error fetching pending prescriptions: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Error fetching pending prescriptions: ")
         flash("Unable to load prescriptions. Please try again.", "error")
         return redirect(url_for("pharmacy.index"))
 
@@ -66,7 +66,7 @@ def index():
 def expiries():
     """Displays only expired medications in the inventory."""
     try:
-        today = datetime.today().date()
+        today = datetime.now(timezone.utc).date()
 
         expired_drugs = (
             db.session.query(
@@ -90,7 +90,7 @@ def expiries():
 
         return render_template("pharmacy/expiries.html", expired_drugs=expired_drugs)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in pharmacy.expiries: {e}")
         return redirect(url_for("home"))
@@ -111,21 +111,20 @@ def remove_batch(batch_id):
             batch_number=batch.batch_number,
             quantity_removed=batch.quantity_in_stock,
             expiry_date=batch.expiry_date,
-            removal_date=datetime.today().date(),
+            removal_date=datetime.now(timezone.utc).date(),
         )
         db.session.add(expiry_record)
 
         # Update drugs.quantity_in_stock
         drug.quantity_in_stock -= batch.quantity_in_stock
-        if drug.quantity_in_stock < 0:  # Prevent negative stock
-            drug.quantity_in_stock = 0
+        drug.quantity_in_stock = max(drug.quantity_in_stock, 0)
 
         # Remove the batch
         db.session.delete(batch)
         db.session.commit()
 
         flash(f"Batch {batch.batch_number} removed from inventory.", "success")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in pharmacy.remove_batch: {e}")
@@ -138,7 +137,7 @@ def remove_batch(batch_id):
 def remove_all_expiries():
     """Removes all expired batches from inventory and logs them in expiries."""
     try:
-        today = datetime.today().date()
+        today = datetime.now(timezone.utc).date()
 
         # Fetch all expired batches
         expired_batches = Batch.query.filter(Batch.expiry_date < today).all()
@@ -162,8 +161,7 @@ def remove_all_expiries():
 
             # Update drugs.quantity_in_stock
             drug.quantity_in_stock -= batch.quantity_in_stock
-            if drug.quantity_in_stock < 0:  # Prevent negative stock
-                drug.quantity_in_stock = 0
+            drug.quantity_in_stock = max(drug.quantity_in_stock, 0)
 
             # Remove the batch
             db.session.delete(batch)
@@ -172,7 +170,7 @@ def remove_all_expiries():
         flash(
             f"Removed {len(expired_batches)} expired batches from inventory.", "success"
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in pharmacy.remove_all_expiries: {e}")
@@ -189,7 +187,7 @@ def inventory():
     """Displays the full inventory with expiry categories."""
     try:
         # Define a threshold for near expiry (e.g., within 30 days)
-        today = datetime.today().date()
+        today = datetime.now(timezone.utc).date()
         near_expiry_threshold = today + timedelta(days=30)
 
         # Query the database with total stock as sum of batch quantities
@@ -233,7 +231,7 @@ def inventory():
             normal_stock_drugs=normal_stock_drugs,
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in pharmacy.inventory: {e}")
         return redirect(url_for("home"))
@@ -290,7 +288,7 @@ def record_purchase():
                 new_purchase = Purchase(
                     drug_id=drug.id,
                     batch_id=batch.id,
-                    purchase_date=datetime.today().date(),
+                    purchase_date=datetime.now(timezone.utc).date(),
                     quantity_purchased=int(quantity),
                     unit_cost=float(unit_cost),
                     total_cost=float(unit_cost) * int(quantity),
@@ -306,7 +304,7 @@ def record_purchase():
 
         return render_template("pharmacy/record_purchase.html", drugs=drugs)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         db.session.rollback()  # Rollback changes in case of error
         print(f"Debug: Error in pharmacy.record_purchase: {e}")  # Debugging
@@ -361,7 +359,7 @@ def low_stock():
             "pharmacy/low_stock.html", low_stock_drugs=low_stock_drugs
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in pharmacy.low_stock: {e}")
         return redirect(url_for("pharmacy.index"))
@@ -390,7 +388,7 @@ def drug_requests():
                 # Create a new request with a unique UUID
                 existing_request = DrugRequest(
                     request_uuid=str(uuid.uuid4()),  # Generate a unique UUID
-                    request_date=datetime.today().date(),
+                    request_date=datetime.now(timezone.utc).date(),
                     status="Pending",
                     requested_by=current_user.id,
                 )
@@ -425,7 +423,7 @@ def drug_requests():
             latest_request=latest_request,
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in pharmacy.drug_requests: {e}")
@@ -451,7 +449,7 @@ def save_order():
 
         return redirect(url_for("pharmacy.index"))  # Redirect to pharmacy dashboard
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in pharmacy.save_order: {e}")
@@ -482,8 +480,8 @@ def pending_requests():
         end_date = request.form.get("end_date")
 
         if start_date and end_date:
-            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()  # noqa: DTZ007
+            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()  # noqa: DTZ007
             query = query.filter(DrugRequest.request_date.between(start_date, end_date))
 
         pending_requests = query.limit(5).all()
@@ -492,7 +490,7 @@ def pending_requests():
             "pharmacy/pending_requests.html", pending_requests=pending_requests
         )
 
-    except Exception:
+    except Exception:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         return redirect(url_for("pharmacy.index"))
 
@@ -546,8 +544,8 @@ def served_requests():
         end_date = request.form.get("end_date")
 
         if start_date and end_date:
-            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()  # noqa: DTZ007
+            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()  # noqa: DTZ007
             query = query.filter(DrugRequest.request_date.between(start_date, end_date))
 
         served_requests = query.limit(5).all()  # Fetch last 5 served requests
@@ -556,7 +554,7 @@ def served_requests():
             "pharmacy/served_requests.html", served_requests=served_requests
         )
 
-    except Exception:
+    except Exception:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         return redirect(url_for("pharmacy.index"))
 
@@ -620,8 +618,8 @@ def get_all_batches():
         print(f"📌 DEBUG: API Response: {len(batch_list)} unique batches returned")
         return jsonify(batch_list), 200
 
-    except Exception as e:
-        logger.error(f"Error in get_all_batches: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Error in get_all_batches: ")
         return jsonify(
             {"error": "Failed to fetch drug batches. Please try again."}
         ), 500

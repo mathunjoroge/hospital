@@ -32,7 +32,7 @@ def index():
         valid_waiting_list = queue_service.queue_for("nursing")
 
         return render_template("nursing/index.html", waiting_list=valid_waiting_list)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         # Handle any unexpected errors
         flash("Something went wrong. Please try again.", "error")
         print(f"Error in nursing.index: {e}")  # Debugging
@@ -81,7 +81,6 @@ def vitals(patient_id):
             ScheduleEngine().mark_triage_complete(patient_id)
             # Phase 5.5: auto-stamp ESI from triage vitals (drives queue priority + EMERGENT badge)
             try:
-                from datetime import date as _date
 
                 from departments.models.encounter import Encounter
                 from departments.nursing.triage import calculate_esi_level
@@ -93,7 +92,7 @@ def vitals(patient_id):
                 if _enc is not None:
                     _age = 30.0
                     if _enc.patient is not None and _enc.patient.date_of_birth:
-                        _age = (_date.today() - _enc.patient.date_of_birth).days / 365.25
+                        _age = (datetime.now(timezone.utc).date() - _enc.patient.date_of_birth).days / 365.25
                     _esi, _ = calculate_esi_level(
                         vitals_dict={
                             "temperature": vitals_data.temperature,
@@ -109,7 +108,7 @@ def vitals(patient_id):
                     )
                     _enc.esi_level = _esi
                     db.session.commit()
-            except Exception as _e:  # never block vitals capture on ESI math
+            except Exception as _e:  # never block vitals capture on ESI math  # noqa: BLE001
                 db.session.rollback()
                 logger.warning(f"ESI auto-stamp skipped for {patient_id}: {_e}")
             logger.info(
@@ -129,11 +128,11 @@ def vitals(patient_id):
         except ValueError as e:
             db.session.rollback()
             flash("Something went wrong. Please try again.", "error")
-            logger.error(f"ValueError in nursing.vitals: {e}", exc_info=True)
+            logger.exception("ValueError in nursing.vitals: ")
             db.session.add(
                 Log(
                     level="ERROR",
-                    message=f"Invalid input error recording vitals: {str(e)}",
+                    message=f"Invalid input error recording vitals: {e!s}",
                     user_id=current_user.id,
                     source="nursing",
                 )
@@ -142,11 +141,11 @@ def vitals(patient_id):
         except Exception as e:
             db.session.rollback()
             flash("Something went wrong. Please try again.", "error")
-            logger.error(f"Error in nursing.vitals: {e}", exc_info=True)
+            logger.exception("Error in nursing.vitals: ")
             db.session.add(
                 Log(
                     level="ERROR",
-                    message=f"Error recording vitals: {str(e)}",
+                    message=f"Error recording vitals: {e!s}",
                     user_id=current_user.id,
                     source="nursing",
                 )
@@ -174,11 +173,11 @@ def vitals(patient_id):
         )
     except Exception as e:
         flash("Something went wrong. Please try again.", "error")
-        logger.error(f"Error in nursing.vitals: {e}", exc_info=True)
+        logger.exception("Error in nursing.vitals: ")
         db.session.add(
             Log(
                 level="ERROR",
-                message=f"Error loading vitals: {str(e)}",
+                message=f"Error loading vitals: {e!s}",
                 user_id=current_user.id,
                 source="nursing",
             )
@@ -209,9 +208,9 @@ def record_partogram():
     """Displays the partogram form for recording patient data."""
     try:
         return render_template("nursing/partogram.html")
-    except Exception as e:
-        flash(f"Error loading partogram form: {str(e)}", "error")
-        print(f"Debug: Error in nursing.record_partogram: {str(e)}")
+    except Exception as e:  # noqa: BLE001
+        flash(f"Error loading partogram form: {e!s}", "error")
+        print(f"Debug: Error in nursing.record_partogram: {e!s}")
         return redirect(url_for("nursing.index"))
 
 
@@ -282,7 +281,7 @@ def submit_partogram():
                 urine_volume = int(urine_volume)
             except ValueError as ve:
                 errors.append(
-                    f"Invalid numeric input: {str(ve)}. Please ensure all numeric fields contain valid numbers."
+                    f"Invalid numeric input: {ve!s}. Please ensure all numeric fields contain valid numbers."
                 )
 
         # Step 3: Validate ranges
@@ -395,12 +394,12 @@ def submit_partogram():
     except ValueError as ve:
         db.session.rollback()
         return render_template(
-            "nursing/error.html", errors=[f"Invalid input: {str(ve)}"]
+            "nursing/error.html", errors=[f"Invalid input: {ve!s}"]
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
         return render_template(
-            "nursing/error.html", errors=[f"Error saving partogram: {str(e)}"]
+            "nursing/error.html", errors=[f"Error saving partogram: {e!s}"]
         )
 
 
@@ -465,8 +464,8 @@ def view_partogram(patient_id):
         )
 
     except Exception as e:
-        flash(f"Error fetching partogram records: {str(e)}", "error")
-        logger.error("Error in nursing.view_partogram: %s", e, exc_info=True)
+        flash(f"Error fetching partogram records: {e!s}", "error")
+        logger.exception("Error in nursing.view_partogram: %s")
         return redirect(url_for("nursing.index"))
 
 
@@ -521,10 +520,10 @@ def view_partograms():
         )
 
     except Exception as e:
-        logger.error("Error in nursing.view_partograms: %s", e, exc_info=True)
+        logger.exception("Error in nursing.view_partograms: %s")
         return render_template(
             "nursing/error.html",
-            errors=[f"Error fetching partogram records: {str(e)}"],
+            errors=[f"Error fetching partogram records: {e!s}"],
         )
 
 
@@ -581,9 +580,9 @@ def vital_signs():
                 "error",
             )
             return redirect(url_for("nursing.vital_signs"))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             db.session.rollback()
-            flash(f"Error recording vital signs: {str(e)}", "error")
+            flash(f"Error recording vital signs: {e!s}", "error")
             return redirect(url_for("nursing.vital_signs"))
 
     return render_template("nursing/vital_signs.html")

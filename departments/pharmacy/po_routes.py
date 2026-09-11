@@ -372,7 +372,7 @@ def receive_po_shipment(po_id):
 
         expiry_str = str(receipt_info.get("expiry_date")).strip()
         try:
-            exp_date = datetime.strptime(expiry_str, "%Y-%m-%d").date()
+            exp_date = datetime.strptime(expiry_str, "%Y-%m-%d").date()  # noqa: DTZ007
         except ValueError:
             return jsonify(
                 {
@@ -572,7 +572,7 @@ def record_direct_receipt():
             ), 400
 
         try:
-            exp_date = datetime.strptime(str(expiry_str).strip(), "%Y-%m-%d").date()
+            exp_date = datetime.strptime(str(expiry_str).strip(), "%Y-%m-%d").date()  # noqa: DTZ007
         except ValueError:
             return jsonify({"error": "Invalid expiry_date format. Use YYYY-MM-DD"}), 400
 

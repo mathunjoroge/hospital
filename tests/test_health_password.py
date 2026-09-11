@@ -81,7 +81,7 @@ class TestHealthAndPasswordPolicy(unittest.TestCase):
             os.environ["FLASK_ENV"] = "development"
             import app as app_module
 
-            with patch("dotenv.load_dotenv"):
+            with patch("dotenv.load_dotenv"):  # noqa: SIM117
                 with self.assertRaises(RuntimeError) as ctx:
                     importlib.reload(app_module)
             self.assertIn("SECRET_KEY", str(ctx.exception))
@@ -108,7 +108,7 @@ class TestHealthAndPasswordPolicy(unittest.TestCase):
             os.environ.pop("FLASK_ENV", None)
             import app as app_module
 
-            with patch("dotenv.load_dotenv"):
+            with patch("dotenv.load_dotenv"):  # noqa: SIM117
                 with self.assertRaises(RuntimeError) as ctx:
                     importlib.reload(app_module)
             self.assertIn("SECRET_KEY", str(ctx.exception))

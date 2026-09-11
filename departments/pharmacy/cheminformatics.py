@@ -117,13 +117,13 @@ def validate_and_analyze_smiles(smiles: str) -> dict:
             "error": None,
         }
     except Exception as e:
-        logger.error(
+        logger.error(  # noqa: G201
             f"Error computing RDKit descriptors for '{smiles}': {e}", exc_info=True
         )
         return {
             "is_valid": False,
             "smiles": clean_smiles,
-            "error": f"Descriptor calculation failed: {str(e)}",
+            "error": f"Descriptor calculation failed: {e!s}",
         }
 
 
@@ -148,12 +148,12 @@ def generate_3d_molblock(smiles: str) -> str | None:
         if res == 0:
             try:
                 AllChem.MMFFOptimizeMolecule(mol3d, maxIters=200)
-            except Exception:
+            except Exception:  # noqa: S110, BLE001
                 pass  # Use unoptimized 3D coords if MMFF fails
             return Chem.MolToMolBlock(mol3d)
         else:
             return Chem.MolToMolBlock(mol)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Failed to generate 3D MolBlock for '{smiles}': {e}")
         return None
 
@@ -172,7 +172,7 @@ def calculate_tanimoto_similarity(smiles1: str, smiles2: str) -> float:
         fp1 = rdMolDescriptors.GetMorganFingerprintAsBitVect(mol1, 2, nBits=2048)
         fp2 = rdMolDescriptors.GetMorganFingerprintAsBitVect(mol2, 2, nBits=2048)
         return round(float(DataStructs.TanimotoSimilarity(fp1, fp2)), 3)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Tanimoto calculation failed: {e}")
         return 0.0
 
@@ -210,7 +210,7 @@ def find_closest_reference_drugs(smiles: str, top_n: int = 3) -> list[dict]:
 
         matches.sort(key=lambda x: x["similarity"], reverse=True)
         return matches[:top_n]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Reference drug similarity search failed for '{smiles}': {e}")
         return []
 

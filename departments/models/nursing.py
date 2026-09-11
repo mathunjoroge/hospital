@@ -119,9 +119,6 @@ class Partogram(db.Model):
     )  # e.g., 'negative', '1+', '2+', '3+'
     # Patient and metadata
 
-    timestamp = db.Column(
-        db.DateTime, nullable=False, default=db.func.current_timestamp(), index=True
-    )
 
     def __repr__(self):
         return f"<Partogram(id={self.id}, patient_id={self.patient_id}, timestamp={self.timestamp})>"

@@ -45,7 +45,7 @@ def _configured_database_uri() -> str:
     )
 
 
-def perform_backup(db_path: str = None) -> str:
+def perform_backup(db_path: str | None = None) -> str:
     """
     Perform a hot backup of the active database, dispatching by backend.
 
@@ -91,7 +91,7 @@ def perform_postgres_backup(db_uri: str) -> str:
 
     logger.info(f"Starting pg_dump backup -> {backup_path}")
     try:
-        result = subprocess.run(  # nosec B603
+        result = subprocess.run(  # nosec B603  # noqa: PLW1510
             cmd, env=pg_env, capture_output=True, text=True, timeout=1800
         )
         if result.returncode != 0:
@@ -107,12 +107,12 @@ def perform_postgres_backup(db_uri: str) -> str:
     except subprocess.TimeoutExpired:
         logger.error("pg_dump timed out after 30 minutes")
         return None
-    except Exception as e:
-        logger.error(f"Backup failed: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Backup failed: ")
         return None
 
 
-def perform_sqlite_backup(db_path: str = None) -> str:
+def perform_sqlite_backup(db_path: str | None = None) -> str:
     """
     Perform a consistent hot backup of the SQLite database (local/dev/test only).
     """
@@ -162,8 +162,8 @@ def perform_sqlite_backup(db_path: str = None) -> str:
         # Rotate old backups
         rotate_backups()
         return backup_path
-    except Exception as e:
-        logger.error(f"Backup failed: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Backup failed: ")
         return None
 
 
@@ -176,7 +176,7 @@ def rotate_backups(pattern: str = "hospital_backup_*.db"):
             try:
                 os.remove(old_backup)
                 logger.info(f"Rotated old backup: {os.path.basename(old_backup)}")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning(f"Could not remove old backup {old_backup}: {e}")
 
 

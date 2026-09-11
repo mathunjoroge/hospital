@@ -170,7 +170,7 @@ def query_drugcentral_ddi(drug1: str, drug2: str) -> list[dict]:
             exc,
         )
         return []
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         latency_ms = (time.monotonic() - t0) * 1000
         logger.warning(
             "cdss.drugcentral_query_error drug1=%s drug2=%s latency_ms=%.1f error=%s: %s "
@@ -186,7 +186,7 @@ def query_drugcentral_ddi(drug1: str, drug2: str) -> list[dict]:
         if conn is not None:
             try:
                 conn.close()
-            except Exception:
+            except Exception:  # noqa: S110, BLE001
                 pass
 
 
@@ -266,7 +266,7 @@ def check_patient_allergies(patient: Patient, drug_name: str) -> dict | None:
     ).lower()
 
     for allergen, keywords in ALLERGY_PATTERNS.items():
-        if any(kw in drug_lower for kw in keywords):
+        if any(kw in drug_lower for kw in keywords):  # noqa: SIM102
             if allergen in combined_history or "allergy" in combined_history:
                 return {
                     "severity": "HIGH",
@@ -278,7 +278,7 @@ def check_patient_allergies(patient: Patient, drug_name: str) -> dict | None:
     return None
 
 
-def calculate_dosing_adjustment(drug_name: str, egfr: float = None) -> dict | None:
+def calculate_dosing_adjustment(drug_name: str, egfr: float | None = None) -> dict | None:
     """
     Check if drug requires renal dose adjustment based on patient eGFR.
     """
@@ -287,24 +287,23 @@ def calculate_dosing_adjustment(drug_name: str, egfr: float = None) -> dict | No
 
     drug_lower = drug_name.strip().lower()
     for drug_key, rule in RENAL_DOSE_DRUGS.items():
-        if drug_key in drug_lower:
-            if egfr < rule["cutoff_egfr"]:
-                return {
-                    "drug_name": drug_name,
-                    "egfr": egfr,
-                    "cutoff_egfr": rule["cutoff_egfr"],
-                    "severity": "MODERATE",
-                    "guidance": rule["guidance"],
-                }
+        if drug_key in drug_lower and egfr < rule["cutoff_egfr"]:
+            return {
+                "drug_name": drug_name,
+                "egfr": egfr,
+                "cutoff_egfr": rule["cutoff_egfr"],
+                "severity": "MODERATE",
+                "guidance": rule["guidance"],
+            }
 
     return None
 
 
 def evaluate_prescription_safety(
-    patient_id: str = None,
-    drug_name: str = None,
-    existing_meds: list[str] = None,
-    egfr: float = None,
+    patient_id: str | None = None,
+    drug_name: str | None = None,
+    existing_meds: list[str] | None = None,
+    egfr: float | None = None,
 ) -> dict:
     """
     Comprehensive Clinical Decision Support evaluation.

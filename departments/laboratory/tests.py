@@ -44,7 +44,7 @@ def index():
             "laboratory/index.html", pending_lab_requests=pending_lab_requests
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.index: {e}")  # Debugging
         return redirect(url_for("login"))
@@ -64,7 +64,7 @@ def lab_tests():
         # Render the lab_tests.html template with the fetched data
         return render_template("laboratory/lab_tests.html", lab_tests=lab_tests)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.lab_tests: {e}")  # Debugging
         return redirect(url_for("laboratory.index"))
@@ -173,7 +173,7 @@ def edit_lab_test(test_id):
         print(f"Debug: Error in laboratory.edit_lab_test: {ve}")
         return redirect(url_for("laboratory.edit_lab_test", test_id=test_id))
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         db.session.rollback()  # Rollback changes in case of error
         print(f"Debug: Error in laboratory.edit_lab_test: {e}")
@@ -198,7 +198,7 @@ def delete_lab_test(test_id):
         flash("Lab test deleted successfully!", "success")
         return redirect(url_for("laboratory.lab_tests"))
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.delete_lab_test: {e}")
         return redirect(url_for("laboratory.lab_tests"))
@@ -236,7 +236,7 @@ def add_lab_test():
         # Render the add form on GET request
         return render_template("laboratory/add_lab_test.html")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.add_lab_test: {e}")
         return redirect(url_for("laboratory.lab_tests"))
@@ -286,7 +286,7 @@ def view_lab_test(test_id):
             parameters=lab_test_details,  # Pass the list of parameters
         )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.view_lab_test: {e}")
         return redirect(url_for("laboratory.lab_tests"))

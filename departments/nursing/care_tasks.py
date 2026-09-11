@@ -52,7 +52,7 @@ def search_patients():
 
         return jsonify(patient_list), 200
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Debug: Error in search_patients: {e}")
         return jsonify({"error": "Failed to fetch patient data."}), 500
 
@@ -112,11 +112,11 @@ def care_tasks():
         except Exception as e:
             db.session.rollback()
             flash("Something went wrong. Please try again.", "error")
-            logger.error(f"Error in nursing.care_tasks: {e}", exc_info=True)
+            logger.exception("Error in nursing.care_tasks: ")
             db.session.add(
                 Log(
                     level="ERROR",
-                    message=f"Error adding care task: {str(e)}",
+                    message=f"Error adding care task: {e!s}",
                     user_id=current_user.id,
                     source="nursing",
                 )
@@ -142,11 +142,11 @@ def care_tasks():
         return render_template("nursing/care_tasks.html", tasks=tasks)
     except Exception as e:
         flash("Something went wrong. Please try again.", "error")
-        logger.error(f"Error in nursing.care_tasks: {e}", exc_info=True)
+        logger.exception("Error in nursing.care_tasks: ")
         db.session.add(
             Log(
                 level="ERROR",
-                message=f"Error loading care tasks: {str(e)}",
+                message=f"Error loading care tasks: {e!s}",
                 user_id=current_user.id,
                 source="nursing",
             )
@@ -185,11 +185,11 @@ def care_summary():
         return render_template("nursing/care_summary.html", notes=notes, tasks=tasks)
     except Exception as e:
         flash("Something went wrong. Please try again.", "error")
-        logger.error(f"Error in nursing.care_summary: {e}", exc_info=True)
+        logger.exception("Error in nursing.care_summary: ")
         db.session.add(
             Log(
                 level="ERROR",
-                message=f"Error loading care summary: {str(e)}",
+                message=f"Error loading care summary: {e!s}",
                 user_id=current_user.id,
                 source="nursing",
             )
@@ -222,9 +222,9 @@ def medication_admin():
             db.session.commit()
             flash("Medication administration recorded.", "success")
             return redirect(url_for("nursing.medication_admin"))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             db.session.rollback()
-            flash(f"Error recording medication: {str(e)}", "error")
+            flash(f"Error recording medication: {e!s}", "error")
             return redirect(url_for("nursing.medication_admin"))
 
     return render_template("nursing/medication_admin.html")
@@ -255,9 +255,9 @@ def mark_task_completed(task_id):
         db.session.commit()
         flash("Task marked as completed.", "success")
         return redirect(url_for("nursing.patient_dashboard", patient_id=patient_id))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.session.rollback()
-        flash(f"Error marking task as completed: {str(e)}", "error")
+        flash(f"Error marking task as completed: {e!s}", "error")
         return redirect(url_for("nursing.patient_dashboard", patient_id=patient_id))
 
 

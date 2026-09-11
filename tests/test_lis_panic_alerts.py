@@ -27,7 +27,7 @@ def sample_lab_setup(app):
         name="LIS Test Patient",
         place_of_residence="Nairobi",
         sex="Female",
-        date_of_birth=datetime(1990, 1, 1).date(),
+        date_of_birth=datetime(1990, 1, 1).date(),  # noqa: DTZ001
         marital_status="Single",
         contact="0700998877",
         next_of_kin="Kin",

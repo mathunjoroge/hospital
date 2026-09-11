@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 
@@ -12,10 +12,9 @@ from extensions import db
 def client():
     app.config["TESTING"] = True
     app.config["WTF_CSRF_ENABLED"] = False
-    with app.test_client() as client:
-        with app.app_context():
-            db.create_all()
-            yield client
+    with app.test_client() as client, app.app_context():
+        db.create_all()
+        yield client
 
 
 @pytest.fixture
@@ -94,7 +93,7 @@ def test_patient_problem_list_lifecycle(client, sample_patient):
 
         # Mark acute infection as RESOLVED
         p2.status = "RESOLVED"
-        p2.resolved_date = date.today()
+        p2.resolved_date = datetime.now(timezone.utc).date()
         db.session.commit()
 
         # Re-query problem list

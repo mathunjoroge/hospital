@@ -9,7 +9,7 @@ Endpoints (registered on the `api` blueprint, prefix /api):
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 
 from flask import g, jsonify, request
@@ -54,8 +54,7 @@ def jwt_or_session_required(fn):
                     return jsonify({"error": "Token user not found"}), 401
                 g.api_user = user
                 return fn(*args, **kwargs)
-            except Exception:
-                # JWT failed, try OAuth2
+            except Exception:  # noqa: S110, BLE001                # JWT failed, try OAuth2
                 pass
 
             # Try OAuth2 access token
@@ -63,10 +62,10 @@ def jwt_or_session_required(fn):
                 from departments.models.oauth2 import OAuth2Token
                 token_str = auth_header.split(" ")[1]
                 token = OAuth2Token.query.filter_by(access_token=token_str, revoked=False).first()
-                if token and token.expires_at > datetime.utcnow().timestamp():
+                if token and token.expires_at > datetime.now(timezone.utc).timestamp():
                     g.api_user = token.user
                     return fn(*args, **kwargs)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.warning("OAuth2 verification failed: %s", exc)
                 return jsonify(
                     {"error": "Invalid or expired token", "detail": str(exc)}
@@ -87,7 +86,7 @@ def jwt_or_session_required(fn):
 # ─────────────────────────────────────────────────────────
 # Route helpers  (imported by __init__.py)
 # ─────────────────────────────────────────────────────────
-from . import bp  # noqa: E402  (circular-safe — bp defined before routes)
+from . import bp
 
 
 @bp.route("/auth/token", methods=["POST"])
@@ -117,7 +116,7 @@ def get_token():
 
     try:
         user = User.query.filter_by(username=username).first()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         db.session.rollback()
         logger.error("DB error querying user for token: %s", exc)
         return jsonify({"error": "Database query error", "detail": str(exc)}), 500

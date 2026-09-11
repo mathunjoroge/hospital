@@ -3,7 +3,6 @@ ICD-10 importer for loading WHO ICD-10-CM data from NLM UMLS flat file.
 """
 import csv
 import os
-from typing import Dict, List
 
 from flask import current_app
 
@@ -11,7 +10,7 @@ from departments.models.terminology import ICD10Code
 from extensions import db
 
 
-def load_icd10_from_csv(filepath: str) -> List[Dict]:
+def load_icd10_from_csv(filepath: str) -> list[dict]:
     """
     Load ICD-10 codes from a CSV file.
     Expected columns: CODE, DESCRIPTION, CHAPTER, BLOCK
@@ -29,7 +28,7 @@ def load_icd10_from_csv(filepath: str) -> List[Dict]:
     return codes
 
 
-def import_icd10_codes(filepath: str = None) -> int:
+def import_icd10_codes(filepath: str | None = None) -> int:
     """
     Import ICD-10 codes into the database.
     If filepath is not provided, uses the environment variable ICD10_CSV_PATH
@@ -54,7 +53,7 @@ def import_icd10_codes(filepath: str = None) -> int:
     try:
         num_deleted = db.session.query(ICD10Code).delete()
         current_app.logger.info(f"Deleted {num_deleted} existing ICD-10 codes")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         current_app.logger.error(f"Error deleting existing ICD-10 codes: {e}")
         db.session.rollback()
         return 0
@@ -66,7 +65,7 @@ def import_icd10_codes(filepath: str = None) -> int:
         db.session.commit()
         current_app.logger.info(f"Imported {len(codes)} ICD-10 codes")
         return len(codes)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         current_app.logger.error(f"Error importing ICD-10 codes: {e}")
         db.session.rollback()
         return 0

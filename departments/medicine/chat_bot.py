@@ -123,9 +123,9 @@ def extract_file_content(file):
         else:
             return "Unsupported file type."
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error extracting content from file {filename}: {e}")
-        return f"Error processing file: {str(e)}"
+        return f"Error processing file: {e!s}"
 
 
 def persist_session(app, sess):
@@ -154,8 +154,8 @@ def persist_session(app, sess):
 
         logger.debug("Session persisted successfully during stream.")
 
-    except Exception as e:
-        logger.error(f"Failed to persist session during stream: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Failed to persist session during stream: ")
 
 
 @bp.route("/chatbot", methods=["GET", "POST"])
@@ -362,7 +362,7 @@ def chatbot_task_status(task_id):
             from celery_app import celery
 
             task_result = AsyncResult(task_id, app=celery)
-        except Exception:
+        except Exception:  # noqa: BLE001
             task_result = AsyncResult(task_id)
 
         state = getattr(task_result, "state", "PENDING")
@@ -376,7 +376,7 @@ def chatbot_task_status(task_id):
                     "error": str(res),
                 }
             ), 500
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.error(f"Error checking status for Celery task {task_id}: {exc}")
         return jsonify({"status": "ERROR", "error": str(exc)}), 500
 

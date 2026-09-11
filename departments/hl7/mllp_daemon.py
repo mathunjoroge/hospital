@@ -187,13 +187,13 @@ async def _handle_connection(
 
     except asyncio.IncompleteReadError:
         logger.debug("Connection closed by %s", peer)
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:  # pylint: disable=broad-except  # noqa: BLE001
         logger.error("Error handling connection from %s: %s", peer, exc)
     finally:
         writer.close()
         try:
             await writer.wait_closed()
-        except Exception:  # pylint: disable=broad-except
+        except Exception:  # pylint: disable=broad-except  # noqa: S110, BLE001
             pass
         logger.info("MLLP connection closed: %s", peer)
 

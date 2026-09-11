@@ -10,7 +10,7 @@ Unit tests for Phase A: Patient Self-Service Portal
 - Password Reset Flow (token generation, valid reset, expired token)
 """
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from departments.models.billing import Invoice
 from departments.models.compliance import AuditLog
@@ -70,7 +70,7 @@ def setup_test_patients(app):
 
 
 def test_patient_registration_and_login(client, app):
-    pid1, _ = setup_test_patients(app)
+    _pid1, _ = setup_test_patients(app)
 
     # Register Patient A
     reg_resp = client.post(
@@ -294,7 +294,7 @@ def test_forgot_password_generates_token_and_does_not_enumerate(client, app):
         pu = PatientUser.query.filter_by(username="reset_test_user").first()
         assert pu.reset_token is not None
         assert pu.reset_token_expiry is not None
-        assert pu.reset_token_expiry > datetime.utcnow()
+        assert pu.reset_token_expiry > datetime.now(timezone.utc)
 
     # Submit with an unknown username — must show the same message (no enumeration)
     resp_unknown = client.post(
@@ -319,7 +319,7 @@ def test_reset_password_with_valid_token(client, app):
         user.set_password("OldPassword1!")
         # Pre-seed a valid token with 1-hour expiry
         user.reset_token = "validtoken123"
-        user.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
+        user.reset_token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
         db.session.add(user)
         db.session.commit()
 
@@ -368,7 +368,7 @@ def test_reset_password_fails_with_expired_or_invalid_token(client, app):
         user.set_password("Pass1234!")
         # Set an already-expired token (2 hours in the past)
         user.reset_token = "expiredtoken456"
-        user.reset_token_expiry = datetime.utcnow() - timedelta(hours=2)
+        user.reset_token_expiry = datetime.now(timezone.utc) - timedelta(hours=2)
         db.session.add(user)
         db.session.commit()
 
@@ -415,7 +415,7 @@ def test_patient_can_cancel_future_appointment(client, app):
             db.session.add(clinic)
             db.session.flush()
 
-        future_date = date.today() + timedelta(days=5)
+        future_date = datetime.now(timezone.utc).date() + timedelta(days=5)
         booking = ClinicBooking(patient_id=p.patient_id, clinic_id=clinic.clinic_id, clinic_date=future_date)
         db.session.add(booking)
 
@@ -461,7 +461,7 @@ def test_patient_cannot_cancel_past_appointment(client, app):
             clinic = Clinic(name="Test Clinic Past", fee=100.0)
             db.session.add(clinic)
             db.session.flush()
-        past_date = date.today() - timedelta(days=5)
+        past_date = datetime.now(timezone.utc).date() - timedelta(days=5)
         booking = ClinicBooking(patient_id=p.patient_id, clinic_id=clinic.clinic_id, clinic_date=past_date)
         db.session.add(booking)
 

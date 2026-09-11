@@ -4,7 +4,7 @@ departments/billing/ward_charges.py
 T3.5: Midnight cron job to post daily room & board charges
 for all active IPD encounters.
 """
-from datetime import date, datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import and_
 
@@ -19,7 +19,7 @@ def post_daily_ward_charges():
     Finds all active IPD encounters, calculates the daily ward rate,
     and creates an InvoiceLineItem for today's room & board.
     """
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
 
     # 1. Find all active IPD encounters
     active_ipds = db.session.query(Encounter).filter(
@@ -65,7 +65,7 @@ def post_daily_ward_charges():
         ).first()
 
         if not invoice:
-            invoice = Invoice(patient_id=enc.patient_id, status="OPEN", created_at=datetime.utcnow())
+            invoice = Invoice(patient_id=enc.patient_id, status="OPEN", created_at=datetime.now(timezone.utc))
             db.session.add(invoice)
             db.session.flush()
 
@@ -75,7 +75,7 @@ def post_daily_ward_charges():
             encounter_id=enc.id,
             description=f"Ward Charge - {ward.name} - {today.strftime('%Y-%m-%d')}",
             amount=ward.daily_charge,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         db.session.add(line_item)
         charges_posted += 1

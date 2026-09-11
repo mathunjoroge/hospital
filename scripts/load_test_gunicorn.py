@@ -21,7 +21,6 @@ import concurrent.futures
 import statistics
 import sys
 import time
-from typing import Dict, List
 
 import requests
 
@@ -68,7 +67,7 @@ def get_authenticated_session(base_url: str) -> requests.Session | None:
         os.environ.setdefault("SQLALCHEMY_DATABASE_URI", "postgresql://mathu@localhost/hospital_db")
         from app import app
         from departments.models.user import User
-        with app.app_context():
+        with app.app_context():  # noqa: SIM117
             with app.test_client() as c:
                 u = User.query.filter_by(username="bench_admin").first()
                 if not u:
@@ -86,7 +85,7 @@ def get_authenticated_session(base_url: str) -> requests.Session | None:
                 if cookie:
                     s.cookies.set("session", cookie.value)
                     return s
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"  Session cookie fallback failed: {e}", file=sys.stderr)
     return None
 
@@ -99,8 +98,8 @@ def benchmark_endpoint(
     iterations: int,
     session: requests.Session | None = None,
     post_data: dict | None = None,
-) -> Dict:
-    latencies: List[float] = []
+) -> dict:
+    latencies: list[float] = []
     errors: int = 0
 
     def worker(_):
