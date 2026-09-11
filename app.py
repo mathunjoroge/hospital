@@ -789,6 +789,9 @@ app.register_blueprint(dicom_bp)
 app.register_blueprint(mar_bp)
 app.register_blueprint(fhir_bp, url_prefix="/api/fhir/R4")
 app.register_blueprint(khis_bp, url_prefix="/api/khis")
+from departments.api.oauth2_provider import oauth_bp, init_oauth
+app.register_blueprint(oauth_bp)
+init_oauth(app)
 
 # ── Phase 2: OpenTelemetry tracing (P2-02) ─────────────────────────────────
 from departments.observability import setup_observability  # noqa: E402

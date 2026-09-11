@@ -200,3 +200,14 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
 **Decision:** Option A — Full Multi-Tenancy. Add `facility_id` to all tenant-scoped clinical/financial tables, backfill with the home facility (`is_self=True`), and enable RLS policies keyed on a per-request `app.current_facility_id` session variable.
 **Rationale:** Option A is the only scope that genuinely satisfies "multi-tenant data isolation" and unblocks Phase 6 (SSO). Partial scoping would leave patient data cross-visible between facilities.
 **Implementation:** Proceeding on `feat/phase2-observability-dr-security`.
+
+## Section 20: Phase 6 SSO & SMART on FHIR Architecture
+**Status:** DECIDED — 2026-09-12
+**Decision-maker:** Solo Developer / System Administrator
+**Context:** P2-14 (RLS) is complete. Phase 6 requires OAuth2 provider to protect FHIR endpoints and SMART on FHIR launch integration for external EHR interoperability.
+**Decision:** 
+1. **OAuth2 Provider**: Use `Authlib` (Flask OAuth 2.0 server) to implement authorization server.
+2. **SMART on FHIR**: Implement EHR Launch flow (external EHR redirects to our app with launch context).
+3. **Scope Model**: Add `oauth_scopes` column to User model for fine-grained FHIR access control.
+**Rationale:** Authlib is production-tested, supports SMART scopes natively, and integrates cleanly with Flask-JWT-Extended. EHR Launch is the standard SMART flow for hospital HMIS integration.
+**Implementation:** Proceeding on `feat/phase6-sso-smart-fhir`.

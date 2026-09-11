@@ -9,6 +9,7 @@ Endpoints (registered on the `api` blueprint, prefix /api):
 """
 
 import logging
+from datetime import datetime
 from functools import wraps
 
 from flask import g, jsonify, request
@@ -33,6 +34,7 @@ def jwt_or_session_required(fn):
     """
     Decorator that allows access when the caller presents EITHER:
       • A valid Bearer JWT  (Authorization: Bearer <token>)
+      • A valid OAuth2 access token (Authorization: Bearer <token>)
       • An active Flask-Login session  (browser / cookie)
 
     Sets g.api_user to the resolved User object.
@@ -40,9 +42,10 @@ def jwt_or_session_required(fn):
 
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        # 1. Try JWT first (only if Authorization header is present)
+        # 1. Try JWT or OAuth2 first (only if Authorization header is present)
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
+            # Try JWT first
             try:
                 verify_jwt_in_request()
                 user_id = get_jwt_identity()
@@ -51,8 +54,20 @@ def jwt_or_session_required(fn):
                     return jsonify({"error": "Token user not found"}), 401
                 g.api_user = user
                 return fn(*args, **kwargs)
+            except Exception:
+                # JWT failed, try OAuth2
+                pass
+
+            # Try OAuth2 access token
+            try:
+                from departments.models.oauth2 import OAuth2Token
+                token_str = auth_header.split(" ")[1]
+                token = OAuth2Token.query.filter_by(access_token=token_str, revoked=False).first()
+                if token and token.expires_at > datetime.utcnow().timestamp():
+                    g.api_user = token.user
+                    return fn(*args, **kwargs)
             except Exception as exc:
-                logger.warning("JWT verification failed: %s", exc)
+                logger.warning("OAuth2 verification failed: %s", exc)
                 return jsonify(
                     {"error": "Invalid or expired token", "detail": str(exc)}
                 ), 401
