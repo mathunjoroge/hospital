@@ -53,7 +53,7 @@ def test_flask_route_emits_span():
 def test_slow_query_emits_span(app):
     """
     Verifies the P2-02 slow-query span mechanism.
-    
+
     We test the mechanism directly rather than going through setup_observability()
     because the OTel SDK only allows set_tracer_provider() once per process, and
     SQLAlchemy accumulates engine listeners across tests. This isolates the test
