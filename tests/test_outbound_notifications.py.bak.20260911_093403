@@ -180,7 +180,7 @@ def test_all_five_event_triggers(app, sample_patient):
             patient_id=sample_patient,
             amount=2500.0,
             payment_method="MPESA",
-            receipt_number="REC-999002",
+            receipt_number="REC-999001",
         )
         db.session.add(pmt)
         db.session.commit()
