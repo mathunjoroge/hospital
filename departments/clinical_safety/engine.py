@@ -19,7 +19,131 @@ from departments.clinical_safety.models import SafetyAlertOverride
 from departments.models.medicine import PrescribedMedicine
 from departments.models.pharmacy import Drug
 from departments.models.records import Patient, PatientAllergy
+from departments.models.nursing import NursingNote
 from extensions import db
+
+
+# Allergy groups for cross-reactivity checking (duplicate from prescribe.py to avoid circular import)
+
+# NOTE: Must be kept in sync with departments/medicine/prescribe.py
+
+ALLERGY_GROUPS = {
+
+    "penicillin": [
+
+        "amoxicillin",
+
+        "ampicillin",
+
+        "penicillin",
+
+        "augmentin",
+
+        "piperacillin",
+
+        "amoxil",
+
+    ],
+
+    "sulfa": ["bactrim", "cotrimoxazole", "sulfamethoxazole", "septrin"],
+
+    "nsaid": [
+
+        "ibuprofen",
+
+        "diclofenac",
+
+        "naproxen",
+
+        "aspirin",
+
+        "indomethacin",
+
+        "brufen",
+
+    ],
+
+    "macrolide": ["azithromycin", "erythromycin", "clarithromycin"],
+
+}
+
+
+
+# Drug-Drug Interaction Warning Rules (pairs -> severity, warning message)
+
+# NOTE: Must be kept in sync with departments/medicine/prescribe.py
+
+KNOWN_INTERACTIONS = [
+
+    (
+
+        {"warfarin", "aspirin"},
+
+        "CRITICAL",
+
+        "High risk of major gastrointestinal hemorrhage and severe bleeding.",
+
+    ),
+
+    (
+
+        {"warfarin", "ibuprofen"},
+
+        "HIGH",
+
+        "Increased risk of bleeding and gastric mucosal ulceration.",
+
+    ),
+
+    (
+
+        {"lisinopril", "spironolactone"},
+
+        "HIGH",
+
+        "Severe hyperkalemia risk; requires close serum potassium monitoring.",
+
+    ),
+
+    (
+
+        {"ciprofloxacin", "antacid"},
+
+        "MEDIUM",
+
+        "Chelation reduces ciprofloxacin bioavailability and therapeutic efficacy.",
+
+    ),
+
+    (
+
+        {"metformin", "contrast"},
+
+        "HIGH",
+
+        "Risk of contrast-induced acute renal failure and metformin lactic acidosis.",
+
+    ),
+
+
+
+
+    ({"simvastatin", "clarithromycin"}, "HIGH", "Risk of rhabdomyolysis"),
+
+    ({"simvastatin", "erythromycin"}, "HIGH", "Risk of rhabdomyolysis"),
+
+    ({"atorvastatin", "clarithromycin"}, "HIGH", "Risk of rhabdomyolysis"),
+
+    ({"metformin", "contrast dye"}, "HIGH", "Risk of lactic acidosis"),
+
+    ({"ace inhibitors", "nsaids"}, "MODERATE", "May reduce kidney function"),
+
+    ({"diuretics", "lithium"}, "MODERATE", "Risk of lithium toxicity"),
+
+    ({"ssris", "nsaids"}, "MODERATE", "Increased risk of bleeding"),
+
+]
+
 
 logger = logging.getLogger(__name__)
 
@@ -360,3 +484,98 @@ class ClinicalSafetyEngine:
         )
 
         return override
+
+    def check_by_names(self, patient_id: str, medication_names: list[str]) -> dict:
+        """
+        Check medication names against patient allergies and drug-drug interactions.
+        This method mirrors the original check_drug_safety logic from prescribe.py
+        to maintain backward compatibility.
+
+        Args:
+            patient_id: The patient identifier (string)
+            medication_names: List of medication names to check
+
+        Returns:
+            dict with keys: has_warnings (bool), critical_block (bool), alerts (list)
+        """
+        alerts = []
+        new_meds_lower = [m.lower().strip() for m in medication_names if m]
+
+        # 1a. Fetch structured patient allergies from PatientAllergy model
+        structured_allergies = PatientAllergy.query.filter_by(patient_id=patient_id).all()
+        structured_allergen_names = [
+            a.allergen.lower().strip() for a in structured_allergies if a.allergen
+        ]
+
+        # 1b. Fetch patient allergy history from NursingNotes free text
+        notes = NursingNote.query.filter_by(patient_id=patient_id).all()
+        documented_allergies = list(structured_allergen_names)
+        for n in notes:
+            if n.allergies:
+                documented_allergies.extend(
+                    [a.strip().lower() for a in n.allergies.split(",")]
+                )
+
+        # Check allergy cross-reactivity and direct matches
+        for drug in new_meds_lower:
+            # Direct allergen match from PatientAllergy registry or free-text
+            for allergen in documented_allergies:
+                if allergen in drug or drug in allergen:
+                    alerts.append(
+                        {
+                            "type": "ALLERGY_WARNING",
+                            "severity": "CRITICAL",
+                            "drug": drug,
+                            "message": f"PATIENT ALLERGY ALERT: Patient has documented allergy to '{allergen.title()}'! Drug '{drug.title()}' is contraindicated.",
+                        }
+                    )
+                    break
+            else:
+                # Check group cross-reactivity
+                for group_name, drug_list in ALLERGY_GROUPS.items():
+                    if any(d in drug for d in drug_list):
+                        if any(
+                            group_name in allergy or any(d in allergy for d in drug_list)
+                            for allergy in documented_allergies
+                        ):
+                            alerts.append(
+                                {
+                                    "type": "ALLERGY_WARNING",
+                                    "severity": "CRITICAL",
+                                    "drug": drug,
+                                    "message": f"PATIENT ALLERGY ALERT: Patient is allergic to {group_name.upper()} group! Drug '{drug.title()}' is contraindicated.",
+                                }
+                            )
+                            break
+
+        # 2. Check Drug-Drug Interactions (DDI)
+        # Fetch current active prescribed meds for patient
+        active_prescriptions = PrescribedMedicine.query.filter_by(
+            patient_id=patient_id
+        ).all()
+        current_meds_lower = [
+            p.medicine.generic_name.lower().strip()
+            for p in active_prescriptions
+            if p.medicine and p.medicine.generic_name
+        ]
+        all_meds = set(new_meds_lower + current_meds_lower)
+
+        for drug_set, severity, msg in KNOWN_INTERACTIONS:
+            matched = [d for d in drug_set if any(d in med for med in all_meds)]
+            if len(matched) >= 2:
+                alerts.append(
+                    {
+                        "type": "DRUG_INTERACTION",
+                        "severity": severity,
+                        "drugs": matched,
+                        "message": f"DRUG INTERACTION WARNING [{severity}]: {' + '.join([m.title() for m in matched])} — {msg}",
+                    }
+                )
+
+        return {
+            "has_warnings": len(alerts) > 0,
+            "critical_block": any(a["severity"] == "CRITICAL" for a in alerts),
+            "alerts": alerts,
+        }
+
+
