@@ -30,245 +30,6 @@ logger = logging.getLogger(__name__)
 prescribe_bp = Blueprint("eprescribe", __name__, url_prefix="/medicine/prescribe")
 
 
-# Standard ICD-10 Reference Catalog (STOPGAP: Comprehensive Common Clinical Catalog)
-# Note: Full ICD-10-CM offline ingestion requires WHO ICD API client registration credentials.
-
-def _get_icd10_database():
-    """Fetch ICD-10 codes from DB, falling back to minimal hardcoded list for tests."""
-    try:
-        from departments.models.terminology import ICD10Code
-        codes = ICD10Code.query.limit(100).all()
-        if codes:
-            return [{"code": c.code, "description": c.description} for c in codes]
-    except Exception:
-        pass
-    # Minimal fallback for tests/empty DB (preserves existing test behavior)
-    return [
-        {"code": "J00", "description": "Acute nasopharyngitis [common cold]", "category": "Respiratory"},
-        {"code": "R50.9", "description": "Fever, unspecified", "category": "General"},
-        {"code": "I10", "description": "Essential (primary) hypertension", "category": "Cardiovascular"},
-        {"code": "J06.9", "description": "Acute upper respiratory infection, unspecified", "category": "Respiratory"},
-    ]
-
-ICD10_DATABASE = [
-    # Respiratory & ENT
-    {
-        "code": "J06.9",
-        "description": "Acute upper respiratory infection, unspecified",
-        "category": "Respiratory",
-    },
-    {
-        "code": "J18.9",
-        "description": "Pneumonia, unspecified organism",
-        "category": "Respiratory",
-    },
-    {
-        "code": "J45.909",
-        "description": "Unspecified asthma, uncomplicated",
-        "category": "Respiratory",
-    },
-    {
-        "code": "J44.9",
-        "description": "Chronic obstructive pulmonary disease, unspecified",
-        "category": "Respiratory",
-    },
-    {
-        "code": "J01.90",
-        "description": "Acute sinusitis, unspecified",
-        "category": "Respiratory",
-    },
-    {
-        "code": "J02.9",
-        "description": "Acute pharyngitis, unspecified",
-        "category": "Respiratory",
-    },
-    {"code": "R05", "description": "Cough", "category": "Respiratory"},
-    # Endocrine & Metabolic
-    {
-        "code": "E11.9",
-        "description": "Type 2 diabetes mellitus without complications",
-        "category": "Endocrine",
-    },
-    {
-        "code": "E10.9",
-        "description": "Type 1 diabetes mellitus without complications",
-        "category": "Endocrine",
-    },
-    {
-        "code": "E03.9",
-        "description": "Hypothyroidism, unspecified",
-        "category": "Endocrine",
-    },
-    {"code": "E66.9", "description": "Obesity, unspecified", "category": "Endocrine"},
-    {
-        "code": "E87.1",
-        "description": "Hypo-osmolality and hyponatremia",
-        "category": "Endocrine",
-    },
-    # Cardiovascular
-    {
-        "code": "I10",
-        "description": "Essential (primary) hypertension",
-        "category": "Cardiovascular",
-    },
-    {
-        "code": "I50.9",
-        "description": "Heart failure, unspecified",
-        "category": "Cardiovascular",
-    },
-    {
-        "code": "I25.10",
-        "description": "Atherosclerotic heart disease of native coronary artery",
-        "category": "Cardiovascular",
-    },
-    {
-        "code": "I48.91",
-        "description": "Unspecified atrial fibrillation",
-        "category": "Cardiovascular",
-    },
-    {
-        "code": "I21.9",
-        "description": "Acute myocardial infarction, unspecified",
-        "category": "Cardiovascular",
-    },
-    # Gastrointestinal & Hepatic
-    {
-        "code": "A09",
-        "description": "Infectious gastroenteritis and colitis, unspecified",
-        "category": "Gastrointestinal",
-    },
-    {
-        "code": "K29.7",
-        "description": "Gastritis, unspecified",
-        "category": "Gastrointestinal",
-    },
-    {
-        "code": "K21.9",
-        "description": "Gastro-esophageal reflux disease without esophagitis",
-        "category": "Gastrointestinal",
-    },
-    {
-        "code": "K80.20",
-        "description": "Calculus of gallbladder without cholecystitis without obstruction",
-        "category": "Gastrointestinal",
-    },
-    {
-        "code": "K35.80",
-        "description": "Unspecified acute appendicitis",
-        "category": "Gastrointestinal",
-    },
-    # Infectious Diseases & Malaria
-    {
-        "code": "B34.9",
-        "description": "Viral infection, unspecified",
-        "category": "Infectious",
-    },
-    {"code": "B54", "description": "Unspecified malaria", "category": "Infectious"},
-    {
-        "code": "B20",
-        "description": "Human immunodeficiency virus [HIV] disease",
-        "category": "Infectious",
-    },
-    {"code": "A15.0", "description": "Tuberculosis of lung", "category": "Infectious"},
-    {
-        "code": "A01.00",
-        "description": "Typhoid fever, unspecified",
-        "category": "Infectious",
-    },
-    # Musculoskeletal
-    {
-        "code": "M54.5",
-        "description": "Low back pain, unspecified",
-        "category": "Musculoskeletal",
-    },
-    {
-        "code": "M17.9",
-        "description": "Osteoarthritis of knee, unspecified",
-        "category": "Musculoskeletal",
-    },
-    {"code": "M79.7", "description": "Fibromyalgia", "category": "Musculoskeletal"},
-    # Nephrology & Genitourinary
-    {
-        "code": "N39.0",
-        "description": "Urinary tract infection, site unspecified",
-        "category": "Genitourinary",
-    },
-    {
-        "code": "N18.9",
-        "description": "Chronic kidney disease, unspecified",
-        "category": "Genitourinary",
-    },
-    {"code": "N20.1", "description": "Calculus of ureter", "category": "Genitourinary"},
-    # Oncology & Hematology
-    {
-        "code": "C50.919",
-        "description": "Malignant neoplasm of unspecified site of unspecified female breast",
-        "category": "Oncology",
-    },
-    {
-        "code": "C61",
-        "description": "Malignant neoplasm of prostate",
-        "category": "Oncology",
-    },
-    {
-        "code": "C34.90",
-        "description": "Malignant neoplasm of unspecified part of unspecified bronchus or lung",
-        "category": "Oncology",
-    },
-    {
-        "code": "D50.9",
-        "description": "Iron deficiency anemia, unspecified",
-        "category": "Hematology",
-    },
-    {
-        "code": "D57.1",
-        "description": "Sickle-cell disease without crisis",
-        "category": "Hematology",
-    },
-    # Obstetrics & Gynecology
-    {
-        "code": "O80",
-        "description": "Encounter for full-term uncomplicated delivery",
-        "category": "Obstetrics",
-    },
-    {
-        "code": "O14.90",
-        "description": "Unspecified pre-eclampsia",
-        "category": "Obstetrics",
-    },
-    {
-        "code": "N94.6",
-        "description": "Dysmenorrhea, unspecified",
-        "category": "Gynecology",
-    },
-    # Neurology & Psychiatry
-    {
-        "code": "G43.909",
-        "description": "Migraine, unspecified, not intractable",
-        "category": "Neurology",
-    },
-    {
-        "code": "G40.909",
-        "description": "Epilepsy, unspecified, not intractable",
-        "category": "Neurology",
-    },
-    {
-        "code": "F32.9",
-        "description": "Major depressive disorder, single episode, unspecified",
-        "category": "Psychiatry",
-    },
-    {
-        "code": "F41.1",
-        "description": "Generalized anxiety disorder",
-        "category": "Psychiatry",
-    },
-    # General & Symptoms
-    {"code": "R50.9", "description": "Fever, unspecified", "category": "General"},
-    {"code": "R51.9", "description": "Headache, unspecified", "category": "General"},
-    {"code": "R53.83", "description": "Other fatigue", "category": "General"},
-]
-
-
 # Drug Allergy Cross-Reactivity Dictionary
 ALLERGY_GROUPS = {
     "penicillin": [
@@ -321,6 +82,118 @@ KNOWN_INTERACTIONS = [
 ]
 
 
+def _get_icd10_database():
+    """Fetch ICD-10 codes from DB, falling back to minimal hardcoded list for tests."""
+    try:
+        from departments.models.terminology import ICD10Code
+        codes = ICD10Code.query.limit(100).all()
+        if codes:
+            return [{"code": c.code, "description": c.description, "category": c.chapter or "General"} for c in codes]
+    except Exception as e:
+        logger.warning(f"Failed to fetch ICD-10 codes from database: {e}")
+        pass
+    # Minimal fallback for tests/empty DB (preserves existing test behavior)
+    return [
+        {"code": "J00", "description": "Acute nasopharyngitis [common cold]", "category": "Respiratory"},
+        {"code": "R50.9", "description": "Fever, unspecified", "category": "General"},
+        {"code": "I10", "description": "Essential (primary) hypertension", "category": "Cardiovascular"},
+        {"code": "J06.9", "description": "Acute upper respiratory infection, unspecified", "category": "Respiratory"},
+    ]
+
+
+def _get_snomed_database():
+    """Fetch SNOMED codes from DB, falling back to minimal hardcoded list for tests."""
+    try:
+        from departments.models.terminology import SnomedCode
+        codes = SnomedCode.query.limit(100).all()
+        if codes:
+            return [{"code": c.code, "description": c.description} for c in codes]
+    except Exception as e:
+        logger.warning(f"Failed to fetch SNOMED codes from database: {e}")
+        pass
+    # Minimal fallback for tests/empty DB
+    return [
+        {"code": "404684003", "description": "Clinical finding"},
+        {"code": "22298006", "description": "Myocardial infarction"},
+        {"code": "38341003", "description": "Hypertensive disorder"},
+    ]
+
+
+def _get_loinc_database():
+    """Fetch LOINC codes from DB, falling back to minimal hardcoded list for tests."""
+    try:
+        from departments.models.terminology import LoincCode
+        codes = LoincCode.query.limit(100).all()
+        if codes:
+            return [{"code": c.code, "description": c.description} for c in codes]
+    except Exception as e:
+        logger.warning(f"Failed to fetch LOINC codes from database: {e}")
+        pass
+    # Minimal fallback for tests/empty DB
+    return [
+        {"code": "8302-2", "description": "Body temperature"},
+        {"code": "8867-4", "description": "Heart rate"},
+        {"code": "8480-6", "description": "Systolic blood pressure"},
+        {"code": "8462-4", "description": "Diastolic blood pressure"},
+    ]
+
+
+def _get_icd10_database():
+    """Fetch ICD-10 codes from DB, falling back to minimal hardcoded list for tests."""
+    try:
+        from departments.models.terminology import ICD10Code
+        codes = ICD10Code.query.limit(100).all()
+        if codes:
+            return [{"code": c.code, "description": c.description, "category": c.chapter or "General"} for c in codes]
+    except Exception as e:
+        logger.warning(f"Failed to fetch ICD-10 codes from database: {e}")
+        pass
+    # Minimal fallback for tests/empty DB (preserves existing test behavior)
+    return [
+        {"code": "J00", "description": "Acute nasopharyngitis [common cold]", "category": "Respiratory"},
+        {"code": "R50.9", "description": "Fever, unspecified", "category": "General"},
+        {"code": "I10", "description": "Essential (primary) hypertension", "category": "Cardiovascular"},
+        {"code": "J06.9", "description": "Acute upper respiratory infection, unspecified", "category": "Respiratory"},
+    ]
+
+
+def _get_snomed_database():
+    """Fetch SNOMED codes from DB, falling back to minimal hardcoded list for tests."""
+    try:
+        from departments.models.terminology import SnomedCode
+        codes = SnomedCode.query.limit(100).all()
+        if codes:
+            return [{"code": c.code, "description": c.description} for c in codes]
+    except Exception as e:
+        logger.warning(f"Failed to fetch SNOMED codes from database: {e}")
+        pass
+    # Minimal fallback for tests/empty DB
+    return [
+        {"code": "404684003", "description": "Clinical finding"},
+        {"code": "22298006", "description": "Myocardial infarction"},
+        {"code": "38341003", "description": "Hypertensive disorder"},
+    ]
+
+
+def _get_loinc_database():
+    """Fetch LOINC codes from DB, falling back to minimal hardcoded list for tests."""
+    try:
+        from departments.models.terminology import LoincCode
+        codes = LoincCode.query.limit(100).all()
+        if codes:
+            return [{"code": c.code, "description": c.description} for c in codes]
+    except Exception as e:
+        logger.warning(f"Failed to fetch LOINC codes from database: {e}")
+        pass
+    # Minimal fallback for tests/empty DB
+    return [
+        {"code": "8302-2", "description": "Body temperature"},
+        {"code": "8867-4", "description": "Heart rate"},
+        {"code": "8480-6", "description": "Systolic blood pressure"},
+        {"code": "8462-4", "description": "Diastolic blood pressure"},
+    ]
+
+
 def search_icd10(query: str) -> list[dict]:
     """Search ICD-10 reference database by code or description keyword."""
     if not query:
@@ -335,94 +208,47 @@ def search_icd10(query: str) -> list[dict]:
     ]
 
 
+def search_snomed(query: str) -> list[dict]:
+    """Search SNOMED reference database by code or description keyword."""
+    if not query:
+        return _get_snomed_database()[:5]
+    q = query.lower().strip()
+    return [
+        item
+        for item in _get_snomed_database()
+        if q in item["code"].lower()
+        or q in item["description"].lower()
+    ]
+
+
+def search_loinc(query: str) -> list[dict]:
+    """Search LOINC reference database by code or description keyword."""
+    if not query:
+        return _get_loinc_database()[:5]
+    q = query.lower().strip()
+    return [
+        item
+        for item in _get_loinc_database()
+        if q in item["code"].lower()
+        or q in item["description"].lower()
+    ]
+
+
 def check_drug_safety(patient_id: str, new_medications: list[str]) -> dict:
     """
-    Check new prescription list against patient allergies (structured PatientAllergy + free-text NursingNotes)
-    and drug-drug interactions.
-    Returns: {"has_warnings": bool, "alerts": list[dict]}
+    Check new prescription list against patient allergies and drug-drug interactions.
+    
+    Returns: {"critical_block": bool, "alerts": list[dict]}
+    
+    This is a thin wrapper that delegates to ClinicalSafetyEngine.check_by_names().
+    The canonical safety logic now lives in departments/clinical_safety/engine.py.
     """
-    alerts = []
-    new_meds_lower = [m.lower().strip() for m in new_medications if m]
-
-    # 1a. Fetch structured patient allergies from PatientAllergy model
-    structured_allergies = PatientAllergy.query.filter_by(patient_id=patient_id).all()
-    structured_allergen_names = [
-        a.allergen.lower().strip() for a in structured_allergies if a.allergen
-    ]
-
-    # 1b. Fetch patient allergy history from NursingNotes free text
-    notes = NursingNote.query.filter_by(patient_id=patient_id).all()
-    documented_allergies = list(structured_allergen_names)
-    for n in notes:
-        if n.allergies:
-            documented_allergies.extend(
-                [a.strip().lower() for a in n.allergies.split(",")]
-            )
-
-    # Check allergy cross-reactivity and direct matches
-    for drug in new_meds_lower:
-        # Direct allergen match from PatientAllergy registry or free-text
-        for allergen in documented_allergies:
-            if allergen in drug or drug in allergen:
-                alerts.append(
-                    {
-                        "type": "ALLERGY_WARNING",
-                        "severity": "CRITICAL",
-                        "drug": drug,
-                        "message": f"PATIENT ALLERGY ALERT: Patient has documented allergy to '{allergen.title()}'! Drug '{drug.title()}' is contraindicated.",
-                    }
-                )
-                break
-        else:
-            # Check group cross-reactivity
-            for group_name, drug_list in ALLERGY_GROUPS.items():
-                if any(d in drug for d in drug_list):
-                    if any(
-                        group_name in allergy or any(d in allergy for d in drug_list)
-                        for allergy in documented_allergies
-                    ):
-                        alerts.append(
-                            {
-                                "type": "ALLERGY_WARNING",
-                                "severity": "CRITICAL",
-                                "drug": drug,
-                                "message": f"PATIENT ALLERGY ALERT: Patient is allergic to {group_name.upper()} group! Drug '{drug.title()}' is contraindicated.",
-                            }
-                        )
-                        break
-
-    # 2. Check Drug-Drug Interactions (DDI)
-    # Fetch current active prescribed meds for patient
-    active_prescriptions = PrescribedMedicine.query.filter_by(
-        patient_id=patient_id
-    ).all()
-    current_meds_lower = [
-        p.medicine.generic_name.lower().strip()
-        for p in active_prescriptions
-        if p.medicine and p.medicine.generic_name
-    ]
-    all_meds = set(new_meds_lower + current_meds_lower)
-
-    for drug_set, severity, msg in KNOWN_INTERACTIONS:
-        matched = [d for d in drug_set if any(d in med for med in all_meds)]
-        if len(matched) >= 2:
-            alerts.append(
-                {
-                    "type": "DRUG_INTERACTION",
-                    "severity": severity,
-                    "drugs": matched,
-                    "message": f"DRUG INTERACTION WARNING [{severity}]: {' + '.join([m.title() for m in matched])} — {msg}",
-                }
-            )
-
-    return {
-        "has_warnings": len(alerts) > 0,
-        "critical_block": any(a["severity"] == "CRITICAL" for a in alerts),
-        "alerts": alerts,
-    }
+    from departments.clinical_safety.engine import ClinicalSafetyEngine
+    
+    engine = ClinicalSafetyEngine()
+    return engine.check_by_names(patient_id, new_medications)
 
 
-# API Routes
 @prescribe_bp.route("/icd10", methods=["GET"])
 def handle_icd10_search():
     """Search ICD-10 codes."""
@@ -437,7 +263,6 @@ def handle_safety_validate():
     data = request.get_json() or {}
     patient_id = data.get("patient_id")
     medications = data.get("medications", [])
-
     if not patient_id or not medications:
         return jsonify({"error": "patient_id and medications list required"}), 400
 
@@ -448,7 +273,6 @@ def handle_safety_validate():
 @prescribe_bp.route("/cdss/evaluate", methods=["POST"])
 def handle_cdss_evaluate():
     """Comprehensive Clinical Decision Support System (CDSS) evaluation endpoint."""
-    from departments.medicine.cdss import evaluate_prescription_safety
 
     data = request.get_json() or {}
     report = evaluate_prescription_safety(
@@ -474,11 +298,11 @@ def handle_soap_consultation():
     plan = data.get("plan", "")
 
     patient = Patient.query.filter(
-                db.or_(
-                    Patient.patient_id.ilike(f"%{patient_id}%"),
-                    Patient.name.ilike(f"%{patient_id}%"),
-                )
-            ).first()
+        db.or_(
+            Patient.patient_id.ilike(f"%{patient_id}%"),
+            Patient.name.ilike(f"%{patient_id}%"),
+        )
+    ).first()
     if not patient:
         return jsonify({"error": "Patient not found"}), 404
 

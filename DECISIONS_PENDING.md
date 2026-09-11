@@ -221,3 +221,12 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
 2. **SNOMED CT (P1-06):** Use the SNOMED CT CORE subset (available via NLM UMLS value sets) as the interim path. 
 *Note:* Both decisions are flagged as **INTERIM**. Formal UMLS/SNOMED licensing sign-off from hospital IT/Management is required before production deployment.
 **Implementation:** Proceeding on `feat/phase1-terminology-cdss`.
+
+## 22. SNOMED CT Affiliate Licence (Phase 1B)
+
+* **Context**: Phase 1 requires SNOMED CT integration for problem list and procedures. Formal SNOMED CT Affiliate Licence is pending hospital management sign-off.
+* **Questions / Decisions Required**:
+  1. **Licence Status**: Can the facility management provide confirmation of SNOMED CT Affiliate Licence application or status?
+  2. **Interim Path**: Per P1-06, if licensing status is unclear, we will start with the freely available SNOMED CT CORE subset (~10,000 most-used concepts) rather than blocking on the full licence.
+  3. **Implementation**: Use the SNOMED CT CORE subset from NLM UMLS value sets as the interim path for development and testing.
+
