@@ -17,6 +17,7 @@ class Encounter(db.Model):
     """
 
     __tablename__ = "encounters"
+    facility_id = db.Column(db.Integer, db.ForeignKey("facilities.id"), nullable=True, index=True)
 
     id = db.Column(db.Integer, primary_key=True)
     encounter_id = db.Column(

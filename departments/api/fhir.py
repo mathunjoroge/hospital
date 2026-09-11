@@ -373,6 +373,13 @@ def search_fhir_diagnostic_reports():
                 }
             ],
             "code": {
+                "coding": [
+                    {
+                        "system": "http://loinc.org",
+                        "code": getattr(lab, "loinc_code", ""),
+                        "display": lab.test_name if hasattr(lab, "test_name") else "Laboratory Test"
+                    }
+                ] if getattr(lab, "loinc_code", None) else [],
                 "text": lab.test_name
                 if hasattr(lab, "test_name")
                 else "Laboratory Test"

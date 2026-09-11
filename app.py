@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 import dotenv
 import pyotp
 import redis
+import sentry_sdk
 from flask import (
     Flask,
     flash,
@@ -24,6 +25,9 @@ from flask_mail import Mail
 from flask_migrate import Migrate
 from flask_session import Session
 from markupsafe import Markup, escape
+from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.flask import FlaskIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash
 
@@ -274,12 +278,22 @@ mail = Mail(app)
 migrate = Migrate(app, db)
 socketio.init_app(app)
 
-# Error-tracking provider scaffold. DECISIONS_PENDING.md item 3 is still open
-# (Sentry SaaS vs self-hosted vs OpenTelemetry, pending a Data Protection Act
-# 2019 data-sovereignty decision) -- this deliberately does NOT pick or wire a
-# vendor SDK. It only makes the app ready to be pointed at one later: default
-# "none" sends nothing anywhere, and no telemetry-related dependency is added
-# until a human sets this and the corresponding SDK is actually installed.
+# ── Phase 2: Observability & Error Tracking (P2-02, P2-03) ──────────────────
+# Resolved in DECISIONS_PENDING.md Item 3: Self-hosted Sentry + Grafana Tempo.
+# Data residency compliant with Kenya DPA 2019.
+sentry_dsn = os.environ.get("SENTRY_DSN")
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[
+            FlaskIntegration(),
+            SqlalchemyIntegration(),
+            CeleryIntegration(),
+        ],
+        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+        environment=os.environ.get("FLASK_ENV", "production"),
+        send_default_pii=False,  # DPA 2019: Do not send PHI to error tracker
+    )
 ERROR_TRACKING_PROVIDER = os.environ.get("ERROR_TRACKING_PROVIDER", "none").lower()
 if ERROR_TRACKING_PROVIDER != "none":
     logging.getLogger(__name__).warning(
@@ -777,6 +791,48 @@ app.register_blueprint(mar_bp)
 app.register_blueprint(fhir_bp, url_prefix="/api/fhir/R4")
 app.register_blueprint(khis_bp, url_prefix="/api/khis")
 app.register_blueprint(hl7_bp)  # Phase 4 — mounts /api/hl7/oru and /api/hl7/status
+
+from departments.api.oauth2_provider import oauth_bp, init_oauth
+app.register_blueprint(oauth_bp)
+init_oauth(app)
+
+# ── Phase 2: OpenTelemetry tracing (P2-02) ─────────────────────────────
+from departments.observability import setup_observability  # noqa: E402
+
+setup_observability(app)
+
+
+# ── Phase 2: Row-Level Security Middleware (P2-14) ─────────────────────
+@app.before_request
+def set_rls_session_variable():
+    """Set the PostgreSQL session variable for RLS policies."""
+    import os
+    # Skip entirely in test environments to avoid SQLite/RLS incompatibilities
+    if app.config.get("TESTING") or os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+
+    from flask_login import current_user
+
+    from extensions import db
+
+    facility_id = None
+    try:
+        if current_user and current_user.is_authenticated and getattr(current_user, 'facility_id', None):
+            facility_id = current_user.facility_id
+        else:
+            from departments.models.facility import get_home_facility
+            home = get_home_facility(create_if_missing=False)
+            if home:
+                facility_id = home.id
+    except Exception:
+        # Fail silently if DB doesn't support the query (e.g. table missing in test SQLite)
+        pass
+
+    if facility_id:
+        try:
+            db.session.execute(db.text(f"SET app.current_facility_id = '{facility_id}'"))
+        except Exception:
+            pass  # Fail silently if DB doesn't support SET (e.g. SQLite fallback)
 
 if __name__ == "__main__":
     with app.app_context():

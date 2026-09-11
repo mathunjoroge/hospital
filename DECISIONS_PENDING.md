@@ -25,10 +25,15 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
 
 ## 3. Telemetry & Error Tracking Service Selection
 
-* **Context**: Operational maturity (Phase 2.1) calls for error tracking and metrics monitoring (e.g. Sentry integration).
-* **Questions / Decisions Required**:
-  1. **Provider Selection**: Is Sentry SaaS (free tier/paid) acceptable for error tracking, or does the hospital require self-hosted error tracking (e.g. Sentry On-Premise, GlitchTip, or OpenTelemetry/Jaeger) due to data sovereignty rules under the Data Protection Act 2019?
-  2. **Volume & Budget**: Does the anticipated log/error volume fit within free tier limits, or is budget allocated for telemetry ingestion?
+* **Status:** DECIDED — 2026-09-11
+* **Decision-maker:** Solo Developer / System Administrator
+* **Context**: Operational maturity (Phase 2.1) calls for error tracking and metrics monitoring.
+* **Decisions**:
+  1. **Provider Selection**: Self-Hosted Sentry (via official docker-compose).
+     *Rationale:* Ensures 100% data sovereignty for PHI under Kenya DPA 2019. Eliminates legal ambiguity regarding cross-border data transfers to SaaS providers.
+  2. **OpenTelemetry Collector (P2-01)**: Grafana Tempo.
+     *Rationale:* Object-storage backed (cheaper) and integrates natively with Grafana for the P2-04 uptime dashboard, creating a unified observability stack.
+  3. **Volume & Budget**: Self-hosted infrastructure handles volume without SaaS tier limits.
 
 ---
 
@@ -162,7 +167,6 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
 **Resolution:** Since the `Ward` model only has one price field (`daily_charge`) and no separate "admission fee" concept, the soundest fix is to stop auto-billing ward charges at admission time entirely. `/nursing/mar/auto_bill` remains the single, explicit, auditable source of truth for ward billing (as it already is for every day after the first).
 **Status:** ✅ Resolved in Phase 0 cleanup. `AdmittedPatient` removed from `departments/billing/event_listeners.py`.
 
-
 ## Section 16 (P4-01): HL7v2 MLLP Interface Engine Selection — Phase 4
 **Status:** ⚠️ DECIDED BY DEFAULT — Awaiting Human Sign-off in PR
 **Decision-maker:** Engineering Lead (default applied per phase plan)
@@ -184,3 +188,66 @@ If Rhapsody or another engine is preferred, the `docker-compose.yml` Mirth servi
 
 **Implementation:** `departments/api/hl7_receiver.py`, `departments/hl7/mllp_daemon.py`,
 `docker-compose.yml` Mirth Connect service — committed in `feat/phase4-hl7v2-mllp`.
+
+## Section 17: Controlled Drug Register Policy (PPB/WHO Compliance)
+**Status:** DECIDED — 2026-09-11
+**Decision-maker:** Solo Developer / System Administrator
+**Context:** Resolves Item 5 (Phase B.1 Hard Stop) for Schedule II/IV controlled substance dispensing under Kenya PPB regulation.
+
+**Decisions:**
+1. **Dual Signature Roles:** Option B (Pharmacist + Ward Nurse-in-Charge/Clinical Officer). 
+   *Rationale:* Ensures 24/7 coverage for emergency dispensing while maintaining dual-control chain of custody.
+2. **Stock Reconciliation Schedule:** Split schedule. Schedule II (narcotics) = Per Shift. Schedule IV (psychotropics) = Daily. 
+   *Rationale:* Matches WHO risk-based approach; highest risk drugs get highest frequency counts.
+3. **Schedule Differentiation:** Option A (Separate Ledgers). 
+   *Rationale:* Implementation uses a single `controlled_drug_balances` table for data integrity, but application logic and PDF exports strictly filter and separate Schedule II and Schedule IV records to mirror physical PPB audit books.
+
+**Implementation:** Proceeding with Phase 3 work items P3-01 through P3-08.
+
+
+## Section 18: Phase 2 Disaster Recovery SLA (P2-06)
+**Status:** DECIDED — 2026-09-11 (Pending Formal Management Sign-Off)
+**Decision-maker:** Solo Developer / System Administrator
+**Context:** Resolves P2-06 requirement to document RPO/RTO as a signed SLA.
+**Decision:** 
+* **RPO (Recovery Point Objective):** 4 hours (maximum acceptable data loss).
+* **RTO (Recovery Time Objective):** 1 hour (maximum acceptable downtime).
+*Note:* Formal management sign-off on this SLA is pending and will be explicitly flagged in the Phase 2 PR description as required by the prompt rules.
+
+
+## Section 19: P2-14 Multi-Tenancy / Row-Level Security Scope
+**Status:** DECIDED — 2026-09-11
+**Decision-maker:** Solo Developer / System Administrator
+**Context:** P2-14 requires PostgreSQL RLS for multi-tenant isolation between facilities. Diagnostic confirmed the schema is currently single-tenant: only `stock_movement` and `transfer` carry a `facility_id`. Core clinical tables (patients, encounters, invoices, etc.) have no facility scoping.
+**Decision:** Option A — Full Multi-Tenancy. Add `facility_id` to all tenant-scoped clinical/financial tables, backfill with the home facility (`is_self=True`), and enable RLS policies keyed on a per-request `app.current_facility_id` session variable.
+**Rationale:** Option A is the only scope that genuinely satisfies "multi-tenant data isolation" and unblocks Phase 6 (SSO). Partial scoping would leave patient data cross-visible between facilities.
+**Implementation:** Proceeding on `feat/phase2-observability-dr-security`.
+
+## Section 20: Phase 6 SSO & SMART on FHIR Architecture
+**Status:** DECIDED — 2026-09-12
+**Decision-maker:** Solo Developer / System Administrator
+**Context:** P2-14 (RLS) is complete. Phase 6 requires OAuth2 provider to protect FHIR endpoints and SMART on FHIR launch integration for external EHR interoperability.
+**Decision:** 
+1. **OAuth2 Provider**: Use `Authlib` (Flask OAuth 2.0 server) to implement authorization server.
+2. **SMART on FHIR**: Implement EHR Launch flow (external EHR redirects to our app with launch context).
+3. **Scope Model**: Add `oauth_scopes` column to User model for fine-grained FHIR access control.
+**Rationale:** Authlib is production-tested, supports SMART scopes natively, and integrates cleanly with Flask-JWT-Extended. EHR Launch is the standard SMART flow for hospital HMIS integration.
+**Implementation:** Proceeding on `feat/phase6-sso-smart-fhir`.
+
+## Section 21: Phase 1 Terminology & Licensing Fallbacks
+**Status:** DECIDED (Interim) — 2026-09-12
+**Decision-maker:** Solo Developer / System Administrator
+**Context:** Phase 1 requires ICD-10, SNOMED, and LOINC integration. Formal API credentials and SNOMED Affiliate Licenses are pending hospital management sign-off.
+**Decisions:**
+1. **ICD-10 (Resolves Item 4):** Use the free NLM UMLS ICD-10 flat file to populate a local `icd10_codes` database table with Full-Text Search (FTS) capabilities. This replaces the hardcoded `ICD10_DATABASE` list in `prescribe.py`.
+2. **SNOMED CT (P1-06):** Use the SNOMED CT CORE subset (available via NLM UMLS value sets) as the interim path. 
+   *Note:* Both decisions are flagged as **INTERIM**. Formal UMLS/SNOMED licensing sign-off from hospital IT/Management is required before production deployment.
+**Implementation:** Proceeding on `feat/phase1-terminology-cdss`.
+
+## 22. SNOMED CT Affiliate Licence (Phase 1B)
+
+* **Context**: Phase 1 requires SNOMED CT integration for problem list and procedures. Formal SNOMED CT Affiliate Licence is pending hospital management sign-off.
+* **Questions / Decisions Required**:
+  1. **Licence Status**: Can the facility management provide confirmation of SNOMED CT Affiliate Licence application or status?
+  2. **Interim Path**: Per P1-06, if licensing status is unclear, we will start with the freely available SNOMED CT CORE subset (~10,000 most-used concepts) rather than blocking on the full licence.
+  3. **Implementation**: Use the SNOMED CT CORE subset from NLM UMLS value sets as the interim path for development and testing.

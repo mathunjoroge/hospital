@@ -284,6 +284,7 @@ class Invoice(db.Model):
     """
 
     __tablename__ = "invoices"
+    facility_id = db.Column(db.Integer, db.ForeignKey("facilities.id"), nullable=True, index=True)
 
     id = db.Column(db.Integer, primary_key=True)
     invoice_number = db.Column(db.String(30), unique=True, nullable=False, index=True)

@@ -8,6 +8,7 @@ class Patient(db.Model):
     """Represents a patient."""
 
     __tablename__ = "patients"
+    facility_id = db.Column(db.Integer, db.ForeignKey("facilities.id"), nullable=True, index=True)
 
     id = db.Column(db.Integer, primary_key=True)  # Internal database ID
     patient_id = db.Column(
@@ -250,6 +251,7 @@ class PatientProblem(db.Model):
         db.String(20), db.ForeignKey("patients.patient_id"), nullable=False, index=True
     )
     icd10_code = db.Column(db.String(20), nullable=True, index=True)  # e.g., 'E11.9'
+    snomed_code = db.Column(db.String(50), nullable=True, index=True)  # Phase 1: SNOMED CT
     description = db.Column(db.String(255), nullable=False)
     status = db.Column(
         db.String(20), nullable=False, default="ACTIVE"
