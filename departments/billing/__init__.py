@@ -7,4 +7,3 @@ bp = Blueprint("billing", __name__, template_folder="templates")
 import departments.billing.event_listeners  # noqa: F401
 
 from . import routes  # noqa: F401
-
