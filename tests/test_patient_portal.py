@@ -294,7 +294,11 @@ def test_forgot_password_generates_token_and_does_not_enumerate(client, app):
         pu = PatientUser.query.filter_by(username="reset_test_user").first()
         assert pu.reset_token is not None
         assert pu.reset_token_expiry is not None
-        assert pu.reset_token_expiry > datetime.now(timezone.utc)
+        # SQLite strips tzinfo on roundtrip; re-attach UTC before comparing
+        expiry = pu.reset_token_expiry
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        assert expiry > datetime.now(timezone.utc)
 
     # Submit with an unknown username — must show the same message (no enumeration)
     resp_unknown = client.post(
