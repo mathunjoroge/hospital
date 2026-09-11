@@ -35,6 +35,8 @@ from config import Config
 from departments.models.admin import Log
 from departments.models.nursing import Notifications
 from departments.models.user import User
+from departments.api.oauth2_provider import oauth_bp, init_oauth
+from departments.observability import setup_observability
 from extensions import csrf, db, jwt, limiter, login_manager, socketio
 
 dotenv.load_dotenv()
@@ -791,14 +793,10 @@ app.register_blueprint(mar_bp)
 app.register_blueprint(fhir_bp, url_prefix="/api/fhir/R4")
 app.register_blueprint(khis_bp, url_prefix="/api/khis")
 app.register_blueprint(hl7_bp)  # Phase 4 — mounts /api/hl7/oru and /api/hl7/status
-
-from departments.api.oauth2_provider import oauth_bp, init_oauth
 app.register_blueprint(oauth_bp)
 init_oauth(app)
 
 # ── Phase 2: OpenTelemetry tracing (P2-02) ─────────────────────────────
-from departments.observability import setup_observability  # noqa: E402
-
 setup_observability(app)
 
 

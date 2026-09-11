@@ -35,7 +35,7 @@ def import_snomed_codes(filepath: str = None) -> int:
     """
     if filepath is None:
         filepath = os.getenv('SNOMED_CSV_PATH', '/app/data/snomed_codes.csv')
-    
+
     if not os.path.exists(filepath):
         current_app.logger.warning(f"SNOMED CSV file not found at {filepath}")
         return 0

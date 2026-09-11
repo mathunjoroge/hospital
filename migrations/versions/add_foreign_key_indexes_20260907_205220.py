@@ -1,13 +1,11 @@
 """Add indexes to foreign key columns for performance
 
 Revision ID: add_fk_indexes_20260907_205220
-Revises: 
+Revises:
 Create Date: 2026-09-07 20:52:20
 
 """
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.exc import ProgrammingError
 import sqlalchemy as sa
 
 def safe_create_index(index_name, table_name, columns):
@@ -46,7 +44,7 @@ depends_on = None
 
 def upgrade():
     """Add indexes to all foreign key columns for query performance."""
-    
+
     safe_create_index("ix_nursing_note_nurse_id", "nursing_note", ["nurse_id"])
     safe_create_index("ix_nursing_care_task_nurse_id", "nursing_care_task", ["nurse_id"])
     safe_create_index("ix_vitals_nurse_id", "vitals", ["nurse_id"])
@@ -147,7 +145,7 @@ def upgrade():
 
 def downgrade():
     """Remove indexes from foreign key columns."""
-    
+
     safe_drop_index("ix_lab_result_verified_by", "lab_result")
     safe_drop_index("ix_lab_result_updated_by", "lab_result")
     safe_drop_index("ix_lab_result_lab_test_id", "lab_result")

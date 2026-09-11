@@ -3,10 +3,11 @@ ICD-10 importer for loading WHO ICD-10-CM data from NLM UMLS flat file.
 """
 import csv
 import os
-from typing import List, Dict
+from typing import Dict, List
 
-from flask import current_app
 from extensions import db
+from flask import current_app
+
 from departments.models.terminology import ICD10Code
 
 
@@ -37,7 +38,7 @@ def import_icd10_codes(filepath: str = None) -> int:
     """
     if filepath is None:
         filepath = os.getenv('ICD10_CSV_PATH', '/app/data/icd10_codes.csv')
-    
+
     if not os.path.exists(filepath):
         current_app.logger.warning(f"ICD-10 CSV file not found at {filepath}")
         return 0

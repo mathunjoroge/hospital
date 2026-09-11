@@ -20,8 +20,7 @@ import datetime
 import os
 import threading
 import time
-import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 

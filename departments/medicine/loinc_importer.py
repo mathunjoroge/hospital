@@ -3,10 +3,11 @@ LOINC importer for loading LOINC codes.
 """
 import csv
 import os
-from typing import List, Dict
+from typing import Dict, List
 
-from flask import current_app
 from extensions import db
+from flask import current_app
+
 from departments.models.terminology import LoincCode
 
 
@@ -35,7 +36,7 @@ def import_loinc_codes(filepath: str = None) -> int:
     """
     if filepath is None:
         filepath = os.getenv('LOINC_CSV_PATH', '/app/data/loinc_codes.csv')
-    
+
     if not os.path.exists(filepath):
         current_app.logger.warning(f"LOINC CSV file not found at {filepath}")
         return 0

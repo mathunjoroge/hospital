@@ -21,9 +21,9 @@ except ImportError:
 
 from departments.models.billing import InvoiceLineItem
 from departments.models.medicine import Medicine, PrescribedMedicine, SOAPNote
-from departments.models.nursing import NursingNote
-from departments.models.records import Patient, PatientAllergy
+from departments.models.records import Patient
 from departments.shared.encounter_utils import active_encounter
+from departments.medicine.cdss import evaluate_prescription_safety
 
 logger = logging.getLogger(__name__)
 
@@ -237,14 +237,14 @@ def search_loinc(query: str) -> list[dict]:
 def check_drug_safety(patient_id: str, new_medications: list[str]) -> dict:
     """
     Check new prescription list against patient allergies and drug-drug interactions.
-    
+
     Returns: {"critical_block": bool, "alerts": list[dict]}
-    
+
     This is a thin wrapper that delegates to ClinicalSafetyEngine.check_by_names().
     The canonical safety logic now lives in departments/clinical_safety/engine.py.
     """
     from departments.clinical_safety.engine import ClinicalSafetyEngine
-    
+
     engine = ClinicalSafetyEngine()
     return engine.check_by_names(patient_id, new_medications)
 

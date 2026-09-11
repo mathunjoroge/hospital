@@ -54,7 +54,7 @@ def upgrade():
     for table in ['patients', 'encounters', 'users', 'invoices']:
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY;")
         op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY;")
-        
+
         # Policy: Allow if session var is unset (tests/background) OR matches facility_id
         policy_sql = f"""
             CREATE POLICY tenant_isolation_{table} ON {table}

@@ -7,7 +7,6 @@ Create Date: 2026-09-06 16:57:09.568659
 """
 from alembic import op
 import sqlalchemy as sa
-import departments.crypto
 
 
 # revision identifiers, used by Alembic.
