@@ -14,6 +14,10 @@ class DrugCategory(db.Model):
 
 class Drug(db.Model):
     __tablename__ = "drugs"
+
+    # Phase 3: Controlled Drug Register
+    is_controlled = db.Column(db.Boolean, default=False, nullable=False)
+    schedule_class = db.Column(db.String(10), nullable=True)
     id = db.Column(db.Integer, primary_key=True)
     generic_name = db.Column(db.String(255), nullable=False)
     brand_name = db.Column(db.String(255), nullable=True)

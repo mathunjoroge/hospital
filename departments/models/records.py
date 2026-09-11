@@ -8,6 +8,7 @@ class Patient(db.Model):
     """Represents a patient."""
 
     __tablename__ = "patients"
+    facility_id = db.Column(db.Integer, db.ForeignKey("facilities.id"), nullable=True, index=True)
 
     id = db.Column(db.Integer, primary_key=True)  # Internal database ID
     patient_id = db.Column(
