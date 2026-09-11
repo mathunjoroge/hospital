@@ -43,6 +43,14 @@ class LabResult(db.Model):
     verified_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     verified_at = db.Column(db.DateTime, nullable=True)
 
+    # Phase 4 — HL7v2 MLLP Interface (additive, no existing columns renamed/dropped)
+    source_system = db.Column(
+        db.String(80), nullable=True, default=None
+    )  # e.g. "HL7_LIS", "FHIR_SOURCE", "JSON_LIS"
+    raw_hl7 = db.Column(
+        db.Text, nullable=True, default=None
+    )  # Raw HL7v2 ER7 text for audit trail
+
     # Relationships (if needed)
     patient = db.relationship("Patient", backref=db.backref("lab_results", lazy=True))
     lab_test = db.relationship("LabTest", backref=db.backref("lab_results", lazy=True))

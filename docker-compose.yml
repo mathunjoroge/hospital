@@ -89,6 +89,56 @@ services:
       redis:
         condition: service_healthy
 
+  # ── Mirth Connect — HL7v2 MLLP Interface Engine (Phase 4) ───────────────────
+  # P4-01 Decision: Mirth Connect (free, self-hosted). See DECISIONS_PENDING.md §16.
+  mirth_connect:
+    image: nextgenhealthcare/connect:4.4.2
+    restart: unless-stopped
+    environment:
+      DATABASE: postgres
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-hospital_core}
+      DATABASE_USERNAME: ${POSTGRES_USER:-hospital}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      KEYSTORE_STOREPASS: ${MIRTH_KEYSTORE_PASS:-changeme}
+      KEYSTORE_KEYPASS: ${MIRTH_KEYSTORE_PASS:-changeme}
+    ports:
+      - "8080:8080"    # Mirth Connect Administrator (HTTPS on 8443 in prod)
+      - "2575:2575"    # MLLP receiver port (standard)
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - mirth_data:/opt/connect/appdata
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/server/version || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ── MLLP Daemon — asyncio fallback listener (Phase 4) ────────────────────────
+  # Runs when Mirth is unavailable or for direct analyzer connections.
+  mllp_daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m departments.hl7.mllp_daemon
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      FLASK_ENV: production
+      SQLALCHEMY_DATABASE_URI: postgresql://${POSTGRES_USER:-hospital}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hospital_core}
+      MLLP_HOST: "0.0.0.0"
+      MLLP_PORT: "2576"          # 2576 avoids conflict with Mirth on 2575
+      HL7_INGEST_URL: "http://flask:5000/api/hl7/oru"
+      HL7_INGEST_API_KEY: ${HL7_INGEST_API_KEY:-changeme}
+    ports:
+      - "2576:2576"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      flask:
+        condition: service_started
+
 volumes:
 
   postgres_data:
@@ -96,3 +146,4 @@ volumes:
   uploads:
   flask_session:
   backups:
+  mirth_data:

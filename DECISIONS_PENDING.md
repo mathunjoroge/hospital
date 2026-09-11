@@ -161,3 +161,26 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
 **Context:** The previous implementation auto-created a "Ward Admission" `InvoiceLineItem` priced at the ward's *daily* rate when a patient was admitted. However, `/nursing/mar/auto_bill` already bills that same daily rate for every currently-admitted patient (with no de-duplication of its own). This resulted in patients being charged the daily ward rate twice on their first day.
 **Resolution:** Since the `Ward` model only has one price field (`daily_charge`) and no separate "admission fee" concept, the soundest fix is to stop auto-billing ward charges at admission time entirely. `/nursing/mar/auto_bill` remains the single, explicit, auditable source of truth for ward billing (as it already is for every day after the first).
 **Status:** ✅ Resolved in Phase 0 cleanup. `AdmittedPatient` removed from `departments/billing/event_listeners.py`.
+
+
+## Section 16 (P4-01): HL7v2 MLLP Interface Engine Selection — Phase 4
+**Status:** ⚠️ DECIDED BY DEFAULT — Awaiting Human Sign-off in PR
+**Decision-maker:** Engineering Lead (default applied per phase plan)
+**Context:** Phase 4 requires an HL7v2 interface engine to receive ORU^R01 messages from LIS/analyzers
+and optionally route ADT messages to downstream systems. Two options were evaluated:
+- **Mirth Connect** (nextgenhealthcare/connect): free, open-source, self-hosted, Docker-native, widely
+  deployed in Kenya/East Africa. Supports MLLP, HL7v2, FHIR R4 out of the box.
+- **Rhapsody**: enterprise-licensed, per-connection pricing, not free-tier suitable for a single-facility HMIS.
+
+**Decision:** Proceed with **Mirth Connect** (free, self-hosted) as the MLLP interface engine.
+MLLP port: **2575** (standard). A standalone asyncio `mllp_daemon.py` is also provided as a
+fallback for direct analyzer connections when Mirth is unavailable.
+
+**Rationale:** Mirth Connect is the de-facto standard for open-source HL7 interfacing in low-resource
+healthcare environments. Zero licensing cost, Docker image readily available, active community support.
+
+**PR Action Required:** Human stakeholder must confirm this choice before production deployment.
+If Rhapsody or another engine is preferred, the `docker-compose.yml` Mirth service must be replaced.
+
+**Implementation:** `departments/api/hl7_receiver.py`, `departments/hl7/mllp_daemon.py`,
+`docker-compose.yml` Mirth Connect service — committed in `feat/phase4-hl7v2-mllp`.

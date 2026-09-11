@@ -48,3 +48,7 @@ ruff==0.4.7
 pip-audit==2.7.3
 bandit==1.7.9
 flask-socketio
+
+# Phase 4 — HL7v2 MLLP Interface
+hl7==0.4.5
+aiohttp==3.9.5
