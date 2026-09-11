@@ -795,6 +795,40 @@ from departments.observability import setup_observability  # noqa: E402
 
 setup_observability(app)
 
+
+# ── Phase 2: Row-Level Security Middleware (P2-14) ─────────────────────────
+@app.before_request
+def set_rls_session_variable():
+    """Set the PostgreSQL session variable for RLS policies."""
+    import os
+    # Skip entirely in test environments to avoid SQLite/RLS incompatibilities
+    if app.config.get("TESTING") or os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+
+    from flask_login import current_user
+
+    from extensions import db
+
+    facility_id = None
+    try:
+        if current_user and current_user.is_authenticated and getattr(current_user, 'facility_id', None):
+            facility_id = current_user.facility_id
+        else:
+            from departments.models.facility import get_home_facility
+            home = get_home_facility(create_if_missing=False)
+            if home:
+                facility_id = home.id
+    except Exception:
+        # Fail silently if DB doesn't support the query (e.g. table missing in test SQLite)
+        pass
+
+    if facility_id:
+        try:
+            db.session.execute(db.text(f"SET app.current_facility_id = '{facility_id}'"))
+        except Exception:
+            pass  # Fail silently if DB doesn't support SET (e.g. SQLite fallback)
+
+
 if __name__ == "__main__":
     with app.app_context():
         try:

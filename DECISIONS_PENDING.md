@@ -191,3 +191,12 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
 * **RPO (Recovery Point Objective):** 4 hours (maximum acceptable data loss).
 * **RTO (Recovery Time Objective):** 1 hour (maximum acceptable downtime).
 *Note:* Formal management sign-off on this SLA is pending and will be explicitly flagged in the Phase 2 PR description as required by the prompt rules.
+
+
+## Section 19: P2-14 Multi-Tenancy / Row-Level Security Scope
+**Status:** DECIDED — 2026-09-11
+**Decision-maker:** Solo Developer / System Administrator
+**Context:** P2-14 requires PostgreSQL RLS for multi-tenant isolation between facilities. Diagnostic confirmed the schema is currently single-tenant: only `stock_movement` and `transfer` carry a `facility_id`. Core clinical tables (patients, encounters, invoices, etc.) have no facility scoping.
+**Decision:** Option A — Full Multi-Tenancy. Add `facility_id` to all tenant-scoped clinical/financial tables, backfill with the home facility (`is_self=True`), and enable RLS policies keyed on a per-request `app.current_facility_id` session variable.
+**Rationale:** Option A is the only scope that genuinely satisfies "multi-tenant data isolation" and unblocks Phase 6 (SSO). Partial scoping would leave patient data cross-visible between facilities.
+**Implementation:** Proceeding on `feat/phase2-observability-dr-security`.
