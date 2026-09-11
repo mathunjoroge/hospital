@@ -540,6 +540,18 @@ class TestMllpAckBuilder:
         assert "MSA|AA" in ack
 
 
+    def test_ack_handles_malformed_msh(self):
+        """Test _build_ack with missing or malformed MSH header."""
+        from departments.hl7.mllp_daemon import _build_ack
+        # Message with no MSH header
+        malformed_msg = "PID=1||P001\r\nPV1=1|O|2026^01^01\r\n"
+        ack = _build_ack(malformed_msg, "AA").decode("utf-8")
+        # Should use default values
+        assert "MSA|AA" in ack
+        assert "Sending|HMIS" in ack  # Default sending app
+        assert "Receiving|LIS" in ack  # Default receiving app
+        assert "HMIS|KE|LIS|KE" in ack  # Default facility values
+
 # ─────────────────────────────────────────────────────────────────────────────
 # P4-08 — Load test scaffold: 50 concurrent ORU messages
 # ─────────────────────────────────────────────────────────────────────────────
