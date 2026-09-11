@@ -790,6 +790,11 @@ app.register_blueprint(mar_bp)
 app.register_blueprint(fhir_bp, url_prefix="/api/fhir/R4")
 app.register_blueprint(khis_bp, url_prefix="/api/khis")
 
+# ── Phase 2: OpenTelemetry tracing (P2-02) ─────────────────────────────────
+from departments.observability import setup_observability  # noqa: E402
+
+setup_observability(app)
+
 if __name__ == "__main__":
     with app.app_context():
         try:
