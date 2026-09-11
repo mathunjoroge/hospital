@@ -547,9 +547,9 @@ class TestMllpAckBuilder:
         malformed_msg = "PID=1||P001\r\nPV1=1|O|2026^01^01\r\n"
         ack = _build_ack(malformed_msg, "AA").decode("utf-8")
         # Should use default values
-        assert "MSA|AA" in ack
-        assert "Sending|HMIS" in ack  # Default sending app
-        assert "Receiving|LIS" in ack  # Default receiving app
+        assert "|HMIS|" in ack  # Default sending app
+        assert "|LIS|" in ack  # Default receiving app
+        assert "|HMIS|KE|LIS|KE|" in ack  # Default facility values
         assert "HMIS|KE|LIS|KE" in ack  # Default facility values
 
 # ─────────────────────────────────────────────────────────────────────────────

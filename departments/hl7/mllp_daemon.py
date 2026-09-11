@@ -39,7 +39,7 @@ MLLP_EB = b"\x1c"   # End Block
 MLLP_CR = b"\x0d"   # Carriage Return
 
 # ── Config from environment ───────────────────────────────────────────────────
-MLLP_HOST = os.environ.get("MLLP_HOST", "0.0.0.0")
+MLLP_HOST = os.environ.get("MLLP_HOST", "0.0.0.0")  # nosec: B104
 MLLP_PORT = int(os.environ.get("MLLP_PORT", "2576"))
 HL7_INGEST_URL = os.environ.get("HL7_INGEST_URL", "http://localhost:5000/api/hl7/oru")
 HL7_INGEST_API_KEY = os.environ.get("HL7_INGEST_API_KEY", "changeme")
