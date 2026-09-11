@@ -161,3 +161,18 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
 **Context:** The previous implementation auto-created a "Ward Admission" `InvoiceLineItem` priced at the ward's *daily* rate when a patient was admitted. However, `/nursing/mar/auto_bill` already bills that same daily rate for every currently-admitted patient (with no de-duplication of its own). This resulted in patients being charged the daily ward rate twice on their first day.
 **Resolution:** Since the `Ward` model only has one price field (`daily_charge`) and no separate "admission fee" concept, the soundest fix is to stop auto-billing ward charges at admission time entirely. `/nursing/mar/auto_bill` remains the single, explicit, auditable source of truth for ward billing (as it already is for every day after the first).
 **Status:** ✅ Resolved in Phase 0 cleanup. `AdmittedPatient` removed from `departments/billing/event_listeners.py`.
+
+## Section 16: Controlled Drug Register Policy (PPB/WHO Compliance)
+**Status:** DECIDED — 2026-09-11
+**Decision-maker:** Solo Developer / System Administrator
+**Context:** Resolves Item 5 (Phase B.1 Hard Stop) for Schedule II/IV controlled substance dispensing under Kenya PPB regulation.
+
+**Decisions:**
+1. **Dual Signature Roles:** Option B (Pharmacist + Ward Nurse-in-Charge/Clinical Officer). 
+   *Rationale:* Ensures 24/7 coverage for emergency dispensing while maintaining dual-control chain of custody.
+2. **Stock Reconciliation Schedule:** Split schedule. Schedule II (narcotics) = Per Shift. Schedule IV (psychotropics) = Daily. 
+   *Rationale:* Matches WHO risk-based approach; highest risk drugs get highest frequency counts.
+3. **Schedule Differentiation:** Option A (Separate Ledgers). 
+   *Rationale:* Implementation uses a single `controlled_drug_balances` table for data integrity, but application logic and PDF exports strictly filter and separate Schedule II and Schedule IV records to mirror physical PPB audit books.
+
+**Implementation:** Proceeding with Phase 3 work items P3-01 through P3-08.
