@@ -17,6 +17,7 @@ from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 
+from departments.api.auth import jwt_or_session_required
 from departments.models.imaging import ImagingResult
 from departments.models.medicine import Imaging, RequestedImage
 from departments.nlp.src.nvidia_client import NvidiaNIMClient
@@ -24,6 +25,7 @@ from departments.rbac import roles_required
 from extensions import db, socketio
 
 from . import bp
+from . import bp as imaging_bp
 
 # Configure logging
 logging.basicConfig(
@@ -859,3 +861,149 @@ def index():
     except Exception as e:  # noqa: BLE001
         flash(f"Database error: {e!s}", "error")
         return redirect(url_for("home"))
+
+
+# ── Phase 5: DICOM Upload Endpoint ─────────────────────────────────────────
+@imaging_bp.route("/dicom/upload", methods=["POST"])
+@jwt_or_session_required
+@roles_required("admin", "imaging", "api")
+def upload_dicom():
+    """Upload a DICOM file and store it in the PACS."""
+    from werkzeug.utils import secure_filename
+
+    from departments.imaging.dicom_service import DICOMService
+
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "Empty filename"}), 400
+
+    if not file.filename.lower().endswith((".dcm", ".dicom")):
+        return jsonify({"error": "File must be a DICOM file (.dcm or .dicom)"}), 400
+
+    filename = secure_filename(file.filename)
+    temp_path = Path("storage/dicom/incoming") / filename
+    temp_path.parent.mkdir(parents=True, exist_ok=True)
+    file.save(temp_path)
+
+    try:
+        imaging_request_id = request.form.get("imaging_request_id", type=int)
+        result = DICOMService.store_dicom(str(temp_path), imaging_request_id)
+
+        return jsonify({
+            "success": True,
+            "message": "DICOM file stored successfully",
+            "sop_instance_uid": result.sop_instance_uid,
+            "study_instance_uid": result.study_instance_uid,
+            "modality": result.modality,
+            "file_path": result.file_path,
+        }), 201
+
+    except ValueError as e:
+        if temp_path.exists():
+            temp_path.unlink()
+        return jsonify({"error": str(e)}), 400
+
+    except Exception:
+        if temp_path.exists():
+            temp_path.unlink()
+        return jsonify({"error": "Failed to process DICOM file"}), 500
+
+
+@imaging_bp.route("/dicom/studies/<patient_id>", methods=["GET"])
+@jwt_or_session_required
+@roles_required("admin", "imaging", "medicine", "api")
+def list_patient_studies(patient_id: str):
+    """List all DICOM studies for a patient."""
+    from departments.imaging.dicom_service import DICOMService
+
+    studies = DICOMService.list_studies(patient_id)
+
+    return jsonify({
+        "patient_id": patient_id,
+        "study_count": len(studies),
+        "studies": studies,
+    }), 200
+
+
+@imaging_bp.route("/dicom/download/<sop_instance_uid>", methods=["GET"])
+@jwt_or_session_required
+@roles_required("admin", "imaging", "medicine", "api")
+def download_dicom(sop_instance_uid: str):
+    """Download a DICOM file by SOP Instance UID."""
+    from flask import send_file
+
+    from departments.imaging.dicom_service import DICOMService
+
+    file_path = DICOMService.get_dicom_by_sop_uid(sop_instance_uid)
+
+    if not file_path:
+        return jsonify({"error": "DICOM file not found"}), 404
+
+    return send_file(
+        file_path,
+        mimetype="application/dicom",
+        as_attachment=True,
+        download_name=f"{sop_instance_uid}.dcm"
+    )
+
+
+# ── Phase 5: DICOM Web UI Routes ───────────────────────────────────────────
+@imaging_bp.route("/dicom/ui/upload", methods=["GET"])
+@login_required
+@roles_required("admin", "imaging", "medicine")
+def dicom_upload_ui():
+    """Render the DICOM upload page."""
+    return render_template("imaging/dicom_upload.html")
+
+
+@imaging_bp.route("/dicom/ui/studies/<patient_id>", methods=["GET"])
+@login_required
+@roles_required("admin", "imaging", "medicine")
+def dicom_studies_ui(patient_id: str):
+    """Render the DICOM studies gallery for a patient."""
+    from departments.imaging.dicom_service import DICOMService
+    from departments.models.records import Patient
+
+    studies = DICOMService.list_studies(patient_id)
+    patient = Patient.query.filter_by(patient_id=patient_id).first()
+
+    return render_template(
+        "imaging/dicom_studies.html",
+        studies=studies,
+        patient=patient,
+        patient_id=patient_id
+    )
+
+
+@imaging_bp.route("/dicom/ui/studies", methods=["GET", "POST"])
+@login_required
+@roles_required("admin", "imaging", "medicine")
+def dicom_studies_search_ui():
+    """Patient search form to find DICOM studies."""
+    from departments.models.records import Patient
+
+    if request.method == "POST":
+        patient_id = request.form.get("patient_id", "").strip()
+        if patient_id:
+            # Redirect to the studies gallery
+            return redirect(url_for('imaging.dicom_studies_ui', patient_id=patient_id))
+        else:
+            flash("Please enter a Patient ID", "warning")
+
+    # Get recent patients with imaging results for quick selection
+    recent_patients = (
+        db.session.query(Patient.patient_id, Patient.name)
+        .join(ImagingResult)
+        .order_by(ImagingResult.test_date.desc())
+        .limit(20)
+        .distinct()
+        .all()
+    )
+
+    return render_template(
+        "imaging/dicom_studies_search.html",
+        recent_patients=recent_patients
+    )

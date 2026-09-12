@@ -720,11 +720,13 @@ from departments.billing.reconciliation import (
 from departments.clinical_safety import bp as clinical_safety_bp
 from departments.consent import bp as consent_bp
 from departments.emergency import bp as emergency_bp
+from departments.hiv_art import bp as hiv_art_bp
 from departments.hr import bp as hr_bp
 from departments.imaging import bp as imaging_bp
 from departments.imaging.dicom import dicom_bp
 from departments.laboratory import bp as laboratory_bp
 from departments.laboratory.panic_alerts import lis_bp
+from departments.malaria import bp as malaria_bp
 from departments.mch import bp as mch_bp
 from departments.medicine import bp as medicine_bp
 from departments.medicine.prescribe import prescribe_bp
@@ -741,6 +743,7 @@ from departments.records import bp as records_bp
 from departments.referrals import bp as referrals_bp
 from departments.stores import bp as stores_bp
 from departments.stores.transfer_routes import transfer_bp
+from departments.tb_dots import bp as tb_dots_bp
 from departments.telemedicine import bp as telemedicine_bp
 from departments.ui_billing import bp as ui_billing_bp
 from departments.ui_clinical import bp as ui_clinical_bp
@@ -771,6 +774,9 @@ app.register_blueprint(ui_referrals_bp)
 app.register_blueprint(consent_bp)
 app.register_blueprint(clinical_safety_bp)
 app.register_blueprint(mch_bp)
+app.register_blueprint(hiv_art_bp)
+app.register_blueprint(tb_dots_bp)
+app.register_blueprint(malaria_bp)
 app.register_blueprint(analytics_bp)
 app.register_blueprint(rcm_bp)
 app.register_blueprint(patient_portal_bp, url_prefix="/portal")
