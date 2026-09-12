@@ -1,5 +1,4 @@
 """Tests for Phase 7 Malaria UI Routes."""
-import pytest
 
 
 class TestMalariaUIRoutes:

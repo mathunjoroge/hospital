@@ -15,14 +15,15 @@ for inter-facility continuity of care exchange. Includes sections for:
 
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
-from flask import Blueprint, Response, jsonify, request
+
+from flask import Blueprint, Response
 
 from departments.api.auth import jwt_or_session_required
-from departments.rbac import roles_required
-from departments.models.records import Patient
+from departments.models.laboratory import LabResult
 from departments.models.medicine import PrescribedMedicine, SOAPNote
 from departments.models.nursing import Vitals
-from departments.models.laboratory import LabResult
+from departments.models.records import Patient
+from departments.rbac import roles_required
 
 ccda_bp = Blueprint("ccda", __name__)
 
@@ -40,14 +41,14 @@ def generate_c_cda_xml(patient: Patient) -> str:
     # Realm & Type ID
     ET.SubElement(root, "realmCode", {"code": "US"})
     ET.SubElement(root, "typeId", {"root": "2.16.840.1.113883.1.3", "extension": "POCD_HD000040"})
-    
+
     # CCD Template IDs
     ET.SubElement(root, "templateId", {"root": "2.16.840.1.113883.10.20.22.1.1", "extension": "2015-08-01"}) # General Header
     ET.SubElement(root, "templateId", {"root": "2.16.840.1.113883.10.20.22.1.2", "extension": "2015-08-01"}) # CCD
 
     # Document ID & Code
     ET.SubElement(root, "id", {"root": "2.16.840.1.113883.19.5", "extension": f"CCD-{patient.patient_id}"})
-    code = ET.SubElement(root, "code", {
+    ET.SubElement(root, "code", {
         "code": "34133-9",
         "codeSystem": "2.16.840.1.113883.6.1",
         "codeSystemName": "LOINC",
@@ -64,17 +65,17 @@ def generate_c_cda_xml(patient: Patient) -> str:
     ET.SubElement(patient_role, "id", {"root": "2.16.840.1.113883.19.5", "extension": str(patient.patient_id)})
     if patient.national_id:
         ET.SubElement(patient_role, "id", {"root": "2.16.840.1.113883.4.1", "extension": str(patient.national_id)})
-    
+
     patient_elem = ET.SubElement(patient_role, "patient")
     name_elem = ET.SubElement(patient_elem, "name")
     parts = (patient.name or "Unknown Patient").split(" ", 1)
     ET.SubElement(name_elem, "given").text = parts[0]
     if len(parts) > 1:
         ET.SubElement(name_elem, "family").text = parts[1]
-    
+
     gender_code = "M" if patient.sex in ["M", "Male"] else ("F" if patient.sex in ["F", "Female"] else "UN")
     ET.SubElement(patient_elem, "administrativeGenderCode", {"code": gender_code, "codeSystem": "2.16.840.1.113883.5.1"})
-    
+
     if patient.date_of_birth:
         dob_str = patient.date_of_birth.strftime("%Y%m%d") if hasattr(patient.date_of_birth, "strftime") else str(patient.date_of_birth).replace("-", "")
         ET.SubElement(patient_elem, "birthTime", {"value": dob_str})
@@ -123,7 +124,7 @@ def generate_c_cda_xml(patient: Patient) -> str:
     ET.SubElement(section_med, "code", {"code": "10160-0", "codeSystem": "2.16.840.1.113883.6.1", "displayName": "History of Medication Use"})
     ET.SubElement(section_med, "title").text = "Medication History"
     text_med = ET.SubElement(section_med, "text")
-    
+
     rx_list = PrescribedMedicine.query.filter_by(patient_id=patient.patient_id).all()
     if rx_list:
         table_med = ET.SubElement(text_med, "table")
@@ -148,7 +149,7 @@ def generate_c_cda_xml(patient: Patient) -> str:
     ET.SubElement(section_prob, "code", {"code": "11450-4", "codeSystem": "2.16.840.1.113883.6.1", "displayName": "Problem List"})
     ET.SubElement(section_prob, "title").text = "Problems & Diagnoses"
     text_prob = ET.SubElement(section_prob, "text")
-    
+
     soap_notes = SOAPNote.query.filter_by(patient_id=patient.patient_id).all()
     assessments = [note.assessment for note in soap_notes if note.assessment]
     if assessments:
@@ -167,7 +168,7 @@ def generate_c_cda_xml(patient: Patient) -> str:
     ET.SubElement(section_vit, "code", {"code": "8716-3", "codeSystem": "2.16.840.1.113883.6.1", "displayName": "Vital Signs"})
     ET.SubElement(section_vit, "title").text = "Vital Signs"
     text_vit = ET.SubElement(section_vit, "text")
-    
+
     vitals_records = Vitals.query.filter_by(patient_id=patient.patient_id).order_by(Vitals.timestamp.desc()).limit(5).all()
     if vitals_records:
         table_v = ET.SubElement(text_vit, "table")
@@ -229,6 +230,4 @@ def export_ccda(patient_id):
     patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
     xml_content = generate_c_cda_xml(patient)
     return Response(xml_content, mimetype="application/xml")
-from departments.models.encounter import Encounter
-from departments.models.nursing import Vitals
 

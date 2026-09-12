@@ -52,6 +52,7 @@ def client(app):
 def admin_user(client, app):
     """Create and log in an admin user via client POST /login."""
     from werkzeug.security import generate_password_hash
+
     from departments.models.user import User
 
     with app.app_context():

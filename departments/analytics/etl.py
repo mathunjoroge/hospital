@@ -9,24 +9,19 @@ read-heavy executive reporting and MoH DHIS2 / KHIS reporting.
 """
 
 import logging
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Optional
 
 from flask import Blueprint, jsonify, request
 from flask_login import login_required
 
-from extensions import db
 from departments.analytics.models import DailyKpiSnapshot
 from departments.models.encounter import Encounter
 from departments.models.laboratory import LabResult
 from departments.rbac import roles_required
+from extensions import db
 
-
-# Phase 7 Disease Program Models
-from departments.hiv_art.models import ARTEnrollment
-from departments.tb_dots.models import TBEnrollment
-from departments.malaria.models import MalariaCase
 logger = logging.getLogger(__name__)
 
 etl_bp = Blueprint("analytics_etl", __name__)

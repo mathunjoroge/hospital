@@ -1,5 +1,4 @@
 """Tests for Phase 7 TB/DOTS UI Routes."""
-import pytest
 
 
 class TestTbDotsUIRoutes:

@@ -1,5 +1,4 @@
 """Tests for Phase 5 DICOM UI Routes."""
-import pytest
 
 
 class TestDicomUIRoutes:

@@ -1,5 +1,4 @@
 """Tests for Phase 7 HIV/ART UI Routes."""
-import pytest
 
 
 class TestHivArtUIRoutes:

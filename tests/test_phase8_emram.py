@@ -9,18 +9,18 @@ Unit and Integration tests for Phase 8 HIMSS EMRAM items:
 
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, timezone
+
 import pytest
 from werkzeug.security import generate_password_hash
 
-from extensions import db
-from departments.models.user import User
-from departments.models.records import Patient, PatientAllergy
-from departments.models.medicine import Medicine, PrescribedMedicine, SOAPNote, LabTest
-from departments.models.nursing import Vitals, MedicationAdmin
-from departments.models.laboratory import LabResult
-from departments.models.encounter import Encounter
-from departments.analytics.models import DailyKpiSnapshot
 from departments.analytics.etl import run_daily_kpi_etl
+from departments.models.encounter import Encounter
+from departments.models.laboratory import LabResult
+from departments.models.medicine import LabTest, Medicine, PrescribedMedicine, SOAPNote
+from departments.models.nursing import MedicationAdmin, Vitals
+from departments.models.records import Patient, PatientAllergy
+from departments.models.user import User
+from extensions import db
 
 
 @pytest.fixture
@@ -71,7 +71,7 @@ def test_patient(app):
             )
             db.session.add(patient)
             db.session.commit()
-            
+
             allergy = PatientAllergy(
                 patient_id=patient.patient_id,
                 allergen="Penicillin",
@@ -114,7 +114,6 @@ class TestBCMAWorkflow:
             )
             db.session.add(rx)
             db.session.commit()
-            rx_id = rx.id
 
         client.post("/login", data={"username": nurse_user.username, "password": "password123"})
 
@@ -151,7 +150,6 @@ class TestBCMAWorkflow:
             )
             db.session.add(rx)
             db.session.commit()
-            rx_id = rx.id
             nurse_id = nurse_user.id
 
         client.post("/login", data={"username": nurse_user.username, "password": "password123"})
@@ -194,7 +192,7 @@ class TestCCDAExport:
                 hpi="Cough for 3 days",
                 assessment="Acute Upper Respiratory Tract Infection (J06.9)"
             )
-            
+
             lab_test = LabTest(test_name="Full Blood Count", cost=500.0)
             db.session.add(lab_test)
             db.session.commit()
@@ -217,7 +215,7 @@ class TestCCDAExport:
 
         xml_tree = ET.fromstring(response.data.decode("utf-8"))
         assert "ClinicalDocument" in xml_tree.tag
-        
+
         xml_text = response.data.decode("utf-8")
         assert test_patient.name in xml_text
         assert "Continuity of Care Document" in xml_text
