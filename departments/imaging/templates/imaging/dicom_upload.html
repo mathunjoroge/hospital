@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Upload DICOM Images{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Upload DICOM Files</h4>
+                    <a href="{{ url_for('imaging.index') }}" class="btn btn-light btn-sm">Back to Imaging</a>
+                </div>
+                <div class="card-body">
+                    <div id="upload-alert" class="alert d-none" role="alert"></div>
+                    
+                    <form id="dicom-upload-form" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="imaging_request_id" class="form-label">Link to Imaging Request (Optional)</label>
+                            <input type="number" class="form-control" id="imaging_request_id" name="imaging_request_id" placeholder="Enter Request ID">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="dicom_file" class="form-label">DICOM File (.dcm)</label>
+                            <input type="file" class="form-control" id="dicom_file" name="file" accept=".dcm,.dicom" required>
+                            <div class="form-text">Select a DICOM file from the imaging modality.</div>
+                        </div>
+                        
+                        <div class="progress mb-3 d-none" id="upload-progress" style="height: 25px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%">0%</div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary" id="upload-btn">
+                            <i class="fas fa-upload"></i> Upload & Store to PACS
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('dicom-upload-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const fileInput = document.getElementById('dicom_file');
+    const reqIdInput = document.getElementById('imaging_request_id');
+    const alertBox = document.getElementById('upload-alert');
+    const progressBar = document.getElementById('upload-progress');
+    const progressInner = progressBar.querySelector('.progress-bar');
+    const btn = document.getElementById('upload-btn');
+    
+    if (!fileInput.files[0]) {
+        alertBox.className = 'alert alert-danger';
+        alertBox.textContent = 'Please select a file.';
+        alertBox.classList.remove('d-none');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    if (reqIdInput.value) {
+        formData.append('imaging_request_id', reqIdInput.value);
+    }
+    
+    btn.disabled = true;
+    progressBar.classList.remove('d-none');
+    progressInner.style.width = '50%';
+    progressInner.textContent = 'Uploading...';
+    alertBox.classList.add('d-none');
+    
+    try {
+        const response = await fetch('/imaging/dicom/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        progressInner.style.width = '100%';
+        
+        if (response.ok) {
+            alertBox.className = 'alert alert-success';
+            alertBox.innerHTML = `<strong>Success!</strong> Stored SOP Instance: ${data.sop_instance_uid}<br>Modality: ${data.modality}`;
+        } else {
+            alertBox.className = 'alert alert-danger';
+            alertBox.textContent = `Error: ${data.error || 'Upload failed'}`;
+        }
+    } catch (err) {
+        alertBox.className = 'alert alert-danger';
+        alertBox.textContent = `Network Error: ${err.message}`;
+    } finally {
+        alertBox.classList.remove('d-none');
+        btn.disabled = false;
+    }
+});
+</script>
+{% endblock %}
