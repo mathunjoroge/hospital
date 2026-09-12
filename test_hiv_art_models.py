@@ -47,7 +47,7 @@ def test_model_creation():
             assert regimen.id is not None
             assert regimen.regimen_code == "TDF/3TC/EFV"
             assert regimen.line_of_therapy == 1
-            assert regimen.is_preferred == True
+            assert regimen.is_preferred is True
             print("✓ ARTRegimen creation successful")
 
             # Test ARTEnrollment creation

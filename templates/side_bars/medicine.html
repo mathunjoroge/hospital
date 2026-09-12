@@ -12,3 +12,6 @@
 <a href="{{ url_for('medicine.list_diseases') }}"><i class="bi bi-virus me-2"></i> Diseases Ref</a>
 <a href="{{ url_for('medicine.drugs_ref') }}"><i class="bi bi-capsule me-2"></i> Drugs Ref</a>
 <a href="{{ url_for('medicine.oncology') }}"><i class="bi bi-droplet me-2"></i> Oncology</a>
+
+<div class="sidebar-heading mt-3 mb-1 text-uppercase fw-bold small" style="color: #f97316 !important; font-size: 0.75rem; letter-spacing: 0.05em;">🦠 Disease Programs</div>
+{% include 'side_bars/disease_programs.html' ignore missing %}

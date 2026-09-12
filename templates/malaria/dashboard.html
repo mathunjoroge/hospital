@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Malaria Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="bi bi-bug text-success"></i> Malaria Case Management</h3>
+        <a href="{{ url_for('malaria.new_case_ui') }}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> New Malaria Case
+        </a>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h2>{{ cases|length }}</h2>
+                    <p>Total Cases</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h2>{{ active_count }}</h2>
+                    <p>Active Cases</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h2>{{ severe_count }}</h2>
+                    <p>Severe Cases</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h2>{{ treated_count }}</h2>
+                    <p>Treated (Last 30d)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Malaria Cases</h5>
+        </div>
+        <div class="card-body">
+            {% if cases %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Case Number</th>
+                            <th>Patient</th>
+                            <th>Diagnosis Date</th>
+                            <th>Species</th>
+                            <th>Severity</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for case in cases %}
+                        <tr>
+                            <td>{{ case.case_number }}</td>
+                            <td>{{ case.patient.name if case.patient else 'N/A' }}</td>
+                            <td>{{ case.diagnosis_date.strftime('%d %b %Y') if case.diagnosis_date else 'N/A' }}</td>
+                            <td>{{ case.malaria_species or 'Unknown' }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'danger' if case.severity == 'severe' else 'warning' }}">
+                                    {{ case.severity or 'uncomplicated' }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('malaria.case_detail_ui', case_id=case.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">No malaria cases recorded. <a href="{{ url_for('malaria.new_case_ui') }}">Register a case</a>.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

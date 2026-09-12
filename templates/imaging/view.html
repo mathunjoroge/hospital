@@ -1,58 +1,204 @@
 {% extends "base.html" %}
 
-{% block title %}Imaging View | HIMS{% endblock %}
+{% block title %}Imaging Result Details - {{ imaging_result.result_id }}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-  <h1 class="mb-4">Imaging Result</h1>
-  
-  {% if imaging_result %}
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <p><strong>Result ID:</strong> {{ imaging_result.id }}</p>
-        <p><strong>Patient ID:</strong> {{ imaging_result.patient_id }}</p>
-        <p><strong>Study Date:</strong> {{ imaging_result.study_date }}</p>
-        <p><strong>Modality:</strong> {{ imaging_result.modality }}</p>
-        <p><strong>Body Part Examined:</strong> {{ imaging_result.body_part_examined }}</p>
-      </div>
-      <div class="col-md-6">
-        <p><strong>Interpretation:</strong> {{ imaging_result.interpretation }}</p>
-        <p><strong>Finding:</strong> {{ imaging_result.finding }}</p>
-      </div>
+<div class="container mt-4">
+    <h1>Imaging Result Details</h1>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Result Summary -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h2>Result ID: {{ imaging_result.result_id }}</h2>
+        </div>
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">Patient ID:</dt>
+                <dd class="col-sm-9">{{ imaging_result.patient_id }}</dd>
+                
+                <dt class="col-sm-3">Test Date:</dt>
+                <dd class="col-sm-9">{{ imaging_result.test_date.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+                
+                <dt class="col-sm-3">Imaging Type:</dt>
+                <dd class="col-sm-9">{{ imaging_type }}</dd>
+                
+                <dt class="col-sm-3">Files Processed:</dt>
+                <dd class="col-sm-9">{{ imaging_result.files_processed }} / {{ imaging_result.files_processed + imaging_result.files_failed }}</dd>
+            </dl>
+
+            {% if imaging_result.result_notes %}
+                <h3>Result Notes</h3>
+                <pre class="bg-light p-3" style="max-height: 200px; overflow-y: auto;">{{ imaging_result.result_notes }}</pre>
+            {% endif %}
+        </div>
     </div>
-    
-    {% if file_paths %}
-    <h3>Associated Files</h3>
-    <ul class="list-group">
-      {% for fp in file_paths %}
-        <li class="list-group-item">{{ fp }}</li>
-      {% endfor %}
-    </ul>
+
+    <!-- AI Findings Section -->
+    {% if ai_header or ai_findings or ai_impression or ai_footer %}
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h2>AI Findings</h2>
+            </div>
+            <div class="card-body">
+                <!-- Header -->
+                {% if ai_header %}
+                    <h3>Radiology Report</h3>
+                    <dl class="row">
+                        {% for key, value in ai_header.items() %}
+                            <dt class="col-sm-3">{{ key }}:</dt>
+                            <dd class="col-sm-9">{{ value }}</dd>
+                        {% endfor %}
+                    </dl>
+                {% endif %}
+
+                <!-- Findings -->
+                {% if ai_findings %}
+                    <h4>Findings</h4>
+                    {% for finding in ai_findings %}
+                        {% if finding.intro %}
+                            <p>{{ finding.intro }}</p>
+                        {% elif finding.text %}
+                            <p class="mb-2" style="white-space: pre-wrap;">{{ finding.text }}</p>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                <!-- Impression -->
+                {% if ai_impression %}
+                    <h4>Impression</h4>
+                    <ul>
+                        {% for item in ai_impression %}
+                            <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+
+                <!-- Footer -->
+                {% if ai_footer %}
+                    <dl class="row mt-3">
+                        {% for key, value in ai_footer.items() %}
+                            <dt class="col-sm-3">{{ key }}:</dt>
+                            <dd class="col-sm-9">{{ value }}</dd>
+                        {% endfor %}
+                    </dl>
+                {% endif %}
+            </div>
+        </div>
     {% endif %}
-    
-    {% if ai_header or ai_findings %}
-    <h3>AI Analysis</h3>
-    {% if ai_header %}
-      <p><strong>Header:</strong> {{ ai_header }}</p>
-    {% endif %}
-    {% if ai_findings %}
-      <p><strong>Findings:</strong> {{ ai_findings }}</p>
-    {% endif %}
-    {% endif %}
-  {% else %}
-    <p>No imaging result data available.</p>
-  {% endif %}
-  
-  {% if imaging_request %}
-    <h3>Request Details</h3>
-    <p><strong>Requested By:</strong> {{ imaging_request.requested_by }}</p>
-    <p><strong>Clinical Indication:</strong> {{ imaging_request.clinical_indication }}</p>
-  {% endif %}
-  
-  {% if imaging %}
-    <h3>Imaging Equipment</h3>
-    <p><strong>Modality:</strong> {{ imaging.modality }}</p>
-    <p><strong>Station Name:</strong> {{ imaging.station_name }}</p>
-  {% endif %}
+
+   <!-- DICOM Files Section -->
+<div class="card">
+    <div class="card-header bg-secondary text-white">
+        <h2>DICOM Files</h2>
+    </div>
+    <div class="card-body">
+        {% if file_paths %}
+            <ul class="list-group mb-3">
+                {% for path in file_paths %}
+                    {% set view_url = url_for('imaging.view_imaging_results', result_id=imaging_result.result_id, file_index=loop.index0, action='view') %}
+                    {% set download_url = url_for('imaging.view_imaging_results', result_id=imaging_result.result_id, file_index=loop.index0, action='download') %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ path.split('/')[-1] }}</span>
+                        <div>
+                            <a href="{{ download_url }}" 
+                               class="btn btn-sm btn-primary me-2" 
+                               download="{{ path.split('/')[-1] }}"
+                               aria-label="Download {{ path.split('/')[-1] }}">
+                                Download
+                            </a>
+                            <button class="btn btn-sm btn-info" 
+                                    onclick="loadDicom('{{ view_url }}')"
+                                    aria-label="View {{ path.split('/')[-1] }}"
+                                    data-bs-toggle="tooltip" 
+                                    title="View DICOM image">
+                                View
+                            </button>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+            <div id="dicomViewer" style="width: 80vw; max-width: 512px; height: 512px; border: 1px solid #ccc; margin-top: 20px;"></div>
+            <div id="dicomError" class="text-danger mt-2" style="display: none;"></div>
+        {% else %}
+            <p class="text-muted">No DICOM files available for this result.</p>
+        {% endif %}
+    </div>
 </div>
+
+Key Change
+
+
+
+    <!-- Navigation -->
+    <div class="mt-3">
+        <a href="{{ url_for('imaging.imaging_results') }}" class="btn btn-secondary">Back to All Results</a>
+    </div>
+</div>
+
+<!-- Cornerstone.js Setup -->
+<script src="https://unpkg.com/cornerstone-core@2.6.1/dist/cornerstone.min.js"></script>
+<script src="https://unpkg.com/cornerstone-wado-image-loader@4.13.2/dist/cornerstoneWADOImageLoader.min.js"></script>
+<script src="https://unpkg.com/cornerstone-tools@6.0.7/dist/cornerstoneTools.min.js"></script>
+<script>
+    // Fallback if CDN fails
+    if (typeof cornerstone === 'undefined' || typeof cornerstoneWADOImageLoader === 'undefined') {
+        console.error('Cornerstone.js failed to load from CDN.');
+        document.getElementById('dicomError').innerText = 'DICOM viewer unavailable. Please try again later.';
+        document.getElementById('dicomError').style.display = 'block';
+    } else {
+        cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
+        cornerstoneWADOImageLoader.webWorkerManager.initialize({
+            maxWebWorkers: navigator.hardwareConcurrency || 1,
+            startWebWorkersOnDemand: true,
+            taskConfiguration: { 'decodeTask': { initializeCodecsOnStartup: false, usePDFJS: false } }
+        });
+
+        const element = document.getElementById('dicomViewer');
+        cornerstone.enable(element);
+
+        // Add basic tools
+        cornerstoneTools.external.cornerstone = cornerstone;
+        cornerstoneTools.init();
+        const ZoomTool = cornerstoneTools.ZoomTool;
+        const PanTool = cornerstoneTools.PanTool;
+        const WwwcTool = cornerstoneTools.WwwcTool; // Window/Level
+        cornerstoneTools.addTool(ZoomTool);
+        cornerstoneTools.addTool(PanTool);
+        cornerstoneTools.addTool(WwwcTool);
+        cornerstoneTools.setToolActive('Zoom', { mouseButtonMask: 1 });
+        cornerstoneTools.setToolActive('Pan', { mouseButtonMask: 2 });
+        cornerstoneTools.setToolActive('Wwwc', { mouseButtonMask: 4 });
+
+        function loadDicom(url) {
+            const imageId = 'wadouri:' + url;
+            cornerstone.loadAndCacheImage(imageId).then(function(image) {
+                cornerstone.displayImage(element, image);
+                cornerstone.reset(element);
+                document.getElementById('dicomError').style.display = 'none';
+            }).catch(function(err) {
+                console.error('Error loading DICOM:', err);
+                document.getElementById('dicomError').innerText = 'Failed to load DICOM file: ' + err.message;
+                document.getElementById('dicomError').style.display = 'block';
+            });
+        }
+
+        // Enable tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+</script>
 {% endblock %}

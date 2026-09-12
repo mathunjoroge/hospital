@@ -5,7 +5,7 @@ HIV/ART Module API routes.
 import logging
 from datetime import datetime, timezone
 
-from flask import jsonify, request
+from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
 
 from departments.rbac import roles_required
@@ -498,16 +498,16 @@ def internal_error(error):
 # ── UI Routes ──────────────────────────────────────────────────────────
 @bp.route("/ui/dashboard")
 @login_required
+@roles_required("admin", "medicine", "doctor", "clinical", "nursing")
 def dashboard_ui():
     """HIV/ART Dashboard."""
     from departments.hiv_art.models import ARTEnrollment
-    from extensions import db
-    
+
     enrollments = ARTEnrollment.query.order_by(ARTEnrollment.enrollment_date.desc()).all()
     active_count = len([e for e in enrollments if e.art_start_date])
     pending_vl = 0  # Would need logic to determine pending VL
     adherence_due = 0  # Would need logic to determine due visits
-    
+
     return render_template("hiv_art/dashboard.html",
                           enrollments=enrollments,
                           active_count=active_count,
@@ -517,12 +517,12 @@ def dashboard_ui():
 
 @bp.route("/ui/enroll", methods=["GET", "POST"])
 @login_required
+@roles_required("admin", "medicine", "doctor", "clinical", "nursing")
 def enroll_ui():
     """Enroll a new ART patient."""
-    from departments.hiv_art.models import ARTRegimen
     from departments.hiv_art.engine import create_art_enrollment
-    from extensions import db
-    
+    from departments.hiv_art.models import ARTRegimen
+
     if request.method == "POST":
         patient_id = request.form.get("patient_id")
         art_number = request.form.get("art_number")
@@ -531,9 +531,9 @@ def enroll_ui():
         baseline_who_stage = request.form.get("baseline_who_stage")
         baseline_cd4 = request.form.get("baseline_cd4")
         current_regimen_id = request.form.get("current_regimen_id")
-        
+
         try:
-            result = create_art_enrollment(
+            create_art_enrollment(
                 patient_id=patient_id,
                 art_number=art_number,
                 enrollment_date=enrollment_date,
@@ -546,26 +546,27 @@ def enroll_ui():
             return redirect(url_for("hiv_art.dashboard_ui"))
         except Exception as e:
             flash(f"Error enrolling patient: {str(e)}", "danger")
-    
+
     regimens = ARTRegimen.query.filter_by(is_preferred=True).all()
     return render_template("hiv_art/enroll.html", regimens=regimens)
 
 
 @bp.route("/ui/patient/<int:enrollment_id>")
 @login_required
+@roles_required("admin", "medicine", "doctor", "clinical", "nursing")
 def patient_detail_ui(enrollment_id):
     """View ART patient details."""
-    from departments.hiv_art.models import ARTEnrollment, ViralLoad, AdherenceVisit
+    from departments.hiv_art.models import AdherenceVisit, ARTEnrollment, ViralLoad
     from extensions import db
-    
+
     enrollment = db.session.get(ARTEnrollment, enrollment_id)
     if not enrollment:
         flash("Enrollment not found", "error")
         return redirect(url_for("hiv_art.dashboard_ui"))
-    
+
     viral_loads = ViralLoad.query.filter_by(art_enrollment_id=enrollment_id).order_by(ViralLoad.test_date.desc()).all()
     adherence_visits = AdherenceVisit.query.filter_by(art_enrollment_id=enrollment_id).order_by(AdherenceVisit.visit_date.desc()).all()
-    
+
     return render_template("hiv_art/patient_detail.html",
                           enrollment=enrollment,
                           viral_loads=viral_loads,

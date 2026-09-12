@@ -2,11 +2,13 @@ import logging
 import os
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pydicom
 from flask import (
     current_app,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -659,7 +661,7 @@ def view_result(result_id):
         imaging = Imaging.query.get_or_404(imaging_result.imaging_id)
         imaging_request = RequestedImage.query.filter_by(
             result_id=result_id
-        ).first_or_404()
+        ).first()
 
         logger.debug(f"Rendering view.html for result_id={result_id}")
         return render_template(
@@ -991,15 +993,13 @@ def dicom_studies_search_ui():
             # Redirect to the studies gallery
             return redirect(url_for('imaging.dicom_studies_ui', patient_id=patient_id))
         else:
-            flash("Please enter a Patient ID", "warning")
-
-    # Get recent patients with imaging results for quick selection
+            flash("Please enter a Patient ID", "warning")    # Get recent patients with imaging results for quick selection
     recent_patients = (
         db.session.query(Patient.patient_id, Patient.name)
         .join(ImagingResult)
-        .order_by(ImagingResult.test_date.desc())
+        .group_by(Patient.patient_id, Patient.name)
+        .order_by(db.func.max(ImagingResult.test_date).desc())
         .limit(20)
-        .distinct()
         .all()
     )
 
@@ -1007,3 +1007,20 @@ def dicom_studies_search_ui():
         "imaging/dicom_studies_search.html",
         recent_patients=recent_patients
     )
+
+
+@imaging_bp.route("/inventory", methods=["GET"])
+@login_required
+@roles_required("admin", "imaging", "medicine")
+def inventory():
+    """Imaging equipment and supplies inventory endpoint."""
+    return redirect(url_for("stores.inventory"))
+
+
+@imaging_bp.route("/reports", methods=["GET"])
+@login_required
+@roles_required("admin", "imaging", "medicine")
+def reports():
+    """Radiology reports dashboard endpoint."""
+    return redirect(url_for("imaging.imaging_results"))
+

@@ -1,10 +1,11 @@
-<a href="{{ url_for('imaging.index') }}"><i class="bi bi-list-check me-2"></i> Requests</a>
-<a href=""><i class="bi bi-list-check me-2"></i>inventory</a>
-<a href="{{ url_for('imaging.imaging_results') }}"><i class="bi bi-boxes me-2"></i> results</a>
-<a href=""><i class="bi bi-file-earmark-medical me-2"></i> Reports</a>
-<a href=""><i class="bi bi-person-lines-fill me-2"></i> Patient Records</a>
+<a href="{{ url_for('imaging.index') }}"><i class="bi bi-list-check me-2"></i> Imaging Requests</a>
+<a href="{{ url_for('imaging.imaging_results') }}"><i class="bi bi-file-earmark-text me-2"></i> Imaging Results</a>
+<a href="{{ url_for('imaging.inventory') }}"><i class="bi bi-box-seam me-2"></i> Equipment & Inventory</a>
+<a href="{{ url_for('imaging.reports') }}"><i class="bi bi-bar-chart-line me-2"></i> Radiology Reports</a>
+<a href="{{ url_for('records.index') }}"><i class="bi bi-person-lines-fill me-2"></i> Patient Records</a>
 
 <hr class="my-2">
-<small class="text-muted px-2">DICOM PACS</small>
+<small class="text-muted px-2 text-uppercase fw-bold">DICOM PACS</small>
 <a href="{{ url_for('imaging.dicom_upload_ui') }}"><i class="bi bi-cloud-upload me-2"></i> Upload DICOM</a>
-<a href="{{ url_for('imaging.dicom_studies_search_ui') }}"><i class="bi bi-images me-2"></i> Browse Studies</a>
+<a href="{{ url_for('imaging.dicom_studies_search_ui') }}"><i class="bi bi-images me-2"></i> Browse DICOM Studies</a>
+<a href="{{ url_for('dicom_integration.get_modality_worklist') }}"><i class="bi bi-list-task me-2"></i> Modality Worklist (MWL)</a>

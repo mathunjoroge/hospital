@@ -794,7 +794,16 @@
         <i class="bi bi-shield-check me-2" style="color: #ef4444;"></i> Rx Safety (CDS)
     </a>
     {% endif %}
-    
+    {% if current_user.is_authenticated %}
+{% set effective_role = session.switched_user if session.switched_user else current_user.role %}
+{% include 'side_bars/' ~ effective_role ~ '.html' ignore missing %}
+
+{# ═══ NATIONAL DISEASE PROGRAMS ═══ #}
+{% if effective_role in ['admin', 'medicine', 'doctor', 'nursing'] %}
+<div class="sidebar-heading mt-4" style="color: #f97316 !important; font-weight: 800; letter-spacing: 0.1em;">🦠 Disease Programs</div>
+{% include 'side_bars/disease_programs.html' ignore missing %}
+{% endif %}
+{% endif %}
     {# MCH / Vax: nurses only #}
     {% if user_role in ['admin', 'nursing'] %}
     <a href="/ui/mch/workbench" title="Maternal & Child Health / Immunizations">

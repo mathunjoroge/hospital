@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}TB Patient Detail{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>
+            <i class="bi bi-lungs text-warning"></i>
+            TB Patient: {{ enrollment.patient.name if enrollment.patient else enrollment.tb_number }}
+        </h3>
+        <a href="{{ url_for('tb_dots.dashboard_ui') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header">Patient Information</div>
+                <div class="card-body">
+                    <p><strong>TB Number:</strong> {{ enrollment.tb_number }}</p>
+                    <p><strong>Enrollment Date:</strong> {{ enrollment.enrollment_date.strftime('%d %b %Y') if enrollment.enrollment_date else 'N/A' }}</p>
+                    <p><strong>Treatment Start:</strong> {{ enrollment.treatment_start_date.strftime('%d %b %Y') if enrollment.treatment_start_date else 'N/A' }}</p>
+                    <p><strong>Site of Disease:</strong> {{ enrollment.site_of_disease or 'N/A' }}</p>
+                    <p><strong>HIV Status:</strong> {{ enrollment.hiv_status or 'Unknown' }}</p>
+                    {% if enrollment.current_regimen %}
+                    <p><strong>Current Regimen:</strong> {{ enrollment.current_regimen.regimen_name }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <!-- Dose Tracking -->
+            <div class="card mb-3">
+                <div class="card-header">Recent Doses Taken</div>
+                <div class="card-body">
+                    {% if doses_taken %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>Date Taken</th><th>Dose #</th><th>Directly Observed</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for dose in doses_taken[:10] %}
+                            <tr>
+                                <td>{{ dose.date_taken.strftime('%d %b %Y') if dose.date_taken else 'N/A' }}</td>
+                                <td>{{ dose.dose_number }}</td>
+                                <td>{{ '✅' if dose.taken_as_directly_observed else '❌' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No doses recorded yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Sputum Results -->
+            <div class="card">
+                <div class="card-header">Sputum Results</div>
+                <div class="card-body">
+                    {% if sputum_results %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>Test Date</th><th>Specimen Type</th><th>Smear Result</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for result in sputum_results %}
+                            <tr>
+                                <td>{{ result.test_date.strftime('%d %b %Y') if result.test_date else 'N/A' }}</td>
+                                <td>{{ result.specimen_type or '-' }}</td>
+                                <td>{{ result.smear_result or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No sputum results recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

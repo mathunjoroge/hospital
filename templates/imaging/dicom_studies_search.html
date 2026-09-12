@@ -1,37 +1,46 @@
 {% extends "base.html" %}
 
-{% block title %}DICOM Studies Search | HIMS{% endblock %}
+{% block title %}Browse DICOM Studies{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-  <h1 class="mb-4">Find DICOM Studies by Patient</h1>
-  
-  <form method="POST" action="{{ url_for('imaging_bp.dicom_studies_search_ui') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
-    
-    <div class="mb-3">
-      <label for="patient_id" class="form-label">Patient ID</label>
-      <input type="text" class="form-control" id="patient_id" name="patient_id" placeholder="Enter Patient ID">
-    </div>
-    
-    <button type="submit" class="btn btn-primary">Search</button>
-  </form>
-  
-  {% if recent_patients %}
-    <h2 class="mt-4">Recently Imaged Patients</h2>
-    <div class="list-group">
-      {% for patient_id, name in recent_patients %}
-      <a href="{{ url_for('imaging_bp.dicom_studies_ui', patient_id=patient_id) }}" class="list-group-item list-group-item-action">
-        <div class="d-flex w-100 justify-content-between">
-          <h5 class="mb-1">{{ patient_id }}</h5>
-          <small>{{ name }}</small>
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Browse DICOM Studies</h4>
+                    <a href="{{ url_for('imaging.index') }}" class="btn btn-light btn-sm">Back to Imaging</a>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="patient_id" class="form-label">Patient ID</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="patient_id" name="patient_id" 
+                                       placeholder="Enter Patient ID (e.g., P001234)" required>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-search"></i> Find Studies
+                                </button>
+                            </div>
+                            <div class="form-text">Enter the patient's ID to view their DICOM imaging history.</div>
+                        </div>
+                    </form>
+                    
+                    {% if recent_patients %}
+                    <hr>
+                    <h6>Recent Patients with Imaging:</h6>
+                    <div class="list-group" style="max-height: 300px; overflow-y: auto;">
+                        {% for patient in recent_patients %}
+                        <a href="{{ url_for('imaging.dicom_studies_ui', patient_id=patient.patient_id) }}" 
+                           class="list-group-item list-group-item-action">
+                            <strong>{{ patient.patient_id }}</strong> - {{ patient.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-        <p class="mb-1">Recently had imaging</p>
-      </a>
-      {% endfor %}
     </div>
-  {% else %}
-    <p>No recent patients with imaging records.</p>
-  {% endif %}
 </div>
 {% endblock %}

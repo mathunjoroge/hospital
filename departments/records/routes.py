@@ -38,7 +38,7 @@ from . import bp
 
 @bp.route("/index")
 @login_required
-@roles_required("records", "admin")
+@roles_required("records", "admin", "imaging", "medicine", "nursing", "pharmacy")
 def index():
     patients = Patient.query.order_by(Patient.date_registered.desc()).all()
     clinics = Clinic.query.all()

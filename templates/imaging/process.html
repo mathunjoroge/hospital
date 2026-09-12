@@ -1,62 +1,136 @@
 {% extends "base.html" %}
-
-{% block title %}Imaging Process | HIMS{% endblock %}
-
 {% block content %}
-<div class="container py-4">
-  <h1 class="mb-4">Imaging Processing</h1>
-  
-  {% if imaging_request %}
-    <div class="card mb-4">
-      <div class="card-header">
-        <h5>Imaging Request</h5>
-      </div>
-      <div class="card-body">
-        <p><strong>Request ID:</strong> {{ imaging_request.id }}</p>
-        <p><strong>Patient ID:</strong> {{ imaging_request.patient_id }}</p>
-        <p><strong>Requested By:</strong> {{ imaging_request.requested_by }}</p>
-        <p><strong>Requested At:</strong> {{ imaging_request.requested_at }}</p>
-        <p><strong>Clinical Indication:</strong> {{ imaging_request.clinical_indication }}</p>
-        <p><strong>Body Part:</strong> {{ imaging_request.body_part }}</p>
-        <p><strong>Modality:</strong> {{ imaging_request.modality }}</p>
-      </div>
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Process Imaging Request</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Imaging Details</h4>
+        </div>
+        <div class="card-body">
+            <p><strong>Patient Name:</strong> {{ imaging_request.patient.name }}</p>
+            <p><strong>Patient ID:</strong> {{ imaging_request.patient.patient_id }}</p>
+            <p><strong>Imaging Type:</strong> {{ imaging.imaging_type }}</p>
+            <p><strong>Cost:</strong> ${{ "%.2f" | format(imaging.cost) }}</p>
+            <p><strong>Description:</strong> {{ imaging.description | default("No description provided") }}</p>
+        </div>
     </div>
-  {% endif %}
-  
-  {% if imaging %}
-    <div class="card mb-4">
-      <div class="card-header">
-        <h5>Imaging Equipment</h5>
-      </div>
-      <div class="card-body">
-        <p><strong>Modality:</strong> {{ imaging.modality }}</p>
-        <p><strong>Station Name:</strong> {{ imaging.station_name }}</p>
-        <p><strong>Manufacturer:</strong> {{ imaging.manufacturer }}</p>
-        <p><strong>Model Name:</strong> {{ imaging.model_name }}</p>
-        <p><strong>Software Versions:</strong> {{ imaging.software_versions }}</p>
-      </div>
+
+    <form method="POST" action="{{ url_for('imaging.process_imaging_request', request_id=imaging_request.id) }}" enctype="multipart/form-data" id="uploadForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <!-- Imaging Request Description -->
+        <div class="mb-3">
+            <label for="description" class="form-label fw-bold">Imaging Request Description:</label>
+            <textarea id="description" name="description" class="form-control" rows="3" placeholder="Describe the imaging request (e.g., 'Chest X-ray for suspected pneumonia')">{{ imaging_request.description | default("") }}</textarea>
+        </div>
+
+        <!-- Patient Symptoms -->
+        <div class="mb-3">
+            <label for="symptoms" class="form-label fw-bold">Patient Symptoms:</label>
+            <textarea id="symptoms" name="symptoms" class="form-control" rows="3" placeholder="Enter patient symptoms (e.g., 'Fever, cough, shortness of breath')">{{ imaging_request.symptoms | default("") }}</textarea>
+        </div>
+
+        <div class="mb-3">
+            <label for="result_notes" class="form-label fw-bold">Radiology Report:</label>
+            <textarea id="result_notes" name="result_notes" class="form-control" rows="5">{{ draft_report }}</textarea>
+        </div>
+
+        <!-- Folder Upload Section -->
+        <div class="mb-4 border p-3 rounded">
+            <h5 class="mb-3">Upload DICOM Files</h5>
+            
+            <div class="mb-3">
+                <label for="dicom_folder" class="form-label fw-bold">Select DICOM Folder:</label>
+                <input type="file" id="dicom_folder" name="dicom_folder" class="form-control" 
+                       webkitdirectory directory multiple accept=".dcm,.dicom" required>
+                <small class="form-text text-muted">Select a folder containing all DICOM images for this study</small>
+            </div>
+
+            <div id="fileInfo" class="alert alert-info" style="display:none;">
+                <span id="fileCount">0</span> DICOM files selected
+                <div id="fileList" class="mt-2 small"></div>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary btn-lg px-5" id="submitBtn">
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                Process Study
+            </button>
+        </div>
+    </form>
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('imaging.index') }}" class="btn btn-secondary">Back to Waiting List</a>
     </div>
-  {% endif %}
-  
-  {% if draft_report %}
-    <div class="card mb-4">
-      <div class="card-header">
-        <h5>Draft Report</h5>
-      </div>
-      <div class="card-body">
-        <pre>{{ draft_report }}</pre>
-      </div>
-    </div>
-  {% endif %}
-  
-  <div class="card">
-    <div class="card-header">
-      <h5>AI Status</h5>
-    </div>
-    <div class="card-body">
-      <p><strong>AI Enabled:</strong> {{ ai_enabled }}</p>
-      <p><strong>NIM Client Available:</strong> {{ nim_client is not none }}</p>
-    </div>
-  </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const folderInput = document.getElementById('dicom_folder');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileCount = document.getElementById('fileCount');
+    const fileList = document.getElementById('fileList');
+    const submitBtn = document.getElementById('submitBtn');
+    const uploadForm = document.getElementById('uploadForm');
+
+    folderInput.addEventListener('change', function(e) {
+        if (this.files.length > 0) {
+            fileCount.textContent = this.files.length;
+            fileInfo.style.display = 'block';
+            
+            // Show first 5 files as sample
+            fileList.innerHTML = '';
+            const maxPreview = 5;
+            for (let i = 0; i < Math.min(this.files.length, maxPreview); i++) {
+                fileList.innerHTML += `<div>${this.files[i].name}</div>`;
+            }
+            if (this.files.length > maxPreview) {
+                fileList.innerHTML += `<div>+ ${this.files.length - maxPreview} more files...</div>`;
+            }
+        } else {
+            fileInfo.style.display = 'none';
+        }
+    });
+
+    uploadForm.addEventListener('submit', function() {
+        submitBtn.disabled = true;
+        submitBtn.querySelector('.spinner-border').style.display = 'inline-block';
+        submitBtn.querySelector('span:not(.spinner-border)').textContent = 'Processing...';
+    });
+});
+
+const socket = io('/imaging');
+
+socket.on('progress', (data) => {
+    updateProgressBar(data.current, data.total);
+    console.log(`Processed ${data.current}/${data.total} files for request ${data.request_id}`);
+});
+
+socket.on('complete', (data) => {
+    showCompletionMessage(`Processed ${data.processed} files (${data.failed} failed)`);
+    console.log(`Completed request ${data.request_id}`);
+});
+</script>
+
+<style>
+    #fileList {
+        max-height: 150px;
+        overflow-y: auto;
+        background: #f8f9fa;
+        padding: 5px;
+        border-radius: 3px;
+    }
+</style>
 {% endblock %}

@@ -5,7 +5,7 @@ Malaria Module API routes.
 import logging
 from datetime import datetime, timezone
 
-from flask import jsonify, request
+from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
 
 from departments.rbac import roles_required
@@ -436,16 +436,16 @@ def internal_error(error):
 # ── UI Routes ──────────────────────────────────────────────────────────
 @bp.route("/ui/dashboard")
 @login_required
+@roles_required("admin", "medicine", "doctor", "clinical", "nursing")
 def dashboard_ui():
     """Malaria Dashboard."""
     from departments.malaria.models import MalariaCase
-    from extensions import db
-    
+
     cases = MalariaCase.query.order_by(MalariaCase.diagnosis_date.desc()).all()
     active_count = len([c for c in cases if c.treatment_start_date])
     severe_count = len([c for c in cases if c.severity == 'severe'])
     treated_count = 0  # Would need date logic
-    
+
     return render_template("malaria/dashboard.html",
                           cases=cases,
                           active_count=active_count,
@@ -455,12 +455,12 @@ def dashboard_ui():
 
 @bp.route("/ui/new-case", methods=["GET", "POST"])
 @login_required
+@roles_required("admin", "medicine", "doctor", "clinical", "nursing")
 def new_case_ui():
     """Register a new malaria case."""
-    from departments.malaria.models import MalariaRegimen
     from departments.malaria.engine import create_malaria_case
-    from extensions import db
-    
+    from departments.malaria.models import MalariaRegimen
+
     if request.method == "POST":
         patient_id = request.form.get("patient_id")
         case_number = request.form.get("case_number")
@@ -470,9 +470,9 @@ def new_case_ui():
         diagnosis_method = request.form.get("diagnosis_method")
         treatment_start_date = request.form.get("treatment_start_date")
         current_regimen_id = request.form.get("current_regimen_id")
-        
+
         try:
-            result = create_malaria_case(
+            create_malaria_case(
                 patient_id=patient_id,
                 case_number=case_number,
                 diagnosis_date=diagnosis_date,
@@ -486,26 +486,31 @@ def new_case_ui():
             return redirect(url_for("malaria.dashboard_ui"))
         except Exception as e:
             flash(f"Error registering case: {str(e)}", "danger")
-    
+
     regimens = MalariaRegimen.query.filter_by(is_preferred=True).all()
     return render_template("malaria/new_case.html", regimens=regimens)
 
 
 @bp.route("/ui/case/<int:case_id>")
 @login_required
+@roles_required("admin", "medicine", "doctor", "clinical", "nursing")
 def case_detail_ui(case_id):
     """View malaria case details."""
-    from departments.malaria.models import MalariaCase, MalariaTreatment, MalariaLabResult
+    from departments.malaria.models import (
+        MalariaCase,
+        MalariaLabResult,
+        MalariaTreatment,
+    )
     from extensions import db
-    
+
     case = db.session.get(MalariaCase, case_id)
     if not case:
         flash("Case not found", "error")
         return redirect(url_for("malaria.dashboard_ui"))
-    
+
     treatments = MalariaTreatment.query.filter_by(malaria_case_id=case_id).all()
     lab_results = MalariaLabResult.query.filter_by(malaria_case_id=case_id).order_by(MalariaLabResult.test_date.desc()).all()
-    
+
     return render_template("malaria/case_detail.html",
                           case=case,
                           treatments=treatments,

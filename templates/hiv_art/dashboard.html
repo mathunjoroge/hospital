@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}HIV/ART Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="bi bi-heart-pulse text-danger"></i> HIV/ART Program Dashboard</h3>
+        <a href="{{ url_for('hiv_art.enroll_ui') }}" class="btn btn-primary">
+            <i class="bi bi-person-plus"></i> Enroll New Patient
+        </a>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h2>{{ enrollments|length }}</h2>
+                    <p>Total Enrolled</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h2>{{ active_count }}</h2>
+                    <p>Active on ART</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h2>{{ pending_vl }}</h2>
+                    <p>Pending Viral Load</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h2>{{ adherence_due }}</h2>
+                    <p>Visits Due</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Patient List -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">ART Enrollments</h5>
+        </div>
+        <div class="card-body">
+            {% if enrollments %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ART Number</th>
+                            <th>Patient</th>
+                            <th>Enrollment Date</th>
+                            <th>Current Regimen</th>
+                            <th>WHO Stage</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for enrollment in enrollments %}
+                        <tr>
+                            <td>{{ enrollment.art_number }}</td>
+                            <td>{{ enrollment.patient.name if enrollment.patient else 'N/A' }}</td>
+                            <td>{{ enrollment.enrollment_date.strftime('%d %b %Y') if enrollment.enrollment_date else 'N/A' }}</td>
+                            <td>{{ enrollment.current_regimen.regimen_name if enrollment.current_regimen else 'None' }}</td>
+                            <td>{{ enrollment.baseline_who_stage or 'N/A' }}</td>
+                            <td>
+                                <a href="{{ url_for('hiv_art.patient_detail_ui', enrollment_id=enrollment.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">No ART enrollments yet. <a href="{{ url_for('hiv_art.enroll_ui') }}">Enroll a patient</a>.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

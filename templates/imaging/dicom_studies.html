@@ -1,53 +1,62 @@
 {% extends "base.html" %}
 
-{% block title %}DICOM Studies for {{ patient_id }} | HIMS{% endblock %}
+{% block title %}DICOM Studies - {{ patient.name if patient else patient_id }}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-  <h1 class="mb-4">DICOM Studies</h1>
-  
-  {% if patient %}
-    <div class="alert alert-info">
-      <strong>Patient:</strong> {{ patient.patient_id }} - {{ patient.name }}<br>
-      <strong>DOB:</strong> {{ patient.date_of_birth }} | <strong>Sex:</strong> {{ patient.sex }}
-    </div>
-  {% else %}
-    <div class="alert alert-warning">Patient information not available.</div>
-  {% endif %}
-  
-  {% if studies %}
-    <h2>Studies ({{ studies|length }})</h2>
-    <div class="row">
-      {% for study in studies %}
-      <div class="col-md-4 mb-4">
-        <div class="card h-100">
-          <div class="card-body">
-            <h5 class="card-title">Study {{ loop.index }}</h5>
-            <p class="card-text">
-              <strong>Study Date:</strong> {{ study.study_date }}<br>
-              <strong>Modality:</strong> {{ study.modality }}<br>
-              <strong>Body Part:</strong> {{ study.body_part_examined }}<br>
-              <strong>Study Instance UID:</strong> {{ study.study_instance_uid }}<br>
-              <strong>Series Count:</strong> {{ study.series_count }}<br>
-              <strong>Instance Count:</strong> {{ study.instance_count }}
-            </p>
-            {% if study.accession_number %}
-              <p><strong>Accession Number:</strong> {{ study.accession_number }}</p>
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>
+            DICOM Studies 
+            {% if patient %}
+                <small class="text-muted">for {{ patient.name }} ({{ patient.patient_id }})</small>
+            {% else %}
+                <small class="text-muted">for Patient {{ patient_id }}</small>
             {% endif %}
-          </div>
+        </h3>
+        <div>
+            <a href="{{ url_for('imaging.dicom_upload_ui') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Upload New DICOM
+            </a>
+            <a href="{{ url_for('imaging.index') }}" class="btn btn-secondary">Back to Imaging</a>
         </div>
-      </div>
-      {% endfor %}
     </div>
-  {% else %}
-    <p>No DICOM studies found for this patient.</p>
-  {% endif %}
-  
-  <div class="mt-4">
-    <a href="{{ url_for('imaging_bp.dicom_studies_search_ui') }}" class="btn btn-outline-secondary">Search Another Patient</a>
-    {% if patient %}
-    <a href="{{ url_for('imaging_bp.dicom_studies_ui', patient_id=patient.patient_id) }}" class="btn btn-primary">Refresh</a>
+
+    {% if studies|length == 0 %}
+        <div class="alert alert-info">
+            No DICOM studies found for this patient. 
+            <a href="{{ url_for('imaging.dicom_upload_ui') }}">Upload one now</a>.
+        </div>
+    {% else %}
+        <div class="row">
+            {% for study in studies %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">{{ study.modality }} Study</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Date:</strong> {{ study.study_date or 'Unknown' }}</p>
+                        <p><strong>Description:</strong> {{ study.study_description or 'No description' }}</p>
+                        <p><strong>Series Count:</strong> {{ study.series_count }}</p>
+                        <p><strong>Study UID:</strong> <small class="text-muted">{{ study.study_instance_uid[:20] }}...</small></p>
+                        
+                        <hr>
+                        <h6>Instances:</h6>
+                        <ul class="list-group list-group-flush" style="max-height: 150px; overflow-y: auto;">
+                            {% for instance in study.instances %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <small>{{ instance.modality }}</small>
+                                <a href="{{ url_for('imaging.download_dicom', sop_instance_uid=instance.sop_instance_uid) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-download"></i> Download
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     {% endif %}
-  </div>
 </div>
 {% endblock %}

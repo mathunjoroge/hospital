@@ -42,7 +42,7 @@ def test_art_regimen_creation(client, sample_regimen):
     assert sample_regimen.id is not None
     assert sample_regimen.regimen_code == "TDF/3TC/EFV"
     assert sample_regimen.line_of_therapy == 1
-    assert sample_regimen.is_preferred == True
+    assert sample_regimen.is_preferred is True
 
     # Test retrieval from DB
     retrieved = ARTRegimen.query.get(sample_regimen.id)
@@ -64,7 +64,7 @@ def test_art_enrollment_creation(client, sample_regimen):
         current_regimen_id=sample_regimen.id
     )
 
-    assert success == True
+    assert success is True
     assert enrollment is not None
     assert enrollment.patient_id == "PAT001"
     assert enrollment.art_number == "ART0001"
@@ -79,7 +79,7 @@ def test_art_enrollment_creation(client, sample_regimen):
         baseline_cd4=400
     )
 
-    assert success2 == False
+    assert success2 is False
     assert "already has an active ART enrollment" in message2
 
 
@@ -95,7 +95,7 @@ def test_art_enrollment_duplicate_art_number(client, sample_regimen):
         current_regimen_id=sample_regimen.id
     )
 
-    assert success1 == True
+    assert success1 is True
 
     # Try to create second enrollment with same ART number
     success2, message2, _ = create_art_enrollment(
@@ -105,7 +105,7 @@ def test_art_enrollment_duplicate_art_number(client, sample_regimen):
         current_regimen_id=sample_regimen.id
     )
 
-    assert success2 == False
+    assert success2 is False
     assert "already assigned to another patient" in message2
 
 
@@ -121,7 +121,7 @@ def test_adherence_visit_recording(client, sample_regimen):
         current_regimen_id=sample_regimen.id
     )
 
-    assert success == True
+    assert success is True
 
     # Record adherence visit
     success2, message2, visit = record_adherence_visit(
@@ -131,7 +131,7 @@ def test_adherence_visit_recording(client, sample_regimen):
         visit_date=datetime.now(timezone.utc)
     )
 
-    assert success2 == True
+    assert success2 is True
     assert visit is not None
     assert visit.pills_dispensed == 30
     assert visit.pills_returned == 5
@@ -152,7 +152,7 @@ def test_viral_load_recording(client, sample_regimen):
         current_regimen_id=sample_regimen.id
     )
 
-    assert success == True
+    assert success is True
 
     # Record detectable viral load
     success2, message2, vl = record_viral_load(
@@ -161,7 +161,7 @@ def test_viral_load_recording(client, sample_regimen):
         test_type="routine"
     )
 
-    assert success2 == True
+    assert success2 is True
     assert vl is not None
     assert vl.viral_load_copies == 12500
     assert vl.test_type == "routine"
@@ -173,7 +173,7 @@ def test_viral_load_recording(client, sample_regimen):
         test_type="routine"
     )
 
-    assert success3 == True
+    assert success3 is True
     assert vl2 is not None
     assert vl2.viral_load_copies is None
 
@@ -190,7 +190,7 @@ def test_cd4_recording(client, sample_regimen):
         current_regimen_id=sample_regimen.id
     )
 
-    assert success == True
+    assert success is True
 
     # Record CD4 count
     success2, message2, cd4 = record_cd4_count(
@@ -199,7 +199,7 @@ def test_cd4_recording(client, sample_regimen):
         cd4_percent=25.0
     )
 
-    assert success2 == True
+    assert success2 is True
     assert cd4 is not None
     assert cd4.cd4_count == 420
     assert cd4.cd4_percent == 25.0
@@ -217,7 +217,7 @@ def test_who_stage_recording(client, sample_regimen):
         current_regimen_id=sample_regimen.id
     )
 
-    assert success == True
+    assert success is True
 
     # Record WHO stage
     success2, message2, who = record_who_stage(
@@ -226,7 +226,7 @@ def test_who_stage_recording(client, sample_regimen):
         defining_conditions="Weight loss, chronic diarrhea"
     )
 
-    assert success2 == True
+    assert success2 is True
     assert who is not None
     assert who.who_stage == 3
     assert who.defining_conditions == "Weight loss, chronic diarrhea"
@@ -257,7 +257,7 @@ def test_regimen_change(client, sample_regimen):
         current_regimen_id=sample_regimen.id  # First line regimen
     )
 
-    assert success == True
+    assert success is True
     assert enrollment.current_regimen.line_of_therapy == 1
 
     # Change to second line regimen (requires clinical reason)
@@ -269,7 +269,7 @@ def test_regimen_change(client, sample_regimen):
         encounter_id=1
     )
 
-    assert success2 == True
+    assert success2 is True
     assert updated_enrollment is not None
     assert updated_enrollment.current_regimen_id == regimen2.id
     assert updated_enrollment.current_regimen.line_of_therapy == 2
@@ -291,7 +291,7 @@ def test_model_relationships(client, sample_regimen):
         current_regimen_id=sample_regimen.id
     )
 
-    assert success == True
+    assert success is True
 
     # Add adherence visit
     success2, message2, visit = record_adherence_visit(
@@ -300,7 +300,7 @@ def test_model_relationships(client, sample_regimen):
         pills_returned=2
     )
 
-    assert success2 == True
+    assert success2 is True
 
     # Add viral load
     success3, message3, vl = record_viral_load(
@@ -308,7 +308,7 @@ def test_model_relationships(client, sample_regimen):
         viral_load_copies=5000
     )
 
-    assert success3 == True
+    assert success3 is True
 
     # Test relationships
     assert len(enrollment.adherence_visits.all()) == 1
@@ -336,10 +336,10 @@ def test_art_regimen_formulary_functions(client, sample_regimen):
     assert any(r.id == sample_regimen.id for r in formulary)
 
     # Test regimen validation
-    assert is_regimen_valid(sample_regimen.id) == True
+    assert is_regimen_valid(sample_regimen.id) is True
 
     # Test with non-existent regimen
-    assert is_regimen_valid("non-existent-id") == False
+    assert is_regimen_valid("non-existent-id") is False
 
     # Test logging (should not raise exception)
     result = log_formulary_change(
@@ -348,7 +348,7 @@ def test_art_regimen_formulary_functions(client, sample_regimen):
         changed_by="TEST_USER",
         change_notes="This is a test log entry"
     )
-    assert result == True
+    assert result is True
 
 
 if __name__ == "__main__":

@@ -223,6 +223,8 @@ def admin_audit():
     return render_template_string(ADMIN_BREAK_GLASS_TEMPLATE, logs=logs), 200
 
 
+@bp.route("/emergency", methods=["GET"])
+@bp.route("/emergency/", methods=["GET"])
 @bp.route("/emergency/dashboard", methods=["GET"])
 @bp.route("/emergency_dashboard", methods=["GET"])
 @bp.route("/", methods=["GET"])
