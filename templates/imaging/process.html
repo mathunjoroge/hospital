@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Imaging Process | HIMS{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h1 class="mb-4">Imaging Processing</h1>
+  
+  {% if imaging_request %}
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5>Imaging Request</h5>
+      </div>
+      <div class="card-body">
+        <p><strong>Request ID:</strong> {{ imaging_request.id }}</p>
+        <p><strong>Patient ID:</strong> {{ imaging_request.patient_id }}</p>
+        <p><strong>Requested By:</strong> {{ imaging_request.requested_by }}</p>
+        <p><strong>Requested At:</strong> {{ imaging_request.requested_at }}</p>
+        <p><strong>Clinical Indication:</strong> {{ imaging_request.clinical_indication }}</p>
+        <p><strong>Body Part:</strong> {{ imaging_request.body_part }}</p>
+        <p><strong>Modality:</strong> {{ imaging_request.modality }}</p>
+      </div>
+    </div>
+  {% endif %}
+  
+  {% if imaging %}
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5>Imaging Equipment</h5>
+      </div>
+      <div class="card-body">
+        <p><strong>Modality:</strong> {{ imaging.modality }}</p>
+        <p><strong>Station Name:</strong> {{ imaging.station_name }}</p>
+        <p><strong>Manufacturer:</strong> {{ imaging.manufacturer }}</p>
+        <p><strong>Model Name:</strong> {{ imaging.model_name }}</p>
+        <p><strong>Software Versions:</strong> {{ imaging.software_versions }}</p>
+      </div>
+    </div>
+  {% endif %}
+  
+  {% if draft_report %}
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5>Draft Report</h5>
+      </div>
+      <div class="card-body">
+        <pre>{{ draft_report }}</pre>
+      </div>
+    </div>
+  {% endif %}
+  
+  <div class="card">
+    <div class="card-header">
+      <h5>AI Status</h5>
+    </div>
+    <div class="card-body">
+      <p><strong>AI Enabled:</strong> {{ ai_enabled }}</p>
+      <p><strong>NIM Client Available:</strong> {{ nim_client is not none }}</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

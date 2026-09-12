@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}DICOM Studies for {{ patient_id }} | HIMS{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h1 class="mb-4">DICOM Studies</h1>
+  
+  {% if patient %}
+    <div class="alert alert-info">
+      <strong>Patient:</strong> {{ patient.patient_id }} - {{ patient.name }}<br>
+      <strong>DOB:</strong> {{ patient.date_of_birth }} | <strong>Sex:</strong> {{ patient.sex }}
+    </div>
+  {% else %}
+    <div class="alert alert-warning">Patient information not available.</div>
+  {% endif %}
+  
+  {% if studies %}
+    <h2>Studies ({{ studies|length }})</h2>
+    <div class="row">
+      {% for study in studies %}
+      <div class="col-md-4 mb-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title">Study {{ loop.index }}</h5>
+            <p class="card-text">
+              <strong>Study Date:</strong> {{ study.study_date }}<br>
+              <strong>Modality:</strong> {{ study.modality }}<br>
+              <strong>Body Part:</strong> {{ study.body_part_examined }}<br>
+              <strong>Study Instance UID:</strong> {{ study.study_instance_uid }}<br>
+              <strong>Series Count:</strong> {{ study.series_count }}<br>
+              <strong>Instance Count:</strong> {{ study.instance_count }}
+            </p>
+            {% if study.accession_number %}
+              <p><strong>Accession Number:</strong> {{ study.accession_number }}</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No DICOM studies found for this patient.</p>
+  {% endif %}
+  
+  <div class="mt-4">
+    <a href="{{ url_for('imaging_bp.dicom_studies_search_ui') }}" class="btn btn-outline-secondary">Search Another Patient</a>
+    {% if patient %}
+    <a href="{{ url_for('imaging_bp.dicom_studies_ui', patient_id=patient.patient_id) }}" class="btn btn-primary">Refresh</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

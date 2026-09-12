@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}DICOM Upload | HIMS{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h1 class="mb-4">Upload DICOM Files</h1>
+  
+  <form method="POST" action="{{ url_for('imaging_bp.dicom_upload') }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+    
+    <div class="mb-3">
+      <label for="patient_id" class="form-label">Patient ID *</label>
+      <input type="text" class="form-control" id="patient_id" name="patient_id" required>
+    </div>
+    
+    <div class="mb-3">
+      <label for="study_date" class="form-label">Study Date (YYYY-MM-DD)</label>
+      <input type="date" class="form-control" id="study_date" name="study_date">
+    </div>
+    
+    <div class="mb-3">
+      <label for="modality" class="form-label">Modality (e.g., CT, MR, XRAY)</label>
+      <input type="text" class="form-control" id="modality" name="modality">
+    </div>
+    
+    <div class="mb-3">
+      <label for="dicom_files" class="form-label">DICOM Files *</label>
+      <input type="file" class="form-control" id="dicom_files" name="dicom_files" multiple accept=".dcm" required>
+    </div>
+    
+    <button type="submit" class="btn btn-primary">Upload</button>
+    <a href="{{ url_for('imaging_bp.index') }}" class="btn btn-secondary">Back to Dashboard</a>
+  </form>
+</div>
+{% endblock %}

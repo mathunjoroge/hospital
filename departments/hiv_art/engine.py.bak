@@ -216,8 +216,7 @@ def record_adherence_visit(
 
         # Create adherence visit record
         visit = AdherenceVisit(
-            patient_id=enrollment.patient_id,
-                        art_enrollment_id=enrollment_id,
+            art_enrollment_id=enrollment_id,
             pills_dispensed=pills_dispensed,
             pills_returned=pills_returned,
             adherence_percentage=adherence_percentage,
@@ -305,8 +304,7 @@ def record_viral_load(
             test_date = datetime.now(timezone.utc)
 
         viral_load = ViralLoad(
-            patient_id=enrollment.patient_id,
-                        art_enrollment_id=enrollment_id,
+            art_enrollment_id=enrollment_id,
             viral_load_copies=viral_load_copies,
             test_type=test_type,
             test_date=test_date,
@@ -355,8 +353,7 @@ def record_cd4_count(
             test_date = datetime.now(timezone.utc)
 
         cd4 = CD4Count(
-            patient_id=enrollment.patient_id,
-                        art_enrollment_id=enrollment_id,
+            art_enrollment_id=enrollment_id,
             cd4_count=cd4_count,
             cd4_percent=cd4_percent,
             test_date=test_date,
@@ -407,8 +404,7 @@ def record_who_stage(
             assessment_date = datetime.now(timezone.utc)
 
         who_stage_record = WHOStage(
-            patient_id=enrollment.patient_id,
-                        art_enrollment_id=enrollment_id,
+            art_enrollment_id=enrollment_id,
             who_stage=who_stage,
             defining_conditions=defining_conditions,
             assessment_date=assessment_date,

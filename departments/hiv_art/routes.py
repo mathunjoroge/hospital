@@ -493,3 +493,80 @@ def bad_request(error):
 @bp.errorhandler(500)
 def internal_error(error):
     return jsonify({"error": "Internal server error"}), 500
+
+
+# ── UI Routes ──────────────────────────────────────────────────────────
+@bp.route("/ui/dashboard")
+@login_required
+def dashboard_ui():
+    """HIV/ART Dashboard."""
+    from departments.hiv_art.models import ARTEnrollment
+    from extensions import db
+    
+    enrollments = ARTEnrollment.query.order_by(ARTEnrollment.enrollment_date.desc()).all()
+    active_count = len([e for e in enrollments if e.art_start_date])
+    pending_vl = 0  # Would need logic to determine pending VL
+    adherence_due = 0  # Would need logic to determine due visits
+    
+    return render_template("hiv_art/dashboard.html",
+                          enrollments=enrollments,
+                          active_count=active_count,
+                          pending_vl=pending_vl,
+                          adherence_due=adherence_due)
+
+
+@bp.route("/ui/enroll", methods=["GET", "POST"])
+@login_required
+def enroll_ui():
+    """Enroll a new ART patient."""
+    from departments.hiv_art.models import ARTRegimen
+    from departments.hiv_art.engine import create_art_enrollment
+    from extensions import db
+    
+    if request.method == "POST":
+        patient_id = request.form.get("patient_id")
+        art_number = request.form.get("art_number")
+        enrollment_date = request.form.get("enrollment_date")
+        art_start_date = request.form.get("art_start_date")
+        baseline_who_stage = request.form.get("baseline_who_stage")
+        baseline_cd4 = request.form.get("baseline_cd4")
+        current_regimen_id = request.form.get("current_regimen_id")
+        
+        try:
+            result = create_art_enrollment(
+                patient_id=patient_id,
+                art_number=art_number,
+                enrollment_date=enrollment_date,
+                art_start_date=art_start_date,
+                baseline_who_stage=int(baseline_who_stage) if baseline_who_stage else None,
+                baseline_cd4=float(baseline_cd4) if baseline_cd4 else None,
+                current_regimen_id=int(current_regimen_id) if current_regimen_id else None,
+            )
+            flash("Patient enrolled successfully!", "success")
+            return redirect(url_for("hiv_art.dashboard_ui"))
+        except Exception as e:
+            flash(f"Error enrolling patient: {str(e)}", "danger")
+    
+    regimens = ARTRegimen.query.filter_by(is_preferred=True).all()
+    return render_template("hiv_art/enroll.html", regimens=regimens)
+
+
+@bp.route("/ui/patient/<int:enrollment_id>")
+@login_required
+def patient_detail_ui(enrollment_id):
+    """View ART patient details."""
+    from departments.hiv_art.models import ARTEnrollment, ViralLoad, AdherenceVisit
+    from extensions import db
+    
+    enrollment = db.session.get(ARTEnrollment, enrollment_id)
+    if not enrollment:
+        flash("Enrollment not found", "error")
+        return redirect(url_for("hiv_art.dashboard_ui"))
+    
+    viral_loads = ViralLoad.query.filter_by(art_enrollment_id=enrollment_id).order_by(ViralLoad.test_date.desc()).all()
+    adherence_visits = AdherenceVisit.query.filter_by(art_enrollment_id=enrollment_id).order_by(AdherenceVisit.visit_date.desc()).all()
+    
+    return render_template("hiv_art/patient_detail.html",
+                          enrollment=enrollment,
+                          viral_loads=viral_loads,
+                          adherence_visits=adherence_visits)

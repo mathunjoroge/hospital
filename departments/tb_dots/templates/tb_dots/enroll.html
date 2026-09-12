@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Enroll Patient - TB/DOTS{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">TB/DOTS Patient Enrollment</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="patient_id" class="form-label">Patient ID *</label>
+                            <input type="text" class="form-control" id="patient_id" name="patient_id" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="tb_number" class="form-label">TB Registration Number *</label>
+                            <input type="text" class="form-control" id="tb_number" name="tb_number" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="enrollment_date" class="form-label">Enrollment Date *</label>
+                            <input type="date" class="form-control" id="enrollment_date" name="enrollment_date" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="treatment_start_date" class="form-label">Treatment Start Date *</label>
+                            <input type="date" class="form-control" id="treatment_start_date" name="treatment_start_date" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="site_of_disease" class="form-label">Site of Disease</label>
+                            <select class="form-select" id="site_of_disease" name="site_of_disease">
+                                <option value="pulmonary">Pulmonary</option>
+                                <option value="extrapulmonary">Extrapulmonary</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="hiv_status" class="form-label">HIV Status</label>
+                            <select class="form-select" id="hiv_status" name="hiv_status">
+                                <option value="negative">Negative</option>
+                                <option value="positive">Positive</option>
+                                <option value="unknown">Unknown</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="tb_classification" class="form-label">TB Classification</label>
+                            <select class="form-select" id="tb_classification" name="tb_classification">
+                                <option value="new">New Case</option>
+                                <option value="relapse">Relapse</option>
+                                <option value="treatment_after_loss">Treatment after Loss to Follow-up</option>
+                                <option value="treatment_failure">Treatment Failure</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="current_regimen_id" class="form-label">Initial Regimen</label>
+                            <select class="form-select" id="current_regimen_id" name="current_regimen_id">
+                                <option value="">Select regimen...</option>
+                                {% for regimen in regimens %}
+                                <option value="{{ regimen.id }}">{{ regimen.regimen_code }} - {{ regimen.regimen_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-warning">
+                                <i class="bi bi-check-circle"></i> Enroll Patient
+                            </button>
+                            <a href="{{ url_for('tb_dots.dashboard_ui') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

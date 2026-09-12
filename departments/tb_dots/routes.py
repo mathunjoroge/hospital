@@ -553,3 +553,82 @@ def bad_request(error):
 @bp.errorhandler(500)
 def internal_error(error):
     return jsonify({"error": "Internal server error"}), 500
+
+
+# ── UI Routes ──────────────────────────────────────────────────────────
+@bp.route("/ui/dashboard")
+@login_required
+def dashboard_ui():
+    """TB/DOTS Dashboard."""
+    from departments.tb_dots.models import TBEnrollment
+    from extensions import db
+    
+    enrollments = TBEnrollment.query.order_by(TBEnrollment.enrollment_date.desc()).all()
+    active_count = len([e for e in enrollments if e.treatment_start_date])
+    critical_count = 0  # Would need logic to determine critical cases
+    doses_due = 0  # Would need logic to determine doses due
+    
+    return render_template("tb_dots/dashboard.html",
+                          enrollments=enrollments,
+                          active_count=active_count,
+                          critical_count=critical_count,
+                          doses_due=doses_due)
+
+
+@bp.route("/ui/enroll", methods=["GET", "POST"])
+@login_required
+def enroll_ui():
+    """Enroll a new TB patient."""
+    from departments.tb_dots.models import TBRegimen
+    from departments.tb_dots.engine import create_tb_enrollment
+    from extensions import db
+    
+    if request.method == "POST":
+        patient_id = request.form.get("patient_id")
+        tb_number = request.form.get("tb_number")
+        enrollment_date = request.form.get("enrollment_date")
+        treatment_start_date = request.form.get("treatment_start_date")
+        site_of_disease = request.form.get("site_of_disease")
+        hiv_status = request.form.get("hiv_status")
+        tb_classification = request.form.get("tb_classification")
+        current_regimen_id = request.form.get("current_regimen_id")
+        
+        try:
+            result = create_tb_enrollment(
+                patient_id=patient_id,
+                tb_number=tb_number,
+                enrollment_date=enrollment_date,
+                treatment_start_date=treatment_start_date,
+                site_of_disease=site_of_disease,
+                hiv_status=hiv_status,
+                tb_classification=tb_classification,
+                current_regimen_id=int(current_regimen_id) if current_regimen_id else None,
+            )
+            flash("Patient enrolled successfully!", "success")
+            return redirect(url_for("tb_dots.dashboard_ui"))
+        except Exception as e:
+            flash(f"Error enrolling patient: {str(e)}", "danger")
+    
+    regimens = TBRegimen.query.filter_by(is_preferred=True).all()
+    return render_template("tb_dots/enroll.html", regimens=regimens)
+
+
+@bp.route("/ui/patient/<int:enrollment_id>")
+@login_required
+def patient_detail_ui(enrollment_id):
+    """View TB patient details."""
+    from departments.tb_dots.models import TBEnrollment, DoseTaken, SputumResult
+    from extensions import db
+    
+    enrollment = db.session.get(TBEnrollment, enrollment_id)
+    if not enrollment:
+        flash("Enrollment not found", "error")
+        return redirect(url_for("tb_dots.dashboard_ui"))
+    
+    doses_taken = DoseTaken.query.filter_by(tb_enrollment_id=enrollment_id).order_by(DoseTaken.date_taken.desc()).all()
+    sputum_results = SputumResult.query.filter_by(tb_enrollment_id=enrollment_id).order_by(SputumResult.test_date.desc()).all()
+    
+    return render_template("tb_dots/patient_detail.html",
+                          enrollment=enrollment,
+                          doses_taken=doses_taken,
+                          sputum_results=sputum_results)

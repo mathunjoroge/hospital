@@ -79,7 +79,7 @@ class AdherenceVisit(db.Model):
     )
 
     # Relationship
-    enrollment = db.relationship('ARTEnrollment', foreign_keys=[art_enrollment_id], back_populates='adherence_visits')
+    enrollment = db.relationship('ARTEnrollment', foreign_keys=[art_enrollment_id], back_populates=enrollment = db.relationship('ARTEnrollment', foreign_keys=[art_enrollment_id], back_populates='adherence_visits')
 
     def __repr__(self):
         return f"<AdherenceVisit {self.patient_id} on {self.visit_date}>"

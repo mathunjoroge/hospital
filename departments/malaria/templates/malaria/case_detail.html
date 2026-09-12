@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Malaria Case Detail{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>
+            <i class="bi bi-bug text-success"></i>
+            Malaria Case: {{ case.patient.name if case.patient else case.case_number }}
+        </h3>
+        <a href="{{ url_for('malaria.dashboard_ui') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header">Case Information</div>
+                <div class="card-body">
+                    <p><strong>Case Number:</strong> {{ case.case_number }}</p>
+                    <p><strong>Diagnosis Date:</strong> {{ case.diagnosis_date.strftime('%d %b %Y') if case.diagnosis_date else 'N/A' }}</p>
+                    <p><strong>Species:</strong> {{ case.malaria_species or 'Unknown' }}</p>
+                    <p><strong>Severity:</strong> 
+                        <span class="badge bg-{{ 'danger' if case.severity == 'severe' else 'warning' }}">
+                            {{ case.severity or 'uncomplicated' }}
+                        </span>
+                    </p>
+                    <p><strong>Diagnosis Method:</strong> {{ case.diagnosis_method or 'N/A' }}</p>
+                    {% if case.current_regimen %}
+                    <p><strong>Current Regimen:</strong> {{ case.current_regimen.regimen_name }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <!-- Treatments -->
+            <div class="card mb-3">
+                <div class="card-header">Treatments Administered</div>
+                <div class="card-body">
+                    {% if treatments %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>Date Administered</th><th>Dose #</th><th>Directly Observed</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for treatment in treatments %}
+                            <tr>
+                                <td>{{ treatment.date_administered.strftime('%d %b %Y') if treatment.date_administered else 'N/A' }}</td>
+                                <td>{{ treatment.dose_number }}</td>
+                                <td>{{ '✅' if treatment.administered_as_directly_observed else '❌' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No treatments administered yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Lab Results -->
+            <div class="card">
+                <div class="card-header">Lab Results</div>
+                <div class="card-body">
+                    {% if lab_results %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>Test Date</th><th>Test Type</th><th>Result</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for result in lab_results %}
+                            <tr>
+                                <td>{{ result.test_date.strftime('%d %b %Y') if result.test_date else 'N/A' }}</td>
+                                <td>{{ result.test_type }}</td>
+                                <td>{{ result.result_value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No lab results recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

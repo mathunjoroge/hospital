@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}New Malaria Case{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">New Malaria Case Registration</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="patient_id" class="form-label">Patient ID *</label>
+                            <input type="text" class="form-control" id="patient_id" name="patient_id" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="case_number" class="form-label">Case Number *</label>
+                            <input type="text" class="form-control" id="case_number" name="case_number" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="diagnosis_date" class="form-label">Diagnosis Date *</label>
+                            <input type="date" class="form-control" id="diagnosis_date" name="diagnosis_date" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="malaria_species" class="form-label">Plasmodium Species</label>
+                            <select class="form-select" id="malaria_species" name="malaria_species">
+                                <option value="P. falciparum">P. falciparum</option>
+                                <option value="P. vivax">P. vivax</option>
+                                <option value="P. malariae">P. malariae</option>
+                                <option value="P. ovale">P. ovale</option>
+                                <option value="Mixed">Mixed infection</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="severity" class="form-label">Case Severity</label>
+                            <select class="form-select" id="severity" name="severity">
+                                <option value="uncomplicated">Uncomplicated</option>
+                                <option value="severe">Severe</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="diagnosis_method" class="form-label">Diagnosis Method</label>
+                            <select class="form-select" id="diagnosis_method" name="diagnosis_method">
+                                <option value="RDT">RDT (Rapid Diagnostic Test)</option>
+                                <option value="Microscopy">Microscopy</option>
+                                <option value="Clinical">Clinical Diagnosis</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="treatment_start_date" class="form-label">Treatment Start Date</label>
+                            <input type="date" class="form-control" id="treatment_start_date" name="treatment_start_date">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="current_regimen_id" class="form-label">Treatment Regimen</label>
+                            <select class="form-select" id="current_regimen_id" name="current_regimen_id">
+                                <option value="">Select regimen...</option>
+                                {% for regimen in regimens %}
+                                <option value="{{ regimen.id }}">{{ regimen.regimen_code }} - {{ regimen.regimen_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-circle"></i> Register Case
+                            </button>
+                            <a href="{{ url_for('malaria.dashboard_ui') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

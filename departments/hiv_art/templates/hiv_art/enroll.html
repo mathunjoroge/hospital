@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Enroll Patient - HIV/ART{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">HIV/ART Patient Enrollment</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="patient_id" class="form-label">Patient ID *</label>
+                            <input type="text" class="form-control" id="patient_id" name="patient_id" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="art_number" class="form-label">ART Number *</label>
+                            <input type="text" class="form-control" id="art_number" name="art_number" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="enrollment_date" class="form-label">Enrollment Date *</label>
+                            <input type="date" class="form-control" id="enrollment_date" name="enrollment_date" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="art_start_date" class="form-label">ART Start Date *</label>
+                            <input type="date" class="form-control" id="art_start_date" name="art_start_date" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="baseline_who_stage" class="form-label">Baseline WHO Stage</label>
+                            <select class="form-select" id="baseline_who_stage" name="baseline_who_stage">
+                                <option value="">Select...</option>
+                                <option value="1">Stage 1</option>
+                                <option value="2">Stage 2</option>
+                                <option value="3">Stage 3</option>
+                                <option value="4">Stage 4</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="baseline_cd4" class="form-label">Baseline CD4 Count (cells/μL)</label>
+                            <input type="number" class="form-control" id="baseline_cd4" name="baseline_cd4">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="initial_regimen" class="form-label">Initial Regimen</label>
+                            <select class="form-select" id="initial_regimen" name="current_regimen_id">
+                                <option value="">Select regimen...</option>
+                                {% for regimen in regimens %}
+                                <option value="{{ regimen.id }}">{{ regimen.regimen_code }} - {{ regimen.regimen_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-check-circle"></i> Enroll Patient
+                            </button>
+                            <a href="{{ url_for('hiv_art.dashboard_ui') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

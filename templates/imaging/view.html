@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Imaging View | HIMS{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h1 class="mb-4">Imaging Result</h1>
+  
+  {% if imaging_result %}
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <p><strong>Result ID:</strong> {{ imaging_result.id }}</p>
+        <p><strong>Patient ID:</strong> {{ imaging_result.patient_id }}</p>
+        <p><strong>Study Date:</strong> {{ imaging_result.study_date }}</p>
+        <p><strong>Modality:</strong> {{ imaging_result.modality }}</p>
+        <p><strong>Body Part Examined:</strong> {{ imaging_result.body_part_examined }}</p>
+      </div>
+      <div class="col-md-6">
+        <p><strong>Interpretation:</strong> {{ imaging_result.interpretation }}</p>
+        <p><strong>Finding:</strong> {{ imaging_result.finding }}</p>
+      </div>
+    </div>
+    
+    {% if file_paths %}
+    <h3>Associated Files</h3>
+    <ul class="list-group">
+      {% for fp in file_paths %}
+        <li class="list-group-item">{{ fp }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    
+    {% if ai_header or ai_findings %}
+    <h3>AI Analysis</h3>
+    {% if ai_header %}
+      <p><strong>Header:</strong> {{ ai_header }}</p>
+    {% endif %}
+    {% if ai_findings %}
+      <p><strong>Findings:</strong> {{ ai_findings }}</p>
+    {% endif %}
+    {% endif %}
+  {% else %}
+    <p>No imaging result data available.</p>
+  {% endif %}
+  
+  {% if imaging_request %}
+    <h3>Request Details</h3>
+    <p><strong>Requested By:</strong> {{ imaging_request.requested_by }}</p>
+    <p><strong>Clinical Indication:</strong> {{ imaging_request.clinical_indication }}</p>
+  {% endif %}
+  
+  {% if imaging %}
+    <h3>Imaging Equipment</h3>
+    <p><strong>Modality:</strong> {{ imaging.modality }}</p>
+    <p><strong>Station Name:</strong> {{ imaging.station_name }}</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -79,7 +79,7 @@ class AdherenceVisit(db.Model):
     )
 
     # Relationship
-    enrollment = db.relationship('ARTEnrollment', foreign_keys=[art_enrollment_id], back_populates='adherence_visits')
+    enrollment = db.relationship('ARTEnrollment', foreign_keys=[art_enrollment_id], back_populates=enrollment = db.relationship('ARTEnrollment', foreign_keys=[art_enrollment_id], back_populates='adherence_visits')
 
     def __repr__(self):
         return f"<AdherenceVisit {self.patient_id} on {self.visit_date}>"
@@ -103,7 +103,7 @@ class ViralLoad(db.Model):
     )
 
     # Relationship
-    enrollment = db.relationship('ARTEnrollment', foreign_keys=[art_enrollment_id], back_populates='viral_loads')
+    art_enrollment = db.relationship('ARTEnrollment', foreign_keys=[art_enrollment_id], back_populates='viral_loads')
 
     def __repr__(self):
         return f"<ViralLoad {self.patient_id}: {self.viral_load_copies} copies/mL>"
@@ -127,7 +127,7 @@ class CD4Count(db.Model):
     )
 
     # Relationship
-    enrollment = db.relationship('ARTEnrollment', foreign_keys=[art_enrollment_id], back_populates='cd4_counts')
+    art_enrollment = db.relationship('ARTEnrollment', foreign_keys=[art_enrollment_id], back_populates='cd4_counts')
 
     def __repr__(self):
         return f"<CD4Count {self.patient_id}: {self.cd4_count} cells/µL>"
@@ -151,7 +151,7 @@ class WHOStage(db.Model):
     )
 
     # Relationship
-    enrollment = db.relationship('ARTEnrollment', foreign_keys=[art_enrollment_id], back_populates='who_stages')
+    art_enrollment = db.relationship('ARTEnrollment', foreign_keys=[art_enrollment_id], back_populates='who_stages')
 
     def __repr__(self):
         return f"<WHOStage {self.patient_id}: Stage {self.who_stage}>"

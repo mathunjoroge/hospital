@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Imaging Dashboard | HIMS{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h1 class="mb-4">Imaging Dashboard</h1>
+  
+  {% if models_loaded %}
+    <div class="alert alert-success">AI models are loaded and ready.</div>
+  {% else %}
+    <div class="alert alert-warning">AI models are not loaded.</div>
+  {% endif %}
+  
+  <h2>Pending Requests</h2>
+  {% if pending_requests %}
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Patient</th>
+          <th>Type</th>
+          <th>Requested At</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in pending_requests %}
+        <tr>
+          <td>{{ req.id }}</td>
+          <td>{{ req.patient_id }}</td>
+          <td>{{ req.imaging_type }}</td>
+          <td>{{ req.requested_at }}</td>
+          <td>{{ req.status }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No pending requests.</p>
+  {% endif %}
+</div>
+{% endblock %}

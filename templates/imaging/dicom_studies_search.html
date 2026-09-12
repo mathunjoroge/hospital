@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}DICOM Studies Search | HIMS{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h1 class="mb-4">Find DICOM Studies by Patient</h1>
+  
+  <form method="POST" action="{{ url_for('imaging_bp.dicom_studies_search_ui') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+    
+    <div class="mb-3">
+      <label for="patient_id" class="form-label">Patient ID</label>
+      <input type="text" class="form-control" id="patient_id" name="patient_id" placeholder="Enter Patient ID">
+    </div>
+    
+    <button type="submit" class="btn btn-primary">Search</button>
+  </form>
+  
+  {% if recent_patients %}
+    <h2 class="mt-4">Recently Imaged Patients</h2>
+    <div class="list-group">
+      {% for patient_id, name in recent_patients %}
+      <a href="{{ url_for('imaging_bp.dicom_studies_ui', patient_id=patient_id) }}" class="list-group-item list-group-item-action">
+        <div class="d-flex w-100 justify-content-between">
+          <h5 class="mb-1">{{ patient_id }}</h5>
+          <small>{{ name }}</small>
+        </div>
+        <p class="mb-1">Recently had imaging</p>
+      </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No recent patients with imaging records.</p>
+  {% endif %}
+</div>
+{% endblock %}

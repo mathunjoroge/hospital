@@ -431,3 +431,82 @@ def bad_request(error):
 @bp.errorhandler(500)
 def internal_error(error):
     return jsonify({"error": "Internal server error"}), 500
+
+
+# ── UI Routes ──────────────────────────────────────────────────────────
+@bp.route("/ui/dashboard")
+@login_required
+def dashboard_ui():
+    """Malaria Dashboard."""
+    from departments.malaria.models import MalariaCase
+    from extensions import db
+    
+    cases = MalariaCase.query.order_by(MalariaCase.diagnosis_date.desc()).all()
+    active_count = len([c for c in cases if c.treatment_start_date])
+    severe_count = len([c for c in cases if c.severity == 'severe'])
+    treated_count = 0  # Would need date logic
+    
+    return render_template("malaria/dashboard.html",
+                          cases=cases,
+                          active_count=active_count,
+                          severe_count=severe_count,
+                          treated_count=treated_count)
+
+
+@bp.route("/ui/new-case", methods=["GET", "POST"])
+@login_required
+def new_case_ui():
+    """Register a new malaria case."""
+    from departments.malaria.models import MalariaRegimen
+    from departments.malaria.engine import create_malaria_case
+    from extensions import db
+    
+    if request.method == "POST":
+        patient_id = request.form.get("patient_id")
+        case_number = request.form.get("case_number")
+        diagnosis_date = request.form.get("diagnosis_date")
+        malaria_species = request.form.get("malaria_species")
+        severity = request.form.get("severity")
+        diagnosis_method = request.form.get("diagnosis_method")
+        treatment_start_date = request.form.get("treatment_start_date")
+        current_regimen_id = request.form.get("current_regimen_id")
+        
+        try:
+            result = create_malaria_case(
+                patient_id=patient_id,
+                case_number=case_number,
+                diagnosis_date=diagnosis_date,
+                malaria_species=malaria_species,
+                severity=severity,
+                diagnosis_method=diagnosis_method,
+                treatment_start_date=treatment_start_date,
+                current_regimen_id=int(current_regimen_id) if current_regimen_id else None,
+            )
+            flash("Malaria case registered successfully!", "success")
+            return redirect(url_for("malaria.dashboard_ui"))
+        except Exception as e:
+            flash(f"Error registering case: {str(e)}", "danger")
+    
+    regimens = MalariaRegimen.query.filter_by(is_preferred=True).all()
+    return render_template("malaria/new_case.html", regimens=regimens)
+
+
+@bp.route("/ui/case/<int:case_id>")
+@login_required
+def case_detail_ui(case_id):
+    """View malaria case details."""
+    from departments.malaria.models import MalariaCase, MalariaTreatment, MalariaLabResult
+    from extensions import db
+    
+    case = db.session.get(MalariaCase, case_id)
+    if not case:
+        flash("Case not found", "error")
+        return redirect(url_for("malaria.dashboard_ui"))
+    
+    treatments = MalariaTreatment.query.filter_by(malaria_case_id=case_id).all()
+    lab_results = MalariaLabResult.query.filter_by(malaria_case_id=case_id).order_by(MalariaLabResult.test_date.desc()).all()
+    
+    return render_template("malaria/case_detail.html",
+                          case=case,
+                          treatments=treatments,
+                          lab_results=lab_results)
