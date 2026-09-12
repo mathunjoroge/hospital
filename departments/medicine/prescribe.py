@@ -23,14 +23,16 @@ from departments.medicine.cdss import evaluate_prescription_safety
 from departments.models.billing import InvoiceLineItem
 from departments.models.medicine import Medicine, PrescribedMedicine, SOAPNote
 from departments.models.records import Patient
+from departments.shared.drug_safety_rules import (  # noqa: F401
+    ALLERGY_GROUPS,
+    KNOWN_INTERACTIONS,
+)
 from departments.shared.encounter_utils import active_encounter
 
 logger = logging.getLogger(__name__)
 
 prescribe_bp = Blueprint("eprescribe", __name__, url_prefix="/medicine/prescribe")
 
-
-from departments.shared.drug_safety_rules import ALLERGY_GROUPS, KNOWN_INTERACTIONS
 
 
 

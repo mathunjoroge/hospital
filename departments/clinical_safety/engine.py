@@ -19,11 +19,8 @@ from departments.models.medicine import PrescribedMedicine
 from departments.models.nursing import NursingNote
 from departments.models.pharmacy import Drug
 from departments.models.records import Patient, PatientAllergy
-from extensions import db
-
 from departments.shared.drug_safety_rules import ALLERGY_GROUPS, KNOWN_INTERACTIONS
-
-
+from extensions import db
 
 logger = logging.getLogger(__name__)
 
