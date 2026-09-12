@@ -22,7 +22,6 @@ from extensions import db
 from . import bp  # Import the blueprint
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -48,7 +47,7 @@ def prescriptions():
 
     except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in pharmacy.prescriptions: {e}")
+        logger.debug(f"Error in pharmacy.prescriptions: {e}")
         return redirect(url_for("pharmacy.index"))
 
 
@@ -61,14 +60,12 @@ def prescriptions():
 def view_prescriptions(patient_id):
     """Displays all prescribed medicines for a specific patient, grouped by prescription."""
     try:
-        # Debug: Print the patient_id being fetched
-        print(f"Debug: Fetching prescriptions for patient_id: {patient_id}")
+        logger.debug(f"Fetching prescriptions for patient_id: {patient_id}")
 
         # Fetch the patient from the database
         patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
 
-        # Debug: Print patient details
-        print(f"Debug: Fetched patient: {patient.name} (ID: {patient.patient_id})")
+        logger.debug(f"Fetched patient: {patient.name} (ID: {patient.patient_id})")
 
         # Fetch all prescribed medicines for the patient
         prescribed_medicines = (
@@ -88,10 +85,9 @@ def view_prescriptions(patient_id):
             for pres_id, pres_data in prescriptions.items()
         ]
 
-        # Debug: Print grouped prescriptions
-        print(f"Debug: Grouped Prescriptions for Patient {patient.patient_id}:")
+        logger.debug(f"Grouped Prescriptions for Patient {patient.patient_id}:")
         for pres in prescription_list:
-            print(
+            logger.debug(
                 f"  - Prescription ID: {pres['prescription_id']}, Medicines: {len(pres['medicines'])}"
             )
 
@@ -102,8 +98,7 @@ def view_prescriptions(patient_id):
         )
 
     except Exception as e:  # noqa: BLE001
-        # Debug: Log the exception details
-        print(f"Debug: Error fetching prescriptions: {e}")
+        logger.debug(f"Error fetching prescriptions: {e}")
         flash("Something went wrong. Please try again.", "error")
         return redirect(url_for("/"))
 
@@ -199,60 +194,60 @@ def delete_dispensed_drug(dispensed_drug_id):
 def save_dispensed_drugs():
     """Saves dispensed drugs, updates stock from multiple batches if needed, and marks prescription as completed."""
     try:
-        print("DEBUG: Entering save_dispensed_drugs route")
+        logger.debug("Entering save_dispensed_drugs route")
 
         # Get form data
         prescription_id = request.form.get("prescription_id")
-        print(f"DEBUG: Received prescription_id from form: '{prescription_id}'")
+        logger.debug(f"Received prescription_id from form: '{prescription_id}'")
 
         if not prescription_id:
-            print("DEBUG: Prescription ID is missing or empty")
+            logger.debug("Prescription ID is missing or empty")
             flash("Prescription ID is required!", "error")
             return redirect(url_for("pharmacy.index"))
 
         # Parse updated drugs from form data
-        print("DEBUG: Parsing updated drugs from form data")
+        logger.debug("Parsing updated drugs from form data")
         updated_drugs = []
         for key in request.form:
             if key.startswith("updatedDrugs["):
                 drug_id = key[len("updatedDrugs[") : -1]
                 quantity = request.form.get(key)
                 updated_drugs.append({"id": drug_id, "quantity": quantity})
-                print(
-                    f"DEBUG: Found updated drug - ID: {drug_id}, Quantity: {quantity}"
+                logger.debug(
+                    f"Found updated drug - ID: {drug_id}, Quantity: {quantity}"
                 )
 
         if not updated_drugs:
-            print("DEBUG: No updated drugs found in form data")
+            logger.debug("No updated drugs found in form data")
             flash("No drugs to update!", "error")
             return redirect(url_for("pharmacy.index"))
 
-        print(f"DEBUG: Processing {len(updated_drugs)} updated drugs")
+        logger.debug(f"Processing {len(updated_drugs)} updated drugs")
         for drug_data in updated_drugs:
             drug_id = drug_data.get("id")
             new_quantity = int(drug_data.get("quantity", 0))
-            print(f"DEBUG: Processing drug ID: {drug_id}, New Quantity: {new_quantity}")
+            logger.debug(f"Processing drug ID: {drug_id}, New Quantity: {new_quantity}")
 
             if new_quantity <= 0:
-                print(f"DEBUG: Invalid quantity ({new_quantity}) for drug ID {drug_id}")
+                logger.debug(f"Invalid quantity ({new_quantity}) for drug ID {drug_id}")
                 flash("Quantity must be greater than 0!", "error")
                 return redirect(url_for("pharmacy.index"))
 
             dispensed_drug = DispensedDrug.query.get(drug_id)
             if not dispensed_drug:
-                print(f"DEBUG: Dispensed drug ID {drug_id} not found")
+                logger.debug(f"Dispensed drug ID {drug_id} not found")
                 flash(f"Dispensed drug {drug_id} not found!", "error")
                 return redirect(url_for("pharmacy.index"))
 
             drug = Drug.query.get(dispensed_drug.drug_id)
             if not drug:
-                print(f"DEBUG: Drug ID {dispensed_drug.drug_id} not found")
+                logger.debug(f"Drug ID {dispensed_drug.drug_id} not found")
                 flash("Drug not found!", "error")
                 return redirect(url_for("pharmacy.index"))
 
             quantity_difference = new_quantity - dispensed_drug.quantity_dispensed
-            print(
-                f"DEBUG: Quantity difference for drug ID {drug_id}: {quantity_difference}"
+            logger.debug(
+                f"Quantity difference for drug ID {drug_id}: {quantity_difference}"
             )
 
             if quantity_difference > 0:
@@ -263,16 +258,16 @@ def save_dispensed_drugs():
                     .all()
                 )
                 if not batches:
-                    print(
-                        f"DEBUG: No batches found for drug ID {dispensed_drug.drug_id}"
+                    logger.debug(
+                        f"No batches found for drug ID {dispensed_drug.drug_id}"
                     )
                     flash("No batches available for this drug!", "error")
                     return redirect(url_for("pharmacy.index"))
 
                 # Calculate total available stock across all batches
                 total_available = sum(batch.quantity_in_stock for batch in batches)
-                print(
-                    f"DEBUG: Total available stock for drug ID {dispensed_drug.drug_id}: {total_available}"
+                logger.debug(
+                    f"Total available stock for drug ID {dispensed_drug.drug_id}: {total_available}"
                 )
 
                 if total_available < quantity_difference:
@@ -307,13 +302,13 @@ def save_dispensed_drugs():
                             drug.quantity_in_stock -= qty_to_dispense
                             total_dispensed += qty_to_dispense
                             remaining_quantity -= qty_to_dispense
-                            print(
-                                f"DEBUG: Dispensed {qty_to_dispense} from batch ID {batch.id}, Remaining: {remaining_quantity}"
+                            logger.debug(
+                                f"Dispensed {qty_to_dispense} from batch ID {batch.id}, Remaining: {remaining_quantity}"
                             )
 
                     shortfall = quantity_difference - total_dispensed
-                    print(
-                        f"DEBUG: Insufficient stock. Dispensed: {total_dispensed}, Shortfall: {shortfall}"
+                    logger.debug(
+                        f"Insufficient stock. Dispensed: {total_dispensed}, Shortfall: {shortfall}"
                     )
                     flash(
                         f"Insufficient stock for {drug.generic_name}. Dispensed: {total_dispensed}, Shortfall: {shortfall}",
@@ -336,8 +331,8 @@ def save_dispensed_drugs():
                         drug.quantity_in_stock -= qty_from_original
                         dispensed_drug.quantity_dispensed += qty_from_original
                         remaining_quantity -= qty_from_original
-                        print(
-                            f"DEBUG: Dispensed {qty_from_original} from original batch ID {original_batch.id}, Remaining: {remaining_quantity}"
+                        logger.debug(
+                            f"Dispensed {qty_from_original} from original batch ID {original_batch.id}, Remaining: {remaining_quantity}"
                         )
                         db.session.add(original_batch)
                         db.session.add(drug)
@@ -364,8 +359,8 @@ def save_dispensed_drugs():
                                 status=dispensed_drug.status,
                             )
                             remaining_quantity -= qty_from_next
-                            print(
-                                f"DEBUG: Dispensed {qty_from_next} from next batch ID {next_batch.id}, Remaining: {remaining_quantity}"
+                            logger.debug(
+                                f"Dispensed {qty_from_next} from next batch ID {next_batch.id}, Remaining: {remaining_quantity}"
                             )
                             db.session.add(next_batch)
                             db.session.add(drug)
@@ -380,16 +375,15 @@ def save_dispensed_drugs():
                 )
                 drug.quantity_in_stock -= quantity_difference
                 dispensed_drug.quantity_dispensed = new_quantity
-                print(
-                    f"DEBUG: Reduced quantity - Batch stock: {batch.quantity_in_stock}, Drug stock: {drug.quantity_in_stock}, Dispensed qty: {dispensed_drug.quantity_dispensed}"
+                logger.debug(
+                    f"Reduced quantity - Batch stock: {batch.quantity_in_stock}, Drug stock: {drug.quantity_in_stock}, Dispensed qty: {dispensed_drug.quantity_dispensed}"
                 )
                 db.session.add(batch)
                 db.session.add(drug)
                 db.session.add(dispensed_drug)
 
-        # Debug: Check prescribed medicines
-        print(
-            f"DEBUG: Querying prescribed medicines for prescription_id '{prescription_id}'"
+        logger.debug(
+            f"Querying prescribed medicines for prescription_id '{prescription_id}'"
         )
         prescribed_meds = (
             db.session.query(PrescribedMedicine)
@@ -402,33 +396,33 @@ def save_dispensed_drugs():
             flash('Cannot dispense: The associated encounter is closed or the patient has been discharged.', 'danger')
             return redirect(request.referrer or url_for('pharmacy.index'))
         # -------------------------------------
-        print(f"DEBUG: Found {len(prescribed_meds)} prescribed medicines")
+        logger.debug(f"Found {len(prescribed_meds)} prescribed medicines")
         for med in prescribed_meds:
-            print(
-                f"DEBUG: PrescribedMedicine ID: {med.id}, Status: {med.status}, Prescription ID: '{med.prescription_id}'"
+            logger.debug(
+                f"PrescribedMedicine ID: {med.id}, Status: {med.status}, Prescription ID: '{med.prescription_id}'"
             )
 
         if not prescribed_meds:
-            print(
-                f"DEBUG: No prescribed medicines found for prescription_id '{prescription_id}'"
+            logger.debug(
+                f"No prescribed medicines found for prescription_id '{prescription_id}'"
             )
             flash("Prescription not found!", "error")
             return redirect(url_for("pharmacy.index"))
 
         # Update status of all matching prescribed medicines
-        print(f"DEBUG: Updating status to 1 for prescription_id '{prescription_id}'")
+        logger.debug(f"Updating status to 1 for prescription_id '{prescription_id}'")
         updated_rows = (
             db.session.query(PrescribedMedicine)
             .filter_by(prescription_id=prescription_id)
             .update({"status": 1})
         )
-        print(f"DEBUG: Updated {updated_rows} prescribed medicine rows to status=1")
+        logger.debug(f"Updated {updated_rows} prescribed medicine rows to status=1")
 
-        # FIX 4: Advance encounter stage after dispensing completion
+        # Advance encounter stage after dispensing completion
         from departments.shared.visit_closure import advance_after_completion
-        _patient_id = prescribed_meds[0].patient_id if prescribed_meds else None
-        if _patient_id:
-            advance_after_completion(_patient_id)
+        patient_id = prescribed_meds[0].patient_id if prescribed_meds else None
+        if patient_id:
+            advance_after_completion(patient_id)
 
         # Verify before commit
         pre_commit_meds = (
@@ -437,19 +431,12 @@ def save_dispensed_drugs():
             .all()
         )
         for med in pre_commit_meds:
-            print(
-                f"DEBUG PRE-COMMIT: PrescribedMedicine ID: {med.id}, Status: {med.status}"
+            logger.debug(
+                f"PRE-COMMIT: PrescribedMedicine ID: {med.id}, Status: {med.status}"
             )
 
         db.session.commit()
-                # FIX 4: Advance encounter stage after dispensing completion
-        # FIX 4: Advance encounter stage after dispensing
-        # FIX 4: Advance encounter stage after dispensing completion
-        from departments.shared.visit_closure import advance_after_completion
-        patient_id = prescribed_meds[0].patient_id if prescribed_meds else None
-        if patient_id:
-            advance_after_completion(patient_id)
-        print("DEBUG: Database commit successful")
+        logger.debug("Database commit successful")
 
         # Verify after commit
         post_commit_meds = (
@@ -458,19 +445,19 @@ def save_dispensed_drugs():
             .all()
         )
         for med in post_commit_meds:
-            print(
-                f"DEBUG POST-COMMIT: PrescribedMedicine ID: {med.id}, Status: {med.status}"
+            logger.debug(
+                f"POST-COMMIT: PrescribedMedicine ID: {med.id}, Status: {med.status}"
             )
 
         flash("Dispensed drugs updated successfully!", "success")
-        print("DEBUG: Redirecting to pharmacy.index with success message")
+        logger.debug("Redirecting to pharmacy.index with success message")
         return redirect(url_for("pharmacy.index"))
 
     except Exception as e:  # noqa: BLE001
         db.session.rollback()
-        print(f"DEBUG: Exception occurred: {e!s}")
+        logger.debug(f"Exception occurred: {e!s}")
         flash("Something went wrong. Please try again.", "error")
-        print("DEBUG: Redirecting to pharmacy.index with error message")
+        logger.debug("Redirecting to pharmacy.index with error message")
         return redirect(url_for("pharmacy.index"))
 
 
@@ -598,10 +585,11 @@ def save_prescription(prescription_id):
 
     except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in pharmacy.save_prescription: {e}")
+        logger.debug(f"Error in pharmacy.save_prescription: {e}")
         db.session.rollback()  # Rollback changes in case of error
         return redirect(
             url_for(
                 "pharmacy.view_prescriptions", patient_id=request.form.get("patient_id")
             )
         )
+

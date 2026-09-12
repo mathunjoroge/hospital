@@ -83,3 +83,7 @@ htmlcov/
 
 __pycache__/
 *.pyc
+*.bak*
+*.backup
+*.pre_*
+

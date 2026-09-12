@@ -30,56 +30,8 @@ logger = logging.getLogger(__name__)
 prescribe_bp = Blueprint("eprescribe", __name__, url_prefix="/medicine/prescribe")
 
 
-# Drug Allergy Cross-Reactivity Dictionary
-ALLERGY_GROUPS = {
-    "penicillin": [
-        "amoxicillin",
-        "ampicillin",
-        "penicillin",
-        "augmentin",
-        "piperacillin",
-        "amoxil",
-    ],
-    "sulfa": ["bactrim", "cotrimoxazole", "sulfamethoxazole", "septrin"],
-    "nsaid": [
-        "ibuprofen",
-        "diclofenac",
-        "naproxen",
-        "aspirin",
-        "indomethacin",
-        "brufen",
-    ],
-    "macrolide": ["azithromycin", "erythromycin", "clarithromycin"],
-}
+from departments.shared.drug_safety_rules import ALLERGY_GROUPS, KNOWN_INTERACTIONS
 
-# Drug-Drug Interaction Warning Rules (pairs -> severity, warning message)
-KNOWN_INTERACTIONS = [
-    (
-        {"warfarin", "aspirin"},
-        "CRITICAL",
-        "High risk of major gastrointestinal hemorrhage and severe bleeding.",
-    ),
-    (
-        {"warfarin", "ibuprofen"},
-        "HIGH",
-        "Increased risk of bleeding and gastric mucosal ulceration.",
-    ),
-    (
-        {"lisinopril", "spironolactone"},
-        "HIGH",
-        "Severe hyperkalemia risk; requires close serum potassium monitoring.",
-    ),
-    (
-        {"ciprofloxacin", "antacid"},
-        "MEDIUM",
-        "Chelation reduces ciprofloxacin bioavailability and therapeutic efficacy.",
-    ),
-    (
-        {"metformin", "contrast"},
-        "HIGH",
-        "Risk of contrast-induced acute renal failure and metformin lactic acidosis.",
-    ),
-]
 
 
 def _get_icd10_database():
