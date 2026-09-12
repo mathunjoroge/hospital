@@ -124,7 +124,6 @@ class Partogram(db.Model):
         return f"<Partogram(id={self.id}, patient_id={self.patient_id}, timestamp={self.timestamp})>"
 
 
-# New models for medication_admin, messages, and notifications
 class MedicationAdmin(db.Model):
     __tablename__ = "medication_admin"
     id = db.Column(db.Integer, primary_key=True)
@@ -133,7 +132,17 @@ class MedicationAdmin(db.Model):
     dosage = db.Column(db.String(50), nullable=False)
     time_administered = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     recorded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    user = db.relationship("User", backref="medication_admin")
+    # P8-05 BCMA fields
+    scan_verified = db.Column(db.Boolean, default=False, nullable=False)
+    barcode_patient_id = db.Column(db.String(50), nullable=True)
+    barcode_drug_code = db.Column(db.String(100), nullable=True)
+    prescribed_medicine_id = db.Column(
+        db.Integer, db.ForeignKey("prescribed_medicines.id"), nullable=True
+    )
+    override_reason = db.Column(db.Text, nullable=True)
+    override_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    user = db.relationship("User", foreign_keys=[recorded_by], backref="medication_admin")
+    override_user = db.relationship("User", foreign_keys=[override_by], backref="bcma_overrides")
 
 
 class Messages(db.Model):

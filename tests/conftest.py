@@ -46,3 +46,26 @@ def app():
 @pytest.fixture
 def client(app):
     return app.test_client()
+
+
+@pytest.fixture
+def admin_user(client, app):
+    """Create and log in an admin user via client POST /login."""
+    from werkzeug.security import generate_password_hash
+
+    from departments.models.user import User
+
+    with app.app_context():
+        user = User.query.filter_by(username="admin_test_fixture").first()
+        if not user:
+            user = User(
+                username="admin_test_fixture",
+                password=generate_password_hash("admin123", method="pbkdf2:sha256"),
+                role="admin",
+            )
+            db.session.add(user)
+            db.session.commit()
+
+    client.post("/login", data={"username": "admin_test_fixture", "password": "admin123"})
+    yield user
+

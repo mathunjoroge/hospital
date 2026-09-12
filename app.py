@@ -706,7 +706,9 @@ def metrics():
 
 from departments.admin import bp as admin_bp
 from departments.analytics import bp as analytics_bp
+from departments.analytics.etl import etl_bp
 from departments.api import bp as api_bp
+from departments.api.ccda import ccda_bp
 from departments.api.dhis2_exporter import khis_bp
 from departments.api.fhir import fhir_bp
 from departments.api.hl7_receiver import hl7_bp
@@ -732,6 +734,7 @@ from departments.medicine import bp as medicine_bp
 from departments.medicine.prescribe import prescribe_bp
 from departments.mortuary import bp as mortuary_bp
 from departments.nursing import bp as nursing_bp
+from departments.nursing.bcma import bcma_bp
 from departments.nursing.mar import mar_bp
 from departments.nursing.triage import triage_bp
 from departments.patient_portal import patient_portal_bp
@@ -795,6 +798,9 @@ app.register_blueprint(fefo_bp)
 app.register_blueprint(lis_bp)
 app.register_blueprint(dicom_bp)
 app.register_blueprint(mar_bp)
+app.register_blueprint(bcma_bp)
+app.register_blueprint(ccda_bp)
+app.register_blueprint(etl_bp)
 app.register_blueprint(fhir_bp, url_prefix="/api/fhir/R4")
 app.register_blueprint(khis_bp, url_prefix="/api/khis")
 app.register_blueprint(hl7_bp)  # Phase 4 — mounts /api/hl7/oru and /api/hl7/status
