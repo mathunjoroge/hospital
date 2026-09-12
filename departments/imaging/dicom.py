@@ -28,6 +28,30 @@ logger = logging.getLogger(__name__)
 dicom_bp = Blueprint("dicom_integration", __name__, url_prefix="/imaging/dicom")
 
 
+def _resolve_modality(order: RequestedImage) -> str:
+    """Infer standard DICOM Modality code (DX, CT, MR, US, MG, etc.) from order and imaging type."""
+    text = ""
+    if hasattr(order, "imaging") and order.imaging and getattr(order.imaging, "imaging_type", None):
+        text += f" {order.imaging.imaging_type}"
+    if order.description:
+        text += f" {order.description}"
+
+    t = text.lower()
+    if any(k in t for k in ["ct", "computed tomography"]):
+        return "CT"
+    if any(k in t for k in ["mri", "magnetic resonance"]):
+        return "MR"
+    if any(k in t for k in ["ultrasound", "us", "sonogram", "echo"]):
+        return "US"
+    if any(k in t for k in ["mammo", "breast"]):
+        return "MG"
+    if any(k in t for k in ["fluro", "fluoroscopy"]):
+        return "RF"
+    if any(k in t for k in ["pet", "nuclear"]):
+        return "PT"
+    return "DX"
+
+
 @dicom_bp.route("/mwl", methods=["GET"])
 def get_modality_worklist():
     """Get DICOM Modality Worklist (MWL) for pending orders."""
@@ -58,11 +82,12 @@ def get_modality_worklist():
                 "ScheduledProcedureStepStartTime": order.date_requested.strftime(
                     "%H%M%S"
                 ),
-                "Modality": "UNKNOWN",  # Typically mapped from imaging type
+                "Modality": _resolve_modality(order),
             }
         )
 
     return jsonify({"mwl": mwl_items, "count": len(mwl_items)}), 200
+
 
 
 @dicom_bp.route("/viewer/<string:result_id>", methods=["GET"])
