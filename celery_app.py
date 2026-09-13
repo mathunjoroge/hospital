@@ -50,3 +50,25 @@ def make_celery(flask_app):
 
 celery = make_celery(app)
 import departments.tasks  # noqa: F401
+
+# ---------------------------------------------------------------------------
+# Celery Beat Schedule
+# ---------------------------------------------------------------------------
+from celery.schedules import crontab  # noqa: E402
+
+celery.conf.beat_schedule = {
+    # Midnight UTC = 03:00 EAT — runs after the quietest clinical hour
+    "icd10-nightly-sync": {
+        "task": "departments.tasks.sync_icd10_codes",
+        "schedule": crontab(hour=0, minute=0),  # 00:00 UTC / 03:00 EAT
+    },
+    "snomed-nightly-sync": {
+        "task": "departments.tasks.sync_snomed_codes",
+        "schedule": crontab(hour=0, minute=30),  # 00:30 UTC / 03:30 EAT
+    },
+    "loinc-nightly-sync": {
+        "task": "departments.tasks.sync_loinc_codes",
+        "schedule": crontab(hour=1, minute=0),  # 01:00 UTC / 04:00 EAT
+    },
+}
+

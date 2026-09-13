@@ -39,10 +39,15 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
 
 ## 4. Official WHO ICD-10 API Registration Credentials (Phase A.3)
 
+* **Status:** ✅ DECIDED — 2026-09-13
+* **Decision-maker:** Facility Management / Developer
 * **Context**: The system currently utilizes an expanded 50+ item common clinical diagnosis catalog in [`departments/medicine/prescribe.py`](file:///home/mathu/projects/hospital/departments/medicine/prescribe.py#L35). Importing the complete 14,000+ code WHO ICD-10-CM / ICD-11 database via WHO's API requires organizational registration credentials (`Client ID` & `Client Secret`).
-* **Questions / Decisions Required**:
-  1. **Credentials**: Can the facility management provide WHO ICD-API client credentials for automated FTS5 table ingestion?
-  2. **Catalog Scope**: Is the 50+ item curated stopgap diagnosis catalog adequate for initial deployment while official credentials are obtained?
+* **Decision**:
+  1. **Credentials provided**: WHO ICD-API Client ID and Client Secret received from facility management. Stored in `.env` as `WHO_ICD_CLIENT_ID` and `WHO_ICD_CLIENT_SECRET`.
+  2. **Implementation**: `departments/medicine/who_icd_client.py` — token-cached API client with full ICD-10 tree walker. `departments/medicine/icd10_importer.py` — upgraded to `import_from_who_api()` which walks the full 2019 release tree and upserts all ~14,000 codes into `icd10_codes`.
+  3. **Nightly re-sync**: Celery beat task `sync_icd10_codes` scheduled at 00:00 UTC (03:00 EAT) in `celery_app.py`.
+  4. **Search upgrade**: `search_icd10()` in `prescribe.py` now queries the local DB first (fast/offline-capable), falls back to WHO live search if DB is sparse, then falls back to the hardcoded minimal list (tests only).
+* **Run initial import**: `python -m departments.medicine.icd10_importer` (takes ~25–40 min on first run).
 
 ---
 
@@ -257,10 +262,15 @@ If Rhapsody or another engine is preferred, the `docker-compose.yml` Mirth servi
    *Note:* Both decisions are flagged as **INTERIM**. Formal UMLS/SNOMED licensing sign-off from hospital IT/Management is required before production deployment.
 **Implementation:** Proceeding on `feat/phase1-terminology-cdss`.
 
-## 22. SNOMED CT Affiliate Licence (Phase 1B)
+## 22. SNOMED CT & LOINC Licensing & UMLS API Integration (Phase 1B & 1C)
 
-* **Context**: Phase 1 requires SNOMED CT integration for problem list and procedures. Formal SNOMED CT Affiliate Licence is pending hospital management sign-off.
-* **Questions / Decisions Required**:
-  1. **Licence Status**: Can the facility management provide confirmation of SNOMED CT Affiliate Licence application or status?
-  2. **Interim Path**: Per P1-06, if licensing status is unclear, we will start with the freely available SNOMED CT CORE subset (~10,000 most-used concepts) rather than blocking on the full licence.
-  3. **Implementation**: Use the SNOMED CT CORE subset from NLM UMLS value sets as the interim path for development and testing.
+* **Status:** ✅ DECIDED — 2026-09-13
+* **Decision-maker:** Facility Management / Developer
+* **Context**: Phase 1 requires SNOMED CT and LOINC integration for problem list, procedures, and laboratory observations. Formal UMLS Licensee credentials (`mathunjoroge`) and API Key (`c7c9be68-bfa2-4fe6-850c-11ed2136a253`) have been provided.
+* **Resolution**:
+  1. **API Credentials**: Secured in `.env` (`UMLS_API_KEY`, `UMLS_USERNAME`) and mapped to `Config`.
+  2. **Integration Architecture**: Implemented NLM UTS REST API client in `departments/medicine/umls_client.py` for live SNOMED CT (`SNOMEDCT_US`) and LOINC (`LNC`) queries.
+  3. **Local DB & Caching**: Upgraded `snomed_importer.py` and `loinc_importer.py` to bulk-populate `snomed_codes` and `loinc_codes` PostgreSQL tables.
+  4. **Search Strategy**: `search_snomed()` and `search_loinc()` in `prescribe.py` query local DB first (fast `ILIKE`), falling back to live UMLS API search when DB results are sparse.
+  5. **Nightly Beat Sync**: Added Celery beat schedule entries for automated nightly syncs at 03:30 EAT and 04:00 EAT.
+

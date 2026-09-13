@@ -36,6 +36,15 @@ prescribe_bp = Blueprint("eprescribe", __name__, url_prefix="/medicine/prescribe
 
 
 
+# ---------------------------------------------------------------------------
+# Terminology helpers
+# ---------------------------------------------------------------------------
+
+# Threshold: once the DB has at least this many ICD-10 codes we consider it
+# fully populated and skip the WHO live-search fallback.
+_ICD10_POPULATED_THRESHOLD = 100
+
+
 def _get_icd10_database():
     """Fetch ICD-10 codes from DB, falling back to minimal hardcoded list for tests."""
     try:
@@ -44,14 +53,23 @@ def _get_icd10_database():
         if codes:
             return [{"code": c.code, "description": c.description, "category": c.chapter or "General"} for c in codes]
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"Failed to fetch ICD-10 codes from database: {e}")
-    # Minimal fallback for tests/empty DB (preserves existing test behavior)
+        logger.warning("Failed to fetch ICD-10 codes from database: %s", e)
+    # Minimal fallback for tests/empty DB (preserves existing test behaviour)
     return [
         {"code": "J00", "description": "Acute nasopharyngitis [common cold]", "category": "Respiratory"},
         {"code": "R50.9", "description": "Fever, unspecified", "category": "General"},
         {"code": "I10", "description": "Essential (primary) hypertension", "category": "Cardiovascular"},
         {"code": "J06.9", "description": "Acute upper respiratory infection, unspecified", "category": "Respiratory"},
     ]
+
+
+def _icd10_db_count() -> int:
+    """Return the number of ICD-10 codes currently in the local DB (0 on error)."""
+    try:
+        from departments.models.terminology import ICD10Code
+        return ICD10Code.query.count()
+    except Exception:  # noqa: BLE001
+        return 0
 
 
 def _get_snomed_database():
@@ -62,7 +80,7 @@ def _get_snomed_database():
         if codes:
             return [{"code": c.code, "description": c.description} for c in codes]
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"Failed to fetch SNOMED codes from database: {e}")
+        logger.warning("Failed to fetch SNOMED codes from database: %s", e)
     # Minimal fallback for tests/empty DB
     return [
         {"code": "404684003", "description": "Clinical finding"},
@@ -79,60 +97,7 @@ def _get_loinc_database():
         if codes:
             return [{"code": c.code, "description": c.description} for c in codes]
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"Failed to fetch LOINC codes from database: {e}")
-    # Minimal fallback for tests/empty DB
-    return [
-        {"code": "8302-2", "description": "Body temperature"},
-        {"code": "8867-4", "description": "Heart rate"},
-        {"code": "8480-6", "description": "Systolic blood pressure"},
-        {"code": "8462-4", "description": "Diastolic blood pressure"},
-    ]
-
-
-def _get_icd10_database():
-    """Fetch ICD-10 codes from DB, falling back to minimal hardcoded list for tests."""
-    try:
-        from departments.models.terminology import ICD10Code
-        codes = ICD10Code.query.limit(100).all()
-        if codes:
-            return [{"code": c.code, "description": c.description, "category": c.chapter or "General"} for c in codes]
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"Failed to fetch ICD-10 codes from database: {e}")
-    # Minimal fallback for tests/empty DB (preserves existing test behavior)
-    return [
-        {"code": "J00", "description": "Acute nasopharyngitis [common cold]", "category": "Respiratory"},
-        {"code": "R50.9", "description": "Fever, unspecified", "category": "General"},
-        {"code": "I10", "description": "Essential (primary) hypertension", "category": "Cardiovascular"},
-        {"code": "J06.9", "description": "Acute upper respiratory infection, unspecified", "category": "Respiratory"},
-    ]
-
-
-def _get_snomed_database():
-    """Fetch SNOMED codes from DB, falling back to minimal hardcoded list for tests."""
-    try:
-        from departments.models.terminology import SnomedCode
-        codes = SnomedCode.query.limit(100).all()
-        if codes:
-            return [{"code": c.code, "description": c.description} for c in codes]
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"Failed to fetch SNOMED codes from database: {e}")
-    # Minimal fallback for tests/empty DB
-    return [
-        {"code": "404684003", "description": "Clinical finding"},
-        {"code": "22298006", "description": "Myocardial infarction"},
-        {"code": "38341003", "description": "Hypertensive disorder"},
-    ]
-
-
-def _get_loinc_database():
-    """Fetch LOINC codes from DB, falling back to minimal hardcoded list for tests."""
-    try:
-        from departments.models.terminology import LoincCode
-        codes = LoincCode.query.limit(100).all()
-        if codes:
-            return [{"code": c.code, "description": c.description} for c in codes]
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"Failed to fetch LOINC codes from database: {e}")
+        logger.warning("Failed to fetch LOINC codes from database: %s", e)
     # Minimal fallback for tests/empty DB
     return [
         {"code": "8302-2", "description": "Body temperature"},
@@ -143,24 +108,112 @@ def _get_loinc_database():
 
 
 def search_icd10(query: str) -> list[dict]:
-    """Search ICD-10 reference database by code or description keyword."""
-    if not query:
+    """
+    Search ICD-10 codes by code or description keyword.
+
+    Strategy (in priority order):
+      1. If local DB has ≥100 codes (i.e. WHO import ran), query the DB —
+         fast, no network, works offline.  Results capped at 20.
+      2. If DB is sparse/empty AND a query string was provided, try the WHO
+         live search API (requires WHO credentials in .env).
+      3. Final fallback: scan the minimal hardcoded list (for tests / no DB).
+    """
+    q = (query or "").lower().strip()
+
+    # -- Path 1: populated local DB (normal production path) --
+    db_count = _icd10_db_count()
+    if db_count >= _ICD10_POPULATED_THRESHOLD:
+        try:
+            from departments.models.terminology import ICD10Code
+            if not q:
+                rows = ICD10Code.query.limit(20).all()
+            else:
+                rows = (
+                    ICD10Code.query
+                    .filter(
+                        db.or_(
+                            ICD10Code.code.ilike(f"%{q}%"),
+                            ICD10Code.description.ilike(f"%{q}%"),
+                        )
+                    )
+                    .limit(20)
+                    .all()
+                )
+            return [
+                {"code": r.code, "description": r.description, "category": r.chapter or "General"}
+                for r in rows
+            ]
+        except Exception as e:  # noqa: BLE001
+            logger.warning("ICD-10 DB search failed, falling through: %s", e)
+
+    # -- Path 2: WHO live API fallback (DB is sparse) --
+    if q:
+        try:
+            from departments.medicine.who_icd_client import search_icd10_live
+            live_results = search_icd10_live(q)
+            if live_results:
+                return live_results
+        except Exception as e:  # noqa: BLE001
+            logger.warning("WHO live ICD-10 search unavailable: %s", e)
+
+    # -- Path 3: minimal hardcoded fallback (tests / no connectivity) --
+    if not q:
         return _get_icd10_database()[:5]
-    q = query.lower().strip()
     return [
         item
         for item in _get_icd10_database()
         if q in item["code"].lower()
         or q in item["description"].lower()
-        or q in item["category"].lower()
+        or q in item.get("category", "").lower()
     ]
 
 
 def search_snomed(query: str) -> list[dict]:
-    """Search SNOMED reference database by code or description keyword."""
-    if not query:
+    """
+    Search SNOMED CT codes by code or description keyword.
+
+    Strategy:
+      1. Local DB search (fast, offline, capped at 20).
+      2. UMLS REST API live search fallback if query provided and DB has few results.
+      3. Minimal hardcoded test fallback.
+    """
+    q = (query or "").lower().strip()
+
+    # -- Path 1: Local DB search --
+    try:
+        from departments.models.terminology import SnomedCode
+        if not q:
+            rows = SnomedCode.query.limit(20).all()
+        else:
+            rows = (
+                SnomedCode.query
+                .filter(
+                    db.or_(
+                        SnomedCode.code.ilike(f"%{q}%"),
+                        SnomedCode.description.ilike(f"%{q}%"),
+                    )
+                )
+                .limit(20)
+                .all()
+            )
+        if rows:
+            return [{"code": r.code, "description": r.description} for r in rows]
+    except Exception as e:  # noqa: BLE001
+        logger.warning("SNOMED DB search error: %s", e)
+
+    # -- Path 2: UMLS live REST API fallback --
+    if q:
+        try:
+            from departments.medicine.umls_client import search_snomed_live
+            live_results = search_snomed_live(q, max_results=20)
+            if live_results:
+                return live_results
+        except Exception as e:  # noqa: BLE001
+            logger.warning("UMLS live SNOMED search failed: %s", e)
+
+    # -- Path 3: Minimal hardcoded fallback for tests --
+    if not q:
         return _get_snomed_database()[:5]
-    q = query.lower().strip()
     return [
         item
         for item in _get_snomed_database()
@@ -170,16 +223,58 @@ def search_snomed(query: str) -> list[dict]:
 
 
 def search_loinc(query: str) -> list[dict]:
-    """Search LOINC reference database by code or description keyword."""
-    if not query:
+    """
+    Search LOINC codes by code or description keyword.
+
+    Strategy:
+      1. Local DB search (fast, offline, capped at 20).
+      2. UMLS REST API live search fallback if query provided and DB has few results.
+      3. Minimal hardcoded test fallback.
+    """
+    q = (query or "").lower().strip()
+
+    # -- Path 1: Local DB search --
+    try:
+        from departments.models.terminology import LoincCode
+        if not q:
+            rows = LoincCode.query.limit(20).all()
+        else:
+            rows = (
+                LoincCode.query
+                .filter(
+                    db.or_(
+                        LoincCode.code.ilike(f"%{q}%"),
+                        LoincCode.description.ilike(f"%{q}%"),
+                    )
+                )
+                .limit(20)
+                .all()
+            )
+        if rows:
+            return [{"code": r.code, "description": r.description} for r in rows]
+    except Exception as e:  # noqa: BLE001
+        logger.warning("LOINC DB search error: %s", e)
+
+    # -- Path 2: UMLS live REST API fallback --
+    if q:
+        try:
+            from departments.medicine.umls_client import search_loinc_live
+            live_results = search_loinc_live(q, max_results=20)
+            if live_results:
+                return live_results
+        except Exception as e:  # noqa: BLE001
+            logger.warning("UMLS live LOINC search failed: %s", e)
+
+    # -- Path 3: Minimal hardcoded fallback for tests --
+    if not q:
         return _get_loinc_database()[:5]
-    q = query.lower().strip()
     return [
         item
         for item in _get_loinc_database()
         if q in item["code"].lower()
         or q in item["description"].lower()
     ]
+
 
 
 def check_drug_safety(patient_id: str, new_medications: list[str]) -> dict:

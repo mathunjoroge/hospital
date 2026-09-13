@@ -103,3 +103,80 @@ def scheduled_midnight_ward_charges():
     except Exception as e:  # noqa: BLE001
         print(f"❌ Error posting ward charges: {e}")
 # --------------------------------
+
+
+# ---------------------------------------------------------------------------
+# ICD-10 Nightly Re-Sync (DECISIONS_PENDING #4 resolved 2026-09-13)
+# ---------------------------------------------------------------------------
+
+@shared_task(name="departments.tasks.sync_icd10_codes")
+def sync_icd10_codes():
+    """
+    Celery beat task: nightly re-sync of WHO ICD-10 codes into the local DB.
+
+    Schedule: 00:00 UTC / 03:00 EAT (set in celery_app.py beat schedule).
+
+    Uses import_from_who_api() which upserts — it only writes rows that are
+    new or changed, so the DB footprint stays clean even over many runs.
+    """
+    from app import app
+
+    logger.info("[Celery] ICD-10 nightly sync starting …")
+    try:
+        with app.app_context():
+            from departments.medicine.icd10_importer import import_from_who_api
+            count = import_from_who_api()
+            logger.info("[Celery] ICD-10 sync complete: %d codes upserted.", count)
+            return {"status": "ok", "codes_upserted": count}
+    except Exception as exc:  # noqa: BLE001
+        logger.error("[Celery] ICD-10 sync failed: %s", exc)
+        raise
+
+
+# ---------------------------------------------------------------------------
+# SNOMED CT Nightly Sync (DECISIONS_PENDING #22 resolved 2026-09-13)
+# ---------------------------------------------------------------------------
+
+@shared_task(name="departments.tasks.sync_snomed_codes")
+def sync_snomed_codes():
+    """
+    Celery beat task: nightly sync of SNOMED CT codes from UMLS API.
+    Schedule: 00:30 UTC / 03:30 EAT (set in celery_app.py beat schedule).
+    """
+    from app import app
+
+    logger.info("[Celery] SNOMED CT nightly sync starting …")
+    try:
+        with app.app_context():
+            from departments.medicine.snomed_importer import import_from_umls_api
+            count = import_from_umls_api(fetch_live_api=True)
+            logger.info("[Celery] SNOMED CT sync complete: %d codes upserted.", count)
+            return {"status": "ok", "codes_upserted": count}
+    except Exception as exc:  # noqa: BLE001
+        logger.error("[Celery] SNOMED CT sync failed: %s", exc)
+        raise
+
+
+# ---------------------------------------------------------------------------
+# LOINC Nightly Sync (DECISIONS_PENDING #25 resolved 2026-09-13)
+# ---------------------------------------------------------------------------
+
+@shared_task(name="departments.tasks.sync_loinc_codes")
+def sync_loinc_codes():
+    """
+    Celery beat task: nightly sync of LOINC codes from UMLS API.
+    Schedule: 01:00 UTC / 04:00 EAT (set in celery_app.py beat schedule).
+    """
+    from app import app
+
+    logger.info("[Celery] LOINC nightly sync starting …")
+    try:
+        with app.app_context():
+            from departments.medicine.loinc_importer import import_from_umls_api
+            count = import_from_umls_api(fetch_live_api=True)
+            logger.info("[Celery] LOINC sync complete: %d codes upserted.", count)
+            return {"status": "ok", "codes_upserted": count}
+    except Exception as exc:  # noqa: BLE001
+        logger.error("[Celery] LOINC sync failed: %s", exc)
+        raise
+

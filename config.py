@@ -87,3 +87,13 @@ class Config:
     REMEMBER_COOKIE_SECURE = os.getenv('FLASK_ENV') == 'production'
 
     ENABLE_TELEMEDICINE = os.getenv('ENABLE_TELEMEDICINE', 'false').lower() == 'true'
+
+    # WHO ICD-10 API (DECISIONS_PENDING #4 — resolved 2026-09-13)
+    WHO_ICD_CLIENT_ID = os.getenv('WHO_ICD_CLIENT_ID', '')
+    WHO_ICD_CLIENT_SECRET = os.getenv('WHO_ICD_CLIENT_SECRET', '')
+    WHO_ICD_API_RELEASE = os.getenv('WHO_ICD_API_RELEASE', '2019')
+
+    # UMLS (SNOMED CT & LOINC) API (DECISIONS_PENDING #22 & #25 — resolved 2026-09-13)
+    UMLS_API_KEY = os.getenv('UMLS_API_KEY', '')
+    UMLS_USERNAME = os.getenv('UMLS_USERNAME', '')
+
