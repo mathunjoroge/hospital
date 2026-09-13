@@ -1,0 +1,938 @@
+{% extends "base.html" %}
+
+{% block title %}Bedside BCMA Scanner — {{ super() }}{% endblock %}
+
+{% block content %}
+<style>
+  /* ── BCMA Design Tokens ─────────────────────────────────── */
+  :root {
+    --bcma-bg:          #07090f;
+    --bcma-surface:     rgba(255,255,255,0.045);
+    --bcma-border:      rgba(255,255,255,0.09);
+    --bcma-cyan:        #00e5ff;
+    --bcma-green:       #00e676;
+    --bcma-amber:       #ffab00;
+    --bcma-red:         #ff1744;
+    --bcma-violet:      #7c4dff;
+    --bcma-text:        #e8eaf6;
+    --bcma-muted:       #546e7a;
+    --bcma-glow-cyan:   0 0 24px rgba(0,229,255,0.35);
+    --bcma-glow-green:  0 0 20px rgba(0,230,118,0.4);
+    --bcma-glow-red:    0 0 24px rgba(255,23,68,0.45);
+    --bcma-radius:      16px;
+    --bcma-radius-sm:   10px;
+  }
+
+  /* ── Layout ─────────────────────────────────────────────── */
+  .bcma-root {
+    background: var(--bcma-bg);
+    min-height: 100vh;
+    color: var(--bcma-text);
+    font-family: 'Inter', 'Roboto', system-ui, sans-serif;
+    padding: 0;
+  }
+
+  /* ── Header Bar ─────────────────────────────────────────── */
+  .bcma-header {
+    background: linear-gradient(135deg, rgba(0,229,255,0.12) 0%, rgba(124,77,255,0.12) 100%);
+    border-bottom: 1px solid var(--bcma-border);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .bcma-header .bcma-logo {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--bcma-cyan), var(--bcma-violet));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    box-shadow: var(--bcma-glow-cyan);
+    flex-shrink: 0;
+  }
+  .bcma-header h1 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    background: linear-gradient(90deg, var(--bcma-cyan), var(--bcma-violet));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin: 0;
+  }
+  .bcma-header .bcma-sub {
+    font-size: .78rem;
+    color: var(--bcma-muted);
+    margin: 0;
+  }
+  .bcma-interval-badge {
+    margin-left: auto;
+    background: rgba(255,171,0,0.15);
+    border: 1px solid var(--bcma-amber);
+    color: var(--bcma-amber);
+    padding: .35rem .9rem;
+    border-radius: 20px;
+    font-size: .78rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* ── Main Grid ──────────────────────────────────────────── */
+  .bcma-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 1.25rem;
+    padding: 1.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) {
+    .bcma-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Glass Card ─────────────────────────────────────────── */
+  .bcma-card {
+    background: var(--bcma-surface);
+    border: 1px solid var(--bcma-border);
+    border-radius: var(--bcma-radius);
+    padding: 1.4rem;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    transition: border-color .25s ease, box-shadow .25s ease;
+  }
+  .bcma-card:hover { border-color: rgba(0,229,255,0.2); }
+  .bcma-card-title {
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--bcma-muted);
+    margin-bottom: 1.1rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .bcma-card-title .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--bcma-cyan);
+    box-shadow: var(--bcma-glow-cyan);
+    animation: pulse-dot 2s infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: .3; }
+  }
+
+  /* ── Scanner Input ──────────────────────────────────────── */
+  .scan-zone {
+    position: relative;
+    margin-bottom: 1rem;
+  }
+  .scan-zone label {
+    display: block;
+    font-size: .76rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--bcma-muted);
+    margin-bottom: .45rem;
+  }
+  .scan-zone .scan-input-wrap {
+    display: flex; gap: .5rem; align-items: stretch;
+  }
+  .scan-input {
+    flex: 1;
+    background: rgba(0,0,0,0.4);
+    border: 1.5px solid var(--bcma-border);
+    border-radius: var(--bcma-radius-sm);
+    color: var(--bcma-cyan);
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 1.05rem;
+    font-weight: 600;
+    padding: .75rem 1rem;
+    outline: none;
+    transition: border-color .2s ease, box-shadow .2s ease;
+    letter-spacing: .05em;
+  }
+  .scan-input:focus {
+    border-color: var(--bcma-cyan);
+    box-shadow: var(--bcma-glow-cyan), inset 0 0 0 1px rgba(0,229,255,0.1);
+  }
+  .scan-input::placeholder { color: var(--bcma-muted); opacity: .6; }
+  .scan-input.scan-ok    { border-color: var(--bcma-green); box-shadow: var(--bcma-glow-green); color: var(--bcma-green); }
+  .scan-input.scan-error { border-color: var(--bcma-red);   box-shadow: var(--bcma-glow-red);   color: var(--bcma-red); }
+
+  .scan-icon-btn {
+    background: rgba(0,229,255,0.12);
+    border: 1.5px solid var(--bcma-cyan);
+    border-radius: var(--bcma-radius-sm);
+    color: var(--bcma-cyan);
+    padding: 0 1rem;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: background .2s, transform .1s;
+    display: flex; align-items: center;
+  }
+  .scan-icon-btn:hover  { background: rgba(0,229,255,0.22); }
+  .scan-icon-btn:active { transform: scale(.93); }
+
+  /* ── 5-Rights Checklist ─────────────────────────────────── */
+  .rights-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: .6rem;
+    margin-bottom: 1.2rem;
+  }
+  @media (max-width: 700px) { .rights-grid { grid-template-columns: repeat(3,1fr); } }
+
+  .right-badge {
+    display: flex; flex-direction: column; align-items: center;
+    gap: .35rem;
+    padding: .7rem .4rem;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.035);
+    border: 1px solid rgba(255,255,255,0.07);
+    transition: all .3s ease;
+  }
+  .right-badge .icon { font-size: 1.3rem; }
+  .right-badge .label { font-size: .6rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--bcma-muted); text-align: center; }
+  .right-badge.ok {
+    background: rgba(0,230,118,0.1);
+    border-color: var(--bcma-green);
+    box-shadow: 0 0 14px rgba(0,230,118,0.2);
+  }
+  .right-badge.ok .icon { color: var(--bcma-green); }
+  .right-badge.ok .label { color: var(--bcma-green); }
+  .right-badge.fail {
+    background: rgba(255,23,68,0.1);
+    border-color: var(--bcma-red);
+    box-shadow: 0 0 14px rgba(255,23,68,0.2);
+  }
+  .right-badge.fail .icon { color: var(--bcma-red); }
+  .right-badge.fail .label { color: var(--bcma-red); }
+
+  /* ── Action Buttons ─────────────────────────────────────── */
+  .btn-bcma-verify {
+    width: 100%;
+    padding: .85rem;
+    border: none; border-radius: var(--bcma-radius-sm);
+    font-weight: 700; font-size: 1rem;
+    letter-spacing: .05em;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex; align-items: center; justify-content: center; gap: .6rem;
+  }
+  .btn-bcma-primary {
+    background: linear-gradient(135deg, var(--bcma-cyan) 0%, #0097a7 100%);
+    color: #07090f;
+    box-shadow: 0 4px 24px rgba(0,229,255,0.3);
+  }
+  .btn-bcma-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,229,255,0.45); }
+  .btn-bcma-primary:active { transform: translateY(0); }
+
+  .btn-bcma-danger {
+    background: linear-gradient(135deg, var(--bcma-green) 0%, #00897b 100%);
+    color: #07090f;
+    box-shadow: 0 4px 24px rgba(0,230,118,0.3);
+    margin-top: .6rem;
+  }
+  .btn-bcma-danger:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,230,118,0.45); }
+
+  /* ── Result Panel ───────────────────────────────────────── */
+  .result-panel {
+    border-radius: var(--bcma-radius-sm);
+    padding: 1.1rem 1.3rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    font-size: .88rem;
+    line-height: 1.7;
+    display: none;
+    animation: slide-in .25s ease;
+  }
+  .result-panel.show { display: block; }
+  .result-panel.success { background: rgba(0,230,118,0.08); border-color: var(--bcma-green); }
+  .result-panel.warning { background: rgba(255,171,0,0.08);  border-color: var(--bcma-amber); }
+  .result-panel.danger  { background: rgba(255,23,68,0.08);  border-color: var(--bcma-red); }
+  .result-panel.info    { background: rgba(0,229,255,0.07);  border-color: var(--bcma-cyan); }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Demo Simulation Buttons ────────────────────────────── */
+  .demo-bar {
+    display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem;
+  }
+  .btn-demo {
+    padding: .35rem .85rem;
+    border-radius: 20px; border: 1px solid;
+    font-size: .73rem; font-weight: 600; cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-demo-patient  { border-color: var(--bcma-violet); color: var(--bcma-violet); background: rgba(124,77,255,0.1); }
+  .btn-demo-patient:hover  { background: rgba(124,77,255,0.2); }
+  .btn-demo-drug     { border-color: var(--bcma-cyan);   color: var(--bcma-cyan);   background: rgba(0,229,255,0.08); }
+  .btn-demo-drug:hover     { background: rgba(0,229,255,0.18); }
+  .btn-demo-mismatch { border-color: var(--bcma-red);    color: var(--bcma-red);    background: rgba(255,23,68,0.08); }
+  .btn-demo-mismatch:hover { background: rgba(255,23,68,0.18); }
+  .btn-demo-clear    { border-color: var(--bcma-muted);  color: var(--bcma-muted);  background: transparent; }
+  .btn-demo-clear:hover    { background: rgba(255,255,255,0.06); }
+
+  /* ── MAR Table ──────────────────────────────────────────── */
+  .mar-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .mar-table th {
+    padding: .55rem .8rem; text-align: left;
+    font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--bcma-muted);
+    border-bottom: 1px solid var(--bcma-border);
+    background: rgba(0,0,0,0.2);
+  }
+  .mar-table td {
+    padding: .65rem .8rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: middle;
+  }
+  .mar-table tr:hover td { background: rgba(255,255,255,0.03); }
+  .mar-table .drug-name { font-weight: 600; color: var(--bcma-cyan); }
+  .mar-table .dosage-badge {
+    display: inline-block;
+    background: rgba(0,229,255,0.12); color: var(--bcma-cyan);
+    border-radius: 20px; padding: .15rem .65rem;
+    font-size: .7rem; font-weight: 700;
+  }
+  .mar-status-ok   { color: var(--bcma-green); font-size: .7rem; font-weight: 700; }
+  .mar-status-due  { color: var(--bcma-amber); font-size: .7rem; font-weight: 700; }
+  .mar-status-none { color: var(--bcma-muted); font-size: .7rem; }
+  .mar-empty { text-align: center; padding: 2rem; color: var(--bcma-muted); font-size: .85rem; }
+
+  /* ── Status Strip ───────────────────────────────────────── */
+  .status-strip {
+    display: flex; align-items: center; gap: .6rem;
+    padding: .65rem 1rem;
+    border-radius: var(--bcma-radius-sm);
+    font-size: .78rem; font-weight: 600;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(0,0,0,0.25);
+  }
+  .status-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--bcma-muted); flex-shrink: 0;
+    transition: all .3s;
+  }
+  .status-dot.patient-ok { background: var(--bcma-green); box-shadow: 0 0 10px rgba(0,230,118,0.6); animation: pulse-glow 2s infinite; }
+  .status-dot.drug-ok    { background: var(--bcma-cyan);  box-shadow: 0 0 10px rgba(0,229,255,0.6); animation: pulse-glow 2s infinite; }
+  .status-dot.fail       { background: var(--bcma-red);   box-shadow: 0 0 10px rgba(255,23,68,0.6); }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 1; } 50% { opacity: .5; }
+  }
+
+  /* ── Override Modal ─────────────────────────────────────── */
+  .override-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(6px);
+    z-index: 2000;
+    display: flex; align-items: center; justify-content: center;
+    display: none;
+    animation: fade-in .2s ease;
+  }
+  .override-backdrop.show { display: flex; }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+  .override-modal {
+    background: #111827;
+    border: 1px solid var(--bcma-red);
+    border-radius: var(--bcma-radius);
+    padding: 2rem;
+    max-width: 480px; width: 90%;
+    box-shadow: 0 0 60px rgba(255,23,68,0.3);
+    animation: modal-in .25s ease;
+  }
+  @keyframes modal-in { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .override-modal h3 { color: var(--bcma-red); margin: 0 0 .5rem; font-size: 1.05rem; }
+  .override-modal p  { color: var(--bcma-muted); font-size: .84rem; margin: 0 0 1.2rem; }
+  .override-textarea {
+    width: 100%; min-height: 90px;
+    background: rgba(0,0,0,0.4); border: 1.5px solid var(--bcma-border);
+    border-radius: var(--bcma-radius-sm); color: var(--bcma-text);
+    padding: .7rem; font-size: .88rem; resize: vertical; outline: none;
+    transition: border-color .2s;
+  }
+  .override-textarea:focus { border-color: var(--bcma-red); }
+  .override-char-count { font-size: .72rem; color: var(--bcma-muted); text-align: right; margin-top: .3rem; }
+  .override-char-count.ok { color: var(--bcma-green); }
+  .btn-override-confirm {
+    margin-top: .8rem; width: 100%; padding: .75rem;
+    background: var(--bcma-red); color: white;
+    border: none; border-radius: var(--bcma-radius-sm);
+    font-weight: 700; font-size: .92rem; cursor: pointer;
+    transition: opacity .2s;
+  }
+  .btn-override-confirm:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-override-cancel {
+    margin-top: .5rem; width: 100%; padding: .65rem;
+    background: transparent; color: var(--bcma-muted);
+    border: 1px solid var(--bcma-border); border-radius: var(--bcma-radius-sm);
+    font-size: .88rem; cursor: pointer; transition: background .2s;
+  }
+  .btn-override-cancel:hover { background: rgba(255,255,255,0.05); }
+
+  /* ── Span full width ─────────────────────────────────────── */
+  .col-span-2 { grid-column: 1 / -1; }
+
+  /* ── Loading Spinner ────────────────────────────────────── */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,0.15);
+    border-top-color: var(--bcma-cyan);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: none;
+  }
+  .spinner.active { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<div class="bcma-root">
+
+  <!-- Header -->
+  <header class="bcma-header">
+    <div class="bcma-logo">💊</div>
+    <div>
+      <h1>Bedside BCMA — Barcode Medication Administration</h1>
+      <p class="bcma-sub">5-Rights Safety Gate · Wristband + Drug Barcode Dual Verification</p>
+    </div>
+    <div class="bcma-interval-badge">
+      ⏱ Safe Dose Window: {{ safe_dose_interval }} min
+    </div>
+  </header>
+
+  <div class="bcma-grid">
+
+    <!-- ── SCANNER PANEL ─────────────────────────────────── -->
+    <div class="bcma-card" id="scanner-panel">
+      <div class="bcma-card-title"><span class="dot"></span>Barcode Scanners</div>
+
+      <!-- Simulation toolbar -->
+      <div class="demo-bar">
+        <button class="btn-demo btn-demo-patient" onclick="demoPrefill('patient')">
+          🪪 Demo Patient
+        </button>
+        <button class="btn-demo btn-demo-drug"    onclick="demoPrefill('drug')">
+          💊 Demo Drug
+        </button>
+        <button class="btn-demo btn-demo-mismatch" onclick="demoPrefill('mismatch')">
+          ⚠️ Demo Mismatch
+        </button>
+        <button class="btn-demo btn-demo-clear"   onclick="clearAll()">
+          ✕ Clear
+        </button>
+      </div>
+
+      <!-- Patient Wristband -->
+      <div class="scan-zone">
+        <label>🪪 Patient Wristband Barcode</label>
+        <div class="scan-input-wrap">
+          <input id="patient-barcode" class="scan-input" type="text"
+                 placeholder="Scan or type patient barcode (= Patient ID)"
+                 autocomplete="off" autocorrect="off" spellcheck="false"
+                 oninput="onPatientInput()" onkeydown="if(event.key==='Enter')focusDrug()" />
+          <button class="scan-icon-btn" title="Simulate wristband scan" onclick="demoPrefill('patient')">📷</button>
+        </div>
+      </div>
+
+      <!-- Drug Barcode -->
+      <div class="scan-zone">
+        <label>💊 Drug Unit-Dose Barcode</label>
+        <div class="scan-input-wrap">
+          <input id="drug-barcode" class="scan-input" type="text"
+                 placeholder="Scan or type drug barcode (= Medicine ID)"
+                 autocomplete="off" autocorrect="off" spellcheck="false"
+                 oninput="onDrugInput()" onkeydown="if(event.key==='Enter')doVerify()" />
+          <button class="scan-icon-btn" title="Simulate drug scan" onclick="demoPrefill('drug')">📷</button>
+        </div>
+      </div>
+
+      <!-- Status Strip -->
+      <div class="status-strip">
+        <div class="status-dot" id="pt-dot"></div>
+        <span id="pt-status-text" style="color:var(--bcma-muted);">Patient: awaiting scan</span>
+        <span style="color:var(--bcma-border)">|</span>
+        <div class="status-dot" id="drug-dot"></div>
+        <span id="drug-status-text" style="color:var(--bcma-muted);">Drug: awaiting scan</span>
+        <div class="spinner" id="main-spinner"></div>
+      </div>
+
+      <!-- Result Panel -->
+      <div class="result-panel" id="result-panel"></div>
+
+      <!-- Action buttons -->
+      <button class="btn-bcma-verify btn-bcma-primary" id="verify-btn" onclick="doVerify()">
+        🔍 Verify Barcodes (5-Rights Check)
+      </button>
+      <button class="btn-bcma-verify btn-bcma-danger" id="administer-btn" onclick="doAdminister()" style="display:none;">
+        ✅ Confirm & Record Administration
+      </button>
+    </div>
+
+    <!-- ── 5-RIGHTS PANEL ────────────────────────────────── -->
+    <div class="bcma-card" id="rights-panel">
+      <div class="bcma-card-title"><span class="dot"></span>5 Rights Verification</div>
+
+      <div class="rights-grid" id="rights-grid">
+        <div class="right-badge" id="right-patient">
+          <span class="icon">🧑‍⚕️</span>
+          <span class="label">Right Patient</span>
+        </div>
+        <div class="right-badge" id="right-drug">
+          <span class="icon">💊</span>
+          <span class="label">Right Drug</span>
+        </div>
+        <div class="right-badge" id="right-dose">
+          <span class="icon">⚖️</span>
+          <span class="label">Right Dose</span>
+        </div>
+        <div class="right-badge" id="right-route">
+          <span class="icon">🛤️</span>
+          <span class="label">Right Route</span>
+        </div>
+        <div class="right-badge" id="right-time">
+          <span class="icon">🕐</span>
+          <span class="label">Right Time</span>
+        </div>
+      </div>
+
+      <!-- Drug Info Card -->
+      <div id="drug-info" style="display:none;">
+        <div style="background:rgba(0,0,0,0.25);border-radius:10px;padding:1rem;margin-bottom:1rem;">
+          <div style="font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--bcma-muted);margin-bottom:.6rem;">Verified Drug</div>
+          <div style="font-size:1.05rem;font-weight:700;color:var(--bcma-cyan);" id="drug-display-name">—</div>
+          <div style="display:flex;gap:.6rem;margin-top:.5rem;flex-wrap:wrap;">
+            <span style="font-size:.75rem;color:var(--bcma-muted);">Dosage: <b id="drug-display-dose" style="color:var(--bcma-text);">—</b></span>
+            <span style="font-size:.75rem;color:var(--bcma-muted);">Strength: <b id="drug-display-strength" style="color:var(--bcma-text);">—</b></span>
+            <span style="font-size:.75rem;color:var(--bcma-muted);">Freq: <b id="drug-display-freq" style="color:var(--bcma-text);">—</b></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nurse ID -->
+      <div class="scan-zone" id="nurse-field" style="display:none;">
+        <label>👩‍⚕️ Administering Nurse / Clinician ID</label>
+        <input id="nurse-id" class="scan-input" type="number" placeholder="Nurse User ID" min="1" />
+      </div>
+
+      <!-- Duplicate dose warning -->
+      <div class="result-panel warning show" id="dup-warning" style="display:none;">
+        ⚠️ <strong>Duplicate Dose Warning:</strong>
+        This drug was already administered within the safe dose window.
+        Proceeding requires a clinical override reason.
+      </div>
+    </div>
+
+    <!-- ── ACTIVE MAR TABLE ──────────────────────────────── -->
+    <div class="bcma-card col-span-2" id="mar-panel">
+      <div class="bcma-card-title" style="justify-content:space-between;">
+        <span><span class="dot" style="background:var(--bcma-violet);box-shadow:0 0 12px rgba(124,77,255,0.4);"></span>Active MAR — Medication Administration Record</span>
+        <span id="mar-patient-label" style="color:var(--bcma-muted);font-size:.75rem;font-weight:400;"></span>
+      </div>
+      <div id="mar-content">
+        <div class="mar-empty">
+          Scan a patient wristband to load the active Medication Administration Record
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /bcma-grid -->
+</div><!-- /bcma-root -->
+
+
+<!-- ── OVERRIDE MODAL ──────────────────────────────────────── -->
+<div class="override-backdrop" id="override-modal">
+  <div class="override-modal">
+    <h3>⛔ Clinical Override Required</h3>
+    <p id="override-reason-text">A safety gate has been triggered. Enter a clinical justification of at least 20 characters to proceed.</p>
+    <textarea class="override-textarea" id="override-text"
+              placeholder="Enter clinical reason for override…"
+              oninput="checkOverrideLength()"></textarea>
+    <div class="override-char-count" id="override-count">0 / 20 required</div>
+    <button class="btn-override-confirm" id="override-confirm-btn" onclick="confirmOverride()" disabled>
+      ⛔ Confirm Override & Administer
+    </button>
+    <button class="btn-override-cancel" onclick="closeOverride()">Cancel</button>
+  </div>
+</div>
+
+
+<script>
+/* ── State ──────────────────────────────────────────────────── */
+const VERIFY_URL      = "/nursing/bcma/verify";
+const ADMINISTER_URL  = "/nursing/bcma/administer";
+const MAR_URL_BASE    = "/nursing/bcma/mar/";
+const CSRF_TOKEN      = document.querySelector('meta[name="csrf-token"]')?.content || "";
+
+let lastVerifyResult  = null;   // cached from /verify
+let overrideMode      = false;  // currently showing override modal
+let pendingAdminPayload = null; // payload pending override
+
+/* ── Audio helpers ──────────────────────────────────────────── */
+function beep(type) {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  if (type === "success") {
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.45);
+  } else if (type === "warning") {
+    osc.type = "square";
+    osc.frequency.setValueAtTime(440, ctx.currentTime);
+    gain.gain.setValueAtTime(.1, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.6);
+  } else {
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(200, ctx.currentTime);
+    gain.gain.setValueAtTime(.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.8);
+  }
+}
+
+/* ── Demo data ──────────────────────────────────────────────── */
+const DEMO_PATIENT  = "ADT-PAT-001";
+const DEMO_DRUG     = "1";
+const DEMO_MISMATCH_DRUG = "99999";
+
+function demoPrefill(type) {
+  if (type === "patient") {
+    document.getElementById("patient-barcode").value = DEMO_PATIENT;
+    onPatientInput();
+    setTimeout(() => loadMAR(DEMO_PATIENT), 300);
+  } else if (type === "drug") {
+    document.getElementById("drug-barcode").value = DEMO_DRUG;
+    onDrugInput();
+  } else if (type === "mismatch") {
+    document.getElementById("patient-barcode").value = DEMO_PATIENT;
+    document.getElementById("drug-barcode").value = DEMO_MISMATCH_DRUG;
+    onPatientInput(); onDrugInput();
+  }
+}
+
+function clearAll() {
+  document.getElementById("patient-barcode").value = "";
+  document.getElementById("drug-barcode").value = "";
+  document.getElementById("patient-barcode").className = "scan-input";
+  document.getElementById("drug-barcode").className = "scan-input";
+  document.getElementById("pt-dot").className = "status-dot";
+  document.getElementById("drug-dot").className = "status-dot";
+  document.getElementById("pt-status-text").textContent = "Patient: awaiting scan";
+  document.getElementById("drug-status-text").textContent = "Drug: awaiting scan";
+  document.getElementById("result-panel").className = "result-panel";
+  document.getElementById("result-panel").innerHTML = "";
+  document.getElementById("administer-btn").style.display = "none";
+  document.getElementById("nurse-field").style.display = "none";
+  document.getElementById("drug-info").style.display = "none";
+  document.getElementById("dup-warning").style.display = "none";
+  document.getElementById("mar-content").innerHTML =
+    `<div class="mar-empty">Scan a patient wristband to load the active Medication Administration Record</div>`;
+  document.getElementById("mar-patient-label").textContent = "";
+  resetRights();
+  lastVerifyResult = null;
+}
+
+function focusDrug() { document.getElementById("drug-barcode").focus(); }
+
+/* ── Input event handlers ───────────────────────────────────── */
+function onPatientInput() {
+  const val = document.getElementById("patient-barcode").value.trim();
+  if (val) {
+    document.getElementById("pt-dot").className = "status-dot patient-ok";
+    document.getElementById("pt-status-text").textContent = "Patient: " + val;
+    document.getElementById("pt-status-text").style.color = "var(--bcma-green)";
+    if (val.length >= 3) loadMAR(val);
+  } else {
+    document.getElementById("pt-dot").className = "status-dot";
+    document.getElementById("pt-status-text").textContent = "Patient: awaiting scan";
+    document.getElementById("pt-status-text").style.color = "var(--bcma-muted)";
+  }
+}
+
+function onDrugInput() {
+  const val = document.getElementById("drug-barcode").value.trim();
+  if (val) {
+    document.getElementById("drug-dot").className = "status-dot drug-ok";
+    document.getElementById("drug-status-text").textContent = "Drug: " + val;
+    document.getElementById("drug-status-text").style.color = "var(--bcma-cyan)";
+  } else {
+    document.getElementById("drug-dot").className = "status-dot";
+    document.getElementById("drug-status-text").textContent = "Drug: awaiting scan";
+    document.getElementById("drug-status-text").style.color = "var(--bcma-muted)";
+  }
+}
+
+/* ── Verify ─────────────────────────────────────────────────── */
+async function doVerify() {
+  const patBarcode  = document.getElementById("patient-barcode").value.trim();
+  const drugBarcode = document.getElementById("drug-barcode").value.trim();
+
+  if (!patBarcode || !drugBarcode) {
+    showResult("danger", "⛔ Both patient wristband and drug barcode are required.");
+    beep("error"); return;
+  }
+
+  const spinner = document.getElementById("main-spinner");
+  spinner.classList.add("active");
+  document.getElementById("verify-btn").disabled = true;
+
+  try {
+    const resp = await fetch(VERIFY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": CSRF_TOKEN },
+      body: JSON.stringify({ patient_barcode: patBarcode, drug_barcode: drugBarcode }),
+    });
+    const data = await resp.json();
+
+    if (resp.ok && data.match) {
+      lastVerifyResult = data;
+      setRights(data);
+      showVerifySuccess(data);
+      document.getElementById("administer-btn").style.display = "flex";
+      document.getElementById("nurse-field").style.display = "block";
+      showDrugInfo(data);
+      if (data.duplicate_dose_warning) {
+        document.getElementById("dup-warning").style.display = "block";
+        beep("warning");
+      } else {
+        document.getElementById("dup-warning").style.display = "none";
+        beep("success");
+      }
+    } else {
+      lastVerifyResult = null;
+      failRights(data);
+      showResult("danger", "⛔ " + (data.error || "Barcode verification failed."));
+      document.getElementById("administer-btn").style.display = "none";
+      document.getElementById("drug-info").style.display = "none";
+      beep("error");
+    }
+  } catch (e) {
+    showResult("danger", "⛔ Network error: " + e.message);
+    beep("error");
+  } finally {
+    spinner.classList.remove("active");
+    document.getElementById("verify-btn").disabled = false;
+  }
+}
+
+/* ── Administer ─────────────────────────────────────────────── */
+async function doAdminister() {
+  const nurseId = parseInt(document.getElementById("nurse-id").value || "0");
+  if (!nurseId) {
+    showResult("warning", "⚠️ Enter the administering nurse / clinician User ID first.");
+    beep("warning"); return;
+  }
+
+  const payload = {
+    patient_barcode: document.getElementById("patient-barcode").value.trim(),
+    drug_barcode:    document.getElementById("drug-barcode").value.trim(),
+    nurse_id:        nurseId,
+  };
+
+  if (lastVerifyResult?.duplicate_dose_warning) {
+    // Require override
+    pendingAdminPayload = payload;
+    document.getElementById("override-reason-text").textContent =
+      "Duplicate dose detected within the safe window. Enter a clinical justification ≥ 20 characters to proceed.";
+    openOverride();
+    return;
+  }
+
+  await submitAdminister(payload);
+}
+
+async function submitAdminister(payload) {
+  const spinner = document.getElementById("main-spinner");
+  spinner.classList.add("active");
+  document.getElementById("administer-btn").disabled = true;
+
+  try {
+    const resp = await fetch(ADMINISTER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": CSRF_TOKEN },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+
+    if (resp.status === 201 && data.success) {
+      showResult("success",
+        `✅ <strong>Dose recorded!</strong><br>` +
+        `Patient: ${data.patient_id} | Drug: ${data.drug_name}<br>` +
+        `Record ID: <code>${data.record_id}</code> · Scan Verified: ✅` +
+        (data.override_applied ? " · Override: ⚠️ Applied" : "")
+      );
+      beep("success");
+      document.getElementById("administer-btn").style.display = "none";
+      // Reload MAR
+      const pb = document.getElementById("patient-barcode").value.trim();
+      if (pb) setTimeout(() => loadMAR(pb), 500);
+    } else if (resp.status === 409 && data.error) {
+      // Override required
+      pendingAdminPayload = payload;
+      document.getElementById("override-reason-text").textContent = data.error;
+      openOverride();
+    } else {
+      showResult("danger", "⛔ " + (data.error || "Administration failed."));
+      beep("error");
+    }
+  } catch (e) {
+    showResult("danger", "⛔ Network error: " + e.message);
+    beep("error");
+  } finally {
+    spinner.classList.remove("active");
+    document.getElementById("administer-btn").disabled = false;
+  }
+}
+
+/* ── Override Modal ─────────────────────────────────────────── */
+function openOverride() {
+  document.getElementById("override-modal").classList.add("show");
+  document.getElementById("override-text").value = "";
+  document.getElementById("override-count").textContent = "0 / 20 required";
+  document.getElementById("override-count").className = "override-char-count";
+  document.getElementById("override-confirm-btn").disabled = true;
+  document.getElementById("override-text").focus();
+}
+function closeOverride() {
+  document.getElementById("override-modal").classList.remove("show");
+  pendingAdminPayload = null;
+}
+function checkOverrideLength() {
+  const len = document.getElementById("override-text").value.trim().length;
+  const el = document.getElementById("override-count");
+  el.textContent = `${len} / 20 required`;
+  el.className = "override-char-count" + (len >= 20 ? " ok" : "");
+  document.getElementById("override-confirm-btn").disabled = len < 20;
+}
+async function confirmOverride() {
+  if (!pendingAdminPayload) return;
+  const reason = document.getElementById("override-text").value.trim();
+  if (reason.length < 20) return;
+  closeOverride();
+  await submitAdminister({ ...pendingAdminPayload, override_reason: reason });
+}
+
+/* ── MAR Loader ─────────────────────────────────────────────── */
+async function loadMAR(patientId) {
+  document.getElementById("mar-patient-label").textContent = "Loading MAR for " + patientId + "…";
+  try {
+    const resp = await fetch(MAR_URL_BASE + encodeURIComponent(patientId), {
+      headers: { "X-CSRFToken": CSRF_TOKEN },
+    });
+    if (!resp.ok) {
+      document.getElementById("mar-content").innerHTML =
+        `<div class="mar-empty">Could not load MAR (status ${resp.status})</div>`;
+      return;
+    }
+    const data = await resp.json();
+    renderMAR(data);
+    document.getElementById("mar-patient-label").textContent = `Patient ${patientId} · ${data.active_orders} active orders`;
+  } catch (e) {
+    document.getElementById("mar-content").innerHTML =
+      `<div class="mar-empty">Network error loading MAR</div>`;
+  }
+}
+
+function renderMAR(data) {
+  if (!data.mar || data.mar.length === 0) {
+    document.getElementById("mar-content").innerHTML =
+      `<div class="mar-empty">No active medication orders for this patient.</div>`;
+    return;
+  }
+  const now = new Date();
+  let html = `<div style="overflow-x:auto;"><table class="mar-table">
+    <thead><tr>
+      <th>Drug</th><th>Dosage</th><th>Strength</th><th>Frequency</th><th>Last Given</th><th>Status</th>
+    </tr></thead><tbody>`;
+
+  for (const entry of data.mar) {
+    let statusHtml = `<span class="mar-status-none">Not given</span>`;
+    if (entry.last_administered) {
+      const lastDate = new Date(entry.last_administered);
+      const minsSince = (now - lastDate) / 60000;
+      const ago = minsSince < 60
+        ? `${Math.round(minsSince)}m ago`
+        : `${Math.round(minsSince/60)}h ago`;
+      if (minsSince < entry.next_due_after_minutes) {
+        statusHtml = `<span class="mar-status-ok">✅ Given (${ago})</span>`;
+      } else {
+        statusHtml = `<span class="mar-status-due">🔔 Due (last: ${ago})</span>`;
+      }
+    }
+    html += `<tr>
+      <td class="drug-name">${escHtml(entry.drug_name)}</td>
+      <td><span class="dosage-badge">${escHtml(entry.dosage||'—')}</span></td>
+      <td style="color:var(--bcma-muted)">${escHtml(entry.strength||'—')}</td>
+      <td style="color:var(--bcma-muted)">${escHtml(entry.frequency||'—')}</td>
+      <td style="color:var(--bcma-muted);font-size:.75rem">${entry.last_administered ? new Date(entry.last_administered).toLocaleTimeString() : '—'}</td>
+      <td>${statusHtml}</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div>`;
+  document.getElementById("mar-content").innerHTML = html;
+}
+
+/* ── UI Helpers ─────────────────────────────────────────────── */
+function showResult(type, msg) {
+  const el = document.getElementById("result-panel");
+  el.className = `result-panel ${type} show`;
+  el.innerHTML = msg;
+}
+
+function showVerifySuccess(d) {
+  showResult("success",
+    `✅ <strong>Verification passed!</strong> &nbsp;|&nbsp; Patient: <strong>${escHtml(d.patient_name)}</strong> &nbsp;|&nbsp; Drug: <strong>${escHtml(d.drug_name)}</strong><br>` +
+    `Dosage: ${escHtml(d.dosage||'—')} · Strength: ${escHtml(d.strength||'—')} · Frequency: ${escHtml(d.frequency||'—')}` +
+    (d.duplicate_dose_warning ? `<br>⚠️ <strong style="color:var(--bcma-amber)">Duplicate dose warning — override required.</strong>` : "")
+  );
+}
+
+function showDrugInfo(d) {
+  document.getElementById("drug-display-name").textContent     = d.drug_name || "—";
+  document.getElementById("drug-display-dose").textContent     = d.dosage || "—";
+  document.getElementById("drug-display-strength").textContent = d.strength || "—";
+  document.getElementById("drug-display-freq").textContent     = d.frequency || "—";
+  document.getElementById("drug-info").style.display = "block";
+}
+
+function resetRights() {
+  ["right-patient","right-drug","right-dose","right-route","right-time"].forEach(id => {
+    document.getElementById(id).className = "right-badge";
+  });
+}
+
+function setRights(d) {
+  document.getElementById("right-patient").className = "right-badge ok";
+  document.getElementById("right-drug").className    = "right-badge ok";
+  document.getElementById("right-dose").className    = "right-badge" + (d.dosage ? " ok" : "");
+  document.getElementById("right-route").className   = "right-badge ok";
+  document.getElementById("right-time").className    = "right-badge" + (d.duplicate_dose_warning ? " fail" : " ok");
+}
+
+function failRights(d) {
+  resetRights();
+  if (!d || d.error?.includes("Patient")) {
+    document.getElementById("right-patient").className = "right-badge fail";
+  }
+  if (!d || d.error?.includes("Drug") || d.error?.includes("drug")) {
+    document.getElementById("right-drug").className = "right-badge fail";
+  }
+}
+
+function escHtml(str) {
+  return String(str||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+</script>
+{% endblock %}

@@ -1,0 +1,546 @@
+{% extends "base.html" %}
+
+{% block title %}DICOM PACS Explorer — {{ super() }}{% endblock %}
+
+{% block content %}
+<style>
+  /* ── PACS Design Tokens ─────────────────────────────────── */
+  :root {
+    --pacs-bg:        #07090f;
+    --pacs-surface:   rgba(255,255,255,0.045);
+    --pacs-border:    rgba(255,255,255,0.09);
+    --pacs-teal:      #00bcd4;
+    --pacs-purple:    #9c27b0;
+    --pacs-green:     #00e676;
+    --pacs-amber:     #ffab00;
+    --pacs-red:       #ff5252;
+    --pacs-text:      #e8eaf6;
+    --pacs-muted:     #546e7a;
+    --pacs-glow-teal: 0 0 24px rgba(0,188,212,0.35);
+    --pacs-radius:    16px;
+    --pacs-radius-sm: 10px;
+  }
+
+  .pacs-root {
+    background: var(--pacs-bg);
+    min-height: 100vh;
+    color: var(--pacs-text);
+    font-family: 'Inter', 'Roboto', system-ui, sans-serif;
+  }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  .pacs-header {
+    background: linear-gradient(135deg, rgba(0,188,212,0.1) 0%, rgba(156,39,176,0.1) 100%);
+    border-bottom: 1px solid var(--pacs-border);
+    padding: 1rem 2rem;
+    display: flex; align-items: center; gap: 1rem;
+  }
+  .pacs-logo {
+    width: 46px; height: 46px;
+    background: linear-gradient(135deg, var(--pacs-teal), var(--pacs-purple));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+    box-shadow: var(--pacs-glow-teal); flex-shrink: 0;
+  }
+  .pacs-header h1 {
+    font-size: 1.3rem; font-weight: 700; margin: 0;
+    background: linear-gradient(90deg, var(--pacs-teal), var(--pacs-purple));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .pacs-header .sub { font-size: .78rem; color: var(--pacs-muted); margin: 0; }
+
+  /* ── Connection Status Banner ───────────────────────────── */
+  .pacs-status-banner {
+    margin: 1.25rem 1.5rem .5rem;
+    padding: .9rem 1.2rem;
+    border-radius: var(--pacs-radius-sm);
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    border: 1px solid;
+  }
+  .pacs-status-banner.live {
+    background: rgba(0,230,118,0.07);
+    border-color: var(--pacs-green);
+  }
+  .pacs-status-banner.simulated {
+    background: rgba(255,171,0,0.07);
+    border-color: var(--pacs-amber);
+  }
+  .status-led {
+    width: 12px; height: 12px; border-radius: 50%;
+    flex-shrink: 0; animation: pulse-led 2s infinite;
+  }
+  .live   .status-led { background: var(--pacs-green); box-shadow: 0 0 12px rgba(0,230,118,0.7); }
+  .simulated .status-led { background: var(--pacs-amber); box-shadow: 0 0 12px rgba(255,171,0,0.7); }
+  @keyframes pulse-led { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .pacs-banner-label { font-weight: 700; font-size: .88rem; }
+  .pacs-banner-chips { display: flex; gap: .5rem; flex-wrap: wrap; margin-left: auto; }
+  .pacs-chip {
+    padding: .25rem .7rem; border-radius: 14px;
+    font-size: .7rem; font-weight: 700;
+    background: rgba(0,188,212,0.12);
+    border: 1px solid rgba(0,188,212,0.3);
+    color: var(--pacs-teal);
+  }
+
+  /* ── Main Grid ──────────────────────────────────────────── */
+  .pacs-grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 1.25rem;
+    padding: 0 1.5rem 1.5rem;
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+  @media (max-width: 960px) { .pacs-grid { grid-template-columns: 1fr; } }
+
+  /* ── Glass Card ─────────────────────────────────────────── */
+  .pacs-card {
+    background: var(--pacs-surface);
+    border: 1px solid var(--pacs-border);
+    border-radius: var(--pacs-radius);
+    padding: 1.4rem;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  .pacs-card-title {
+    font-size: .7rem; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--pacs-muted); margin-bottom: 1.1rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .pacs-card-title .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--pacs-teal); box-shadow: 0 0 10px rgba(0,188,212,0.5);
+    animation: pulse-led 2s infinite;
+  }
+
+  /* ── Filter Form ─────────────────────────────────────────── */
+  .filter-field { margin-bottom: .9rem; }
+  .filter-field label {
+    display: block; font-size: .71rem; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--pacs-muted); margin-bottom: .35rem;
+  }
+  .filter-input {
+    width: 100%;
+    background: rgba(0,0,0,0.4); border: 1.5px solid var(--pacs-border);
+    border-radius: var(--pacs-radius-sm);
+    color: var(--pacs-teal); font-size: .9rem; padding: .6rem .9rem;
+    outline: none; transition: border-color .2s, box-shadow .2s;
+  }
+  .filter-input:focus { border-color: var(--pacs-teal); box-shadow: var(--pacs-glow-teal); }
+  .filter-select {
+    appearance: none; cursor: pointer;
+    background: rgba(0,0,0,0.4) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='%2300bcd4' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right .7rem center/10px;
+  }
+  .btn-search {
+    width: 100%; padding: .8rem; border: none;
+    border-radius: var(--pacs-radius-sm);
+    background: linear-gradient(135deg, var(--pacs-teal), #0097a7);
+    color: #07090f; font-weight: 700; font-size: .95rem;
+    cursor: pointer; transition: all .2s;
+    display: flex; align-items: center; justify-content: center; gap: .5rem;
+    margin-top: .4rem;
+  }
+  .btn-search:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,188,212,0.4); }
+
+  /* ── Modality Pills ─────────────────────────────────────── */
+  .modality-pills { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
+  .modality-pill {
+    padding: .25rem .7rem; border-radius: 14px;
+    font-size: .72rem; font-weight: 700; cursor: pointer;
+    border: 1px solid var(--pacs-border); color: var(--pacs-muted);
+    background: transparent; transition: all .2s;
+  }
+  .modality-pill:hover, .modality-pill.active {
+    background: rgba(0,188,212,0.15); border-color: var(--pacs-teal); color: var(--pacs-teal);
+  }
+
+  /* ── Endpoint info ──────────────────────────────────────── */
+  .endpoint-list { margin-top: .5rem; }
+  .endpoint-row { display: flex; align-items: flex-start; gap: .5rem; margin-bottom: .6rem; }
+  .endpoint-badge {
+    display: inline-block; padding: .15rem .55rem;
+    border-radius: 5px; font-size: .62rem; font-weight: 800;
+    letter-spacing: .05em; text-transform: uppercase; flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .badge-qido { background: rgba(0,188,212,.2); color: var(--pacs-teal); }
+  .badge-wado { background: rgba(156,39,176,.2); color: #ce93d8; }
+  .badge-stow { background: rgba(0,230,118,.2); color: var(--pacs-green); }
+  .endpoint-url { font-family: monospace; font-size: .7rem; color: var(--pacs-muted); word-break: break-all; }
+
+  /* ── Study List ─────────────────────────────────────────── */
+  .study-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: .9rem;
+  }
+  .study-card {
+    background: rgba(0,0,0,0.3); border: 1px solid var(--pacs-border);
+    border-radius: 12px; padding: 1rem;
+    transition: all .25s; cursor: pointer;
+  }
+  .study-card:hover {
+    border-color: var(--pacs-teal);
+    box-shadow: 0 4px 24px rgba(0,188,212,0.15);
+    transform: translateY(-2px);
+  }
+  .study-modality-badge {
+    display: inline-block; padding: .2rem .65rem;
+    border-radius: 20px; font-size: .68rem; font-weight: 800;
+    letter-spacing: .06em; margin-bottom: .6rem;
+    background: rgba(0,188,212,.15); color: var(--pacs-teal);
+    border: 1px solid rgba(0,188,212,.3);
+  }
+  .study-uid { font-size: .68rem; color: var(--pacs-muted); font-family: monospace; word-break: break-all; margin-bottom: .4rem; }
+  .study-desc { font-weight: 600; font-size: .88rem; color: var(--pacs-text); margin-bottom: .4rem; }
+  .study-meta { font-size: .72rem; color: var(--pacs-muted); }
+  .btn-ohif {
+    display: inline-flex; align-items: center; gap: .3rem;
+    margin-top: .7rem; padding: .35rem .8rem;
+    background: rgba(0,188,212,.12); border: 1px solid rgba(0,188,212,.35);
+    color: var(--pacs-teal); border-radius: 7px;
+    font-size: .72rem; font-weight: 700; cursor: pointer; text-decoration: none;
+    transition: background .2s;
+  }
+  .btn-ohif:hover { background: rgba(0,188,212,.25); color: var(--pacs-teal); }
+
+  /* ── Upload Zone ─────────────────────────────────────────── */
+  .upload-zone {
+    border: 2px dashed var(--pacs-border); border-radius: var(--pacs-radius-sm);
+    padding: 2rem; text-align: center; cursor: pointer;
+    transition: all .25s;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--pacs-teal);
+    background: rgba(0,188,212,.07);
+  }
+  .upload-zone .upload-icon { font-size: 2.5rem; margin-bottom: .5rem; }
+  .upload-zone p { color: var(--pacs-muted); font-size: .84rem; margin: 0; }
+  .btn-upload-select {
+    margin-top: .8rem; padding: .5rem 1.2rem;
+    background: rgba(0,188,212,.15); border: 1px solid rgba(0,188,212,.35);
+    color: var(--pacs-teal); border-radius: 7px; font-weight: 700;
+    font-size: .82rem; cursor: pointer; transition: background .2s;
+  }
+  .btn-upload-select:hover { background: rgba(0,188,212,.28); }
+
+  /* ── Empty / Loading ─────────────────────────────────────── */
+  .pacs-empty {
+    text-align: center; padding: 3rem 1rem;
+    color: var(--pacs-muted); font-size: .88rem;
+  }
+  .pacs-empty .empty-icon { font-size: 3rem; margin-bottom: .8rem; opacity: .4; }
+  .spinner-ring {
+    width: 32px; height: 32px;
+    border: 3px solid rgba(255,255,255,.1);
+    border-top-color: var(--pacs-teal); border-radius: 50%;
+    animation: spin .8s linear infinite; margin: 1rem auto;
+    display: none;
+  }
+  .spinner-ring.active { display: block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .upload-progress {
+    margin-top: .8rem; display: none;
+    background: rgba(0,0,0,.3); border-radius: 8px; overflow: hidden; height: 6px;
+  }
+  .upload-progress.active { display: block; }
+  .upload-progress-bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--pacs-teal), var(--pacs-purple));
+    border-radius: 8px; transition: width .3s ease;
+  }
+  .upload-status { font-size: .78rem; color: var(--pacs-muted); margin-top: .4rem; text-align: center; }
+</style>
+
+<div class="pacs-root">
+
+  <!-- Header -->
+  <header class="pacs-header">
+    <div class="pacs-logo">🏥</div>
+    <div>
+      <h1>DICOM PACS Workstation & Explorer</h1>
+      <p class="sub">Local Orthanc PACS · QIDO-RS Search · WADO-RS Metadata · STOW-RS Upload</p>
+    </div>
+  </header>
+
+  <!-- Connection Status Banner -->
+  <div class="pacs-status-banner {{ 'live' if pacs.connected else 'simulated' }}">
+    <div class="status-led"></div>
+    {% if pacs.connected %}
+      <span class="pacs-banner-label" style="color:var(--pacs-green)">🟢 PACS Connected — {{ pacs.name }}</span>
+    {% else %}
+      <span class="pacs-banner-label" style="color:var(--pacs-amber)">🟡 PACS Simulated — Orthanc container offline</span>
+    {% endif %}
+    <div class="pacs-banner-chips">
+      <span class="pacs-chip">AET: {{ pacs.aet }}</span>
+      <span class="pacs-chip">v{{ pacs.version }}</span>
+      <span class="pacs-chip">💾 {{ pacs.storage_size_mb }} MB</span>
+      <span class="pacs-chip">Mode: {{ pacs.mode|upper }}</span>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="pacs-grid">
+
+    <!-- ── LEFT COLUMN: Search + Endpoints ─────────────────── -->
+    <div>
+
+      <!-- Search Card -->
+      <div class="pacs-card" style="margin-bottom:1.25rem;">
+        <div class="pacs-card-title"><span class="dot"></span>QIDO-RS Study Search</div>
+
+        <div class="filter-field">
+          <label>Patient ID</label>
+          <input id="f-patient" class="filter-input" type="text" placeholder="e.g. P0001234" />
+        </div>
+
+        <div class="filter-field">
+          <label>Modality</label>
+          <div class="modality-pills" id="modality-pills">
+            {% for m in ["CT","MR","DX","US","MG","PT","RF"] %}
+            <button class="modality-pill" data-modality="{{ m }}" onclick="toggleModality(this)">{{ m }}</button>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="filter-field">
+          <label>Study Date (YYYYMMDD)</label>
+          <input id="f-date" class="filter-input" type="text" placeholder="e.g. 20260913" maxlength="8" />
+        </div>
+
+        <div class="filter-field">
+          <label>Limit</label>
+          <select id="f-limit" class="filter-input filter-select">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+
+        <button class="btn-search" onclick="doSearch()">
+          🔍 Search PACS
+        </button>
+      </div>
+
+      <!-- DICOMweb Endpoints Card -->
+      <div class="pacs-card">
+        <div class="pacs-card-title"><span class="dot" style="background:var(--pacs-purple);box-shadow:0 0 10px rgba(156,39,176,0.5);"></span>DICOMweb Endpoints</div>
+        <div class="endpoint-list">
+          <div class="endpoint-row">
+            <span class="endpoint-badge badge-qido">QIDO</span>
+            <span class="endpoint-url">{{ pacs.qido_endpoint }}</span>
+          </div>
+          <div class="endpoint-row">
+            <span class="endpoint-badge badge-wado">WADO</span>
+            <span class="endpoint-url">{{ pacs.wado_endpoint }}</span>
+          </div>
+          <div class="endpoint-row">
+            <span class="endpoint-badge badge-stow">STOW</span>
+            <span class="endpoint-url">{{ pacs.stow_endpoint }}</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── RIGHT COLUMN: Results + Upload ──────────────────── -->
+    <div style="display:flex;flex-direction:column;gap:1.25rem;">
+
+      <!-- Study Results Card -->
+      <div class="pacs-card" style="flex:1;">
+        <div class="pacs-card-title" style="justify-content:space-between;">
+          <span><span class="dot"></span>Study Results</span>
+          <span id="result-count" style="font-size:.75rem;font-weight:400;"></span>
+        </div>
+        <div class="spinner-ring" id="search-spinner"></div>
+        <div id="study-results">
+          <div class="pacs-empty">
+            <div class="empty-icon">🔬</div>
+            Use the search panel to query studies from the PACS server.
+            <br>Results appear here with OHIF viewer launch buttons.
+          </div>
+        </div>
+      </div>
+
+      <!-- STOW-RS Upload Card -->
+      <div class="pacs-card">
+        <div class="pacs-card-title"><span class="dot" style="background:var(--pacs-green);box-shadow:0 0 10px rgba(0,230,118,0.5);"></span>STOW-RS — Push DICOM to PACS</div>
+
+        <div class="upload-zone" id="upload-zone"
+             ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
+             ondrop="onDrop(event)" onclick="document.getElementById('dcm-file').click()">
+          <div class="upload-icon">📤</div>
+          <p>Drag & drop a <strong>.dcm</strong> file here, or click to select</p>
+          <button class="btn-upload-select" onclick="event.stopPropagation();document.getElementById('dcm-file').click()">Select DICOM File</button>
+        </div>
+        <input type="file" id="dcm-file" accept=".dcm" style="display:none;" onchange="onFileSelected(event)" />
+
+        <div class="upload-progress" id="upload-progress">
+          <div class="upload-progress-bar" id="upload-bar"></div>
+        </div>
+        <div class="upload-status" id="upload-status"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const QIDO_URL    = "/imaging/dicom/qido";
+const OHIF_BASE   = "/imaging/dicom/ohif/";
+const PACS_CONNECTED = {{ 'true' if pacs.connected else 'false' }};
+let activeModality = null;
+
+/* ── Modality toggle ────────────────────────────────────────── */
+function toggleModality(btn) {
+  const m = btn.dataset.modality;
+  if (activeModality === m) {
+    activeModality = null;
+    btn.classList.remove("active");
+  } else {
+    document.querySelectorAll(".modality-pill").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    activeModality = m;
+  }
+}
+
+/* ── QIDO Search ────────────────────────────────────────────── */
+async function doSearch() {
+  const patientId  = document.getElementById("f-patient").value.trim();
+  const studyDate  = document.getElementById("f-date").value.trim();
+  const limit      = document.getElementById("f-limit").value;
+
+  const spinner = document.getElementById("search-spinner");
+  spinner.classList.add("active");
+  document.getElementById("study-results").innerHTML = "";
+  document.getElementById("result-count").textContent = "";
+
+  const params = new URLSearchParams();
+  if (patientId)      params.set("PatientID", patientId);
+  if (activeModality) params.set("ModalitiesInStudy", activeModality);
+  if (studyDate)      params.set("StudyDate", studyDate);
+  params.set("limit", limit);
+
+  try {
+    const resp = await fetch(`${QIDO_URL}?${params.toString()}`);
+    const data = await resp.json();
+    renderStudies(data.studies || []);
+    document.getElementById("result-count").textContent = `${(data.studies||[]).length} studies`;
+  } catch(e) {
+    document.getElementById("study-results").innerHTML =
+      `<div class="pacs-empty">⛔ Search failed: ${escHtml(e.message)}</div>`;
+  } finally {
+    spinner.classList.remove("active");
+  }
+}
+
+function renderStudies(studies) {
+  if (!studies.length) {
+    document.getElementById("study-results").innerHTML =
+      `<div class="pacs-empty"><div class="empty-icon">📭</div>No studies found matching your criteria.</div>`;
+    return;
+  }
+
+  const cards = studies.map(s => {
+    // DICOMweb QIDO JSON uses tag keys like "0020000D" for StudyInstanceUID
+    const uid  = getTag(s,"0020000D") || getTag(s,"study_instance_uid") || "—";
+    const mod  = getTag(s,"00080061") || getTag(s,"modality") || "—";
+    const pid  = getTag(s,"00100020") || "—";
+    const date = getTag(s,"00080020") || "—";
+    const desc = getTag(s,"00081030") || getTag(s,"study_description") || "Imaging Study";
+    const series = getTag(s,"00201206") || "—";
+    return `
+    <div class="study-card">
+      <span class="study-modality-badge">${escHtml(mod)}</span>
+      <div class="study-desc">${escHtml(desc)}</div>
+      <div class="study-uid">${escHtml(uid)}</div>
+      <div class="study-meta">Patient: <b>${escHtml(pid)}</b> · Date: ${escHtml(date)} · Series: ${escHtml(series)}</div>
+      <a class="btn-ohif" href="${OHIF_BASE}${encodeURIComponent(uid)}" target="_blank">
+        🖥 Open in OHIF Viewer ↗
+      </a>
+    </div>`;
+  }).join("");
+
+  document.getElementById("study-results").innerHTML = `<div class="study-grid">${cards}</div>`;
+}
+
+function getTag(obj, tag) {
+  const v = obj[tag];
+  if (!v) return null;
+  if (typeof v === "string") return v;
+  if (v.Value && v.Value.length) return String(v.Value[0]);
+  return null;
+}
+
+/* ── Drag & Drop Upload ─────────────────────────────────────── */
+function onDragOver(e) { e.preventDefault(); document.getElementById("upload-zone").classList.add("dragover"); }
+function onDragLeave(e) { document.getElementById("upload-zone").classList.remove("dragover"); }
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById("upload-zone").classList.remove("dragover");
+  const files = e.dataTransfer.files;
+  if (files.length) uploadFile(files[0]);
+}
+function onFileSelected(e) { if (e.target.files.length) uploadFile(e.target.files[0]); }
+
+async function uploadFile(file) {
+  if (!file.name.endsWith(".dcm")) {
+    setUploadStatus("⛔ Only .dcm DICOM files are accepted.", "var(--pacs-red)");
+    return;
+  }
+  setUploadStatus("📤 Uploading to PACS STOW-RS endpoint…", "var(--pacs-teal)");
+  const bar = document.getElementById("upload-bar");
+  document.getElementById("upload-progress").classList.add("active");
+
+  // Simulate progressive upload bar
+  let pct = 0;
+  const tick = setInterval(() => { pct = Math.min(pct + 12, 88); bar.style.width = pct + "%"; }, 200);
+
+  const formData = new FormData();
+  formData.append("dicom_file", file);
+
+  try {
+    const resp = await fetch("/imaging/dicom/pacs-sync", {
+      method: "POST",
+      body: formData,
+      headers: { "X-CSRFToken": document.querySelector('meta[name="csrf-token"]')?.content || "" },
+    });
+
+    clearInterval(tick);
+    bar.style.width = "100%";
+
+    const data = await resp.json();
+    if (resp.ok && data.status) {
+      setUploadStatus(
+        `✅ ${data.status === "success" ? "Pushed to Orthanc PACS" : "Stored locally"} — Orthanc ID: ${data.orthanc_id || "—"}`,
+        "var(--pacs-green)"
+      );
+    } else {
+      setUploadStatus("⛔ Upload failed: " + (data.error || "unknown"), "var(--pacs-red)");
+    }
+  } catch(e) {
+    clearInterval(tick);
+    setUploadStatus("⛔ Network error: " + e.message, "var(--pacs-red)");
+  }
+
+  setTimeout(() => {
+    document.getElementById("upload-progress").classList.remove("active");
+    bar.style.width = "0%";
+  }, 2500);
+}
+
+function setUploadStatus(msg, color) {
+  const el = document.getElementById("upload-status");
+  el.textContent = msg;
+  el.style.color = color || "var(--pacs-muted)";
+}
+
+function escHtml(str) {
+  return String(str||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+</script>
+{% endblock %}

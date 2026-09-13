@@ -139,6 +139,57 @@ class DICOMwebClient:
         """Generate embedded OHIF viewer URL for a study UID."""
         return f"{self.orthanc_url}/ohif-viewer/viewer?url=/dicom-web/studies/{study_instance_uid}/metadata"
 
+    # ---------------------------------------------------------------------------
+    # 4. PACS Health Status — Orthanc /system endpoint
+    # ---------------------------------------------------------------------------
+    def get_pacs_system_status(self) -> dict:
+        """
+        Query local Orthanc PACS /system to retrieve server health, AET,
+        disk usage, and DICOMweb endpoint information.
+        Falls back to simulated status when Orthanc is unreachable (dev/test).
+        """
+        try:
+            resp = requests.get(
+                f"{self.orthanc_url}/system",
+                auth=self.auth,
+                timeout=3,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return {
+                    "connected": True,
+                    "mode": "live",
+                    "aet": data.get("DicomAet", "ORTHANC"),
+                    "version": data.get("Version", "unknown"),
+                    "name": data.get("Name", "Orthanc"),
+                    "api_version": data.get("ApiVersion", ""),
+                    "storage_size_mb": round(data.get("TotalDiskSizeMB", 0), 1),
+                    "dicomweb_base": self.base_url,
+                    "orthanc_url": self.orthanc_url,
+                    "qido_endpoint": f"{self.base_url}/studies",
+                    "wado_endpoint": f"{self.base_url}/studies/{{uid}}/metadata",
+                    "stow_endpoint": f"{self.orthanc_url}/instances",
+                }
+            logger.warning("Orthanc /system returned status %d", resp.status_code)
+        except Exception as exc:  # noqa: BLE001
+            logger.info("Orthanc PACS unreachable (%s). Returning simulated status.", exc)
+
+        # Simulated status for dev/test without a running Orthanc container
+        return {
+            "connected": False,
+            "mode": "simulated",
+            "aet": "ORTHANC_SIMULATED",
+            "version": "1.12.x (offline)",
+            "name": "Orthanc PACS (Simulated)",
+            "api_version": "1",
+            "storage_size_mb": 0,
+            "dicomweb_base": self.base_url,
+            "orthanc_url": self.orthanc_url,
+            "qido_endpoint": f"{self.base_url}/studies",
+            "wado_endpoint": f"{self.base_url}/studies/{{uid}}/metadata",
+            "stow_endpoint": f"{self.orthanc_url}/instances",
+        }
+
 
 # Singleton instance
 dicomweb_client = DICOMwebClient()

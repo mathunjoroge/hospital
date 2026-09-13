@@ -219,3 +219,53 @@ def wado_metadata(study_uid):
     metadata = dicomweb_client.wado_retrieve_metadata(study_uid)
     return jsonify({"study_instance_uid": study_uid, "metadata": metadata}), 200
 
+
+@dicom_bp.route("/pacs-status", methods=["GET"])
+def pacs_status():
+    """Return local Orthanc PACS health status, AET, version, and DICOMweb endpoint details."""
+    status = dicomweb_client.get_pacs_system_status()
+    return jsonify(status), 200
+
+
+@dicom_bp.route("/pacs-explorer", methods=["GET"])
+def pacs_explorer():
+    """Render the interactive DICOM PACS Workstation & Explorer console."""
+    status = dicomweb_client.get_pacs_system_status()
+    return render_template(
+        "imaging/pacs_explorer.html",
+        title="DICOM PACS Explorer",
+        pacs=status,
+    )
+
+
+@dicom_bp.route("/pacs-sync", methods=["POST"])
+def pacs_sync():
+    """
+    STOW-RS upload endpoint.
+    Accepts a multipart .dcm file, stores it temporarily, and pushes it to Orthanc PACS
+    via stow_store_instances().  Returns the orthanc_id and status from the push.
+    """
+    uploaded = request.files.get("dicom_file")
+    if not uploaded or not uploaded.filename:
+        return jsonify({"error": "No DICOM file provided"}), 400
+
+    filename = uploaded.filename
+    if not filename.lower().endswith(".dcm"):
+        return jsonify({"error": "Only .dcm DICOM files accepted"}), 400
+
+    import tempfile
+    with tempfile.NamedTemporaryFile(suffix=".dcm", delete=False) as tmp:
+        uploaded.save(tmp.name)
+        tmp_path = tmp.name
+
+    try:
+        result = dicomweb_client.stow_store_instances(tmp_path)
+    except FileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 400
+    finally:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+
+    return jsonify(result), 200 if result.get("status") == "success" else 202

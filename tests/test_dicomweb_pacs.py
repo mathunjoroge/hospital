@@ -10,6 +10,7 @@ Tests:
   - FHIR R4 ImagingStudy resource serialization & endpoint (/api/fhir/R4/ImagingStudy)
 """
 
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 from departments.imaging.dicomweb_client import DICOMwebClient, dicomweb_client
@@ -17,6 +18,28 @@ from departments.models.imaging import ImagingResult
 from departments.models.medicine import Imaging
 from departments.models.records import Patient
 from extensions import db
+
+
+def _create_test_patient(patient_id: str, name: str, sex: str = "Male") -> Patient:
+    """Helper to instantiate valid Patient model."""
+    p = Patient.query.filter_by(patient_id=patient_id).first()
+    if not p:
+        p = Patient(
+            patient_id=patient_id,
+            name=name,
+            place_of_residence="Nairobi",
+            sex=sex,
+            date_of_birth=date(1990, 1, 1),
+            marital_status="Single",
+            contact="0700000000",
+            next_of_kin="Kin",
+            relationship_with_next_of_kin="Self",
+            next_of_kin_contact="0700000000",
+            emergency_contact="0700000000",
+        )
+        db.session.add(p)
+        db.session.commit()
+    return p
 
 
 class TestDICOMwebClient:
@@ -76,13 +99,8 @@ class TestDICOMServicePACSIntegration:
     def test_store_dicom_with_stow_push(self, app, tmp_path):
         from departments.imaging.dicom_service import DICOMService
 
-        # Create dummy patient in DB
         with app.app_context():
-            p = Patient.query.filter_by(patient_id="PTPACS01").first()
-            if not p:
-                p = Patient(patient_id="PTPACS01", name="PACS Test Patient", sex="Male")
-                db.session.add(p)
-                db.session.commit()
+            _create_test_patient("PTPACS01", "PACS Test Patient")
 
             dcm_path = tmp_path / "sample.dcm"
             dcm_path.write_bytes(b"HEADER_DICOM")
@@ -120,14 +138,11 @@ class TestOHIFAndDICOMwebRoutes:
 
     def test_ohif_viewer_route(self, client, app):
         with app.app_context():
-            p = Patient.query.filter_by(patient_id="PTOHIF01").first()
-            if not p:
-                p = Patient(patient_id="PTOHIF01", name="OHIF Patient", sex="Female")
-                db.session.add(p)
+            _create_test_patient("PTOHIF01", "OHIF Patient", sex="Female")
 
-            img = Imaging(patient_id="PTOHIF01", test_name="Brain MRI", status="completed")
+            img = Imaging(imaging_type="Brain MRI", cost=4500.0)
             db.session.add(img)
-            db.session.flush()
+            db.session.commit()
 
             res = ImagingResult(
                 result_id="sop.ohif.mri.001",
@@ -167,16 +182,13 @@ class TestOHIFAndDICOMwebRoutes:
 class TestFHIRImagingStudyEndpoint:
     """Test FHIR R4 ImagingStudy resource endpoints."""
 
-    def test_fhir_imaging_study_get(self, client, app):
+    def test_fhir_imaging_study_get(self, client, app, admin_user):
         with app.app_context():
-            p = Patient.query.filter_by(patient_id="PTFHIRIMG01").first()
-            if not p:
-                p = Patient(patient_id="PTFHIRIMG01", name="FHIR Img Patient", sex="Male")
-                db.session.add(p)
+            _create_test_patient("PTFHIRIMG01", "FHIR Img Patient")
 
-            img = Imaging(patient_id="PTFHIRIMG01", test_name="X-Ray", status="completed")
+            img = Imaging(imaging_type="Chest X-Ray", cost=2000.0)
             db.session.add(img)
-            db.session.flush()
+            db.session.commit()
 
             res = ImagingResult(
                 result_id="sop.fhir.xray.001",
@@ -190,11 +202,6 @@ class TestFHIRImagingStudyEndpoint:
             db.session.add(res)
             db.session.commit()
 
-        # Login admin or use test client with session
-        with client.session_transaction() as sess:
-            sess["user_id"] = 1
-            sess["role"] = "admin"
-
         resp = client.get("/api/fhir/R4/ImagingStudy/sop.fhir.xray.001")
         assert resp.status_code == 200
         data = resp.get_json()
@@ -202,10 +209,25 @@ class TestFHIRImagingStudyEndpoint:
         assert data["subject"]["reference"] == "Patient/PTFHIRIMG01"
         assert data["modality"][0]["code"] == "DX"
 
-    def test_fhir_imaging_study_search(self, client, app):
-        with client.session_transaction() as sess:
-            sess["user_id"] = 1
-            sess["role"] = "admin"
+    def test_fhir_imaging_study_search(self, client, app, admin_user):
+        with app.app_context():
+            _create_test_patient("PTFHIRIMG01", "FHIR Img Patient")
+
+            img = Imaging(imaging_type="Ultrasound Abdomen", cost=1800.0)
+            db.session.add(img)
+            db.session.commit()
+
+            res = ImagingResult(
+                result_id="sop.fhir.search.001",
+                patient_id="PTFHIRIMG01",
+                imaging_id=img.id,
+                processing_metadata={
+                    "study_instance_uid": "study.fhir.search.001",
+                    "modality": "US",
+                },
+            )
+            db.session.add(res)
+            db.session.commit()
 
         resp = client.get("/api/fhir/R4/ImagingStudy?patient=PTFHIRIMG01")
         assert resp.status_code == 200

@@ -94,11 +94,10 @@ class DICOMService:
                 imaging = db.session.get(Imaging, imaging_id)
 
             if not imaging:
-                # Create a generic imaging record
+                # Create a generic imaging record using Imaging model fields
                 imaging = Imaging(
-                    patient_id=patient.patient_id,
-                    test_name=metadata["study_description"] or f"{metadata['modality']} Study",
-                    status="completed",
+                    imaging_type=metadata["study_description"] or f"{metadata['modality']} Study",
+                    cost=0.0,
                 )
                 db.session.add(imaging)
                 db.session.flush()

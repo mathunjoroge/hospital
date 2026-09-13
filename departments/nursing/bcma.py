@@ -24,7 +24,7 @@ GET  /nursing/bcma/mar/<patient_id>— Return active MAR for a patient.
 import logging
 from datetime import datetime, timedelta, timezone
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, render_template, request
 
 from departments.api.auth import jwt_or_session_required
 from departments.models.medicine import Medicine, PrescribedMedicine
@@ -39,6 +39,23 @@ bcma_bp = Blueprint("bcma", __name__, url_prefix="/nursing/bcma")
 # Minimum minutes between two administrations of the same drug for the same
 # patient before the duplicate-dose guard fires.
 SAFE_DOSE_INTERVAL_MINUTES = 60
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Bedside BCMA Scanner Console UI
+# ──────────────────────────────────────────────────────────────────────────────
+
+@bcma_bp.route("/scanner", methods=["GET"])
+@jwt_or_session_required
+@roles_required("admin", "nursing", "medicine", "clinical")
+def bcma_scanner_console():
+    """Render the Bedside BCMA Barcode Medication Administration scanner workstation."""
+    return render_template(
+        "nursing/bcma_scanner.html",
+        title="Bedside BCMA Scanner Console",
+        safe_dose_interval=SAFE_DOSE_INTERVAL_MINUTES,
+    )
+
 
 
 def _find_patient_by_barcode(barcode: str):
