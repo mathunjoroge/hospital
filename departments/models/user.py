@@ -8,7 +8,7 @@ class User(UserMixin, db.Model):
     facility_id = db.Column(db.Integer, db.ForeignKey("facilities.id"), nullable=True, index=True)
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
+    password = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(50), nullable=False)  # e.g., 'records', 'nursing', etc.
     failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
     locked_until = db.Column(db.DateTime, nullable=True)

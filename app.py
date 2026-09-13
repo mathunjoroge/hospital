@@ -448,9 +448,8 @@ def login():
         try:
             user = User.query.filter_by(username=username).first()
             if user:
-                if user.locked_until and user.locked_until.replace(
-                    tzinfo=timezone.utc
-                ) > datetime.now(timezone.utc):
+                locked_time = user.locked_until if (user.locked_until and user.locked_until.tzinfo) else (user.locked_until.replace(tzinfo=timezone.utc) if user.locked_until else None)
+                if locked_time and locked_time > datetime.now(timezone.utc):
                     flash(
                         "Account locked due to too many failed attempts. Please try again later.",
                         "error",
