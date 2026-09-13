@@ -9,7 +9,7 @@ read-heavy executive reporting and MoH DHIS2 / KHIS reporting.
 """
 
 import logging
-from datetime import date, datetime, time, timezone
+from datetime import date
 from decimal import Decimal
 from typing import Optional
 
@@ -35,8 +35,6 @@ def run_daily_kpi_etl(target_date: Optional[date] = None) -> DailyKpiSnapshot:
     if target_date is None:
         target_date = date.today()
 
-    start_dt = datetime.combine(target_date, time.min).replace(tzinfo=timezone.utc)
-    end_dt = datetime.combine(target_date, time.max).replace(tzinfo=timezone.utc)
 
     # 1. Outpatient visits (OPD encounters started today)
     total_opd = Encounter.query.filter(
