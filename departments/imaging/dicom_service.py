@@ -103,6 +103,12 @@ class DICOMService:
                 db.session.add(imaging)
                 db.session.flush()
 
+            from departments.imaging.dicomweb_client import dicomweb_client
+
+            stow_res = dicomweb_client.stow_store_instances(str(dest_path))
+            orthanc_uid = stow_res.get("orthanc_id")
+            storage_backend = "orthanc_pacs" if stow_res.get("status") == "success" else "local_orthanc"
+
             imaging_result = ImagingResult(
                 result_id=sop_uid,
                 patient_id=patient.patient_id,
@@ -118,13 +124,15 @@ class DICOMService:
                     "accession_number": metadata["accession_number"],
                     "body_part": metadata["body_part"],
                 },
+                orthanc_uid=orthanc_uid,
+                storage_backend=storage_backend,
                 files_processed=1,
             )
 
             db.session.add(imaging_result)
             db.session.commit()
 
-            logger.info("Stored DICOM file: %s -> %s", file_path, dest_path)
+            logger.info("Stored DICOM file: %s -> %s (PACS Orthanc UID: %s)", file_path, dest_path, orthanc_uid)
 
         return imaging_result
 

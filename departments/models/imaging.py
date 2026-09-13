@@ -21,6 +21,8 @@ class ImagingResult(db.Model):
     files_processed = db.Column(db.Integer, default=0, nullable=False)
     files_failed = db.Column(db.Integer, default=0, nullable=False)
     processing_metadata = db.Column(db.JSON, nullable=True)
+    orthanc_uid = db.Column(db.String(100), nullable=True, index=True)  # Orthanc/PACS DICOMweb Study ID
+    storage_backend = db.Column(db.String(50), default="local_orthanc", nullable=False)
 
     # Relationships
     patient = db.relationship("Patient", backref="imaging_results")

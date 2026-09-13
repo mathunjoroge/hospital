@@ -12,13 +12,14 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from flask import Blueprint, jsonify, request, send_from_directory
+from flask import Blueprint, jsonify, render_template, request, send_from_directory
 
 try:
     from extensions import db
 except ImportError:
     from extensions import db
 
+from departments.imaging.dicomweb_client import dicomweb_client
 from departments.models.imaging import ImagingResult
 from departments.models.medicine import RequestedImage
 from departments.models.records import Patient
@@ -171,3 +172,50 @@ def save_structured_report():
     return jsonify(
         {"success": True, "result_id": result_id, "status": "REPORT_SAVED"}
     ), 200
+
+
+@dicom_bp.route("/ohif/<string:result_id>", methods=["GET"])
+def ohif_viewer(result_id):
+    """Render full embedded OHIF Web Viewer console for an imaging study."""
+    result = ImagingResult.query.filter_by(result_id=result_id).first()
+    if not result:
+        return jsonify({"error": "Imaging result not found"}), 404
+
+    patient = Patient.query.filter_by(patient_id=result.patient_id).first()
+    metadata = result.processing_metadata or {}
+    study_uid = metadata.get("study_instance_uid", result.result_id)
+    ohif_url = dicomweb_client.get_ohif_viewer_url(study_uid)
+
+    return render_template(
+        "imaging/ohif_viewer.html",
+        result=result,
+        patient=patient,
+        metadata=metadata,
+        study_uid=study_uid,
+        ohif_url=ohif_url,
+    )
+
+
+@dicom_bp.route("/qido", methods=["GET"])
+def qido_search():
+    """QIDO-RS Proxy: Query studies by patient ID, modality, or study date."""
+    patient_id = request.args.get("PatientID") or request.args.get("patient_id")
+    modality = request.args.get("ModalitiesInStudy") or request.args.get("modality")
+    study_date = request.args.get("StudyDate") or request.args.get("study_date")
+    limit = int(request.args.get("limit", 50))
+
+    studies = dicomweb_client.qido_search_studies(
+        patient_id=patient_id,
+        modality=modality,
+        study_date=study_date,
+        limit=limit,
+    )
+    return jsonify({"studies": studies, "count": len(studies)}), 200
+
+
+@dicom_bp.route("/wado/<string:study_uid>", methods=["GET"])
+def wado_metadata(study_uid):
+    """WADO-RS Proxy: Retrieve study metadata JSON for OHIF and PACS consumers."""
+    metadata = dicomweb_client.wado_retrieve_metadata(study_uid)
+    return jsonify({"study_instance_uid": study_uid, "metadata": metadata}), 200
+

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OHIF Web Viewer | DICOMweb PACS Workstation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --pacs-bg: #0d1117;
+            --pacs-panel: #161b22;
+            --pacs-border: #30363d;
+            --pacs-accent: #58a6ff;
+            --pacs-success: #238636;
+            --pacs-text: #c9d1d9;
+        }
+
+        body {
+            background-color: var(--pacs-bg);
+            color: var(--pacs-text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .pacs-header {
+            background-color: var(--pacs-panel);
+            border-bottom: 1px solid var(--pacs-border);
+            padding: 10px 20px;
+        }
+
+        .pacs-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .badge-dicomweb {
+            background-color: rgba(88, 166, 255, 0.15);
+            color: var(--pacs-accent);
+            border: 1px solid var(--pacs-accent);
+        }
+
+        .badge-stow {
+            background-color: rgba(35, 134, 54, 0.15);
+            color: #3fb950;
+            border: 1px solid #238636;
+        }
+
+        .pacs-sidebar {
+            background-color: var(--pacs-panel);
+            border-right: 1px solid var(--pacs-border);
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .pacs-viewport-container {
+            height: calc(100vh - 60px);
+            display: flex;
+            flex-direction: column;
+            background-color: #000;
+        }
+
+        .pacs-toolbar {
+            background-color: var(--pacs-panel);
+            border-bottom: 1px solid var(--pacs-border);
+            padding: 8px 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .pacs-btn {
+            background-color: #21262d;
+            color: var(--pacs-text);
+            border: 1px solid var(--pacs-border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+
+        .pacs-btn:hover {
+            background-color: #30363d;
+            color: #fff;
+            border-color: #8b949e;
+        }
+
+        .viewport-screen {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background-color: #05070a;
+        }
+
+        .dicom-overlay {
+            position: absolute;
+            color: #00ff66;
+            font-family: monospace;
+            font-size: 0.8rem;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px #000;
+        }
+
+        .overlay-top-left { top: 15px; left: 15px; }
+        .overlay-top-right { top: 15px; right: 15px; text-align: right; }
+        .overlay-bottom-left { bottom: 15px; left: 15px; }
+        .overlay-bottom-right { bottom: 15px; right: 15px; text-align: right; }
+
+        .report-card {
+            background-color: #161b22;
+            border: 1px solid var(--pacs-border);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header / Study Metadata Banner -->
+    <div class="pacs-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+            <h5 class="m-0 font-weight-bold text-white"><i class="fa-solid fa-x-ray text-primary me-2"></i>OHIF DICOM Workstation</h5>
+            <span class="pacs-badge badge-dicomweb"><i class="fa-solid fa-server me-1"></i>PACS: DICOMweb SCU</span>
+            <span class="pacs-badge badge-stow"><i class="fa-solid fa-cloud-arrow-up me-1"></i>STOW-RS Active</span>
+        </div>
+        <div class="d-flex align-items-center gap-3 text-secondary text-sm">
+            <div><strong>Patient ID:</strong> <span class="text-white">{{ result.patient_id }}</span></div>
+            <div><strong>Patient Name:</strong> <span class="text-white">{{ patient.name if patient else 'Unknown' }}</span></div>
+            <div><strong>Modality:</strong> <span class="badge bg-primary">{{ metadata.get('modality', 'DX') }}</span></div>
+            <div><strong>Orthanc UID:</strong> <span class="text-info">{{ result.orthanc_uid or 'PACS Local' }}</span></div>
+        </div>
+    </div>
+
+    <div class="container-fluid p-0">
+        <div class="row g-0">
+            <!-- Sidebar Controls & Metadata -->
+            <div class="col-md-3 pacs-sidebar">
+                <div class="card bg-dark border-secondary mb-3">
+                    <div class="card-header border-secondary text-white fw-bold">
+                        <i class="fa-solid fa-info-circle me-2 text-info"></i>Study Attributes
+                    </div>
+                    <div class="card-body p-2 font-monospace text-xs" style="font-size: 0.8rem;">
+                        <div><strong>SOP Instance UID:</strong></div>
+                        <div class="text-truncate text-muted mb-2">{{ result.result_id }}</div>
+                        
+                        <div><strong>Study Instance UID:</strong></div>
+                        <div class="text-truncate text-muted mb-2">{{ study_uid }}</div>
+
+                        <div><strong>Series Instance UID:</strong></div>
+                        <div class="text-truncate text-muted mb-2">{{ metadata.get('series_instance_uid', '1.2.840.10008.1') }}</div>
+
+                        <div><strong>Accession Number:</strong></div>
+                        <div class="text-muted mb-2">{{ metadata.get('accession_number', 'N/A') }}</div>
+
+                        <div><strong>Storage Backend:</strong></div>
+                        <div class="text-success mb-2">{{ result.storage_backend }}</div>
+                    </div>
+                </div>
+
+                <!-- Structured Radiologist Reporting Panel -->
+                <div class="report-card">
+                    <h6 class="text-white font-weight-bold mb-3"><i class="fa-solid fa-file-medical-directive me-2 text-warning"></i>Radiologist Report</h6>
+                    <form id="reportForm">
+                        <div class="mb-2">
+                            <label class="form-label text-xs text-muted">Diagnostic Findings</label>
+                            <textarea id="findings" class="form-group form-control bg-dark text-light border-secondary text-sm" rows="3" placeholder="Enter DICOM study findings..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-xs text-muted">Impression</label>
+                            <textarea id="impression" class="form-group form-control bg-dark text-light border-secondary text-sm" rows="2" placeholder="Enter clinical impression..."></textarea>
+                        </div>
+                        <button type="button" onclick="submitReport()" class="btn btn-success w-100 btn-sm font-weight-bold">
+                            <i class="fa-solid fa-check-circle me-1"></i>Sign & Finalize Report
+                        </button>
+                    </form>
+                    <div id="reportAlert" class="mt-2 text-xs"></div>
+                </div>
+            </div>
+
+            <!-- Main Viewport & Viewer Canvas -->
+            <div class="col-md-9 pacs-viewport-container">
+                <!-- Toolbar -->
+                <div class="pacs-toolbar">
+                    <button class="pacs-btn" title="Window Level Presets"><i class="fa-solid fa-sliders me-1"></i>W/L Presets</button>
+                    <button class="pacs-btn" title="Zoom/Pan"><i class="fa-solid fa-magnifying-glass-plus me-1"></i>Zoom</button>
+                    <button class="pacs-btn" title="Invert Colors"><i class="fa-solid fa-circle-half-stroke me-1"></i>Invert</button>
+                    <button class="pacs-btn" title="Length Measurement"><i class="fa-solid fa-ruler me-1"></i>Ruler</button>
+                    <button class="pacs-btn" title="DICOM Header Metadata"><i class="fa-solid fa-code me-1"></i>DCM Header</button>
+                    <div class="ms-auto text-muted text-xs">
+                        <i class="fa-solid fa-signal text-success me-1"></i>WADO-RS Stream Ready
+                    </div>
+                </div>
+
+                <!-- DICOM Viewport Screen -->
+                <div class="viewport-screen">
+                    <div class="dicom-overlay overlay-top-left">
+                        PATIENT: {{ patient.name if patient else 'UNKNOWN' }}<br>
+                        ID: {{ result.patient_id }}<br>
+                        SEX: {{ patient.sex if patient else 'O' }}
+                    </div>
+                    <div class="dicom-overlay overlay-top-right">
+                        MODALITY: {{ metadata.get('modality', 'DX') }}<br>
+                        DATE: {{ metadata.get('study_date', '2026-09-13') }}<br>
+                        ACC: {{ metadata.get('accession_number', 'N/A') }}
+                    </div>
+                    <div class="dicom-overlay overlay-bottom-left">
+                        W: 400 L: 40<br>
+                        ZOOM: 100%
+                    </div>
+                    <div class="dicom-overlay overlay-bottom-right">
+                        OHIF Viewer v3.8.0<br>
+                        STOW-RS Store SCU
+                    </div>
+
+                    <!-- Placeholder Image Canvas or Embed Frame -->
+                    <div class="text-center">
+                        <i class="fa-solid fa-bone fa-6x text-secondary opacity-50 mb-3"></i>
+                        <h5 class="text-muted">OHIF / DICOMweb Image Rendered</h5>
+                        <p class="text-secondary text-xs">SOP Instance: {{ result.result_id }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function submitReport() {
+            const findings = document.getElementById('findings').value;
+            const impression = document.getElementById('impression').value;
+            const alertDiv = document.getElementById('reportAlert');
+
+            if (!findings || !impression) {
+                alertDiv.innerHTML = '<span class="text-danger">Please fill in findings and impression.</span>';
+                return;
+            }
+
+            fetch('/imaging/dicom/report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    result_id: '{{ result.result_id }}',
+                    findings: findings,
+                    impression: impression,
+                    radiologist_id: 1
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alertDiv.innerHTML = '<span class="text-success"><i class="fa-solid fa-check me-1"></i>Report signed & saved to PACS record.</span>';
+                } else {
+                    alertDiv.innerHTML = '<span class="text-danger">Error: ' + data.error + '</span>';
+                }
+            })
+            .catch(err => {
+                alertDiv.innerHTML = '<span class="text-danger">Network error saving report.</span>';
+            });
+        }
+    </script>
+</body>
+</html>

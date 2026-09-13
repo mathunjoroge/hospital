@@ -599,3 +599,129 @@ def search_fhir_encounters():
     }
     return jsonify(bundle)
 
+
+def imaging_result_to_fhir_study(img: ImagingResult) -> dict:
+    """Map HIMS ImagingResult to HL7 FHIR R4 ImagingStudy Resource."""
+    metadata = img.processing_metadata or {}
+    study_uid = metadata.get("study_instance_uid", img.result_id)
+    series_uid = metadata.get("series_instance_uid", "1.2.840.10008.1.1")
+    modality = metadata.get("modality", "DX")
+
+    resource = {
+        "resourceType": "ImagingStudy",
+        "id": f"imgstudy-{img.id}",
+        "identifier": [
+            {
+                "system": "urn:dicom:uid",
+                "value": f"urn:oid:{study_uid}",
+            }
+        ],
+        "status": "available",
+        "modality": [
+            {
+                "system": "http://dicom.nema.org/resources/ontology/DCM",
+                "code": modality,
+                "display": modality,
+            }
+        ],
+        "subject": {"reference": f"Patient/{img.patient_id}"},
+        "started": img.test_date.isoformat()
+        if getattr(img, "test_date", None)
+        else datetime.now(timezone.utc).isoformat(),
+        "endpoint": [
+            {
+                "reference": f"Endpoint/wado-rs-{study_uid}",
+                "display": f"PACS WADO-RS Endpoint for Study {study_uid}",
+            }
+        ],
+        "series": [
+            {
+                "uid": series_uid,
+                "modality": {
+                    "system": "http://dicom.nema.org/resources/ontology/DCM",
+                    "code": modality,
+                },
+                "numberOfInstances": img.files_processed or 1,
+                "instance": [
+                    {
+                        "uid": img.result_id,
+                        "sopClass": {
+                            "system": "urn:ietf:rfc:3986",
+                            "code": "urn:oid:1.2.840.10008.5.1.4.1.1.1",
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    return resource
+
+
+@fhir_bp.route("/ImagingStudy/<string:result_id>", methods=["GET"])
+@jwt_or_session_required
+@roles_required(
+    "admin",
+    "records",
+    "medicine",
+    "nursing",
+    "pharmacy",
+    "laboratory",
+    "imaging",
+    "api",
+)
+def get_fhir_imaging_study(result_id):
+    """Retrieve FHIR R4 ImagingStudy resource by ImagingResult result_id."""
+    img = ImagingResult.query.filter_by(result_id=result_id).first_or_404()
+    return jsonify(imaging_result_to_fhir_study(img))
+
+
+@fhir_bp.route("/ImagingStudy", methods=["GET"])
+@jwt_or_session_required
+@roles_required(
+    "admin",
+    "records",
+    "medicine",
+    "nursing",
+    "pharmacy",
+    "laboratory",
+    "imaging",
+    "api",
+)
+def search_fhir_imaging_studies():
+    """Search FHIR R4 ImagingStudy resources for a patient."""
+    patient_id = request.args.get("patient")
+    if not patient_id:
+        return jsonify(
+            {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "required",
+                        "diagnostics": "Query parameter 'patient' is required.",
+                    }
+                ],
+            }
+        ), 400
+
+    imaging_results = ImagingResult.query.filter_by(patient_id=patient_id).all()
+    entries = []
+
+    for img in imaging_results:
+        res_data = imaging_result_to_fhir_study(img)
+        entries.append(
+            {
+                "fullUrl": f"{request.host_url}api/fhir/R4/ImagingStudy/{img.result_id}",
+                "resource": res_data,
+            }
+        )
+
+    bundle = {
+        "resourceType": "Bundle",
+        "type": "searchset",
+        "total": len(entries),
+        "entry": entries,
+    }
+    return jsonify(bundle)
+
+

@@ -25,7 +25,16 @@ class DailyKpiSnapshot(db.Model):
     total_immunizations = db.Column(db.Integer, default=0)
     total_lab_tests_ordered = db.Column(db.Integer, default=0)
 
+    # HIMSS EMRAM Stage 7 Data Warehouse & Quality Metrics
+    avg_length_of_stay = db.Column(db.Float, default=0.0)
+    bed_occupancy_rate = db.Column(db.Float, default=0.0)
+    thirty_day_readmission_count = db.Column(db.Integer, default=0)
+    mortality_count = db.Column(db.Integer, default=0)
+    top_diagnoses_json = db.Column(db.JSON, nullable=True)
+    disease_surveillance_json = db.Column(db.JSON, nullable=True)
+
     # Financial Metrics
     total_revenue_collected = db.Column(db.Numeric(12, 2), default=0.0)
 
     created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+
