@@ -3,6 +3,17 @@ from functools import wraps
 from flask import abort, g, session
 from flask_login import current_user
 
+ROLE_PERMISSIONS = {
+    "admin": ["*"],
+    "doctor": ["read", "write", "prescribe"],
+    "nurse": ["read", "write", "triage"],
+    "pharmacist": ["read", "dispense"],
+    "lab_tech": ["read", "laboratory"],
+    "radiology": ["read", "imaging"],
+    "api": ["read", "write"],
+}
+
+
 
 def get_effective_user():
     """Return g.api_user if set via JWT, otherwise current_user if authenticated."""

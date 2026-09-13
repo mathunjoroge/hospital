@@ -26,6 +26,14 @@ def compute_log_hash(
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+def _format_ts_str(ts: datetime | None) -> str:
+    if not ts:
+        return ""
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts.isoformat()
+
+
 def log_audit_event(connection, level: str, message: str, user_id=None, source: str = "audit"):
     """Helper to insert an audit log entry with SHA-256 hash chaining."""
     stmt = Log.__table__.select().order_by(Log.id.desc()).limit(1)
@@ -33,7 +41,7 @@ def log_audit_event(connection, level: str, message: str, user_id=None, source: 
     previous_hash = row.entry_hash if row and getattr(row, "entry_hash", None) else GENESIS_HASH
 
     ts = datetime.now(timezone.utc)
-    ts_str = ts.isoformat()
+    ts_str = _format_ts_str(ts)
     uid_str = str(user_id) if user_id is not None else "SYSTEM"
 
     entry_hash = compute_log_hash(ts_str, level, message, uid_str, source, previous_hash)
@@ -78,7 +86,7 @@ def verify_audit_log_chain() -> dict:
             })
 
         if log.entry_hash:
-            ts_str = log.timestamp.isoformat() if log.timestamp else ""
+            ts_str = _format_ts_str(log.timestamp)
             uid_str = str(log.user_id) if log.user_id is not None else "SYSTEM"
             calc_hash = compute_log_hash(
                 ts_str, log.level, log.message, uid_str, log.source or "", log.previous_hash or GENESIS_HASH
@@ -92,6 +100,7 @@ def verify_audit_log_chain() -> dict:
                 })
 
         expected_prev = log.entry_hash or expected_prev
+
 
     return {
         "valid": len(tampered) == 0,

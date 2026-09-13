@@ -94,20 +94,33 @@ class TestHIPAAComplianceEngine:
 class TestComplianceRoutes:
     """Test Compliance UI & API Endpoints."""
 
-    def test_hipaa_dashboard_view(self, client, app):
-        with client.session_transaction() as sess:
-            sess["user_id"] = 1
-            sess["role"] = "admin"
+    def _login_admin(self, app, client):
+        with app.app_context():
+            from werkzeug.security import generate_password_hash
+            from departments.models.user import User
+            admin = User.query.filter_by(username="compliance_admin_test").first()
+            if not admin:
+                admin = User(
+                    username="compliance_admin_test",
+                    password=generate_password_hash("Password123!", method="pbkdf2:sha256"),
+                    role="admin",
+                )
+                db.session.add(admin)
+                db.session.commit()
+            user_id = admin.id
 
+        with client.session_transaction() as sess:
+            sess["_user_id"] = str(user_id)
+            sess["_fresh"] = True
+
+    def test_hipaa_dashboard_view(self, client, app):
+        self._login_admin(app, client)
         resp = client.get("/compliance/hipaa-dashboard")
         assert resp.status_code == 200
         assert b"HIPAA &amp; HITRUST CSF Certification Console" in resp.data or b"HIPAA & HITRUST CSF Certification Console" in resp.data
 
     def test_api_hipaa_status(self, client, app):
-        with client.session_transaction() as sess:
-            sess["user_id"] = 1
-            sess["role"] = "admin"
-
+        self._login_admin(app, client)
         resp = client.get("/compliance/api/hipaa-status")
         assert resp.status_code == 200
         data = resp.get_json()
@@ -115,12 +128,10 @@ class TestComplianceRoutes:
         assert "report" in data
 
     def test_api_verify_audit_chain(self, client, app):
-        with client.session_transaction() as sess:
-            sess["user_id"] = 1
-            sess["role"] = "admin"
-
+        self._login_admin(app, client)
         resp = client.get("/compliance/api/verify-audit-chain")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["status"] == "success"
         assert "verification" in data
+
