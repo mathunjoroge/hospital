@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 
 from departments.api.auth import jwt_or_session_required
+from departments.medicine.terminology_server import FHIRTerminologyServer
 from departments.models.encounter import Encounter
 from departments.models.imaging import ImagingResult
 from departments.models.laboratory import LabResult
@@ -1168,6 +1169,85 @@ def _dispatch_fhir_get(url: str) -> dict:
             ],
         },
     }
+
+
+@fhir_bp.route("/CodeSystem/$lookup", methods=["GET", "POST"])
+def fhir_codesystem_lookup():
+    """
+    FHIR R4 $lookup operation on CodeSystem.
+    """
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        system = data.get("system")
+        code = data.get("code")
+        if not system or not code:
+            params = data.get("parameter", [])
+            for p in params:
+                if p.get("name") == "system":
+                    system = p.get("valueUri") or p.get("valueString")
+                elif p.get("name") == "code":
+                    code = p.get("valueCode") or p.get("valueString")
+    else:
+        system = request.args.get("system")
+        code = request.args.get("code")
+
+    if not system or not code:
+        return jsonify({
+            "resourceType": "OperationOutcome",
+            "issue": [{
+                "severity": "error",
+                "code": "invalid",
+                "diagnostics": "Parameters 'system' and 'code' are required for $lookup operation.",
+            }],
+        }), 400
+
+    result = FHIRTerminologyServer.lookup_code(system, code)
+    if result.get("error"):
+        status_code = result.get("status", 404)
+        result.pop("error", None)
+        result.pop("status", None)
+        return jsonify(result), status_code
+
+    return jsonify(result), 200
+
+
+@fhir_bp.route("/CodeSystem/$validate-code", methods=["GET", "POST"])
+def fhir_codesystem_validate_code():
+    """
+    FHIR R4 $validate-code operation on CodeSystem.
+    """
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        system = data.get("system")
+        code = data.get("code")
+        display = data.get("display")
+        if not system or not code:
+            params = data.get("parameter", [])
+            for p in params:
+                if p.get("name") == "system":
+                    system = p.get("valueUri") or p.get("valueString")
+                elif p.get("name") == "code":
+                    code = p.get("valueCode") or p.get("valueString")
+                elif p.get("name") == "display":
+                    display = p.get("valueString")
+    else:
+        system = request.args.get("system")
+        code = request.args.get("code")
+        display = request.args.get("display")
+
+    if not system or not code:
+        return jsonify({
+            "resourceType": "OperationOutcome",
+            "issue": [{
+                "severity": "error",
+                "code": "invalid",
+                "diagnostics": "Parameters 'system' and 'code' are required for $validate-code operation.",
+            }],
+        }), 400
+
+    result = FHIRTerminologyServer.validate_code(system, code, display)
+    return jsonify(result), 200
+
 
 
 
