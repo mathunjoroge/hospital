@@ -13,10 +13,10 @@
 ---
 
 ## Remaining Priority Roadmap 🔴
-- [ ] **Gap #8: Multi-Facility HIE & FHIR R4 Subscription Webhooks** — FHIR `$everything` bundle exporter, real-time FHIR `Subscription` webhook event engine.
+- [x] **Gap #8: Multi-Facility HIE & FHIR R4 Subscription Webhooks** — FHIR `$everything` bundle exporter, real-time FHIR `Subscription` webhook event engine with HMAC-SHA256 signatures.
 
-- [ ] **Gap #9: Perioperative / OR Scheduling & Anesthesia Log Matrix** — ASA Physical Status scoring, Intraoperative Anesthesia Timeline Tracker, OR Utilization Board.
-- [ ] **Gap #10: NICU & Pediatrics Growth Charts / APGAR Workstation** — WHO/CDC growth percentile curves (weight/height/head circ), APGAR 1/5/10 min calculator, Neonatal Phototherapy Risk Chart.
-- [ ] **Gap #11: RCM & Pre-Submission Claims Scrubbing Engine** — Pre-claim ICD-10 vs CPT rule scrubber, EDI 837/835 electronic claim generator, denial risk analyzer.
-- [ ] **Gap #12: Clinical Trial Protocol & e-Consent Management** — Clinical trial registry, participant enrollment matrix, protocol eligibility screener, AE/SAE (Adverse Event) logger.
+- [x] **Gap #9: Perioperative / OR Scheduling & Anesthesia Log Matrix** — ASA Physical Status scoring & emergency mortality risk multiplier, Intraoperative Anesthesia Timeline Tracker matrix, OR Room Suite Allocation Board & Schedule conflict detector.
+- [x] **Gap #10: NICU & Pediatrics Growth Charts / APGAR Workstation** — WHO/CDC growth percentile Z-score calculator (weight/height/head circ), APGAR 1/5/10 min score matrix & resuscitation risk triage, Bhutani Neonatal Hyperbilirubinemia Phototherapy Risk Nomogram.
+- [x] **Gap #11: RCM & Pre-Submission Claims Scrubbing Engine** — Pre-claim ICD-10 & pre-authorization rule scrubber, HIPAA X12 837P professional claim generator, X12 835 ERA remittance parser with auto-reconciliation, Denial risk scoring.
+- [x] **Gap #12: Clinical Trial Protocol & e-Consent Management** — Clinical trial protocol registry (Phases I-IV), automated patient eligibility screener, SHA-256 digital signature e-Consent, treatment arm randomization, AE/SAE Grade 1-5 logger with IRB regulatory escalation alerts.
 

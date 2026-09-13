@@ -246,6 +246,11 @@ class TheatreList(db.Model):
         db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
     )
 
+    # OR Room Scheduling & Allocation
+    or_room = db.Column(db.String(50), nullable=True, default="OR 1")
+    scheduled_start_time = db.Column(db.DateTime, nullable=True)
+    estimated_duration_minutes = db.Column(db.Integer, nullable=True, default=120)
+
     # Relationships
     patient = db.relationship("Patient", backref="theatre_entries")
     procedure = db.relationship("TheatreProcedure", backref="theatre_procedures")

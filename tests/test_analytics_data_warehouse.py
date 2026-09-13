@@ -30,7 +30,7 @@ class TestAnalyticsETL:
 
             p = Patient.query.filter_by(patient_id="PTETL01").first()
             if not p:
-                p = Patient(patient_id="PTETL01", name="ETL Patient", sex="Male")
+                p = Patient(patient_id="PTETL01", name="ETL Patient", sex="Male", date_of_birth=date(1990, 1, 1))
                 db.session.add(p)
                 db.session.commit()
 
@@ -56,6 +56,8 @@ class TestAnalyticsETL:
             # Create SOAP note with diagnosis
             note = SOAPNote(
                 patient_id="PTETL01",
+                situation="Fever and body aches",
+                hpi="High fever for 3 days",
                 assessment="Severe Malaria with Fever",
                 created_at=start_dt + timedelta(hours=2),
             )
@@ -75,20 +77,12 @@ class TestAnalyticsETL:
 class TestAnalyticsRoutes:
     """Test Analytics & Population Health BI Endpoints."""
 
-    def test_dashboard_view_authenticated(self, client, app):
-        with client.session_transaction() as sess:
-            sess["user_id"] = 1
-            sess["role"] = "admin"
-
+    def test_dashboard_view_authenticated(self, client, app, admin_user):
         resp = client.get("/analytics/dashboard")
         assert resp.status_code == 200
         assert b"HIMSS EMRAM Stage 7 BI Console" in resp.data
 
-    def test_api_dashboard_data(self, client, app):
-        with client.session_transaction() as sess:
-            sess["user_id"] = 1
-            sess["role"] = "admin"
-
+    def test_api_dashboard_data(self, client, app, admin_user):
         resp = client.get("/analytics/api/dashboard")
         assert resp.status_code == 200
         data = resp.get_json()
@@ -96,11 +90,7 @@ class TestAnalyticsRoutes:
         assert "total_outpatient_visits" in data["data"]
         assert "bed_occupancy_rate" in data["data"]
 
-    def test_api_population_health(self, client, app):
-        with client.session_transaction() as sess:
-            sess["user_id"] = 1
-            sess["role"] = "admin"
-
+    def test_api_population_health(self, client, app, admin_user):
         resp = client.get("/analytics/api/population-health")
         assert resp.status_code == 200
         data = resp.get_json()
@@ -108,32 +98,20 @@ class TestAnalyticsRoutes:
         assert "disease_surveillance" in data
         assert "risk_stratification" in data
 
-    def test_api_dhis2_export_json(self, client, app):
-        with client.session_transaction() as sess:
-            sess["user_id"] = 1
-            sess["role"] = "admin"
-
+    def test_api_dhis2_export_json(self, client, app, admin_user):
         resp = client.get("/analytics/api/dhis2-export?format=json")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["orgUnit"] == "HOSPITAL_MAIN_KE"
         assert len(data["dataValues"]) >= 5
 
-    def test_api_dhis2_export_csv(self, client, app):
-        with client.session_transaction() as sess:
-            sess["user_id"] = 1
-            sess["role"] = "admin"
-
+    def test_api_dhis2_export_csv(self, client, app, admin_user):
         resp = client.get("/analytics/api/dhis2-export?format=csv")
         assert resp.status_code == 200
         assert resp.content_type == "text/csv; charset=utf-8"
         assert b"MOH_OPD_TOTAL" in resp.data
 
-    def test_trigger_etl_endpoint(self, client, app):
-        with client.session_transaction() as sess:
-            sess["user_id"] = 1
-            sess["role"] = "admin"
-
+    def test_trigger_etl_endpoint(self, client, app, admin_user):
         resp = client.post("/api/analytics/etl/trigger", json={"date": date.today().isoformat()})
         assert resp.status_code == 200
         data = resp.get_json()

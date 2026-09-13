@@ -815,10 +815,13 @@ def root_smart_configuration():
     from departments.api.fhir import get_smart_configuration
     return get_smart_configuration()
 
+from departments.clinical_trials import bp as clinical_trials_bp
+
 app.register_blueprint(khis_bp, url_prefix="/api/khis")
 app.register_blueprint(hl7_bp)  # Phase 4 — mounts /api/hl7/oru and /api/hl7/status
 app.register_blueprint(theatre_bp)
 app.register_blueprint(compliance_bp)
+app.register_blueprint(clinical_trials_bp)
 app.register_blueprint(oauth_bp)
 init_oauth(app)
 

@@ -428,3 +428,102 @@ def get_or_metrics_api():
     metrics = TheatreOperationsEngine.get_or_dashboard_metrics()
     return jsonify(metrics), 200
 
+
+# ---------------------------------------------------------------------------
+# Anesthesia Timeline Matrix & ASA Risk Assessment API
+# ---------------------------------------------------------------------------
+@bp.route("/api/anesthesia-timeline/<int:entry_id>", methods=["GET", "POST"])
+@login_required
+def anesthesia_timeline_api(entry_id):
+    """GET timeline matrix / POST new timestamped anesthesia timeline event."""
+    from departments.theatre.theatre_engine import TheatreOperationsEngine
+
+    if request.method == "POST":
+        data = request.get_json() or {}
+        event_type = data.get("event_type", "MAINTENANCE")
+        notes = data.get("notes")
+        user_name = current_user.username if hasattr(current_user, "username") else "Clinician"
+
+        try:
+            event_obj = TheatreOperationsEngine.record_timeline_event(
+                entry_id=entry_id,
+                event_type=event_type,
+                notes=notes,
+                recorded_by=user_name,
+            )
+            return jsonify({
+                "status": "success",
+                "message": f"Anesthesia timeline event '{event_type}' recorded.",
+                "event": event_obj,
+            }), 201
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
+
+    matrix = TheatreOperationsEngine.get_anesthesia_timeline_matrix(entry_id)
+    return jsonify(matrix), 200
+
+
+@bp.route("/api/asa-assessment/<asa_code>", methods=["GET"])
+@login_required
+def get_asa_assessment_api(asa_code):
+    """GET ASA physical status definition & risk grade."""
+    from departments.theatre.theatre_engine import TheatreOperationsEngine
+    is_emerg = str(request.args.get("emergency", "false")).lower() in ("true", "1")
+    eval_result = TheatreOperationsEngine.evaluate_asa_score(asa_code, is_emergency=is_emerg)
+    return jsonify(eval_result), 200
+
+
+@bp.route("/api/or-schedule", methods=["POST"])
+@login_required
+def update_or_schedule_api():
+    """POST endpoint to allocate/schedule OR room with conflict detection."""
+    from departments.theatre.theatre_engine import TheatreOperationsEngine
+    data = request.get_json() or {}
+
+    entry_id = data.get("entry_id")
+    or_room = data.get("or_room", "OR 1")
+    start_str = data.get("scheduled_start_time")
+    duration_min = int(data.get("estimated_duration_minutes", 120))
+
+    if not entry_id:
+        return jsonify({"error": "entry_id is required."}), 400
+
+    entry = TheatreList.query.get_or_404(entry_id)
+
+    start_dt = None
+    if start_str:
+        try:
+            start_dt = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+        except Exception:
+            return jsonify({"error": "Invalid scheduled_start_time format ISO 8601 expected."}), 400
+
+    if start_dt:
+        has_conflict, conflict_msg = TheatreOperationsEngine.check_room_schedule_conflict(
+            or_room=or_room,
+            start_time=start_dt,
+            duration_minutes=duration_min,
+            exclude_entry_id=entry.id,
+        )
+        if has_conflict:
+            return jsonify({
+                "status": "conflict_detected",
+                "error": conflict_msg,
+            }), 409
+
+    entry.or_room = or_room
+    if start_dt:
+        entry.scheduled_start_time = start_dt
+    entry.estimated_duration_minutes = duration_min
+
+    db.session.commit()
+
+    return jsonify({
+        "status": "success",
+        "message": f"Case #{entry.id} assigned to {or_room}.",
+        "entry_id": entry.id,
+        "or_room": entry.or_room,
+        "scheduled_start_time": entry.scheduled_start_time.isoformat() if entry.scheduled_start_time else None,
+        "estimated_duration_minutes": entry.estimated_duration_minutes,
+    }), 200
+
+

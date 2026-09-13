@@ -288,3 +288,161 @@ def near_expiry_alerts():
     days = request.args.get("days", default=30, type=int)
     alerts = _cc.get_near_expiry_alerts(days_threshold=days)
     return jsonify({"threshold_days": days, "count": len(alerts), "alerts": alerts}), 200
+
+
+# ── NICU & Pediatrics Workstation Routes ───────────────────────────────────────
+
+
+@bp.route("/api/apgar", methods=["POST"])
+@login_required
+def calculate_apgar_route():
+    """
+    POST /mch/api/apgar
+    Record APGAR 1/5/10 min score.
+    """
+    from departments.mch.nicu_pediatrics_engine import NicuPediatricsEngine
+    data = request.get_json(silent=True) or {}
+
+    patient_id = data.get("patient_id")
+    time_interval = data.get("time_interval", "1_MIN")
+
+    if not patient_id:
+        return jsonify({"error": "patient_id is required."}), 400
+
+    try:
+        record = NicuPediatricsEngine.calculate_apgar_score(
+            patient_id=patient_id,
+            time_interval=time_interval,
+            appearance=int(data.get("appearance", 2)),
+            pulse=int(data.get("pulse", 2)),
+            grimace=int(data.get("grimace", 2)),
+            activity=int(data.get("activity", 2)),
+            respiration=int(data.get("respiration", 2)),
+            resuscitation_notes=data.get("resuscitation_notes"),
+            encounter_id=data.get("encounter_id"),
+        )
+        return jsonify({
+            "status": "success",
+            "apgar_id": record.id,
+            "total_score": record.total_score,
+            "risk_category": record.risk_category,
+        }), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@bp.route("/api/apgar/<patient_id>", methods=["GET"])
+@login_required
+def get_apgar_route(patient_id: str):
+    """GET /mch/api/apgar/<patient_id>"""
+    from departments.mch.models import NeonatalApgarRecord
+    records = NeonatalApgarRecord.query.filter_by(patient_id=patient_id).order_by(NeonatalApgarRecord.recorded_at.desc()).all()
+    results = [
+        {
+            "id": r.id,
+            "interval": r.time_interval,
+            "total_score": r.total_score,
+            "risk_category": r.risk_category,
+            "breakdown": {
+                "appearance": r.appearance,
+                "pulse": r.pulse,
+                "grimace": r.grimace,
+                "activity": r.activity,
+                "respiration": r.respiration,
+            },
+            "recorded_at": r.recorded_at.isoformat() if r.recorded_at else None,
+        }
+        for r in records
+    ]
+    return jsonify({"patient_id": patient_id, "count": len(results), "apgar_records": results}), 200
+
+
+@bp.route("/api/phototherapy", methods=["POST"])
+@login_required
+def phototherapy_assessment_route():
+    """
+    POST /mch/api/phototherapy
+    Evaluate Bhutani Phototherapy Risk Nomogram.
+    """
+    from departments.mch.nicu_pediatrics_engine import NicuPediatricsEngine
+    data = request.get_json(silent=True) or {}
+
+    patient_id = data.get("patient_id")
+    age_hours = data.get("age_hours")
+    serum_bili = data.get("serum_bilirubin_mg_dl")
+
+    if not patient_id or age_hours is None or serum_bili is None:
+        return jsonify({"error": "patient_id, age_hours, and serum_bilirubin_mg_dl are required."}), 400
+
+    try:
+        record = NicuPediatricsEngine.evaluate_phototherapy_risk(
+            patient_id=patient_id,
+            age_hours=int(age_hours),
+            serum_bilirubin_mg_dl=float(serum_bili),
+            gestational_weeks=int(data.get("gestational_weeks", 38)),
+            has_hemolysis_risk=str(data.get("has_hemolysis_risk", "false")).lower() in ("true", "1", "on"),
+        )
+        return jsonify({
+            "status": "success",
+            "assessment_id": record.id,
+            "risk_zone": record.risk_zone,
+            "phototherapy_indicated": record.phototherapy_indicated,
+            "exchange_transfusion_indicated": record.exchange_transfusion_indicated,
+            "recommendation": record.clinical_recommendation,
+        }), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@bp.route("/api/growth-chart", methods=["POST"])
+@login_required
+def growth_chart_route():
+    """
+    POST /mch/api/growth-chart
+    Record WHO/CDC pediatric growth measurements & Z-scores.
+    """
+    from departments.mch.nicu_pediatrics_engine import NicuPediatricsEngine
+    data = request.get_json(silent=True) or {}
+
+    patient_id = data.get("patient_id")
+    age_months = data.get("age_months")
+    weight_kg = data.get("weight_kg")
+
+    if not patient_id or age_months is None or weight_kg is None:
+        return jsonify({"error": "patient_id, age_months, and weight_kg are required."}), 400
+
+    try:
+        record = NicuPediatricsEngine.calculate_growth_percentiles(
+            patient_id=patient_id,
+            age_months=float(age_months),
+            weight_kg=float(weight_kg),
+            height_cm=float(data["height_cm"]) if data.get("height_cm") is not None else None,
+            head_circumference_cm=float(data["head_circumference_cm"]) if data.get("head_circumference_cm") is not None else None,
+            encounter_id=data.get("encounter_id"),
+        )
+        return jsonify({
+            "status": "success",
+            "growth_id": record.id,
+            "weight_zscore": record.weight_for_age_zscore,
+            "height_zscore": record.height_for_age_zscore,
+            "head_circ_zscore": record.head_circ_zscore,
+            "nutritional_status": record.nutritional_status,
+        }), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@bp.route("/nicu-workstation/<patient_id>", methods=["GET"])
+@login_required
+def nicu_workstation_ui(patient_id: str):
+    """Render NICU & Pediatrics Workstation Console UI."""
+    from flask import render_template
+
+    from departments.mch.nicu_pediatrics_engine import NicuPediatricsEngine
+    from departments.models.records import Patient
+
+    patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
+    summary = NicuPediatricsEngine.get_nicu_workstation_summary(patient_id)
+
+    return render_template("mch/nicu_workstation.html", patient=patient, summary=summary)
+

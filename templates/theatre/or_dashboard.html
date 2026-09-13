@@ -61,6 +61,19 @@
       --bs-table-border-color: var(--card-border);
       --bs-table-color: var(--text-main);
     }
+
+    .or-room-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+    .or-room-card.occupied {
+      border-left: 4px solid #ef4444;
+    }
+    .or-room-card.available {
+      border-left: 4px solid #22c55e;
+    }
   </style>
 </head>
 <body>
@@ -70,7 +83,7 @@
     <a class="navbar-brand d-flex align-items-center gap-2" href="#">
       <i class="bi bi-scissors fs-4 text-primary"></i>
       <span class="fw-bold fs-5">Operating Theatre &amp; OR Flow Console</span>
-      <span class="badge bg-primary ms-2">WHO Safe Surgery Standard</span>
+      <span class="badge bg-primary ms-2">Perioperative &amp; Anesthesia Standard</span>
     </a>
     <div class="d-flex align-items-center gap-3">
       <button class="btn btn-outline-light btn-sm" onclick="window.location.reload();">
@@ -107,9 +120,9 @@
 
     <div class="col-md-3">
       <div class="kpi-card">
-        <div class="text-muted small fw-semibold text-uppercase">Completed Cases Today</div>
-        <div class="kpi-val text-success mt-1">{{ metrics.completed_cases_count }}</div>
-        <div class="small text-success mt-1"><i class="bi bi-check-circle me-1"></i> Post-op complete</div>
+        <div class="text-muted small fw-semibold text-uppercase">OR Utilization Rate</div>
+        <div class="kpi-val text-warning mt-1">{{ metrics.or_utilization_pct }}%</div>
+        <div class="small text-muted mt-1">Suite Occupancy &amp; Efficiency</div>
       </div>
     </div>
 
@@ -132,10 +145,38 @@
     </div>
   </div>
 
+  <!-- OR Suites Status Grid -->
+  <div class="card bg-dark border-secondary mb-4">
+    <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center py-2">
+      <h6 class="mb-0 text-white fw-bold"><i class="bi bi-door-open me-2 text-primary"></i>Operating Theatre Suite Allocation Board</h6>
+      <span class="badge bg-outline-info text-info">5 OR Suites Total</span>
+    </div>
+    <div class="card-body p-3">
+      <div class="row g-3">
+        {% if metrics.room_stats %}
+          {% for room, stats in metrics.room_stats.items() %}
+          <div class="col-md-2-4 col-sm-6">
+            <div class="or-room-card {% if stats.occupancy_status == 'OCCUPIED' %}occupied{% else %}available{% endif %}">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-bold text-white">{{ room }}</span>
+                <span class="badge {% if stats.occupancy_status == 'OCCUPIED' %}bg-danger{% else %}bg-success{% endif %} p-1">
+                  {{ stats.occupancy_status }}
+                </span>
+              </div>
+              <div class="small text-muted">Active Cases: <strong class="text-light">{{ stats.active }}</strong></div>
+              <div class="small text-muted">Completed: <strong class="text-light">{{ stats.completed }}</strong></div>
+            </div>
+          </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
   <!-- Main Cases Table -->
   <div class="card bg-dark border-secondary">
     <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center py-3">
-      <h5 class="mb-0 text-white fw-bold"><i class="bi bi-card-checklist me-2"></i>Operating Theatre Case List</h5>
+      <h5 class="mb-0 text-white fw-bold"><i class="bi bi-card-checklist me-2"></i>Operating Theatre Case List &amp; Anesthesia Matrix</h5>
       <span class="badge bg-secondary">{{ metrics.total_cases }} Cases Total</span>
     </div>
     <div class="card-body p-0">
@@ -144,7 +185,8 @@
           <thead>
             <tr>
               <th>Patient</th>
-              <th>Procedure</th>
+              <th>Procedure &amp; Suite</th>
+              <th>ASA Status</th>
               <th>Status</th>
               <th>WHO Sign In</th>
               <th>WHO Time Out</th>
@@ -162,8 +204,16 @@
                 <div class="small text-muted">{{ case.patient_id }}</div>
               </td>
               <td>
-                <div class="fw-semibold">{{ case.procedure_name }}</div>
-                <div class="small text-muted">{{ case.scheduled_time[:16].replace('T', ' ') if case.scheduled_time else 'Unscheduled' }}</div>
+                <div class="fw-semibold text-info">{{ case.procedure_name }}</div>
+                <div class="small text-muted">
+                  <span class="badge bg-secondary me-1">{{ case.or_room }}</span>
+                  {{ case.scheduled_time[:16].replace('T', ' ') if case.scheduled_time else 'Unscheduled' }}
+                </div>
+              </td>
+              <td>
+                <span class="badge {% if 'E' in case.asa_status or 'CRITICAL' in case.asa_risk %}bg-danger{% elif 'HIGH' in case.asa_risk %}bg-warning text-dark{% else %}bg-primary{% endif %}" title="Mortality risk ~ {{ case.asa_mortality_pct }}%">
+                  {{ case.asa_status }}
+                </span>
               </td>
               <td>
                 <span class="badge {% if case.status == 'Completed' %}bg-success{% else %}bg-warning text-dark{% endif %}">
@@ -214,7 +264,7 @@
             </tr>
             {% else %}
             <tr>
-              <td colspan="9" class="text-center py-4 text-muted">No operating theatre cases scheduled.</td>
+              <td colspan="10" class="text-center py-4 text-muted">No operating theatre cases scheduled.</td>
             </tr>
             {% endfor %}
           </tbody>

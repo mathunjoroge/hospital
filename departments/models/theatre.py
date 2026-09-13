@@ -123,6 +123,7 @@ class AnaestheticRecord(db.Model):
     # JSON stored fields
     agents_administered_json = db.Column(db.Text, nullable=True, default="[]")  # list of dicts
     vitals_series_json = db.Column(db.Text, nullable=True, default="[]")       # list of dicts (time, hr, bp_sys, bp_dia, spo2, etco2)
+    timeline_events_json = db.Column(db.Text, nullable=True, default="[]")     # list of dicts (timestamp, event_type, notes, recorded_by)
 
     # Fluid & Blood balance
     estimated_blood_loss_ml = db.Column(db.Integer, default=0, nullable=False)
@@ -165,6 +166,17 @@ class AnaestheticRecord(db.Model):
     @vitals_series.setter
     def vitals_series(self, value: list):
         self.vitals_series_json = json.dumps(value or [])
+
+    @property
+    def timeline_events(self) -> list:
+        try:
+            return json.loads(self.timeline_events_json or "[]")
+        except Exception:
+            return []
+
+    @timeline_events.setter
+    def timeline_events(self, value: list):
+        self.timeline_events_json = json.dumps(value or [])
 
     def __repr__(self):
         return f"<AnaestheticRecord entry={self.theatre_entry_id} asa={self.asa_status} tech={self.technique}>"

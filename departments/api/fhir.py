@@ -18,6 +18,12 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 
 from departments.api.auth import jwt_or_session_required
+from departments.api.fhir_hie import export_patient_everything_bundle
+from departments.api.fhir_subscriptions import (
+    create_subscription,
+    delete_subscription,
+    list_subscriptions,
+)
 from departments.medicine.terminology_server import FHIRTerminologyServer
 from departments.models.encounter import Encounter
 from departments.models.imaging import ImagingResult
@@ -1247,6 +1253,89 @@ def fhir_codesystem_validate_code():
 
     result = FHIRTerminologyServer.validate_code(system, code, display)
     return jsonify(result), 200
+
+
+# ---------------------------------------------------------------------------
+# FHIR R4 $everything & Subscription Endpoints (Gap #8)
+# ---------------------------------------------------------------------------
+@fhir_bp.route("/Patient/<string:patient_id>/$everything", methods=["GET"])
+def fhir_patient_everything(patient_id: str):
+    """
+    FHIR R4 $everything operation.
+    Returns complete FHIR Collection Bundle for the requested patient.
+    """
+    bundle = export_patient_everything_bundle(patient_id)
+    if bundle.get("resourceType") == "OperationOutcome":
+        status_code = bundle.get("status", 404)
+        bundle.pop("status", None)
+        return jsonify(bundle), status_code
+
+    return jsonify(bundle), 200
+
+
+@fhir_bp.route("/Subscription", methods=["POST"])
+def fhir_create_subscription():
+    """
+    FHIR R4 POST /Subscription endpoint to register a webhook channel.
+    """
+    data = request.get_json(silent=True) or {}
+    criteria = data.get("criteria")
+    channel = data.get("channel", {})
+    endpoint_url = channel.get("endpoint") or data.get("endpoint_url")
+    secret_token = data.get("secret_token")
+    reason = data.get("reason")
+
+    if not criteria or not endpoint_url:
+        return jsonify({
+            "resourceType": "OperationOutcome",
+            "issue": [{
+                "severity": "error",
+                "code": "invalid",
+                "diagnostics": "Fields 'criteria' and 'channel.endpoint' are required for Subscription creation.",
+            }],
+        }), 400
+
+    sub = create_subscription(
+        criteria=criteria,
+        endpoint_url=endpoint_url,
+        secret_token=secret_token,
+        reason=reason,
+    )
+    return jsonify(sub.to_fhir()), 201
+
+
+@fhir_bp.route("/Subscription", methods=["GET"])
+def fhir_list_subscriptions():
+    """
+    FHIR R4 GET /Subscription endpoint to list active webhooks.
+    """
+    subs = list_subscriptions()
+    return jsonify({
+        "resourceType": "Bundle",
+        "type": "searchset",
+        "total": len(subs),
+        "entry": [{"resource": s} for s in subs],
+    }), 200
+
+
+@fhir_bp.route("/Subscription/<string:subscription_id>", methods=["DELETE"])
+def fhir_delete_subscription(subscription_id: str):
+    """
+    FHIR R4 DELETE /Subscription/<id> endpoint to deactivate a webhook.
+    """
+    success = delete_subscription(subscription_id)
+    if not success:
+        return jsonify({
+            "resourceType": "OperationOutcome",
+            "issue": [{
+                "severity": "error",
+                "code": "not-found",
+                "diagnostics": f"Subscription '{subscription_id}' not found.",
+            }],
+        }), 404
+
+    return jsonify({"resourceType": "OperationOutcome", "issue": [{"severity": "information", "code": "informational", "diagnostics": "Subscription deactivated."}]}), 200
+
 
 
 

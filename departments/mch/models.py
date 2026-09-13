@@ -106,8 +106,82 @@ class VaccineTemperatureLog(db.Model):
     sensor_id = db.Column(db.String(80), nullable=True)
     logged_by = db.Column(db.String(100), nullable=True)
     notes = db.Column(db.Text, nullable=True)
-    recorded_at = db.Column(
-        db.DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        index=True,
-    )
+
+# ── NICU & Pediatrics Workstation Models ───────────────────────────────────────
+
+
+class NeonatalApgarRecord(db.Model):
+    """
+    APGAR Score Record at 1, 5, and 10 minutes post-birth.
+    Evaluates Appearance, Pulse, Grimace, Activity, and Respiration (0-2 each, Total 0-10).
+    """
+
+    __tablename__ = "neonatal_apgar_records"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    patient_id = db.Column(db.String(20), db.ForeignKey("patients.patient_id"), nullable=False, index=True)
+    encounter_id = db.Column(db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True)
+
+    time_interval = db.Column(db.String(10), nullable=False)  # 1_MIN, 5_MIN, 10_MIN
+    appearance = db.Column(db.Integer, nullable=False, default=2)  # Color: 0=blue, 1=acrocyanosis, 2=pink
+    pulse = db.Column(db.Integer, nullable=False, default=2)       # HR: 0=absent, 1=<100, 2=>=100
+    grimace = db.Column(db.Integer, nullable=False, default=2)     # Reflex: 0=none, 1=grimace, 2=cry/cough
+    activity = db.Column(db.Integer, nullable=False, default=2)    # Tone: 0=limp, 1=flexion, 2=active
+    respiration = db.Column(db.Integer, nullable=False, default=2)  # Effort: 0=absent, 1=slow/gasping, 2=strong cry
+
+    total_score = db.Column(db.Integer, nullable=False, default=10)
+    risk_category = db.Column(db.String(50), nullable=False, default="NORMAL")  # NORMAL, MODERATE_DEPRESSION, SEVERE_DEPRESSION
+    resuscitation_notes = db.Column(db.Text, nullable=True)
+    recorded_by = db.Column(db.String(100), nullable=True)
+    recorded_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+
+class PediatricGrowthRecord(db.Model):
+    """
+    Pediatric & Infant Growth Record (WHO / CDC Standard).
+    Tracks age, weight, height/length, head circumference, and computed Z-scores / percentiles.
+    """
+
+    __tablename__ = "pediatric_growth_records"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    patient_id = db.Column(db.String(20), db.ForeignKey("patients.patient_id"), nullable=False, index=True)
+    encounter_id = db.Column(db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True)
+
+    age_months = db.Column(db.Float, nullable=False)  # age in months (0.0 for newborn)
+    weight_kg = db.Column(db.Float, nullable=False)
+    height_cm = db.Column(db.Float, nullable=True)
+    head_circumference_cm = db.Column(db.Float, nullable=True)
+
+    # Computed Z-scores & Percentiles
+    weight_for_age_zscore = db.Column(db.Float, nullable=True)
+    height_for_age_zscore = db.Column(db.Float, nullable=True)
+    head_circ_zscore = db.Column(db.Float, nullable=True)
+    nutritional_status = db.Column(db.String(50), nullable=True, default="NORMAL")  # UNDERWEIGHT, STUNTED, SEVERE_ACUTE_MALNUTRITION, NORMAL
+
+    recorded_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+
+class PhototherapyAssessmentRecord(db.Model):
+    """
+    Neonatal Hyperbilirubinemia & Phototherapy Risk Assessment (Bhutani Nomogram).
+    Evaluates Total Serum Bilirubin (TSB) against postnatal age in hours.
+    """
+
+    __tablename__ = "phototherapy_assessment_records"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    patient_id = db.Column(db.String(20), db.ForeignKey("patients.patient_id"), nullable=False, index=True)
+
+    age_hours = db.Column(db.Integer, nullable=False)  # postnatal age in hours
+    serum_bilirubin_mg_dl = db.Column(db.Float, nullable=False)  # TSB in mg/dL
+    gestational_weeks = db.Column(db.Integer, nullable=False, default=38)  # gestational age
+    has_hemolysis_risk = db.Column(db.Boolean, nullable=False, default=False)  # ABO/Rh incompatibility, G6PD, sepsis
+
+    risk_zone = db.Column(db.String(50), nullable=False)  # HIGH_RISK, HIGH_INTERMEDIATE, LOW_INTERMEDIATE, LOW_RISK
+    phototherapy_indicated = db.Column(db.Boolean, nullable=False, default=False)
+    exchange_transfusion_indicated = db.Column(db.Boolean, nullable=False, default=False)
+    clinical_recommendation = db.Column(db.Text, nullable=True)
+
+    recorded_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+

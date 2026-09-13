@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NICU &amp; Pediatrics Clinical Workstation — HIMS Enterprise</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --card-bg: #151c2c;
+      --card-border: #232d42;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      padding-bottom: 3rem;
+    }
+
+    .navbar-nicu {
+      background: rgba(21, 28, 44, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .nicu-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .nicu-card:hover {
+      border-color: #3b82f6;
+    }
+
+    .stat-val {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .badge-apgar-normal { background: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid #22c55e; }
+    .badge-apgar-mod { background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid #eab308; }
+    .badge-apgar-severe { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; }
+
+    .apgar-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 0.75rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark navbar-nicu mb-4">
+  <div class="container-fluid px-4">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+      <i class="bi bi-heart-pulse-fill fs-4 text-pink text-danger"></i>
+      <span class="fw-bold fs-5">NICU &amp; Pediatrics Workstation</span>
+      <span class="badge bg-primary ms-2">WHO / AAP Standard</span>
+    </a>
+    <div class="d-flex align-items-center gap-3">
+      <span class="text-white fw-bold"><i class="bi bi-person-heart me-1"></i>{{ patient.name }}</span>
+      <span class="badge bg-secondary">{{ patient.patient_id }}</span>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid px-4">
+
+  <!-- Summary KPI Cards Row -->
+  <div class="row g-3 mb-4">
+    <!-- APGAR Score Card -->
+    <div class="col-md-4">
+      <div class="nicu-card">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="text-muted small fw-semibold text-uppercase">Latest APGAR Score</span>
+          {% if summary.latest_apgar %}
+            <span class="badge {% if summary.latest_apgar.risk == 'NORMAL' %}badge-apgar-normal{% elif summary.latest_apgar.risk == 'MODERATE_DEPRESSION' %}badge-apgar-mod{% else %}badge-apgar-severe{% endif %}">
+              {{ summary.latest_apgar.interval }}
+            </span>
+          {% endif %}
+        </div>
+        {% if summary.latest_apgar %}
+          <div class="stat-val {% if summary.latest_apgar.score >= 7 %}text-success{% elif summary.latest_apgar.score >= 4 %}text-warning{% else %}text-danger{% endif %}">
+            {{ summary.latest_apgar.score }} / 10
+          </div>
+          <div class="small text-muted mt-1">Category: <strong class="text-light">{{ summary.latest_apgar.risk }}</strong></div>
+        {% else %}
+          <div class="text-muted py-3">No APGAR recorded</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Phototherapy Risk Card -->
+    <div class="col-md-4">
+      <div class="nicu-card">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="text-muted small fw-semibold text-uppercase">Bhutani Phototherapy Risk</span>
+          {% if summary.latest_phototherapy %}
+            <span class="badge {% if summary.latest_phototherapy.risk_zone == 'HIGH_RISK' %}bg-danger{% elif 'INTERMEDIATE' in summary.latest_phototherapy.risk_zone %}bg-warning text-dark{% else %}bg-success{% endif %}">
+              {{ summary.latest_phototherapy.risk_zone }}
+            </span>
+          {% endif %}
+        </div>
+        {% if summary.latest_phototherapy %}
+          <div class="stat-val text-info">{{ summary.latest_phototherapy.tsb_mg_dl }} <span class="fs-6 text-muted">mg/dL TSB</span></div>
+          <div class="small text-muted mt-1">Postnatal Age: <strong class="text-light">{{ summary.latest_phototherapy.age_hours }} hours</strong></div>
+        {% else %}
+          <div class="text-muted py-3">No TSB Bilirubin recorded</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Pediatric Growth Z-Score Card -->
+    <div class="col-md-4">
+      <div class="nicu-card">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="text-muted small fw-semibold text-uppercase">WHO Growth Status</span>
+          {% if summary.latest_growth %}
+            <span class="badge {% if summary.latest_growth.status == 'NORMAL' %}bg-success{% else %}bg-warning text-dark{% endif %}">
+              {{ summary.latest_growth.status }}
+            </span>
+          {% endif %}
+        </div>
+        {% if summary.latest_growth %}
+          <div class="stat-val text-primary">{{ summary.latest_growth.weight_kg }} <span class="fs-6 text-muted">kg</span></div>
+          <div class="small text-muted mt-1">Weight Z-Score: <strong class="text-light">{{ summary.latest_growth.weight_z }} SD</strong></div>
+        {% else %}
+          <div class="text-muted py-3">No Growth metrics recorded</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Detailed Clinical Sections -->
+  <div class="row g-4">
+    <!-- APGAR 5-Criteria Matrix -->
+    <div class="col-md-6">
+      <div class="card bg-dark border-secondary">
+        <div class="card-header bg-dark border-secondary py-3">
+          <h6 class="mb-0 text-white fw-bold"><i class="bi bi-clock-history me-2 text-primary"></i>APGAR Newborn Assessment Matrix</h6>
+        </div>
+        <div class="card-body">
+          {% if summary.latest_apgar %}
+          <div class="row g-2 mb-3">
+            <div class="col"><div class="apgar-box"><div class="small text-muted">Appearance</div><div class="fw-bold text-white fs-5">{{ summary.latest_apgar.breakdown.appearance }}</div></div></div>
+            <div class="col"><div class="apgar-box"><div class="small text-muted">Pulse</div><div class="fw-bold text-white fs-5">{{ summary.latest_apgar.breakdown.pulse }}</div></div></div>
+            <div class="col"><div class="apgar-box"><div class="small text-muted">Grimace</div><div class="fw-bold text-white fs-5">{{ summary.latest_apgar.breakdown.grimace }}</div></div></div>
+            <div class="col"><div class="apgar-box"><div class="small text-muted">Activity</div><div class="fw-bold text-white fs-5">{{ summary.latest_apgar.breakdown.activity }}</div></div></div>
+            <div class="col"><div class="apgar-box"><div class="small text-muted">Respiration</div><div class="fw-bold text-white fs-5">{{ summary.latest_apgar.breakdown.respiration }}</div></div></div>
+          </div>
+          {% else %}
+            <p class="text-muted mb-0">Record 1-minute, 5-minute, and 10-minute APGAR scores for this infant.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Phototherapy Clinical Guidance -->
+    <div class="col-md-6">
+      <div class="card bg-dark border-secondary">
+        <div class="card-header bg-dark border-secondary py-3">
+          <h6 class="mb-0 text-white fw-bold"><i class="bi bi-sun me-2 text-warning"></i>Bhutani Phototherapy Recommendation</h6>
+        </div>
+        <div class="card-body">
+          {% if summary.latest_phototherapy %}
+            <div class="alert {% if summary.latest_phototherapy.exchange_indicated %}alert-danger{% elif summary.latest_phototherapy.phototherapy_indicated %}alert-warning{% else %}alert-success{% endif %} bg-opacity-10 border-0 mb-0">
+              <h6 class="fw-bold mb-1"><i class="bi bi-shield-exclamation me-1"></i>Clinical Guidance</h6>
+              <p class="mb-0 small">{{ summary.latest_phototherapy.recommendation }}</p>
+            </div>
+          {% else %}
+            <p class="text-muted mb-0">No serum bilirubin phototherapy risk assessment performed yet.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

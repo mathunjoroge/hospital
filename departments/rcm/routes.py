@@ -166,3 +166,89 @@ def submit_appeal():
             "appeal_status": denial.appeal_status,
         }
     ), 201
+
+
+# ── RCM Pre-Submission Scrubber & EDI 837/835 Endpoints ───────────────────────
+
+
+@bp.route("/api/scrub/<claim_id>", methods=["POST"])
+@login_required
+def scrub_claim_record(claim_id: str):
+    """POST /rcm/api/scrub/<claim_id> — Runs Pre-Claim Scrubber rules & calculates denial risk score."""
+    from departments.rcm.claims_scrubber_engine import ClaimsScrubberEngine
+
+    try:
+        report = ClaimsScrubberEngine.scrub_claim(claim_id)
+        return jsonify(report), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+
+
+@bp.route("/api/edi837/<claim_id>", methods=["GET"])
+@login_required
+def generate_edi837_route(claim_id: str):
+    """GET /rcm/api/edi837/<claim_id> — Generates X12 837P Professional Claim transaction text."""
+    from departments.rcm.claims_scrubber_engine import ClaimsScrubberEngine
+
+    try:
+        edi_text = ClaimsScrubberEngine.generate_edi_837(claim_id)
+        return jsonify({"claim_id": claim_id, "format": "X12_837P", "edi_content": edi_text}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+
+
+@bp.route("/api/edi835/process", methods=["POST"])
+@login_required
+def process_edi835_route():
+    """POST /rcm/api/edi835/process — Parses X12 835 Electronic Remittance Advice (ERA) & applies payments/denials."""
+    from departments.rcm.claims_scrubber_engine import ClaimsScrubberEngine
+
+    data = request.get_json(silent=True) or {}
+    edi_content = data.get("edi_content")
+
+    if not edi_content:
+        return jsonify({"error": "edi_content is required."}), 400
+
+    try:
+        result = ClaimsScrubberEngine.parse_and_apply_edi_835(edi_content)
+        return jsonify({"status": "success", "result": result}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@bp.route("/api/denial-risk/<claim_id>", methods=["GET"])
+@login_required
+def get_denial_risk_route(claim_id: str):
+    """GET /rcm/api/denial-risk/<claim_id> — Retrieves pre-claim denial risk score and error details."""
+    from departments.rcm.models import ClaimSubmission
+
+    claim = ClaimSubmission.query.get_or_404(claim_id)
+    return jsonify({
+        "claim_id": claim.id,
+        "status": claim.status,
+        "scrubbing_status": claim.scrubbing_status,
+        "denial_risk_score": claim.denial_risk_score,
+        "errors": claim.scrubbing_errors_json,
+    }), 200
+
+
+@bp.route("/claims-console", methods=["GET"])
+@login_required
+def claims_console_ui():
+    """Render RCM Pre-Submission Claims Scrubbing & EDI Console UI."""
+    from flask import render_template
+
+    from departments.rcm.models import ClaimSubmission
+
+    claims = ClaimSubmission.query.order_by(ClaimSubmission.created_at.desc()).all()
+    clean_count = sum(1 for c in claims if c.scrubbing_status == "CLEAN")
+    error_count = sum(1 for c in claims if c.scrubbing_status == "HAS_ERRORS")
+
+    return render_template(
+        "rcm/claims_console.html",
+        claims=claims,
+        clean_count=clean_count,
+        error_count=error_count,
+        total_claims=len(claims),
+    )
+

@@ -55,8 +55,14 @@ class ClaimSubmission(db.Model):
     approved_amount = db.Column(db.Numeric(12, 2), nullable=True)
     paid_amount = db.Column(db.Numeric(12, 2), nullable=True)
 
-    # DRAFT, SCRUBBING, SUBMITTED, UNDER_REVIEW, APPROVED, PAID, DENIED, APPEALED
+    # DRAFT, SCRUBBING, CLEAN, SCRUB_ERRORS, SUBMITTED, UNDER_REVIEW, APPROVED, PAID, DENIED, APPEALED
     status = db.Column(db.String(20), nullable=False, default="DRAFT")
+
+    # Scrubbing & Risk Analysis
+    scrubbing_status = db.Column(db.String(20), nullable=False, default="UNSCRUBBED")  # UNSCRUBBED, CLEAN, HAS_ERRORS
+    denial_risk_score = db.Column(db.Float, nullable=False, default=0.0)  # 0-100%
+    scrubbing_errors_json = db.Column(db.Text, nullable=True, default="[]")  # list of error dicts
+    edi_837_content = db.Column(db.Text, nullable=True)  # X12 837 text
 
     # External reference from the payer (SHA, insurance company)
     payer_reference = db.Column(db.String(100), nullable=True)
@@ -134,3 +140,22 @@ class PaymentPlan(db.Model):
         db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+
+class Edi835RemittanceLog(db.Model):
+    """
+    Log of received EDI 835 Electronic Remittance Advice (ERA) transactions.
+    """
+
+    __tablename__ = "edi_835_remittance_logs"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    payer_id = db.Column(db.String(50), nullable=False, default="SHA_KENYA")
+    remittance_reference = db.Column(db.String(100), nullable=False)
+    total_claims_processed = db.Column(db.Integer, nullable=False, default=0)
+    total_paid_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0.0)
+    edi_content = db.Column(db.Text, nullable=False)
+    processed_at = db.Column(
+        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
