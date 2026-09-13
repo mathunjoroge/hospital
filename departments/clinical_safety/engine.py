@@ -16,10 +16,10 @@ from datetime import datetime, timezone
 
 from departments.clinical_safety.models import SafetyAlertOverride
 from departments.models.medicine import PrescribedMedicine
-from departments.models.nursing import NursingNote
+from departments.models.nursing import NursingNote, Vitals
 from departments.models.pharmacy import Drug
 from departments.models.records import Patient, PatientAllergy
-from departments.shared.drug_safety_rules import ALLERGY_GROUPS, KNOWN_INTERACTIONS
+from departments.shared.drug_safety_rules import ALLERGY_GROUPS
 from extensions import db
 
 logger = logging.getLogger(__name__)
@@ -362,7 +362,7 @@ class ClinicalSafetyEngine:
 
         return override
 
-    def check_by_names(self, patient_id: str, medication_names: list[str]) -> dict:
+    def check_by_names(self, patient_id: str, medication_names: list[str], **kwargs) -> dict:
         """
         Check medication names against patient allergies and drug-drug interactions.
         This method mirrors the original check_drug_safety logic from prescribe.py
@@ -425,34 +425,84 @@ class ClinicalSafetyEngine:
                             )
                             break
 
-        # 2. Check Drug-Drug Interactions (DDI)
-        # Fetch current active prescribed meds for patient
-        active_prescriptions = PrescribedMedicine.query.filter_by(
-            patient_id=patient_id
-        ).all()
-        current_meds_lower = [
-            p.medicine.generic_name.lower().strip()
-            for p in active_prescriptions
-            if p.medicine and p.medicine.generic_name
-        ]
-        all_meds = set(new_meds_lower + current_meds_lower)
+        # 3. Advanced CDSS Engine Checks (Renal, Hepatic, Pediatric, Pregnancy)
+        from departments.clinical_safety.cdss_advanced import (
+            AlertFatigueManager,
+            HepaticDosingEngine,
+            PediatricDosingEngine,
+            PregnancySafetyEngine,
+            RenalDosingEngine,
+        )
 
-        for drug_set, severity, msg in KNOWN_INTERACTIONS:
-            matched = [d for d in drug_set if any(d in med for med in all_meds)]
-            if len(matched) >= 2:
-                alerts.append(
-                    {
-                        "type": "DRUG_INTERACTION",
-                        "severity": severity,
-                        "drugs": matched,
-                        "message": f"DRUG INTERACTION WARNING [{severity}]: {' + '.join([m.title() for m in matched])} — {msg}",
-                    }
+        patient = Patient.query.filter_by(patient_id=patient_id).first()
+        latest_vitals = Vitals.query.filter_by(patient_id=patient_id).order_by(Vitals.timestamp.desc()).first()
+
+        # Extract or resolve clinical parameters
+        age_years = kwargs.get("age_years", 30)
+        _is_female = kwargs.get("is_female", False)
+        if patient:
+            _is_female = (patient.sex or "").lower() in ("female", "f")
+            if patient.date_of_birth:
+
+                today = datetime.now(timezone.utc).date()
+                age_years = today.year - patient.date_of_birth.year - (
+                    (today.month, today.day) < (patient.date_of_birth.month, patient.date_of_birth.day)
                 )
 
+        weight_kg = getattr(latest_vitals, "weight", None) if latest_vitals else None
+        if kwargs.get("weight_kg"):
+            weight_kg = kwargs.get("weight_kg")
+
+        # Process clinical parameters override if passed via kwargs or patient records
+        egfr = kwargs.get("egfr")
+        is_pregnant = kwargs.get("is_pregnant", False)
+
+
+        trimester = kwargs.get("trimester")
+        is_lactating = kwargs.get("is_lactating", False)
+        has_hepatic = kwargs.get("has_hepatic_impairment", False)
+        dose_mg = kwargs.get("dose_mg")
+        if kwargs.get("weight_kg"):
+            weight_kg = kwargs.get("weight_kg")
+
+        for drug in new_meds_lower:
+            # Renal Dosing Check
+            if egfr is not None:
+                r_alerts = RenalDosingEngine.evaluate(drug, egfr=egfr)
+                alerts.extend(r_alerts)
+
+            # Hepatic Dosing Check
+            if has_hepatic:
+                h_alerts = HepaticDosingEngine.evaluate(drug, has_hepatic_impairment=True)
+                alerts.extend(h_alerts)
+
+            # Pediatric Dosing Check
+            p_alerts = PediatricDosingEngine.evaluate(
+                drug_name=drug,
+                dose_mg=dose_mg,
+                weight_kg=weight_kg,
+                age_years=age_years,
+            )
+            alerts.extend(p_alerts)
+
+            # Pregnancy / Lactation Check
+            preg_alerts = PregnancySafetyEngine.evaluate(
+                drug_name=drug,
+                is_pregnant=is_pregnant,
+                trimester=trimester,
+                is_lactating=is_lactating,
+            )
+            alerts.extend(preg_alerts)
+
+        # 4. Alert Fatigue Filtering & Triage
+        fatigue_mgr = AlertFatigueManager()
+        filtered_alerts = fatigue_mgr.process_and_filter(alerts, patient_id=patient_id)
+
         return {
-            "has_warnings": len(alerts) > 0,
-            "critical_block": any(a["severity"] == "CRITICAL" for a in alerts),
-            "alerts": alerts,
+            "has_warnings": len(filtered_alerts) > 0,
+            "critical_block": any(a.get("severity") == "CRITICAL" for a in filtered_alerts),
+            "alerts": filtered_alerts,
         }
+
 
 

@@ -277,19 +277,18 @@ def search_loinc(query: str) -> list[dict]:
 
 
 
-def check_drug_safety(patient_id: str, new_medications: list[str]) -> dict:
+def check_drug_safety(patient_id: str, new_medications: list[str], **kwargs) -> dict:
     """
-    Check new prescription list against patient allergies and drug-drug interactions.
+    Check new prescription list against patient allergies, drug-drug interactions,
+    renal/hepatic impairment, pediatric weight-based dosing, and pregnancy contraindications.
 
-    Returns: {"critical_block": bool, "alerts": list[dict]}
-
-    This is a thin wrapper that delegates to ClinicalSafetyEngine.check_by_names().
-    The canonical safety logic now lives in departments/clinical_safety/engine.py.
+    Returns: {"has_warnings": bool, "critical_block": bool, "alerts": list[dict]}
     """
     from departments.clinical_safety.engine import ClinicalSafetyEngine
 
     engine = ClinicalSafetyEngine()
-    return engine.check_by_names(patient_id, new_medications)
+    return engine.check_by_names(patient_id, new_medications, **kwargs)
+
 
 
 @prescribe_bp.route("/icd10", methods=["GET"])
