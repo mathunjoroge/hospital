@@ -106,6 +106,11 @@ class VaccineTemperatureLog(db.Model):
     sensor_id = db.Column(db.String(80), nullable=True)
     logged_by = db.Column(db.String(100), nullable=True)
     notes = db.Column(db.Text, nullable=True)
+    recorded_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
 
 # ── NICU & Pediatrics Workstation Models ───────────────────────────────────────
 
