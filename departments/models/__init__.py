@@ -118,12 +118,19 @@ from .stores import NonPharmCategory, NonPharmItem, OtherOrder
 from .supplier import PurchaseOrder, PurchaseOrderItem, Supplier
 from .telemedicine import TelemedicineSession
 from .terminology import ICD10Code, LoincCode, SnomedCode
+from .theatre import (
+    AnaestheticRecord,
+    PostOpNote,
+    SurgicalInstrumentCount,
+    WhoSurgicalChecklist,
+)
 from .transfer import TransferOrder, TransferOrderItem
 from .user import User
 
 __all__ = [
     "AdmittedPatient",
     "Allowance",
+    "AnaestheticRecord",
     "AuditLog",
     "Batch",
     "Bed",
@@ -157,6 +164,7 @@ __all__ = [
     "Encounter",
     "Expiry",
     "Facility",
+    "ICD10Code",
     "Imaging",
     "ImagingBill",
     "ImagingResult",
@@ -170,6 +178,7 @@ __all__ = [
     "LabTest",
     "Leave",
     "Log",
+    "LoincCode",
     "MedicationAdmin",
     "Medicine",
     "Messages",
@@ -202,6 +211,7 @@ __all__ = [
     "Payment",
     "PaymentMethod",
     "Payroll",
+    "PostOpNote",
     "PrescribedMedicine",
     "PrescriptionDrugDetail",
     "Purchase",
@@ -214,11 +224,13 @@ __all__ = [
     "RequestedLab",
     "Rota",
     "SOAPNote",
+    "SnomedCode",
     "SpecialWarning",
     "StaffCredential",
     "StockMovement",
     "StockTake",
     "StockTakeItem",
+    "SurgicalInstrumentCount",
     "Supplier",
     "Symptom",
     "TelemedicineSession",
@@ -236,6 +248,7 @@ __all__ = [
     "WardBill",
     "WardRoom",
     "WardRound",
+    "WhoSurgicalChecklist",
     "get_home_facility",
     "reconcile_stock_balance",
     "record_movement",

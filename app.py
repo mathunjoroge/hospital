@@ -748,6 +748,7 @@ from departments.stores import bp as stores_bp
 from departments.stores.transfer_routes import transfer_bp
 from departments.tb_dots import bp as tb_dots_bp
 from departments.telemedicine import bp as telemedicine_bp
+from departments.theatre import bp as theatre_bp
 from departments.ui_billing import bp as ui_billing_bp
 from departments.ui_clinical import bp as ui_clinical_bp
 from departments.ui_dashboard import bp as ui_dashboard_bp
@@ -804,6 +805,7 @@ app.register_blueprint(etl_bp)
 app.register_blueprint(fhir_bp, url_prefix="/api/fhir/R4")
 app.register_blueprint(khis_bp, url_prefix="/api/khis")
 app.register_blueprint(hl7_bp)  # Phase 4 — mounts /api/hl7/oru and /api/hl7/status
+app.register_blueprint(theatre_bp)
 app.register_blueprint(oauth_bp)
 init_oauth(app)
 

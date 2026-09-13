@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4" x-data="surgicalWorkbench()">
+  <!-- Header Banner -->
+  <div class="card shadow-sm border-0 mb-4 bg-dark text-white rounded-3">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge bg-primary fs-6">Theatre Case #{{ entry.id }}</span>
+          <span class="badge bg-warning text-dark fs-6">{{ entry.encounter.stage if entry.encounter else 'PRE_OP' }}</span>
+        </div>
+        <h2 class="h3 fw-bold mb-1"><i class="bi bi-hospital-fill text-info me-2"></i>{{ entry.procedure.name if entry.procedure else 'Surgical Procedure' }}</h2>
+        <p class="text-secondary mb-0">
+          <i class="bi bi-person-fill me-1"></i><strong>Patient:</strong> {{ patient.name }} (ID: {{ patient.patient_id }}) |
+          <i class="bi bi-gender-ambiguous me-1"></i>{{ patient.gender }} |
+          <i class="bi bi-calendar3 me-1"></i>DOB: {{ patient.dob }}
+        </p>
+      </div>
+      <div class="d-flex gap-2">
+        <form action="{{ url_for('medicine.transition_theatre_stage', entry_id=entry.id, new_stage='INTRA_OP') }}" method="POST" class="d-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <button type="submit" class="btn btn-warning btn-sm fw-bold">
+            <i class="bi bi-play-circle-fill me-1"></i> Start Intra-Op
+          </button>
+        </form>
+        <form action="{{ url_for('medicine.transition_theatre_stage', entry_id=entry.id, new_stage='POST_OP') }}" method="POST" class="d-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <button type="submit" class="btn btn-success btn-sm fw-bold">
+            <i class="bi bi-check-circle-fill me-1"></i> Move to Post-Op
+          </button>
+        </form>
+        <a href="{{ url_for('medicine.get_theatre_list') }}" class="btn btn-outline-light btn-sm">
+          <i class="bi bi-arrow-left me-1"></i> Theatre List
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <ul class="nav nav-pills mb-4 gap-2" id="workbenchTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active fw-bold px-4 py-2" id="checklist-tab" data-bs-toggle="tab" data-bs-target="#checklist-pane" type="button" role="tab">
+        <i class="bi bi-card-checklist me-2"></i>WHO Surgical Checklist
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link fw-bold px-4 py-2" id="anaesthetic-tab" data-bs-toggle="tab" data-bs-target="#anaesthetic-pane" type="button" role="tab">
+        <i class="bi bi-lungs-fill me-2"></i>Anaesthetic Record
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link fw-bold px-4 py-2" id="postop-tab" data-bs-toggle="tab" data-bs-target="#postop-pane" type="button" role="tab">
+        <i class="bi bi-file-earmark-medical-fill me-2"></i>Post-Op Operative Note
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link fw-bold px-4 py-2" id="instruments-tab" data-bs-toggle="tab" data-bs-target="#instruments-pane" type="button" role="tab">
+        <i class="bi bi-tools me-2"></i>Instrument Reconciliation
+      </button>
+    </li>
+  </ul>
+
+  <!-- Tab Contents -->
+  <div class="tab-content" id="workbenchTabContent">
+    <!-- 1. WHO CHECKLIST PANE -->
+    <div class="tab-pane fade show active" id="checklist-pane" role="tabpanel">
+      <div class="row g-4">
+        <!-- Sign In -->
+        <div class="col-md-4">
+          <div class="card h-100 border-primary border-top border-4 shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+              <h5 class="card-title mb-0 fs-6 fw-bold"><i class="bi bi-1-circle-fill me-2"></i>1. Sign In (Pre-Induction)</h5>
+              {% if checklist and checklist.sign_in_completed %}
+              <span class="badge bg-success"><i class="bi bi-check-lg"></i> Done</span>
+              {% else %}
+              <span class="badge bg-secondary">Pending</span>
+              {% endif %}
+            </div>
+            <div class="card-body">
+              <form action="{{ url_for('theatre.who_checklist', entry_id=entry.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="stage" value="sign_in"/>
+                
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="patient_identity_confirmed" id="ck_id" {% if checklist and checklist.patient_identity_confirmed %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold" for="ck_id">Patient Identity & Site Confirmed</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="site_marked" id="ck_site" {% if checklist and checklist.site_marked %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold" for="ck_site">Surgical Site Marked</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="anaesthesia_safety_check_completed" id="ck_safety" {% if checklist and checklist.anaesthesia_safety_check_completed %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold" for="ck_safety">Anaesthesia Machine Check Complete</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="pulse_oximeter_functioning" id="ck_spo2" {% if checklist and checklist.pulse_oximeter_functioning %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold" for="ck_spo2">Pulse Oximeter Placed & Functioning</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="known_allergy" id="ck_allergy" {% if checklist and checklist.known_allergy %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold" for="ck_allergy">Known Drug Allergy</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="difficult_airway_risk" id="ck_airway" {% if checklist and checklist.difficult_airway_risk %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold text-danger" for="ck_airway">Difficult Airway / Aspiration Risk</label>
+                </div>
+                <div class="form-check mb-3">
+                  <input class="form-check-input" type="checkbox" name="blood_loss_risk_over_500ml" id="ck_blood" {% if checklist and checklist.blood_loss_risk_over_500ml %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold text-warning" for="ck_blood">Risk of >500ml Blood Loss</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 btn-sm font-weight-bold">
+                  <i class="bi bi-save me-1"></i> Save Sign In Stage
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Time Out -->
+        <div class="col-md-4">
+          <div class="card h-100 border-warning border-top border-4 shadow-sm">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+              <h5 class="card-title mb-0 fs-6 fw-bold"><i class="bi bi-2-circle-fill me-2"></i>2. Time Out (Pre-Incision)</h5>
+              {% if checklist and checklist.time_out_completed %}
+              <span class="badge bg-success"><i class="bi bi-check-lg"></i> Done</span>
+              {% else %}
+              <span class="badge bg-secondary">Pending</span>
+              {% endif %}
+            </div>
+            <div class="card-body">
+              <form action="{{ url_for('theatre.who_checklist', entry_id=entry.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="stage" value="time_out"/>
+
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="team_members_introduced" id="ck_team" {% if checklist and checklist.team_members_introduced %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold" for="ck_team">All Team Members Introduced</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="verbal_confirm_patient_site_procedure" id="ck_confirm" {% if checklist and checklist.verbal_confirm_patient_site_procedure %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold text-primary" for="ck_confirm">Verbal Confirm: Patient/Site/Procedure</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="critical_steps_surgeon_reviewed" id="ck_surg" {% if checklist and checklist.critical_steps_surgeon_reviewed %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold" for="ck_surg">Surgeon Reviews Critical Steps & Duration</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="critical_steps_anaesthetist_reviewed" id="ck_anaest" {% if checklist and checklist.critical_steps_anaesthetist_reviewed %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold" for="ck_anaest">Anaesthetist Reviews Airway & Complications</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="antibiotic_prophylaxis_given" id="ck_abx" {% if checklist and checklist.antibiotic_prophylaxis_given %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold text-success" for="ck_abx">Antibiotic Prophylaxis Given (<60 min)</label>
+                </div>
+                <div class="form-check mb-3">
+                  <input class="form-check-input" type="checkbox" name="essential_imaging_displayed" id="ck_img" {% if checklist and checklist.essential_imaging_displayed %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold" for="ck_img">Essential Imaging Displayed</label>
+                </div>
+
+                <button type="submit" class="btn btn-warning text-dark w-100 btn-sm font-weight-bold">
+                  <i class="bi bi-save me-1"></i> Save Time Out Stage
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sign Out -->
+        <div class="col-md-4">
+          <div class="card h-100 border-success border-top border-4 shadow-sm">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+              <h5 class="card-title mb-0 fs-6 fw-bold"><i class="bi bi-3-circle-fill me-2"></i>3. Sign Out (Pre-Transfer)</h5>
+              {% if checklist and checklist.sign_out_completed %}
+              <span class="badge bg-light text-dark"><i class="bi bi-check-lg"></i> Done</span>
+              {% else %}
+              <span class="badge bg-secondary">Pending</span>
+              {% endif %}
+            </div>
+            <div class="card-body">
+              <form action="{{ url_for('theatre.who_checklist', entry_id=entry.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="stage" value="sign_out"/>
+
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="instrument_sponge_needle_counts_correct" id="ck_counts" {% if checklist and checklist.instrument_sponge_needle_counts_correct %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold text-success" for="ck_counts">Instrument/Sponge/Needle Count Correct</label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="specimens_labelled" id="ck_spec" {% if checklist and checklist.specimens_labelled %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold" for="ck_spec">Specimen Labelled with Patient ID</label>
+                </div>
+                <div class="form-check mb-3">
+                  <input class="form-check-input" type="checkbox" name="equipment_problems_addressed" id="ck_equip" {% if checklist and checklist.equipment_problems_addressed %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold" for="ck_equip">Equipment Problems Addressed</label>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label fw-semibold small">Key PACU Recovery Concerns</label>
+                  <textarea class="form-control form-control-sm" name="key_recovery_concerns_reviewed" rows="2" placeholder="PACU concerns...">{{ checklist.key_recovery_concerns_reviewed if checklist else '' }}</textarea>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100 btn-sm font-weight-bold">
+                  <i class="bi bi-save me-1"></i> Save Sign Out Stage
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. ANAESTHETIC RECORD PANE -->
+    <div class="tab-pane fade" id="anaesthetic-pane" role="tabpanel">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h5 class="fw-bold mb-3"><i class="bi bi-lungs text-primary me-2"></i>Anaesthetic & Intraoperative Record</h5>
+          <form action="{{ url_for('theatre.anaesthetic_record', entry_id=entry.id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <div class="row g-3 mb-4">
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">ASA Physical Status</label>
+                <select class="form-select" name="asa_status">
+                  {% for asa in ['ASA I', 'ASA II', 'ASA III', 'ASA IV', 'ASA V', 'ASA VI'] %}
+                  <option value="{{ asa }}" {% if anaesthetic and anaesthetic.asa_status == asa %}selected{% endif %}>{{ asa }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Anaesthetic Technique</label>
+                <select class="form-select" name="technique">
+                  {% for tech in ['General', 'Spinal', 'Epidural', 'Regional Block', 'Local', 'Sedation'] %}
+                  <option value="{{ tech }}" {% if anaesthetic and anaesthetic.technique == tech %}selected{% endif %}>{{ tech }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Mallampati Class</label>
+                <select class="form-select" name="mallampati_class">
+                  <option value="Class I">Class I</option>
+                  <option value="Class II">Class II</option>
+                  <option value="Class III">Class III</option>
+                  <option value="Class IV">Class IV</option>
+                </select>
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">ETT / Airway Size</label>
+                <input type="text" class="form-control" name="ett_size" value="{{ anaesthetic.ett_size if anaesthetic else '7.5 cuffed' }}"/>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Estimated Blood Loss (mL)</label>
+                <input type="number" class="form-control text-danger fw-bold" name="estimated_blood_loss_ml" value="{{ anaesthetic.estimated_blood_loss_ml if anaesthetic else 0 }}"/>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Crystalloids (mL)</label>
+                <input type="number" class="form-control" name="crystalloids_ml" value="{{ anaesthetic.crystalloids_ml if anaesthetic else 1000 }}"/>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Blood Products (mL)</label>
+                <input type="number" class="form-control" name="blood_products_ml" value="{{ anaesthetic.blood_products_ml if anaesthetic else 0 }}"/>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Urine Output (mL)</label>
+                <input type="number" class="form-control" name="urine_output_ml" value="{{ anaesthetic.urine_output_ml if anaesthetic else 250 }}"/>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Complications / Anaesthesia Notes</label>
+              <textarea class="form-control" name="complications_notes" rows="3" placeholder="Intraoperative notes...">{{ anaesthetic.complications_notes if anaesthetic else '' }}</textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary font-weight-bold">
+              <i class="bi bi-save me-1"></i> Save Anaesthetic Record
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. POST-OP NOTE PANE -->
+    <div class="tab-pane fade" id="postop-pane" role="tabpanel">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h5 class="fw-bold mb-3"><i class="bi bi-file-earmark-medical text-success me-2"></i>Post-Operative Operative Note & PACU Recovery Score</h5>
+          <form action="{{ url_for('theatre.postop_note', entry_id=entry.id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Pre-Operative Diagnosis</label>
+                <input type="text" class="form-control" name="preop_diagnosis" value="{{ postop.preop_diagnosis if postop else entry.procedure.name }}"/>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Post-Operative Diagnosis</label>
+                <input type="text" class="form-control" name="postop_diagnosis" value="{{ postop.postop_diagnosis if postop else entry.procedure.name }}"/>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Surgical Findings & Operative Procedure</label>
+              <textarea class="form-control" name="surgical_findings" rows="3" required>{{ postop.surgical_findings if postop else 'Procedure performed as scheduled without immediate complication.' }}</textarea>
+            </div>
+
+            <!-- PACU Aldrete Score -->
+            <div class="card bg-light border-0 mb-4 p-3">
+              <h6 class="fw-bold text-dark mb-2"><i class="bi bi-speedometer2 me-2"></i>PACU Aldrete Recovery Score (Threshold ≥9 for Discharge)</h6>
+              <div class="row g-2">
+                <div class="col-md-2">
+                  <label class="small fw-semibold">Activity (0-2)</label>
+                  <input type="number" min="0" max="2" class="form-control form-control-sm" name="aldrete_activity" value="{{ postop.aldrete_activity if postop else 2 }}"/>
+                </div>
+                <div class="col-md-2">
+                  <label class="small fw-semibold">Respiration (0-2)</label>
+                  <input type="number" min="0" max="2" class="form-control form-control-sm" name="aldrete_respiration" value="{{ postop.aldrete_respiration if postop else 2 }}"/>
+                </div>
+                <div class="col-md-2">
+                  <label class="small fw-semibold">Circulation (0-2)</label>
+                  <input type="number" min="0" max="2" class="form-control form-control-sm" name="aldrete_circulation" value="{{ postop.aldrete_circulation if postop else 2 }}"/>
+                </div>
+                <div class="col-md-2">
+                  <label class="small fw-semibold">Consciousness (0-2)</label>
+                  <input type="number" min="0" max="2" class="form-control form-control-sm" name="aldrete_consciousness" value="{{ postop.aldrete_consciousness if postop else 2 }}"/>
+                </div>
+                <div class="col-md-2">
+                  <label class="small fw-semibold">O2 Saturation (0-2)</label>
+                  <input type="number" min="0" max="2" class="form-control form-control-sm" name="aldrete_spo2" value="{{ postop.aldrete_spo2 if postop else 2 }}"/>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                  <span class="badge bg-success fs-6 w-100 py-2">Score: {{ postop.total_aldrete_score if postop else 10 }}/10</span>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-success font-weight-bold">
+              <i class="bi bi-save me-1"></i> Save Post-Op Note
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. INSTRUMENT RECONCILIATION PANE -->
+    <div class="tab-pane fade" id="instruments-pane" role="tabpanel">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h5 class="fw-bold mb-3"><i class="bi bi-tools text-warning me-2"></i>Surgical Instrument, Sponge & Needle Count Reconciliation</h5>
+          <form action="{{ url_for('theatre.instrument_count', entry_id=entry.id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <div class="table-responsive mb-4">
+              <table class="table table-bordered align-middle">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Item Type</th>
+                    <th>Initial Count</th>
+                    <th>Added Intra-Op</th>
+                    <th>Closing Cavity Count</th>
+                    <th>Closing Skin Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="fw-bold">Sponges / Gauze</td>
+                    <td><input type="number" class="form-control form-control-sm" name="sponges_initial" value="{{ instruments.sponges_initial if instruments else 10 }}"/></td>
+                    <td><input type="number" class="form-control form-control-sm" name="sponges_added" value="{{ instruments.sponges_added if instruments else 0 }}"/></td>
+                    <td><input type="number" class="form-control form-control-sm" name="sponges_closing_cavity" value="{{ instruments.sponges_closing_cavity if instruments else 10 }}"/></td>
+                    <td><input type="number" class="form-control form-control-sm" name="sponges_closing_skin" value="{{ instruments.sponges_closing_skin if instruments else 10 }}"/></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Suture Needles</td>
+                    <td><input type="number" class="form-control form-control-sm" name="needles_initial" value="{{ instruments.needles_initial if instruments else 5 }}"/></td>
+                    <td><input type="number" class="form-control form-control-sm" name="needles_added" value="{{ instruments.needles_added if instruments else 0 }}"/></td>
+                    <td><input type="number" class="form-control form-control-sm" name="needles_closing_cavity" value="{{ instruments.needles_closing_cavity if instruments else 5 }}"/></td>
+                    <td><input type="number" class="form-control form-control-sm" name="needles_closing_skin" value="{{ instruments.needles_closing_skin if instruments else 5 }}"/></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Instruments & Blades</td>
+                    <td><input type="number" class="form-control form-control-sm" name="instruments_initial" value="{{ instruments.instruments_initial if instruments else 20 }}"/></td>
+                    <td><input type="number" class="form-control form-control-sm" name="instruments_added" value="{{ instruments.instruments_added if instruments else 0 }}"/></td>
+                    <td><input type="number" class="form-control form-control-sm" name="instruments_closing_cavity" value="{{ instruments.instruments_closing_cavity if instruments else 20 }}"/></td>
+                    <td><input type="number" class="form-control form-control-sm" name="instruments_closing_skin" value="{{ instruments.instruments_closing_skin if instruments else 20 }}"/></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <button type="submit" class="btn btn-warning text-dark font-weight-bold">
+              <i class="bi bi-check2-circle me-1"></i> Reconcile Instrument Count
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function surgicalWorkbench() {
+  return {
+    init() {}
+  }
+}
+</script>
+{% endblock %}
