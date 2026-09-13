@@ -3,7 +3,8 @@ Maternal and Child Health (MCH) Workflow Engine.
 
 Aligns with Kenya's MoH 710 (Child Health) and MoH 711 (ANC) registers.
 Enforces the Kenya Expanded Programme on Immunization (KEPI) schedule
-and validates clinical workflows for Antenatal Care and Immunizations.
+and validates clinical workflows for Antenatal Care, Immunizations,
+and Cold-Chain vaccine stock management.
 """
 
 import logging
@@ -11,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 from extensions import db
 
+from .cold_chain import ColdChainEngine
 from .models import AncVisit, ImmunizationRecord
 
 logger = logging.getLogger(__name__)
@@ -40,6 +42,15 @@ class MchEngine:
         visit_number: int,
         gestation_weeks: int,
         high_risk_factors: str | None = None,
+        # Clinical vitals (optional — complete when available)
+        blood_pressure_systolic: int | None = None,
+        blood_pressure_diastolic: int | None = None,
+        weight_kg: float | None = None,
+        fundal_height_cm: float | None = None,
+        foetal_heart_rate: int | None = None,
+        haemoglobin_g_dl: float | None = None,
+        urine_protein: str | None = None,
+        hiv_status: str | None = None,
     ) -> AncVisit:
         """
         Records an Antenatal Care visit and calculates the next follow-up date.
@@ -86,6 +97,15 @@ class MchEngine:
             high_risk_factors=high_risk_factors,
             next_appointment_date=next_appointment_date,
             encounter_id=enc.id,
+            # Clinical vitals
+            blood_pressure_systolic=blood_pressure_systolic,
+            blood_pressure_diastolic=blood_pressure_diastolic,
+            weight_kg=weight_kg,
+            fundal_height_cm=fundal_height_cm,
+            foetal_heart_rate=foetal_heart_rate,
+            haemoglobin_g_dl=haemoglobin_g_dl,
+            urine_protein=urine_protein,
+            hiv_status=hiv_status,
         )
         db.session.add(visit)
         db.session.commit()
@@ -127,9 +147,17 @@ class MchEngine:
         vaccine_name: str,
         dose_number: int,
         batch_number: str | None = None,
+        site_of_injection: str | None = None,
+        administered_by: str | None = None,
+        adverse_event_noted: str | None = None,
+        deduct_from_cold_chain: bool = True,
     ) -> ImmunizationRecord:
         """
         Records a vaccine administration, enforcing dose sequencing and preventing duplicates.
+
+        If `deduct_from_cold_chain` is True (default), deducts 1 vial from the
+        FEFO-ordered cold-chain stock for this vaccine and links the ImmunizationRecord
+        to the drawn VaccineBatch for full lot traceability.
         """
         # Check if this exact dose was already given
         existing = ImmunizationRecord.query.filter_by(
@@ -140,9 +168,7 @@ class MchEngine:
 
         if existing:
             raise ValueError(
-                "%s Dose %s has already been administered to this child.",
-                vaccine_name,
-                dose_number,
+                f"{vaccine_name} Dose {dose_number} has already been administered to this child."
             )
 
         # Basic sequence check: ensure previous dose exists (if dose > 1)
@@ -154,10 +180,25 @@ class MchEngine:
             ).first()
             if not prev_dose:
                 raise ValueError(
-                    "Cannot administer %s Dose %s before Dose %s is given.",
+                    f"Cannot administer {vaccine_name} Dose {dose_number} "
+                    f"before Dose {dose_number - 1} is given."
+                )
+
+        # Cold-chain FEFO dispensing
+        vaccine_batch_id = None
+        resolved_batch_number = batch_number
+        if deduct_from_cold_chain:
+            try:
+                cc = ColdChainEngine()
+                drawn = cc.dispense_vaccine(vaccine_name, vials_needed=1)
+                if drawn:
+                    vaccine_batch_id = drawn[0].id
+                    resolved_batch_number = drawn[0].batch_number
+            except ValueError:
+                # Cold-chain stock not found — log warning but don’t block the dose
+                logger.warning(
+                    "Cold-chain stock not available for %s — recording dose without inventory deduction.",
                     vaccine_name,
-                    dose_number,
-                    dose_number - 1,
                 )
 
         # Link to the active ANC encounter for this child (if one is open)
@@ -169,17 +210,22 @@ class MchEngine:
             child_patient_id=child_patient_id,
             vaccine_name=vaccine_name,
             dose_number=dose_number,
-            batch_number=batch_number,
+            batch_number=resolved_batch_number,
+            site_of_injection=site_of_injection,
+            administered_by=administered_by,
+            adverse_event_noted=adverse_event_noted,
+            vaccine_batch_id=vaccine_batch_id,
             encounter_id=enc_id,
         )
         db.session.add(record)
         db.session.commit()
 
         logger.info(
-            "IMMUNIZATION RECORDED: Child %s received %s Dose %s",
+            "IMMUNIZATION RECORDED: Child %s received %s Dose %s (batch=%s)",
             child_patient_id,
             vaccine_name,
             dose_number,
+            resolved_batch_number,
         )
         return record
 
