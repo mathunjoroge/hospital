@@ -9,7 +9,7 @@ read-heavy executive reporting and MoH DHIS2 / KHIS reporting.
 """
 
 import logging
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from typing import Optional
 
