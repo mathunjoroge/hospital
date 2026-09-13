@@ -23,6 +23,7 @@ from departments.models.theatre import (
     WhoSurgicalChecklist,
 )
 from extensions import db
+from departments.theatre.theatre_engine import TheatreOperationsEngine
 
 from . import bp
 
@@ -364,3 +365,66 @@ def instrument_count(entry_id):
         "count_reconciled": counts.count_reconciled,
         "reconciliation": reconcile_result,
     })
+
+
+# ---------------------------------------------------------------------------
+# Intraoperative Vitals, Fluid Balance, PACU Readiness & OR Flow Console
+# ---------------------------------------------------------------------------
+@bp.route("/api/vitals/<int:entry_id>", methods=["POST"])
+@login_required
+def record_intraop_vitals_api(entry_id):
+    """POST endpoint to stream intraoperative vital sign snapshot."""
+    data = request.get_json() or {}
+    try:
+        record = TheatreOperationsEngine.record_intraop_vitals(
+            entry_id=entry_id,
+            hr=data.get("hr"),
+            bp_systolic=data.get("bp_sys"),
+            bp_diastolic=data.get("bp_dia"),
+            spo2=data.get("spo2"),
+            etco2=data.get("etco2"),
+            agent_concentration=data.get("agent_conc"),
+        )
+        return jsonify({
+            "status": "success",
+            "message": "Intraoperative vital snapshot recorded.",
+            "record_id": record.id,
+            "vitals_count": len(record.vitals_series),
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@bp.route("/api/fluid-balance/<int:entry_id>", methods=["GET"])
+@login_required
+def get_fluid_balance_api(entry_id):
+    """GET endpoint returning intraoperative fluid intake vs. loss calculation."""
+    balance = TheatreOperationsEngine.calculate_fluid_balance(entry_id)
+    return jsonify(balance), 200
+
+
+@bp.route("/api/pacu-readiness/<int:entry_id>", methods=["GET"])
+@login_required
+def get_pacu_readiness_api(entry_id):
+    """GET endpoint returning PACU Aldrete Recovery Score & discharge readiness status."""
+    readiness = TheatreOperationsEngine.evaluate_pacu_discharge_readiness(entry_id)
+    return jsonify(readiness), 200
+
+
+@bp.route("/dashboard", methods=["GET"])
+@login_required
+def get_or_dashboard_ui():
+    """Render real-time Operating Theatre & OR Flow Console dashboard UI."""
+    from departments.theatre.theatre_engine import TheatreOperationsEngine
+    metrics = TheatreOperationsEngine.get_or_dashboard_metrics()
+    return render_template("theatre/or_dashboard.html", metrics=metrics)
+
+
+@bp.route("/api/metrics", methods=["GET"])
+@login_required
+def get_or_metrics_api():
+    """JSON API endpoint returning Operating Theatre KPIs and active case list."""
+    from departments.theatre.theatre_engine import TheatreOperationsEngine
+    metrics = TheatreOperationsEngine.get_or_dashboard_metrics()
+    return jsonify(metrics), 200
+
