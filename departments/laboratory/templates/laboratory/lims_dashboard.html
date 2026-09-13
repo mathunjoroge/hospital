@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4" style="background-color: #0f172a; color: #f8fafc; min-height: 100vh;">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show bg-dark text-white border-secondary mb-4" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Header Banner -->
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+        <div>
+            <h2 class="fw-bold mb-1" style="letter-spacing: -0.5px;">
+                <i class="bi bi-diagram-3-fill text-info me-2"></i>LIMS Specimen Tracking & Westgard QC Console
+            </h2>
+            <p class="text-muted mb-0 small">Enterprise Laboratory Information Management System | Barcode Chain-of-Custody & Multi-Rule Analyzer Quality Control</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-info btn-sm px-3" data-bs-toggle="modal" data-bs-target="#newSpecimenModal">
+                <i class="bi bi-upc-scan me-1"></i>New Specimen Barcode
+            </button>
+            <button class="btn btn-primary btn-sm px-3" data-bs-toggle="modal" data-bs-target="#logQcModal">
+                <i class="bi bi-activity me-1"></i>Log QC Run
+            </button>
+        </div>
+    </div>
+
+    <!-- KPI Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-2">
+            <div class="card bg-dark border-secondary p-3 h-100 shadow-sm">
+                <div class="text-muted small fw-bold">TOTAL SPECIMENS</div>
+                <div class="fs-2 fw-bold text-white mt-1">{{ metrics.total_specimens }}</div>
+                <span class="badge bg-secondary mt-2 w-50">Active Tracker</span>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-dark border-secondary p-3 h-100 shadow-sm">
+                <div class="text-muted small fw-bold">RECEIVED AT LAB</div>
+                <div class="fs-2 fw-bold text-info mt-1">{{ metrics.status_counts.received }}</div>
+                <span class="badge bg-info text-dark mt-2 w-50">In Queue</span>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-dark border-secondary p-3 h-100 shadow-sm">
+                <div class="text-muted small fw-bold">REJECTED SAMPLES</div>
+                <div class="fs-2 fw-bold text-danger mt-1">{{ metrics.status_counts.rejected }}</div>
+                <span class="badge bg-danger mt-2 w-50">Quality Issue</span>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark border-secondary p-3 h-100 shadow-sm">
+                <div class="text-muted small fw-bold">QC PASS RATE (WESTGARD)</div>
+                <div class="fs-2 fw-bold text-success mt-1">{{ metrics.qc_metrics.pass_rate_pct }}%</div>
+                <span class="badge bg-success mt-2 w-50">{{ metrics.qc_metrics.pass_runs }} / {{ metrics.qc_metrics.total_runs }} Runs</span>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark border-secondary p-3 h-100 shadow-sm">
+                <div class="text-muted small fw-bold">WESTGARD VIOLATIONS</div>
+                <div class="fs-2 fw-bold text-warning mt-1">{{ metrics.qc_metrics.reject_runs + metrics.qc_metrics.warning_runs }}</div>
+                <span class="badge bg-warning text-dark mt-2 w-75">{{ metrics.qc_metrics.reject_runs }} Rejections | {{ metrics.qc_metrics.warning_runs }} Warnings</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Split -->
+    <div class="row g-4">
+        <!-- Left Column: Specimen Tracking Table -->
+        <div class="col-lg-7">
+            <div class="card bg-dark border-secondary shadow-sm">
+                <div class="card-header border-secondary bg-transparent d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0 text-white"><i class="bi bi-box-seam me-2 text-primary"></i>Recent Specimen Chain of Custody</h5>
+                    <div class="input-group input-group-sm w-50">
+                        <input type="text" id="barcodeSearchInput" class="form-control bg-secondary text-white border-0" placeholder="Scan/Type Barcode (e.g. SPEC-2026...)...">
+                        <button class="btn btn-outline-info" onclick="searchBarcode()"><i class="bi bi-search"></i></button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0 align-middle">
+                            <thead class="table-secondary text-uppercase small" style="font-size: 0.75rem;">
+                                <tr>
+                                    <th>Barcode</th>
+                                    <th>Patient</th>
+                                    <th>Type</th>
+                                    <th>Container</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for spec in recent_specimens %}
+                                <tr>
+                                    <td>
+                                        <span class="font-monospace text-info fw-bold">{{ spec.barcode }}</span>
+                                    </td>
+                                    <td>{{ spec.patient_id }}</td>
+                                    <td><span class="badge bg-outline-light border border-secondary text-light">{{ spec.specimen_type }}</span></td>
+                                    <td><span class="badge bg-secondary">{{ spec.container_type }}</span></td>
+                                    <td>
+                                        {% if spec.status == 'ORDERED' %}
+                                            <span class="badge bg-secondary">ORDERED</span>
+                                        {% elif spec.status == 'COLLECTED' %}
+                                            <span class="badge bg-warning text-dark">COLLECTED</span>
+                                        {% elif spec.status == 'RECEIVED' %}
+                                            <span class="badge bg-info text-dark">RECEIVED</span>
+                                        {% elif spec.status == 'REJECTED' %}
+                                            <span class="badge bg-danger">REJECTED</span>
+                                        {% elif spec.status == 'COMPLETED' %}
+                                            <span class="badge bg-success">COMPLETED</span>
+                                        {% else %}
+                                            <span class="badge bg-primary">{{ spec.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            {% if spec.status == 'ORDERED' %}
+                                                <button class="btn btn-warning text-dark btn-sm" onclick="markCollected('{{ spec.barcode }}')">Collect</button>
+                                            {% elif spec.status == 'COLLECTED' %}
+                                                <button class="btn btn-info text-dark btn-sm" onclick="markReceived('{{ spec.barcode }}')">Receive</button>
+                                            {% endif %}
+                                            {% if spec.status not in ['REJECTED', 'COMPLETED'] %}
+                                                <button class="btn btn-outline-danger btn-sm" onclick="openRejectModal('{{ spec.barcode }}')">Reject</button>
+                                            {% endif %}
+                                            <button class="btn btn-outline-light btn-sm" onclick="viewCustody('{{ spec.barcode }}')"><i class="bi bi-clock-history"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">No specimens tracked in database.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Westgard Quality Control Runs -->
+        <div class="col-lg-5">
+            <div class="card bg-dark border-secondary shadow-sm">
+                <div class="card-header border-secondary bg-transparent d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0 text-white"><i class="bi bi-shield-check me-2 text-success"></i>Westgard QC Recent Runs</h5>
+                    <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#newQcSampleModal">
+                        <i class="bi bi-plus-circle me-1"></i>New QC Control
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0 align-middle">
+                            <thead class="table-secondary text-uppercase small" style="font-size: 0.75rem;">
+                                <tr>
+                                    <th>Control / Parameter</th>
+                                    <th>Measured</th>
+                                    <th>Z-Score</th>
+                                    <th>Status</th>
+                                    <th>Rules</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for run in recent_qc_runs %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-light">{{ run.qc_sample.control_name if run.qc_sample else 'QC Control' }}</div>
+                                        <div class="small text-muted">{{ run.qc_sample.parameter_name if run.qc_sample }} ({{ run.qc_sample.analyzer_name if run.qc_sample }})</div>
+                                    </td>
+                                    <td class="fw-bold">{{ run.measured_value }}</td>
+                                    <td>
+                                        <span class="font-monospace {{ 'text-danger' if run.z_score|abs > 3 else ('text-warning' if run.z_score|abs > 2 else 'text-success') }}">
+                                            {{ "%.2f"|format(run.z_score) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if run.status == 'PASS' %}
+                                            <span class="badge bg-success">PASS</span>
+                                        {% elif run.status == 'WARNING' %}
+                                            <span class="badge bg-warning text-dark">WARNING</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">REJECT</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="small text-muted font-monospace">{{ run.violated_rules or 'None' }}</span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No QC runs recorded yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: New Specimen -->
+<div class="modal fade" id="newSpecimenModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Register New Specimen</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createSpecimenForm">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Patient ID</label>
+                        <input type="text" class="form-control bg-secondary text-white border-0" id="specPatientId" placeholder="e.g. PAT-001" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Specimen Type</label>
+                        <select class="form-select bg-secondary text-white border-0" id="specType">
+                            <option value="WHOLE_BLOOD">Whole Blood</option>
+                            <option value="SERUM">Serum</option>
+                            <option value="PLASMA">Plasma</option>
+                            <option value="URINE">Urine</option>
+                            <option value="CSF">Cerebrospinal Fluid (CSF)</option>
+                            <option value="SWAB">Swab</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Container / Tube Type</label>
+                        <select class="form-select bg-secondary text-white border-0" id="containerType">
+                            <option value="EDTA_PURPLE">EDTA (Purple Top)</option>
+                            <option value="SST_GOLD">SST (Gold / Yellow Top)</option>
+                            <option value="SODIUM_HEPARIN_GREEN">Sodium Heparin (Green Top)</option>
+                            <option value="SODIUM_CITRATE_BLUE">Sodium Citrate (Light Blue Top)</option>
+                            <option value="STERILE_CUP">Sterile Container Cup</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-info w-100">Generate Specimen Barcode</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Log QC Run -->
+<div class="modal fade" id="logQcModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Log Analyzer QC Run & Westgard Check</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="logQcForm">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Select Control Sample</label>
+                        <select class="form-select bg-secondary text-white border-0" id="qcSampleSelect" required>
+                            {% for qc in qc_samples %}
+                                <option value="{{ qc.id }}">{{ qc.control_name }} - {{ qc.parameter_name }} (Mean: {{ qc.target_mean }}, SD: {{ qc.target_sd }})</option>
+                            {% else %}
+                                <option value="">No Control Samples Registered</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Measured Control Value</label>
+                        <input type="number" step="any" class="form-control bg-secondary text-white border-0" id="qcMeasuredValue" placeholder="e.g. 5.2" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Run Westgard Multi-Rule Evaluation</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Register QC Control Sample -->
+<div class="modal fade" id="newQcSampleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Register QC Control Sample</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newQcSampleForm">
+                    <div class="mb-2">
+                        <label class="form-label text-muted small">Control Name</label>
+                        <input type="text" class="form-control bg-secondary text-white border-0" id="qcControlName" placeholder="e.g. Bio-Rad Liquid Level 1" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label text-muted small">Lot Number</label>
+                        <input type="text" class="form-control bg-secondary text-white border-0" id="qcLotNumber" placeholder="e.g. LOT-88491" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label text-muted small">Analyzer Name</label>
+                        <input type="text" class="form-control bg-secondary text-white border-0" id="qcAnalyzerName" placeholder="e.g. Roche Cobas c501" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label text-muted small">Parameter Name</label>
+                        <input type="text" class="form-control bg-secondary text-white border-0" id="qcParamName" placeholder="e.g. GLUCOSE" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted small">Target Mean</label>
+                            <input type="number" step="any" class="form-control bg-secondary text-white border-0" id="qcTargetMean" placeholder="5.0" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small">Target SD</label>
+                            <input type="number" step="any" class="form-control bg-secondary text-white border-0" id="qcTargetSD" placeholder="0.2" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Save QC Control Sample</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for LIMS interactive operations -->
+<script>
+document.getElementById('createSpecimenForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const payload = {
+        patient_id: document.getElementById('specPatientId').value,
+        specimen_type: document.getElementById('specType').value,
+        container_type: document.getElementById('containerType').value
+    };
+    const res = await fetch('/laboratory/api/lims/specimens/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok) {
+        alert('Created Specimen Barcode: ' + data.barcode);
+        location.reload();
+    } else {
+        alert('Error: ' + (data.error || 'Failed to create specimen'));
+    }
+});
+
+document.getElementById('logQcForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const payload = {
+        qc_sample_id: document.getElementById('qcSampleSelect').value,
+        measured_value: document.getElementById('qcMeasuredValue').value
+    };
+    const res = await fetch('/laboratory/api/lims/qc/log', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok) {
+        alert(`QC Result evaluated!\nStatus: ${data.status}\nZ-Score: ${data.z_score}\nRules Violated: ${data.violated_rules.join(', ') || 'None'}`);
+        location.reload();
+    } else {
+        alert('Error: ' + (data.error || 'Failed to log QC run'));
+    }
+});
+
+document.getElementById('newQcSampleForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const payload = {
+        control_name: document.getElementById('qcControlName').value,
+        lot_number: document.getElementById('qcLotNumber').value,
+        analyzer_name: document.getElementById('qcAnalyzerName').value,
+        parameter_name: document.getElementById('qcParamName').value,
+        target_mean: document.getElementById('qcTargetMean').value,
+        target_sd: document.getElementById('qcTargetSD').value
+    };
+    const res = await fetch('/laboratory/api/lims/qc/samples', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok) {
+        alert('QC Control Sample Registered');
+        location.reload();
+    } else {
+        alert('Error: ' + (data.error || 'Failed to register QC sample'));
+    }
+});
+
+async function markCollected(barcode) {
+    const res = await fetch('/laboratory/api/lims/specimens/collect', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({barcode: barcode})
+    });
+    if (res.ok) location.reload();
+}
+
+async function markReceived(barcode) {
+    const res = await fetch('/laboratory/api/lims/specimens/receive', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({barcode: barcode})
+    });
+    if (res.ok) location.reload();
+}
+
+async function openRejectModal(barcode) {
+    const reason = prompt("Enter Rejection Reason (e.g. HEMOLYZED, CLOTTED, INSUFFICIENT_VOLUME, UNLABELED):", "HEMOLYZED");
+    if (reason) {
+        const res = await fetch('/laboratory/api/lims/specimens/reject', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({barcode: barcode, rejection_reason: reason})
+        });
+        if (res.ok) location.reload();
+    }
+}
+
+async function viewCustody(barcode) {
+    const res = await fetch('/laboratory/api/lims/specimens/track/' + barcode);
+    const data = await res.json();
+    if (res.ok) {
+        let historyStr = `Barcode: ${data.barcode}\nStatus: ${data.status}\nRejection Reason: ${data.rejection_reason || 'N/A'}\n\nChain of Custody:\n`;
+        (data.chain_of_custody || []).forEach(step => {
+            historyStr += `• [${step.timestamp}] ${step.status} - ${step.action} (User #${step.user_id || 'System'})\n`;
+        });
+        alert(historyStr);
+    }
+}
+
+async function searchBarcode() {
+    const val = document.getElementById('barcodeSearchInput').value.trim();
+    if (val) viewCustody(val);
+}
+</script>
+{% endblock %}

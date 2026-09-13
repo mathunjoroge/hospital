@@ -39,7 +39,7 @@ from .hr import (
 )
 from .imaging import ImagingResult
 from .insurance import Claim, ClaimStatus, InsuranceScheme, PatientInsurance
-from .laboratory import LabResult, LabResultTemplate
+from .laboratory import LabQCResult, LabQCSample, LabResult, LabResultTemplate, Specimen
 from .medicine import (
     AdmittedPatient,
     Bed,
@@ -173,6 +173,8 @@ __all__ = [
     "InvoiceLineItem",
     "InvoiceStatus",
     "LabBill",
+    "LabQCResult",
+    "LabQCSample",
     "LabResult",
     "LabResultTemplate",
     "LabTest",
@@ -226,6 +228,7 @@ __all__ = [
     "SOAPNote",
     "SnomedCode",
     "SpecialWarning",
+    "Specimen",
     "StaffCredential",
     "StockMovement",
     "StockTake",
