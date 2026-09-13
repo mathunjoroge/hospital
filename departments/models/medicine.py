@@ -362,12 +362,40 @@ class Bed(db.Model):
     occupied = db.Column(
         db.Boolean, default=False, nullable=False
     )  # Track availability
+    status = db.Column(
+        db.String(20), default="AVAILABLE", nullable=False
+    )  # 'AVAILABLE', 'OCCUPIED', 'DIRTY', 'CLEANING', 'MAINTENANCE'
 
     # Relationships
     room = db.relationship("WardRoom", backref="beds")
 
     def __repr__(self):
-        return f"<Bed {self.bed_number} - Room {self.room_id} - {'Occupied' if self.occupied else 'Available'}>"
+        return f"<Bed {self.bed_number} - Room {self.room_id} - Status: {self.status}>"
+
+
+class ADTLog(db.Model):
+    """Model for recording HL7 v2 ADT (Admit-Discharge-Transfer) events."""
+
+    __tablename__ = "adt_logs"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    event_type = db.Column(db.String(10), nullable=False)  # 'A01', 'A02', 'A03', 'A08'
+    patient_id = db.Column(db.String(20), db.ForeignKey("patients.patient_id"), nullable=False)
+    admission_id = db.Column(db.Integer, db.ForeignKey("admitted_patients.id"), nullable=True)
+    from_ward_id = db.Column(db.Integer, db.ForeignKey("wards.id"), nullable=True)
+    from_bed_id = db.Column(db.Integer, db.ForeignKey("beds.id"), nullable=True)
+    to_ward_id = db.Column(db.Integer, db.ForeignKey("wards.id"), nullable=True)
+    to_bed_id = db.Column(db.Integer, db.ForeignKey("beds.id"), nullable=True)
+    user_id = db.Column(db.Integer, nullable=True)
+    hl7_message = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    patient = db.relationship("Patient", backref="adt_logs")
+    admission = db.relationship("AdmittedPatient", backref="adt_logs")
+
+    def __repr__(self):
+        return f"<ADTLog {self.event_type} - Patient: {self.patient_id} - Time: {self.created_at}>"
+
 
 
 class WardRound(db.Model):

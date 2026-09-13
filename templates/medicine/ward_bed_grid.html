@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Inpatient Ward & Bed Turnaround Console — HIMS Enterprise{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --bg-dark: #0b0f19;
+    --card-bg: rgba(23, 32, 54, 0.7);
+    --border-glass: rgba(255, 255, 255, 0.08);
+    --accent-blue: #38bdf8;
+    --accent-emerald: #10b981;
+    --accent-amber: #f59e0b;
+    --accent-rose: #f43f5e;
+    --accent-purple: #a855f7;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+  }
+
+  body {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+  }
+
+  .console-header {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+    border: 1px solid var(--border-glass);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    backdrop-filter: blur(10px);
+  }
+
+  .stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-glass);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    backdrop-filter: blur(8px);
+  }
+
+  .stat-val {
+    font-size: 2rem;
+    font-weight: 700;
+  }
+
+  .stat-label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+  }
+
+  .ward-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-glass);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    backdrop-filter: blur(10px);
+  }
+
+  .bed-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .bed-box {
+    border-radius: 10px;
+    padding: 14px;
+    border: 1px solid var(--border-glass);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .bed-AVAILABLE {
+    background: rgba(16, 185, 129, 0.15);
+    border-left: 4px solid var(--accent-emerald);
+  }
+
+  .bed-OCCUPIED {
+    background: rgba(244, 63, 94, 0.15);
+    border-left: 4px solid var(--accent-rose);
+  }
+
+  .bed-DIRTY {
+    background: rgba(245, 158, 11, 0.15);
+    border-left: 4px solid var(--accent-amber);
+  }
+
+  .bed-CLEANING {
+    background: rgba(56, 189, 248, 0.15);
+    border-left: 4px solid var(--accent-blue);
+  }
+
+  .bed-MAINTENANCE {
+    background: rgba(168, 85, 247, 0.15);
+    border-left: 4px solid var(--accent-purple);
+  }
+
+  .bed-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+
+  .btn-turnaround {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+  }
+</style>
+
+<div class="container-fluid py-4">
+  <!-- Console Header -->
+  <div class="console-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div>
+      <h2 class="fw-bold text-white mb-1">
+        <i class="bi bi-door-open-fill text-info me-2"></i>Inpatient Ward & Bed Turnaround Console
+      </h2>
+      <p class="text-secondary mb-0">Real-time bed availability, housekeeping turnaround state machine & HL7 ADT events</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button onclick="refreshBedGrid()" class="btn btn-outline-info btn-sm">
+        <i class="bi bi-arrow-clockwise me-1"></i>Refresh Grid
+      </button>
+      <a href="{{ url_for('medicine.admit_patient') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-person-plus-fill me-1"></i>Admit Patient (ADT^A01)
+      </a>
+    </div>
+  </div>
+
+  <!-- Real-Time Metrics Summary -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-2 col-6">
+      <div class="stat-card">
+        <div class="stat-val text-info">{{ matrix.total_beds }}</div>
+        <div class="stat-label">Total Beds</div>
+      </div>
+    </div>
+    <div class="col-md-2 col-6">
+      <div class="stat-card">
+        <div class="stat-val text-success">{{ matrix.available_beds }}</div>
+        <div class="stat-label">Available</div>
+      </div>
+    </div>
+    <div class="col-md-2 col-6">
+      <div class="stat-card">
+        <div class="stat-val text-danger">{{ matrix.occupied_beds }}</div>
+        <div class="stat-label">Occupied</div>
+      </div>
+    </div>
+    <div class="col-md-2 col-6">
+      <div class="stat-card">
+        <div class="stat-val text-warning">{{ matrix.dirty_beds }}</div>
+        <div class="stat-label">Dirty (Needs Clean)</div>
+      </div>
+    </div>
+    <div class="col-md-2 col-6">
+      <div class="stat-card">
+        <div class="stat-val text-info">{{ matrix.cleaning_beds }}</div>
+        <div class="stat-label">Cleaning</div>
+      </div>
+    </div>
+    <div class="col-md-2 col-6">
+      <div class="stat-card">
+        <div class="stat-val text-purple">{{ matrix.overall_occupancy_pct }}%</div>
+        <div class="stat-label">Occupancy Rate</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ward Beds Grid -->
+  {% for ward in matrix.wards %}
+  <div class="ward-card">
+    <div class="d-flex justify-content-between align-items-center pb-2 mb-3 border-bottom border-secondary">
+      <div>
+        <h4 class="text-white fw-bold mb-1">
+          <i class="bi bi-hospital me-2 text-info"></i>{{ ward.ward_name }}
+          <span class="badge bg-secondary text-dark ms-2">{{ ward.sex }} Ward</span>
+        </h4>
+        <small class="text-secondary">
+          Daily Charge: KES {{ "%.2f"|format(ward.daily_charge) }} | Beds: {{ ward.total_beds }} | Occupancy: {{ ward.occupancy_pct }}%
+        </small>
+      </div>
+      <div class="d-flex gap-2">
+        <span class="badge bg-success">Available: {{ ward.available_beds }}</span>
+        <span class="badge bg-danger">Occupied: {{ ward.occupied_beds }}</span>
+        <span class="badge bg-warning text-dark">Dirty: {{ ward.dirty_beds }}</span>
+      </div>
+    </div>
+
+    {% for room in ward.rooms %}
+    <div class="mb-3">
+      <h6 class="text-secondary text-uppercase fw-semibold mb-2" style="letter-spacing: 0.05em;">
+        Room {{ room.room_number }}
+      </h6>
+      <div class="bed-grid">
+        {% for bed in room.beds %}
+        <div class="bed-box bed-{{ bed.status }}">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="fw-bold text-white fs-6">Bed {{ bed.bed_number }}</span>
+            <span class="bed-badge bg-dark text-white">{{ bed.status }}</span>
+          </div>
+
+          {% if bed.patient %}
+          <div class="small text-white mb-2">
+            <i class="bi bi-person-fill text-info me-1"></i><strong>{{ bed.patient.patient_name }}</strong><br>
+            <span class="text-secondary">ID: {{ bed.patient.patient_id }}</span><br>
+            <span class="text-secondary">Since: {{ bed.patient.admitted_on }}</span>
+          </div>
+          {% else %}
+          <div class="small text-secondary mb-2">
+            <i class="bi bi-dash-circle me-1"></i>Unoccupied
+          </div>
+          {% endif %}
+
+          <div class="d-flex gap-1 flex-wrap mt-2">
+            {% if bed.status == 'DIRTY' %}
+            <button onclick="setBedStatus({{ bed.bed_id }}, 'CLEANING')" class="btn-turnaround bg-info text-dark">
+              <i class="bi bi-bucket-fill me-1"></i>Start Cleaning
+            </button>
+            {% elif bed.status == 'CLEANING' %}
+            <button onclick="setBedStatus({{ bed.bed_id }}, 'AVAILABLE')" class="btn-turnaround bg-success text-white">
+              <i class="bi bi-check-circle-fill me-1"></i>Mark Clean & Ready
+            </button>
+            {% elif bed.status == 'AVAILABLE' %}
+            <button onclick="setBedStatus({{ bed.bed_id }}, 'MAINTENANCE')" class="btn-turnaround bg-secondary text-white">
+              <i class="bi bi-tools me-1"></i>Maintenance
+            </button>
+            {% elif bed.status == 'MAINTENANCE' %}
+            <button onclick="setBedStatus({{ bed.bed_id }}, 'DIRTY')" class="btn-turnaround bg-warning text-dark">
+              <i class="bi bi-arrow-counterclockwise me-1"></i>Send to Clean
+            </button>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+  function setBedStatus(bedId, status) {
+    fetch(`/medicine/api/beds/${bedId}/status`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({status: status})
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'success') {
+        location.reload();
+      } else {
+        alert('Error: ' + data.message);
+      }
+    })
+    .catch(err => alert('Network error: ' + err));
+  }
+
+  function refreshBedGrid() {
+    location.reload();
+  }
+</script>
+{% endblock %}
