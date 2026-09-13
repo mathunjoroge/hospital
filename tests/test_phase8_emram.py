@@ -251,9 +251,10 @@ class TestAnalyticsETL:
             db.session.add_all([enc_opd, enc_ipd])
             db.session.commit()
 
-            snapshot = run_daily_kpi_etl(date.today())
+            target_date = now.date()
+            snapshot = run_daily_kpi_etl(target_date)
             assert snapshot is not None
-            assert snapshot.snapshot_date == date.today()
+            assert snapshot.snapshot_date == target_date
             assert snapshot.total_outpatient_visits >= 1
             assert snapshot.total_admissions >= 1
 
