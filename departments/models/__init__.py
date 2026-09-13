@@ -117,6 +117,7 @@ from .stock_take import StockTake, StockTakeItem
 from .stores import NonPharmCategory, NonPharmItem, OtherOrder
 from .supplier import PurchaseOrder, PurchaseOrderItem, Supplier
 from .telemedicine import TelemedicineSession
+from .terminology import ICD10Code, LoincCode, SnomedCode
 from .transfer import TransferOrder, TransferOrderItem
 from .user import User
 

@@ -24,6 +24,9 @@ import csv
 import logging
 import os
 
+from departments.models.terminology import ICD10Code
+from extensions import db
+
 logger = logging.getLogger(__name__)
 
 
@@ -40,8 +43,6 @@ def import_from_who_api(release: str | None = None) -> int:
     Must be called inside a Flask application context.
     """
     from departments.medicine.who_icd_client import walk_icd10_tree
-    from departments.models.terminology import ICD10Code
-    from extensions import db
 
     if release is None:
         release = os.getenv("WHO_ICD_API_RELEASE", "2019")
