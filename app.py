@@ -736,6 +736,7 @@ from departments.medicine.prescribe import prescribe_bp
 from departments.mortuary import bp as mortuary_bp
 from departments.nursing import bp as nursing_bp
 from departments.nursing.bcma import bcma_bp
+from departments.nursing.ed_routes import ed_bp
 from departments.nursing.mar import mar_bp
 from departments.nursing.triage import triage_bp
 from departments.patient_portal import patient_portal_bp
@@ -766,6 +767,7 @@ app.register_blueprint(stores_bp, url_prefix="/stores")
 app.register_blueprint(transfer_bp)  # Phase E: mounts /stores/transfers/*
 app.register_blueprint(admin_bp, url_prefix="/admin")
 app.register_blueprint(nursing_bp, url_prefix="/nursing")
+app.register_blueprint(ed_bp)
 app.register_blueprint(hr_bp, url_prefix="/hr")
 app.register_blueprint(mortuary_bp, url_prefix="/mortuary")
 app.register_blueprint(api_bp, url_prefix="/api")
@@ -804,6 +806,12 @@ app.register_blueprint(bcma_bp)
 app.register_blueprint(ccda_bp)
 app.register_blueprint(etl_bp)
 app.register_blueprint(fhir_bp, url_prefix="/api/fhir/R4")
+
+@app.route("/.well-known/smart-configuration", methods=["GET"])
+def root_smart_configuration():
+    from departments.api.fhir import get_smart_configuration
+    return get_smart_configuration()
+
 app.register_blueprint(khis_bp, url_prefix="/api/khis")
 app.register_blueprint(hl7_bp)  # Phase 4 — mounts /api/hl7/oru and /api/hl7/status
 app.register_blueprint(theatre_bp)

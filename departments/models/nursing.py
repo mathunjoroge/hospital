@@ -195,8 +195,20 @@ class TriageAssessment(db.Model):
     vitals_warning = db.Column(db.Text, nullable=True)
     priority_status = db.Column(
         db.String(30), default="WAITING"
-    )  # WAITING, SEEN, ESCALATED
+    )  # WAITING, SEEN, ESCALATED, DISPOSITIONED
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    # ED Operations Management tracking
+    arrival_at = db.Column(db.DateTime, nullable=True, default=datetime.utcnow)
+    triage_completed_at = db.Column(db.DateTime, nullable=True)
+    seen_by_doctor_at = db.Column(db.DateTime, nullable=True)
+    disposition_at = db.Column(db.DateTime, nullable=True)
+    disposition = db.Column(db.String(30), nullable=True)
+    bed_assigned_at = db.Column(db.DateTime, nullable=True)
+    bed_label = db.Column(db.String(20), nullable=True)
+    re_evaluation_due_at = db.Column(db.DateTime, nullable=True)
+    last_re_evaluation_at = db.Column(db.DateTime, nullable=True)
+    re_evaluation_notes = db.Column(db.Text, nullable=True)
 
     nurse = db.relationship("User", backref="triage_assessments")
     patient = db.relationship(

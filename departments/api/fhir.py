@@ -725,3 +725,449 @@ def search_fhir_imaging_studies():
     return jsonify(bundle)
 
 
+@fhir_bp.route("/metadata", methods=["GET"])
+@fhir_bp.route("/R4/metadata", methods=["GET"])
+def get_fhir_metadata():
+    """Return FHIR R4 CapabilityStatement."""
+    capability = {
+        "resourceType": "CapabilityStatement",
+        "id": "hims-fhir-r4-capability",
+        "status": "active",
+        "date": datetime.now(timezone.utc).isoformat(),
+        "publisher": "HIMS Enterprise Interoperability",
+        "kind": "instance",
+        "software": {"name": "HIMS FHIR R4 Engine", "version": "1.0.0"},
+        "implementation": {"description": "HIMS HL7 FHIR R4 Enterprise REST API"},
+        "fhirVersion": "4.0.1",
+        "format": ["json"],
+        "rest": [
+            {
+                "mode": "server",
+                "security": {
+                    "cors": True,
+                    "service": [
+                        {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/restful-security-service",
+                                    "code": "SMART-on-FHIR",
+                                }
+                            ]
+                        }
+                    ],
+                },
+                "resource": [
+                    {
+                        "type": "Patient",
+                        "interaction": [{"code": "read"}, {"code": "search-type"}],
+                        "searchParam": [
+                            {"name": "_id", "type": "token"},
+                            {"name": "name", "type": "string"},
+                            {"name": "identifier", "type": "token"},
+                            {"name": "gender", "type": "token"},
+                        ],
+                    },
+                    {
+                        "type": "Observation",
+                        "interaction": [{"code": "search-type"}],
+                        "searchParam": [{"name": "patient", "type": "reference"}],
+                    },
+                    {
+                        "type": "Condition",
+                        "interaction": [{"code": "search-type"}],
+                        "searchParam": [{"name": "patient", "type": "reference"}],
+                    },
+                    {
+                        "type": "DiagnosticReport",
+                        "interaction": [{"code": "search-type"}],
+                        "searchParam": [{"name": "patient", "type": "reference"}],
+                    },
+                    {
+                        "type": "MedicationRequest",
+                        "interaction": [{"code": "search-type"}],
+                        "searchParam": [{"name": "patient", "type": "reference"}],
+                    },
+                    {
+                        "type": "Encounter",
+                        "interaction": [{"code": "search-type"}],
+                        "searchParam": [{"name": "patient", "type": "reference"}],
+                    },
+                    {
+                        "type": "ImagingStudy",
+                        "interaction": [{"code": "read"}, {"code": "search-type"}],
+                        "searchParam": [{"name": "patient", "type": "reference"}],
+                    },
+                ],
+            }
+        ],
+    }
+    return jsonify(capability)
+
+
+@fhir_bp.route("/.well-known/smart-configuration", methods=["GET"])
+def get_smart_configuration():
+    """Return SMART on FHIR OAuth2 Configuration."""
+    base_url = request.host_url.rstrip("/")
+    config = {
+        "issuer": f"{base_url}/api/fhir/R4",
+        "authorization_endpoint": f"{base_url}/auth/authorize",
+        "token_endpoint": f"{base_url}/auth/token",
+        "scopes_supported": [
+            "openid",
+            "profile",
+            "launch",
+            "patient/*.read",
+            "user/*.read",
+            "fhirUser",
+        ],
+        "response_types_supported": ["code", "token"],
+        "capabilities": [
+            "launch-standalone",
+            "client-public",
+            "client-confidential-symmetric",
+            "context-passthrough-patient",
+        ],
+        "grant_types_supported": ["authorization_code", "client_credentials"],
+    }
+    return jsonify(config)
+
+
+@fhir_bp.route("/Patient", methods=["GET"])
+@jwt_or_session_required
+@roles_required(
+    "admin",
+    "records",
+    "medicine",
+    "nursing",
+    "pharmacy",
+    "laboratory",
+    "imaging",
+    "api",
+)
+def search_fhir_patients():
+    """Search FHIR R4 Patient resources by name, identifier, or gender."""
+    name_query = request.args.get("name")
+    identifier_query = request.args.get("identifier") or request.args.get("patient")
+    gender_query = request.args.get("gender")
+    patient_id_query = request.args.get("_id") or request.args.get("patient")
+
+    query = Patient.query
+
+    if patient_id_query:
+        query = query.filter(Patient.patient_id == patient_id_query)
+    if name_query:
+        query = query.filter(Patient.name.ilike(f"%{name_query}%"))
+    if identifier_query and not patient_id_query:
+        query = query.filter(
+            (Patient.patient_id == identifier_query)
+            | (Patient.national_id == identifier_query)
+        )
+    if gender_query:
+        query = query.filter(Patient.sex.ilike(f"{gender_query}%"))
+
+    patients = query.all()
+    entries = []
+    for p in patients:
+        entries.append(
+            {
+                "fullUrl": f"{request.host_url}api/fhir/R4/Patient/{p.patient_id}",
+                "resource": patient_to_fhir(p),
+            }
+        )
+
+    bundle = {
+        "resourceType": "Bundle",
+        "type": "searchset",
+        "total": len(entries),
+        "entry": entries,
+    }
+    return jsonify(bundle)
+
+
+@fhir_bp.route("/", methods=["POST"])
+@fhir_bp.route("", methods=["POST"])
+@jwt_or_session_required
+@roles_required(
+    "admin",
+    "records",
+    "medicine",
+    "nursing",
+    "pharmacy",
+    "laboratory",
+    "imaging",
+    "api",
+)
+def process_fhir_batch_bundle():
+    """Process FHIR Batch or Transaction Bundle."""
+    bundle = request.get_json() or {}
+    bundle_type = bundle.get("type")
+    if bundle_type not in ("batch", "transaction"):
+        return jsonify(
+            {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "invalid",
+                        "diagnostics": "Bundle type must be 'batch' or 'transaction'.",
+                    }
+                ],
+            }
+        ), 400
+
+    response_entries = []
+    for entry in bundle.get("entry", []):
+        req = entry.get("request", {})
+        url = req.get("url", "")
+        method = req.get("method", "GET").upper()
+
+        if method == "GET":
+            res_entry = _dispatch_fhir_get(url)
+            response_entries.append(res_entry)
+        else:
+            response_entries.append(
+                {
+                    "response": {"status": "405 Method Not Allowed"},
+                    "resource": {
+                        "resourceType": "OperationOutcome",
+                        "issue": [
+                            {
+                                "severity": "warning",
+                                "code": "not-supported",
+                                "diagnostics": f"Method {method} not supported in batch.",
+                            }
+                        ],
+                    },
+                }
+            )
+
+    return jsonify(
+        {
+            "resourceType": "Bundle",
+            "type": f"{bundle_type}-response",
+            "total": len(response_entries),
+            "entry": response_entries,
+        }
+    )
+
+
+def _dispatch_fhir_get(url: str) -> dict:
+    """Helper to dispatch internal GET requests within batch bundles."""
+    clean_url = url.lstrip("/")
+    if clean_url.startswith("Patient/"):
+        pid = clean_url.split("Patient/")[1]
+        patient = Patient.query.filter_by(patient_id=pid).first()
+        if patient:
+            return {
+                "response": {"status": "200 OK"},
+                "resource": patient_to_fhir(patient),
+            }
+        return {
+            "response": {"status": "404 Not Found"},
+            "resource": {
+                "resourceType": "OperationOutcome",
+                "issue": [{"severity": "error", "code": "not-found"}],
+            },
+        }
+    elif clean_url.startswith("Patient"):
+        parts = clean_url.split("?")
+        params = (
+            dict(p.split("=") for p in parts[1].split("&") if "=" in p)
+            if len(parts) > 1
+            else {}
+        )
+        pid = params.get("patient") or params.get("_id")
+        name = params.get("name")
+        query = Patient.query
+        if pid:
+            query = query.filter(Patient.patient_id == pid)
+        if name:
+            query = query.filter(Patient.name.ilike(f"%{name}%"))
+        patients = query.all()
+        return {
+            "response": {"status": "200 OK"},
+            "resource": {
+                "resourceType": "Bundle",
+                "type": "searchset",
+                "total": len(patients),
+                "entry": [{"resource": patient_to_fhir(p)} for p in patients],
+            },
+        }
+    elif clean_url.startswith("Observation"):
+        parts = clean_url.split("?")
+        params = (
+            dict(p.split("=") for p in parts[1].split("&") if "=" in p)
+            if len(parts) > 1
+            else {}
+        )
+        pid = params.get("patient")
+        vitals_records = Vitals.query.filter_by(patient_id=pid).all() if pid else []
+        obs_list = []
+        for v in vitals_records:
+            obs_list.extend(vitals_to_fhir_observations(v))
+        return {
+            "response": {"status": "200 OK"},
+            "resource": {
+                "resourceType": "Bundle",
+                "type": "searchset",
+                "total": len(obs_list),
+                "entry": [{"resource": o} for o in obs_list],
+            },
+        }
+    elif clean_url.startswith("Condition"):
+        parts = clean_url.split("?")
+        params = (
+            dict(p.split("=") for p in parts[1].split("&") if "=" in p)
+            if len(parts) > 1
+            else {}
+        )
+        pid = params.get("patient")
+        notes = SOAPNote.query.filter_by(patient_id=pid).all() if pid else []
+        conds = [
+            {
+                "resourceType": "Condition",
+                "id": f"cond-soap-{n.id}",
+                "clinicalStatus": {"coding": [{"code": "active"}]},
+                "code": {"text": n.assessment},
+                "subject": {"reference": f"Patient/{pid}"},
+            }
+            for n in notes
+            if n.assessment
+        ]
+        return {
+            "response": {"status": "200 OK"},
+            "resource": {
+                "resourceType": "Bundle",
+                "type": "searchset",
+                "total": len(conds),
+                "entry": [{"resource": c} for c in conds],
+            },
+        }
+    elif clean_url.startswith("DiagnosticReport"):
+        parts = clean_url.split("?")
+        params = (
+            dict(p.split("=") for p in parts[1].split("&") if "=" in p)
+            if len(parts) > 1
+            else {}
+        )
+        pid = params.get("patient")
+        lab_results = LabResult.query.filter_by(patient_id=pid).all() if pid else []
+        img_results = ImagingResult.query.filter_by(patient_id=pid).all() if pid else []
+        reports = []
+        for lab in lab_results:
+            reports.append(
+                {
+                    "resourceType": "DiagnosticReport",
+                    "id": f"report-lab-{lab.id}",
+                    "subject": {"reference": f"Patient/{pid}"},
+                    "conclusion": str(getattr(lab, "result_value", "")),
+                }
+            )
+        for i in img_results:
+            reports.append(
+                {
+                    "resourceType": "DiagnosticReport",
+                    "id": f"report-img-{i.id}",
+                    "subject": {"reference": f"Patient/{pid}"},
+                    "conclusion": getattr(i, "ai_impression", "")
+                    or getattr(i, "result_notes", ""),
+                }
+            )
+        return {
+            "response": {"status": "200 OK"},
+            "resource": {
+                "resourceType": "Bundle",
+                "type": "searchset",
+                "total": len(reports),
+                "entry": [{"resource": r} for r in reports],
+            },
+        }
+    elif clean_url.startswith("MedicationRequest"):
+        parts = clean_url.split("?")
+        params = (
+            dict(p.split("=") for p in parts[1].split("&") if "=" in p)
+            if len(parts) > 1
+            else {}
+        )
+        pid = params.get("patient")
+        prescriptions = (
+            PrescribedMedicine.query.filter_by(patient_id=pid).all() if pid else []
+        )
+        meds = [
+            {
+                "resourceType": "MedicationRequest",
+                "id": f"medreq-{rx.id}",
+                "status": "active",
+                "subject": {"reference": f"Patient/{pid}"},
+                "medicationCodeableConcept": {
+                    "text": rx.drug_name
+                    if hasattr(rx, "drug_name")
+                    else "Prescribed Medication"
+                },
+            }
+            for rx in prescriptions
+        ]
+        return {
+            "response": {"status": "200 OK"},
+            "resource": {
+                "resourceType": "Bundle",
+                "type": "searchset",
+                "total": len(meds),
+                "entry": [{"resource": m} for m in meds],
+            },
+        }
+    elif clean_url.startswith("Encounter"):
+        parts = clean_url.split("?")
+        params = (
+            dict(p.split("=") for p in parts[1].split("&") if "=" in p)
+            if len(parts) > 1
+            else {}
+        )
+        pid = params.get("patient")
+        encs = Encounter.query.filter_by(patient_id=pid).all() if pid else []
+        enc_resources = [encounter_to_fhir(e) for e in encs]
+        return {
+            "response": {"status": "200 OK"},
+            "resource": {
+                "resourceType": "Bundle",
+                "type": "searchset",
+                "total": len(enc_resources),
+                "entry": [{"resource": e} for e in enc_resources],
+            },
+        }
+    elif clean_url.startswith("ImagingStudy"):
+        parts = clean_url.split("?")
+        params = (
+            dict(p.split("=") for p in parts[1].split("&") if "=" in p)
+            if len(parts) > 1
+            else {}
+        )
+        pid = params.get("patient")
+        imgs = ImagingResult.query.filter_by(patient_id=pid).all() if pid else []
+        img_resources = [imaging_result_to_fhir_study(i) for i in imgs]
+        return {
+            "response": {"status": "200 OK"},
+            "resource": {
+                "resourceType": "Bundle",
+                "type": "searchset",
+                "total": len(img_resources),
+                "entry": [{"resource": e} for e in img_resources],
+            },
+        }
+
+    return {
+        "response": {"status": "400 Bad Request"},
+        "resource": {
+            "resourceType": "OperationOutcome",
+            "issue": [
+                {
+                    "severity": "error",
+                    "code": "not-found",
+                    "diagnostics": f"Unknown URL {url}",
+                }
+            ],
+        },
+    }
+
+
+
