@@ -11,8 +11,8 @@ class ICD10Code(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(20), unique=True, nullable=False, index=True)
     description = db.Column(db.Text, nullable=False)
-    chapter = db.Column(db.String(100))  # e.g., "Respiratory"
-    block = db.Column(db.String(100))    # e.g., "Acute upper respiratory infections"
+    chapter = db.Column(db.String(500))  # e.g., "Respiratory"
+    block = db.Column(db.String(500))    # e.g., "Acute upper respiratory infections"
 
     def __repr__(self):
         return f"<ICD10 {self.code}: {self.description[:30]}>"

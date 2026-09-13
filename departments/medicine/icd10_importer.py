@@ -66,19 +66,21 @@ def import_from_who_api(release: str | None = None) -> int:
         }
         inserted = updated = 0
         for record in batch:
-            code_val = record["code"]
+            code_val = record["code"][:20] if record.get("code") else ""
+            ch_val = record["chapter"][:500] if record.get("chapter") else None
+            bl_val = record["block"][:500] if record.get("block") else None
             if code_val in existing:
                 row = existing[code_val]
                 row.description = record["description"]
-                row.chapter = record["chapter"]
-                row.block = record["block"]
+                row.chapter = ch_val
+                row.block = bl_val
                 updated += 1
             else:
                 db.session.add(ICD10Code(
                     code=code_val,
                     description=record["description"],
-                    chapter=record["chapter"],
-                    block=record["block"],
+                    chapter=ch_val,
+                    block=bl_val,
                 ))
                 inserted += 1
         db.session.commit()
