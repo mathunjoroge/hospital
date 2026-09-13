@@ -720,6 +720,7 @@ from departments.billing.reconciliation import (
     reconciliation_bp,
 )
 from departments.clinical_safety import bp as clinical_safety_bp
+from departments.compliance import compliance_bp
 from departments.consent import bp as consent_bp
 from departments.emergency import bp as emergency_bp
 from departments.hiv_art import bp as hiv_art_bp
@@ -806,6 +807,7 @@ app.register_blueprint(fhir_bp, url_prefix="/api/fhir/R4")
 app.register_blueprint(khis_bp, url_prefix="/api/khis")
 app.register_blueprint(hl7_bp)  # Phase 4 — mounts /api/hl7/oru and /api/hl7/status
 app.register_blueprint(theatre_bp)
+app.register_blueprint(compliance_bp)
 app.register_blueprint(oauth_bp)
 init_oauth(app)
 

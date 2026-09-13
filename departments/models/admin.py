@@ -11,3 +11,8 @@ class Log(db.Model):
     message = db.Column(db.Text, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     source = db.Column(db.String(50))  # e.g., 'auth', 'pharmacy'
+
+    # Cryptographic Tamper-Evident SHA-256 Hash Chaining (HIPAA § 164.312(b))
+    previous_hash = db.Column(db.String(64), nullable=True)
+    entry_hash = db.Column(db.String(64), nullable=True, index=True)
+

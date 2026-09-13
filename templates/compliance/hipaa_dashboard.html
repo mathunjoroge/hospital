@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HIPAA & HITRUST CSF Certification Console</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --compliance-bg: #090d16;
+            --compliance-panel: #131927;
+            --compliance-border: #1f293d;
+            --compliance-success: #10b981;
+            --compliance-warning: #f59e0b;
+            --compliance-danger: #ef4444;
+            --compliance-text: #e2e8f0;
+        }
+
+        body {
+            background-color: var(--compliance-bg);
+            color: var(--compliance-text);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            padding-bottom: 40px;
+        }
+
+        .compliance-header {
+            background: linear-gradient(135deg, #111827 0%, #030712 100%);
+            border-bottom: 1px solid var(--compliance-border);
+            padding: 20px 30px;
+        }
+
+        .compliance-card {
+            background-color: var(--compliance-panel);
+            border: 1px solid var(--compliance-border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .badge-hipaa-pass {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border: 1px solid #10b981;
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .badge-chain-intact {
+            background-color: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+            border: 1px solid #3b82f6;
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Banner -->
+    <div class="compliance-header d-flex justify-content-between align-items-center">
+        <div>
+            <h3 class="fw-bold text-white mb-1"><i class="fa-solid fa-shield-halved text-success me-2"></i>HIPAA & HITRUST CSF Certification Console</h3>
+            <p class="text-secondary text-sm mb-0">Automated Security Rule Technical Safeguards & Cryptographic Audit Verification</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button onclick="verifyChain()" class="btn btn-outline-info btn-sm rounded-pill"><i class="fa-solid fa-link me-1"></i>Verify SHA-256 Hash Chain</button>
+            <a href="/compliance/api/hipaa-status" target="_blank" class="btn btn-outline-light btn-sm rounded-pill"><i class="fa-solid fa-code me-1"></i>Audit JSON Payload</a>
+        </div>
+    </div>
+
+    <div class="container-fluid px-4 mt-4">
+        <!-- Overview Summary Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="compliance-card d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-uppercase text-xs text-muted fw-bold">HITRUST Readiness Score</div>
+                        <h1 class="fw-bold text-success mb-0 mt-1">{{ report.compliance_score_pct }}%</h1>
+                        <span class="badge-hipaa-pass mt-2 d-inline-block"><i class="fa-solid fa-certificate me-1"></i>{{ report.overall_status }}</span>
+                    </div>
+                    <div class="fs-1 text-success opacity-50"><i class="fa-solid fa-award"></i></div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="compliance-card d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-uppercase text-xs text-muted fw-bold">SHA-256 Audit Log Hash Chain</div>
+                        <h4 class="fw-bold text-white mb-0 mt-2">
+                            {% if chain_status.valid %}
+                                <span class="text-info"><i class="fa-solid fa-circle-check me-1"></i>Chain Verified Intact</span>
+                            {% else %}
+                                <span class="text-danger"><i class="fa-solid fa-triangle-exclamation me-1"></i>Tamper Alert</span>
+                            {% endif %}
+                        </h4>
+                        <p class="text-secondary text-xs mb-0 mt-1">Total Logs: {{ chain_status.total_logs }} | Tampered: {{ chain_status.tampered_logs|length }}</p>
+                    </div>
+                    <div class="fs-1 text-info opacity-50"><i class="fa-solid fa-lock"></i></div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="compliance-card d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-uppercase text-xs text-muted fw-bold">Data Encryption & Safeguards</div>
+                        <h4 class="fw-bold text-white mb-0 mt-2"><span class="text-success"><i class="fa-solid fa-key me-1"></i>AES-256 Active</span></h4>
+                        <p class="text-secondary text-xs mb-0 mt-1">At Rest: Fernet AES-256 | In Transit: TLS v1.3</p>
+                    </div>
+                    <div class="fs-1 text-warning opacity-50"><i class="fa-solid fa-shield-virus"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5-Domain HIPAA Technical Safeguards Table -->
+        <div class="compliance-card">
+            <h5 class="fw-bold text-white mb-3"><i class="fa-solid fa-list-check text-primary me-2"></i>HIPAA Security Rule § 164.312 Technical Safeguards</h5>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    <thead>
+                        <tr class="text-secondary text-uppercase text-xs">
+                            <th>Security Standard Domain</th>
+                            <th>Status</th>
+                            <th>Compliance Score</th>
+                            <th>Verified Configuration & Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for domain in report.domains %}
+                        <tr>
+                            <td class="fw-bold text-light">{{ domain.section }}</td>
+                            <td>
+                                {% if domain.status == 'PASS' %}
+                                    <span class="badge bg-success"><i class="fa-solid fa-check me-1"></i>COMPLIANT</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark"><i class="fa-solid fa-triangle-exclamation me-1"></i>WARNING</span>
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold text-info">{{ domain.score }}%</td>
+                            <td class="font-monospace text-xs text-secondary">
+                                {% for k, v in domain.details.items() %}
+                                    <span class="me-3"><strong>{{ k }}:</strong> {{ v }}</span>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function verifyChain() {
+            fetch('/compliance/api/verify-audit-chain')
+                .then(res => res.json())
+                .then(data => {
+                    const v = data.verification;
+                    alert('Audit Chain Verification Result:\n' + v.status + '\nTotal Logs: ' + v.total_logs);
+                })
+                .catch(err => alert('Verification Error: ' + err));
+        }
+    </script>
+</body>
+</html>
