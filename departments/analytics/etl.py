@@ -41,49 +41,42 @@ def run_daily_kpi_etl(target_date: Optional[date] = None) -> DailyKpiSnapshot:
     # 1. Outpatient visits (OPD encounters started today)
     total_opd = Encounter.query.filter(
         Encounter.encounter_type == "OPD",
-        Encounter.started_at >= start_dt,
-        Encounter.started_at <= end_dt,
+        db.func.date(Encounter.started_at) == target_date,
     ).count()
 
     # 2. Admissions (IPD encounters started today)
     total_adm = Encounter.query.filter(
         Encounter.encounter_type == "IPD",
-        Encounter.started_at >= start_dt,
-        Encounter.started_at <= end_dt,
+        db.func.date(Encounter.started_at) == target_date,
     ).count()
 
     # 3. Discharges (IPD encounters ended today)
     total_dis = Encounter.query.filter(
         Encounter.encounter_type == "IPD",
-        Encounter.ended_at >= start_dt,
-        Encounter.ended_at <= end_dt,
+        db.func.date(Encounter.ended_at) == target_date,
     ).count()
 
     # 4. Emergency cases (EMERGENCY encounters started today)
     total_emer = Encounter.query.filter(
         Encounter.encounter_type == "EMERGENCY",
-        Encounter.started_at >= start_dt,
-        Encounter.started_at <= end_dt,
+        db.func.date(Encounter.started_at) == target_date,
     ).count()
 
     # 5. ANC visits (MCH/ANC encounters started today)
     total_anc = Encounter.query.filter(
         Encounter.encounter_type.in_(["MCH", "ANC"]),
-        Encounter.started_at >= start_dt,
-        Encounter.started_at <= end_dt,
+        db.func.date(Encounter.started_at) == target_date,
     ).count()
 
     # 6. Immunizations (Immunization records or encounters today)
     total_imm = Encounter.query.filter(
         Encounter.encounter_type == "IMMUNIZATION",
-        Encounter.started_at >= start_dt,
-        Encounter.started_at <= end_dt,
+        db.func.date(Encounter.started_at) == target_date,
     ).count()
 
     # 7. Lab tests ordered today
     total_labs = LabResult.query.filter(
-        LabResult.test_date >= start_dt,
-        LabResult.test_date <= end_dt,
+        db.func.date(LabResult.test_date) == target_date,
     ).count()
 
     # 8. Revenue collected today
@@ -91,8 +84,7 @@ def run_daily_kpi_etl(target_date: Optional[date] = None) -> DailyKpiSnapshot:
     try:
         from departments.models.billing import Invoice
         invoices = Invoice.query.filter(
-            Invoice.created_at >= start_dt,
-            Invoice.created_at <= end_dt,
+            db.func.date(Invoice.created_at) == target_date,
         ).all()
         for inv in invoices:
             total_rev += Decimal(str(getattr(inv, "amount_paid", 0) or getattr(inv, "total_amount", 0) or 0))
@@ -102,8 +94,7 @@ def run_daily_kpi_etl(target_date: Optional[date] = None) -> DailyKpiSnapshot:
     # 9. Average Length of Stay (ALOS) for IPD discharges today
     discharged_ipd = Encounter.query.filter(
         Encounter.encounter_type == "IPD",
-        Encounter.ended_at >= start_dt,
-        Encounter.ended_at <= end_dt,
+        db.func.date(Encounter.ended_at) == target_date,
     ).all()
 
     total_stay_days = 0.0
@@ -119,8 +110,8 @@ def run_daily_kpi_etl(target_date: Optional[date] = None) -> DailyKpiSnapshot:
     # 10. Bed Occupancy Rate
     active_ipd = Encounter.query.filter(
         Encounter.encounter_type == "IPD",
-        Encounter.started_at <= end_dt,
-        db.or_(Encounter.ended_at.is_(None), Encounter.ended_at > end_dt),
+        db.func.date(Encounter.started_at) <= target_date,
+        db.or_(Encounter.ended_at.is_(None), db.func.date(Encounter.ended_at) > target_date),
     ).count()
     total_capacity = 100
     occupancy_rate = min(100.0, round((active_ipd / total_capacity) * 100.0, 1))
@@ -128,19 +119,18 @@ def run_daily_kpi_etl(target_date: Optional[date] = None) -> DailyKpiSnapshot:
     # 11. 30-Day Readmissions
     admitted_today = Encounter.query.filter(
         Encounter.encounter_type == "IPD",
-        Encounter.started_at >= start_dt,
-        Encounter.started_at <= end_dt,
+        db.func.date(Encounter.started_at) == target_date,
     ).all()
 
     readmission_count = 0
     from datetime import timedelta
     for enc in admitted_today:
-        thirty_days_prior = start_dt - timedelta(days=30)
+        thirty_days_prior = target_date - timedelta(days=30)
         prior_discharge = Encounter.query.filter(
             Encounter.patient_id == enc.patient_id,
             Encounter.encounter_type == "IPD",
-            Encounter.ended_at >= thirty_days_prior,
-            Encounter.ended_at < enc.started_at,
+            db.func.date(Encounter.ended_at) >= thirty_days_prior,
+            db.func.date(Encounter.ended_at) < target_date,
         ).first()
         if prior_discharge:
             readmission_count += 1
@@ -151,8 +141,7 @@ def run_daily_kpi_etl(target_date: Optional[date] = None) -> DailyKpiSnapshot:
     from departments.models.medicine import SOAPNote
 
     notes = SOAPNote.query.filter(
-        SOAPNote.created_at >= start_dt,
-        SOAPNote.created_at <= end_dt,
+        db.func.date(SOAPNote.created_at) == target_date,
     ).all()
 
     diag_counter = Counter()
