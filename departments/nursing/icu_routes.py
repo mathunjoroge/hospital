@@ -30,8 +30,9 @@ def _get_current_user_id() -> int:
     return session.get("user_id", 1)
 
 
+@icu_bp.route("/flowsheet", methods=["GET"])
 @icu_bp.route("/flowsheet/<string:patient_id>", methods=["GET"])
-def icu_flowsheet(patient_id: str):
+def icu_flowsheet(patient_id: str = "P001"):
     """
     Render ICU / HDU Flowsheet Workstation UI.
     """
