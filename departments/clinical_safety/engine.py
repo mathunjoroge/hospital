@@ -19,7 +19,7 @@ from departments.models.medicine import PrescribedMedicine
 from departments.models.nursing import NursingNote, Vitals
 from departments.models.pharmacy import Drug
 from departments.models.records import Patient, PatientAllergy
-from departments.shared.drug_safety_rules import ALLERGY_GROUPS
+from departments.shared.drug_safety_rules import ALLERGY_GROUPS, KNOWN_INTERACTIONS
 from extensions import db
 
 logger = logging.getLogger(__name__)
@@ -425,7 +425,31 @@ class ClinicalSafetyEngine:
                             )
                             break
 
+        # 2. Check Drug-Drug Interactions (DDI)
+        active_prescriptions = PrescribedMedicine.query.filter_by(
+            patient_id=patient_id
+        ).all()
+        current_meds_lower = [
+            p.medicine.generic_name.lower().strip()
+            for p in active_prescriptions
+            if p.medicine and p.medicine.generic_name
+        ]
+        all_meds = set(new_meds_lower + current_meds_lower)
+
+        for drug_set, severity, msg in KNOWN_INTERACTIONS:
+            matched = [d for d in drug_set if any(d in med for med in all_meds)]
+            if len(matched) >= 2:
+                alerts.append(
+                    {
+                        "type": "DRUG_INTERACTION",
+                        "severity": severity,
+                        "drugs": matched,
+                        "message": f"DRUG INTERACTION WARNING [{severity}]: {' + '.join([m.title() for m in matched])} — {msg}",
+                    }
+                )
+
         # 3. Advanced CDSS Engine Checks (Renal, Hepatic, Pediatric, Pregnancy)
+
         from departments.clinical_safety.cdss_advanced import (
             AlertFatigueManager,
             HepaticDosingEngine,
