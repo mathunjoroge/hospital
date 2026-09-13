@@ -160,3 +160,34 @@ def export_moh_dhis2():
 
     return jsonify(dhis2_payload)
 
+
+@bp.route("/emram-dashboard", methods=["GET"])
+@login_required
+@roles_required("admin", "medicine", "records", "api")
+def emram_dashboard_view():
+    """Render HIMSS EMRAM Stage 6-7 Enterprise Analytics & Closed-Loop Console."""
+    from departments.analytics.emram_engine import EMRAMEngine
+    scorecard = EMRAMEngine.get_full_emram_scorecard()
+    return render_template("analytics/emram_dashboard.html", scorecard=scorecard)
+
+
+@bp.route("/api/emram-status", methods=["GET"])
+@login_required
+@roles_required("admin", "medicine", "records", "api")
+def get_emram_status():
+    """API endpoint returning live HIMSS EMRAM Stage 6-7 readiness metrics."""
+    from departments.analytics.emram_engine import EMRAMEngine
+    scorecard = EMRAMEngine.get_full_emram_scorecard()
+    return jsonify({"status": "success", "scorecard": scorecard})
+
+
+@bp.route("/api/closed-loop-trail/<patient_id>", methods=["GET"])
+@login_required
+@roles_required("admin", "medicine", "nursing", "records", "api")
+def get_closed_loop_trail(patient_id):
+    """API endpoint returning chronological closed-loop clinical event trail for a patient."""
+    from departments.analytics.emram_engine import ClosedLoopAuditEngine
+    trail = ClosedLoopAuditEngine.get_patient_closed_loop_timeline(patient_id)
+    return jsonify({"status": "success", "audit_trail": trail})
+
+

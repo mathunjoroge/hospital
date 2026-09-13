@@ -6,16 +6,17 @@ door-to-doctor, ED LOS tracking, ESI 2 re-evaluations, and boarding alerts (Gap 
 """
 
 from datetime import date, datetime, timedelta, timezone
+
 import pytest
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash
 
 from app import app
-from extensions import db
-from departments.models.user import User
-from departments.models.records import Patient
 from departments.models.nursing import TriageAssessment
+from departments.models.records import Patient
+from departments.models.user import User
 from departments.nursing.ed_engine import EDOperationsEngine
+from extensions import db
 
 
 @pytest.fixture
@@ -145,7 +146,7 @@ def test_ed_dashboard_metrics_and_alerts(client):
         assert metrics["total_active"] >= 2
         assert metrics["esi_counts"][2] >= 1
         assert metrics["esi_counts"][3] >= 1
-        
+
         # Check ESI 2 overdue list
         assert metrics["re_eval_overdue_count"] >= 1
         overdue_ids = [item["patient_id"] for item in metrics["re_eval_overdue"]]

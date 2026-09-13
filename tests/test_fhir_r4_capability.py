@@ -6,16 +6,17 @@ Patient Search, and Batch Bundle processing (Gap #7).
 """
 
 from datetime import date
+
 import pytest
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash
 
 from app import app
-from extensions import db
-from departments.models.user import User
-from departments.models.records import Patient
-from departments.models.nursing import Vitals
 from departments.models.encounter import Encounter
+from departments.models.nursing import Vitals
+from departments.models.records import Patient
+from departments.models.user import User
+from extensions import db
 
 
 @pytest.fixture
@@ -69,7 +70,7 @@ def test_fhir_metadata_capability_statement(client):
     assert data["resourceType"] == "CapabilityStatement"
     assert data["fhirVersion"] == "4.0.1"
     assert data["status"] == "active"
-    
+
     resource_types = [r["type"] for r in data["rest"][0]["resource"]]
     expected = ["Patient", "Observation", "Condition", "DiagnosticReport", "MedicationRequest", "Encounter", "ImagingStudy"]
     for exp in expected:

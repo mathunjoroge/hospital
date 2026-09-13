@@ -7,11 +7,10 @@ bed cleaning/turnaround state machine (AVAILABLE -> OCCUPIED -> DIRTY -> CLEANIN
 and real-time ward bed matrix aggregations.
 """
 
-from datetime import datetime, timezone
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
-from extensions import db
 from departments.audit import log_audit_event
 from departments.models.encounter import Encounter
 from departments.models.medicine import (
@@ -23,6 +22,7 @@ from departments.models.medicine import (
     WardRoom,
 )
 from departments.models.records import Patient
+from extensions import db
 
 logger = logging.getLogger(__name__)
 

@@ -21,8 +21,6 @@ import pytest
 from werkzeug.security import generate_password_hash
 
 from departments.mch.cold_chain import (
-    COLD_CHAIN_MAX_C,
-    COLD_CHAIN_MIN_C,
     ColdChainEngine,
 )
 from departments.mch.engine import MchEngine

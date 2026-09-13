@@ -97,6 +97,7 @@ class TestComplianceRoutes:
     def _login_admin(self, app, client):
         with app.app_context():
             from werkzeug.security import generate_password_hash
+
             from departments.models.user import User
             admin = User.query.filter_by(username="compliance_admin_test").first()
             if not admin:

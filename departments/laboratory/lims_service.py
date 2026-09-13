@@ -9,7 +9,7 @@ from extensions import db
 
 class WestgardEngine:
     """Westgard Multi-Rule Quality Control (QC) Engine for Clinical Analyzers.
-    
+
     Evaluates:
     - 1_2s: Single control result exceeds Mean ± 2SD (Warning)
     - 1_3s: Single control result exceeds Mean ± 3SD (Reject)
@@ -33,7 +33,7 @@ class WestgardEngine:
         cls, measured_value: float, mean: float, sd: float, history_z_scores: list[float]
     ) -> tuple[str, float, list[str]]:
         """Evaluates measured value against Westgard rules given historical Z-scores (most recent first).
-        
+
         Returns:
             (status: "PASS" | "WARNING" | "REJECT", z_score: float, violated_rules: list[str])
         """

@@ -15,9 +15,9 @@ Tracks:
 import logging
 from datetime import datetime, timedelta, timezone
 
-from extensions import db
 from departments.models.nursing import TriageAssessment
 from departments.models.records import Patient
+from extensions import db
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class EDOperationsEngine:
     def record_arrival(patient_id: str, nurse_id: int = 1, chief_complaint: str = "ED Arrival") -> TriageAssessment:
         """Record a patient's physical arrival at the Emergency Department."""
         now = datetime.now(timezone.utc)
-        
+
         # Check if patient exists
         patient = Patient.query.filter_by(patient_id=patient_id).first()
         if not patient:
@@ -158,7 +158,7 @@ class EDOperationsEngine:
     def get_ed_dashboard_metrics() -> dict:
         """Compute real-time ED KPIs, active patient lists, re-eval overdue alerts, and boarding alerts."""
         now = datetime.now(timezone.utc)
-        
+
         # Active ED patients (not yet dispositioned)
         active_assessments = (
             TriageAssessment.query.filter(TriageAssessment.disposition.is_(None))
@@ -178,7 +178,7 @@ class EDOperationsEngine:
             arrival = a.arrival_at or a.created_at or now
             if arrival.tzinfo is None:
                 arrival = arrival.replace(tzinfo=timezone.utc)
-            
+
             elapsed_minutes = round((now - arrival).total_seconds() / 60.0, 1)
 
             # Door-to-triage

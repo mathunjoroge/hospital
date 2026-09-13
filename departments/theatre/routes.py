@@ -22,8 +22,8 @@ from departments.models.theatre import (
     SurgicalInstrumentCount,
     WhoSurgicalChecklist,
 )
-from extensions import db
 from departments.theatre.theatre_engine import TheatreOperationsEngine
+from extensions import db
 
 from . import bp
 

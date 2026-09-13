@@ -5,6 +5,7 @@ Flask routes for ED Operations Management & Real-Time Console.
 """
 
 import logging
+
 from flask import Blueprint, jsonify, render_template, request
 
 from departments.api.auth import jwt_or_session_required

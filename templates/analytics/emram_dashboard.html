@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}HIMSS EMRAM Stage 6–7 Analytics Workstation{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --emram-dark-bg: #0b1329;
+        --emram-card-bg: rgba(18, 28, 56, 0.75);
+        --emram-border: rgba(255, 255, 255, 0.12);
+        --emram-accent-cyan: #06b6d4;
+        --emram-accent-green: #10b981;
+        --emram-accent-purple: #8b5cf6;
+        --emram-warning: #f59e0b;
+    }
+
+    body {
+        background: radial-gradient(circle at top right, #111e38 0%, #070d19 100%);
+        color: #f3f4f6;
+    }
+
+    .emram-hero {
+        background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+        border: 1px solid var(--emram-border);
+        border-radius: 16px;
+        backdrop-filter: blur(12px);
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    .emram-card {
+        background: var(--emram-card-bg);
+        border: 1px solid var(--emram-border);
+        border-radius: 16px;
+        backdrop-filter: blur(12px);
+        padding: 20px;
+        height: 100%;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .emram-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    .score-gauge-ring {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        position: relative;
+    }
+
+    .score-gauge-inner {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        background: var(--emram-dark-bg);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .badge-pass {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .badge-warning {
+        background: rgba(245, 158, 11, 0.2);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-left: 28px;
+        margin-bottom: 20px;
+    }
+
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: 8px;
+        top: 24px;
+        bottom: -20px;
+        width: 2px;
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .timeline-item:last-child::before {
+        display: none;
+    }
+
+    .timeline-dot {
+        position: absolute;
+        left: 0;
+        top: 4px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 3px solid var(--emram-dark-bg);
+    }
+
+    .dot-BCMA_ADMINISTRATION { background: var(--emram-accent-cyan); }
+    .dot-LIMS_SPECIMEN, .dot-LIMS_RESULT { background: var(--emram-accent-purple); }
+    .dot-CPOE_PRESCRIPTION { background: var(--emram-accent-green); }
+    .dot-NURSING_VITALS { background: var(--emram-warning); }
+    .dot-ENCOUNTER { background: #60a5fa; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Hero Header Banner -->
+    <div class="emram-hero d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h2 class="h3 fw-bold mb-0 text-white"><i class="bi bi-shield-check text-cyan me-2"></i>HIMSS EMRAM Stage 6–7 Enterprise Analytics</h2>
+                <span class="badge bg-primary rounded-pill px-3 py-2">Level {{ scorecard.emram_level }} Ready</span>
+            </div>
+            <p class="text-secondary mb-0">Closed-Loop Clinical Capabilities, Data Warehouse ETL Pipeline & Johns Hopkins Audit Readiness</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-cyan rounded-pill px-3" onclick="triggerETL()"><i class="bi bi-arrow-repeat me-1"></i>Run Daily ETL Snapshot</button>
+            <a href="/analytics/dashboard" class="btn btn-cyan rounded-pill px-3"><i class="bi bi-graph-up me-1"></i>Executive BI</a>
+        </div>
+    </div>
+
+    <!-- Stage 6 & Stage 7 Score Gauges -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6 col-lg-6">
+            <div class="emram-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0 text-white"><i class="bi bi-cpu text-cyan me-2"></i>Stage 6: Closed-Loop Clinical Systems</h5>
+                    <span class="badge {{ 'badge-pass' if scorecard.stage6.status == 'STAGE_6_CERTIFIED' else 'badge-warning' }} rounded-pill px-3 py-1">
+                        {{ scorecard.stage6.status }}
+                    </span>
+                </div>
+                <div class="row align-items-center">
+                    <div class="col-4 text-center">
+                        <div class="score-gauge-ring" style="background: conic-gradient(var(--emram-accent-cyan) {{ scorecard.stage6.overall_score_pct }}%, rgba(255,255,255,0.1) 0%);">
+                            <div class="score-gauge-inner">
+                                <span class="h3 fw-bold text-white mb-0">{{ scorecard.stage6.overall_score_pct }}%</span>
+                                <small class="text-secondary" style="font-size: 0.7rem;">STAGE 6</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-8">
+                        <div class="small text-secondary mb-1"><i class="bi bi-check-circle-fill text-cyan me-1"></i>BCMA Med Admin: <strong class="text-white">{{ scorecard.stage6.pillars.bcma_medication_closed_loop.score_pct }}%</strong></div>
+                        <div class="small text-secondary mb-1"><i class="bi bi-check-circle-fill text-purple me-1"></i>LIMS Specimen Chain: <strong class="text-white">{{ scorecard.stage6.pillars.lims_specimen_closed_loop.score_pct }}%</strong></div>
+                        <div class="small text-secondary mb-1"><i class="bi bi-check-circle-fill text-green me-1"></i>CPOE CDSS Safety: <strong class="text-white">{{ scorecard.stage6.pillars.cpoe_cdss_safety_coverage.score_pct }}%</strong></div>
+                        <div class="small text-secondary"><i class="bi bi-check-circle-fill text-warning me-1"></i>Nursing Vitals: <strong class="text-white">{{ scorecard.stage6.pillars.nursing_vitals_closed_loop.score_pct }}%</strong></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-6">
+            <div class="emram-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0 text-white"><i class="bi bi-diagram-3 text-purple me-2"></i>Stage 7: Enterprise BI & Analytics</h5>
+                    <span class="badge {{ 'badge-pass' if scorecard.stage7.status == 'STAGE_7_CERTIFIED' else 'badge-warning' }} rounded-pill px-3 py-1">
+                        {{ scorecard.stage7.status }}
+                    </span>
+                </div>
+                <div class="row align-items-center">
+                    <div class="col-4 text-center">
+                        <div class="score-gauge-ring" style="background: conic-gradient(var(--emram-accent-purple) {{ scorecard.stage7.overall_score_pct }}%, rgba(255,255,255,0.1) 0%);">
+                            <div class="score-gauge-inner">
+                                <span class="h3 fw-bold text-white mb-0">{{ scorecard.stage7.overall_score_pct }}%</span>
+                                <small class="text-secondary" style="font-size: 0.7rem;">STAGE 7</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-8">
+                        <div class="small text-secondary mb-1"><i class="bi bi-check-circle-fill text-purple me-1"></i>Data Warehouse ETL: <strong class="text-white">{{ scorecard.stage7.pillars.data_warehouse_etl_coverage.score_pct }}%</strong></div>
+                        <div class="small text-secondary mb-1"><i class="bi bi-check-circle-fill text-cyan me-1"></i>Population Risk Profiling: <strong class="text-white">{{ scorecard.stage7.pillars.population_health_analytics.score_pct }}%</strong></div>
+                        <div class="small text-secondary mb-1"><i class="bi bi-check-circle-fill text-green me-1"></i>C-CDA & FHIR HIE: <strong class="text-white">{{ scorecard.stage7.pillars.hie_ccda_fhir_interoperability.score_pct }}%</strong></div>
+                        <div class="small text-secondary"><i class="bi bi-check-circle-fill text-warning me-1"></i>SHA-256 Audit Integrity: <strong class="text-white">{{ scorecard.stage7.pillars.cryptographic_audit_integrity.score_pct }}%</strong></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Closed-Loop Patient Audit Explorer -->
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="emram-card">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+                    <div>
+                        <h4 class="fw-bold text-white mb-1"><i class="bi bi-search text-cyan me-2"></i>Closed-Loop Clinical Audit Explorer</h4>
+                        <p class="text-secondary small mb-0">Trace end-to-end clinical events (CPOE → BCMA Barcode Scan → LIMS Results → C-CDA Export) for any patient.</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <input type="text" id="patientSearchInput" class="form-control bg-dark text-white border-secondary rounded-pill px-3" placeholder="Enter Patient ID (e.g. PAT001)...">
+                        <button class="btn btn-cyan rounded-pill px-4" onclick="fetchPatientTimeline()"><i class="bi bi-search me-1"></i>Inspect Audit</button>
+                    </div>
+                </div>
+
+                <div id="timelineContainer">
+                    <div class="text-center py-5 text-secondary">
+                        <i class="bi bi-person-lines-fill display-4 d-block mb-2 text-cyan opacity-50"></i>
+                        <p>Enter a Patient ID above to view their verified closed-loop clinical event timeline.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function fetchPatientTimeline() {
+        const patientId = document.getElementById('patientSearchInput').value.trim();
+        if (!patientId) {
+            alert("Please enter a Patient ID");
+            return;
+        }
+
+        const container = document.getElementById('timelineContainer');
+        container.innerHTML = '<div class="text-center py-5 text-cyan"><div class="spinner-border me-2"></div> Loading closed-loop timeline...</div>';
+
+        try {
+            const resp = await fetch(`/analytics/api/closed-loop-trail/${encodeURIComponent(patientId)}`);
+            const data = await resp.json();
+
+            if (!data.audit_trail || !data.audit_trail.found || data.audit_trail.timeline.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4 text-warning">
+                        <i class="bi bi-exclamation-triangle display-5 d-block mb-2"></i>
+                        <h5>No Closed-Loop Events Found</h5>
+                        <p class="small text-secondary mb-0">No registered closed-loop events for Patient ID "${patientId}".</p>
+                    </div>`;
+                return;
+            }
+
+            const trail = data.audit_trail;
+            let html = `
+                <div class="d-flex align-items-center justify-content-between mb-4 pb-2 border-bottom border-secondary">
+                    <div>
+                        <h5 class="fw-bold text-white mb-0">${trail.patient_name} <span class="badge bg-dark text-cyan ms-2">${trail.patient_id}</span></h5>
+                        <small class="text-secondary">${trail.total_events} verified closed-loop records found</small>
+                    </div>
+                    <span class="badge bg-success-subtle text-success border border-success rounded-pill px-3 py-2"><i class="bi bi-patch-check-fill me-1"></i>HIMSS Stage 6 Audit Verified</span>
+                </div>
+                <div class="timeline-wrapper">`;
+
+            trail.timeline.forEach(item => {
+                const dateStr = new Date(item.timestamp).toLocaleString();
+                html += `
+                    <div class="timeline-item">
+                        <div class="timeline-dot dot-${item.category}"></div>
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="fw-bold text-white mb-1">${item.event}</h6>
+                                <p class="text-secondary small mb-1">${item.details}</p>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-dark text-secondary border border-secondary mb-1">${dateStr}</span>
+                                <br>
+                                <span class="badge ${item.verified ? 'badge-pass' : 'badge-warning'} px-2 py-1 small">
+                                    ${item.verified ? 'VERIFIED' : 'UNVERIFIED'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+
+            html += `</div>`;
+            container.innerHTML = html;
+        } catch (err) {
+            container.innerHTML = `<div class="text-center py-4 text-danger">Error loading audit trail: ${err.message}</div>`;
+        }
+    }
+
+    async function triggerETL() {
+        try {
+            const resp = await fetch('/api/analytics/etl/trigger', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: new Date().toISOString().split('T')[0] })
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                alert("Daily KPI ETL snapshot run successfully!");
+                location.reload();
+            } else {
+                alert("ETL execution failed: " + (data.message || "Unknown error"));
+            }
+        } catch (err) {
+            alert("Error triggering ETL: " + err.message);
+        }
+    }
+</script>
+{% endblock %}

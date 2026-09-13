@@ -6,21 +6,22 @@ WHO Surgical Safety Checklist gates, intraoperative vitals & fluid balance, PACU
 """
 
 from datetime import date
+
 import pytest
 from werkzeug.security import generate_password_hash
 
 from app import app
-from extensions import db
-from departments.models.user import User
-from departments.models.records import Patient
 from departments.models.medicine import TheatreList, TheatreProcedure
+from departments.models.records import Patient
 from departments.models.theatre import (
     AnaestheticRecord,
     PostOpNote,
     SurgicalInstrumentCount,
     WhoSurgicalChecklist,
 )
+from departments.models.user import User
 from departments.theatre.theatre_engine import TheatreOperationsEngine
+from extensions import db
 
 
 @pytest.fixture

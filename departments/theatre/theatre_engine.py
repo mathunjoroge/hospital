@@ -15,7 +15,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple
 
-from extensions import db
 from departments.models.medicine import TheatreList
 from departments.models.theatre import (
     AnaestheticRecord,
@@ -23,6 +22,7 @@ from departments.models.theatre import (
     SurgicalInstrumentCount,
     WhoSurgicalChecklist,
 )
+from extensions import db
 
 logger = logging.getLogger(__name__)
 

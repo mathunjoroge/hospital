@@ -7,17 +7,14 @@ bed cleaning turnaround state machine, and REST API endpoints (Gap #12 Roadmap).
 
 from datetime import date
 
-from extensions import db
-from departments.models.records import Patient
+from departments.medicine.adt_engine import ADTEngine
 from departments.models.medicine import (
     Bed,
     Ward,
     WardRoom,
 )
-from departments.medicine.adt_engine import ADTEngine
-
-
-
+from departments.models.records import Patient
+from extensions import db
 
 
 def _setup_wards_and_patient(app) -> tuple[str, int, int, int, int, int, int]:

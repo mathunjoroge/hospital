@@ -29,7 +29,6 @@ from departments.models.laboratory import LabQCSample, Specimen
 from departments.models.records import Patient
 from extensions import db
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
