@@ -11,8 +11,9 @@ Provides live typeahead search fallback as well as curated seed datasets
 for bulk population of local PostgreSQL terminology tables.
 """
 
-import os
 import logging
+import os
+
 import requests
 from flask import current_app
 

@@ -49,12 +49,12 @@ def make_celery(flask_app):
     return celery_instance
 
 celery = make_celery(app)
-import departments.tasks  # noqa: F401
-
 # ---------------------------------------------------------------------------
 # Celery Beat Schedule
 # ---------------------------------------------------------------------------
 from celery.schedules import crontab  # noqa: E402
+
+import departments.tasks  # noqa: F401
 
 celery.conf.beat_schedule = {
     # Midnight UTC = 03:00 EAT — runs after the quietest clinical hour

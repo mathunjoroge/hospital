@@ -11,11 +11,13 @@ Two entry-points:
 import csv
 import logging
 import os
-from flask import current_app
 
+from departments.medicine.umls_client import (
+    get_core_snomed_seed_dataset,
+    search_snomed_live,
+)
 from departments.models.terminology import SnomedCode
 from extensions import db
-from departments.medicine.umls_client import get_core_snomed_seed_dataset, search_snomed_live
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +139,7 @@ def import_snomed_codes(filepath: str | None = None) -> int:
 
 if __name__ == "__main__":
     import sys
+
     from app import app
 
     with app.app_context():

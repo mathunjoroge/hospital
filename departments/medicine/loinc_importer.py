@@ -11,11 +11,13 @@ Two entry-points:
 import csv
 import logging
 import os
-from flask import current_app
 
+from departments.medicine.umls_client import (
+    get_core_loinc_seed_dataset,
+    search_loinc_live,
+)
 from departments.models.terminology import LoincCode
 from extensions import db
-from departments.medicine.umls_client import get_core_loinc_seed_dataset, search_loinc_live
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +138,7 @@ def import_loinc_codes(filepath: str | None = None) -> int:
 
 if __name__ == "__main__":
     import sys
+
     from app import app
 
     with app.app_context():
