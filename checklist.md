@@ -7,14 +7,14 @@
 - [x] **Gap #4: HIMSS EMRAM Stage 6–7 Enterprise Analytics & Closed-Loop Engine** — Stage 6–7 Closed-Loop Audit Verification Console, Clinical BI Data Warehouse Dashboard UI.
 - [x] **Gap #5: HIPAA / HITRUST Certification Engine** — Automated 5-domain HIPAA evaluator, SHA-256 cryptographic audit log hash chain, `/compliance/hipaa-dashboard`.
 - [x] **Gap #6: ICU / HDU Flowsheet Workstation** — Real-time vital signs trend grid, ventilator parameters tracker, GCS scoring, Input/Output (I/O) fluid balance matrix.
+- [x] **Gap #7: Oncology & Chemotherapy Regimen Engine** — Body Surface Area (BSA) dose calculator, Chemotherapy Protocol Builder (FOLFOX, AC-T) with cumulative toxicity caps.
 - [x] **Inpatient ADT & BCMA Bedside Console** — Ward Bed Grid matrix, bed turnaround state machine (`AVAILABLE`, `OCCUPIED`, `DIRTY`, `CLEANING`, `MAINTENANCE`), HL7 ADT A01/A02/A03/A08 flow engine, 5-Rights BCMA scanner workstation.
 
 ---
 
 ## Remaining Priority Roadmap 🔴
-- [ ] **Gap #7: Oncology & Chemotherapy Regimen Engine** — Body Surface Area (BSA) dose calculator, Chemotherapy Protocol Builder (FOLFOX, AC-T) with cumulative toxicity caps.
-
 - [ ] **Gap #8: Multi-Facility HIE & FHIR R4 Subscription Webhooks** — FHIR `$everything` bundle exporter, real-time FHIR `Subscription` webhook event engine.
+
 - [ ] **Gap #9: Perioperative / OR Scheduling & Anesthesia Log Matrix** — ASA Physical Status scoring, Intraoperative Anesthesia Timeline Tracker, OR Utilization Board.
 - [ ] **Gap #10: NICU & Pediatrics Growth Charts / APGAR Workstation** — WHO/CDC growth percentile curves (weight/height/head circ), APGAR 1/5/10 min calculator, Neonatal Phototherapy Risk Chart.
 - [ ] **Gap #11: RCM & Pre-Submission Claims Scrubbing Engine** — Pre-claim ICD-10 vs CPT rule scrubber, EDI 837/835 electronic claim generator, denial risk analyzer.

@@ -2,12 +2,13 @@ import json
 import os
 from datetime import datetime, timezone
 
-from flask import flash, jsonify, redirect, render_template, request, url_for
-from flask_login import login_required
+from flask import flash, jsonify, redirect, render_template, request, session, url_for
+from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from departments.api.audit import log_audit_event
 from departments.forms import OncologyNoteForm, OncoPatientForm, PatientSearchForm
+from departments.medicine.chemotherapy_engine import calculate_regimen_doses
 from departments.models.compliance import has_ai_consent
 from departments.models.laboratory import LabResultTemplate
 from departments.models.medicine import (
@@ -25,6 +26,7 @@ from departments.models.medicine import (
     RegimenCategory,
     SpecialWarning,
 )
+from departments.models.oncology_models import ChemotherapyRegimenOrder
 from departments.models.records import Patient
 from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.nlp.logging_setup import get_logger
@@ -689,3 +691,92 @@ def process_lab_result(lab_result, test_name):
         "result_notes": lab_result.result_notes or "",
         "parameters": test_presentation,
     }
+
+
+# ---------------------------------------------------------------------------
+# Chemotherapy Protocol Builder Routes (Gap #7)
+# ---------------------------------------------------------------------------
+@bp.route("/oncology/chemo-builder/<string:patient_id>", methods=["GET"])
+def chemo_builder(patient_id: str):
+    """Render Oncology Chemotherapy Protocol Builder Workstation UI."""
+    return render_template("medicine/oncology/chemo_builder.html", patient_id=patient_id)
+
+
+@bp.route("/oncology/api/calculate-chemo", methods=["GET"])
+def api_calculate_chemo():
+    """API endpoint to calculate BSA and chemotherapy protocol doses with toxicity alerts."""
+    patient_id = request.args.get("patient_id", "")
+    protocol = request.args.get("protocol", "AC-T")
+    height = request.args.get("height", 170.0, type=float)
+    weight = request.args.get("weight", 70.0, type=float)
+    formula = request.args.get("formula", "mosteller")
+
+    calc_res = calculate_regimen_doses(
+        patient_id=patient_id,
+        protocol_name=protocol,
+        height_cm=height,
+        weight_kg=weight,
+        formula=formula,
+    )
+    if calc_res.get("error"):
+        return jsonify(calc_res), 400
+
+    return jsonify(calc_res), 200
+
+
+@bp.route("/oncology/api/save-chemo-order", methods=["POST"])
+def api_save_chemo_order():
+    """API endpoint to save signed Chemotherapy Regimen Order."""
+    data = request.get_json(silent=True) or request.form.to_dict()
+
+    patient_id = data.get("patient_id")
+    protocol = data.get("protocol_name")
+    height = float(data.get("height_cm", 170.0))
+    weight = float(data.get("weight_kg", 70.0))
+    formula = data.get("bsa_formula", "mosteller")
+    cycle = int(data.get("cycle_number", 1))
+    total_cycles = int(data.get("total_cycles", 6))
+
+    if not patient_id or not protocol:
+        return jsonify({"message": "patient_id and protocol_name are required"}), 400
+
+    calc_res = calculate_regimen_doses(
+        patient_id=patient_id,
+        protocol_name=protocol,
+        height_cm=height,
+        weight_kg=weight,
+        formula=formula,
+    )
+    if calc_res.get("error"):
+        return jsonify(calc_res), 400
+
+    physician_id = current_user.id if current_user and getattr(current_user, "is_authenticated", False) else session.get("user_id", 1)
+
+    order = ChemotherapyRegimenOrder(
+        patient_id=patient_id,
+        physician_id=physician_id,
+        protocol_name=calc_res["protocol_name"],
+        cancer_type=calc_res["cancer_type"],
+        weight_kg=weight,
+        height_cm=height,
+        bsa_m2=calc_res["bsa_m2"],
+        bsa_formula=formula,
+        cycle_number=cycle,
+        total_cycles=total_cycles,
+        calculated_doses_json=json.dumps(calc_res["drugs"]),
+        has_toxicity_warning=calc_res["has_toxicity_warning"],
+        toxicity_warning_details="\n".join(calc_res["toxicity_warnings"]) if calc_res["toxicity_warnings"] else None,
+        status="ORDERED",
+    )
+
+    db.session.add(order)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "order_id": order.id,
+        "protocol_name": order.protocol_name,
+        "bsa_m2": order.bsa_m2,
+        "has_toxicity_warning": order.has_toxicity_warning,
+    }), 201
+

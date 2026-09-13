@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chemotherapy Protocol Builder — HIMS Enterprise</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --card-bg: #151c2c;
+      --card-border: #232d42;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-purple: #a855f7;
+      --accent-cyan: #06b6d4;
+      --accent-danger: #ef4444;
+      --accent-warning: #f59e0b;
+      --accent-success: #10b981;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      padding-bottom: 3rem;
+    }
+
+    .navbar-onco {
+      background: rgba(21, 28, 44, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .kpi-card:hover {
+      border-color: var(--accent-purple);
+      transform: translateY(-2px);
+    }
+
+    .kpi-val {
+      font-size: 2.2rem;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .alert-banner-toxicity {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid var(--accent-danger);
+      border-radius: 10px;
+      color: #fca5a5;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      animation: pulse-red 2s infinite;
+    }
+
+    @keyframes pulse-red {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    .table-dark-custom {
+      --bs-table-bg: var(--card-bg);
+      --bs-table-border-color: var(--card-border);
+      --bs-table-color: var(--text-main);
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark navbar-onco mb-4">
+  <div class="container-fluid px-4">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+      <i class="bi bi-capsule-prescription fs-4 text-purple" style="color: var(--accent-purple);"></i>
+      <span class="fw-bold fs-5">Oncology &amp; Chemotherapy Protocol Builder</span>
+      <span class="badge bg-purple text-white fw-bold ms-2" style="background-color: var(--accent-purple);">Patient: {{ patient_id }}</span>
+    </a>
+    <div class="d-flex align-items-center gap-3">
+      <button class="btn btn-outline-light btn-sm" onclick="window.location.reload();">
+        <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid px-4">
+
+  <!-- Toxicity Warning Banners -->
+  <div id="toxicityBanner" class="alert-banner-toxicity d-flex align-items-center justify-content-between d-none">
+    <div class="d-flex align-items-center gap-3">
+      <i class="bi bi-exclamation-octagon-fill fs-2 text-danger"></i>
+      <div>
+        <h6 class="fw-bold mb-0">LIFETIME CUMULATIVE TOXICITY CAP EXCEEDED</h6>
+        <div id="toxicityDetails" class="small mt-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patient Biometrics & Protocol Controls -->
+  <div class="card bg-dark border-secondary mb-4">
+    <div class="card-header bg-dark border-secondary py-3">
+      <h5 class="mb-0 text-white fw-bold"><i class="bi bi-person-lines-fill text-purple me-2" style="color: var(--accent-purple);"></i>Patient Biometrics &amp; Protocol Selection</h5>
+    </div>
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-2">
+          <label class="form-label text-muted small fw-bold">Height (cm)</label>
+          <input type="number" class="form-control bg-secondary text-white border-0" id="heightCm" value="170" onchange="recalculateChemo()">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label text-muted small fw-bold">Weight (kg)</label>
+          <input type="number" class="form-control bg-secondary text-white border-0" id="weightKg" value="70" onchange="recalculateChemo()">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label text-muted small fw-bold">BSA Formula</label>
+          <select class="form-select bg-secondary text-white border-0" id="bsaFormula" onchange="recalculateChemo()">
+            <option value="mosteller" selected>Mosteller (Standard)</option>
+            <option value="dubois">DuBois</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label text-muted small fw-bold">Chemotherapy Protocol</label>
+          <select class="form-select bg-secondary text-white border-0" id="protocolName" onchange="recalculateChemo()">
+            <option value="FOLFOX6">FOLFOX6 (Colorectal Cancer)</option>
+            <option value="AC-T" selected>AC-T (Breast Cancer)</option>
+            <option value="ABVD">ABVD (Hodgkin Lymphoma)</option>
+            <option value="CHOP">CHOP (Non-Hodgkin Lymphoma)</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <div class="kpi-card text-center py-2 px-3">
+            <div class="text-muted small fw-semibold text-uppercase">BSA (m²)</div>
+            <div class="kpi-val text-info" id="bsaDisplay">1.82</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chemotherapy Regimen Breakdown Table -->
+  <div class="card bg-dark border-secondary mb-4">
+    <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center py-3">
+      <h5 class="mb-0 text-white fw-bold"><i class="bi bi-prescription2 text-cyan me-2" style="color: var(--accent-cyan);"></i>Calculated Chemotherapy Doses</h5>
+      <span class="badge bg-purple text-white" id="cancerTypeBadge">Breast Cancer</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-dark-custom align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Drug Name</th>
+              <th>Dose per m² / Fixed</th>
+              <th>Calculated Patient Dose</th>
+              <th>Route / Schedule</th>
+              <th>Previous Cumulative</th>
+              <th>New Lifetime Cumulative</th>
+              <th>Safety / Toxicity Cap</th>
+            </tr>
+          </thead>
+          <tbody id="chemoTableBody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sign-off Controls -->
+  <div class="card bg-dark border-secondary">
+    <div class="card-body d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center gap-3">
+        <label class="form-label text-white mb-0 fw-bold">Cycle Number:</label>
+        <input type="number" class="form-control bg-secondary text-white border-0" id="cycleNum" value="1" style="width: 80px;">
+        <span class="text-muted">of</span>
+        <input type="number" class="form-control bg-secondary text-white border-0" id="totalCycles" value="6" style="width: 80px;">
+        <span class="text-muted">total cycles</span>
+      </div>
+      <div>
+        <button class="btn btn-purple text-white fw-bold px-4 py-2" style="background-color: var(--accent-purple);" onclick="saveChemoOrder()">
+          <i class="bi bi-shield-check me-2"></i>Sign &amp; Order Chemotherapy Regimen
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  const patientId = "{{ patient_id }}";
+
+  async function recalculateChemo() {
+    const height = document.getElementById('heightCm').value;
+    const weight = document.getElementById('weightKg').value;
+    const formula = document.getElementById('bsaFormula').value;
+    const protocol = document.getElementById('protocolName').value;
+
+    const res = await fetch(`/medicine/oncology/api/calculate-chemo?patient_id=${patientId}&protocol=${protocol}&height=${height}&weight=${weight}&formula=${formula}`);
+    if(!res.ok) return;
+
+    const data = await res.json();
+    document.getElementById('bsaDisplay').innerText = data.bsa_m2;
+    document.getElementById('cancerTypeBadge').innerText = data.cancer_type;
+
+    // Toxicity Banner
+    const banner = document.getElementById('toxicityBanner');
+    const details = document.getElementById('toxicityDetails');
+    if(data.has_toxicity_warning) {
+      banner.classList.remove('d-none');
+      details.innerHTML = data.toxicity_warnings.map(w => `<div>• ${w}</div>`).join('');
+    } else {
+      banner.classList.add('d-none');
+    }
+
+    // Populate Table
+    const tbody = document.getElementById('chemoTableBody');
+    tbody.innerHTML = '';
+    data.drugs.forEach(d => {
+      const tr = document.createElement('tr');
+      const capBadge = d.cap_exceeded
+        ? `<span class="badge bg-danger text-white"><i class="bi bi-exclamation-triangle-fill me-1"></i>Cap Exceeded</span>`
+        : `<span class="badge bg-success text-dark"><i class="bi bi-check-circle me-1"></i>Safe</span>`;
+
+      tr.innerHTML = `
+        <td class="fw-bold text-white">${d.drug_name}</td>
+        <td>${d.dose_per_m2 ? d.dose_per_m2 + ' ' + d.unit : 'Fixed Dose'}</td>
+        <td><span class="badge bg-info text-dark fw-bold fs-6">${d.dose_display}</span></td>
+        <td class="small text-muted">${d.route}</td>
+        <td>${d.prev_cumulative_dose} ${d.unit}</td>
+        <td><span class="fw-bold ${d.cap_exceeded ? 'text-danger' : 'text-light'}">${d.new_cumulative_dose} ${d.unit}</span></td>
+        <td>${capBadge}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function saveChemoOrder() {
+    const height = document.getElementById('heightCm').value;
+    const weight = document.getElementById('weightKg').value;
+    const formula = document.getElementById('bsaFormula').value;
+    const protocol = document.getElementById('protocolName').value;
+    const cycle = document.getElementById('cycleNum').value;
+    const total_cycles = document.getElementById('totalCycles').value;
+
+    const res = await fetch(`/medicine/oncology/api/save-chemo-order`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        patient_id: patientId,
+        protocol_name: protocol,
+        height_cm: height,
+        weight_kg: weight,
+        bsa_formula: formula,
+        cycle_number: cycle,
+        total_cycles: total_cycles
+      })
+    });
+
+    if(res.ok) {
+      alert('Chemotherapy Regimen Order signed and saved successfully!');
+      window.location.reload();
+    } else {
+      const err = await res.json();
+      alert('Order Error: ' + (err.message || 'Failed to save chemotherapy order'));
+    }
+  }
+
+  // Initial load calculation
+  window.onload = recalculateChemo;
+</script>
+</body>
+</html>
