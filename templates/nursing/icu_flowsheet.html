@@ -86,6 +86,9 @@
       <span class="badge bg-cyan text-dark fw-bold ms-2" style="background-color: var(--accent-cyan);">Patient: {{ patient_id }}</span>
     </a>
     <div class="d-flex align-items-center gap-3">
+      <a href="{{ url_for('nursing.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Nursing Home
+      </a>
       <button class="btn btn-outline-light btn-sm" onclick="window.location.reload();">
         <i class="bi bi-arrow-clockwise me-1"></i> Refresh
       </button>
