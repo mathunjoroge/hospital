@@ -274,3 +274,27 @@ If Rhapsody or another engine is preferred, the `docker-compose.yml` Mirth servi
   4. **Search Strategy**: `search_snomed()` and `search_loinc()` in `prescribe.py` query local DB first (fast `ILIKE`), falling back to live UMLS API search when DB results are sparse.
   5. **Nightly Beat Sync**: Added Celery beat schedule entries for automated nightly syncs at 03:30 EAT and 04:00 EAT.
 
+
+## 23. Renal / Dialysis Unit Module
+
+* **Status:** 🔲 DECISIONS PENDING
+* **Decision-maker:** Facility Management / Clinical Lead (Nephrology) / Developer
+* **Context:** The hospital serves patients with Chronic Kidney Disease (CKD), Acute Kidney Injury (AKI), and End-Stage Renal Disease (ESRD) requiring Haemodialysis (HD), Peritoneal Dialysis (PD), and Continuous Renal Replacement Therapy (CRRT). No dedicated Renal / Dialysis module exists. The ICU module captures oliguria alerts and net fluid balance, but there is no structured workflow for dialysis session scheduling, machine assignment, access-site documentation, Kt/V adequacy tracking, or dialysis prescription management.
+
+* **Open Decisions Required Before Implementation:**
+  1. **Unit Scope** — Does the module cover all three modalities (HD, PD, CRRT) or only the most common (HD)?
+     *Options:* (A) HD-only MVP → expand later; (B) HD + CRRT (ICU-adjacent) at launch; (C) Full HD + PD + CRRT from day one.
+  2. **Machine & Chair Scheduling** — Should the system manage dialysis machine inventory and chair slot scheduling (e.g., Mon/Wed/Fri vs Tue/Thu/Sat shifts), or defer to a manual whiteboard approach?
+     *Options:* (A) Slot-based scheduler with machine assignment; (B) Manual scheduling, system records sessions only.
+  3. **Kt/V Adequacy Tracking** — Kt/V (dialysis dose adequacy) is a KDOQI-mandated metric. Should the system auto-calculate single-pool Kt/V from pre/post-dialysis BUN, session duration, and ultrafiltration volume?
+     *Options:* (A) Auto-calculate with alert if Kt/V < 1.2; (B) Clinician manual entry only.
+  4. **Vascular Access Management** — Track access site (AVF, AVG, tunnelled catheter, temporary catheter), insertion date, and site complications per session?
+     *Options:* (A) Yes — include access-site log per session; (B) No — document in general nursing notes.
+  5. **Dialysis Prescription Workflow** — Should nephrologists create a reusable prescription (dialysate composition, blood flow rate, duration, anticoagulation) that nurses execute per session?
+     *Options:* (A) Prescription-driven workflow (nephrologist prescribes, nurse executes & signs off); (B) Per-session freeform entry.
+  6. **Integration with Pharmacy** — Should post-dialysis medication dose adjustments (renally-cleared drugs) trigger a CDSS alert in the prescribing module?
+     *Options:* (A) Yes — hook into existing CDSS renal-dosing adjustment logic; (B) No — handled offline by pharmacist.
+  7. **Billing** — Should HD/PD/CRRT sessions auto-generate line items in the billing module (consumables: dialyser, lines, dialysate bags)?
+     *Options:* (A) Auto-bill per session from a consumables template; (B) Manual billing entry.
+
+* **Implementation Note:** No code, models, or routes are to be created until the above decisions are resolved and recorded. This entry is a placeholder to track the clinical and architectural decisions required.
