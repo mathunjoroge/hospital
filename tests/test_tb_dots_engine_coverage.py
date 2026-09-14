@@ -5,32 +5,29 @@ Pushes test coverage for departments/tb_dots/engine.py to >90%.
 """
 
 from datetime import datetime, timedelta, timezone
+
 import pytest
-from extensions import db
-from departments.tb_dots.models import (
-    TBEnrollment,
-    TBRegimen,
-    DoseTaken,
-    SputumResult,
-    ChestXRay,
-    HIVStatus,
-)
+
 from departments.tb_dots.engine import (
     create_tb_enrollment,
-    update_tb_regimen,
-    record_dose_taken,
-    record_sputum_result,
-    record_chest_xray,
-    record_hiv_status,
     get_current_regimen,
-    get_latest_sputum_result,
+    get_dose_summary,
     get_latest_chest_xray,
     get_latest_hiv_status,
-    get_dose_summary,
+    get_latest_sputum_result,
     get_tb_formulary,
     is_tb_regimen_valid,
     log_tb_formulary_change,
+    record_chest_xray,
+    record_dose_taken,
+    record_hiv_status,
+    record_sputum_result,
+    update_tb_regimen,
 )
+from departments.tb_dots.models import (
+    TBRegimen,
+)
+from extensions import db
 
 
 @pytest.fixture

@@ -5,16 +5,18 @@ Pushes test coverage for departments/pharmacy/dispensing.py & stock_ops.py to >9
 """
 
 from datetime import date, datetime, timezone
+
 import pytest
-from extensions import db
+
+from departments.models.medicine import PrescribedMedicine
 from departments.models.pharmacy import (
-    DrugCategory,
-    Drug,
     Batch,
     DispensedDrug,
+    Drug,
+    DrugCategory,
 )
-from departments.models.medicine import PrescribedMedicine
 from departments.models.records import Patient
+from extensions import db
 
 
 @pytest.fixture
