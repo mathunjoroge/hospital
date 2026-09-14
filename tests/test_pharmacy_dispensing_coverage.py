@@ -146,16 +146,20 @@ def test_delete_dispensed_drug_route(client, admin_user, pharmacy_setup, app):
         db.session.commit()
         dispensed_id = dispensed.id
 
-    resp = client.get(
+    resp = client.post(
         f"/pharmacy/delete_dispensed_drug/{dispensed_id}",
+        data={"void_reason": "Patient cancelled"},
         headers={"Referer": "/pharmacy/prescriptions"},
         follow_redirects=True,
     )
     assert resp.status_code == 200
 
     with app.app_context():
-        # Verify batch stock restored
-        b = Batch.query.get(batch1.id)
+        # Verify status is VOIDED and batch stock restored
+        d = db.session.get(DispensedDrug, dispensed_id)
+        assert d is not None
+        assert d.status == "VOIDED"
+        b = db.session.get(Batch, batch1.id)
         assert b.quantity_in_stock == 100
 
 
@@ -233,13 +237,15 @@ def test_stock_ops_remove_dispensed(client, admin_user, pharmacy_setup, app):
 
     resp = client.post(
         f"/pharmacy/remove_dispensed/{dispense_id}",
-        data={"prescription_id": "RX-TEST-001"},
+        data={"prescription_id": "RX-TEST-001", "void_reason": "Order error"},
         follow_redirects=True,
     )
     assert resp.status_code == 200
 
     with app.app_context():
-        assert DispensedDrug.query.get(dispense_id) is None
+        d = db.session.get(DispensedDrug, dispense_id)
+        assert d is not None
+        assert d.status == "VOIDED"
 
 
 def test_stock_ops_process_dispense(client, admin_user, pharmacy_setup):

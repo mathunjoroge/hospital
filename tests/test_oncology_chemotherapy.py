@@ -71,7 +71,7 @@ def test_doxorubicin_lifetime_toxicity_cap(app):
         assert dox["cap_exceeded"] is True
 
 
-def test_chemo_builder_endpoints(client, app):
+def test_chemo_builder_endpoints(client, app, admin_user):
     """Test Chemotherapy Builder UI and API endpoints."""
     # Test GET Chemo Builder UI Page
     resp_ui = client.get("/medicine/oncology/chemo-builder/PAT_ONCO_TEST")

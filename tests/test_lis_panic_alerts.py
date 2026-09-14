@@ -18,6 +18,7 @@ from departments.models.laboratory import LabResult
 from departments.models.medicine import LabTest
 from departments.models.nursing import Notifications
 from departments.models.records import Patient
+from departments.models.user import User
 
 
 @pytest.fixture
@@ -67,7 +68,7 @@ class TestPanicThresholds:
 
 
 class TestLISAPI:
-    def test_enter_lab_result_normal(self, client, sample_lab_setup):
+    def test_enter_lab_result_normal(self, client, sample_lab_setup, admin_user):
         patient = sample_lab_setup["patient"]
         lab_test = sample_lab_setup["lab_test"]
 
@@ -93,7 +94,7 @@ class TestLISAPI:
         assert db_res is not None
         assert db_res.panic_status == "NORMAL"
 
-    def test_enter_lab_result_panic_critical(self, client, sample_lab_setup):
+    def test_enter_lab_result_panic_critical(self, client, sample_lab_setup, admin_user):
         patient = sample_lab_setup["patient"]
         lab_test = sample_lab_setup["lab_test"]
 
@@ -112,7 +113,10 @@ class TestLISAPI:
         data = resp.get_json()
         assert data["panic_status"] == "PANIC_CRITICAL"
 
-    def test_verify_result_dispatches_alert(self, client, sample_lab_setup):
+    def test_verify_result_dispatches_alert(self, client, sample_lab_setup, admin_user, app):
+        with app.app_context():
+            admin = User.query.filter_by(username="admin_test_fixture").first()
+            admin_id = admin.id if admin else 1
         # Create a PANIC_CRITICAL result first
         patient = sample_lab_setup["patient"]
         lab_test = sample_lab_setup["lab_test"]
@@ -142,12 +146,12 @@ class TestLISAPI:
         assert data["status"] == "VERIFIED"
         assert data["panic_alert_sent"] is True
 
-        # Check if notification was created
-        notification = Notifications.query.filter_by(receiver_id=5).first()
+        # Check if notification was created for verifier
+        notification = Notifications.query.filter_by(receiver_id=admin_id).first()
         assert notification is not None
         assert "CRITICAL LAB PANIC ALERT" in notification.message
 
-    def test_get_panic_alerts(self, client, sample_lab_setup):
+    def test_get_panic_alerts(self, client, sample_lab_setup, admin_user):
         resp = client.get("/laboratory/lis/panic_alerts")
         assert resp.status_code == 200
         data = resp.get_json()

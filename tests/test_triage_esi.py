@@ -101,7 +101,7 @@ class TestESICalculation:
 
 
 class TestTriageEndpoints:
-    def test_assess_patient_endpoint(self, client, sample_patient):
+    def test_assess_patient_endpoint(self, client, admin_user, sample_patient):
         resp = client.post(
             "/nursing/triage/assess",
             json={
@@ -124,7 +124,7 @@ class TestTriageEndpoints:
         assert data["esi_level"] in (1, 2)
         assert data["priority_status"] == "ESCALATED"
 
-    def test_triage_queue_ordering(self, client, sample_patient):
+    def test_triage_queue_ordering(self, client, admin_user, sample_patient):
         # Create non-urgent assessment (ESI 4)
         client.post(
             "/nursing/triage/assess",

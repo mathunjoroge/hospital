@@ -24,8 +24,8 @@ def radiology_app(app):
 
 
 @pytest.fixture
-def radiology_client(radiology_app):
-    return radiology_app.test_client()
+def radiology_client(client, admin_user):
+    return client
 
 
 @pytest.fixture

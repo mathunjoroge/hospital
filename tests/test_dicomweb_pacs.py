@@ -136,7 +136,7 @@ class TestDICOMServicePACSIntegration:
 class TestOHIFAndDICOMwebRoutes:
     """Test OHIF Viewer & DICOMweb Proxy Routes."""
 
-    def test_ohif_viewer_route(self, client, app):
+    def test_ohif_viewer_route(self, client, app, admin_user):
         with app.app_context():
             _create_test_patient("PTOHIF01", "OHIF Patient", sex="Female")
 
@@ -163,14 +163,14 @@ class TestOHIFAndDICOMwebRoutes:
         assert b"PTOHIF01" in resp.data
         assert b"orthanc_mri_001" in resp.data
 
-    def test_qido_search_proxy(self, client):
+    def test_qido_search_proxy(self, client, admin_user):
         with patch.object(dicomweb_client, "qido_search_studies", return_value=[{"study": "1"}]):
             resp = client.get("/imaging/dicom/qido?PatientID=PT001")
             assert resp.status_code == 200
             data = resp.get_json()
             assert data["count"] == 1
 
-    def test_wado_metadata_proxy(self, client):
+    def test_wado_metadata_proxy(self, client, admin_user):
         with patch.object(dicomweb_client, "wado_retrieve_metadata", return_value=[{"meta": "1"}]):
             resp = client.get("/imaging/dicom/wado/1.2.3.4")
             assert resp.status_code == 200

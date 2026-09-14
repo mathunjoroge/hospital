@@ -110,7 +110,7 @@ def test_generate_flowsheet_matrix(app):
         assert matrix["summary"]["latest_gcs"]["score"] == 15
 
 
-def test_icu_routes(client, app):
+def test_icu_routes(client, app, admin_user):
     """Test ICU flowsheet HTTP routes and API endpoints."""
     # Test GET flowsheet UI page
     resp_ui = client.get("/icu/flowsheet/PAT_ICU_TEST")

@@ -41,7 +41,12 @@ def auth_headers(client):
             )
             db.session.add(user)
             db.session.commit()
-        token = create_access_token(identity=str(user.id))
+            db.session.refresh(user)
+        user_id = str(user.id)
+        token = create_access_token(identity=user_id)
+    with client.session_transaction() as sess:
+        sess["_user_id"] = user_id
+        sess["_fresh"] = True
     return {"Authorization": f"Bearer {token}"}
 
 
