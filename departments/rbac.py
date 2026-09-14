@@ -41,9 +41,10 @@ def get_effective_role():
     user = get_effective_user()
     if not user:
         return None
-    if user.role == "admin" and "switched_user" in session:
-        return session["switched_user"]
-    return user.role
+    role = (user.role or "").lower()
+    if role == "admin" and "switched_user" in session:
+        return (session.get("switched_user") or "").lower()
+    return role
 
 
 def roles_required(*roles):
@@ -61,7 +62,7 @@ def roles_required(*roles):
             if not user:
                 abort(403)
 
-            user_role = user.role
+            user_role = (user.role or "").lower()
             effective_role = get_effective_role()
 
             # Admin always has access (standard RBAC pattern) unless role switch is active
@@ -69,13 +70,13 @@ def roles_required(*roles):
                 return fn(*args, **kwargs)
 
             # Build allowed roles set including role aliases
-            allowed_roles = set(roles)
-            for r in roles:
+            allowed_roles = {r.lower() for r in roles}
+            for r in list(allowed_roles):
                 if r in ROLE_ALIASES:
                     allowed_roles.update(ROLE_ALIASES[r])
 
             # Check if effective role is in allowed roles
-            if effective_role not in allowed_roles:
+            if effective_role not in allowed_roles and "admin" not in allowed_roles:
                 abort(403)
 
             return fn(*args, **kwargs)

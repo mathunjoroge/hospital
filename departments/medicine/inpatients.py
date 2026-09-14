@@ -150,9 +150,9 @@ def get_theatre_list():
                 Encounter.stage.label("encounter_stage"),
             )
             .select_from(TheatreList)
-            .join(Patient, TheatreList.patient_id == Patient.patient_id)
-            .join(TheatreProcedure, TheatreList.procedure_id == TheatreProcedure.id)
-            .outerjoin(Encounter, TheatreList.encounter_id == Encounter.id)
+            .join(TheatreList.patient)
+            .join(TheatreList.procedure)
+            .outerjoin(TheatreList.encounter)
         )
 
         if status_filter is not None:

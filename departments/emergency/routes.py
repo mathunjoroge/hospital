@@ -13,7 +13,7 @@ Routes:
 import logging
 from datetime import timezone
 
-from flask import abort, jsonify, render_template_string, request
+from flask import abort, jsonify, render_template, render_template_string, request
 from flask_login import current_user, login_required
 
 from departments.emergency.break_glass import (
@@ -21,6 +21,7 @@ from departments.emergency.break_glass import (
     invoke_break_glass,
 )
 from departments.models.break_glass import BreakGlassAccessLog
+from departments.nursing.ed_engine import EDOperationsEngine
 from departments.rbac import roles_required
 from extensions import db
 
@@ -227,11 +228,18 @@ def admin_audit():
 @bp.route("/emergency/", methods=["GET"])
 @bp.route("/emergency/dashboard", methods=["GET"])
 @bp.route("/emergency_dashboard", methods=["GET"])
-@bp.route("/", methods=["GET"])
 @login_required
 def emergency_dashboard():
     """Emergency Unit Dashboard & Break-Glass Status endpoint."""
     expire_stale_grants()
-    if getattr(current_user, "role", None) == "admin":
-        return admin_audit()
-    return status()
+    if request.args.get("view") == "break_glass":
+        if (getattr(current_user, "role", None) or "").lower() == "admin":
+            return admin_audit()
+        return status()
+
+    try:
+        metrics = EDOperationsEngine.get_ed_dashboard_metrics()
+        return render_template("nursing/ed_dashboard.html", metrics=metrics)
+    except Exception:
+        logger.exception("Error rendering ED dashboard in emergency_dashboard")
+        return status()

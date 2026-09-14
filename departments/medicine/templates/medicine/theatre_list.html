@@ -105,29 +105,34 @@
               <small>{{ entry.created_at.strftime('%d %b %Y') if entry.created_at else 'N/A' }}</small>
             </td>
             <td class="text-center">
-              {% if entry.encounter_stage == 'PRE_OP' %}
-                <form method="POST" action="{{ url_for('medicine.transition_theatre_stage', entry_id=entry.id, new_stage='INTRA_OP') }}" class="d-inline" onsubmit="return confirm('Start surgery and move to INTRA_OP?');">
-                  <button type="submit" class="btn btn-sm btn-warning fw-semibold">
-                    <i class="bi bi-play-fill me-1"></i>Start Surgery
-                  </button>
-                </form>
-              {% elif entry.encounter_stage == 'INTRA_OP' %}
-                <form method="POST" action="{{ url_for('medicine.transition_theatre_stage', entry_id=entry.id, new_stage='POST_OP') }}" class="d-inline" onsubmit="return confirm('Finish surgery and move to POST_OP?');">
-                  <button type="submit" class="btn btn-sm btn-success fw-semibold">
-                    <i class="bi bi-check-circle me-1"></i>Finish Surgery
-                  </button>
-                </form>
-              {% elif entry.encounter_stage == 'POST_OP' %}
-                <a href="{{ url_for('medicine.update_post_op', entry_id=entry.id) }}" class="btn btn-sm btn-info fw-semibold">
-                  <i class="bi bi-pencil me-1"></i>Post-Op Notes
+              <div class="d-inline-flex gap-1 align-items-center">
+                <a href="{{ url_for('theatre.surgical_workbench', entry_id=entry.id) }}" class="btn btn-sm btn-outline-danger fw-semibold" title="WHO Checklist & Surgical Workbench">
+                  <i class="bi bi-card-checklist me-1"></i>WHO Checklist
                 </a>
-              {% elif entry.status == 0 %}
-                <a href="{{ url_for('medicine.update_post_op', entry_id=entry.id) }}" class="btn btn-sm btn-success fw-semibold">
-                  <i class="bi bi-pencil me-1"></i>Post-Op Notes
-                </a>
-              {% else %}
-                <span class="text-muted small">Completed</span>
-              {% endif %}
+                {% if entry.encounter_stage == 'PRE_OP' %}
+                  <form method="POST" action="{{ url_for('medicine.transition_theatre_stage', entry_id=entry.id, new_stage='INTRA_OP') }}" class="d-inline" onsubmit="return confirm('Start surgery and move to INTRA_OP?');">
+                    <button type="submit" class="btn btn-sm btn-warning fw-semibold">
+                      <i class="bi bi-play-fill me-1"></i>Start Surgery
+                    </button>
+                  </form>
+                {% elif entry.encounter_stage == 'INTRA_OP' %}
+                  <form method="POST" action="{{ url_for('medicine.transition_theatre_stage', entry_id=entry.id, new_stage='POST_OP') }}" class="d-inline" onsubmit="return confirm('Finish surgery and move to POST_OP?');">
+                    <button type="submit" class="btn btn-sm btn-success fw-semibold">
+                      <i class="bi bi-check-circle me-1"></i>Finish Surgery
+                    </button>
+                  </form>
+                {% elif entry.encounter_stage == 'POST_OP' %}
+                  <a href="{{ url_for('medicine.update_post_op', entry_id=entry.id) }}" class="btn btn-sm btn-info fw-semibold">
+                    <i class="bi bi-pencil me-1"></i>Post-Op Notes
+                  </a>
+                {% elif entry.status == 0 %}
+                  <a href="{{ url_for('medicine.update_post_op', entry_id=entry.id) }}" class="btn btn-sm btn-success fw-semibold">
+                    <i class="bi bi-pencil me-1"></i>Post-Op Notes
+                  </a>
+                {% else %}
+                  <span class="text-muted small">Completed</span>
+                {% endif %}
+              </div>
             </td>
           </tr>
           {% else %}
