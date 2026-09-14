@@ -322,6 +322,14 @@ def handle_cdss_evaluate():
         drug_name=data.get("drug_name"),
         existing_meds=data.get("existing_meds", []),
         egfr=data.get("egfr"),
+        has_hepatic_impairment=data.get("has_hepatic_impairment", False),
+        is_cirrhotic=data.get("is_cirrhotic", False),
+        age_years=data.get("age_years"),
+        weight_kg=data.get("weight_kg"),
+        dose_mg=data.get("dose_mg"),
+        is_pregnant=data.get("is_pregnant", False),
+        trimester=data.get("trimester"),
+        is_lactating=data.get("is_lactating", False),
     )
     return jsonify(report), 200
 

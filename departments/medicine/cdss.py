@@ -304,11 +304,28 @@ def evaluate_prescription_safety(
     drug_name: str | None = None,
     existing_meds: list[str] | None = None,
     egfr: float | None = None,
+    has_hepatic_impairment: bool = False,
+    is_cirrhotic: bool = False,
+    age_years: int | None = None,
+    weight_kg: float | None = None,
+    dose_mg: float | None = None,
+    is_pregnant: bool = False,
+    trimester: int | None = None,
+    is_lactating: bool = False,
 ) -> dict:
     """
     Comprehensive Clinical Decision Support evaluation.
-    Combines drug interaction, allergy contraindication, and renal dosing guidance.
+    Combines drug interaction, allergy contraindication, renal dosing,
+    hepatic impairment, pediatric age/weight dosing, and pregnancy safety rules.
     """
+    from departments.clinical_safety.cdss_advanced import (
+        AlertFatigueManager,
+        HepaticDosingEngine,
+        PediatricDosingEngine,
+        PregnancySafetyEngine,
+        RenalDosingEngine,
+    )
+
     existing_meds = existing_meds or []
     all_meds = list(existing_meds)
     if drug_name:
@@ -318,11 +335,13 @@ def evaluate_prescription_safety(
 
     patient = (
         Patient.query.filter(
-                db.or_(
-                    Patient.patient_id.ilike(f"%{patient_id}%"),
-                    Patient.name.ilike(f"%{patient_id}%"),
-                )
-            ).first() if patient_id else None
+            db.or_(
+                Patient.patient_id.ilike(f"%{patient_id}%"),
+                Patient.name.ilike(f"%{patient_id}%"),
+            )
+        ).first()
+        if patient_id
+        else None
     )
     allergy_alert = (
         check_patient_allergies(patient, drug_name) if (patient and drug_name) else None
@@ -335,12 +354,87 @@ def evaluate_prescription_safety(
     if allergy_alert:
         warnings.append(allergy_alert)
 
-    has_high_severity = any(w.get("severity") == "HIGH" for w in warnings)
+    # Advanced CDSS engines evaluations
+    if drug_name:
+        # 1. Renal Dosing
+        if egfr is not None:
+            r_alerts = RenalDosingEngine.evaluate(drug_name, egfr=egfr)
+            for ra in r_alerts:
+                warnings.append(
+                    {
+                        "severity": ra.get("severity", "MODERATE"),
+                        "title": ra.get("type", "RENAL_DOSING_ALERT"),
+                        "message": ra.get("message"),
+                        "action": ra.get("action"),
+                    }
+                )
+
+        # 2. Hepatic Dosing
+        if has_hepatic_impairment or is_cirrhotic:
+            h_alerts = HepaticDosingEngine.evaluate(
+                drug_name,
+                has_hepatic_impairment=has_hepatic_impairment,
+                is_cirrhotic=is_cirrhotic,
+            )
+            for ha in h_alerts:
+                warnings.append(
+                    {
+                        "severity": ha.get("severity", "HIGH"),
+                        "title": ha.get("type", "HEPATIC_DOSING_ALERT"),
+                        "message": ha.get("message"),
+                    }
+                )
+
+        # 3. Pediatric Dosing & Contraindications
+        if age_years is not None:
+            p_alerts = PediatricDosingEngine.evaluate(
+                drug_name=drug_name,
+                dose_mg=dose_mg,
+                weight_kg=weight_kg,
+                age_years=age_years,
+            )
+            for pa in p_alerts:
+                warnings.append(
+                    {
+                        "severity": pa.get("severity", "HIGH"),
+                        "title": pa.get("type", "PEDIATRIC_ALERT"),
+                        "message": pa.get("message"),
+                    }
+                )
+
+        # 4. Pregnancy & Lactation Safety
+        if is_pregnant or is_lactating:
+            preg_alerts = PregnancySafetyEngine.evaluate(
+                drug_name=drug_name,
+                is_pregnant=is_pregnant,
+                trimester=trimester,
+                is_lactating=is_lactating,
+            )
+            for pa in preg_alerts:
+                warnings.append(
+                    {
+                        "severity": pa.get("severity", "CRITICAL"),
+                        "title": pa.get("type", "PREGNANCY_CONTRAINDICATION"),
+                        "message": pa.get("message"),
+                        "category": pa.get("category"),
+                    }
+                )
+
+    # Filter with AlertFatigueManager
+    fatigue_mgr = AlertFatigueManager()
+    filtered_warnings = fatigue_mgr.process_and_filter(
+        warnings, patient_id=patient_id or "UNKNOWN"
+    )
+
+    has_high_severity = any(
+        w.get("severity") in ("HIGH", "CRITICAL") for w in filtered_warnings
+    )
 
     return {
-        "has_warnings": len(warnings) > 0 or (dosing_alert is not None),
+        "has_warnings": len(filtered_warnings) > 0 or (dosing_alert is not None),
         "high_risk": has_high_severity,
-        "warnings_count": len(warnings),
-        "warnings": warnings,
+        "warnings_count": len(filtered_warnings),
+        "warnings": filtered_warnings,
         "dosing_guidance": dosing_alert,
     }
+

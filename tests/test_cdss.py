@@ -190,3 +190,53 @@ def test_query_drugcentral_ddi_unexpected_exception_returns_empty():
     ):
         result = query_drugcentral_ddi("metformin", "gentamicin")
     assert result == []
+
+
+def test_evaluate_prescription_safety_hepatic_pediatric_pregnancy():
+    """Test integrated evaluate_prescription_safety with hepatic, pediatric, and pregnancy parameters."""
+    from departments.medicine.cdss import evaluate_prescription_safety
+
+    # Hepatic check for Paracetamol
+    h_res = evaluate_prescription_safety(
+        drug_name="Paracetamol 1000mg",
+        has_hepatic_impairment=True,
+    )
+    assert h_res["has_warnings"] is True
+    assert h_res["high_risk"] is True
+    assert any("HEPATIC" in w.get("message", "") for w in h_res["warnings"])
+
+    # Pediatric age contraindication (Doxycycline in 5yo)
+    p_res = evaluate_prescription_safety(
+        drug_name="Doxycycline 100mg",
+        age_years=5,
+    )
+    assert p_res["has_warnings"] is True
+    assert p_res["high_risk"] is True
+    assert any("PEDIATRIC" in w.get("message", "") for w in p_res["warnings"])
+
+    # Pregnancy Category X check (Warfarin in pregnancy)
+    preg_res = evaluate_prescription_safety(
+        drug_name="Warfarin 5mg",
+        is_pregnant=True,
+        trimester=1,
+    )
+    assert preg_res["has_warnings"] is True
+    assert preg_res["high_risk"] is True
+    assert any("Category X" in w.get("message", "") for w in preg_res["warnings"])
+
+
+def test_cdss_evaluate_endpoint_pregnancy_block(client):
+    """POST /medicine/prescribe/cdss/evaluate returns pregnancy Category X warnings."""
+    resp = client.post(
+        "/medicine/prescribe/cdss/evaluate",
+        json={
+            "drug_name": "Methotrexate",
+            "is_pregnant": True,
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["has_warnings"] is True
+    assert data["high_risk"] is True
+    assert any("Category X" in w.get("message", "") or "CONTRAINDICATION" in w.get("message", "") for w in data["warnings"])
+

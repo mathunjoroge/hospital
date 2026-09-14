@@ -75,13 +75,47 @@ jobs:
           --ignore-vuln PYSEC-2026-2320
           --ignore-vuln PYSEC-2026-3417
 
-      - name: Run tests with coverage (fail fast on any test failure)
+      - name: Run tests with coverage and JUnit XML report
         run: |
-          pytest --cov=departments --cov=app --cov-report=term-missing --cov-fail-under=45 --maxfail=1 -v
+          pytest --cov=departments --cov=app --cov-report=term-missing --cov-fail-under=45 --junitxml=test-results.xml -v
 
-      - name: Upload coverage report
+      - name: Enforce test failure count and test count baseline CI gate
+        if: always()
+        run: |
+          python -c "
+          import xml.etree.ElementTree as ET
+          import sys
+
+          try:
+              tree = ET.parse('test-results.xml')
+              root = tree.getroot()
+              tests = int(root.attrib.get('tests', 0))
+              failures = int(root.attrib.get('failures', 0))
+              errors = int(root.attrib.get('errors', 0))
+              skipped = int(root.attrib.get('skipped', 0))
+
+              print(f'Test Suite Metrics: Total={tests}, Failures={failures}, Errors={errors}, Skipped={skipped}')
+
+              if failures > 0 or errors > 0:
+                  print(f'::error::CI GATE FAILED: {failures} test failures and {errors} test errors detected!')
+                  sys.exit(1)
+
+              MIN_TEST_COUNT = 700
+              if tests < MIN_TEST_COUNT:
+                  print(f'::error::CI GATE FAILED: Test suite count regression! Expected >= {MIN_TEST_COUNT} tests, but found {tests}.')
+                  sys.exit(1)
+
+              print('CI GATE PASSED: Zero test failures/errors and test count baseline met.')
+          except Exception as e:
+              print(f'::error::Failed to parse test-results.xml: {e}')
+              sys.exit(1)
+          "
+
+      - name: Upload test & coverage reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-report
-          path: .coverage
+          name: test-and-coverage-reports
+          path: |
+            .coverage
+            test-results.xml
