@@ -12,6 +12,6 @@ from . import bp
 
 @bp.route("/workbench")
 @login_required
-@roles_required("nursing")
+@roles_required("nursing", "doctor", "medicine", "admin")
 def mch_workbench():
     return render_template("mch/workbench.html")

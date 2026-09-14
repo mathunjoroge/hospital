@@ -138,10 +138,7 @@ def get_theatre_list():
         status_filter = request.args.get("status", type=int)
 
         query = (
-            TheatreList.query.join(Patient)
-            .join(TheatreProcedure)
-            .outerjoin(Encounter, TheatreList.encounter_id == Encounter.id)
-            .add_columns(
+            db.session.query(
                 TheatreList.id,
                 TheatreList.patient_id,  # Fetch patient_id as text
                 Patient.name.label("patient_name"),
@@ -152,6 +149,10 @@ def get_theatre_list():
                 TheatreList.encounter_id,
                 Encounter.stage.label("encounter_stage"),
             )
+            .select_from(TheatreList)
+            .join(Patient, TheatreList.patient_id == Patient.patient_id)
+            .join(TheatreProcedure, TheatreList.procedure_id == TheatreProcedure.id)
+            .outerjoin(Encounter, TheatreList.encounter_id == Encounter.id)
         )
 
         if status_filter is not None:

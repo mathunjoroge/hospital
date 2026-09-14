@@ -15,6 +15,15 @@ ROLE_PERMISSIONS = {
 
 
 
+ROLE_ALIASES = {
+    "doctor": {"doctor", "medicine", "clinical"},
+    "medicine": {"doctor", "medicine", "clinical"},
+    "clinical": {"doctor", "medicine", "clinical"},
+    "nurse": {"nurse", "nursing"},
+    "nursing": {"nurse", "nursing"},
+}
+
+
 def get_effective_user():
     """Return g.api_user if set via JWT, otherwise current_user if authenticated."""
     api_user = getattr(g, "api_user", None)
@@ -59,8 +68,14 @@ def roles_required(*roles):
             if user_role == "admin" and "switched_user" not in session:
                 return fn(*args, **kwargs)
 
+            # Build allowed roles set including role aliases
+            allowed_roles = set(roles)
+            for r in roles:
+                if r in ROLE_ALIASES:
+                    allowed_roles.update(ROLE_ALIASES[r])
+
             # Check if effective role is in allowed roles
-            if effective_role not in roles:
+            if effective_role not in allowed_roles:
                 abort(403)
 
             return fn(*args, **kwargs)
