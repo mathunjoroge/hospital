@@ -1,0 +1,433 @@
+{% extends "base.html" %}
+
+{% block title %}Renal & Dialysis Unit Console — HIMS Enterprise{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --bg-dark: #0b0f19;
+    --card-bg: #151c2c;
+    --card-border: #232d42;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+
+  .renal-wrapper {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: calc(100vh - 70px);
+    padding-bottom: 3rem;
+  }
+
+  .navbar-renal {
+    background: rgba(21, 28, 44, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  .renal-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .stat-val {
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .form-control, .form-select {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+
+  .form-control:focus, .form-select:focus {
+    background-color: #1e293b;
+    border-color: #3b82f6;
+    color: #f8fafc;
+    box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+  }
+
+  .table-dark-custom {
+    --bs-table-bg: var(--card-bg);
+    --bs-table-border-color: var(--card-border);
+    --bs-table-color: var(--text-main);
+  }
+
+  .status-badge-scheduled { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid #3b82f6; }
+  .status-badge-in_progress { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid #10b981; }
+  .status-badge-completed { background: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid #22c55e; }
+  .status-badge-terminated { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; }
+</style>
+
+<div class="renal-wrapper pt-3">
+  <div class="container-fluid px-4">
+
+    <!-- Header Banner -->
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 rounded-3 navbar-renal">
+      <div class="d-flex align-items-center gap-3">
+        <i class="bi bi-water fs-2" style="color: #3b82f6;"></i>
+        <div>
+          <h4 class="fw-bold mb-0 text-white">Renal &amp; Dialysis Clinical Console</h4>
+          <small class="text-muted">Hemodialysis (HD), CRRT Session Management &amp; Vascular Access Registry</small>
+        </div>
+      </div>
+      <div>
+        <a href="{{ url_for('ui_clinical.prescription_workbench') }}" class="btn btn-outline-info btn-sm me-2">
+          <i class="bi bi-shield-check me-1"></i> Rx Safety Workbench
+        </a>
+        <a href="{{ url_for('medicine.ward_rounds') }}" class="btn btn-outline-light btn-sm">
+          <i class="bi bi-hospital me-1"></i> Ward Rounds
+        </a>
+      </div>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="renal-card mb-0">
+          <div class="text-muted small fw-semibold text-uppercase">Total Dialysis Sessions</div>
+          <div class="stat-val text-primary mt-1">{{ sessions|length if sessions else 0 }}</div>
+          <small class="text-muted"><i class="bi bi-person me-1"></i>Patient: {{ patient_id }}</small>
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="renal-card mb-0">
+          <div class="text-muted small fw-semibold text-uppercase">Active Runs (In Progress)</div>
+          {% set active_count = sessions | selectattr('status', 'equalto', 'IN_PROGRESS') | list | length if sessions else 0 %}
+          <div class="stat-val text-success mt-1">{{ active_count }}</div>
+          <small class="text-muted"><i class="bi bi-play-circle me-1"></i>Live HD / CRRT Machines</small>
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="renal-card mb-0">
+          <div class="text-muted small fw-semibold text-uppercase">Vascular Access Log</div>
+          <div class="stat-val text-info mt-1">{{ access_records|length if access_records else 0 }}</div>
+          <small class="text-muted"><i class="bi bi-node-plus me-1"></i>AVF / AVG / Catheters</small>
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="renal-card mb-0">
+          <div class="text-muted small fw-semibold text-uppercase">Automated Billing</div>
+          <div class="stat-val text-warning mt-1">Enabled</div>
+          <small class="text-muted"><i class="bi bi-receipt me-1"></i>Triggers on Session COMPLETED</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+      
+      <!-- Session Logging Form -->
+      <div class="col-lg-5">
+        <div class="renal-card h-100">
+          <h5 class="fw-bold mb-3 text-primary border-bottom border-secondary pb-2">
+            <i class="bi bi-plus-circle me-2"></i>Log Dialysis Session (HD / CRRT)
+          </h5>
+          <form id="sessionForm" onsubmit="submitSession(event)">
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Patient ID</label>
+                <input type="text" class="form-control" id="sess_patient_id" value="{{ patient_id or 'P001' }}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Modality</label>
+                <select class="form-select" id="sess_modality" required>
+                  <option value="HD" selected>HD (Hemodialysis)</option>
+                  <option value="CRRT">CRRT (Continuous Renal Replacement)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Session Date</label>
+                <input type="date" class="form-control" id="sess_date" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Initial Status</label>
+                <select class="form-select" id="sess_status">
+                  <option value="SCHEDULED">SCHEDULED</option>
+                  <option value="IN_PROGRESS" selected>IN_PROGRESS</option>
+                  <option value="COMPLETED">COMPLETED</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Blood Flow (mL/min)</label>
+                <input type="number" class="form-control" id="sess_bfr" placeholder="e.g. 300" min="50" max="600">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Dialysate Flow (mL/min)</label>
+                <input type="number" class="form-control" id="sess_dfr" placeholder="e.g. 500" min="100" max="1000">
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold">Pre-Wt (kg)</label>
+                <input type="number" step="0.1" class="form-control" id="sess_pre_wt" placeholder="70.5">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold">Post-Wt (kg)</label>
+                <input type="number" step="0.1" class="form-control" id="sess_post_wt" placeholder="68.2">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold">UF Vol (L)</label>
+                <input type="number" step="0.1" class="form-control" id="sess_uf" placeholder="2.3">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label text-white fw-semibold">Session Notes &amp; Observations</label>
+              <textarea class="form-control" id="sess_notes" rows="2" placeholder="Heffarin dose, cramps, vitals stability..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 fw-bold">
+              <i class="bi bi-save me-1"></i> Log Dialysis Session
+            </button>
+          </form>
+          <div id="sessionResult" class="mt-3"></div>
+        </div>
+      </div>
+
+      <!-- Vascular Access Logging Form -->
+      <div class="col-lg-7">
+        <div class="renal-card h-100">
+          <h5 class="fw-bold mb-3 text-info border-bottom border-secondary pb-2">
+            <i class="bi bi-node-plus-fill me-2"></i>Log Vascular Access Placement
+          </h5>
+          <form id="accessForm" onsubmit="submitAccess(event)" class="mb-4">
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Access Type</label>
+                <select class="form-select" id="acc_type" required>
+                  <option value="AVF">AVF (Arteriovenous Fistula)</option>
+                  <option value="AVG">AVG (Arteriovenous Graft)</option>
+                  <option value="Tunnelled Catheter">Tunnelled CVC Catheter (Permcath)</option>
+                  <option value="Temporary Catheter">Temporary Non-Tunnelled Catheter</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Insertion Date</label>
+                <input type="date" class="form-control" id="acc_date">
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Anatomical Site Description</label>
+                <input type="text" class="form-control" id="acc_site" placeholder="e.g. Left Radiocephalic, Right Internal Jugular">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Complications &amp; Notes</label>
+                <input type="text" class="form-control" id="acc_notes" placeholder="e.g. Good thrill, no hematoma">
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-outline-info w-100 fw-bold">
+              <i class="bi bi-shield-plus me-1"></i> Register Vascular Access Record
+            </button>
+          </form>
+          <div id="accessResult" class="mb-3"></div>
+
+          <!-- Existing Access Records Summary -->
+          <h6 class="fw-bold text-white mb-2"><i class="bi bi-list-nested me-1"></i>Recent Vascular Access Placements</h6>
+          <div class="table-responsive">
+            <table class="table table-dark table-dark-custom align-middle mb-0 small">
+              <thead>
+                <tr class="text-muted border-secondary">
+                  <th>Access Type</th>
+                  <th>Site Description</th>
+                  <th>Insertion Date</th>
+                  <th>Complication / Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if access_records %}
+                  {% for rec in access_records %}
+                  <tr>
+                    <td><span class="badge bg-info text-dark font-monospace">{{ rec.access_type }}</span></td>
+                    <td class="text-white">{{ rec.site_description or 'N/A' }}</td>
+                    <td>{{ rec.insertion_date or 'N/A' }}</td>
+                    <td class="text-muted">{{ rec.complication_notes or 'None' }}</td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="4" class="text-center text-muted py-2">No vascular access records registered yet for patient {{ patient_id }}.</td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Dialysis Sessions Table -->
+    <div class="renal-card">
+      <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary pb-2">
+        <h5 class="fw-bold mb-0 text-white"><i class="bi bi-activity me-2 text-primary"></i>Dialysis Sessions History</h5>
+        <div>
+          <button class="btn btn-sm btn-outline-secondary me-2" onclick="location.href='/renal/sessions'">All Sessions</button>
+          <button class="btn btn-sm btn-outline-success" onclick="location.href='/renal/sessions?status=IN_PROGRESS'">Filter Active</button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-dark table-dark-custom align-middle mb-0">
+          <thead>
+            <tr class="text-muted border-secondary">
+              <th>ID</th>
+              <th>Modality</th>
+              <th>Session Date</th>
+              <th>Flow Rates (BFR / DFR)</th>
+              <th>Pre/Post Weight</th>
+              <th>UF Vol</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if sessions %}
+              {% for s in sessions %}
+              <tr>
+                <td><code class="text-muted">#{{ s.id if s.id else s.session_id }}</code></td>
+                <td><span class="badge bg-primary font-monospace">{{ s.modality }}</span></td>
+                <td class="fw-semibold text-white">{{ s.session_date }}</td>
+                <td>{{ s.blood_flow_rate or '—' }} / {{ s.dialysate_flow_rate or '—' }} <small class="text-muted">mL/min</small></td>
+                <td>{{ s.pre_weight or '—' }} &rarr; {{ s.post_weight or '—' }} <small class="text-muted">kg</small></td>
+                <td><strong class="text-info">{{ s.ultrafiltration_volume or '0' }}</strong> <small class="text-muted">L</small></td>
+                <td>
+                  {% set st = s.status|string|upper %}
+                  {% if st == 'COMPLETED' %}
+                    <span class="badge status-badge-completed"><i class="bi bi-check-circle me-1"></i>COMPLETED</span>
+                  {% elif st == 'IN_PROGRESS' %}
+                    <span class="badge status-badge-in_progress"><i class="bi bi-play-circle me-1"></i>IN PROGRESS</span>
+                  {% elif st == 'TERMINATED_EARLY' %}
+                    <span class="badge status-badge-terminated"><i class="bi bi-x-circle me-1"></i>TERMINATED</span>
+                  {% else %}
+                    <span class="badge status-badge-scheduled"><i class="bi bi-clock me-1"></i>{{ st }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if st != 'COMPLETED' and st != 'TERMINATED_EARLY' %}
+                  <button class="btn btn-sm btn-success py-0 px-2" onclick="updateSessionStatus({{ s.id if s.id else s.session_id }}, 'COMPLETED')">
+                    Complete &amp; Bill
+                  </button>
+                  {% else %}
+                  <span class="text-muted small">Billed</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="8" class="text-center text-muted py-3">No dialysis sessions logged for patient {{ patient_id }}.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+document.getElementById('sess_date').value = new Date().toISOString().split('T')[0];
+document.getElementById('acc_date').value = new Date().toISOString().split('T')[0];
+
+async function submitSession(e) {
+  e.preventDefault();
+  const pid = document.getElementById('sess_patient_id').value;
+  const body = {
+    modality: document.getElementById('sess_modality').value,
+    session_date: document.getElementById('sess_date').value,
+    status: document.getElementById('sess_status').value,
+    blood_flow_rate: parseFloat(document.getElementById('sess_bfr').value) || null,
+    dialysate_flow_rate: parseFloat(document.getElementById('sess_dfr').value) || null,
+    ultrafiltration_volume: parseFloat(document.getElementById('sess_uf').value) || null,
+    pre_weight: parseFloat(document.getElementById('sess_pre_wt').value) || null,
+    post_weight: parseFloat(document.getElementById('sess_post_wt').value) || null,
+    notes: document.getElementById('sess_notes').value
+  };
+
+  try {
+    const res = await fetch(`/renal/sessions/${pid}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    const div = document.getElementById('sessionResult');
+    if (res.ok) {
+      div.innerHTML = `<div class="alert alert-success p-2 small"><i class="bi bi-check-circle me-1"></i>Dialysis session logged successfully! Reloading...</div>`;
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      div.innerHTML = `<div class="alert alert-danger p-2 small">${data.error || 'Failed to log session.'}</div>`;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function submitAccess(e) {
+  e.preventDefault();
+  const pid = document.getElementById('sess_patient_id').value;
+  const body = {
+    access_type: document.getElementById('acc_type').value,
+    insertion_date: document.getElementById('acc_date').value,
+    site_description: document.getElementById('acc_site').value,
+    complication_notes: document.getElementById('acc_notes').value
+  };
+
+  try {
+    const res = await fetch(`/renal/access/${pid}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    const div = document.getElementById('accessResult');
+    if (res.ok) {
+      div.innerHTML = `<div class="alert alert-success p-2 small"><i class="bi bi-check-circle me-1"></i>Vascular access record saved! Reloading...</div>`;
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      div.innerHTML = `<div class="alert alert-danger p-2 small">${data.error || 'Failed to save access record.'}</div>`;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function updateSessionStatus(sessionId, newStatus) {
+  try {
+    const res = await fetch(`/renal/sessions/${sessionId}/status`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({status: newStatus})
+    });
+    if (res.ok) {
+      location.reload();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to update status.');
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+</script>
+{% endblock %}

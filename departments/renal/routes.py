@@ -18,7 +18,7 @@ NOT implemented here:
 import logging
 from datetime import date, datetime
 
-from flask import jsonify, request
+from flask import jsonify, render_template, request
 
 from departments.renal.engine import (
     create_session,
@@ -73,13 +73,40 @@ def list_sessions(patient_id: str = "P001"):
     """
     GET /renal/sessions/<patient_id>
     List all dialysis sessions for a patient, newest first.
+    Renders HTML console for browser requests, JSON for API clients.
     """
     sessions = get_patient_sessions(patient_id)
-    return jsonify({
-        "patient_id": patient_id,
-        "count": len(sessions),
-        "sessions": [session_summary(s) for s in sessions],
-    }), 200
+    raw_status = request.args.get("status")
+    if raw_status:
+        sessions = [s for s in sessions if str(s.status).upper() == raw_status.upper()]
+
+    if request.is_json or request.headers.get("Accept") == "application/json":
+        return jsonify({
+            "patient_id": patient_id,
+            "count": len(sessions),
+            "sessions": [session_summary(s) for s in sessions],
+        }), 200
+
+    access_records = get_patient_access_records(patient_id)
+    formatted_access = [
+        {
+            "id": r.id,
+            "access_type": r.access_type,
+            "insertion_date": r.insertion_date.isoformat() if r.insertion_date else None,
+            "site_description": r.site_description,
+            "complication_notes": r.complication_notes,
+            "dialysis_session_id": r.dialysis_session_id,
+        }
+        for r in access_records
+    ]
+
+    return render_template(
+        "renal/sessions.html",
+        patient_id=patient_id,
+        sessions=[session_summary(s) for s in sessions],
+        access_records=formatted_access,
+    )
+
 
 
 @renal_bp.route("/sessions/<string:patient_id>", methods=["POST"])
@@ -169,22 +196,44 @@ def list_access_records(patient_id: str):
     List vascular access records for a patient.
     """
     records = get_patient_access_records(patient_id)
-    return jsonify({
-        "patient_id": patient_id,
-        "count": len(records),
-        "records": [
-            {
-                "id": r.id,
-                "access_type": r.access_type,
-                "insertion_date": r.insertion_date.isoformat() if r.insertion_date else None,
-                "site_description": r.site_description,
-                "complication_notes": r.complication_notes,
-                "dialysis_session_id": r.dialysis_session_id,
-                "created_at": r.created_at.isoformat(),
-            }
-            for r in records
-        ],
-    }), 200
+    if request.is_json or request.headers.get("Accept") == "application/json":
+        return jsonify({
+            "patient_id": patient_id,
+            "count": len(records),
+            "records": [
+                {
+                    "id": r.id,
+                    "access_type": r.access_type,
+                    "insertion_date": r.insertion_date.isoformat() if r.insertion_date else None,
+                    "site_description": r.site_description,
+                    "complication_notes": r.complication_notes,
+                    "dialysis_session_id": r.dialysis_session_id,
+                    "created_at": r.created_at.isoformat(),
+                }
+                for r in records
+            ],
+        }), 200
+
+    sessions = get_patient_sessions(patient_id)
+    formatted_access = [
+        {
+            "id": r.id,
+            "access_type": r.access_type,
+            "insertion_date": r.insertion_date.isoformat() if r.insertion_date else None,
+            "site_description": r.site_description,
+            "complication_notes": r.complication_notes,
+            "dialysis_session_id": r.dialysis_session_id,
+        }
+        for r in records
+    ]
+
+    return render_template(
+        "renal/sessions.html",
+        patient_id=patient_id,
+        sessions=[session_summary(s) for s in sessions],
+        access_records=formatted_access,
+    )
+
 
 
 @renal_bp.route("/access/<string:patient_id>", methods=["POST"])
