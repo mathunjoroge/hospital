@@ -9,13 +9,13 @@ import logging
 from flask import Blueprint, jsonify, render_template, request, session
 from flask_login import current_user
 
-from departments.models.icu import ICUFlowsheetEntry, ICUFluidBalance
 from departments.icu.icu_engine import (
     calculate_fluid_balance,
     calculate_gcs,
     calculate_map,
     generate_flowsheet_matrix,
 )
+from departments.models.icu import ICUFlowsheetEntry, ICUFluidBalance
 from extensions import db
 
 logger = logging.getLogger(__name__)
