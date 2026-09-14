@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% block title %}Controlled Drug Register (Schedules II & IV) — HIMS Enterprise{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --bg-dark: #0b0f19;
+    --card-bg: #151c2c;
+    --card-border: #232d42;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --accent-red: #ef4444;
+    --accent-amber: #f59e0b;
+    --accent-emerald: #10b981;
+    --accent-cyan: #06b6d4;
+    --accent-indigo: #6366f1;
+  }
+
+  .cd-header {
+    border-bottom: 1px solid var(--card-border);
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .cd-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 9999px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .cd-badge-schedule2 {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+
+  .cd-badge-schedule4 {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: #fde68a;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+  }
+
+  .glass-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  }
+
+  .table-custom {
+    color: var(--text-main);
+  }
+  .table-custom th {
+    background-color: rgba(15, 23, 42, 0.6);
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .table-custom td {
+    border-bottom: 1px solid var(--card-border);
+    vertical-align: middle;
+  }
+
+  .dual-sig-box {
+    border: 1px dashed var(--accent-indigo);
+    background: rgba(99, 102, 241, 0.05);
+    border-radius: 0.5rem;
+    padding: 1rem;
+  }
+</style>
+
+<div class="container-fluid py-4">
+  <!-- Header -->
+  <div class="cd-header d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge cd-badge-schedule2">Schedules II & IV</span>
+        <span class="text-muted">|</span>
+        <span class="text-muted"><i class="bi bi-shield-lock me-1"></i> Perpetual Double-Entry Audit Trail</span>
+      </div>
+      <h2 class="mt-1 mb-0 fw-bold text-white"><i class="bi bi-journal-medical text-danger me-2"></i>Controlled Drug Register</h2>
+      <p class="text-muted mb-0 small">Dual-signature dispensing, shift physical reconciliation & real-time inventory ledger.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-light btn-sm" onclick="location.reload()">
+        <i class="bi bi-arrow-clockwise me-1"></i> Refresh Register
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4">
+    {% for drug in drug_summaries %}
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="glass-card position-relative overflow-hidden h-100">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <h6 class="mb-0 text-white fw-bold">{{ drug.generic_name }}</h6>
+            <small class="text-muted">{{ drug.brand_name or drug.dosage_form }} ({{ drug.strength }})</small>
+          </div>
+          <span class="badge {% if 'II' in drug.schedule_class %}cd-badge-schedule2{% else %}cd-badge-schedule4{% endif %}">
+            {{ drug.schedule_class }}
+          </span>
+        </div>
+        <div class="mt-3 d-flex align-items-baseline justify-content-between">
+          <div>
+            <div class="display-6 fw-bold {% if drug.current_balance < 50 %}text-warning{% else %}text-emerald{% endif %}" style="font-size: 1.8rem; color: #10b981;">
+              {{ "%.1f"|format(drug.current_balance) }} <span class="fs-6 text-muted fw-normal">mg</span>
+            </div>
+            <small class="text-muted">Current Balance</small>
+          </div>
+          <button class="btn btn-sm btn-outline-info" onclick="openLedgerModal({{ drug.id }}, '{{ drug.generic_name }}')">
+            <i class="bi bi-list-columns-reverse me-1"></i> Ledger
+          </button>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+      <div class="glass-card text-center py-4">
+        <p class="text-muted mb-0">No controlled drugs configured in stock catalog.</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="row g-4">
+    <!-- Left Column: Dispense & Shift Reconciliation Forms -->
+    <div class="col-12 col-xl-5">
+      <!-- Dual-Signature Dispense Card -->
+      <div class="glass-card mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2" style="border-color: var(--card-border) !important;">
+          <h5 class="mb-0 text-white fw-bold"><i class="bi bi-key-fill text-warning me-2"></i>Dual-Signature Dispense</h5>
+          <span class="badge bg-danger">2 Signatures Required</span>
+        </div>
+
+        <form id="dispenseForm" onsubmit="handleDispenseSubmit(event)">
+          <div class="mb-3">
+            <label class="form-label text-muted small fw-semibold">Patient ID / MRN *</label>
+            <input type="text" id="dispensePatientId" class="form-control bg-dark text-white border-secondary" placeholder="e.g. P001" required />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-muted small fw-semibold">Controlled Substance *</label>
+            <select id="dispenseDrugId" class="form-select bg-dark text-white border-secondary" required>
+              <option value="">-- Select Controlled Drug --</option>
+              {% for drug in drug_summaries %}
+              <option value="{{ drug.id }}">
+                {{ drug.generic_name }} ({{ drug.strength }}) — Available: {{ "%.1f"|format(drug.current_balance) }} mg
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-muted small fw-semibold">Dose (mg) *</label>
+            <input type="number" step="0.1" min="0.1" id="dispenseDose" class="form-control bg-dark text-white border-secondary" placeholder="e.g. 10.0" required />
+          </div>
+
+          <!-- Dual Signature Section -->
+          <div class="dual-sig-box mb-3">
+            <div class="text-white small fw-bold mb-2"><i class="bi bi-shield-check me-1 text-indigo"></i> Verification & Co-Signatory</div>
+            
+            <div class="mb-2">
+              <label class="form-label text-muted small">Primary Dispensing Pharmacist</label>
+              <input type="text" class="form-control form-control-sm bg-dark text-muted border-secondary" value="{{ current_user.username }} (ID: {{ current_user.id }})" readonly />
+            </div>
+
+            <div class="row g-2">
+              <div class="col-8">
+                <label class="form-label text-muted small">Second Signatory *</label>
+                <select id="secondSignatoryId" class="form-select form-select-sm bg-dark text-white border-secondary" required>
+                  <option value="">-- Select Co-Witness --</option>
+                  {% for u in all_users %}
+                  {% if u.id != current_user.id %}
+                  <option value="{{ u.id }}">{{ u.username }} ({{ u.role }})</option>
+                  {% endif %}
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-4">
+                <label class="form-label text-muted small">Witness Role</label>
+                <select id="secondSignatoryRole" class="form-select form-select-sm bg-dark text-white border-secondary">
+                  <option value="pharmacist">Pharmacist</option>
+                  <option value="doctor">Doctor</option>
+                  <option value="nurse">Nurse</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div id="dispenseAlert" class="alert alert-danger d-none py-2 small"></div>
+          <div id="dispenseSuccess" class="alert alert-success d-none py-2 small"></div>
+
+          <button type="submit" class="btn btn-danger w-100 fw-bold">
+            <i class="bi bi-shield-lock-fill me-1"></i> Authorize & Dispense Drug
+          </button>
+        </form>
+      </div>
+
+      <!-- Shift Reconciliation Card -->
+      <div class="glass-card">
+        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2" style="border-color: var(--card-border) !important;">
+          <h5 class="mb-0 text-white fw-bold"><i class="bi bi-calculator-fill text-info me-2"></i>Shift Reconciliation</h5>
+          <span class="badge bg-info">Count Audit</span>
+        </div>
+
+        <form id="reconciliationForm" onsubmit="handleReconciliationSubmit(event)">
+          <div class="mb-3">
+            <label class="form-label text-muted small fw-semibold">Controlled Substance *</label>
+            <select id="reconDrugId" class="form-select bg-dark text-white border-secondary" required>
+              <option value="">-- Select Drug to Reconcile --</option>
+              {% for drug in drug_summaries %}
+              <option value="{{ drug.id }}">{{ drug.generic_name }} ({{ drug.strength }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label text-muted small fw-semibold">Shift Date *</label>
+              <input type="date" id="reconDate" class="form-control bg-dark text-white border-secondary" value="{{ today }}" required />
+            </div>
+            <div class="col-6">
+              <label class="form-label text-muted small fw-semibold">Shift Type *</label>
+              <select id="reconShift" class="form-select bg-dark text-white border-secondary" required>
+                <option value="DAY">DAY</option>
+                <option value="EVENING">EVENING</option>
+                <option value="NIGHT">NIGHT</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-muted small fw-semibold">Physical Count (mg) *</label>
+            <input type="number" step="0.1" min="0" id="reconPhysicalCount" class="form-control bg-dark text-white border-secondary" placeholder="Enter physically counted quantity" required />
+          </div>
+
+          <div id="reconAlert" class="alert alert-danger d-none py-2 small"></div>
+          <div id="reconSuccess" class="alert alert-success d-none py-2 small"></div>
+
+          <button type="submit" class="btn btn-info w-100 fw-bold text-dark">
+            <i class="bi bi-check-circle-fill me-1"></i> Submit Shift Reconciliation
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Right Column: Dispense Logs & Reconciliations -->
+    <div class="col-12 col-xl-7">
+      <!-- Recent Dispense Log -->
+      <div class="glass-card mb-4">
+        <h5 class="text-white fw-bold mb-3 border-bottom pb-2" style="border-color: var(--card-border) !important;">
+          <i class="bi bi-clock-history text-danger me-2"></i>Recent Controlled Substance Dispenses
+        </h5>
+        <div class="table-responsive">
+          <table class="table table-custom table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Patient ID</th>
+                <th>Drug ID</th>
+                <th>Dose (mg)</th>
+                <th>Balance After</th>
+                <th>Signatories</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in recent_dispenses %}
+              <tr>
+                <td><small class="text-muted">{{ d.dispense_datetime.strftime("%Y-%m-%d %H:%M") }}</small></td>
+                <td><span class="badge bg-secondary">{{ d.patient_id }}</span></td>
+                <td><span class="fw-semibold text-white">Drug #{{ d.drug_id }}</span></td>
+                <td class="text-danger fw-bold">-{{ d.dose_mg }} mg</td>
+                <td class="text-emerald fw-bold">{{ "%.1f"|format(d.balance_after) }} mg</td>
+                <td>
+                  <small class="text-muted">
+                    Prim: User #{{ d.primary_pharmacist_id }}<br/>
+                    Witness: User #{{ d.second_signatory_id }} ({{ d.second_signatory_role }})
+                  </small>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="6" class="text-center text-muted py-3">No dispenses recorded in the system yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Shift Reconciliation Log -->
+      <div class="glass-card">
+        <h5 class="text-white fw-bold mb-3 border-bottom pb-2" style="border-color: var(--card-border) !important;">
+          <i class="bi bi-journal-check text-info me-2"></i>Shift Reconciliation Audit Records
+        </h5>
+        <div class="table-responsive">
+          <table class="table table-custom table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Reconciled At</th>
+                <th>Shift Date / Type</th>
+                <th>Drug ID</th>
+                <th>System / Physical</th>
+                <th>Variance</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in recent_reconciliations %}
+              <tr>
+                <td><small class="text-muted">{{ r.reconciled_at.strftime("%Y-%m-%d %H:%M") }}</small></td>
+                <td><small class="text-white">{{ r.shift_date }} ({{ r.shift_type }})</small></td>
+                <td><span class="fw-semibold text-white">Drug #{{ r.drug_id }}</span></td>
+                <td><small class="text-muted">{{ r.system_count }} / {{ r.physical_count }} mg</small></td>
+                <td>
+                  {% if r.variance == 0 %}
+                    <span class="text-emerald">0.0 mg</span>
+                  {% else %}
+                    <span class="text-danger fw-bold">{{ "%.1f"|format(r.variance) }} mg</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if r.status == 'RECONCILED' %}
+                    <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>RECONCILED</span>
+                  {% else %}
+                    <span class="badge bg-danger"><i class="bi bg-exclamation-triangle me-1"></i>DISCREPANCY</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="6" class="text-center text-muted py-3">No shift reconciliations logged yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ledger Modal -->
+<div class="modal fade" id="ledgerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content bg-dark text-white border-secondary">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title fw-bold" id="ledgerModalTitle">Controlled Drug Ledger</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="ledgerLoading" class="text-center py-4">
+          <div class="spinner-border text-info" role="status"></div>
+          <p class="text-muted small mt-2">Loading immutable ledger...</p>
+        </div>
+        <div id="ledgerContent" class="d-none">
+          <div class="table-responsive">
+            <table class="table table-custom table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Transaction Type</th>
+                  <th>Quantity Change</th>
+                  <th>Balance After</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="ledgerTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function handleDispenseSubmit(event) {
+    event.preventDefault();
+    const alertBox = document.getElementById('dispenseAlert');
+    const successBox = document.getElementById('dispenseSuccess');
+    alertBox.classList.add('d-none');
+    successBox.classList.add('d-none');
+
+    const payload = {
+      patient_id: document.getElementById('dispensePatientId').value,
+      drug_id: parseInt(document.getElementById('dispenseDrugId').value),
+      dose_mg: parseFloat(document.getElementById('dispenseDose').value),
+      second_signatory_id: parseInt(document.getElementById('secondSignatoryId').value),
+      second_signatory_role: document.getElementById('secondSignatoryRole').value,
+    };
+
+    try {
+      const res = await fetch('/pharmacy/controlled-drugs/api/dispense', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alertBox.textContent = data.error || 'Dispense failed.';
+        alertBox.classList.remove('d-none');
+      } else {
+        successBox.textContent = data.message;
+        successBox.classList.remove('d-none');
+        setTimeout(() => location.reload(), 1500);
+      }
+    } catch (err) {
+      alertBox.textContent = 'Network or server error occurred.';
+      alertBox.classList.remove('d-none');
+    }
+  }
+
+  async function handleReconciliationSubmit(event) {
+    event.preventDefault();
+    const alertBox = document.getElementById('reconAlert');
+    const successBox = document.getElementById('reconSuccess');
+    alertBox.classList.add('d-none');
+    successBox.classList.add('d-none');
+
+    const payload = {
+      drug_id: parseInt(document.getElementById('reconDrugId').value),
+      shift_date: document.getElementById('reconDate').value,
+      shift_type: document.getElementById('reconShift').value,
+      physical_count: parseFloat(document.getElementById('reconPhysicalCount').value),
+    };
+
+    try {
+      const res = await fetch('/pharmacy/controlled-drugs/api/reconcile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alertBox.textContent = data.error || 'Reconciliation error.';
+        alertBox.classList.remove('d-none');
+      } else {
+        successBox.textContent = data.message;
+        successBox.classList.remove('d-none');
+        setTimeout(() => location.reload(), 1500);
+      }
+    } catch (err) {
+      alertBox.textContent = 'Network or server error occurred.';
+      alertBox.classList.remove('d-none');
+    }
+  }
+
+  async function openLedgerModal(drugId, drugName) {
+    const modalEl = document.getElementById('ledgerModal');
+    document.getElementById('ledgerModalTitle').textContent = `Immutable Ledger — ${drugName}`;
+    document.getElementById('ledgerLoading').classList.remove('d-none');
+    document.getElementById('ledgerContent').classList.add('d-none');
+
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
+
+    try {
+      const res = await fetch(`/pharmacy/controlled-drugs/api/ledger?drug_id=${drugId}`);
+      const data = await res.json();
+
+      const tbody = document.getElementById('ledgerTableBody');
+      tbody.innerHTML = '';
+
+      if (data.ledger && data.ledger.length > 0) {
+        data.ledger.forEach(entry => {
+          const tr = document.createElement('tr');
+          const isNegative = entry.quantity_change < 0;
+          tr.innerHTML = `
+            <td><small class="text-muted">${entry.recorded_at}</small></td>
+            <td><span class="badge bg-secondary">${entry.transaction_type}</span></td>
+            <td class="${isNegative ? 'text-danger' : 'text-emerald'} fw-bold">${entry.quantity_change > 0 ? '+' : ''}${entry.quantity_change} mg</td>
+            <td class="text-white fw-bold">${entry.balance_after} mg</td>
+            <td><small class="text-muted">${entry.notes || '—'}</small></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } else {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No ledger records found for this drug.</td></tr>';
+      }
+
+      document.getElementById('ledgerLoading').classList.add('d-none');
+      document.getElementById('ledgerContent').classList.remove('d-none');
+    } catch (err) {
+      document.getElementById('ledgerLoading').innerHTML = '<p class="text-danger">Failed to load ledger records.</p>';
+    }
+  }
+</script>
+{% endblock %}
