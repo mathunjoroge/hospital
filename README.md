@@ -1,6 +1,8 @@
 # Health Information Management System (HIMS)
 
-An enterprise-grade, privacy-first Health Information Management System (HIMS) designed for hospitals and clinical health facilities. Fully compliant with the **Kenya Data Protection Act 2019** and standards-interoperable with **HL7 FHIR R4** and **Kenya Health Information System (KHIS / DHIS2)**.
+An enterprise-grade, privacy-first Health Information Management System (HIMS) designed for hospitals and clinical health facilities. Built to align with the **Kenya Data Protection Act 2019**, and standards-interoperable with **HL7 FHIR R4**, **HL7 v2 (MLLP)**, **DICOM/DICOMweb**, and the **Kenya Health Information System (KHIS / DHIS2)**.
+
+> **Status:** Actively developed, internally tested (795/796 automated tests passing). Standards support is implemented and self-verified; it has **not** undergone formal third-party certification or audit. See [Compliance & Standards Status](#-compliance--standards-status) below before any production or clinical deployment decision.
 
 ---
 
@@ -25,6 +27,24 @@ An enterprise-grade, privacy-first Health Information Management System (HIMS) d
 - **Data Encryption at Rest**: Field-level AES-128-CBC + HMAC (Fernet) encryption for sensitive patient identity attributes.
 - **Offline-First PWA Support**: Service Worker caching, Web App Manifest, and automatic real-time network connectivity monitoring banner.
 - **Authentication & RBAC**: Role-based access control, TOTP multi-factor authentication (MFA), 5-attempt account lockout, and password complexity enforcement.
+
+---
+
+## ✅ Compliance & Standards Status
+
+Standards support is built and covered by automated tests, but **"interoperable with" and "aligned with" are not the same as formally certified**. Treat this table as the source of truth over marketing language elsewhere in this document.
+
+| Area | Implementation status | Formal certification / sign-off |
+|---|---|---|
+| HL7 FHIR R4, HL7 v2 (MLLP), DICOM/DICOMweb | ✅ Implemented, covered by automated tests | Not independently conformance-tested (e.g. no Touchstone/IHE Connectathon results) |
+| ICD-10 (WHO ICD-API), SNOMED CT, LOINC (NLM UMLS) | ✅ Implemented, live + cached lookups | SNOMED CT/LOINC production licensing is **interim** — formal affiliate licensing sign-off from facility management is still pending (see `DECISIONS_PENDING.md` §21–22) |
+| Kenya Data Protection Act 2019 (consent, SAR export, erasure/anonymization) | ✅ Implemented, tested | Data-residency architecture decision is an open **HARD STOP** (see `DECISIONS_PENDING.md` §7) |
+| HIPAA §164.312-style audit controls / HITRUST CSF domains | ✅ Implemented (hash-chained audit log, compliance engine), tested | Self-assessed only — not HITRUST-assessed or externally audited |
+| WCAG 2.1 AA | ✅ Automated baseline fixes applied | Manual audit by an accredited accessibility specialist not yet performed (see `docs/accessibility_audit_report.md`) |
+| Penetration testing | Internal control mapping only | No third-party penetration test has been performed (see `docs/security_audit_readiness.md`) |
+| National program modules (HIV/ART, TB, Malaria), controlled-drug register, KRA eTIMS | 🚧 In progress | Open HARD STOPs pending policy/legal sign-off (see `DECISIONS_PENDING.md` §5, 6, 11) |
+
+For the full list of open items, see [`DECISIONS_PENDING.md`](DECISIONS_PENDING.md).
 
 ---
 
@@ -91,6 +111,8 @@ PYTHONPATH=. venv/bin/pytest -v
 # Run with coverage report
 PYTHONPATH=. venv/bin/pytest --cov=. --cov-report=term-missing
 ```
+
+**Latest full-suite run:** 795 passed, 1 skipped, 0 failed (796 tests total), executed against an isolated in-memory SQLite instance. Static analysis with `bandit -r departments app.py` reports 0 medium/high-severity findings. `ruff check .` reports ~371 findings, nearly all low-severity style/modernization items (no security-relevant issues).
 
 ---
 
