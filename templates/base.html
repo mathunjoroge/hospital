@@ -782,30 +782,30 @@
     {% if current_user.is_authenticated %}
     {% set user_role = session.switched_user if session.switched_user else current_user.role %}
     
-    {# Only show Advanced Tools to specific roles #}
-    {% if user_role in ['admin', 'doctor', 'nursing', 'pharmacist', 'billing'] %}
+    {# Only show Advanced Tools to clinical, administrative, and pharmacy roles #}
+    {% if user_role in ['admin', 'doctor', 'medicine', 'nursing', 'pharmacist', 'billing', 'theatre', 'oncology', 'mch', 'icu', 'renal'] %}
     <div class="sidebar-heading mt-4" style="color: #fbbf24 !important; font-weight: 800; letter-spacing: 0.1em;">✨ Advanced Tools</div>
     
-    {# Live Queue: doctors and nurses #}
-    {% if user_role in ['admin', 'doctor', 'nursing'] %}
+    {# Live Queue: doctors, clinical, nurses, ICU, theatre #}
+    {% if user_role in ['admin', 'doctor', 'medicine', 'nursing', 'icu', 'theatre'] %}
     <a href="/ui/dashboard/queue" title="Live Waiting Room Queue">
         <i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Queue
     </a>
     {% endif %}
     
-    {# Rx Safety (CDS): doctors and pharmacists #}
-    {% if user_role in ['admin', 'doctor', 'pharmacist'] %}
+    {# Rx Safety (CDS): doctors, medicine, pharmacists, oncology, renal #}
+    {% if user_role in ['admin', 'doctor', 'medicine', 'pharmacist', 'oncology', 'renal'] %}
     <a href="/ui/clinical/prescribe" title="Prescription Safety & Consent Gates">
         <i class="bi bi-shield-check me-2" style="color: #ef4444;"></i> Rx Safety (CDS)
     </a>
     {% endif %}
     {# ═══ NATIONAL DISEASE PROGRAMS ═══ #}
-    {% if user_role in ['admin', 'medicine', 'doctor', 'nursing'] %}
+    {% if user_role in ['admin', 'medicine', 'doctor', 'nursing', 'oncology'] %}
     <div class="sidebar-heading mt-4" style="color: #f97316 !important; font-weight: 800; letter-spacing: 0.1em;">🦠 Disease Programs</div>
     {% include 'side_bars/disease_programs.html' ignore missing %}
     {% endif %}
-    {# MCH / Vax: nurses only #}
-    {% if user_role in ['admin', 'nursing'] %}
+    {# MCH / Vax: nurses and MCH #}
+    {% if user_role in ['admin', 'nursing', 'mch'] %}
     <a href="/ui/mch/workbench" title="Maternal & Child Health / Immunizations">
         <i class="bi bi-heart-pulse me-2" style="color: #ec4899;"></i> MCH / Vax
     </a>
@@ -818,8 +818,8 @@
     </a>
     {% endif %}
     
-    {# Referrals: doctors and nurses #}
-    {% if user_role in ['admin', 'doctor', 'nursing'] %}
+    {# Referrals: doctors, nurses, ICU, Theatre, MCH, Renal #}
+    {% if user_role in ['admin', 'doctor', 'medicine', 'nursing', 'icu', 'theatre', 'mch', 'renal'] %}
     <a href="/ui/referrals/handover" title="Referrals & Discharge Handover">
         <i class="bi bi-arrow-left-right me-2" style="color: #6366f1;"></i> Referrals
     </a>

@@ -2,22 +2,26 @@
 <a href="{{ url_for('nursing.index') }}"><i class="bi bi-hourglass-split me-2"></i> Triage Queue</a>
 <a href="{{ url_for('nursing.ward_patients') }}"><i class="bi bi-hospital me-2"></i> Ward Inpatients</a>
 
-<div class="sidebar-heading">Clinical Care & MAR</div>
+<div class="sidebar-heading mt-3">Clinical Care & MAR</div>
 <a href="{{ url_for('nursing.vital_signs') }}"><i class="bi bi-heart-pulse-fill me-2"></i> Record Vitals</a>
 <a href="{{ url_for('nursing.view_notes') }}"><i class="bi bi-journal-text me-2"></i> Kardex Notes</a>
 <a href="{{ url_for('nursing.add_note') }}"><i class="bi bi-pencil-square me-2"></i> Add Kardex Note</a>
-<a href="{{ url_for('nursing.medication_admin') }}"><i class="bi bi-capsule-pill me-2"></i> Medication Admin</a>
+<a href="{{ url_for('nursing.medication_admin') }}"><i class="bi bi-capsule-pill me-2"></i> Medication Admin (MAR)</a>
 <a href="{{ url_for('bcma.bcma_scanner_console') }}"><i class="bi bi-qr-code-scan me-2"></i> BCMA Bedside Scanner</a>
-<a href="{{ url_for('icu.icu_flowsheet') }}"><i class="bi bi-activity me-2"></i> ICU Flowsheet Workstation</a>
-<a href="{{ url_for('ed.get_ed_dashboard_ui') }}"><i class="bi bi-exclamation-octagon me-2"></i> ED Operations Console</a>
 <a href="{{ url_for('nursing.care_summary') }}"><i class="bi bi-file-earmark-medical me-2"></i> Care Summary</a>
 
-<div class="sidebar-heading">Maternity & Labor</div>
-<a href="{{ url_for('ui_mch.mch_workbench') }}"><i class="bi bi-heart-pulse me-2"></i> MCH & Immunizations</a>
+<div class="sidebar-heading mt-3">Specialized Units</div>
+<a href="{{ url_for('icu.icu_flowsheet') }}"><i class="bi bi-activity me-2" style="color: #ef4444;"></i> ICU Flowsheet Console</a>
+<a href="{{ url_for('ed.get_ed_dashboard_ui') }}"><i class="bi bi-exclamation-octagon me-2" style="color: #f97316;"></i> ED Operations Console</a>
+<a href="{{ url_for('renal.list_sessions') }}"><i class="bi bi-water me-2" style="color: #3b82f6;"></i> Renal / Dialysis Unit</a>
+<a href="{{ url_for('theatre.get_or_dashboard_ui') }}"><i class="bi bi-speedometer2 me-2" style="color: #3b82f6;"></i> Operating Theatre</a>
+
+<div class="sidebar-heading mt-3">Maternity & Labor</div>
+<a href="{{ url_for('ui_mch.mch_workbench') }}"><i class="bi bi-heart-pulse me-2" style="color: #ec4899;"></i> MCH & Immunizations</a>
 <a href="{{ url_for('nursing.record_partogram') }}"><i class="bi bi-file-earmark-text me-2"></i> Record Partogram</a>
 <a href="{{ url_for('nursing.view_partograms') }}"><i class="bi bi-file-eye-text me-2"></i> View Partograms</a>
 
-<div class="sidebar-heading">Shift & Operations</div>
+<div class="sidebar-heading mt-3">Shift & Operations</div>
 <a href="{{ url_for('nursing.care_tasks') }}"><i class="bi bi-list-task me-2"></i> Care Tasks</a>
 <a href="{{ url_for('ui_referrals.referral_handover') }}"><i class="bi bi-arrow-left-right me-2"></i> Referral & Handover</a>
 <a href="{{ url_for('nursing.shift_handover') }}"><i class="bi bi-arrow-right-circle me-2"></i> Shift Handover</a>

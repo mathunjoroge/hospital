@@ -1,19 +1,26 @@
-<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2"></i> Live Waiting Queue</a>
-<a href="{{ url_for('medicine.index') }}"><i class="bi bi-hourglass-split me-2"></i> Waiting List</a>
-<a href="{{ url_for('medicine.ward_rounds') }}"><i class="bi bi-hospital me-2"></i> Inpatients</a>
-<a href="{{ url_for('pharmacy.patient_history') }}"><i class="bi bi-clock-history me-2"></i> Patient History</a>
+<div class="sidebar-heading">Clinical Care</div>
+<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
+<a href="{{ url_for('medicine.index') }}"><i class="bi bi-hourglass-split me-2"></i> OPD Waiting List</a>
+<a href="{{ url_for('medicine.ward_rounds') }}"><i class="bi bi-hospital me-2"></i> Inpatient Ward Rounds</a>
 <a href="{{ url_for('medicine.admit_patient') }}"><i class="bi bi-door-open me-2"></i> Admit Patient</a>
-<a href="{{ url_for('ui_referrals.referral_handover') }}"><i class="bi bi-box-arrow-right me-2"></i> Discharge & Referral Handover</a>
-<a href="{{ url_for('ui_clinical.prescription_workbench') }}"><i class="bi bi-shield-check me-2"></i> Rx Safety Workbench</a>
+<a href="{{ url_for('ui_clinical.prescription_workbench') }}"><i class="bi bi-shield-check me-2" style="color: #ef4444;"></i> Rx Safety Workbench</a>
+<a href="{{ url_for('ui_referrals.referral_handover') }}"><i class="bi bi-box-arrow-right me-2"></i> Referral & Handover</a>
+
+<div class="sidebar-heading mt-3">Specialized Units</div>
+<a href="{{ url_for('icu.icu_flowsheet') }}"><i class="bi bi-activity me-2" style="color: #ef4444;"></i> ICU / HDU Workstation</a>
+<a href="{{ url_for('theatre.get_or_dashboard_ui') }}"><i class="bi bi-speedometer2 me-2" style="color: #3b82f6;"></i> Operating Theatre Console</a>
+<a href="{{ url_for('renal.list_sessions') }}"><i class="bi bi-water me-2" style="color: #3b82f6;"></i> Renal / Dialysis Unit</a>
+<a href="{{ url_for('emergency.emergency_dashboard') }}"><i class="bi bi-exclamation-triangle-fill me-2" style="color: #f97316;"></i> Emergency Unit</a>
+<a href="{{ url_for('medicine.oncology') }}"><i class="bi bi-droplet-fill me-2" style="color: #ec4899;"></i> Oncology & Chemo</a>
+<a href="{{ url_for('ui_mch.mch_workbench') }}"><i class="bi bi-person-hearts me-2" style="color: #ec4899;"></i> MCH & NICU</a>
+<a href="{{ url_for('clinical_trials.trials_console_ui') }}"><i class="bi bi-journal-medical me-2"></i> Clinical Trials</a>
+
+<div class="sidebar-heading mt-3">Diagnostics & Lab</div>
 <a href="{{ url_for('medicine.lab_patients') }}"><i class="bi bi-activity me-2"></i> Patients from Lab</a>
 <a href="{{ url_for('medicine.pending_lab_patients') }}"><i class="bi bi-file-earmark-text me-2"></i> Pending Lab Results</a>
-<a href="{{ url_for('medicine.get_theatre_list') }}"><i class="bi bi-clipboard2-pulse me-2"></i> Theatre List</a>
-<a href="{{ url_for('emergency.emergency_dashboard') }}"><i class="bi bi-exclamation-triangle-fill me-2"></i> Emergency Unit</a>
+<a href="{{ url_for('pharmacy.patient_history') }}"><i class="bi bi-clock-history me-2"></i> Patient Rx History</a>
 <a href="{{ url_for('medicine.list_diseases') }}"><i class="bi bi-virus me-2"></i> Diseases Ref</a>
 <a href="{{ url_for('medicine.drugs_ref') }}"><i class="bi bi-capsule me-2"></i> Drugs Ref</a>
-<a href="{{ url_for('medicine.oncology') }}"><i class="bi bi-droplet me-2"></i> Oncology</a>
-<a href="{{ url_for('clinical_trials.trials_console_ui') }}"><i class="bi bi-journal-medical me-2"></i> Clinical Trials &amp; e-Consent</a>
-<a href="{{ url_for('ui_mch.mch_workbench') }}"><i class="bi bi-person-hearts me-2"></i> MCH &amp; NICU Workstation</a>
 
-<div class="sidebar-heading mt-3 mb-1 text-uppercase fw-bold small" style="color: #f97316 !important; font-size: 0.75rem; letter-spacing: 0.05em;">🦠 Disease Programs</div>
+<div class="sidebar-heading mt-3 text-uppercase fw-bold small" style="color: #f97316 !important; font-size: 0.75rem; letter-spacing: 0.05em;">🦠 Disease Programs</div>
 {% include 'side_bars/disease_programs.html' ignore missing %}

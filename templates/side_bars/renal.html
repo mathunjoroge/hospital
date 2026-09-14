@@ -1,0 +1,11 @@
+<div class="sidebar-heading">Renal & Dialysis Unit</div>
+<a href="{{ url_for('renal.list_sessions') }}"><i class="bi bi-water me-2" style="color: #3b82f6;"></i> Dialysis Sessions</a>
+<a href="{{ url_for('renal.list_sessions') }}?status=IN_PROGRESS"><i class="bi bi-play-circle-fill me-2" style="color: #10b981;"></i> Active HD/CRRT Sessions</a>
+
+<div class="sidebar-heading mt-3">Vascular Access</div>
+<a href="{{ url_for('renal.list_sessions') }}"><i class="bi bi-node-plus-fill me-2"></i> Vascular Access Log</a>
+
+<div class="sidebar-heading mt-3">Clinical Care</div>
+<a href="{{ url_for('ui_clinical.prescription_workbench') }}"><i class="bi bi-shield-check me-2"></i> Rx Safety Workbench</a>
+<a href="{{ url_for('medicine.ward_rounds') }}"><i class="bi bi-hospital me-2"></i> Inpatient Ward Rounds</a>
+<a href="{{ url_for('nursing.vital_signs') }}"><i class="bi bi-heart-pulse me-2"></i> Vitals Monitoring</a>

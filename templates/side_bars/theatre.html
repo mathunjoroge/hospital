@@ -1,0 +1,13 @@
+<div class="sidebar-heading">Operating Theatre</div>
+<a href="{{ url_for('theatre.get_or_dashboard_ui') }}"><i class="bi bi-speedometer2 me-2"></i> OR Flow Console</a>
+<a href="{{ url_for('medicine.get_theatre_list') }}"><i class="bi bi-clipboard2-pulse me-2"></i> Theatre Booking List</a>
+
+<div class="sidebar-heading mt-3">Perioperative Care</div>
+<a href="{{ url_for('theatre.who_checklist', entry_id=1) }}"><i class="bi bi-shield-check me-2"></i> WHO Safe Surgery Checklist</a>
+<a href="{{ url_for('theatre.anaesthetic_record', entry_id=1) }}"><i class="bi bi-activity me-2"></i> Anaesthetic Record</a>
+<a href="{{ url_for('theatre.postop_note', entry_id=1) }}"><i class="bi bi-file-earmark-medical me-2"></i> Post-Op & PACU Aldrete</a>
+<a href="{{ url_for('theatre.instrument_count', entry_id=1) }}"><i class="bi bi-boxes me-2"></i> Surgical Instrument Count</a>
+
+<div class="sidebar-heading mt-3">Quick Navigation</div>
+<a href="{{ url_for('nursing.ward_patients') }}"><i class="bi bi-hospital me-2"></i> Ward Inpatients</a>
+<a href="{{ url_for('ui_referrals.referral_handover') }}"><i class="bi bi-arrow-left-right me-2"></i> Referral & Handover</a>
