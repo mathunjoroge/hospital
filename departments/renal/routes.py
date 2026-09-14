@@ -66,8 +66,10 @@ def _float(data: dict, key: str) -> float | None:
 
 # ── Session routes ────────────────────────────────────────────────────────────
 
+@renal_bp.route("/", methods=["GET"])
+@renal_bp.route("/sessions", methods=["GET"])
 @renal_bp.route("/sessions/<string:patient_id>", methods=["GET"])
-def list_sessions(patient_id: str):
+def list_sessions(patient_id: str = "P001"):
     """
     GET /renal/sessions/<patient_id>
     List all dialysis sessions for a patient, newest first.

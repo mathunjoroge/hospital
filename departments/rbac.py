@@ -10,10 +10,13 @@ ROLE_PERMISSIONS = {
     "pharmacist": ["read", "dispense"],
     "lab_tech": ["read", "laboratory"],
     "radiology": ["read", "imaging"],
+    "theatre": ["read", "write", "surgery"],
+    "oncology": ["read", "write", "oncology"],
+    "mch": ["read", "write", "nursing"],
+    "icu": ["read", "write", "nursing"],
+    "renal": ["read", "write", "nursing"],
     "api": ["read", "write"],
 }
-
-
 
 ROLE_ALIASES = {
     "doctor": {"doctor", "medicine", "clinical"},
@@ -21,6 +24,11 @@ ROLE_ALIASES = {
     "clinical": {"doctor", "medicine", "clinical"},
     "nurse": {"nurse", "nursing"},
     "nursing": {"nurse", "nursing"},
+    "theatre": {"theatre", "surgery"},
+    "oncology": {"oncology", "chemotherapy"},
+    "mch": {"mch", "anc", "pediatrics", "nicu"},
+    "icu": {"icu", "hdu"},
+    "renal": {"renal", "dialysis"},
 }
 
 

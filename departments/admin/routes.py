@@ -29,10 +29,20 @@ logger = logging.getLogger(__name__)
 ROLES = [
     ("admin", "Admin"),
     ("records", "Records"),
+    ("billing", "Billing"),
     ("nursing", "Nursing"),
+    ("laboratory", "Laboratory"),
+    ("imaging", "Imaging"),
     ("pharmacy", "Pharmacy"),
+    ("medicine", "Medicine"),
     ("stores", "Stores"),
+    ("hr", "HR"),
     ("mortuary", "Mortuary"),
+    ("theatre", "Theatre / Surgery"),
+    ("oncology", "Oncology"),
+    ("mch", "MCH / ANC / NICU"),
+    ("icu", "ICU / HDU"),
+    ("renal", "Renal / Dialysis"),
 ]
 
 
@@ -78,6 +88,11 @@ def switch_user():
         "stores",
         "hr",
         "mortuary",
+        "theatre",
+        "oncology",
+        "mch",
+        "icu",
+        "renal",
         "admin",
     ]
 
@@ -92,14 +107,19 @@ def switch_user():
     role_homepages = {
         "records": "records.index",
         "billing": "billing.index",
-        "nursing": "nursing.index",
-        "laboratory": "laboratory.index",
+        "nursing": "nursing.view_notes",
+        "laboratory": "laboratory.lab_tests",
         "imaging": "imaging.index",
         "pharmacy": "pharmacy.index",
         "medicine": "medicine.index",
         "stores": "stores.index",
         "hr": "hr.index",
         "mortuary": "mortuary.index",
+        "theatre": "theatre.get_or_dashboard_ui",
+        "oncology": "medicine.oncology",
+        "mch": "mch.index",
+        "icu": "icu.icu_flowsheet",
+        "renal": "renal.list_sessions",
         "admin": "admin.index",
     }
 
