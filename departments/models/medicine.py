@@ -77,6 +77,7 @@ class PrescribedMedicine(db.Model):
         prescription_id,
         num_days,
         encounter_id=None,
+        status=0,
     ):
         self.patient_id = patient_id
         self.medicine_id = medicine_id
@@ -86,6 +87,7 @@ class PrescribedMedicine(db.Model):
         self.prescription_id = prescription_id
         self.num_days = num_days
         self.encounter_id = encounter_id
+        self.status = status
 
     def __repr__(self):
         return f"<PrescribedMedicine {self.medicine_id} for Patient {self.patient_id}>"

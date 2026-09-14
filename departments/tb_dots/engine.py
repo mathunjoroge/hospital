@@ -214,6 +214,7 @@ def record_dose_taken(
 
         # Create dose taken record
         dose = DoseTaken(
+            patient_id=enrollment.patient_id,
             tb_enrollment_id=enrollment_id,
             dose_number=dose_number,
             taken_as_directly_observed=taken_as_directly_observed,
@@ -270,6 +271,7 @@ def record_sputum_result(
             test_date = datetime.now(timezone.utc)
 
         sputum_result = SputumResult(
+            patient_id=enrollment.patient_id,
             tb_enrollment_id=enrollment_id,
             specimen_type=specimen_type,
             specimen_number=specimen_number,
@@ -324,6 +326,7 @@ def record_chest_xray(
             test_date = datetime.now(timezone.utc)
 
         chest_xray = ChestXRay(
+            patient_id=enrollment.patient_id,
             tb_enrollment_id=enrollment_id,
             finding=finding,
             severity=severity,
@@ -378,6 +381,7 @@ def record_hiv_status(
             test_date = datetime.now(timezone.utc)
 
         hiv_status = HIVStatus(
+            patient_id=enrollment.patient_id,
             tb_enrollment_id=enrollment_id,
             test_type=test_type,
             result=result,

@@ -69,6 +69,7 @@ def pharmacy_setup(app):
             patient_id="P-PHARM-001",
             name="John Pharmacy Test",
             sex="Male",
+            date_of_birth=date(1990, 1, 1),
             contact="0700000000",
             date_registered=datetime.now(timezone.utc),
         )
@@ -81,6 +82,7 @@ def pharmacy_setup(app):
             medicine_id=drug1.id,
             num_days=5,
             dosage="500mg",
+            strength="500mg",
             frequency="TID",
             status=0,
         )
@@ -136,14 +138,17 @@ def test_delete_dispensed_drug_route(client, admin_user, pharmacy_setup, app):
             prescription_id="RX-TEST-001",
             quantity_dispensed=10,
             date_dispensed=datetime.now(timezone.utc).date(),
-            batch_no=batch1.batch_number,
         )
         db.session.add(dispensed)
         batch1.quantity_in_stock -= 10
         db.session.commit()
         dispensed_id = dispensed.id
 
-    resp = client.get(f"/pharmacy/delete_dispensed_drug/{dispensed_id}", follow_redirects=True)
+    resp = client.get(
+        f"/pharmacy/delete_dispensed_drug/{dispensed_id}",
+        headers={"Referer": "/pharmacy/prescriptions"},
+        follow_redirects=True,
+    )
     assert resp.status_code == 200
 
     with app.app_context():
