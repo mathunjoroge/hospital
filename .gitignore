@@ -80,6 +80,7 @@ backups/
 .coverage
 .coverage.*
 htmlcov/
+test-results.xml
 
 __pycache__/
 *.pyc
