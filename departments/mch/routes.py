@@ -17,14 +17,14 @@ _cc = ColdChainEngine()
 
 @bp.route("/")
 @login_required
-@roles_required("nursing")
+@roles_required("mch", "nursing", "doctor")
 def index():
     return "MCH & Immunization Module Active"
 
 
 @bp.route("/api/anc-visit", methods=["POST"])
 @login_required
-@roles_required("nursing")
+@roles_required("mch", "nursing", "doctor")
 def log_anc_visit():
     """
     Logs an ANC visit and automatically calculates the next appointment date.
@@ -63,7 +63,7 @@ def log_anc_visit():
 
 @bp.route("/api/immunize", methods=["POST"])
 @login_required
-@roles_required("nursing")
+@roles_required("mch", "nursing", "doctor")
 def record_immunization():
     """
     Records a vaccine administration, enforcing dose sequencing.
@@ -101,7 +101,7 @@ def record_immunization():
 
 @bp.route("/api/child/<int:child_patient_id>/schedule", methods=["GET"])
 @login_required
-@roles_required("nursing")
+@roles_required("mch", "nursing", "doctor")
 def get_child_schedule(child_patient_id: int):
     """
     Calculates due/overdue vaccines based on child's age.
@@ -128,7 +128,7 @@ def get_child_schedule(child_patient_id: int):
 
 @bp.route("/api/anc-visit/<visit_id>/close", methods=["POST"])
 @login_required
-@roles_required("nursing")
+@roles_required("mch", "nursing", "doctor")
 def close_anc_visit(visit_id: str):
     """
     Close an ANC visit: discharges the linked encounter so the patient
@@ -146,7 +146,7 @@ def close_anc_visit(visit_id: str):
 
 @bp.route("/api/cold-chain/receive-batch", methods=["POST"])
 @login_required
-@roles_required("nursing", "pharmacy")
+@roles_required("mch", "nursing", "pharmacy", "doctor")
 def receive_vaccine_batch():
     """
     POST /mch/api/cold-chain/receive-batch
@@ -198,7 +198,7 @@ def receive_vaccine_batch():
 
 @bp.route("/api/cold-chain/temperature-log", methods=["POST"])
 @login_required
-@roles_required("nursing", "pharmacy")
+@roles_required("mch", "nursing", "pharmacy", "doctor")
 def log_temperature():
     """
     POST /mch/api/cold-chain/temperature-log
@@ -240,7 +240,7 @@ def log_temperature():
 
 @bp.route("/api/cold-chain/stock", methods=["GET"])
 @login_required
-@roles_required("nursing", "pharmacy")
+@roles_required("mch", "nursing", "pharmacy", "doctor")
 def cold_chain_stock():
     """
     GET /mch/api/cold-chain/stock?vaccine_name=BCG
@@ -255,7 +255,7 @@ def cold_chain_stock():
 
 @bp.route("/api/cold-chain/temperature-history/<storage_location>", methods=["GET"])
 @login_required
-@roles_required("nursing", "pharmacy")
+@roles_required("mch", "nursing", "pharmacy", "doctor")
 def temperature_history(storage_location: str):
     """
     GET /mch/api/cold-chain/temperature-history/<location>
@@ -278,7 +278,7 @@ def temperature_history(storage_location: str):
 
 @bp.route("/api/cold-chain/alerts/near-expiry", methods=["GET"])
 @login_required
-@roles_required("nursing", "pharmacy")
+@roles_required("mch", "nursing", "pharmacy", "doctor")
 def near_expiry_alerts():
     """
     GET /mch/api/cold-chain/alerts/near-expiry?days=30

@@ -864,8 +864,10 @@ def set_rls_session_variable():
 if __name__ == "__main__":
     with app.app_context():
         try:
-            # Schema is managed exclusively by Flask-Migrate (Alembic).
-            # Run `flask db upgrade` before starting the app to apply pending migrations.
+            # Ensure all database tables exist (including newly added department models)
+            import departments.models  # noqa: F401
+            db.create_all()
+
             from werkzeug.security import generate_password_hash
 
             from departments.models.user import User
