@@ -1,5 +1,5 @@
 """
-departments/nursing/icu_engine.py
+departments/icu/icu_engine.py
 ──────────────────────────────────
 Clinical Calculation Engine & Flowsheet Aggregator for ICU / HDU.
 Handles MAP calculation, Glasgow Coma Scale (GCS) assessment,

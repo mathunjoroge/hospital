@@ -736,7 +736,7 @@ from departments.mortuary import bp as mortuary_bp
 from departments.nursing import bp as nursing_bp
 from departments.nursing.bcma import bcma_bp
 from departments.nursing.ed_routes import ed_bp
-from departments.nursing.icu_routes import icu_bp
+from departments.icu.icu_routes import icu_bp
 from departments.nursing.mar import mar_bp
 from departments.nursing.triage import triage_bp
 from departments.patient_portal import patient_portal_bp

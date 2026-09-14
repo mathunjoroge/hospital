@@ -497,7 +497,7 @@
       rass_score: document.getElementById('v_rass').value,
     };
 
-    const res = await fetch(`/nursing/icu/flowsheet/${patientId}/vitals`, {
+    const res = await fetch(`/icu/flowsheet/${patientId}/vitals`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload)
@@ -518,7 +518,7 @@
       stool: document.getElementById('f_stool').value || 0,
     };
 
-    const res = await fetch(`/nursing/icu/flowsheet/${patientId}/fluid`, {
+    const res = await fetch(`/icu/flowsheet/${patientId}/fluid`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload)

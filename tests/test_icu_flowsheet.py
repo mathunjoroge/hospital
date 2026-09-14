@@ -5,7 +5,7 @@ Unit and integration tests for ICU / HDU Flowsheet Workstation engine and endpoi
 """
 
 from departments.models.icu import ICUFlowsheetEntry, ICUFluidBalance
-from departments.nursing.icu_engine import (
+from departments.icu.icu_engine import (
     calculate_fluid_balance,
     calculate_gcs,
     calculate_map,
@@ -113,13 +113,13 @@ def test_generate_flowsheet_matrix(app):
 def test_icu_routes(client, app):
     """Test ICU flowsheet HTTP routes and API endpoints."""
     # Test GET flowsheet UI page
-    resp_ui = client.get("/nursing/icu/flowsheet/PAT_ICU_TEST")
+    resp_ui = client.get("/icu/flowsheet/PAT_ICU_TEST")
     assert resp_ui.status_code == 200
     assert b"ICU / HDU Flowsheet Workstation" in resp_ui.data
 
     # Test POST log vitals
     resp_vitals = client.post(
-        "/nursing/icu/flowsheet/PAT_ICU_TEST/vitals",
+        "/icu/flowsheet/PAT_ICU_TEST/vitals",
         json={
             "heart_rate": 88,
             "bp_systolic": 120,
@@ -139,7 +139,7 @@ def test_icu_routes(client, app):
 
     # Test POST log fluid balance
     resp_fluid = client.post(
-        "/nursing/icu/flowsheet/PAT_ICU_TEST/fluid",
+        "/icu/flowsheet/PAT_ICU_TEST/fluid",
         json={
             "iv_fluids": 1000,
             "urine": 400,
@@ -152,7 +152,7 @@ def test_icu_routes(client, app):
     assert f_data["net_balance_ml"] == 600.0
 
     # Test GET JSON API matrix
-    resp_api = client.get("/nursing/icu/api/flowsheet/PAT_ICU_TEST")
+    resp_api = client.get("/icu/api/flowsheet/PAT_ICU_TEST")
     assert resp_api.status_code == 200
     matrix = resp_api.get_json()
     assert matrix["patient_id"] == "PAT_ICU_TEST"
