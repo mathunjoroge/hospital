@@ -76,7 +76,7 @@ def roles_required(*roles):
                     allowed_roles.update(ROLE_ALIASES[r])
 
             # Check if effective role is in allowed roles
-            if effective_role not in allowed_roles and "admin" not in allowed_roles:
+            if effective_role not in allowed_roles:
                 abort(403)
 
             return fn(*args, **kwargs)
