@@ -451,14 +451,15 @@ def growth_chart_route():
 @login_required
 def nicu_workstation_ui(patient_id: str = None):
     """Render NICU & Pediatrics Workstation Console UI."""
-    from flask import render_template
+    from flask import abort, render_template
 
     from departments.mch.nicu_pediatrics_engine import NicuPediatricsEngine
     from departments.models.records import Patient
 
     patient = Patient.query.filter_by(patient_id=patient_id).first() if patient_id else None
     if not patient:
-        patient = Patient.query.first()
+        # P0-10: Never substitute an unrelated patient. Fail explicitly.
+        abort(404)
 
     pid = patient.patient_id if patient else "P001"
     summary = NicuPediatricsEngine.get_nicu_workstation_summary(pid)

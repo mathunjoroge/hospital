@@ -98,6 +98,12 @@ class DispensedDrug(db.Model):
         db.String(255), nullable=True
     )  # Added for billing integration
 
+    # P0-05: Void/reversal audit fields — populated when a dispense is reversed.
+    # status is set to 'VOIDED'. Original record is always preserved.
+    voided_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    voided_at = db.Column(db.DateTime, nullable=True)
+    void_reason = db.Column(db.String(500), nullable=True)
+
     # Relationships
     drug = relationship("Drug", backref="dispensed_drugs", lazy="subquery")
     batch = relationship("Batch", backref="dispensed_batches", lazy="subquery")

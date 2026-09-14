@@ -7,6 +7,7 @@ Flask routes for ED Operations Management & Real-Time Console.
 import logging
 
 from flask import Blueprint, jsonify, render_template, request
+from flask_login import current_user
 
 from departments.api.auth import jwt_or_session_required
 from departments.nursing.ed_engine import EDOperationsEngine
@@ -25,7 +26,8 @@ def record_ed_arrival():
     data = request.get_json() or {}
     patient_id = data.get("patient_id")
     chief_complaint = data.get("chief_complaint", "ED Arrival")
-    nurse_id = data.get("nurse_id", 1)
+    # P0-11: Derive nurse_id from authenticated user — never from request body.
+    nurse_id = current_user.id
 
     if not patient_id:
         return jsonify({"error": "patient_id is required"}), 400

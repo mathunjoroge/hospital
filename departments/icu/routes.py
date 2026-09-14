@@ -2,12 +2,17 @@
 departments/icu/routes.py
 ──────────────────────────
 Blueprint routes for ICU / HDU Flowsheet Workstation.
+
+P0-07 / P0-11 Security fixes applied:
+- Removed unsafe `session.get("user_id", 1)` fallback.
+- All mutation routes now require @login_required + @roles_required.
+- Authenticated actor is derived exclusively from the server-side security context.
 """
 
 import logging
 
-from flask import jsonify, render_template, request, session
-from flask_login import current_user
+from flask import abort, jsonify, render_template, request
+from flask_login import current_user, login_required
 
 from departments.icu.engine import (
     calculate_fluid_balance,
@@ -16,6 +21,7 @@ from departments.icu.engine import (
     generate_flowsheet_matrix,
 )
 from departments.models.icu import ICUFlowsheetEntry, ICUFluidBalance
+from departments.rbac import roles_required
 from extensions import db
 
 from . import bp as icu_bp
@@ -23,15 +29,21 @@ from . import bp as icu_bp
 logger = logging.getLogger(__name__)
 
 
-def _get_current_user_id() -> int:
-    """Return logged in user_id, session user_id, or fallback to 1."""
+def _require_authenticated_user_id() -> int:
+    """
+    Return the authenticated user's ID from the server-side security context.
+    Aborts 401 if the request is unauthenticated.
+    Never falls back to user_id=1 or session values.
+    """
     if current_user and getattr(current_user, "is_authenticated", False):
         return current_user.id
-    return session.get("user_id", 1)
+    abort(401)
 
 
 @icu_bp.route("/flowsheet", methods=["GET"])
 @icu_bp.route("/flowsheet/<string:patient_id>", methods=["GET"])
+@login_required
+@roles_required("icu", "nursing", "admin", "doctor")
 def icu_flowsheet(patient_id: str = "P001"):
     """
     Render ICU / HDU Flowsheet Workstation UI.
@@ -42,6 +54,8 @@ def icu_flowsheet(patient_id: str = "P001"):
 
 
 @icu_bp.route("/api/flowsheet/<string:patient_id>", methods=["GET"])
+@login_required
+@roles_required("icu", "nursing", "admin", "doctor")
 def api_icu_flowsheet(patient_id: str):
     """
     JSON API endpoint for ICU flowsheet trends and matrix data.
@@ -52,13 +66,17 @@ def api_icu_flowsheet(patient_id: str):
 
 
 @icu_bp.route("/flowsheet/<string:patient_id>/vitals", methods=["POST"])
+@login_required
+@roles_required("icu", "nursing", "admin", "doctor")
 def log_icu_vitals(patient_id: str):
     """
     Log vitals, ventilator settings, and GCS assessment for ICU patient.
+
+    P0-11: nurse_id is derived exclusively from the authenticated security context.
+    Client-supplied nurse/user IDs are rejected.
     """
     data = request.get_json(silent=True) or request.form.to_dict()
-
-    nurse_id = _get_current_user_id()
+    nurse_id = _require_authenticated_user_id()
 
     # Parse inputs safely
     def _int(k):
@@ -107,6 +125,11 @@ def log_icu_vitals(patient_id: str):
     db.session.add(entry)
     db.session.commit()
 
+    logger.info(
+        "ICU vitals logged: patient=%s entry_id=%s nurse_id=%s",
+        patient_id, entry.id, nurse_id,
+    )
+
     return jsonify({
         "success": True,
         "entry_id": entry.id,
@@ -117,12 +140,16 @@ def log_icu_vitals(patient_id: str):
 
 
 @icu_bp.route("/flowsheet/<string:patient_id>/fluid", methods=["POST"])
+@login_required
+@roles_required("icu", "nursing", "admin", "doctor")
 def log_icu_fluid(patient_id: str):
     """
     Log Input/Output fluid balance for ICU patient.
+
+    P0-11: nurse_id is derived exclusively from the authenticated security context.
     """
     data = request.get_json(silent=True) or request.form.to_dict()
-    nurse_id = _get_current_user_id()
+    nurse_id = _require_authenticated_user_id()
 
     def _float(k, default=0.0):
         v = data.get(k)
@@ -176,6 +203,11 @@ def log_icu_fluid(patient_id: str):
 
     db.session.add(entry)
     db.session.commit()
+
+    logger.info(
+        "ICU fluid balance logged: patient=%s entry_id=%s nurse_id=%s",
+        patient_id, entry.id, nurse_id,
+    )
 
     return jsonify({
         "success": True,

@@ -1,5 +1,6 @@
 import json
 import os
+import uuid as uuid_module
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -13,6 +14,7 @@ from flask import (
 )
 from flask_login import login_required
 from sqlalchemy import func
+from werkzeug.utils import secure_filename
 
 from departments.appointments.models import Appointment
 from departments.models.encounter import Encounter
@@ -92,13 +94,35 @@ def submit_soap_notes(patient_id):
         symptoms = request.form.get("symptoms", "")
 
         # --- File Upload Handling ---
+        # P0-15: Never use raw file.filename — prevents path traversal.
+        # Use secure_filename, validate extension against allowlist, generate
+        # a server-side UUID name so the client cannot control the storage path.
         file = request.files.get("file_upload")
         file_path = None
         if file and file.filename:
+            original_name = secure_filename(file.filename)
+            ext = os.path.splitext(original_name)[1].lower().lstrip(".")
+            if ext not in ALLOWED_EXTENSIONS:
+                flash(
+                    f"File type '.{ext}' is not allowed. Permitted types: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+                    "error",
+                )
+                return redirect(url_for("medicine.soap_notes", patient_id=patient_id))
+
+            # Check size before saving
+            file.seek(0, 2)
+            file_size = file.tell()
+            file.seek(0)
+            if file_size > MAX_FILE_SIZE:
+                flash("File exceeds the 5 MB size limit.", "error")
+                return redirect(url_for("medicine.soap_notes", patient_id=patient_id))
+
             upload_folder = os.path.join(current_app.root_path, "Uploads")
             os.makedirs(upload_folder, exist_ok=True)
-            file_path = os.path.join("Uploads", file.filename)
-            file.save(os.path.join(upload_folder, file.filename))
+            # Server-generated name — client cannot control path
+            server_filename = f"{uuid_module.uuid4().hex}.{ext}"
+            file_path = os.path.join("Uploads", server_filename)
+            file.save(os.path.join(upload_folder, server_filename))
 
         # --- Input Validation ---
         if not all([situation, hpi, assessment, recommendation]):

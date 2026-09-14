@@ -11,7 +11,7 @@ Routes and API endpoints for Johns Hopkins–Grade Theatre & Surgical Module.
 import json
 from datetime import datetime, timezone
 
-from flask import flash, jsonify, redirect, render_template, request, url_for
+from flask import abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from departments.models.medicine import TheatreList
@@ -29,25 +29,17 @@ from . import bp
 
 
 def _resolve_entry(entry_id=None):
-    """Finds or creates a TheatreList entry so endpoints never 404 on navigation."""
+    """
+    Resolve a TheatreList entry by ID, or fall back to the most recent entry.
+    P0-10: Does NOT auto-create dummy theatre entries using Patient.query.first().
+    Returns None if no entry exists.
+    """
     if entry_id is not None:
         entry = TheatreList.query.get(entry_id)
         if entry:
             return entry
-    entry = TheatreList.query.order_by(TheatreList.id.desc()).first()
-    if entry:
-        return entry
-    patient = Patient.query.first()
-    patient_id = patient.patient_id if patient else "P001"
-    entry = TheatreList(
-        patient_id=patient_id,
-        encounter_id=1,
-        status=0,
-        notes_on_post_op="Sample booking for OR navigation"
-    )
-    db.session.add(entry)
-    db.session.commit()
-    return entry
+    # Fall back to most recent theatre booking — do NOT create a dummy one.
+    return TheatreList.query.order_by(TheatreList.id.desc()).first()
 
 
 @bp.route("/workbench", defaults={"entry_id": None}, methods=["GET"])
@@ -58,12 +50,19 @@ def surgical_workbench(entry_id):
     Unified Surgical Workbench console for a theatre list booking entry.
     Displays patient clinical summary, encounter stage, WHO checklist status,
     anaesthetic record, post-op note, and instrument count.
+
+    P0-10: Aborts 404 if no theatre entry or patient found — never substitutes
+    the first patient in the database.
     """
     entry = _resolve_entry(entry_id)
+    if not entry:
+        abort(404)
+
     entry_id = entry.id
     patient = Patient.query.filter_by(patient_id=entry.patient_id).first()
     if not patient:
-        patient = Patient.query.first()
+        # P0-10: Never substitute an unrelated patient for a clinical workstation.
+        abort(404)
 
     checklist = WhoSurgicalChecklist.query.filter_by(theatre_entry_id=entry_id).first()
     anaesthetic = AnaestheticRecord.query.filter_by(theatre_entry_id=entry_id).first()

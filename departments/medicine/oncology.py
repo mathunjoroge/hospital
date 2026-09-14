@@ -2,7 +2,7 @@ import json
 import os
 from datetime import datetime, timezone
 
-from flask import flash, jsonify, redirect, render_template, request, session, url_for
+from flask import abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from departments.api.audit import log_audit_event
@@ -29,6 +29,7 @@ from departments.models.oncology_models import ChemotherapyRegimenOrder
 from departments.models.records import Patient
 from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.nlp.logging_setup import get_logger
+from departments.rbac import roles_required
 from extensions import db
 
 from . import bp
@@ -169,12 +170,22 @@ def edit_disease(disease_id):
     )
 
 
-@bp.route("/diseases/delete/<int:disease_id>")
+@bp.route("/diseases/delete/<int:disease_id>", methods=["POST"])
 @login_required
+@roles_required("admin")
 def delete_disease(disease_id):
+    """
+    P0-09: Disease deletion requires admin role and POST method.
+    Clinical reference data should be managed carefully.
+    """
     disease = Disease.query.get_or_404(disease_id)
+    logger.info(
+        "Disease deleted: disease_id=%s disease_name=%s actor_id=%s",
+        disease_id, disease.name, current_user.id,
+    )
     db.session.delete(disease)
     db.session.commit()
+    flash(f"Disease '{disease.name}' deleted.", "success")
     return redirect(url_for("medicine.list_diseases"))
 
 
@@ -409,13 +420,40 @@ def get_stages(type_id):
     return jsonify(stages)
 
 
-@bp.route("/oncology/note/<int:note_id>/delete", methods=["POST"])
+@bp.route("/oncology/note/<int:note_id>/void", methods=["POST"])
+@login_required
+@roles_required("admin", "medicine", "doctor")
 def delete_note(note_id):
+    """
+    P0-09: Void (soft-delete) an oncology note — never physically delete.
+    Original record is preserved for audit trail.
+    Requires authentication, role, and a void reason.
+    """
     note = OncologyNote.query.get_or_404(note_id)
     patient_id = note.patient_id
-    db.session.delete(note)
+
+    void_reason = (request.form.get("void_reason") or request.get_json(silent=True) or {}).get("void_reason") if not request.form.get("void_reason") else request.form.get("void_reason")
+    if not void_reason:
+        flash("A void reason is required to void a clinical note.", "error")
+        return redirect(url_for("medicine.oncology_encounter", patient_id=patient_id))
+
+    if getattr(note, "is_voided", False):
+        flash("This note has already been voided.", "warning")
+        return redirect(url_for("medicine.oncology_encounter", patient_id=patient_id))
+
+    # Void — never physically delete. Preserve audit trail.
+    note.is_voided = True
+    note.voided_by = current_user.id
+    note.voided_reason = void_reason
+    note.voided_at = __import__('datetime').datetime.now(__import__('datetime').timezone.utc)
     db.session.commit()
-    flash("Oncology note deleted successfully.", "success")
+
+    logger.info(
+        "Oncology note VOIDED: note_id=%s patient_id=%s actor_id=%s reason=%s",
+        note_id, patient_id, current_user.id, void_reason,
+    )
+
+    flash("Oncology note voided successfully. The original record is preserved.", "success")
     return redirect(url_for("medicine.oncology_encounter", patient_id=patient_id))
 
 
@@ -759,7 +797,11 @@ def api_save_chemo_order():
     if calc_res.get("error"):
         return jsonify(calc_res), 400
 
-    physician_id = current_user.id if current_user and getattr(current_user, "is_authenticated", False) else session.get("user_id", 1)
+    # P0-11: Derive physician_id from authenticated session only.
+    # Never fall back to session.get("user_id", 1).
+    if not (current_user and getattr(current_user, "is_authenticated", False)):
+        abort(401)
+    physician_id = current_user.id
 
     order = ChemotherapyRegimenOrder(
         patient_id=patient_id,

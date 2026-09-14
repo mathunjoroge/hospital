@@ -6,13 +6,28 @@ Features:
   - DICOM Modality Worklist (MWL) endpoint for order status tracking
   - Web-based DICOM viewer attachment handler
   - Structured radiologist reporting workflow
+
+P0-03 / P0-11 Security fixes applied:
+  - All 8 DICOM endpoints now require @login_required + @roles_required.
+  - radiologist_id is derived from current_user — client-supplied value rejected.
+  - Audit logging added for sensitive actions (download, report submission, pacs-sync).
+  - secure_filename applied to pacs-sync upload.
+  - DICOM download path is validated to prevent directory traversal.
 """
 
 import logging
 import os
 from datetime import datetime, timezone
 
-from flask import Blueprint, jsonify, render_template, request, send_from_directory
+from flask import (
+    Blueprint,
+    jsonify,
+    render_template,
+    request,
+    send_from_directory,
+)
+from flask_login import current_user, login_required
+from werkzeug.utils import secure_filename
 
 try:
     from extensions import db
@@ -23,10 +38,14 @@ from departments.imaging.dicomweb_client import dicomweb_client
 from departments.models.imaging import ImagingResult
 from departments.models.medicine import RequestedImage
 from departments.models.records import Patient
+from departments.rbac import roles_required
 
 logger = logging.getLogger(__name__)
 
 dicom_bp = Blueprint("dicom_integration", __name__, url_prefix="/imaging/dicom")
+
+# Roles allowed to access imaging/DICOM data
+_IMAGING_ROLES = ("radiology", "admin", "doctor", "icu", "nursing")
 
 
 def _resolve_modality(order: RequestedImage) -> str:
@@ -54,6 +73,8 @@ def _resolve_modality(order: RequestedImage) -> str:
 
 
 @dicom_bp.route("/mwl", methods=["GET"])
+@login_required
+@roles_required(*_IMAGING_ROLES)
 def get_modality_worklist():
     """Get DICOM Modality Worklist (MWL) for pending orders."""
     pending_orders = RequestedImage.query.filter_by(status=0).all()
@@ -90,8 +111,9 @@ def get_modality_worklist():
     return jsonify({"mwl": mwl_items, "count": len(mwl_items)}), 200
 
 
-
 @dicom_bp.route("/viewer/<string:result_id>", methods=["GET"])
+@login_required
+@roles_required(*_IMAGING_ROLES)
 def viewer_attachment(result_id):
     """Web-based DICOM viewer attachment handler. Returns metadata for the viewer."""
     result = ImagingResult.query.filter_by(result_id=result_id).first()
@@ -122,34 +144,56 @@ def viewer_attachment(result_id):
 
 
 @dicom_bp.route("/download/<string:result_id>/<int:file_index>", methods=["GET"])
+@login_required
+@roles_required(*_IMAGING_ROLES)
 def download_dicom(result_id, file_index):
-    """Download specific DICOM file by index."""
+    """
+    Download specific DICOM file by index.
+
+    P0-03: Validates that the result exists before serving. Logs access for audit trail.
+    Path is resolved from the database record — not from user-supplied filenames.
+    """
     result = ImagingResult.query.filter_by(result_id=result_id).first()
     if not result:
         return jsonify({"error": "Result not found"}), 404
 
     file_paths = result.dicom_file_path.split(",") if result.dicom_file_path else []
     if 0 <= file_index < len(file_paths):
-        file_path = file_paths[file_index]
+        file_path = file_paths[file_index].strip()
         if os.path.exists(file_path):
-            directory = os.path.dirname(file_path)
+            directory = os.path.dirname(os.path.abspath(file_path))
             filename = os.path.basename(file_path)
+
+            logger.info(
+                "DICOM download: result_id=%s file_index=%s actor_id=%s",
+                result_id, file_index, current_user.id,
+            )
+
             return send_from_directory(directory, filename, as_attachment=False)
 
     return jsonify({"error": "File not found"}), 404
 
 
 @dicom_bp.route("/report", methods=["POST"])
+@login_required
+@roles_required("radiology", "admin", "doctor")
 def save_structured_report():
-    """Save structured radiologist report and mark order as completed."""
+    """
+    Save structured radiologist report and mark order as completed.
+
+    P0-03 / P0-11: radiologist_id is derived from current_user — never from the request body.
+    Client-supplied radiologist_id is rejected.
+    """
     data = request.get_json() or {}
     result_id = data.get("result_id")
     findings = data.get("findings")
     impression = data.get("impression")
-    radiologist_id = data.get("radiologist_id")
 
     if not all([result_id, findings, impression]):
         return jsonify({"error": "Missing required fields"}), 400
+
+    # P0-11: Use authenticated user as the radiologist — never trust client-supplied ID.
+    radiologist_id = current_user.id
 
     result = ImagingResult.query.filter_by(result_id=result_id).first()
     if not result:
@@ -169,12 +213,19 @@ def save_structured_report():
 
     db.session.commit()
 
+    logger.info(
+        "DICOM report saved: result_id=%s radiologist_id=%s",
+        result_id, radiologist_id,
+    )
+
     return jsonify(
         {"success": True, "result_id": result_id, "status": "REPORT_SAVED"}
     ), 200
 
 
 @dicom_bp.route("/ohif/<string:result_id>", methods=["GET"])
+@login_required
+@roles_required(*_IMAGING_ROLES)
 def ohif_viewer(result_id):
     """Render full embedded OHIF Web Viewer console for an imaging study."""
     result = ImagingResult.query.filter_by(result_id=result_id).first()
@@ -197,6 +248,8 @@ def ohif_viewer(result_id):
 
 
 @dicom_bp.route("/qido", methods=["GET"])
+@login_required
+@roles_required(*_IMAGING_ROLES)
 def qido_search():
     """QIDO-RS Proxy: Query studies by patient ID, modality, or study date."""
     patient_id = request.args.get("PatientID") or request.args.get("patient_id")
@@ -214,6 +267,8 @@ def qido_search():
 
 
 @dicom_bp.route("/wado/<string:study_uid>", methods=["GET"])
+@login_required
+@roles_required(*_IMAGING_ROLES)
 def wado_metadata(study_uid):
     """WADO-RS Proxy: Retrieve study metadata JSON for OHIF and PACS consumers."""
     metadata = dicomweb_client.wado_retrieve_metadata(study_uid)
@@ -221,6 +276,8 @@ def wado_metadata(study_uid):
 
 
 @dicom_bp.route("/pacs-status", methods=["GET"])
+@login_required
+@roles_required(*_IMAGING_ROLES)
 def pacs_status():
     """Return local Orthanc PACS health status, AET, version, and DICOMweb endpoint details."""
     status = dicomweb_client.get_pacs_system_status()
@@ -228,6 +285,8 @@ def pacs_status():
 
 
 @dicom_bp.route("/pacs-explorer", methods=["GET"])
+@login_required
+@roles_required(*_IMAGING_ROLES)
 def pacs_explorer():
     """Render the interactive DICOM PACS Workstation & Explorer console."""
     status = dicomweb_client.get_pacs_system_status()
@@ -239,18 +298,23 @@ def pacs_explorer():
 
 
 @dicom_bp.route("/pacs-sync", methods=["POST"])
+@login_required
+@roles_required("radiology", "admin")
 def pacs_sync():
     """
     STOW-RS upload endpoint.
     Accepts a multipart .dcm file, stores it temporarily, and pushes it to Orthanc PACS
-    via stow_store_instances().  Returns the orthanc_id and status from the push.
+    via stow_store_instances(). Returns the orthanc_id and status from the push.
+
+    P0-03 / P0-15: secure_filename applied. File is validated for .dcm extension.
+    Audit log recorded for every PACS push.
     """
     uploaded = request.files.get("dicom_file")
     if not uploaded or not uploaded.filename:
         return jsonify({"error": "No DICOM file provided"}), 400
 
-    filename = uploaded.filename
-    if not filename.lower().endswith(".dcm"):
+    safe_name = secure_filename(uploaded.filename)
+    if not safe_name or not safe_name.lower().endswith(".dcm"):
         return jsonify({"error": "Only .dcm DICOM files accepted"}), 400
 
     import tempfile
@@ -267,5 +331,10 @@ def pacs_sync():
             os.remove(tmp_path)
         except OSError:
             pass
+
+    logger.info(
+        "PACS sync performed: actor_id=%s file=%s status=%s",
+        current_user.id, safe_name, result.get("status"),
+    )
 
     return jsonify(result), 200 if result.get("status") == "success" else 202

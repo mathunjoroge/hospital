@@ -13,13 +13,21 @@ NOT implemented here:
   ❌  Kt/V adequacy calculation (#3)
   ❌  Prescription / anticoagulation workflow (#5)
   ❌  CDSS pharmacy hook (#6)
+
+P0-08 / P0-11 Security fixes:
+  - All routes now require @login_required + @roles_required.
+  - Removed data.get("nurse_id", 1) fallback — nurse_id derived exclusively
+    from the authenticated security context (current_user.id).
+  - Client-supplied nurse/staff IDs are rejected.
 """
 
 import logging
 from datetime import date, datetime
 
-from flask import jsonify, render_template, request
+from flask import abort, jsonify, render_template, request
+from flask_login import current_user, login_required
 
+from departments.rbac import roles_required
 from departments.renal.engine import (
     create_session,
     get_patient_access_records,
@@ -32,6 +40,19 @@ from departments.renal.engine import (
 from . import bp as renal_bp
 
 logger = logging.getLogger(__name__)
+
+# Allowed clinical roles for renal unit access
+_RENAL_ROLES = ("renal", "nursing", "admin", "doctor")
+
+
+def _require_authenticated_user_id() -> int:
+    """
+    Return the authenticated user's ID from the server-side security context.
+    Aborts 401 if unauthenticated. Never falls back to nurse_id=1 or body params.
+    """
+    if current_user and getattr(current_user, "is_authenticated", False):
+        return current_user.id
+    abort(401)
 
 
 # ── Utility ───────────────────────────────────────────────────────────────────
@@ -69,6 +90,8 @@ def _float(data: dict, key: str) -> float | None:
 @renal_bp.route("/", methods=["GET"])
 @renal_bp.route("/sessions", methods=["GET"])
 @renal_bp.route("/sessions/<string:patient_id>", methods=["GET"])
+@login_required
+@roles_required(*_RENAL_ROLES)
 def list_sessions(patient_id: str = "P001"):
     """
     GET /renal/sessions/<patient_id>
@@ -108,13 +131,16 @@ def list_sessions(patient_id: str = "P001"):
     }), 200
 
 
-
-
 @renal_bp.route("/sessions/<string:patient_id>", methods=["POST"])
+@login_required
+@roles_required(*_RENAL_ROLES)
 def log_session(patient_id: str):
     """
     POST /renal/sessions/<patient_id>
     Create a new HD or CRRT session log.
+
+    P0-11: nurse_id is derived exclusively from the authenticated security context.
+    Client-supplied nurse_id in the request body is ignored.
 
     Required JSON fields: modality, session_date
     Optional: start_time, blood_flow_rate, dialysate_flow_rate,
@@ -131,13 +157,8 @@ def log_session(patient_id: str):
     if session_date is None:
         return jsonify({"error": "session_date is required (ISO format: YYYY-MM-DD)"}), 400
 
-    # nurse_id: prefer authenticated user; fall back to body param for API callers
-    from flask_login import current_user
-    nurse_id = (
-        current_user.id
-        if current_user and getattr(current_user, "is_authenticated", False)
-        else int(data.get("nurse_id", 1))
-    )
+    # P0-11: Derive nurse_id from authenticated user only — never from request body.
+    nurse_id = _require_authenticated_user_id()
 
     try:
         sess = create_session(
@@ -157,10 +178,17 @@ def log_session(patient_id: str):
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 422
 
+    logger.info(
+        "Renal session created: patient=%s session_id=%s nurse_id=%s modality=%s",
+        patient_id, sess.id, nurse_id, modality,
+    )
+
     return jsonify({"success": True, "session": session_summary(sess)}), 201
 
 
 @renal_bp.route("/sessions/<int:session_id>/status", methods=["PATCH"])
+@login_required
+@roles_required(*_RENAL_ROLES)
 def update_status(session_id: int):
     """
     PATCH /renal/sessions/<session_id>/status
@@ -185,12 +213,19 @@ def update_status(session_id: int):
     except LookupError as exc:
         return jsonify({"error": str(exc)}), 404
 
+    logger.info(
+        "Renal session status updated: session_id=%s new_status=%s actor=%s",
+        session_id, new_status, current_user.id,
+    )
+
     return jsonify({"success": True, "session": session_summary(sess)}), 200
 
 
 # ── Vascular access routes ────────────────────────────────────────────────────
 
 @renal_bp.route("/access/<string:patient_id>", methods=["GET"])
+@login_required
+@roles_required(*_RENAL_ROLES)
 def list_access_records(patient_id: str):
     """
     GET /renal/access/<patient_id>
@@ -236,9 +271,9 @@ def list_access_records(patient_id: str):
     }), 200
 
 
-
-
 @renal_bp.route("/access/<string:patient_id>", methods=["POST"])
+@login_required
+@roles_required(*_RENAL_ROLES)
 def add_access_record(patient_id: str):
     """
     POST /renal/access/<patient_id>

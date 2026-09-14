@@ -160,33 +160,63 @@ def dispense_prescription(prescription_id):
         return redirect(url_for("pharmacy.index"))
 
 
-@bp.route("/delete_dispensed_drug/<int:dispensed_drug_id>", methods=["GET"])
+@bp.route("/delete_dispensed_drug/<int:dispensed_drug_id>", methods=["POST"])
 @login_required
+@roles_required("pharmacy", "admin")
 def delete_dispensed_drug(dispensed_drug_id):
     """
-    Deletes a dispensed drug entry and restores stock.
+    P0-05: Void a dispensed drug entry and restore stock transactionally.
+    The original record is PRESERVED for audit trail with status='VOIDED'.
+    A void_reason is required. Stock is reversed in the same transaction.
+    Never uses physical db.session.delete() on clinical dispense records.
     """
+    void_reason = request.form.get("void_reason", "").strip()
+    if not void_reason:
+        flash("A void reason is required to reverse a dispensing record.", "error")
+        return redirect(request.referrer or url_for("pharmacy.index"))
+
     try:
         dispensed_drug = DispensedDrug.query.get(dispensed_drug_id)
         if not dispensed_drug:
             flash("Dispensed drug not found!", "error")
-            return redirect(request.referrer)
+            return redirect(request.referrer or url_for("pharmacy.index"))
 
-        # Restore stock to the batch
-        batch = Batch.query.filter_by(batch_number=dispensed_drug.batch_no).first()
+        # Guard against double-void
+        if dispensed_drug.status == "VOIDED":
+            flash("This dispensing record has already been voided.", "warning")
+            return redirect(request.referrer or url_for("pharmacy.index"))
+
+        # Restore stock to batch transactionally
+        batch = Batch.query.get(dispensed_drug.batch_id) if dispensed_drug.batch_id else None
         if batch:
             batch.quantity_in_stock += dispensed_drug.quantity_dispensed
+            db.session.add(batch)
 
-        db.session.delete(dispensed_drug)
+        # Void — preserve original record, never delete
+        dispensed_drug.status = "VOIDED"
+        dispensed_drug.voided_by = current_user.id
+        dispensed_drug.voided_at = datetime.now(timezone.utc)
+        dispensed_drug.void_reason = void_reason
+        db.session.add(dispensed_drug)
+
         db.session.commit()
 
-        flash("Dispensed drug deleted successfully!", "success")
+        logger.info(
+            "Dispensed drug VOIDED: id=%s drug=%s patient=%s actor=%s reason=%s",
+            dispensed_drug_id,
+            dispensed_drug.drug_id,
+            dispensed_drug.patient_id,
+            current_user.id,
+            void_reason,
+        )
+        flash("Dispensing record voided and stock restored successfully.", "success")
 
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         db.session.rollback()
+        logger.error("Error voiding dispensed drug %s: %s", dispensed_drug_id, exc)
         flash("Something went wrong. Please try again.", "error")
 
-    return redirect(request.referrer)  # ✅ Redirects to the previous page
+    return redirect(request.referrer or url_for("pharmacy.index"))
 
 
 @bp.route("/save_dispensed_drugs", methods=["POST"])

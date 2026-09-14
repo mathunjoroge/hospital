@@ -13,7 +13,8 @@ Features:
 import logging
 from datetime import date, datetime, timezone
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, abort, jsonify, request
+from flask_login import current_user, login_required
 
 try:
     from extensions import db
@@ -22,8 +23,16 @@ except ImportError:
 
 from departments.models.nursing import Notifications, TriageAssessment, Vitals
 from departments.models.records import Patient
+from departments.rbac import roles_required
 
 logger = logging.getLogger(__name__)
+
+
+def _require_authenticated_user_id() -> int:
+    """Return authenticated user ID. Aborts 401 if unauthenticated. Never falls back to 1."""
+    if current_user and getattr(current_user, "is_authenticated", False):
+        return current_user.id
+    abort(401)
 
 triage_bp = Blueprint("triage", __name__, url_prefix="/nursing/triage")
 
@@ -203,11 +212,19 @@ def calculate_esi_level(
 
 
 @triage_bp.route("/assess", methods=["POST"])
+@login_required
+@roles_required("nursing", "admin", "doctor", "mch", "icu", "renal")
 def assess_patient_triage():
-    """Submit a triage assessment for an emergency/outpatient visit."""
+    """
+    Submit a triage assessment for an emergency/outpatient visit.
+
+    P0-11: nurse_id derived exclusively from authenticated security context.
+    Client-supplied nurse_id is rejected.
+    """
     data = request.get_json() or {}
     patient_id = data.get("patient_id")
-    nurse_id = data.get("nurse_id", 1)
+    # P0-11: Never use data.get("nurse_id", 1) — derive from authenticated user only.
+    nurse_id = _require_authenticated_user_id()
     chief_complaint = data.get("chief_complaint", "Routine Checkup")
     resources_needed = int(data.get("resources_needed", 1))
     vitals_data = data.get("vitals", {})
@@ -311,6 +328,8 @@ def assess_patient_triage():
 
 
 @triage_bp.route("/queue", methods=["GET"])
+@login_required
+@roles_required("nursing", "admin", "doctor", "mch", "icu", "renal", "records")
 def get_triage_queue():
     """Retrieve active emergency triage queue sorted by ESI level (1 highest)."""
     assessments = (

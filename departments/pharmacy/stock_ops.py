@@ -10,7 +10,7 @@ import logging
 from datetime import datetime, timezone
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
-from flask_login import login_required
+from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
 from departments.models.medicine import PrescribedMedicine
@@ -28,39 +28,61 @@ logger = logging.getLogger(__name__)
 @login_required
 @roles_required("pharmacy", "admin")
 def remove_dispensed(dispense_id):
-    """Remove a dispensed drug entry."""
+    """
+    P0-05: Void a dispensed drug entry — stock reversed transactionally.
+    Original record is preserved. void_reason is required.
+    """
+    void_reason = request.form.get("void_reason", "").strip()
+    if not void_reason:
+        flash("A void reason is required to reverse a dispensing record.", "error")
+        return redirect(
+            url_for("pharmacy.dispense_prescription",
+                    prescription_id=request.form.get("prescription_id"))
+        )
+
     try:
         dispensed_drug = DispensedDrug.query.get(dispense_id)
         if not dispensed_drug:
             flash(f"Dispensed drug with ID {dispense_id} does not exist!", "error")
             return redirect(
-                url_for(
-                    "pharmacy.dispense_prescription",
-                    prescription_id=request.form.get("prescription_id"),
-                )
+                url_for("pharmacy.dispense_prescription",
+                        prescription_id=request.form.get("prescription_id"))
             )
 
-        batch = (
-            Batch.query.get(dispensed_drug.batch_id)
-            if dispensed_drug.batch_id
-            else None
-        )
+        # Guard against double-void
+        if dispensed_drug.status == "VOIDED":
+            flash("This dispensing record has already been voided.", "warning")
+            return redirect(
+                url_for("pharmacy.dispense_prescription",
+                        prescription_id=dispensed_drug.prescription_id)
+            )
+
+        # Reverse stock in same transaction
+        batch = Batch.query.get(dispensed_drug.batch_id) if dispensed_drug.batch_id else None
         if batch:
             batch.quantity_in_stock += dispensed_drug.quantity_dispensed
             db.session.add(batch)
 
-        db.session.delete(dispensed_drug)
+        # Void — preserve clinical record
+        from datetime import datetime, timezone
+        dispensed_drug.status = "VOIDED"
+        dispensed_drug.voided_by = current_user.id
+        dispensed_drug.voided_at = datetime.now(timezone.utc)
+        dispensed_drug.void_reason = void_reason
+        db.session.add(dispensed_drug)
         db.session.commit()
 
+        logger.info(
+            "Dispensed drug VOIDED via remove_dispensed: id=%s patient=%s actor=%s reason=%s",
+            dispense_id, dispensed_drug.patient_id, current_user.id, void_reason,
+        )
         flash(
-            f"{dispensed_drug.drug.generic_name} removed from dispensing list!",
+            f"{dispensed_drug.drug.generic_name} voided — stock restored.",
             "success",
         )
         return redirect(
-            url_for(
-                "pharmacy.dispense_prescription",
-                prescription_id=dispensed_drug.prescription_id,
-            )
+            url_for("pharmacy.dispense_prescription",
+                    prescription_id=dispensed_drug.prescription_id)
         )
 
     except Exception as e:  # noqa: BLE001
@@ -68,10 +90,8 @@ def remove_dispensed(dispense_id):
         logger.error(f"Error in pharmacy.remove_dispensed: {e}")
         db.session.rollback()
         return redirect(
-            url_for(
-                "pharmacy.dispense_prescription",
-                prescription_id=request.form.get("prescription_id"),
-            )
+            url_for("pharmacy.dispense_prescription",
+                    prescription_id=request.form.get("prescription_id"))
         )
 
 
