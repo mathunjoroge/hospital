@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 
 from flask import flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func
 
 from departments.api.audit import log_audit_event
 from departments.forms import OncologyNoteForm, OncoPatientForm, PatientSearchForm
@@ -523,9 +522,10 @@ def bookings():
     chemotherapy_booking_count = OncologyBooking.query.filter_by(
         purpose="Chemotherapy"
     ).count()
-    current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+    now = datetime.now(timezone.utc)
+    start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     new_booking_count = OncologyBooking.query.filter(
-        func.strftime("%Y-%m", OncologyBooking.created_at) == current_month
+        OncologyBooking.created_at >= start_of_month
     ).count()
 
     return render_template(

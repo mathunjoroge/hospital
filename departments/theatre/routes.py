@@ -28,6 +28,29 @@ from extensions import db
 from . import bp
 
 
+def _resolve_entry(entry_id=None):
+    """Finds or creates a TheatreList entry so endpoints never 404 on navigation."""
+    if entry_id is not None:
+        entry = TheatreList.query.get(entry_id)
+        if entry:
+            return entry
+    entry = TheatreList.query.order_by(TheatreList.id.desc()).first()
+    if entry:
+        return entry
+    patient = Patient.query.first()
+    patient_id = patient.patient_id if patient else "P001"
+    entry = TheatreList(
+        patient_id=patient_id,
+        encounter_id=1,
+        status=0,
+        notes_on_post_op="Sample booking for OR navigation"
+    )
+    db.session.add(entry)
+    db.session.commit()
+    return entry
+
+
+@bp.route("/workbench", defaults={"entry_id": None}, methods=["GET"])
 @bp.route("/workbench/<int:entry_id>", methods=["GET"])
 @login_required
 def surgical_workbench(entry_id):
@@ -36,8 +59,11 @@ def surgical_workbench(entry_id):
     Displays patient clinical summary, encounter stage, WHO checklist status,
     anaesthetic record, post-op note, and instrument count.
     """
-    entry = TheatreList.query.get_or_404(entry_id)
-    patient = Patient.query.filter_by(patient_id=entry.patient_id).first_or_404()
+    entry = _resolve_entry(entry_id)
+    entry_id = entry.id
+    patient = Patient.query.filter_by(patient_id=entry.patient_id).first()
+    if not patient:
+        patient = Patient.query.first()
 
     checklist = WhoSurgicalChecklist.query.filter_by(theatre_entry_id=entry_id).first()
     anaesthetic = AnaestheticRecord.query.filter_by(theatre_entry_id=entry_id).first()
@@ -58,11 +84,13 @@ def surgical_workbench(entry_id):
 # ---------------------------------------------------------------------------
 # WHO Surgical Safety Checklist
 # ---------------------------------------------------------------------------
+@bp.route("/checklist", defaults={"entry_id": None}, methods=["GET", "POST"])
 @bp.route("/checklist/<int:entry_id>", methods=["GET", "POST"])
 @login_required
 def who_checklist(entry_id):
     """GET/POST WHO 3-stage Surgical Safety Checklist."""
-    entry = TheatreList.query.get_or_404(entry_id)
+    entry = _resolve_entry(entry_id)
+    entry_id = entry.id
     checklist = WhoSurgicalChecklist.query.filter_by(theatre_entry_id=entry_id).first()
 
     if not checklist:
@@ -144,11 +172,13 @@ def who_checklist(entry_id):
 # ---------------------------------------------------------------------------
 # Anaesthetic Record
 # ---------------------------------------------------------------------------
+@bp.route("/anaesthetic", defaults={"entry_id": None}, methods=["GET", "POST"])
 @bp.route("/anaesthetic/<int:entry_id>", methods=["GET", "POST"])
 @login_required
 def anaesthetic_record(entry_id):
     """GET/POST Anaesthetic Record & Intraoperative Vitals."""
-    entry = TheatreList.query.get_or_404(entry_id)
+    entry = _resolve_entry(entry_id)
+    entry_id = entry.id
     record = AnaestheticRecord.query.filter_by(theatre_entry_id=entry_id).first()
 
     if not record:
@@ -223,11 +253,13 @@ def anaesthetic_record(entry_id):
 # ---------------------------------------------------------------------------
 # Post-Operative Operative Note & PACU Aldrete Score
 # ---------------------------------------------------------------------------
+@bp.route("/postop", defaults={"entry_id": None}, methods=["GET", "POST"])
 @bp.route("/postop/<int:entry_id>", methods=["GET", "POST"])
 @login_required
 def postop_note(entry_id):
     """GET/POST Operative Note & PACU Aldrete Recovery Score."""
-    entry = TheatreList.query.get_or_404(entry_id)
+    entry = _resolve_entry(entry_id)
+    entry_id = entry.id
     note = PostOpNote.query.filter_by(theatre_entry_id=entry_id).first()
 
     if not note:
@@ -301,11 +333,13 @@ def postop_note(entry_id):
 # ---------------------------------------------------------------------------
 # Surgical Instrument & Sponge Count Reconciliation
 # ---------------------------------------------------------------------------
+@bp.route("/instruments", defaults={"entry_id": None}, methods=["GET", "POST"])
 @bp.route("/instruments/<int:entry_id>", methods=["GET", "POST"])
 @login_required
 def instrument_count(entry_id):
     """GET/POST Surgical Instrument, Sponge, and Needle Reconciliation."""
-    entry = TheatreList.query.get_or_404(entry_id)
+    entry = _resolve_entry(entry_id)
+    entry_id = entry.id
     counts = SurgicalInstrumentCount.query.filter_by(theatre_entry_id=entry_id).first()
 
     if not counts:

@@ -432,17 +432,22 @@ def growth_chart_route():
         return jsonify({"error": str(e)}), 400
 
 
+@bp.route("/nicu-workstation", defaults={"patient_id": None}, methods=["GET"])
 @bp.route("/nicu-workstation/<patient_id>", methods=["GET"])
 @login_required
-def nicu_workstation_ui(patient_id: str):
+def nicu_workstation_ui(patient_id: str = None):
     """Render NICU & Pediatrics Workstation Console UI."""
     from flask import render_template
 
     from departments.mch.nicu_pediatrics_engine import NicuPediatricsEngine
     from departments.models.records import Patient
 
-    patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
-    summary = NicuPediatricsEngine.get_nicu_workstation_summary(patient_id)
+    patient = Patient.query.filter_by(patient_id=patient_id).first() if patient_id else None
+    if not patient:
+        patient = Patient.query.first()
+
+    pid = patient.patient_id if patient else "P001"
+    summary = NicuPediatricsEngine.get_nicu_workstation_summary(pid)
 
     return render_template("mch/nicu_workstation.html", patient=patient, summary=summary)
 

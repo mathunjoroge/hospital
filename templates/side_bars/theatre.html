@@ -3,11 +3,14 @@
 <a href="{{ url_for('medicine.get_theatre_list') }}"><i class="bi bi-clipboard2-pulse me-2"></i> Theatre Booking List</a>
 
 <div class="sidebar-heading mt-3">Perioperative Care</div>
-<a href="{{ url_for('theatre.who_checklist', entry_id=1) }}"><i class="bi bi-shield-check me-2"></i> WHO Safe Surgery Checklist</a>
-<a href="{{ url_for('theatre.anaesthetic_record', entry_id=1) }}"><i class="bi bi-activity me-2"></i> Anaesthetic Record</a>
-<a href="{{ url_for('theatre.postop_note', entry_id=1) }}"><i class="bi bi-file-earmark-medical me-2"></i> Post-Op & PACU Aldrete</a>
-<a href="{{ url_for('theatre.instrument_count', entry_id=1) }}"><i class="bi bi-boxes me-2"></i> Surgical Instrument Count</a>
+<a href="{{ url_for('theatre.who_checklist') }}"><i class="bi bi-shield-check me-2"></i> WHO Safe Surgery Checklist</a>
+<a href="{{ url_for('theatre.anaesthetic_record') }}"><i class="bi bi-activity me-2"></i> Anaesthetic Record</a>
+<a href="{{ url_for('theatre.postop_note') }}"><i class="bi bi-file-earmark-medical me-2"></i> Post-Op & PACU Aldrete</a>
+<a href="{{ url_for('theatre.instrument_count') }}"><i class="bi bi-boxes me-2"></i> Surgical Instrument Count</a>
 
-<div class="sidebar-heading mt-3">Quick Navigation</div>
+<div class="sidebar-heading mt-3">Patient Flow & Communications</div>
 <a href="{{ url_for('nursing.ward_patients') }}"><i class="bi bi-hospital me-2"></i> Ward Inpatients</a>
-<a href="{{ url_for('ui_referrals.referral_handover') }}"><i class="bi bi-arrow-left-right me-2"></i> Referral & Handover</a>
+<a href="/ui/dashboard/queue"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Queue</a>
+<a href="{{ url_for('ui_referrals.referral_handover') }}"><i class="bi bi-arrow-left-right me-2" style="color: #6366f1;"></i> Referral & Handover</a>
+<a href="{{ url_for('ui_referrals.referral_handover') }}"><i class="bi bi-box-arrow-up-right me-2" style="color: #8b5cf6;"></i> Referrals</a>
+<a href="{{ url_for('medicine.chatbot_interface') }}"><i class="bi bi-robot me-2" style="color: #3b82f6;"></i> Chatbot</a>
