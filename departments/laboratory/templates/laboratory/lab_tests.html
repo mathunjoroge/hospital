@@ -13,6 +13,7 @@
                 <thead class="table-dark">
                     <tr>
                         <th>Test Name</th>
+                        <th>LOINC Code</th>
                         <th>Cost</th>
                         <th>Description</th>
                         <th>Actions</th>
@@ -21,7 +22,14 @@
                 <tbody>
                     {% for test in lab_tests %}
                     <tr>
-                        <td>{{ test.test_name }}</td>
+                        <td><strong>{{ test.test_name }}</strong></td>
+                        <td>
+                            {% if test.loinc_code %}
+                            <span class="badge bg-secondary font-monospace">{{ test.loinc_code }}</span>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
                         <td>${{ "%.2f" | format(test.cost) }}</td>
                         <td>{{ test.description | default("No description provided") }}</td>
                         <td>
@@ -38,7 +46,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="4" class="text-center text-muted">No lab tests available.</td>
+                        <td colspan="5" class="text-center text-muted">No lab tests available.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

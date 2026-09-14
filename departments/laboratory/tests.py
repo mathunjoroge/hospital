@@ -89,6 +89,7 @@ def edit_lab_test(test_id):
             lab_test.test_name = request.form.get("test_name", lab_test.test_name)
             lab_test.cost = float(request.form.get("cost", lab_test.cost))
             lab_test.description = request.form.get("description", lab_test.description)
+            lab_test.loinc_code = request.form.get("loinc_code", lab_test.loinc_code)
 
             # Process updated parameters
             updated_parameters = {}
@@ -217,6 +218,7 @@ def add_lab_test():
             test_name = request.form.get("test_name")
             cost = request.form.get("cost")
             description = request.form.get("description")
+            loinc_code = request.form.get("loinc_code")
 
             # Validation
             if not all([test_name, cost]):
@@ -225,7 +227,10 @@ def add_lab_test():
 
             # Create a new lab test
             new_lab_test = LabTest(
-                test_name=test_name, cost=float(cost), description=description
+                test_name=test_name,
+                cost=float(cost),
+                description=description,
+                loinc_code=loinc_code if loinc_code else None,
             )
             db.session.add(new_lab_test)
             db.session.commit()
@@ -249,41 +254,15 @@ def view_lab_test(test_id):
     """Displays detailed information about a specific lab test."""
 
     try:
-        # Perform the join and fetch the required columns
-        lab_test_details = (
-            db.session.query(
-                LabTest.test_name,
-                LabTest.description,
-                LabResultTemplate.parameter_name,
-                LabResultTemplate.normal_range_low,
-                LabResultTemplate.normal_range_high,
-                LabResultTemplate.unit,
-            )
-            .join(LabResultTemplate, LabTest.id == LabResultTemplate.test_id)
-            .filter(LabTest.id == test_id)
-            .all()
-        )
+        lab_test = LabTest.query.get_or_404(test_id)
+        result_templates = LabResultTemplate.query.filter_by(test_id=test_id).all()
 
-        if not lab_test_details:
-            flash(f"Lab test with ID {test_id} not found!", "error")
-            return redirect(url_for("laboratory.lab_tests"))
-
-        # Extract the test name and description (they are the same for all rows in the result)
-        test_name = (
-            lab_test_details[0].test_name if lab_test_details else "Unknown Test"
-        )
-        description = (
-            lab_test_details[0].description
-            if lab_test_details
-            else "No description provided"
-        )
-
-        # Render the view_lab_test.html template with the fetched data
         return render_template(
             "laboratory/view_lab_test.html",
-            test_name=test_name,
-            description=description,
-            parameters=lab_test_details,  # Pass the list of parameters
+            lab_test=lab_test,
+            test_name=lab_test.test_name,
+            description=lab_test.description,
+            parameters=result_templates,
         )
 
     except Exception as e:  # noqa: BLE001

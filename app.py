@@ -881,6 +881,14 @@ if __name__ == "__main__":
                 db.session.commit()
                 print(f"✅ Default admin user created (admin / {admin_pass})")
                 print("   Run `flask db upgrade` to ensure the schema is up to date.")
+            # Auto-seed lab test catalog with LOINC mappings if empty
+            from departments.models.medicine import LabTest
+            if LabTest.query.count() == 0:
+                from departments.laboratory.lab_catalog_seeder import (
+                    seed_lab_test_catalog,
+                )
+                count = seed_lab_test_catalog()
+                print(f"✅ Auto-seeded {count} lab tests into catalog with LOINC mappings.")
             else:
                 print("✅ Database connection verified & admin user exists.")
         except Exception as exc:  # noqa: BLE001
