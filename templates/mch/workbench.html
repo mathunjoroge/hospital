@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}Maternal & Child Health (MCH) Workbench — HIMS Enterprise{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --bg-dark: #0b0f19;
+    --card-bg: #151c2c;
+    --card-border: #232d42;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+
+  .mch-wrapper {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: calc(100vh - 70px);
+    padding-bottom: 3rem;
+  }
+
+  .navbar-mch {
+    background: rgba(21, 28, 44, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  .mch-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .mch-card:hover {
+    border-color: #ec4899;
+  }
+
+  .stat-val {
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .table-dark-custom {
+    --bs-table-bg: var(--card-bg);
+    --bs-table-border-color: var(--card-border);
+    --bs-table-color: var(--text-main);
+  }
+
+  .form-control, .form-select {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+</style>
+
+<div class="mch-wrapper pt-3">
+  <div class="container-fluid px-4">
+
+    <!-- Header Banner -->
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 rounded-3 navbar-mch">
+      <div class="d-flex align-items-center gap-3">
+        <i class="bi bi-heart-pulse-fill fs-2" style="color: #ec4899;"></i>
+        <div>
+          <h4 class="fw-bold mb-0 text-white">Maternal &amp; Child Health (MCH) &amp; Immunization Workbench</h4>
+          <small class="text-muted">ANC Clinic, Immunization Registry &amp; Cold-Chain Management</small>
+        </div>
+      </div>
+      <div>
+        <a href="{{ url_for('mch.cold_chain_stock') }}" class="btn btn-outline-info btn-sm me-2">
+          <i class="bi bi-snow me-1"></i> Vaccine Inventory
+        </a>
+        <a href="{{ url_for('mch.nicu_workstation_ui') }}" class="btn btn-outline-warning btn-sm">
+          <i class="bi bi-hospital me-1"></i> NICU Console
+        </a>
+      </div>
+    </div>
+
+    <!-- Quick KPI Cards -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="mch-card">
+          <div class="text-muted small fw-semibold text-uppercase">Vaccine Batches in Stock</div>
+          <div class="stat-val text-info mt-1">{{ stock_summary|length if stock_summary else 0 }}</div>
+          <small class="text-muted"><i class="bi bi-box-seam me-1"></i>Cold-Chain FEFO Tracked</small>
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="mch-card">
+          <div class="text-muted small fw-semibold text-uppercase">Near-Expiry Alerts</div>
+          <div class="stat-val {% if near_expiry %}text-warning{% else %}text-success{% endif %} mt-1">
+            {{ near_expiry|length if near_expiry else 0 }}
+          </div>
+          <small class="text-muted"><i class="bi bi-exclamation-triangle me-1"></i>Expiring within 30 days</small>
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="mch-card">
+          <div class="text-muted small fw-semibold text-uppercase">ANC Routine Schedule</div>
+          <div class="stat-val text-pink style-pink mt-1" style="color: #ec4899;">WHO 8-Visit</div>
+          <small class="text-muted"><i class="bi bi-calendar-check me-1"></i>Antenatal Protocol</small>
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="mch-card">
+          <div class="text-muted small fw-semibold text-uppercase">Expanded Immunizations</div>
+          <div class="stat-val text-success mt-1">KEPI / WHO</div>
+          <small class="text-muted"><i class="bi bi-shield-check me-1"></i>Dose Sequencing Enforced</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clinical Workstations Grid -->
+    <div class="row g-4 mb-4">
+      
+      <!-- ANC Visit Logger Card -->
+      <div class="col-lg-6">
+        <div class="mch-card h-100">
+          <h5 class="fw-bold mb-3 text-white border-bottom border-secondary pb-2">
+            <i class="bi bi-person-badge-fill me-2" style="color: #ec4899;"></i>Log Antenatal Care (ANC) Visit
+          </h5>
+          <form id="ancForm" onsubmit="submitAncVisit(event)">
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Patient ID</label>
+                <input type="text" class="form-control" id="anc_patient_id" placeholder="e.g. P001" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Visit Number (1 - 8)</label>
+                <input type="number" class="form-control" id="anc_visit_number" min="1" max="8" value="1" required>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Gestation (Weeks)</label>
+                <input type="number" class="form-control" id="anc_gestation_weeks" min="4" max="42" value="12" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">High Risk Factors (Optional)</label>
+                <input type="text" class="form-control" id="anc_high_risk" placeholder="e.g. Preeclampsia, Anemia">
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-sm w-100 fw-bold text-white" style="background-color: #ec4899;">
+              <i class="bi bi-plus-circle me-1"></i> Record ANC Visit &amp; Calculate Next Appointment
+            </button>
+          </form>
+          <div id="ancResult" class="mt-3"></div>
+        </div>
+      </div>
+
+      <!-- Child Immunization Record Card -->
+      <div class="col-lg-6">
+        <div class="mch-card h-100">
+          <h5 class="fw-bold mb-3 text-white border-bottom border-secondary pb-2">
+            <i class="bi bi-shield-plus me-2 text-info"></i>Record Child Immunization Dose
+          </h5>
+          <form id="immunizeForm" onsubmit="submitImmunization(event)">
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Child Patient ID</label>
+                <input type="text" class="form-control" id="imm_child_id" placeholder="e.g. P002" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Vaccine Name</label>
+                <select class="form-select" id="imm_vaccine_name" required>
+                  <option value="BCG">BCG (At Birth)</option>
+                  <option value="OPV">OPV (Oral Polio)</option>
+                  <option value="Penta">Pentavalent (DTP-HepB-Hib)</option>
+                  <option value="Rotavirus">Rotavirus</option>
+                  <option value="PCV">Pneumococcal (PCV-10)</option>
+                  <option value="Measles">Measles-Rubella (MR)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Dose Number</label>
+                <input type="number" class="form-control" id="imm_dose_number" min="1" max="4" value="1" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Batch Number</label>
+                <input type="text" class="form-control" id="imm_batch_number" placeholder="e.g. BATCH-2026-X">
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-info btn-sm w-100 fw-bold">
+              <i class="bi bi-check-circle me-1"></i> Record Vaccine Dose
+            </button>
+          </form>
+          <div id="immResult" class="mt-3"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Vaccine Inventory Summary Table -->
+    <div class="mch-card">
+      <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary pb-2">
+        <h5 class="fw-bold mb-0 text-white"><i class="bi bi-snow me-2 text-info"></i>Cold-Chain Vaccine Inventory Summary</h5>
+        <a href="{{ url_for('mch.cold_chain_stock') }}" class="btn btn-outline-light btn-sm">Manage Cold-Chain Console</a>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-dark table-dark-custom align-middle mb-0">
+          <thead>
+            <tr class="text-muted border-secondary">
+              <th>Vaccine Name</th>
+              <th>Batch #</th>
+              <th>Manufacturer</th>
+              <th>Available Vials</th>
+              <th>Expiry Date</th>
+              <th>Storage Location</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if stock_summary %}
+              {% for item in stock_summary %}
+              <tr>
+                <td class="fw-semibold text-white">{{ item.vaccine_name }}</td>
+                <td><code class="text-info">{{ item.batch_number }}</code></td>
+                <td>{{ item.manufacturer }}</td>
+                <td><span class="badge bg-primary">{{ item.quantity_vials }} vials</span></td>
+                <td>{{ item.expiry_date }}</td>
+                <td><span class="badge bg-dark border border-secondary">{{ item.storage_location }}</span></td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="6" class="text-center text-muted py-3">No cold-chain vaccine batches recorded yet.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+async function submitAncVisit(e) {
+  e.preventDefault();
+  const pid = document.getElementById('anc_patient_id').value;
+  const visitNum = parseInt(document.getElementById('anc_visit_number').value);
+  const gest = parseInt(document.getElementById('anc_gestation_weeks').value);
+  const risk = document.getElementById('anc_high_risk').value;
+
+  try {
+    const res = await fetch('/mch/api/anc-visit', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({patient_id: pid, visit_number: visitNum, gestation_weeks: gest, high_risk_factors: risk})
+    });
+    const data = await res.json();
+    const resDiv = document.getElementById('ancResult');
+    if (res.ok) {
+      resDiv.innerHTML = `<div class="alert alert-success p-2 small mb-0"><i class="bi bi-check-circle me-1"></i>ANC Visit recorded! Next Appointment: <strong>${data.next_appointment_date || 'N/A'}</strong></div>`;
+    } else {
+      resDiv.innerHTML = `<div class="alert alert-danger p-2 small mb-0">${data.error || 'Failed to record ANC visit.'}</div>`;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function submitImmunization(e) {
+  e.preventDefault();
+  const childId = document.getElementById('imm_child_id').value;
+  const vac = document.getElementById('imm_vaccine_name').value;
+  const dose = parseInt(document.getElementById('imm_dose_number').value);
+  const batch = document.getElementById('imm_batch_number').value;
+
+  try {
+    const res = await fetch('/mch/api/immunize', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({child_patient_id: childId, vaccine_name: vac, dose_number: dose, batch_number: batch})
+    });
+    const data = await res.json();
+    const resDiv = document.getElementById('immResult');
+    if (res.ok) {
+      resDiv.innerHTML = `<div class="alert alert-success p-2 small mb-0"><i class="bi bi-check-circle me-1"></i>${data.message || 'Immunization recorded.'}</div>`;
+    } else {
+      resDiv.innerHTML = `<div class="alert alert-danger p-2 small mb-0">${data.error || 'Failed to record dose.'}</div>`;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+</script>
+{% endblock %}

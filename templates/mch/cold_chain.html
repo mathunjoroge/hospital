@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Vaccine Cold-Chain & FEFO Inventory Console — HIMS Enterprise{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --bg-dark: #0b0f19;
+    --card-bg: #151c2c;
+    --card-border: #232d42;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+
+  .cc-wrapper {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: calc(100vh - 70px);
+    padding-bottom: 3rem;
+  }
+
+  .navbar-cc {
+    background: rgba(21, 28, 44, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  .cc-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .form-control, .form-select {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+
+  .form-control:focus, .form-select:focus {
+    background-color: #1e293b;
+    border-color: #06b6d4;
+    color: #f8fafc;
+    box-shadow: 0 0 0 0.25rem rgba(6, 182, 212, 0.25);
+  }
+
+  .table-dark-custom {
+    --bs-table-bg: var(--card-bg);
+    --bs-table-border-color: var(--card-border);
+    --bs-table-color: var(--text-main);
+  }
+</style>
+
+<div class="cc-wrapper pt-3">
+  <div class="container-fluid px-4">
+
+    <!-- Header Banner -->
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 rounded-3 navbar-cc">
+      <div class="d-flex align-items-center gap-3">
+        <i class="bi bi-snow fs-2" style="color: #06b6d4;"></i>
+        <div>
+          <h4 class="fw-bold mb-0 text-white">Vaccine Cold-Chain &amp; FEFO Inventory Console</h4>
+          <small class="text-muted">First-Expiry First-Out (FEFO) Stock Control &amp; Temperature Breach Monitoring</small>
+        </div>
+      </div>
+      <div>
+        <a href="{{ url_for('ui_mch.mch_workbench') }}" class="btn btn-outline-light btn-sm me-2">
+          <i class="bi bi-heart-pulse me-1"></i> MCH Workbench
+        </a>
+        <a href="{{ url_for('mch.nicu_workstation_ui') }}" class="btn btn-outline-warning btn-sm">
+          <i class="bi bi-hospital me-1"></i> NICU Console
+        </a>
+      </div>
+    </div>
+
+    <!-- Alert Banner for Near Expiry Batches -->
+    {% if alerts %}
+    <div class="alert alert-warning d-flex align-items-center justify-content-between mb-4 border-warning bg-warning bg-opacity-10 text-warning-emphasis">
+      <div class="d-flex align-items-center gap-3">
+        <i class="bi bi-exclamation-triangle-fill fs-3 text-warning"></i>
+        <div>
+          <h6 class="fw-bold mb-0">COLD-CHAIN ALERT: {{ alerts|length }} VACCINE BATCHES EXPIRING WITHIN 30 DAYS</h6>
+          <small>Prioritize dispatch using FEFO rules before expiry date.</small>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-4 mb-4">
+      
+      <!-- Receive New Batch Form -->
+      <div class="col-lg-5">
+        <div class="cc-card h-100">
+          <h5 class="fw-bold mb-3 text-info border-bottom border-secondary pb-2">
+            <i class="bi bi-box-arrow-in-down me-2"></i>Receive Vaccine Stock Batch
+          </h5>
+          <form id="receiveBatchForm" onsubmit="submitBatch(event)">
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Vaccine Name</label>
+                <input type="text" class="form-control" id="rcv_vaccine" placeholder="e.g. BCG, Penta, OPV" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Batch Number</label>
+                <input type="text" class="form-control" id="rcv_batch" placeholder="e.g. BATCH-2026-09" required>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Manufacturer</label>
+                <input type="text" class="form-control" id="rcv_manufacturer" placeholder="e.g. Serum Inst / GSK" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold">Storage Location</label>
+                <input type="text" class="form-control" id="rcv_location" placeholder="e.g. Fridge A-2, Deep Freezer 1" required>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold">Vials Quantity</label>
+                <input type="number" class="form-control" id="rcv_qty" min="1" value="50" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold">Doses / Vial</label>
+                <input type="number" class="form-control" id="rcv_doses" min="1" value="20" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold">Expiry Date</label>
+                <input type="date" class="form-control" id="rcv_expiry" required>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-info w-100 fw-bold">
+              <i class="bi bi-save me-1"></i> Receive &amp; Log Stock Batch
+            </button>
+          </form>
+          <div id="batchResult" class="mt-3"></div>
+        </div>
+      </div>
+
+      <!-- Temperature Logger Card -->
+      <div class="col-lg-7">
+        <div class="cc-card h-100">
+          <h5 class="fw-bold mb-3 text-info border-bottom border-secondary pb-2">
+            <i class="bi bi-thermometer-half me-2"></i>Cold Storage Temperature Monitoring
+          </h5>
+          <form id="tempLogForm" onsubmit="submitTempLog(event)" class="mb-4">
+            <div class="row g-3 align-items-end">
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold">Storage Unit</label>
+                <input type="text" class="form-control" id="tmp_location" placeholder="e.g. Fridge A-2" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold">Temp (&deg;C)</label>
+                <div class="input-group">
+                  <input type="number" step="0.1" class="form-control" id="tmp_celsius" placeholder="4.5" required>
+                  <span class="input-group-text bg-dark text-white border-secondary">&deg;C</span>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <button type="submit" class="btn btn-outline-info w-100 fw-bold">
+                  <i class="bi bi-thermometer-snow me-1"></i> Log Temperature
+                </button>
+              </div>
+            </div>
+          </form>
+          <div id="tempResult" class="mb-3"></div>
+
+          <!-- Safe Temperature Standards Reference -->
+          <div class="p-3 rounded-3 bg-dark border border-secondary">
+            <h6 class="fw-bold text-white mb-2"><i class="bi bi-info-circle me-1 text-info"></i>WHO Cold-Chain Temperature Guidelines</h6>
+            <div class="row text-center g-2 small">
+              <div class="col-4">
+                <div class="p-2 border border-secondary rounded">
+                  <div class="text-muted">Refrigerated Vaccines</div>
+                  <strong class="text-success">+2&deg;C to +8&deg;C</strong>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="p-2 border border-secondary rounded">
+                  <div class="text-muted">Frozen Vaccines (OPV)</div>
+                  <strong class="text-info">-15&deg;C to -25&deg;C</strong>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="p-2 border border-secondary rounded">
+                  <div class="text-muted">Freeze-Sensitive</div>
+                  <strong class="text-danger">Do NOT Freeze (&lt;0&deg;C)</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FEFO Vaccine Stock Table -->
+    <div class="cc-card">
+      <h5 class="fw-bold mb-3 text-white border-bottom border-secondary pb-2">
+        <i class="bi bi-list-columns-reverse me-2 text-info"></i>FEFO Vaccine Stock Inventory
+      </h5>
+      <div class="table-responsive">
+        <table class="table table-dark table-dark-custom align-middle mb-0">
+          <thead>
+            <tr class="text-muted border-secondary">
+              <th>Vaccine</th>
+              <th>Batch #</th>
+              <th>Manufacturer</th>
+              <th>Quantity Vials</th>
+              <th>Expiry Date</th>
+              <th>Location</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if stock %}
+              {% for item in stock %}
+              <tr>
+                <td class="fw-semibold text-white">{{ item.vaccine_name }}</td>
+                <td><code class="text-info">{{ item.batch_number }}</code></td>
+                <td>{{ item.manufacturer }}</td>
+                <td><span class="badge bg-primary">{{ item.quantity_vials }} vials</span></td>
+                <td>{{ item.expiry_date }}</td>
+                <td><span class="badge bg-dark border border-secondary">{{ item.storage_location }}</span></td>
+                <td>
+                  {% if item.is_expired %}
+                    <span class="badge bg-danger">EXPIRED</span>
+                  {% elif item.near_expiry %}
+                    <span class="badge bg-warning text-dark">NEAR EXPIRY</span>
+                  {% else %}
+                    <span class="badge bg-success">FEFO OK</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="7" class="text-center text-muted py-3">No cold-chain vaccine stock batches found.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+async function submitBatch(e) {
+  e.preventDefault();
+  const body = {
+    vaccine_name: document.getElementById('rcv_vaccine').value,
+    batch_number: document.getElementById('rcv_batch').value,
+    manufacturer: document.getElementById('rcv_manufacturer').value,
+    storage_location: document.getElementById('rcv_location').value,
+    quantity: parseInt(document.getElementById('rcv_qty').value),
+    doses_per_vial: parseInt(document.getElementById('rcv_doses').value),
+    expiry_date: document.getElementById('rcv_expiry').value
+  };
+
+  try {
+    const res = await fetch('/mch/api/cold-chain/receive-batch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    const div = document.getElementById('batchResult');
+    if (res.ok) {
+      div.innerHTML = `<div class="alert alert-success p-2 small"><i class="bi bi-check-circle me-1"></i>Batch <strong>${data.batch_number}</strong> registered! Reloading...</div>`;
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      div.innerHTML = `<div class="alert alert-danger p-2 small">${data.error || 'Failed to receive batch.'}</div>`;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function submitTempLog(e) {
+  e.preventDefault();
+  const body = {
+    storage_location: document.getElementById('tmp_location').value,
+    temperature_celsius: parseFloat(document.getElementById('tmp_celsius').value)
+  };
+
+  try {
+    const res = await fetch('/mch/api/cold-chain/temperature-log', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    const div = document.getElementById('tempResult');
+    if (res.ok) {
+      if (data.is_breach) {
+        div.innerHTML = `<div class="alert alert-danger p-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i>BREACH DETECTED: ${data.breach_type} (${data.temperature_celsius}&deg;C) logged for ${data.storage_location}!</div>`;
+      } else {
+        div.innerHTML = `<div class="alert alert-success p-2 small"><i class="bi bi-check-circle me-1"></i>Temperature ${data.temperature_celsius}&deg;C logged cleanly for ${data.storage_location}.</div>`;
+      }
+    } else {
+      div.innerHTML = `<div class="alert alert-danger p-2 small">${data.error || 'Failed to log temperature.'}</div>`;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+</script>
+{% endblock %}

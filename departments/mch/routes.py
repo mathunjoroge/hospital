@@ -2,7 +2,7 @@
 MCH, ANC, and Immunization API routes.
 """
 
-from flask import jsonify, redirect, request, url_for
+from flask import jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
 
 from departments.rbac import roles_required
@@ -244,13 +244,17 @@ def log_temperature():
 def cold_chain_stock():
     """
     GET /mch/api/cold-chain/stock?vaccine_name=BCG
-
     Returns current cold-chain vaccine inventory (FEFO-sorted).
-    Optional query param: vaccine_name to filter by specific vaccine.
+    Renders HTML console for browser requests, JSON for API clients.
     """
     vaccine_name = request.args.get("vaccine_name") or None
     summary = _cc.get_stock_summary(vaccine_name=vaccine_name)
-    return jsonify({"count": len(summary), "stock": summary}), 200
+    alerts = _cc.get_near_expiry_alerts(30)
+
+    if request.is_json or request.headers.get("Accept") == "application/json":
+        return jsonify({"count": len(summary), "stock": summary}), 200
+
+    return render_template("mch/cold_chain.html", stock=summary, alerts=alerts)
 
 
 @bp.route("/api/cold-chain/temperature-history/<storage_location>", methods=["GET"])
@@ -284,10 +288,17 @@ def near_expiry_alerts():
     GET /mch/api/cold-chain/alerts/near-expiry?days=30
 
     Returns vaccine batches expiring within `days` days (default 30).
+    Renders HTML console for browser requests, JSON for API clients.
     """
     days = request.args.get("days", default=30, type=int)
     alerts = _cc.get_near_expiry_alerts(days_threshold=days)
-    return jsonify({"threshold_days": days, "count": len(alerts), "alerts": alerts}), 200
+    summary = _cc.get_stock_summary()
+
+    if request.is_json or request.headers.get("Accept") == "application/json":
+        return jsonify({"threshold_days": days, "count": len(alerts), "alerts": alerts}), 200
+
+    return render_template("mch/cold_chain.html", stock=summary, alerts=alerts)
+
 
 
 # ── NICU & Pediatrics Workstation Routes ───────────────────────────────────────
