@@ -307,22 +307,31 @@ def oncology_encounter(patient_id):
 @login_required
 def oncology_ai_summary(patient_id):
     """Generates AI clinical summary for an oncology patient, gated by DPA 2019 AI consent."""
-    if not has_ai_consent(patient_id):
-        log_audit_event(
-            action="AI_CONSENT_REFUSED",
-            resource_type="Patient",
-            resource_id=patient_id,
-            details={
-                "feature": "oncology_ai_summary",
-                "reason": "Missing or revoked ai_diagnosis consent",
-            },
-        )
+    try:
+        if not has_ai_consent(patient_id):
+            log_audit_event(
+                action="AI_CONSENT_REFUSED",
+                resource_type="Patient",
+                resource_id=patient_id,
+                details={
+                    "feature": "oncology_ai_summary",
+                    "reason": "Missing or revoked ai_diagnosis consent",
+                },
+            )
+            return jsonify(
+                {
+                    "error": "AI-assisted summary unavailable: patient has not consented to AI processing of clinical notes.",
+                    "code": "AI_CONSENT_REQUIRED",
+                }
+            ), 403
+    except Exception as consent_err:  # noqa: BLE001
+        logger.error(f"Error checking AI consent for oncology summary: {consent_err}")
         return jsonify(
             {
-                "error": "AI-assisted summary unavailable: patient has not consented to AI processing of clinical notes.",
-                "code": "AI_CONSENT_REQUIRED",
+                "error": "Unable to verify patient AI consent status.",
+                "code": "AI_CONSENT_ERROR",
             }
-        ), 403
+        ), 500
 
     selected_patient = Patient.query.filter(
                 db.or_(

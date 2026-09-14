@@ -430,11 +430,21 @@ def evaluate_prescription_safety(
         w.get("severity") in ("HIGH", "CRITICAL") for w in filtered_warnings
     )
 
+    is_degraded = any(
+        w.get("source") == "Local Fallback Matrix" for w in interactions
+    )
+
     return {
         "has_warnings": len(filtered_warnings) > 0 or (dosing_alert is not None),
         "high_risk": has_high_severity,
         "warnings_count": len(filtered_warnings),
         "warnings": filtered_warnings,
         "dosing_guidance": dosing_alert,
+        "cdss_mode": "LOCAL_FALLBACK_DEGRADED" if is_degraded else "ONLINE_DRUGCENTRAL",
+        "degraded_mode_warning": (
+            "DrugCentral remote DDI database is unavailable. Interaction screening performed using core local emergency matrix."
+            if is_degraded
+            else None
+        ),
     }
 

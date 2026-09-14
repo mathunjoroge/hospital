@@ -72,6 +72,7 @@ class NvidiaNIMClient:
                     return None
             except Exception as e:  # noqa: BLE001
                 logger.error(f"Error checking AI consent for patient {patient_id}: {e}")
+                return None
 
         if not self.is_available():
             logger.warning("NVIDIA_API_KEY is not configured. Using offline fallback.")

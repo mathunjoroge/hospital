@@ -245,32 +245,44 @@ def chatbot_interface():
                 request.form.get("patient_id") or request.args.get("patient_id") or ""
             ).strip()
             if patient_id:
-                if not has_ai_consent(patient_id):
-                    logger.warning(
-                        f"AI consent check failed for patient_id={patient_id}"
-                    )
-                    log_audit_event(
-                        action="AI_CONSENT_REFUSED",
-                        resource_type="Patient",
-                        resource_id=patient_id,
-                        details={
-                            "feature": "clinical_chatbot",
-                            "reason": "Missing or revoked ai_diagnosis consent",
-                        },
+                try:
+                    if not has_ai_consent(patient_id):
+                        logger.warning(
+                            f"AI consent check failed for patient_id={patient_id}"
+                        )
+                        log_audit_event(
+                            action="AI_CONSENT_REFUSED",
+                            resource_type="Patient",
+                            resource_id=patient_id,
+                            details={
+                                "feature": "clinical_chatbot",
+                                "reason": "Missing or revoked ai_diagnosis consent",
+                            },
+                        )
+                        return Response(
+                            Summarizer._format_output(
+                                "AI-assisted summary unavailable: patient has not consented to AI processing of clinical notes.",
+                                is_error=True,
+                            ).encode("utf-8"),
+                            status=403,
+                        )
+                    else:
+                        log_audit_event(
+                            action="AI_CONSENT_GRANTED",
+                            resource_type="Patient",
+                            resource_id=patient_id,
+                            details={"feature": "clinical_chatbot"},
+                        )
+                except Exception as consent_err:  # noqa: BLE001
+                    logger.error(
+                        f"Error checking AI consent in chatbot_interface: {consent_err}"
                     )
                     return Response(
                         Summarizer._format_output(
-                            "AI-assisted summary unavailable: patient has not consented to AI processing of clinical notes.",
+                            "AI Consent Verification Error: Unable to verify consent status for patient. Refusing AI processing for data safety (DPA 2019).",
                             is_error=True,
                         ).encode("utf-8"),
                         status=403,
-                    )
-                else:
-                    log_audit_event(
-                        action="AI_CONSENT_GRANTED",
-                        resource_type="Patient",
-                        resource_id=patient_id,
-                        details={"feature": "clinical_chatbot"},
                     )
 
             # Assemble full context

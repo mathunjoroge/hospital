@@ -50,6 +50,10 @@ class TestCryptoHelpers:
         assert encrypt_value(None) is None
         assert decrypt_value(None) is None
 
+    def test_corrupted_ciphertext_fallback(self):
+        corrupted = "enc_v1:invalid_base64_token_or_corrupted_payload"
+        assert decrypt_value(corrupted) == corrupted
+
 
 class TestEncryptedStringTypeDecorator:
     def test_db_read_write_transparent_encryption(self, app):

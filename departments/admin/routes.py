@@ -12,6 +12,7 @@ from werkzeug.security import generate_password_hash
 from wtforms import PasswordField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Length
 
+from departments.api.audit import log_audit_event
 from departments.models.admin import Log
 from departments.models.user import User
 from departments.rbac import roles_required
@@ -101,6 +102,12 @@ def switch_user():
         return redirect(url_for("home"))
 
     session["switched_user"] = new_role
+    log_audit_event(
+        action="ROLE_SWITCH",
+        resource_type="UserSession",
+        resource_id=str(current_user.id),
+        details={"switched_to_role": new_role, "original_role": current_user.role},
+    )
     flash(f"Switched to {new_role} role.", "success")
 
     # Role-to-homepage mapping
@@ -132,7 +139,13 @@ def switch_user():
 @login_required
 def revert_user():
     if getattr(current_user, "role", None) == "admin":
-        session.pop("switched_user", None)
+        prev = session.pop("switched_user", None)
+        log_audit_event(
+            action="ROLE_REVERT",
+            resource_type="UserSession",
+            resource_id=str(current_user.id),
+            details={"reverted_from_role": prev, "restored_role": "admin"},
+        )
         flash("Reverted to admin role.", "success")
         return redirect(url_for("admin.index"))
     abort(403)

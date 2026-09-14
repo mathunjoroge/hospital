@@ -474,6 +474,11 @@ This chatbot provides general, educational information only.
                     logger.error(
                         f"Error checking AI consent in chatbot.answer: {consent_err}"
                     )
+                    return self._format_output(
+                        "AI Consent Verification Error: Unable to verify consent status for patient. Refusing AI processing for data safety (DPA 2019).",
+                        question=question,
+                        is_error=True,
+                    )
 
             emergency_response = self._check_emergency(question) if question else None
             if emergency_response:
