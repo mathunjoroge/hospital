@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}KRA eTIMS Tax Compliance & Fiscalization Console — HIMS Enterprise{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --bg-dark: #0b0f19;
+    --card-bg: #151c2c;
+    --card-border: #232d42;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --accent-red: #ef4444;
+    --accent-amber: #f59e0b;
+    --accent-emerald: #10b981;
+    --accent-cyan: #06b6d4;
+  }
+
+  .etims-header {
+    border-bottom: 1px solid var(--card-border);
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .glass-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  }
+
+  .kra-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.3rem 0.7rem;
+    border-radius: 9999px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .kra-badge-sandbox {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fde68a;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+  }
+  .kra-badge-live {
+    background: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+
+  .table-custom th {
+    background-color: rgba(15, 23, 42, 0.6);
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .table-custom td {
+    border-bottom: 1px solid var(--card-border);
+    vertical-align: middle;
+    color: var(--text-main);
+  }
+</style>
+
+<div class="container-fluid py-4">
+  <!-- Header -->
+  <div class="etims-header d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge {% if config.is_sandbox %}kra-badge-sandbox{% else %}kra-badge-live{% endif %}">
+          {% if config.is_sandbox %}eTIMS Sandbox Mode{% else %}eTIMS Production Mode{% endif %}
+        </span>
+        <span class="text-muted">|</span>
+        <span class="text-muted small"><i class="bi bi-shield-check text-warning me-1"></i> Kenya Revenue Authority (KRA) Tax Compliance</span>
+      </div>
+      <h2 class="mb-0 fw-bold text-white"><i class="bi bi-receipt-cutoff text-danger me-2"></i>KRA eTIMS Administration &amp; Fiscalization</h2>
+      <p class="text-muted mb-0 small">Manage hospital KRA PIN credentials, VSCU/OSCU control unit serials, VAT exemptions &amp; fiscal receipts.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-info btn-sm" onclick="testConnection()">
+        <i class="bi bi-activity me-1"></i> Test VSCU Connection
+      </button>
+    </div>
+  </div>
+
+  <!-- Top Metrics -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+      <div class="glass-card">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="text-muted small">Registered KRA PIN</span>
+          <i class="bi bi-building text-warning fs-5"></i>
+        </div>
+        <h3 class="fw-bold text-white mb-0">{{ config.kra_pin }}</h3>
+        <small class="text-muted">Branch Code: {{ config.branch_code }}</small>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="glass-card">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="text-muted small">Control Unit Serial (OSCU/VSCU)</span>
+          <i class="bi bi-cpu text-info fs-5"></i>
+        </div>
+        <h3 class="fw-bold text-white mb-0" style="font-size: 1.3rem;">{{ config.device_serial }}</h3>
+        <small class="text-muted">Status: {% if config.enabled %}<span class="text-success fw-bold">Active &amp; Fiscalizing</span>{% else %}<span class="text-danger fw-bold">Disabled</span>{% endif %}</small>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="glass-card">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="text-muted small">Total Fiscalized Invoices</span>
+          <i class="bi bi-qr-code-scan text-success fs-5"></i>
+        </div>
+        <h3 class="fw-bold text-emerald mb-0">{{ total_fiscalized }}</h3>
+        <small class="text-muted">KRA QR Codes Generated</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Left Column: Credentials Form -->
+    <div class="col-12 col-xl-6">
+      <div class="glass-card mb-4">
+        <h5 class="text-white fw-bold mb-3 border-bottom pb-2" style="border-color: var(--card-border) !important;">
+          <i class="bi bi-gear-fill text-warning me-2"></i>KRA Facility Registration Credentials
+        </h5>
+
+        <form id="etimsConfigForm" onsubmit="handleConfigSubmit(event)">
+          <div class="row g-3 mb-3">
+            <div class="col-md-8">
+              <label class="form-label text-muted small fw-semibold">Facility KRA PIN *</label>
+              <input type="text" id="kraPin" class="form-control bg-dark text-white border-secondary" value="{{ config.kra_pin }}" placeholder="e.g. P051234567A" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label text-muted small fw-semibold">Branch Code *</label>
+              <input type="text" id="branchCode" class="form-control bg-dark text-white border-secondary" value="{{ config.branch_code }}" placeholder="e.g. 00" required />
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-muted small fw-semibold">OSCU / VSCU Device Serial Number *</label>
+            <input type="text" id="deviceSerial" class="form-control bg-dark text-white border-secondary" value="{{ config.device_serial }}" placeholder="e.g. VSCU-KRA-2026-8891" required />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-muted small fw-semibold">Communication / CMC Key</label>
+            <input type="password" id="cmcKey" class="form-control bg-dark text-white border-secondary" value="{{ config.cmc_key or '' }}" placeholder="Enter KRA OSCU Secret CMC Key" />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-muted small fw-semibold">KRA VSCU Server API Endpoint *</label>
+            <input type="url" id="vscuUrl" class="form-control bg-dark text-white border-secondary" value="{{ config.vscu_server_url }}" required />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-muted small fw-semibold">Hospital Services VAT Exemption Note</label>
+            <textarea id="exemptionsNote" class="form-control bg-dark text-white border-secondary" rows="3">{{ config.exemptions_note or '' }}</textarea>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-6">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="isSandbox" {% if config.is_sandbox %}checked{% endif %}>
+                <label class="form-check-label text-white small" for="isSandbox">Sandbox Environment</label>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="isEnabled" {% if config.enabled %}checked{% endif %}>
+                <label class="form-check-label text-white small" for="isEnabled">Enable eTIMS Auto-Fiscalization</label>
+              </div>
+            </div>
+          </div>
+
+          <div id="configAlert" class="alert alert-danger d-none py-2 small"></div>
+          <div id="configSuccess" class="alert alert-success d-none py-2 small"></div>
+
+          <button type="submit" class="btn btn-warning w-100 fw-bold text-dark">
+            <i class="bi bi-save-fill me-1"></i> Save KRA eTIMS Credentials
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Right Column: VAT Exemption Matrix & Recent Receipts -->
+    <div class="col-12 col-xl-6">
+      <!-- Tax Exemption Matrix -->
+      <div class="glass-card mb-4">
+        <h5 class="text-white fw-bold mb-3 border-bottom pb-2" style="border-color: var(--card-border) !important;">
+          <i class="bi bi-list-check text-info me-2"></i>Hospital Service VAT Tax Matrix (Kenya VAT Act 2013)
+        </h5>
+        <div class="table-responsive">
+          <table class="table table-custom mb-0">
+            <thead>
+              <tr>
+                <th>Service Category</th>
+                <th>Tax Rate</th>
+                <th>Legal Classification</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="fw-semibold text-white">Medical Consultations &amp; Triage</td>
+                <td><span class="badge bg-success">0% (EXEMPT)</span></td>
+                <td><small class="text-muted">First Schedule Part I</small></td>
+              </tr>
+              <tr>
+                <td class="fw-semibold text-white">Essential Medicines &amp; Vaccines</td>
+                <td><span class="badge bg-success">0% (EXEMPT)</span></td>
+                <td><small class="text-muted">First Schedule Part I</small></td>
+              </tr>
+              <tr>
+                <td class="fw-semibold text-white">Inpatient Ward &amp; ICU Admissions</td>
+                <td><span class="badge bg-success">0% (EXEMPT)</span></td>
+                <td><small class="text-muted">First Schedule Part I</small></td>
+              </tr>
+              <tr>
+                <td class="fw-semibold text-white">Laboratory Diagnostics &amp; Imaging</td>
+                <td><span class="badge bg-success">0% (EXEMPT)</span></td>
+                <td><small class="text-muted">First Schedule Part I</small></td>
+              </tr>
+              <tr>
+                <td class="fw-semibold text-white">Retail Supplies &amp; Non-Medical OTC</td>
+                <td><span class="badge bg-danger">16% (STANDARD)</span></td>
+                <td><small class="text-muted">Standard VAT Rate</small></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Recent Fiscal Receipts Log -->
+      <div class="glass-card">
+        <h5 class="text-white fw-bold mb-3 border-bottom pb-2" style="border-color: var(--card-border) !important;">
+          <i class="bi bi-clock-history text-emerald me-2"></i>Recent KRA Fiscal Receipts
+        </h5>
+        <div class="table-responsive">
+          <table class="table table-custom table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Fiscalized At</th>
+                <th>Invoice ID</th>
+                <th>CU Invoice No</th>
+                <th>Total</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in recent_receipts %}
+              <tr>
+                <td><small class="text-muted">{{ r.fiscalized_at.strftime("%Y-%m-%d %H:%M") }}</small></td>
+                <td><span class="badge bg-secondary">Inv #{{ r.invoice_id }}</span></td>
+                <td><small class="text-info fw-semibold">{{ r.cu_invoice_number }}</small></td>
+                <td class="fw-bold text-emerald">KSh {{ "%.2f"|format(r.total_amount) }}</td>
+                <td>
+                  <a href="{{ r.qr_code_url }}" target="_blank" class="btn btn-sm btn-outline-light">
+                    <i class="bi bi-qr-code me-1"></i> Verify QR
+                  </a>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-3">No fiscal receipts generated yet. Settled invoices will auto-fiscalize.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function handleConfigSubmit(event) {
+    event.preventDefault();
+    const alertBox = document.getElementById('configAlert');
+    const successBox = document.getElementById('configSuccess');
+    alertBox.classList.add('d-none');
+    successBox.classList.add('d-none');
+
+    const payload = {
+      kra_pin: document.getElementById('kraPin').value,
+      branch_code: document.getElementById('branchCode').value,
+      device_serial: document.getElementById('deviceSerial').value,
+      cmc_key: document.getElementById('cmcKey').value,
+      vscu_server_url: document.getElementById('vscuUrl').value,
+      exemptions_note: document.getElementById('exemptionsNote').value,
+      is_sandbox: document.getElementById('isSandbox').checked,
+      enabled: document.getElementById('isEnabled').checked,
+    };
+
+    try {
+      const res = await fetch('/admin/etims/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alertBox.textContent = data.error || 'Failed to save configuration.';
+        alertBox.classList.remove('d-none');
+      } else {
+        successBox.textContent = data.message;
+        successBox.classList.remove('d-none');
+        setTimeout(() => location.reload(), 1500);
+      }
+    } catch (err) {
+      alertBox.textContent = 'Network or server error.';
+      alertBox.classList.remove('d-none');
+    }
+  }
+
+  async function testConnection() {
+    try {
+      const res = await fetch('/admin/etims/test', { method: 'POST' });
+      const data = await res.json();
+      alert((data.success ? '✅ Success: ' : '❌ Error: ') + data.message);
+    } catch (err) {
+      alert('Failed to ping VSCU server.');
+    }
+  }
+</script>
+{% endblock %}

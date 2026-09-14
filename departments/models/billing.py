@@ -560,3 +560,62 @@ class Payment(db.Model):
 
     def __repr__(self):
         return f"<Payment {self.receipt_number} {self.amount} via {self.method}>"
+
+
+# ═══════════════════════════════════════════════════════
+# KRA eTIMS Tax Compliance & Fiscalization Models
+# ═══════════════════════════════════════════════════════
+
+
+class EtimsConfig(db.Model):
+    """
+    Kenya Revenue Authority (KRA) eTIMS VSCU/OSCU Registration Configuration.
+    Stores facility KRA PIN, Control Unit serials, and API credentials.
+    """
+
+    __tablename__ = "etims_configs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    kra_pin = db.Column(db.String(20), nullable=False, default="P051234567A")
+    branch_code = db.Column(db.String(10), nullable=False, default="00")
+    device_serial = db.Column(db.String(100), nullable=False, default="VSCU-KRA-2026-8891")
+    cmc_key = db.Column(db.String(255), nullable=True, default="KRA-OSCU-CMC-SECRET-KEY")
+    vscu_server_url = db.Column(
+        db.String(255),
+        nullable=False,
+        default="https://etims-api.kra.go.ke/etims-api/v1",
+    )
+    is_sandbox = db.Column(db.Boolean, nullable=False, default=True)
+    enabled = db.Column(db.Boolean, nullable=False, default=True)
+    exemptions_note = db.Column(
+        db.Text,
+        nullable=True,
+        default=(
+            "Medical Consultations, Essential Medicines, Laboratory Tests, "
+            "and Inpatient Ward Admissions are VAT Exempt under the Kenya Value Added Tax Act (2013) First Schedule."
+        ),
+    )
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class EtimsFiscalReceipt(db.Model):
+    """
+    KRA eTIMS Fiscal Signature & QR Code audit record linked to an Invoice.
+    """
+
+    __tablename__ = "etims_fiscal_receipts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), nullable=False, index=True)
+    cu_invoice_number = db.Column(db.String(100), nullable=False, index=True)
+    cu_serial_number = db.Column(db.String(100), nullable=False)
+    qr_code_url = db.Column(db.Text, nullable=False)
+    fiscal_signature = db.Column(db.String(255), nullable=False)
+    taxable_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    exempt_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    tax_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    total_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    fiscalized_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    invoice = db.relationship("Invoice", backref=db.backref("etims_receipt", uselist=False))
+

@@ -816,6 +816,7 @@ def root_smart_configuration():
     from departments.api.fhir import get_smart_configuration
     return get_smart_configuration()
 
+from departments.billing.etims_routes import etims_bp
 from departments.clinical_trials import bp as clinical_trials_bp
 from departments.sso import bp as sso_bp
 
@@ -825,6 +826,7 @@ app.register_blueprint(theatre_bp)
 app.register_blueprint(compliance_bp)
 app.register_blueprint(clinical_trials_bp)
 app.register_blueprint(sso_bp)
+app.register_blueprint(etims_bp)
 app.register_blueprint(oauth_bp)
 init_oauth(app)
 
