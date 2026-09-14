@@ -2,7 +2,7 @@
 MCH, ANC, and Immunization API routes.
 """
 
-from flask import jsonify, request
+from flask import jsonify, redirect, request, url_for
 from flask_login import login_required
 
 from departments.rbac import roles_required
@@ -19,7 +19,7 @@ _cc = ColdChainEngine()
 @login_required
 @roles_required("mch", "nursing", "doctor")
 def index():
-    return "MCH & Immunization Module Active"
+    return redirect(url_for("ui_mch.mch_workbench"))
 
 
 @bp.route("/api/anc-visit", methods=["POST"])
