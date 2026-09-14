@@ -251,10 +251,11 @@ def cold_chain_stock():
     summary = _cc.get_stock_summary(vaccine_name=vaccine_name)
     alerts = _cc.get_near_expiry_alerts(30)
 
-    if request.is_json or request.headers.get("Accept") == "application/json":
-        return jsonify({"count": len(summary), "stock": summary}), 200
+    wants_html = "text/html" in request.headers.get("Accept", "")
+    if wants_html:
+        return render_template("mch/cold_chain.html", stock=summary, alerts=alerts)
 
-    return render_template("mch/cold_chain.html", stock=summary, alerts=alerts)
+    return jsonify({"count": len(summary), "stock": summary}), 200
 
 
 @bp.route("/api/cold-chain/temperature-history/<storage_location>", methods=["GET"])
@@ -294,10 +295,12 @@ def near_expiry_alerts():
     alerts = _cc.get_near_expiry_alerts(days_threshold=days)
     summary = _cc.get_stock_summary()
 
-    if request.is_json or request.headers.get("Accept") == "application/json":
-        return jsonify({"threshold_days": days, "count": len(alerts), "alerts": alerts}), 200
+    wants_html = "text/html" in request.headers.get("Accept", "")
+    if wants_html:
+        return render_template("mch/cold_chain.html", stock=summary, alerts=alerts)
 
-    return render_template("mch/cold_chain.html", stock=summary, alerts=alerts)
+    return jsonify({"threshold_days": days, "count": len(alerts), "alerts": alerts}), 200
+
 
 
 

@@ -80,32 +80,33 @@ def list_sessions(patient_id: str = "P001"):
     if raw_status:
         sessions = [s for s in sessions if str(s.status).upper() == raw_status.upper()]
 
-    if request.is_json or request.headers.get("Accept") == "application/json":
-        return jsonify({
-            "patient_id": patient_id,
-            "count": len(sessions),
-            "sessions": [session_summary(s) for s in sessions],
-        }), 200
+    wants_html = "text/html" in request.headers.get("Accept", "")
+    if wants_html:
+        access_records = get_patient_access_records(patient_id)
+        formatted_access = [
+            {
+                "id": r.id,
+                "access_type": r.access_type,
+                "insertion_date": r.insertion_date.isoformat() if r.insertion_date else None,
+                "site_description": r.site_description,
+                "complication_notes": r.complication_notes,
+                "dialysis_session_id": r.dialysis_session_id,
+            }
+            for r in access_records
+        ]
+        return render_template(
+            "renal/sessions.html",
+            patient_id=patient_id,
+            sessions=[session_summary(s) for s in sessions],
+            access_records=formatted_access,
+        )
 
-    access_records = get_patient_access_records(patient_id)
-    formatted_access = [
-        {
-            "id": r.id,
-            "access_type": r.access_type,
-            "insertion_date": r.insertion_date.isoformat() if r.insertion_date else None,
-            "site_description": r.site_description,
-            "complication_notes": r.complication_notes,
-            "dialysis_session_id": r.dialysis_session_id,
-        }
-        for r in access_records
-    ]
+    return jsonify({
+        "patient_id": patient_id,
+        "count": len(sessions),
+        "sessions": [session_summary(s) for s in sessions],
+    }), 200
 
-    return render_template(
-        "renal/sessions.html",
-        patient_id=patient_id,
-        sessions=[session_summary(s) for s in sessions],
-        access_records=formatted_access,
-    )
 
 
 
@@ -196,43 +197,44 @@ def list_access_records(patient_id: str):
     List vascular access records for a patient.
     """
     records = get_patient_access_records(patient_id)
-    if request.is_json or request.headers.get("Accept") == "application/json":
-        return jsonify({
-            "patient_id": patient_id,
-            "count": len(records),
-            "records": [
-                {
-                    "id": r.id,
-                    "access_type": r.access_type,
-                    "insertion_date": r.insertion_date.isoformat() if r.insertion_date else None,
-                    "site_description": r.site_description,
-                    "complication_notes": r.complication_notes,
-                    "dialysis_session_id": r.dialysis_session_id,
-                    "created_at": r.created_at.isoformat(),
-                }
-                for r in records
-            ],
-        }), 200
+    wants_html = "text/html" in request.headers.get("Accept", "")
+    if wants_html:
+        sessions = get_patient_sessions(patient_id)
+        formatted_access = [
+            {
+                "id": r.id,
+                "access_type": r.access_type,
+                "insertion_date": r.insertion_date.isoformat() if r.insertion_date else None,
+                "site_description": r.site_description,
+                "complication_notes": r.complication_notes,
+                "dialysis_session_id": r.dialysis_session_id,
+            }
+            for r in records
+        ]
+        return render_template(
+            "renal/sessions.html",
+            patient_id=patient_id,
+            sessions=[session_summary(s) for s in sessions],
+            access_records=formatted_access,
+        )
 
-    sessions = get_patient_sessions(patient_id)
-    formatted_access = [
-        {
-            "id": r.id,
-            "access_type": r.access_type,
-            "insertion_date": r.insertion_date.isoformat() if r.insertion_date else None,
-            "site_description": r.site_description,
-            "complication_notes": r.complication_notes,
-            "dialysis_session_id": r.dialysis_session_id,
-        }
-        for r in records
-    ]
+    return jsonify({
+        "patient_id": patient_id,
+        "count": len(records),
+        "records": [
+            {
+                "id": r.id,
+                "access_type": r.access_type,
+                "insertion_date": r.insertion_date.isoformat() if r.insertion_date else None,
+                "site_description": r.site_description,
+                "complication_notes": r.complication_notes,
+                "dialysis_session_id": r.dialysis_session_id,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in records
+        ],
+    }), 200
 
-    return render_template(
-        "renal/sessions.html",
-        patient_id=patient_id,
-        sessions=[session_summary(s) for s in sessions],
-        access_records=formatted_access,
-    )
 
 
 
