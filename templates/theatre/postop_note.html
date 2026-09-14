@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}Post-Op Operative Note & PACU Aldrete Score — Theatre — HIMS Enterprise{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --bg-dark: #0b0f19;
+    --card-bg: #151c2c;
+    --card-border: #232d42;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+
+  .or-wrapper {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: calc(100vh - 70px);
+    padding-bottom: 3rem;
+  }
+
+  .navbar-or {
+    background: rgba(21, 28, 44, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  .note-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .form-control, .form-select {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+
+  .form-control:focus, .form-select:focus {
+    background-color: #1e293b;
+    border-color: #3b82f6;
+    color: #f8fafc;
+    box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+  }
+
+  .score-box {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 1rem;
+  }
+
+  .score-badge {
+    font-size: 1.8rem;
+    font-weight: 700;
+  }
+</style>
+
+<div class="or-wrapper pt-3">
+  <div class="container-fluid px-4">
+
+    <!-- Header Banner -->
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 rounded-3 navbar-or">
+      <div class="d-flex align-items-center gap-3">
+        <i class="bi bi-file-earmark-medical fs-2 text-warning"></i>
+        <div>
+          <h4 class="fw-bold mb-0 text-white">Post-Op Operative Note &amp; PACU Aldrete Recovery Score</h4>
+          <small class="text-muted">Patient ID: {{ entry.patient_id }} | Entry #{{ entry.id }} | Surgical Note</small>
+        </div>
+      </div>
+      <div>
+        <a href="{{ url_for('theatre.instrument_count', entry_id=entry.id) }}" class="btn btn-outline-warning btn-sm me-2">
+          <i class="bi bi-boxes me-1"></i> Instrument Count
+        </a>
+        <a href="{{ url_for('theatre.surgical_workbench', entry_id=entry.id) }}" class="btn btn-outline-light btn-sm me-2">
+          <i class="bi bi-layout-wrench-and-poppy me-1"></i> Workbench
+        </a>
+        <a href="{{ url_for('theatre.get_or_dashboard_ui') }}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-speedometer2 me-1"></i> OR Console
+        </a>
+      </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('theatre.postop_note', entry_id=entry.id) }}">
+      <div class="row g-4">
+
+        <!-- Operative Summary & Findings -->
+        <div class="col-lg-7">
+          <div class="note-card h-100">
+            <h5 class="fw-bold mb-3 text-warning border-bottom border-secondary pb-2">
+              <i class="bi bi-journal-text me-2"></i>Operative Summary &amp; Findings
+            </h5>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold" for="preop_diagnosis">Pre-Operative Diagnosis</label>
+                <input type="text" class="form-control" id="preop_diagnosis" name="preop_diagnosis" value="{{ note.preop_diagnosis or '' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold" for="postop_diagnosis">Post-Operative Diagnosis</label>
+                <input type="text" class="form-control" id="postop_diagnosis" name="postop_diagnosis" value="{{ note.postop_diagnosis or '' }}">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label text-white fw-semibold" for="procedure_performed">Procedure Performed</label>
+              <input type="text" class="form-control" id="procedure_performed" name="procedure_performed" value="{{ note.procedure_performed or '' }}">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label text-white fw-semibold" for="surgical_findings">Surgical Findings &amp; Procedure Details</label>
+              <textarea class="form-control" id="surgical_findings" name="surgical_findings" rows="4" placeholder="Describe operative findings, anatomy encountered, step-by-step procedure...">{{ note.surgical_findings or '' }}</textarea>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold" for="specimens_taken">Specimens Sent</label>
+                <input type="text" class="form-control" id="specimens_taken" name="specimens_taken" value="{{ note.specimens_taken or '' }}" placeholder="e.g. Appendix to Histopathology">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold" for="implants_inserted">Implants / Prostheses</label>
+                <input type="text" class="form-control" id="implants_inserted" name="implants_inserted" value="{{ note.implants_inserted or '' }}" placeholder="e.g. Mesh 10x15 cm">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold" for="drains_tubes_placed">Drains &amp; Tubes</label>
+                <input type="text" class="form-control" id="drains_tubes_placed" name="drains_tubes_placed" value="{{ note.drains_tubes_placed or '' }}" placeholder="e.g. Jackson-Pratt #10 Fr">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label text-white fw-semibold" for="postop_instructions">Post-Operative &amp; PACU Orders</label>
+              <textarea class="form-control" id="postop_instructions" name="postop_instructions" rows="3" placeholder="Post-op analgesia, fluid management, vital sign monitoring frequency, NPO status...">{{ note.postop_instructions or '' }}</textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- PACU Aldrete Recovery Scoring -->
+        <div class="col-lg-5">
+          <div class="note-card h-100">
+            <h5 class="fw-bold mb-3 text-warning border-bottom border-secondary pb-2">
+              <i class="bi bi-heart-pulse-fill me-2"></i>PACU Aldrete Recovery Score
+            </h5>
+
+            <!-- Overall score banner -->
+            <div class="score-box d-flex align-items-center justify-content-between mb-4">
+              <div>
+                <span class="text-muted d-block small">Total Aldrete Score</span>
+                <span class="score-badge {% if note.total_aldrete_score >= 9 %}text-success{% else %}text-warning{% endif %}">
+                  {{ note.total_aldrete_score }}/10
+                </span>
+              </div>
+              <div>
+                {% if note.is_fit_for_pacu_discharge() %}
+                  <span class="badge bg-success fs-6 p-2"><i class="bi bi-check-circle me-1"></i> Fit for PACU Discharge</span>
+                {% else %}
+                  <span class="badge bg-warning text-dark fs-6 p-2"><i class="bi bi-exclamation-circle me-1"></i> PACU Monitoring Required (&lt;9)</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label text-white fw-semibold" for="aldrete_activity">1. Activity (Move Extremities Voluntary / Command)</label>
+              <select class="form-select" id="aldrete_activity" name="aldrete_activity">
+                <option value="2" {% if note.aldrete_activity == 2 %}selected{% endif %}>2 — Moves 4 extremities voluntarily or on command</option>
+                <option value="1" {% if note.aldrete_activity == 1 %}selected{% endif %}>1 — Moves 2 extremities voluntarily or on command</option>
+                <option value="0" {% if note.aldrete_activity == 0 %}selected{% endif %}>0 — Unable to move extremities</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label text-white fw-semibold" for="aldrete_respiration">2. Respiration</label>
+              <select class="form-select" id="aldrete_respiration" name="aldrete_respiration">
+                <option value="2" {% if note.aldrete_respiration == 2 %}selected{% endif %}>2 — Able to deep breathe and cough freely</option>
+                <option value="1" {% if note.aldrete_respiration == 1 %}selected{% endif %}>1 — Dyspnea, shallow, or limited breathing</option>
+                <option value="0" {% if note.aldrete_respiration == 0 %}selected{% endif %}>0 — Apneic or on mechanical ventilator</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label text-white fw-semibold" for="aldrete_circulation">3. Circulation (Blood Pressure vs Pre-Op Level)</label>
+              <select class="form-select" id="aldrete_circulation" name="aldrete_circulation">
+                <option value="2" {% if note.aldrete_circulation == 2 %}selected{% endif %}>2 — BP within ±20% of pre-op level</option>
+                <option value="1" {% if note.aldrete_circulation == 1 %}selected{% endif %}>1 — BP within ±20%–50% of pre-op level</option>
+                <option value="0" {% if note.aldrete_circulation == 0 %}selected{% endif %}>0 — BP deviates &gt;50% from pre-op level</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label text-white fw-semibold" for="aldrete_consciousness">4. Consciousness</label>
+              <select class="form-select" id="aldrete_consciousness" name="aldrete_consciousness">
+                <option value="2" {% if note.aldrete_consciousness == 2 %}selected{% endif %}>2 — Fully awake &amp; alert</option>
+                <option value="1" {% if note.aldrete_consciousness == 1 %}selected{% endif %}>1 — Arousable on calling / touch</option>
+                <option value="0" {% if note.aldrete_consciousness == 0 %}selected{% endif %}>0 — Unresponsive</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label text-white fw-semibold" for="aldrete_spo2">5. Oxygen Saturation (SpO2)</label>
+              <select class="form-select" id="aldrete_spo2" name="aldrete_spo2">
+                <option value="2" {% if note.aldrete_spo2 == 2 %}selected{% endif %}>2 — SpO2 &gt;92% on room air</option>
+                <option value="1" {% if note.aldrete_spo2 == 1 %}selected{% endif %}>1 — Requires supplemental O2 to maintain SpO2 &gt;90%</option>
+                <option value="0" {% if note.aldrete_spo2 == 0 %}selected{% endif %}>0 — SpO2 &lt;90% even with supplemental O2</option>
+              </select>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label text-white fw-semibold" for="discharge_to">Discharge Destination</label>
+              <select class="form-select" id="discharge_to" name="discharge_to">
+                {% set dest = note.discharge_to or 'PACU' %}
+                <option value="PACU" {% if dest == 'PACU' %}selected{% endif %}>PACU (Post-Anaesthesia Care Unit)</option>
+                <option value="Surgical Ward" {% if dest == 'Surgical Ward' %}selected{% endif %}>General Surgical Ward</option>
+                <option value="ICU" {% if dest == 'ICU' %}selected{% endif %}>ICU (Intensive Care Unit)</option>
+                <option value="HDU" {% if dest == 'HDU' %}selected{% endif %}>HDU (High Dependency Unit)</option>
+                <option value="Day Surgery Discharge" {% if dest == 'Day Surgery Discharge' %}selected{% endif %}>Day Surgery Home Discharge</option>
+              </select>
+            </div>
+
+            <button type="submit" class="btn btn-warning w-100 fw-bold text-dark">
+              <i class="bi bi-save me-1"></i> Save Post-Op Note &amp; Score
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

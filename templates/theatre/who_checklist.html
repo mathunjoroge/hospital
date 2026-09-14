@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}WHO Surgical Safety Checklist — Theatre — HIMS Enterprise{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --bg-dark: #0b0f19;
+    --card-bg: #151c2c;
+    --card-border: #232d42;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+
+  .or-wrapper {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: calc(100vh - 70px);
+    padding-bottom: 3rem;
+  }
+
+  .navbar-or {
+    background: rgba(21, 28, 44, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  .checklist-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .form-check-input {
+    background-color: #1e293b;
+    border-color: #475569;
+    width: 1.35em;
+    height: 1.35em;
+  }
+
+  .form-check-input:checked {
+    background-color: #22c55e;
+    border-color: #22c55e;
+  }
+
+  .form-control, .form-select {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+
+  .form-control:focus, .form-select:focus {
+    background-color: #1e293b;
+    border-color: #3b82f6;
+    color: #f8fafc;
+    box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+  }
+
+  .stage-badge {
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 0.35em 0.7em;
+    border-radius: 6px;
+  }
+  .stage-done { background: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid #22c55e; }
+  .stage-pending { background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid #eab308; }
+</style>
+
+<div class="or-wrapper pt-3">
+  <div class="container-fluid px-4">
+
+    <!-- Header Banner -->
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 rounded-3 navbar-or">
+      <div class="d-flex align-items-center gap-3">
+        <i class="bi bi-shield-check fs-2 text-success"></i>
+        <div>
+          <h4 class="fw-bold mb-0 text-white">WHO Surgical Safety Checklist</h4>
+          <small class="text-muted">Patient ID: {{ entry.patient_id }} | Entry #{{ entry.id }} | Stage Status: 
+            {% if checklist and checklist.is_fully_completed() %}
+              <span class="stage-badge stage-done"><i class="bi bi-check-circle-fill me-1"></i> Fully Completed</span>
+            {% else %}
+              <span class="stage-badge stage-pending"><i class="bi bi-clock me-1"></i> In Progress</span>
+            {% endif %}
+          </small>
+        </div>
+      </div>
+      <div>
+        <a href="{{ url_for('theatre.surgical_workbench', entry_id=entry.id) }}" class="btn btn-outline-light btn-sm me-2">
+          <i class="bi bi-layout-wrench-and-poppy me-1"></i> Workbench
+        </a>
+        <a href="{{ url_for('theatre.get_or_dashboard_ui') }}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-speedometer2 me-1"></i> OR Console
+        </a>
+      </div>
+    </div>
+
+    <!-- 3 Checklist Stages -->
+    <div class="row g-4">
+
+      <!-- STAGE 1: SIGN IN -->
+      <div class="col-lg-4">
+        <div class="checklist-card h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary">
+            <h5 class="fw-bold mb-0 text-info">
+              <i class="bi bi-1-circle me-2"></i>SIGN IN
+            </h5>
+            {% if checklist and checklist.sign_in_completed %}
+              <span class="stage-badge stage-done"><i class="bi bi-check2"></i> Completed</span>
+            {% else %}
+              <span class="stage-badge stage-pending">Pending</span>
+            {% endif %}
+          </div>
+          <small class="text-muted d-block mb-3">Before induction of anaesthesia (Nurse &amp; Anaesthetist)</small>
+
+          <form method="POST" action="{{ url_for('theatre.who_checklist', entry_id=entry.id) }}">
+            <input type="hidden" name="stage" value="sign_in">
+            
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="patient_identity_confirmed" name="patient_identity_confirmed" {% if checklist and checklist.patient_identity_confirmed %}checked{% endif %}>
+              <label class="form-check-label text-white" for="patient_identity_confirmed">
+                Patient identity, site, procedure &amp; consent confirmed
+              </label>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="site_marked" name="site_marked" {% if checklist and checklist.site_marked %}checked{% endif %}>
+              <label class="form-check-label text-white" for="site_marked">
+                Surgical site marked / Not applicable
+              </label>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="anaesthesia_safety_check_completed" name="anaesthesia_safety_check_completed" {% if checklist and checklist.anaesthesia_safety_check_completed %}checked{% endif %}>
+              <label class="form-check-label text-white" for="anaesthesia_safety_check_completed">
+                Anaesthesia machine &amp; medication check completed
+              </label>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="pulse_oximeter_functioning" name="pulse_oximeter_functioning" {% if checklist and checklist.pulse_oximeter_functioning %}checked{% endif %}>
+              <label class="form-check-label text-white" for="pulse_oximeter_functioning">
+                Pulse oximeter on patient and functioning
+              </label>
+            </div>
+
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="known_allergy" name="known_allergy" {% if checklist and checklist.known_allergy %}checked{% endif %}>
+              <label class="form-check-label text-white" for="known_allergy">
+                Known allergies?
+              </label>
+            </div>
+            <div class="mb-3 ps-4">
+              <input type="text" class="form-control form-control-sm" name="allergy_details" placeholder="Specify allergy details..." value="{{ checklist.allergy_details or '' if checklist else '' }}">
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="difficult_airway_risk" name="difficult_airway_risk" {% if checklist and checklist.difficult_airway_risk %}checked{% endif %}>
+              <label class="form-check-label text-white" for="difficult_airway_risk">
+                Difficult airway / aspiration risk?
+              </label>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="airway_equipment_available" name="airway_equipment_available" {% if checklist and checklist.airway_equipment_available %}checked{% endif %}>
+              <label class="form-check-label text-white" for="airway_equipment_available">
+                Airway equipment &amp; assistance available
+              </label>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="blood_loss_risk_over_500ml" name="blood_loss_risk_over_500ml" {% if checklist and checklist.blood_loss_risk_over_500ml %}checked{% endif %}>
+              <label class="form-check-label text-white" for="blood_loss_risk_over_500ml">
+                Risk of &gt;500ml blood loss (7ml/kg in children)?
+              </label>
+            </div>
+
+            <div class="form-check mb-4">
+              <input class="form-check-input" type="checkbox" id="iv_access_and_fluids_planned" name="iv_access_and_fluids_planned" {% if checklist and checklist.iv_access_and_fluids_planned %}checked{% endif %}>
+              <label class="form-check-label text-white" for="iv_access_and_fluids_planned">
+                Adequate IV access &amp; fluids planned
+              </label>
+            </div>
+
+            <button type="submit" class="btn btn-info w-100 fw-bold">
+              <i class="bi bi-save me-1"></i> Save Sign In Stage
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- STAGE 2: TIME OUT -->
+      <div class="col-lg-4">
+        <div class="checklist-card h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary">
+            <h5 class="fw-bold mb-0 text-warning">
+              <i class="bi bi-2-circle me-2"></i>TIME OUT
+            </h5>
+            {% if checklist and checklist.time_out_completed %}
+              <span class="stage-badge stage-done"><i class="bi bi-check2"></i> Completed</span>
+            {% else %}
+              <span class="stage-badge stage-pending">Pending</span>
+            {% endif %}
+          </div>
+          <small class="text-muted d-block mb-3">Before skin incision (Nurse, Anaesthetist &amp; Surgeon)</small>
+
+          <form method="POST" action="{{ url_for('theatre.who_checklist', entry_id=entry.id) }}">
+            <input type="hidden" name="stage" value="time_out">
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="team_members_introduced" name="team_members_introduced" {% if checklist and checklist.team_members_introduced %}checked{% endif %}>
+              <label class="form-check-label text-white" for="team_members_introduced">
+                Confirm all team members introduced by name &amp; role
+              </label>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="verbal_confirm_patient_site_procedure" name="verbal_confirm_patient_site_procedure" {% if checklist and checklist.verbal_confirm_patient_site_procedure %}checked{% endif %}>
+              <label class="form-check-label text-white" for="verbal_confirm_patient_site_procedure">
+                Surgeon, Anaesthetist &amp; Nurse verbally confirm patient name, site, procedure
+              </label>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="critical_steps_surgeon_reviewed" name="critical_steps_surgeon_reviewed" {% if checklist and checklist.critical_steps_surgeon_reviewed %}checked{% endif %}>
+              <label class="form-check-label text-white" for="critical_steps_surgeon_reviewed">
+                Surgeon reviews: critical steps, operative duration, blood loss
+              </label>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="critical_steps_anaesthetist_reviewed" name="critical_steps_anaesthetist_reviewed" {% if checklist and checklist.critical_steps_anaesthetist_reviewed %}checked{% endif %}>
+              <label class="form-check-label text-white" for="critical_steps_anaesthetist_reviewed">
+                Anaesthetist reviews: patient-specific concerns
+              </label>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="critical_steps_nursing_reviewed" name="critical_steps_nursing_reviewed" {% if checklist and checklist.critical_steps_nursing_reviewed %}checked{% endif %}>
+              <label class="form-check-label text-white" for="critical_steps_nursing_reviewed">
+                Nursing team reviews: sterility, equipment availability
+              </label>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="antibiotic_prophylaxis_given" name="antibiotic_prophylaxis_given" {% if checklist and checklist.antibiotic_prophylaxis_given %}checked{% endif %}>
+              <label class="form-check-label text-white" for="antibiotic_prophylaxis_given">
+                Antibiotic prophylaxis given within last 60 minutes
+              </label>
+            </div>
+
+            <div class="form-check mb-4">
+              <input class="form-check-input" type="checkbox" id="essential_imaging_displayed" name="essential_imaging_displayed" {% if checklist and checklist.essential_imaging_displayed %}checked{% endif %}>
+              <label class="form-check-label text-white" for="essential_imaging_displayed">
+                Essential imaging displayed in OR
+              </label>
+            </div>
+
+            <button type="submit" class="btn btn-warning w-100 fw-bold text-dark">
+              <i class="bi bi-save me-1"></i> Save Time Out Stage
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- STAGE 3: SIGN OUT -->
+      <div class="col-lg-4">
+        <div class="checklist-card h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary">
+            <h5 class="fw-bold mb-0 text-success">
+              <i class="bi bi-3-circle me-2"></i>SIGN OUT
+            </h5>
+            {% if checklist and checklist.sign_out_completed %}
+              <span class="stage-badge stage-done"><i class="bi bi-check2"></i> Completed</span>
+            {% else %}
+              <span class="stage-badge stage-pending">Pending</span>
+            {% endif %}
+          </div>
+          <small class="text-muted d-block mb-3">Before patient leaves OR (Nurse, Anaesthetist &amp; Surgeon)</small>
+
+          <form method="POST" action="{{ url_for('theatre.who_checklist', entry_id=entry.id) }}">
+            <input type="hidden" name="stage" value="sign_out">
+
+            <div class="mb-3">
+              <label class="form-label text-white fw-semibold" for="procedure_name_recorded">Procedure Recorded</label>
+              <input type="text" class="form-control" id="procedure_name_recorded" name="procedure_name_recorded" value="{{ checklist.procedure_name_recorded or (entry.procedure.name if entry.procedure else '') if checklist else '' }}" placeholder="Exact procedure name...">
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="instrument_sponge_needle_counts_correct" name="instrument_sponge_needle_counts_correct" {% if checklist and checklist.instrument_sponge_needle_counts_correct %}checked{% endif %}>
+              <label class="form-check-label text-white" for="instrument_sponge_needle_counts_correct">
+                Instrument, sponge &amp; needle counts verified correct
+              </label>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="specimens_labelled" name="specimens_labelled" {% if checklist and checklist.specimens_labelled %}checked{% endif %}>
+              <label class="form-check-label text-white" for="specimens_labelled">
+                Specimen labelled (including patient name)
+              </label>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="equipment_problems_addressed" name="equipment_problems_addressed" {% if checklist and checklist.equipment_problems_addressed %}checked{% endif %}>
+              <label class="form-check-label text-white" for="equipment_problems_addressed">
+                Equipment problems to be addressed identified
+              </label>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label text-white fw-semibold" for="key_recovery_concerns_reviewed">Key Recovery &amp; PACU Concerns</label>
+              <textarea class="form-control" id="key_recovery_concerns_reviewed" name="key_recovery_concerns_reviewed" rows="3" placeholder="Review key concerns for recovery and post-op care...">{{ checklist.key_recovery_concerns_reviewed or '' if checklist else '' }}</textarea>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100 fw-bold">
+              <i class="bi bi-save me-1"></i> Save Sign Out Stage
+            </button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

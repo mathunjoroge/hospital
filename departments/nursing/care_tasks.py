@@ -266,7 +266,7 @@ def mark_task_completed(task_id):
 # ─────────────────────────────────────────────
 @bp.route("/ward-patients")
 @login_required
-@roles_required("nursing", "admin")
+@roles_required("nursing", "admin", "doctor", "medicine", "theatre", "oncology", "mch", "icu", "hdu", "renal")
 def ward_patients():
     admissions = (
         AdmittedPatient.query.filter_by(discharged_on=None)

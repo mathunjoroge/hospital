@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Surgical Instrument, Sponge & Needle Count Reconciliation — Theatre — HIMS Enterprise{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --bg-dark: #0b0f19;
+    --card-bg: #151c2c;
+    --card-border: #232d42;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+
+  .or-wrapper {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: calc(100vh - 70px);
+    padding-bottom: 3rem;
+  }
+
+  .navbar-or {
+    background: rgba(21, 28, 44, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  .count-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .form-control, .form-select {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+
+  .form-control:focus, .form-select:focus {
+    background-color: #1e293b;
+    border-color: #3b82f6;
+    color: #f8fafc;
+    box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+  }
+
+  .status-banner {
+    border-radius: 10px;
+    padding: 1.25rem;
+  }
+
+  .status-ok {
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid #22c55e;
+    color: #86efac;
+  }
+
+  .status-alert {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid #ef4444;
+    color: #fca5a5;
+  }
+
+  .count-table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--text-main);
+    border-color: var(--card-border);
+  }
+
+  .form-check-input {
+    background-color: #1e293b;
+    border-color: #475569;
+    width: 1.3em;
+    height: 1.3em;
+  }
+  .form-check-input:checked {
+    background-color: #ef4444;
+    border-color: #ef4444;
+  }
+</style>
+
+<div class="or-wrapper pt-3">
+  <div class="container-fluid px-4">
+
+    <!-- Header Banner -->
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 rounded-3 navbar-or">
+      <div class="d-flex align-items-center gap-3">
+        <i class="bi bi-boxes fs-2 text-danger"></i>
+        <div>
+          <h4 class="fw-bold mb-0 text-white">Surgical Instrument, Sponge &amp; Needle Reconciliation</h4>
+          <small class="text-muted">Patient ID: {{ entry.patient_id }} | Entry #{{ entry.id }} | Perioperative Safety Standard</small>
+        </div>
+      </div>
+      <div>
+        <a href="{{ url_for('theatre.postop_note', entry_id=entry.id) }}" class="btn btn-outline-warning btn-sm me-2">
+          <i class="bi bi-file-earmark-medical me-1"></i> Post-Op Note
+        </a>
+        <a href="{{ url_for('theatre.surgical_workbench', entry_id=entry.id) }}" class="btn btn-outline-light btn-sm me-2">
+          <i class="bi bi-layout-wrench-and-poppy me-1"></i> Workbench
+        </a>
+        <a href="{{ url_for('theatre.get_or_dashboard_ui') }}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-speedometer2 me-1"></i> OR Console
+        </a>
+      </div>
+    </div>
+
+    <!-- Reconciliation Status Banner -->
+    <div class="mb-4">
+      {% if reconcile_result and reconcile_result.reconciled %}
+        <div class="status-banner status-ok d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-3">
+            <i class="bi bi-check-circle-fill fs-2 text-success"></i>
+            <div>
+              <h5 class="fw-bold mb-0 text-white">COUNT RECONCILED CLEANLY</h5>
+              <small>All sponges, needles, and instruments accounted for (Cavity &amp; Skin closure verified).</small>
+            </div>
+          </div>
+          <span class="badge bg-success fs-6 p-2"><i class="bi bi-shield-check me-1"></i> Ready for Closure</span>
+        </div>
+      {% else %}
+        <div class="status-banner status-alert d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-3">
+            <i class="bi bi-exclamation-triangle-fill fs-2 text-danger"></i>
+            <div>
+              <h5 class="fw-bold mb-0 text-danger">ALERT: COUNT DISCREPANCY DETECTED</h5>
+              <small>Discrepancy: Sponges diff={{ reconcile_result.sponge_diff or 0 }}, Needles diff={{ reconcile_result.needle_diff or 0 }}, Instruments diff={{ reconcile_result.inst_diff or 0 }}. Re-inspect surgical field!</small>
+            </div>
+          </div>
+          <span class="badge bg-danger fs-6 p-2"><i class="bi bi-x-octagon me-1"></i> OR Discharge Blocked</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <form method="POST" action="{{ url_for('theatre.instrument_count', entry_id=entry.id) }}">
+      <div class="count-card">
+        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary">
+          <h5 class="fw-bold mb-0 text-danger">
+            <i class="bi bi-table me-2"></i>Count Sheet &amp; Reconciliation Matrix
+          </h5>
+          <div class="d-flex align-items-center gap-2">
+            <label class="form-label text-white fw-semibold mb-0" for="tray_name_or_barcode">Tray Barcode / Name:</label>
+            <input type="text" class="form-control form-control-sm" id="tray_name_or_barcode" name="tray_name_or_barcode" style="width: 250px;" value="{{ counts.tray_name_or_barcode or 'Standard Surgical Tray' }}">
+          </div>
+        </div>
+
+        <div class="table-responsive mb-4">
+          <table class="table table-dark count-table align-middle">
+            <thead>
+              <tr class="text-muted border-secondary">
+                <th>Item Category</th>
+                <th style="width: 15%;">Initial Count</th>
+                <th style="width: 15%;">Added Intraop</th>
+                <th style="width: 15%;">Closing Cavity</th>
+                <th style="width: 15%;">Closing Skin</th>
+                <th style="width: 15%;">Reconciliation Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- SPONGES & GAUZE -->
+              <tr>
+                <td class="fw-semibold text-white">
+                  <i class="bi bi-square-fill text-warning me-2"></i>Sponges &amp; Lap Pack Gauze
+                </td>
+                <td>
+                  <input type="number" class="form-control" name="sponges_initial" value="{{ counts.sponges_initial or 0 }}" min="0">
+                </td>
+                <td>
+                  <input type="number" class="form-control" name="sponges_added" value="{{ counts.sponges_added or 0 }}" min="0">
+                </td>
+                <td>
+                  <input type="number" class="form-control" name="sponges_closing_cavity" value="{{ counts.sponges_closing_cavity or 0 }}" min="0">
+                </td>
+                <td>
+                  <input type="number" class="form-control" name="sponges_closing_skin" value="{{ counts.sponges_closing_skin or 0 }}" min="0">
+                </td>
+                <td>
+                  {% if reconcile_result and reconcile_result.sponges_ok %}
+                    <span class="badge bg-success-subtle text-success border border-success p-2 w-100"><i class="bi bi-check-circle me-1"></i> OK (0 Diff)</span>
+                  {% else %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger p-2 w-100"><i class="bi bi-exclamation-triangle me-1"></i> Diff: {{ reconcile_result.sponge_diff if reconcile_result else 'Err' }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+
+              <!-- NEEDLES & SHARPS -->
+              <tr>
+                <td class="fw-semibold text-white">
+                  <i class="bi bi-pin-fill text-info me-2"></i>Suture Needles &amp; Sharps
+                </td>
+                <td>
+                  <input type="number" class="form-control" name="needles_initial" value="{{ counts.needles_initial or 0 }}" min="0">
+                </td>
+                <td>
+                  <input type="number" class="form-control" name="needles_added" value="{{ counts.needles_added or 0 }}" min="0">
+                </td>
+                <td>
+                  <input type="number" class="form-control" name="needles_closing_cavity" value="{{ counts.needles_closing_cavity or 0 }}" min="0">
+                </td>
+                <td>
+                  <input type="number" class="form-control" name="needles_closing_skin" value="{{ counts.needles_closing_skin or 0 }}" min="0">
+                </td>
+                <td>
+                  {% if reconcile_result and reconcile_result.needles_ok %}
+                    <span class="badge bg-success-subtle text-success border border-success p-2 w-100"><i class="bi bi-check-circle me-1"></i> OK (0 Diff)</span>
+                  {% else %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger p-2 w-100"><i class="bi bi-exclamation-triangle me-1"></i> Diff: {{ reconcile_result.needle_diff if reconcile_result else 'Err' }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+
+              <!-- SURGICAL INSTRUMENTS -->
+              <tr>
+                <td class="fw-semibold text-white">
+                  <i class="bi bi-tools text-primary me-2"></i>Surgical Instruments (Forceps, Clamps, etc.)
+                </td>
+                <td>
+                  <input type="number" class="form-control" name="instruments_initial" value="{{ counts.instruments_initial or 0 }}" min="0">
+                </td>
+                <td>
+                  <input type="number" class="form-control" name="instruments_added" value="{{ counts.instruments_added or 0 }}" min="0">
+                </td>
+                <td>
+                  <input type="number" class="form-control" name="instruments_closing_cavity" value="{{ counts.instruments_closing_cavity or 0 }}" min="0">
+                </td>
+                <td>
+                  <input type="number" class="form-control" name="instruments_closing_skin" value="{{ counts.instruments_closing_skin or 0 }}" min="0">
+                </td>
+                <td>
+                  {% if reconcile_result and reconcile_result.instruments_ok %}
+                    <span class="badge bg-success-subtle text-success border border-success p-2 w-100"><i class="bi bi-check-circle me-1"></i> OK (0 Diff)</span>
+                  {% else %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger p-2 w-100"><i class="bi bi-exclamation-triangle me-1"></i> Diff: {{ reconcile_result.inst_diff if reconcile_result else 'Err' }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="row g-3 align-items-center mb-4">
+          <div class="col-md-7">
+            <label class="form-label text-white fw-semibold" for="notes">Scrub / Circulating Nurse Notes &amp; Observations</label>
+            <input type="text" class="form-control" id="notes" name="notes" value="{{ counts.notes or '' }}" placeholder="Notes on tray completeness, extra packs opened, cavity search results...">
+          </div>
+          <div class="col-md-5 pt-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="xray_ordered_for_discrepancy" name="xray_ordered_for_discrepancy" {% if counts and counts.xray_ordered_for_discrepancy %}checked{% endif %}>
+              <label class="form-check-label text-danger fw-semibold" for="xray_ordered_for_discrepancy">
+                <i class="bi bi-prescription2 me-1"></i> Intraoperative X-Ray Ordered for Count Discrepancy
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-danger w-100 fw-bold">
+          <i class="bi bi-calculator me-1"></i> Reconcile &amp; Save Instrument Count
+        </button>
+
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

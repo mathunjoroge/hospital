@@ -84,6 +84,13 @@ def surgical_workbench(entry_id):
 # ---------------------------------------------------------------------------
 # WHO Surgical Safety Checklist
 # ---------------------------------------------------------------------------
+@bp.route("/", methods=["GET"])
+@login_required
+def theatre_index():
+    """Root /theatre/ redirect to OR dashboard."""
+    return redirect(url_for("theatre.get_or_dashboard_ui"))
+
+
 @bp.route("/checklist", defaults={"entry_id": None}, methods=["GET", "POST"])
 @bp.route("/checklist/<int:entry_id>", methods=["GET", "POST"])
 @login_required
@@ -159,14 +166,12 @@ def who_checklist(entry_id):
         flash(f"WHO Checklist stage '{stage}' updated successfully!", "success")
         return redirect(url_for("theatre.surgical_workbench", entry_id=entry_id))
 
-    # GET response
-    return jsonify({
-        "theatre_entry_id": entry_id,
-        "sign_in_completed": checklist.sign_in_completed,
-        "time_out_completed": checklist.time_out_completed,
-        "sign_out_completed": checklist.sign_out_completed,
-        "is_fully_completed": checklist.is_fully_completed(),
-    })
+    # GET response — render HTML UI
+    return render_template(
+        "theatre/who_checklist.html",
+        entry=entry,
+        checklist=checklist,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -240,14 +245,11 @@ def anaesthetic_record(entry_id):
         flash("Anaesthetic record saved!", "success")
         return redirect(url_for("theatre.surgical_workbench", entry_id=entry_id))
 
-    return jsonify({
-        "theatre_entry_id": entry_id,
-        "asa_status": record.asa_status,
-        "technique": record.technique,
-        "estimated_blood_loss_ml": record.estimated_blood_loss_ml,
-        "agents_administered": record.agents_administered,
-        "vitals_series": record.vitals_series,
-    })
+    return render_template(
+        "theatre/anaesthetic_record.html",
+        entry=entry,
+        record=record,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -321,13 +323,11 @@ def postop_note(entry_id):
         flash(f"Post-op note saved! Aldrete Score: {note.total_aldrete_score}/10", "success")
         return redirect(url_for("theatre.surgical_workbench", entry_id=entry_id))
 
-    return jsonify({
-        "theatre_entry_id": entry_id,
-        "preop_diagnosis": note.preop_diagnosis,
-        "postop_diagnosis": note.postop_diagnosis,
-        "total_aldrete_score": note.total_aldrete_score,
-        "fit_for_pacu_discharge": note.is_fit_for_pacu_discharge(),
-    })
+    return render_template(
+        "theatre/postop_note.html",
+        entry=entry,
+        note=note,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -393,12 +393,12 @@ def instrument_count(entry_id):
         return redirect(url_for("theatre.surgical_workbench", entry_id=entry_id))
 
     reconcile_result = counts.calculate_reconciliation()
-    return jsonify({
-        "theatre_entry_id": entry_id,
-        "tray_name_or_barcode": counts.tray_name_or_barcode,
-        "count_reconciled": counts.count_reconciled,
-        "reconciliation": reconcile_result,
-    })
+    return render_template(
+        "theatre/instrument_count.html",
+        entry=entry,
+        counts=counts,
+        reconcile_result=reconcile_result,
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}Anaesthetic Record & Intraoperative Vitals — Theatre — HIMS Enterprise{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --bg-dark: #0b0f19;
+    --card-bg: #151c2c;
+    --card-border: #232d42;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+
+  .or-wrapper {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: calc(100vh - 70px);
+    padding-bottom: 3rem;
+  }
+
+  .navbar-or {
+    background: rgba(21, 28, 44, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  .record-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .form-control, .form-select {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+
+  .form-control:focus, .form-select:focus {
+    background-color: #1e293b;
+    border-color: #3b82f6;
+    color: #f8fafc;
+    box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+  }
+
+  .form-check-input {
+    background-color: #1e293b;
+    border-color: #475569;
+    width: 1.25em;
+    height: 1.25em;
+  }
+  .form-check-input:checked {
+    background-color: #ef4444;
+    border-color: #ef4444;
+  }
+</style>
+
+<div class="or-wrapper pt-3">
+  <div class="container-fluid px-4">
+
+    <!-- Header Banner -->
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 rounded-3 navbar-or">
+      <div class="d-flex align-items-center gap-3">
+        <i class="bi bi-activity fs-2 text-info"></i>
+        <div>
+          <h4 class="fw-bold mb-0 text-white">Anaesthetic Record &amp; Intraoperative Care</h4>
+          <small class="text-muted">Patient ID: {{ entry.patient_id }} | Entry #{{ entry.id }} | Anaesthesia Log</small>
+        </div>
+      </div>
+      <div>
+        <a href="{{ url_for('theatre.who_checklist', entry_id=entry.id) }}" class="btn btn-outline-info btn-sm me-2">
+          <i class="bi bi-shield-check me-1"></i> WHO Checklist
+        </a>
+        <a href="{{ url_for('theatre.surgical_workbench', entry_id=entry.id) }}" class="btn btn-outline-light btn-sm me-2">
+          <i class="bi bi-layout-wrench-and-poppy me-1"></i> Workbench
+        </a>
+        <a href="{{ url_for('theatre.get_or_dashboard_ui') }}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-speedometer2 me-1"></i> OR Console
+        </a>
+      </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('theatre.anaesthetic_record', entry_id=entry.id) }}">
+      <div class="row g-4">
+
+        <!-- Pre-Anaesthetic & Airway Evaluation -->
+        <div class="col-lg-6">
+          <div class="record-card h-100">
+            <h5 class="fw-bold mb-3 text-info border-bottom border-secondary pb-2">
+              <i class="bi bi-person-badge me-2"></i>Pre-Anaesthetic &amp; Airway Evaluation
+            </h5>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold" for="asa_status">ASA Physical Status</label>
+                <select class="form-select" id="asa_status" name="asa_status">
+                  {% set current_asa = record.asa_status or 'ASA I' %}
+                  <option value="ASA I" {% if current_asa == 'ASA I' %}selected{% endif %}>ASA I — Normal Healthy Patient</option>
+                  <option value="ASA II" {% if current_asa == 'ASA II' %}selected{% endif %}>ASA II — Mild Systemic Disease</option>
+                  <option value="ASA III" {% if current_asa == 'ASA III' %}selected{% endif %}>ASA III — Severe Systemic Disease</option>
+                  <option value="ASA IV" {% if current_asa == 'ASA IV' %}selected{% endif %}>ASA IV — Threat to Life</option>
+                  <option value="ASA V" {% if current_asa == 'ASA V' %}selected{% endif %}>ASA V — Moribund Patient</option>
+                  <option value="ASA VI" {% if current_asa == 'ASA VI' %}selected{% endif %}>ASA VI — Brain-Dead Organ Donor</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold" for="technique">Anaesthetic Technique</label>
+                <select class="form-select" id="technique" name="technique">
+                  {% set current_tech = record.technique or 'General' %}
+                  <option value="General" {% if current_tech == 'General' %}selected{% endif %}>General Anaesthesia</option>
+                  <option value="Spinal" {% if current_tech == 'Spinal' %}selected{% endif %}>Spinal Anaesthesia</option>
+                  <option value="Epidural" {% if current_tech == 'Epidural' %}selected{% endif %}>Epidural Anaesthesia</option>
+                  <option value="Regional Block" {% if current_tech == 'Regional Block' %}selected{% endif %}>Regional Nerve Block</option>
+                  <option value="MAC / Sedation" {% if current_tech == 'MAC / Sedation' %}selected{% endif %}>Monitored Anaesthesia Care (MAC)</option>
+                  <option value="Local" {% if current_tech == 'Local' %}selected{% endif %}>Local Infiltration</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="is_emergency" name="is_emergency" {% if record and record.is_emergency %}checked{% endif %}>
+              <label class="form-check-label text-danger fw-semibold" for="is_emergency">
+                <i class="bi bi-exclamation-octagon me-1"></i> Emergency Procedure (ASA "E" Suffix)
+              </label>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold" for="mallampati_class">Mallampati Class</label>
+                <select class="form-select" id="mallampati_class" name="mallampati_class">
+                  {% set current_m = record.mallampati_class or 'Class I' %}
+                  <option value="Class I" {% if current_m == 'Class I' %}selected{% endif %}>Class I — Soft palate, fauces, uvula, pillars</option>
+                  <option value="Class II" {% if current_m == 'Class II' %}selected{% endif %}>Class II — Soft palate, fauces, uvula</option>
+                  <option value="Class III" {% if current_m == 'Class III' %}selected{% endif %}>Class III — Soft palate, base of uvula</option>
+                  <option value="Class IV" {% if current_m == 'Class IV' %}selected{% endif %}>Class IV — Hard palate only</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold" for="airway_management">Airway Device</label>
+                <input type="text" class="form-control" id="airway_management" name="airway_management" value="{{ record.airway_management or 'ETT cuffed' }}" placeholder="e.g. ETT cuffed, LMA Supreme #4">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label text-white fw-semibold" for="ett_size">Tube / Mask Size &amp; Depth</label>
+              <input type="text" class="form-control" id="ett_size" name="ett_size" value="{{ record.ett_size or '7.5mm @ 21cm' }}" placeholder="e.g. 7.5 mm @ 21 cm at lips">
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Fluid Management & Intraoperative Balances -->
+        <div class="col-lg-6">
+          <div class="record-card h-100">
+            <h5 class="fw-bold mb-3 text-info border-bottom border-secondary pb-2">
+              <i class="bi bi-droplet-half me-2"></i>Fluid Balance &amp; Intraoperative Losses
+            </h5>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold" for="estimated_blood_loss_ml">Estimated Blood Loss (mL)</label>
+                <div class="input-group">
+                  <input type="number" class="form-control" id="estimated_blood_loss_ml" name="estimated_blood_loss_ml" value="{{ record.estimated_blood_loss_ml or 0 }}" min="0">
+                  <span class="input-group-text bg-dark text-white border-secondary">mL</span>
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label text-white fw-semibold" for="urine_output_ml">Urine Output (mL)</label>
+                <div class="input-group">
+                  <input type="number" class="form-control" id="urine_output_ml" name="urine_output_ml" value="{{ record.urine_output_ml or 0 }}" min="0">
+                  <span class="input-group-text bg-dark text-white border-secondary">mL</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold" for="crystalloids_ml">Crystalloids (mL)</label>
+                <input type="number" class="form-control" id="crystalloids_ml" name="crystalloids_ml" value="{{ record.crystalloids_ml or 0 }}" min="0">
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold" for="colloids_ml">Colloids (mL)</label>
+                <input type="number" class="form-control" id="colloids_ml" name="colloids_ml" value="{{ record.colloids_ml or 0 }}" min="0">
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold" for="blood_products_ml">Blood Products (mL)</label>
+                <input type="number" class="form-control" id="blood_products_ml" name="blood_products_ml" value="{{ record.blood_products_ml or 0 }}" min="0">
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label text-white fw-semibold" for="complications_notes">Anaesthetic Complications &amp; Remarks</label>
+              <textarea class="form-control" id="complications_notes" name="complications_notes" rows="3" placeholder="Note any intraoperative events, hypotension, difficult intubation notes, etc.">{{ record.complications_notes or '' }}</textarea>
+            </div>
+
+            <button type="submit" class="btn btn-info w-100 fw-bold">
+              <i class="bi bi-save me-1"></i> Save Anaesthetic Record
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
