@@ -66,6 +66,7 @@ def capture_pending_charges(session, flush_context):
     )
     from departments.models.pharmacy import DispensedDrug
     from departments.models.records import ClinicBooking
+    from departments.models.renal import DialysisSession
 
     pending = _get_pending_charges()
 
@@ -162,6 +163,20 @@ def capture_pending_charges(session, flush_context):
                         'amount': float(getattr(instance, 'amount', 0) or 0),
                         'payment_method': getattr(instance, 'payment_method', 'cash'),
                         'receipt_number': getattr(instance, 'receipt_number', None),
+                    })
+
+            # Decision #7: flat billing line on session completion
+            elif isinstance(instance, DialysisSession):  # noqa: SIM102
+                if (
+                    hasattr(instance, "id")
+                    and instance.id is not None
+                    and getattr(instance, "status", "") == "COMPLETED"
+                ):
+                    pending.append({
+                        'type': 'DialysisSession',
+                        'patient_id': instance.patient_id,
+                        'source_id': instance.id,
+                        'modality': getattr(instance, 'modality', 'HD'),
                     })
 
         except Exception:
@@ -318,6 +333,20 @@ def sync_billing_events(session, flush_context):
                                 _session=sync_session,
                             )
                         logger.info(f"Synced payment for {charge_type} #{charge_data.get('source_id', 'N/A')}")
+
+                # ── Dialysis session billing (Decision §23 #7) ────────
+                elif charge_type == 'DialysisSession':
+                    modality = charge_data.get('modality', 'HD')
+                    sync_charge(
+                        patient_id=charge_data['patient_id'],
+                        source_table="dialysis_sessions",
+                        source_id=charge_data['source_id'],
+                        description=f"Dialysis Session — {modality}",
+                        category="procedure",
+                        amount=0.0,  # Facility configures unit cost in billing master
+                        _session=sync_session,
+                    )
+                    logger.info(f"Synced dialysis charge for DialysisSession #{charge_data['source_id']} ({modality})")
 
             except Exception:
                 logger.exception("Error syncing billing for {charge_data.get('type', 'unknown')}: ")

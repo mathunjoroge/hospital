@@ -116,6 +116,7 @@ from .stock_movement import StockMovement, reconcile_stock_balance, record_movem
 from .stock_take import StockTake, StockTakeItem
 from .stores import NonPharmCategory, NonPharmItem, OtherOrder
 from .supplier import PurchaseOrder, PurchaseOrderItem, Supplier
+from .renal import DialysisSession, RenalUnitConfig, VascularAccessRecord
 from .telemedicine import TelemedicineSession
 from .terminology import ICD10Code, LoincCode, SnomedCode
 from .theatre import (
@@ -150,6 +151,7 @@ __all__ = [
     "Consent",
     "CustomRule",
     "Deduction",
+    "DialysisSession",
     "Disease",
     "DiseaseKeyword",
     "DiseaseLab",
@@ -222,6 +224,7 @@ __all__ = [
     "RegimenCategory",
     "RegimenDrugAssociation",
     "RequestItem",
+    "RenalUnitConfig",
     "RequestedImage",
     "RequestedLab",
     "Rota",
@@ -244,6 +247,7 @@ __all__ = [
     "TransferOrderItem",
     "UnmatchedImagingRequest",
     "User",
+    "VascularAccessRecord",
     "Vitals",
     "VoteHead",
     "Ward",

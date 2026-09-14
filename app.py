@@ -725,6 +725,7 @@ from departments.emergency import bp as emergency_bp
 from departments.hiv_art import bp as hiv_art_bp
 from departments.hr import bp as hr_bp
 from departments.icu import bp as icu_bp
+from departments.renal import bp as renal_bp
 from departments.imaging import bp as imaging_bp
 from departments.imaging.dicom import dicom_bp
 from departments.laboratory import bp as laboratory_bp
@@ -804,6 +805,7 @@ app.register_blueprint(dicom_bp)
 app.register_blueprint(mar_bp)
 app.register_blueprint(bcma_bp)
 app.register_blueprint(icu_bp)
+app.register_blueprint(renal_bp)
 
 app.register_blueprint(ccda_bp)
 app.register_blueprint(etl_bp)

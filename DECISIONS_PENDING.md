@@ -277,24 +277,17 @@ If Rhapsody or another engine is preferred, the `docker-compose.yml` Mirth servi
 
 ## 23. Renal / Dialysis Unit Module
 
-* **Status:** 🔲 DECISIONS PENDING
-* **Decision-maker:** Facility Management / Clinical Lead (Nephrology) / Developer
-* **Context:** The hospital serves patients with Chronic Kidney Disease (CKD), Acute Kidney Injury (AKI), and End-Stage Renal Disease (ESRD) requiring Haemodialysis (HD), Peritoneal Dialysis (PD), and Continuous Renal Replacement Therapy (CRRT). No dedicated Renal / Dialysis module exists. The ICU module captures oliguria alerts and net fluid balance, but there is no structured workflow for dialysis session scheduling, machine assignment, access-site documentation, Kt/V adequacy tracking, or dialysis prescription management.
+* **Status:** ⚠️ PARTIALLY DECIDED — 2026-09-14 (#1/#2/#4/#7 implemented on `feat/renal-dialysis`; #3/#5/#6 pending Nephrology Lead sign-off)
+* **Decision-maker:** Solo Developer / Clinical Lead (Nephrology)
+* **Context:** The hospital serves patients with Chronic Kidney Disease (CKD), Acute Kidney Injury (AKI), and End-Stage Renal Disease (ESRD) requiring Haemodialysis (HD) and Continuous Renal Replacement Therapy (CRRT).
 
-* **Open Decisions Required Before Implementation:**
-  1. **Unit Scope** — Does the module cover all three modalities (HD, PD, CRRT) or only the most common (HD)?
-     *Options:* (A) HD-only MVP → expand later; (B) HD + CRRT (ICU-adjacent) at launch; (C) Full HD + PD + CRRT from day one.
-  2. **Machine & Chair Scheduling** — Should the system manage dialysis machine inventory and chair slot scheduling (e.g., Mon/Wed/Fri vs Tue/Thu/Sat shifts), or defer to a manual whiteboard approach?
-     *Options:* (A) Slot-based scheduler with machine assignment; (B) Manual scheduling, system records sessions only.
-  3. **Kt/V Adequacy Tracking** — Kt/V (dialysis dose adequacy) is a KDOQI-mandated metric. Should the system auto-calculate single-pool Kt/V from pre/post-dialysis BUN, session duration, and ultrafiltration volume?
-     *Options:* (A) Auto-calculate with alert if Kt/V < 1.2; (B) Clinician manual entry only.
-  4. **Vascular Access Management** — Track access site (AVF, AVG, tunnelled catheter, temporary catheter), insertion date, and site complications per session?
-     *Options:* (A) Yes — include access-site log per session; (B) No — document in general nursing notes.
-  5. **Dialysis Prescription Workflow** — Should nephrologists create a reusable prescription (dialysate composition, blood flow rate, duration, anticoagulation) that nurses execute per session?
-     *Options:* (A) Prescription-driven workflow (nephrologist prescribes, nurse executes & signs off); (B) Per-session freeform entry.
-  6. **Integration with Pharmacy** — Should post-dialysis medication dose adjustments (renally-cleared drugs) trigger a CDSS alert in the prescribing module?
-     *Options:* (A) Yes — hook into existing CDSS renal-dosing adjustment logic; (B) No — handled offline by pharmacist.
-  7. **Billing** — Should HD/PD/CRRT sessions auto-generate line items in the billing module (consumables: dialyser, lines, dialysate bags)?
-     *Options:* (A) Auto-bill per session from a consumables template; (B) Manual billing entry.
+* **Decisions & Implementation Status:**
+  1. **Unit Scope** — ✅ DECIDED (Option B: HD + CRRT at launch). Peritoneal Dialysis (PD) deferred to later phase.
+  2. **Machine & Chair Scheduling** — ✅ DECIDED (Option B: Manual session logging default). Chair/machine scheduling is deferred to facility configuration.
+  3. **Kt/V Adequacy Tracking** — 🔲 PENDING Nephrology Lead sign-off. Kt/V auto-calculation and fields are strictly omitted from `DialysisSession` schema until clinical sign-off.
+  4. **Vascular Access Management** — ✅ DECIDED (Option A: Access site log for AVF, AVG, tunnelled/temporary catheters & complication surveillance).
+  5. **Dialysis Prescription Workflow** — 🔲 PENDING Nephrology Lead sign-off.
+  6. **Integration with Pharmacy** — 🔲 PENDING Nephrology Lead sign-off.
+  7. **Billing** — ✅ DECIDED (Option A: Auto-bill flat "Dialysis Session — <modality>" line item on session status `COMPLETED` via `event_listeners.py`).
 
-* **Implementation Note:** No code, models, or routes are to be created until the above decisions are resolved and recorded. This entry is a placeholder to track the clinical and architectural decisions required.
+* **Implementation Note:** Skeleton implemented in `departments/models/renal.py`, `departments/renal/engine.py`, `departments/renal/routes.py`, `departments/billing/event_listeners.py`, and verified by `tests/test_renal_module.py` (31 tests passing). Regression guards explicitly assert no Kt/V field exists prior to clinical sign-off.
