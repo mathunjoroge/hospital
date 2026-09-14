@@ -4,7 +4,7 @@ tests/test_icu_flowsheet.py
 Unit and integration tests for ICU / HDU Flowsheet Workstation engine and endpoints.
 """
 
-from departments.icu.icu_engine import (
+from departments.icu.engine import (
     calculate_fluid_balance,
     calculate_gcs,
     calculate_map,

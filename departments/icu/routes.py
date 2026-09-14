@@ -1,15 +1,15 @@
 """
-departments/icu/icu_routes.py
-──────────────────────────────────
+departments/icu/routes.py
+──────────────────────────
 Blueprint routes for ICU / HDU Flowsheet Workstation.
 """
 
 import logging
 
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import jsonify, render_template, request, session
 from flask_login import current_user
 
-from departments.icu.icu_engine import (
+from departments.icu.engine import (
     calculate_fluid_balance,
     calculate_gcs,
     calculate_map,
@@ -18,9 +18,9 @@ from departments.icu.icu_engine import (
 from departments.models.icu import ICUFlowsheetEntry, ICUFluidBalance
 from extensions import db
 
-logger = logging.getLogger(__name__)
+from . import bp as icu_bp
 
-icu_bp = Blueprint("icu", __name__, url_prefix="/icu")
+logger = logging.getLogger(__name__)
 
 
 def _get_current_user_id() -> int:
