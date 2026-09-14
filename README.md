@@ -43,7 +43,7 @@ Standards support is built and covered by automated tests, but **"interoperable 
 | WCAG 2.1 AA | ✅ Automated baseline fixes applied | Manual audit by an accredited accessibility specialist not yet performed (see `docs/accessibility_audit_report.md`) |
 | Penetration testing | Internal control mapping only | No third-party penetration test has been performed (see `docs/security_audit_readiness.md`) |
 | National program modules (HIV/ART, TB, Malaria), controlled-drug register | ✅ Implemented & tested (dedicated HIV/ART, TB/DOTS, Malaria modules & Controlled-Drug Register UI) | Production deployment pending clinical/legal sign-off (see `DECISIONS_PENDING.md` §5, 11) |
-| KRA eTIMS Tax Compliance | ⚙️ Pending credentials | Open HARD STOP pending active KRA PIN & VSCU/OSCU ESD device registration (see `DECISIONS_PENDING.md` §6) |
+| KRA eTIMS Tax Compliance | ✅ Admin Console UI Implemented ([/admin/etims](file:///home/mathu/projects/hospital/templates/admin/etims.html)) | Admin enters facility KRA PIN & VSCU device serials; live production push pending active KRA PIN sign-off (see `DECISIONS_PENDING.md` §6) |
 
 For the full list of open items, see [`DECISIONS_PENDING.md`](DECISIONS_PENDING.md).
 
