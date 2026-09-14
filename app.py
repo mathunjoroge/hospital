@@ -725,7 +725,6 @@ from departments.emergency import bp as emergency_bp
 from departments.hiv_art import bp as hiv_art_bp
 from departments.hr import bp as hr_bp
 from departments.icu import bp as icu_bp
-from departments.renal import bp as renal_bp
 from departments.imaging import bp as imaging_bp
 from departments.imaging.dicom import dicom_bp
 from departments.laboratory import bp as laboratory_bp
@@ -747,6 +746,7 @@ from departments.pharmacy.po_routes import po_bp
 from departments.rcm import bp as rcm_bp
 from departments.records import bp as records_bp
 from departments.referrals import bp as referrals_bp
+from departments.renal import bp as renal_bp
 from departments.stores import bp as stores_bp
 from departments.stores.transfer_routes import transfer_bp
 from departments.tb_dots import bp as tb_dots_bp

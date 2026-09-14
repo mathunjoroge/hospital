@@ -17,10 +17,12 @@ Regression guards (must never regress):
 import pytest
 from werkzeug.security import generate_password_hash
 
-from departments.models.renal import DialysisSession, RenalUnitConfig, VascularAccessRecord
+from departments.models.renal import (
+    DialysisSession,
+    RenalUnitConfig,
+)
 from departments.models.user import User
 from extensions import db
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -54,6 +56,7 @@ class TestRegressionGuards:
     def test_no_ktv_in_engine(self):
         """Engine source must not contain any Kt/V formula."""
         import inspect
+
         import departments.renal.engine as engine_mod
         source = inspect.getsource(engine_mod)
         assert "kt_v" not in source.lower()
@@ -105,6 +108,7 @@ class TestRenalModels:
 class TestRenalEngine:
     def test_create_hd_session(self, app, nurse_user):
         from datetime import date
+
         from departments.renal.engine import create_session
         with app.app_context():
             s = create_session(
@@ -122,6 +126,7 @@ class TestRenalEngine:
 
     def test_create_crrt_session(self, app, nurse_user):
         from datetime import date
+
         from departments.renal.engine import create_session
         with app.app_context():
             s = create_session(
@@ -134,6 +139,7 @@ class TestRenalEngine:
 
     def test_invalid_modality_raises(self, app, nurse_user):
         from datetime import date
+
         from departments.renal.engine import create_session
         with app.app_context():
             with pytest.raises(ValueError, match="Invalid modality"):
@@ -146,6 +152,7 @@ class TestRenalEngine:
 
     def test_update_session_status(self, app, nurse_user):
         from datetime import date
+
         from departments.renal.engine import create_session, update_session_status
         with app.app_context():
             s = create_session("P004", nurse_user, "HD", date.today())
@@ -154,6 +161,7 @@ class TestRenalEngine:
 
     def test_update_to_completed(self, app, nurse_user):
         from datetime import date, datetime
+
         from departments.renal.engine import create_session, update_session_status
         with app.app_context():
             s = create_session("P005", nurse_user, "HD", date.today())
@@ -165,6 +173,7 @@ class TestRenalEngine:
 
     def test_invalid_status_raises(self, app, nurse_user):
         from datetime import date
+
         from departments.renal.engine import create_session, update_session_status
         with app.app_context():
             s = create_session("P006", nurse_user, "HD", date.today())
@@ -179,6 +188,7 @@ class TestRenalEngine:
 
     def test_get_patient_sessions(self, app, nurse_user):
         from datetime import date
+
         from departments.renal.engine import create_session, get_patient_sessions
         with app.app_context():
             create_session("P007", nurse_user, "HD", date.today())
@@ -189,6 +199,7 @@ class TestRenalEngine:
     def test_session_summary_no_ktv(self, app, nurse_user):
         """summary dict must never contain kt_v key."""
         from datetime import date
+
         from departments.renal.engine import create_session, session_summary
         with app.app_context():
             s = create_session("P008", nurse_user, "HD", date.today(), pre_weight=70.0, post_weight=67.5)
@@ -214,7 +225,10 @@ class TestRenalEngine:
                 log_access_record(patient_id="P010", access_type="Central Line")
 
     def test_get_patient_access_records(self, app):
-        from departments.renal.engine import get_patient_access_records, log_access_record
+        from departments.renal.engine import (
+            get_patient_access_records,
+            log_access_record,
+        )
         with app.app_context():
             log_access_record("P011", "AVF")
             log_access_record("P011", "Tunnelled Catheter")

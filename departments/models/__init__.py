@@ -112,11 +112,11 @@ from .records import (
     PatientProblem,
     PatientWaitingList,
 )
+from .renal import DialysisSession, RenalUnitConfig, VascularAccessRecord
 from .stock_movement import StockMovement, reconcile_stock_balance, record_movement
 from .stock_take import StockTake, StockTakeItem
 from .stores import NonPharmCategory, NonPharmItem, OtherOrder
 from .supplier import PurchaseOrder, PurchaseOrderItem, Supplier
-from .renal import DialysisSession, RenalUnitConfig, VascularAccessRecord
 from .telemedicine import TelemedicineSession
 from .terminology import ICD10Code, LoincCode, SnomedCode
 from .theatre import (
