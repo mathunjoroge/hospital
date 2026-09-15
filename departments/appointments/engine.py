@@ -246,6 +246,15 @@ class ScheduleEngine:
             return None
 
         appt.mark_no_show()
+        from departments.models.encounter import Encounter
+        enc = Encounter.query.filter(
+            (Encounter.appointment_id == appt.id)
+            | ((Encounter.patient_id == appt.patient_id) & (Encounter.status == "ACTIVE"))
+        ).first()
+        if enc:
+            enc.status = "CANCELLED"
+            enc.stage = "CANCELLED"
+            enc.ended_at = datetime.now(timezone.utc)
         db.session.commit()
         logger.info("NO-SHOW RECORDED: Appointment %s", appointment_id)
         return appt
