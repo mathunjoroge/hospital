@@ -84,6 +84,61 @@ def grant_patient_consent(
     return consent
 
 
+def revoke_patient_consent(
+    patient_id: str, consent_type: str, notes: str | None = None
+) -> PatientConsent | None:
+    """
+    Revoke an existing consent grant.
+
+    Returns the updated row, or None when no such grant exists. Revocation is
+    non-destructive: the row is retained with revoked_at set so the consent
+    history stays auditable under DPA 2019.
+    """
+    consent = PatientConsent.query.filter_by(
+        patient_id=patient_id, consent_type=consent_type
+    ).first()
+    if consent is None:
+        return None
+
+    consent.is_granted = False
+    consent.revoked_at = datetime.now(timezone.utc)
+    if notes:
+        consent.notes = notes
+    db.session.commit()
+    return consent
+
+
+def list_patient_consents(patient_id: str) -> list[PatientConsent]:
+    """Return every consent record held for a patient, newest grant first."""
+    return (
+        PatientConsent.query.filter_by(patient_id=patient_id)
+        .order_by(PatientConsent.granted_at.desc())
+        .all()
+    )
+
+
+def has_consent(patient_id: str, consent_type: str) -> bool:
+    """
+    Generic consent gate: True only for an active, unrevoked grant of this type.
+
+    has_ai_consent() is the 'ai_diagnosis' special case of this, kept as a
+    named function because it is referenced directly by the AI call sites.
+    """
+    if not patient_id or not consent_type:
+        return False
+
+    return (
+        PatientConsent.query.filter_by(
+            patient_id=patient_id,
+            consent_type=consent_type,
+            is_granted=True,
+        )
+        .filter(PatientConsent.revoked_at.is_(None))
+        .first()
+        is not None
+    )
+
+
 def has_ai_consent(patient_id: str) -> bool:
     """
     Check whether a patient has an active, unrevoked AI-processing consent grant.

@@ -2,7 +2,6 @@
 Central model exports for departments.models
 """
 
-from departments.consent.models import Consent
 
 from .admin import Log
 from .billing import (
@@ -148,7 +147,6 @@ __all__ = [
     "Clinic",
     "ClinicBill",
     "ClinicBooking",
-    "Consent",
     "CustomRule",
     "Deduction",
     "DialysisSession",

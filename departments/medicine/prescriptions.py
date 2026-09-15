@@ -7,8 +7,8 @@ from flask_login import login_required
 from psycopg2.extras import RealDictCursor
 
 from departments.clinical_safety.engine import ClinicalSafetyEngine
-from departments.consent.models import Consent
 from departments.medicine.orders import fetch_drugs_data
+from departments.models.compliance import has_consent
 from departments.models.medicine import (
     AdmittedPatient,
     Medicine,
@@ -144,21 +144,17 @@ def prescribe_drugs(patient_id):
                     )
                 )
 
-        # Consent check
-        patient_int_id = None
-        try:
-            patient_int_id = int(patient_id)
-        except (ValueError, TypeError):
-            pass
-
-        consent_rec = None
-        if patient_int_id:
-            consent_rec = Consent.query.filter_by(
-                patient_id=patient_int_id, consent_type="TREATMENT"
-            ).first()
+        # Consent check.
+        #
+        # `patient_id` here is the business identifier ("P0001"), not the
+        # numeric PK. This block previously did int(patient_id), which raised
+        # for every non-numeric ID, left patient_int_id as None, and silently
+        # skipped BOTH this consent gate and the CDS check below. Resolve the
+        # two identifiers explicitly instead of casting.
+        patient_int_id = patient.id if patient else None
         consent_status = (
             "ACTIVE"
-            if (consent_rec and consent_rec.status == "ACTIVE" and consent_rec.revoked_at is None)
+            if (patient and has_consent(patient.patient_id, "TREATMENT"))
             else "MISSING"
         )
 
