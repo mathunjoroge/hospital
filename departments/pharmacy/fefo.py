@@ -13,6 +13,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, jsonify, request
+from flask_login import login_required
 
 try:
     from extensions import db
@@ -20,6 +21,7 @@ except ImportError:
     from extensions import db
 
 from departments.models.pharmacy import Batch, DispensedDrug, Drug
+from departments.rbac import roles_required
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +41,12 @@ def allocate_drug_fefo(drug_id: int, quantity_requested: int) -> list[dict]:
     if not drug:
         raise ValueError(f"Drug ID {drug_id} not found.")
 
+    # with_for_update() acquires a row-level lock so two simultaneous dispense
+    # requests cannot both read the same stock and over-dispense.
     available_batches = (
         Batch.query.filter(Batch.drug_id == drug_id, Batch.quantity_in_stock > 0)
         .order_by(Batch.expiry_date.asc())
+        .with_for_update()
         .all()
     )
 
@@ -168,6 +173,8 @@ def check_pharmacy_inventory_alerts(near_expiry_days: int = 60) -> dict:
 
 # API Routes
 @fefo_bp.route("/allocate", methods=["GET"])
+@login_required
+@roles_required("pharmacy", "pharmacist", "admin")
 def handle_fefo_preview():
     """Preview FEFO allocation for a drug request."""
     drug_id = request.args.get("drug_id", type=int)
@@ -184,6 +191,8 @@ def handle_fefo_preview():
 
 
 @fefo_bp.route("/dispense", methods=["POST"])
+@login_required
+@roles_required("pharmacy", "pharmacist", "admin")
 def handle_fefo_dispense():
     """Execute 2-step dispensing with FEFO allocation and stock reduction."""
     data = request.get_json() or {}
@@ -214,6 +223,8 @@ def handle_fefo_dispense():
 
 
 @fefo_bp.route("/alerts", methods=["GET"])
+@login_required
+@roles_required("pharmacy", "pharmacist", "admin", "doctor")
 def handle_inventory_alerts():
     """Get near-expiry and reorder level inventory alerts."""
     days = request.args.get("days", default=60, type=int)

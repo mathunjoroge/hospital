@@ -27,8 +27,8 @@ class Drug(db.Model):
     dosage_form = db.Column(db.String(100), nullable=False)
     strength = db.Column(db.String(100), nullable=False)
     manufacturer = db.Column(db.String(255), nullable=True)
-    buying_price = db.Column(db.Float, nullable=False)
-    selling_price = db.Column(db.Float, nullable=False)
+    buying_price = db.Column(db.Numeric(12, 2), nullable=False)
+    selling_price = db.Column(db.Numeric(12, 2), nullable=False)
     quantity_in_stock = db.Column(
         db.Integer, default=0, nullable=False
     )  # Sum of batch quantities
@@ -39,6 +39,12 @@ class Drug(db.Model):
 
     # Relationship
     category = db.relationship("DrugCategory", backref=db.backref("drugs", lazy=True))
+
+    __table_args__ = (
+        db.CheckConstraint("quantity_in_stock >= 0", name="ck_drug_stock_non_negative"),
+        db.CheckConstraint("buying_price >= 0", name="ck_drug_buying_price_non_negative"),
+        db.CheckConstraint("selling_price >= 0", name="ck_drug_selling_price_non_negative"),
+    )
 
 
 class Batch(db.Model):
@@ -52,6 +58,10 @@ class Batch(db.Model):
 
     # Relationship
     drug = db.relationship("Drug", backref=db.backref("batches", lazy=True))
+
+    __table_args__ = (
+        db.CheckConstraint("quantity_in_stock >= 0", name="ck_batch_stock_non_negative"),
+    )
 
     def __repr__(self):
         return f"<Batch {self.batch_number} - Drug {self.drug.generic_name}>"
@@ -69,8 +79,8 @@ class Purchase(db.Model):
     )  # Links to Batch
     purchase_date = db.Column(db.Date, default=date.today, nullable=False)
     quantity_purchased = db.Column(db.Integer, nullable=False)
-    unit_cost = db.Column(db.Float, nullable=False)
-    total_cost = db.Column(db.Float, nullable=False)
+    unit_cost = db.Column(db.Numeric(12, 2), nullable=False)
+    total_cost = db.Column(db.Numeric(12, 2), nullable=False)
     # Relationships
     drug = db.relationship("Drug", backref=db.backref("purchases", lazy=True))
     batch = db.relationship("Batch", backref=db.backref("purchase", uselist=False))

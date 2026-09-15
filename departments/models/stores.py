@@ -22,7 +22,7 @@ class NonPharmItem(db.Model):
         db.Integer, db.ForeignKey("non_pharm_categories.id"), nullable=False
     )
     unit = db.Column(db.String(20), nullable=False)  # e.g., "pieces", "kg", "liters"
-    unit_cost = db.Column(db.Float, nullable=False, default=0.0)  # Cost per unit
+    unit_cost = db.Column(db.Numeric(12, 2), nullable=False, default=0)  # Cost per unit
     stock_level = db.Column(db.Integer, nullable=False, default=0)
     in_dispensing = db.Column(db.Integer, nullable=False, default=0)
     storage_condition = db.Column(

@@ -527,6 +527,8 @@ def manual_discharge_visit(patient_id):
 
 
 @bp.route("/lab_patients")
+@login_required
+@roles_required("doctor", "medicine", "admin")
 def lab_patients():
     # Query requested labs with status=1 and existing results
     requested_labs = (
@@ -577,6 +579,8 @@ def lab_patients():
 
 
 @bp.route("/lab_results/<result_id>")
+@login_required
+@roles_required("doctor", "medicine", "admin")
 def lab_results(result_id):
     # Query lab result for the specific result_id
     result = (
@@ -609,6 +613,8 @@ def lab_results(result_id):
 
 
 @bp.route("/pending_lab_patients")
+@login_required
+@roles_required("doctor", "medicine", "admin")
 def pending_lab_patients():
     # Query requested labs with status=0 and no results
     requested_labs = (
@@ -659,6 +665,8 @@ def pending_lab_patients():
 
 
 @bp.route("/patient_lab_results/<patient_id>")
+@login_required
+@roles_required("doctor", "medicine", "admin")
 def patient_lab_results(patient_id):
     # Query all lab results for the specific patient_id with status=1 and existing results
     results = (

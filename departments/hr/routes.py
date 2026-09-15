@@ -1,5 +1,6 @@
 import csv
 import io
+import logging
 import random
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -51,6 +52,8 @@ from extensions import db
 
 from . import bp  # Import the blueprint
 
+logger = logging.getLogger(__name__)
+
 
 # Define get_effective_role to support role switching
 def get_effective_role():
@@ -101,7 +104,7 @@ def index():
 
     except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in hr.index: {e}")
+        logger.error("hr.index failed: %s", e, exc_info=True)
         return redirect(url_for("home"))
 
 
@@ -118,7 +121,7 @@ def employee_list():
 
     except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in hr.employee_list: {e}")
+        logger.error("hr.employee_list failed: %s", e, exc_info=True)
         return redirect(url_for("home"))
 
 
@@ -187,7 +190,7 @@ def new_employee():
 
     except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in hr.new_employee: {e}")
+        logger.error("hr.new_employee failed: %s", e, exc_info=True)
         db.session.rollback()
         return redirect(url_for("hr.index"))
 
@@ -228,7 +231,7 @@ def update_employee(employee_id):
 
     except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in hr.update_employee: {e}")
+        logger.error("hr.update_employee failed: %s", e, exc_info=True)
         db.session.rollback()
         return redirect(url_for("hr.employee_list"))
 
@@ -252,7 +255,7 @@ def delete_employee(employee_id):
 
     except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in hr.delete_employee: {e}")
+        logger.error("hr.delete_employee failed: %s", e, exc_info=True)
         db.session.rollback()
         return redirect(url_for("hr.employee_list"))
 
@@ -365,7 +368,7 @@ def rota_management():
 
     except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in hr.rota_management: {e}")
+        logger.error("hr.rota_management failed: %s", e, exc_info=True)
         db.session.rollback()
         return redirect(url_for("hr.index"))
 
@@ -399,7 +402,7 @@ def department_reports():
         department_data = dict(department_data)
 
         # Debugging output
-        print(f"Debug: Department-wise employee distribution: {department_data}")
+        logger.debug("Department employee distribution: %s", department_data)
 
         return render_template(
             "hr/department_reports.html",
@@ -409,7 +412,7 @@ def department_reports():
 
     except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in hr.department_reports: {e}")
+        logger.error("hr.department_reports failed: %s", e, exc_info=True)
         return redirect(url_for("hr.index"))
 
 
@@ -476,7 +479,7 @@ def export_department_reports():
 
     except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in hr.export_department_reports: {e}")
+        logger.error("hr.export_department_reports failed: %s", e, exc_info=True)
         return redirect(url_for("hr.department_reports"))
 
 

@@ -34,8 +34,8 @@ def sample_inventory(app):
         category_id=category.id,
         dosage_form="Capsule",
         strength="500mg",
-        buying_price=10.0,
-        selling_price=20.0,
+        buying_price=10,
+        selling_price=20,
         quantity_in_stock=100,
         reorder_level=40,
     )
@@ -143,19 +143,48 @@ class TestInventoryAlerts:
 
 
 class TestFEFOEndpoints:
-    def test_preview_allocation_api(self, client, sample_inventory):
+    """Endpoint tests — use authenticated pharmacist client after P0 fix."""
+
+    @pytest.fixture
+    def pharmacist_client(self, app):
+        from werkzeug.security import generate_password_hash
+        from departments.models.user import User
+
+        with app.app_context():
+            u = User.query.filter_by(username="fefo_pharmacist_fx").first()
+            if not u:
+                u = User(
+                    username="fefo_pharmacist_fx",
+                    password=generate_password_hash("phpass", method="pbkdf2:sha256"),
+                    role="pharmacy",
+                )
+                db.session.add(u)
+                db.session.commit()
+
+        c = app.test_client()
+        c.post("/login", data={"username": "fefo_pharmacist_fx", "password": "phpass"})
+        return c
+
+    def test_unauthenticated_requests_rejected(self, app):
+        """All three FEFO endpoints must reject anonymous requests (P0 regression)."""
+        anon = app.test_client()
+        assert anon.get("/pharmacy/fefo/allocate?drug_id=1&quantity=1").status_code in (302, 401, 403)
+        assert anon.post("/pharmacy/fefo/dispense", json={}).status_code in (302, 401, 403)
+        assert anon.get("/pharmacy/fefo/alerts").status_code in (302, 401, 403)
+
+    def test_preview_allocation_api(self, pharmacist_client, sample_inventory):
         drug = sample_inventory["drug"]
-        resp = client.get(f"/pharmacy/fefo/allocate?drug_id={drug.id}&quantity=25")
+        resp = pharmacist_client.get(f"/pharmacy/fefo/allocate?drug_id={drug.id}&quantity=25")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["success"] is True
         assert len(data["allocations"]) == 1
 
-    def test_dispense_api(self, client, sample_inventory):
+    def test_dispense_api(self, pharmacist_client, sample_inventory):
         drug = sample_inventory["drug"]
         patient = sample_inventory["patient"]
 
-        resp = client.post(
+        resp = pharmacist_client.post(
             "/pharmacy/fefo/dispense",
             json={
                 "patient_id": patient.patient_id,
@@ -168,8 +197,8 @@ class TestFEFOEndpoints:
         data = resp.get_json()
         assert data["success"] is True
 
-    def test_alerts_api(self, client, sample_inventory):
-        resp = client.get("/pharmacy/fefo/alerts?days=60")
+    def test_alerts_api(self, pharmacist_client, sample_inventory):
+        resp = pharmacist_client.get("/pharmacy/fefo/alerts?days=60")
         assert resp.status_code == 200
         data = resp.get_json()
         assert "expiry_alerts" in data

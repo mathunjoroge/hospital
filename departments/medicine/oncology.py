@@ -744,12 +744,16 @@ def process_lab_result(lab_result, test_name):
 # Chemotherapy Protocol Builder Routes (Gap #7)
 # ---------------------------------------------------------------------------
 @bp.route("/oncology/chemo-builder/<string:patient_id>", methods=["GET"])
+@login_required
+@roles_required("doctor", "medicine", "oncology", "admin")
 def chemo_builder(patient_id: str):
     """Render Oncology Chemotherapy Protocol Builder Workstation UI."""
     return render_template("medicine/oncology/chemo_builder.html", patient_id=patient_id)
 
 
 @bp.route("/oncology/api/calculate-chemo", methods=["GET"])
+@login_required
+@roles_required("doctor", "medicine", "oncology", "admin")
 def api_calculate_chemo():
     """API endpoint to calculate BSA and chemotherapy protocol doses with toxicity alerts."""
     patient_id = request.args.get("patient_id", "")
@@ -772,6 +776,8 @@ def api_calculate_chemo():
 
 
 @bp.route("/oncology/api/save-chemo-order", methods=["POST"])
+@login_required
+@roles_required("doctor", "medicine", "oncology", "admin")
 def api_save_chemo_order():
     """API endpoint to save signed Chemotherapy Regimen Order."""
     data = request.get_json(silent=True) or request.form.to_dict()

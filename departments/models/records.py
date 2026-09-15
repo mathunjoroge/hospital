@@ -172,7 +172,7 @@ class Clinic(db.Model):
 
     clinic_id = db.Column(db.Integer, primary_key=True)  # Primary key
     name = db.Column(db.String(100), nullable=False)  # Clinic name
-    fee = db.Column(db.Float, nullable=False)  # Clinic fee
+    fee = db.Column(db.Numeric(10, 2), nullable=False)  # Clinic fee
 
     def __repr__(self):
         return f"<Clinic {self.name}>"

@@ -98,7 +98,7 @@ class LabTest(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     test_name = db.Column(db.String(100), nullable=False)
-    cost = db.Column(db.Float, nullable=False)
+    cost = db.Column(db.Numeric(10, 2), nullable=False)
     description = db.Column(db.Text)
     loinc_code = db.Column(db.String(50), nullable=True, index=True)  # Phase 1: LOINC
 
@@ -140,7 +140,7 @@ class Imaging(db.Model):
     __tablename__ = "imaging"
     id = db.Column(db.Integer, primary_key=True)
     imaging_type = db.Column(db.String(100), nullable=False)
-    cost = db.Column(db.Float, nullable=False)
+    cost = db.Column(db.Numeric(10, 2), nullable=False)
 
     # Relationship to RequestedImage
     requested_images = db.relationship("RequestedImage", backref="imaging", lazy=True)

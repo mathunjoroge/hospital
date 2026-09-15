@@ -69,7 +69,7 @@ class Allowance(db.Model):
     name = db.Column(
         db.String(100), nullable=False
     )  # Allowance name (e.g., "Housing Allowance")
-    value = db.Column(db.Float, nullable=False)  # Absolute allowance value
+    value = db.Column(db.Numeric(12, 2), nullable=False)  # Absolute allowance value
 
     def __repr__(self):
         return f"<Allowance {self.name} - Job Group: {self.job_group}, Value: {self.value}>"
@@ -86,11 +86,11 @@ class Payroll(db.Model):
         db.String(20), nullable=False
     )  # Payroll month (e.g., "January 2023")
     gross_pay = db.Column(
-        db.Float, nullable=False
+        db.Numeric(12, 2), nullable=False
     )  # Total earnings (basic salary + allowances)
-    total_deductions = db.Column(db.Float, nullable=False)  # Total deductions
+    total_deductions = db.Column(db.Numeric(12, 2), nullable=False)  # Total deductions
     net_pay = db.Column(
-        db.Float, nullable=False
+        db.Numeric(12, 2), nullable=False
     )  # Net pay (gross_pay - total_deductions)
 
     employee = db.relationship("Employee", backref="payrolls")
@@ -106,7 +106,7 @@ class Deduction(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)  # Deduction name (e.g., "PAYE")
-    value = db.Column(db.Float, nullable=False)  # Deduction value (fixed or percentage)
+    value = db.Column(db.Numeric(12, 4), nullable=False)  # Deduction value (fixed or percentage; 4dp for PAYE/NHIF rates)
     is_percentage = db.Column(
         db.Boolean, default=False
     )  # Whether the value is a percentage
@@ -133,7 +133,7 @@ class CustomRule(db.Model):
     job_group = db.Column(db.String(50), nullable=True)
     type = db.Column(db.String(50), nullable=False)  # e.g., deduction, allowance
     name = db.Column(db.String(100), nullable=False)
-    value = db.Column(db.Float, nullable=False)
+    value = db.Column(db.Numeric(12, 4), nullable=False)
     is_percentage = db.Column(db.Boolean, default=False)
 
 
