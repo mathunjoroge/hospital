@@ -31,6 +31,7 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+from sqlalchemy.exc import SQLAlchemyError
 
 from departments.forms import (
     AddAllowanceForm,
@@ -47,8 +48,6 @@ from departments.models.hr import (
     Payroll,
     Rota,
 )
-from sqlalchemy.exc import SQLAlchemyError
-
 from departments.rbac import roles_required
 from extensions import db
 

@@ -9,4 +9,4 @@ from flask import Blueprint
 bp = Blueprint("icu", __name__, url_prefix="/icu")
 icu_bp = bp
 
-from . import routes  # noqa: F401
+from . import routes  # noqa: E402, F401

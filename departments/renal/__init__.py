@@ -11,4 +11,4 @@ from flask import Blueprint
 bp = Blueprint("renal", __name__, url_prefix="/renal")
 renal_bp = bp
 
-from . import routes  # noqa: F401
+from . import routes  # noqa: E402, F401
