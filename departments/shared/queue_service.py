@@ -19,6 +19,8 @@ DEPARTMENT_STAGES = {
     "laboratory": ["AWAITING_LAB", "AWAITING_RESULTS"],
     "imaging": ["AWAITING_IMAGING"],
     "pharmacy": ["AWAITING_PHARMACY"],
+    "ward": ["ADMITTED", "PRE_OP", "POST_OP"],
+    "inpatient": ["ADMITTED", "PRE_OP", "POST_OP"],
 }
 
 

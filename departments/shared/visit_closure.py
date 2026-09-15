@@ -99,3 +99,35 @@ def advance_after_completion(patient_id: str) -> str | None:
         logger.info(f"Encounter {enc.id} advanced to {new_stage}")
         return new_stage
     return None
+
+
+def cleanup_stale_encounters(max_hours: int = 24) -> int:
+    """Finds ACTIVE encounters older than max_hours in initial/unprocessed stages and auto-cancels them."""
+    from datetime import datetime, timedelta, timezone
+
+    from departments.models.encounter import Encounter
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=max_hours)
+    stale_encounters = Encounter.query.filter(
+        Encounter.status == "ACTIVE",
+        Encounter.started_at <= cutoff,
+        Encounter.stage.in_(["REGISTERED", "REGISTERED_UNPAID", "WAITING_TRIAGE"]),
+    ).all()
+
+    cancelled_count = 0
+    for enc in stale_encounters:
+        if not has_pending_work(enc.patient_id):
+            enc.status = "CANCELLED"
+            enc.stage = "CANCELLED"
+            enc.ended_at = datetime.now(timezone.utc)
+            cancelled_count += 1
+
+    if cancelled_count > 0:
+        db.session.commit()
+        logger.info(
+            "STALE ENCOUNTER CLEANUP: Cancelled %d inactive encounters older than %d hours",
+            cancelled_count,
+            max_hours,
+        )
+
+    return cancelled_count

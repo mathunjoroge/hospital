@@ -202,7 +202,19 @@ def ingest_lab_result(
         raw_hl7=raw_hl7 or None,
     )
     db.session.add(lab_res)
+    # Update matching pending lab request status if present
+    from departments.models.medicine import RequestedLab
+    req_labs = RequestedLab.query.filter_by(patient_id=patient_id, status=0).all()
+    for req in req_labs:
+        if req.lab_test_id == lab_test_id or len(req_labs) == 1:
+            req.status = 1
+            req.result_id = res_uuid
+
     db.session.commit()
+
+    # Advance encounter stage (e.g. AWAITING_LAB -> WAITING_DOCTOR_RESULTS)
+    from departments.shared.visit_closure import advance_after_completion
+    advance_after_completion(patient_id)
 
     logger.info(
         "HL7 ingest OK result_id=%s patient=%s param=%s panic=%s source=%s",

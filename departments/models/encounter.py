@@ -121,6 +121,8 @@ class Encounter(db.Model):
             "DISCHARGED",
         },
         "AWAITING_LAB": {
+            "AWAITING_IMAGING",
+            "AWAITING_LAB",
             "WAITING_DOCTOR_RESULTS",
             "AWAITING_RESULTS",
             "IN_CONSULTATION",
@@ -129,6 +131,8 @@ class Encounter(db.Model):
             "AWAITING_BILLING",
         },
         "AWAITING_IMAGING": {
+            "AWAITING_LAB",
+            "AWAITING_IMAGING",
             "WAITING_DOCTOR_RESULTS",
             "AWAITING_RESULTS",
             "IN_CONSULTATION",

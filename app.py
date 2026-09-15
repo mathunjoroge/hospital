@@ -361,6 +361,19 @@ def scheduled_database_backup():
             )
 
 
+@scheduler.task("cron", id="cleanup_stale_encounters_daily", hour=3, minute=0)
+def scheduled_stale_encounter_cleanup():
+    """Automated daily cleanup of abandoned/stale encounters older than 24 hours."""
+    with app.app_context():
+        from departments.shared.visit_closure import cleanup_stale_encounters
+
+        cancelled = cleanup_stale_encounters(max_hours=24)
+        logger.info(
+            "Daily stale encounter cleanup completed: %d encounters auto-cancelled",
+            cancelled,
+        )
+
+
 if not scheduler.running and not app.config.get("TESTING"):
     try:
         scheduler.start()

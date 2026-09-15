@@ -177,6 +177,42 @@ class MpesaService:
             transaction.status = "COMPLETED"
             transaction.mpesa_receipt_number = receipt_number
             transaction.completed_at = datetime.now(timezone.utc)
+
+            # Settle unpaid bills associated with transaction reference
+            ref = transaction.reference
+            patient_id = None
+            from departments.models.billing import Billing, DrugsBill, Invoice
+
+            # Reference can be patient_id or invoice reference
+            unpaid_bills = Billing.query.filter((Billing.patient_id == ref) | (Billing.id == ref), Billing.status == 0).all()
+            for b in unpaid_bills:
+                b.status = 1
+                patient_id = b.patient_id
+
+            unpaid_drugs = DrugsBill.query.filter((DrugsBill.patient_id == ref) | (DrugsBill.id == ref), DrugsBill.status == 0).all()
+            for d in unpaid_drugs:
+                d.status = 1
+                patient_id = patient_id or d.patient_id
+
+            unpaid_inv = Invoice.query.filter((Invoice.patient_id == ref) | (Invoice.invoice_number == ref), Invoice.status == 0).all()
+            for inv in unpaid_inv:
+                inv.status = 1
+                patient_id = patient_id or inv.patient_id
+
+            # If ref is directly a patient_id
+            if not patient_id and ref.startswith("P"):
+                patient_id = ref
+
+            db.session.commit()
+
+            if patient_id:
+                from departments.shared.visit_closure import (
+                    advance_after_completion,
+                    maybe_close_encounter,
+                )
+                advance_after_completion(patient_id)
+                maybe_close_encounter(patient_id)
+
             logger.info(
                 "M-Pesa Payment COMPLETED for %s. Receipt: %s",
                 transaction.phone_number,

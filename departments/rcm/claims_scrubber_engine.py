@@ -238,6 +238,31 @@ class ClaimsScrubberEngine:
                         claim.paid_amount = paid_amt
                         claim.approved_amount = paid_amt
                         claim.paid_at = datetime.now(timezone.utc)
+
+                        # Settle patient's unpaid bills via insurance claim payment
+                        patient_id = claim.patient_id
+                        if patient_id:
+                            from departments.models.billing import (
+                                Billing,
+                                DrugsBill,
+                                Invoice,
+                            )
+                            from departments.shared.visit_closure import (
+                                advance_after_completion,
+                                maybe_close_encounter,
+                            )
+
+                            for b in Billing.query.filter_by(patient_id=patient_id, status=0).all():
+                                b.status = 1
+                            for d in DrugsBill.query.filter_by(patient_id=patient_id, status=0).all():
+                                d.status = 1
+                            for inv in Invoice.query.filter_by(patient_id=patient_id, status=0).all():
+                                inv.status = 1
+
+                            db.session.commit()
+                            advance_after_completion(patient_id)
+                            maybe_close_encounter(patient_id)
+
                         claims_summary.append({
                             "claim_id": claim_id,
                             "status": "PAID",
