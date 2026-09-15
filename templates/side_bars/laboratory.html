@@ -1,5 +1,6 @@
 <div class="sidebar-heading">Specimen & Testing</div>
-<a href="{{ url_for('laboratory.index') }}"><i class="bi bi-list-check me-2"></i> Lab Requests</a>
+<a href="{{ url_for('laboratory.index') }}"><i class="bi bi-list-check me-2"></i> Department Lab Requests</a>
+<a href="/ui/dashboard/queue"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
 <a href="{{ url_for('laboratory.lab_tests') }}"><i class="bi bi-clipboard-data me-2"></i> Lab Test Catalog</a>
 <a href="{{ url_for('laboratory.search_patient') }}"><i class="bi bi-person-lines-fill me-2"></i> Patient Lab History</a>
 <a href="{{ url_for('laboratory.abnormal_results') }}"><i class="bi bi-exclamation-triangle me-2" style="color: #ef4444;"></i> Panic / Abnormal Results</a>

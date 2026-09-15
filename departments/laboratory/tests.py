@@ -1,3 +1,5 @@
+import logging
+
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import login_required
 from flask_socketio import SocketIO
@@ -11,8 +13,10 @@ from extensions import db
 
 from . import bp  # Import the blueprint
 
+logger = logging.getLogger(__name__)
 socketio = SocketIO()
 # Generate a UUID and convert it to a string
+
 
 # Display the lab waiting list
 
@@ -21,34 +25,38 @@ socketio = SocketIO()
 @login_required
 @roles_required("laboratory", "admin")
 def index():
-    """Displays the laboratory waiting list with pending lab test requests."""
+    """Displays the laboratory waiting list using the unified patient-flow queue."""
+    from departments.shared import queue_service
 
     try:
-        # Fetch all requested lab tests with status=0 (pending)
+        # Unified patient flow queue: patients whose Encounter.stage is AWAITING_LAB
+        pending_requests = queue_service.queue_for("laboratory")
+
+        # Legacy fallback: also fetch raw RequestedLab rows for templates that
+        # still reference .lab_test / .patient directly on the RequestedLab ORM.
         pending_lab_requests = (
             RequestedLab.query.filter_by(status=0)
             .options(
-                joinedload(RequestedLab.patient),  # Include patient details
-                joinedload(RequestedLab.lab_test),  # Include lab test details
+                joinedload(RequestedLab.patient),
+                joinedload(RequestedLab.lab_test),
             )
             .all()
         )
 
-        # Debug: Print pending lab requests
-        print("Pending Lab Requests:", pending_lab_requests)
-
-        # If no pending requests exist, inform the user
-        if not pending_lab_requests:
+        if not pending_lab_requests and not pending_requests:
             flash("No pending lab test requests at the moment.", "info")
 
         return render_template(
-            "laboratory/index.html", pending_lab_requests=pending_lab_requests
+            "laboratory/index.html",
+            pending_requests=pending_requests,
+            pending_lab_requests=pending_lab_requests,
         )
 
     except SQLAlchemyError as e:
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in laboratory.index: {e}")  # Debugging
-        return redirect(url_for("login"))
+        logger.error("Error in laboratory.index: %s", e)
+        return redirect(url_for("laboratory.index"))
+
 
 
 # display available lab tests

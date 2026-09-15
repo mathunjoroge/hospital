@@ -1,259 +1,149 @@
 {% extends "base.html" %}
+
+{% block title %}Pharmacy — Waiting List{% endblock %}
+
 {% block content %}
-<style>
-  :root {
-    --ph-primary: #0e7c61;
-    --ph-primary-light: #16a085;
-    --ph-accent: #27ae60;
-    --ph-header-bg: linear-gradient(135deg, #0e7c61 0%, #16a085 60%, #1abc9c 100%);
-    --ph-badge-pending: #e67e22;
-    --ph-badge-done: #27ae60;
-    --ph-surface: #f4fbf8;
-    --ph-card-shadow: 0 4px 24px rgba(14,124,97,0.10);
-    --ph-border: rgba(14,124,97,0.12);
-  }
-
-  .ph-hero {
-    background: var(--ph-header-bg);
-    border-radius: 16px;
-    padding: 2rem 2.5rem;
-    margin-bottom: 2rem;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 8px 32px rgba(14,124,97,0.25);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .ph-hero::after {
-    content: '';
-    position: absolute;
-    right: -30px;
-    top: -30px;
-    width: 180px;
-    height: 180px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 50%;
-  }
-
-  .ph-hero::before {
-    content: '';
-    position: absolute;
-    right: 60px;
-    bottom: -50px;
-    width: 240px;
-    height: 240px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 50%;
-  }
-
-  .ph-hero-icon {
-    font-size: 3.5rem;
-    opacity: 0.9;
-  }
-
-  .ph-hero h2 {
-    font-size: 1.75rem;
-    font-weight: 700;
-    margin: 0;
-  }
-
-  .ph-hero p {
-    opacity: 0.85;
-    margin: 0.25rem 0 0;
-    font-size: 0.95rem;
-  }
-
-  .ph-table-card {
-    background: white;
-    border-radius: 16px;
-    box-shadow: var(--ph-card-shadow);
-    border: 1px solid var(--ph-border);
-    overflow: hidden;
-  }
-
-  .ph-table-card .card-header {
-    background: #ffffff !important;
-    padding: 1.1rem 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 2px solid var(--ph-border);
-  }
-
-  .ph-table-card .card-header h5 {
-    margin: 0;
-    font-weight: 700;
-    font-size: 1.05rem;
-    color: var(--ph-primary);
-  }
-
-  .ph-count-badge {
-    background: #e6f4ef;
-    color: #0e7c61;
-    border: 1px solid rgba(14, 124, 97, 0.2);
-    border-radius: 20px;
-    padding: 0.25rem 0.85rem;
-    font-size: 0.82rem;
-    font-weight: 700;
-  }
-
-  .ph-hero .ph-count-badge {
-    background: rgba(255, 255, 255, 0.2);
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(4px);
-  }
-
-  .ph-pid {
-    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    background: #f1f5f9;
-    color: #334155;
-    border: 1px solid #cbd5e1;
-    padding: 0.25rem 0.65rem;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-
-  .btn-ph-process {
-    background: linear-gradient(135deg, #0e7c61, #16a085);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 0.42rem 1rem;
-    font-size: 0.87rem;
-    font-weight: 600;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .btn-ph-process:hover {
-    background: linear-gradient(135deg, #0a5c49, #0e7c61);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(14,124,97,0.35);
-  }
-
-  .empty-state {
-    padding: 3.5rem 2rem;
-    text-align: center;
-    color: #7ca898;
-  }
-
-  .empty-state i {
-    font-size: 3.5rem;
-    margin-bottom: 1rem;
-    opacity: 0.4;
-  }
-
-  .empty-state p {
-    font-size: 1rem;
-    margin: 0;
-  }
-
-  .ph-count-badge {
-    background: rgba(255,255,255,0.25);
-    color: white;
-    border-radius: 20px;
-    padding: 0.2rem 0.75rem;
-    font-size: 0.85rem;
-    font-weight: 600;
-    backdrop-filter: blur(4px);
-  }
-
-  .flash-zone {
-    margin-bottom: 1.5rem;
-  }
-</style>
-
 <div class="container-fluid px-4 py-4">
 
   <!-- Flash Messages -->
-  <div class="flash-zone">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else category }} alert-dismissible fade show rounded-3 shadow-sm" role="alert">
-            <i class="bi {{ 'bi-check-circle-fill' if category == 'success' else 'bi-exclamation-triangle-fill' }} me-2"></i>
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-  </div>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category in ['error', 'danger'] else category }} alert-dismissible fade show rounded-3 shadow-sm mb-3" role="alert">
+          <i class="bi {{ 'bi-check-circle-fill' if category == 'success' else 'bi-info-circle-fill' }} me-2"></i>
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
 
-  <!-- Hero Banner -->
-  <div class="ph-hero animate-fade-in">
+  <!-- Header Banner -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
     <div>
-      <h2><i class="bi bi-capsule me-2"></i> Pharmacy Waiting List</h2>
-      <p>Patients awaiting prescription processing</p>
+      <h1 class="h3 mb-0 text-dark fw-bold">
+        <i class="bi bi-capsule-fill text-success me-2"></i>
+        Pharmacy Waiting List & Worklist
+      </h1>
+      <p class="text-muted mt-1 mb-0">
+        Patients awaiting prescription review, medication preparation, and dispensing
+      </p>
     </div>
-    <div class="d-flex align-items-center gap-3">
-      <a href="{{ url_for('pharmacy.ai_discovery') }}" class="btn btn-light fw-bold text-success px-3 shadow-sm d-flex align-items-center gap-2" style="z-index: 10;">
-        <i class="bi bi-robot"></i> AI Drug Discovery (MolMIM & DiffDock)
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('pharmacy.ai_discovery') }}" class="btn btn-outline-success fw-semibold">
+        <i class="bi bi-robot me-1"></i> AI Drug Discovery
       </a>
-      <span class="ph-count-badge">
-        <i class="bi bi-people-fill me-1"></i>
-        {{ prescriptions|length }} patient{{ 's' if prescriptions|length != 1 else '' }}
-      </span>
-      <i class="bi bi-hospital-fill ph-hero-icon"></i>
+      <a href="{{ url_for('pharmacy.inventory') }}" class="btn btn-outline-secondary fw-semibold">
+        <i class="bi bi-box-seam me-1"></i> Inventory Stock
+      </a>
     </div>
   </div>
 
-  <!-- Waiting List Table -->
-  <div class="ph-table-card animate-fade-in">
-    <div class="card-header">
-      <h5><i class="bi bi-list-ul me-2"></i> Pending Prescriptions</h5>
-      <span class="ph-count-badge">{{ prescriptions|length }} waiting</span>
+  <!-- KPI Summary Cards -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <p class="text-muted small text-uppercase fw-bold mb-1">Pending Prescriptions</p>
+            <p class="h2 mb-0 fw-bold text-success">{{ prescriptions | length if prescriptions else 0 }}</p>
+          </div>
+          <div class="bg-success bg-opacity-10 rounded-circle p-3">
+            <i class="bi bi-hourglass-split fs-3 text-success"></i>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="table-responsive">
-      <table class="table mb-0">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Patient Name</th>
-            <th>Patient ID</th>
-            <th class="text-center">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for entry in prescriptions %}
-          <tr>
-            <td class="text-muted" style="width:50px">{{ loop.index }}</td>
-            <td>
-              <span class="ph-badge-name">
-                <span class="avatar">{{ entry[1].name[0].upper() if entry[1] and entry[1].name else '?' }}</span>
-                {{ entry[1].name if entry[1] else 'N/A' }}
-              </span>
-            </td>
-            <td>
-              <span class="ph-pid">{{ entry[1].patient_id if entry[1] else 'N/A' }}</span>
-            </td>
-            <td class="text-center">
-              <a href="{{ url_for('pharmacy.view_prescriptions', patient_id=entry[1].patient_id) }}" 
-                 class="btn-ph-process">
-                <i class="bi bi-box-seam"></i> Process
-              </a>
-            </td>
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="4">
-              <div class="empty-state">
-                <i class="bi bi-inbox-fill d-block"></i>
-                <p>No patients in the pharmacy waiting list.</p>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <p class="text-muted small text-uppercase fw-bold mb-1">Pharmacy Counter</p>
+            <p class="h4 mb-0 fw-bold text-primary">Dispensing Active</p>
+          </div>
+          <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+            <i class="bi bi-check2-circle fs-3 text-primary"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <p class="text-muted small text-uppercase fw-bold mb-1">Quick Links</p>
+            <a href="{{ url_for('pharmacy.prescriptions') }}" class="btn btn-sm btn-success text-white fw-semibold">
+              <i class="bi bi-list-task me-1"></i> Prescriptions List
+            </a>
+          </div>
+          <div class="bg-warning bg-opacity-10 rounded-circle p-3">
+            <i class="bi bi-capsule fs-3 text-warning"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pharmacy Queue Card -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+      <h5 class="mb-0 fw-bold text-dark">
+        <i class="bi bi-list-ul me-2 text-success"></i>
+        Pharmacy Waiting Room Queue
+      </h5>
+      <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill fw-semibold">
+        {{ prescriptions | length if prescriptions else 0 }} Patient{{ 's' if prescriptions and prescriptions | length != 1 else '' }} Waiting
+      </span>
+    </div>
+
+    <div class="card-body p-0">
+      {% if prescriptions %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 60px;">#</th>
+              <th>Patient Details</th>
+              <th>Stage / Location</th>
+              <th class="text-end" style="width: 160px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in prescriptions %}
+            <tr>
+              <td>
+                <span class="badge bg-success text-white rounded-pill">{{ loop.index }}</span>
+              </td>
+              <td>
+                <div class="fw-bold text-dark fs-6">
+                  {{ entry[1].name if entry[1] else 'Unknown Patient' }}
+                </div>
+                <small class="badge bg-light text-success font-monospace border">
+                  {{ entry[1].patient_id if entry[1] else 'N/A' }}
+                </small>
+              </td>
+              <td>
+                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning px-2.5 py-1.5 rounded-pill fw-semibold">
+                  <i class="bi bi-hourglass-split me-1"></i> Awaiting Pharmacy
+                </span>
+              </td>
+              <td class="text-end">
+                <a href="{{ url_for('pharmacy.view_prescriptions', patient_id=entry[1].patient_id) if entry[1] else url_for('pharmacy.prescriptions') }}" class="btn btn-sm btn-success text-white fw-semibold">
+                  <i class="bi bi-box-seam me-1"></i> Process
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5">
+        <i class="bi bi-emoji-smile fs-1 text-success d-block mb-3"></i>
+        <h5 class="text-dark fw-bold">All caught up!</h5>
+        <p class="text-muted mb-0">No patients currently waiting in the pharmacy queue.</p>
+      </div>
+      {% endif %}
     </div>
   </div>
 

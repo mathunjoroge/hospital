@@ -254,14 +254,22 @@ def submit_soap_notes(patient_id):
             .order_by(Encounter.started_at.desc())
             .first()
         )
-        if pending_labs or pending_imaging:
-            next_stage = "AWAITING_RESULTS"
-        elif pending_rx:
-            next_stage = "AWAITING_PHARMACY"
-        else:
-            next_stage = "AWAITING_BILLING"
+
+        # Set stage based on what's pending after consultation
         if encounter:
+            if pending_labs or pending_imaging:
+                next_stage = "AWAITING_RESULTS"
+            elif pending_rx:
+                next_stage = "AWAITING_PHARMACY"
+            else:
+                next_stage = "AWAITING_BILLING"
             encounter.set_stage(next_stage)
+
+        # --- Stage transition: consultation begins ---
+        # When SOAP notes are submitted, mark the encounter as IN_CONSULTATION
+        # if it's currently in WAITING_DOCTOR stage
+        if encounter and encounter.stage == "WAITING_DOCTOR":
+            encounter.set_stage("IN_CONSULTATION")
 
         appts = Appointment.query.filter(
             Appointment.patient_id == str(patient_id),

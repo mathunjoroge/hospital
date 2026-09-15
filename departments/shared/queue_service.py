@@ -10,15 +10,19 @@ from departments.models.encounter import Encounter
 
 # Which Encounter.stage values count as 'queued' for each department.
 DEPARTMENT_STAGES = {
-    "nursing": ["REGISTERED"],  # waiting for triage/vitals
-    "medicine": ["WAITING_DOCTOR", "IN_CONSULTATION", "AWAITING_RESULTS"],
-    "laboratory": ["AWAITING_RESULTS"],
+    "billing": ["REGISTERED_UNPAID", "AWAITING_FINAL_BILLING", "AWAITING_BILLING"],
+    "billing_registration": ["REGISTERED_UNPAID"],
+    "billing_settlement": ["AWAITING_FINAL_BILLING", "AWAITING_BILLING"],
+    "nursing": ["WAITING_TRIAGE", "REGISTERED", "REGISTERED_UNPAID"],
+    "medicine": ["WAITING_DOCTOR", "IN_CONSULTATION"],
+    "medicine_results": ["WAITING_DOCTOR_RESULTS"],
+    "laboratory": ["AWAITING_LAB", "AWAITING_RESULTS"],
+    "imaging": ["AWAITING_IMAGING"],
     "pharmacy": ["AWAITING_PHARMACY"],
-    "billing": ["AWAITING_BILLING"],
 }
 
 
-def queue_for(department: str):
+def queue_for(department: str, provider_id: str = None):
     """Return ACTIVE encounters currently queued for the given department.
 
     Returns a list of Encounter objects (each with a `.patient` joined
@@ -28,28 +32,31 @@ def queue_for(department: str):
     stages = DEPARTMENT_STAGES.get(department)
     if not stages:
         return []
-    return (
-        Encounter.query.filter(
-            Encounter.status == "ACTIVE",
-            Encounter.stage.in_(stages),
-        )
-        .order_by(
-            case(
-                (Encounter.esi_level.in_([1, 2]), 0),  # Emergent first
-                (Encounter.esi_level.isnot(None), 1),  # Triaged (3-5) next
-                else_=2,                               # Untriaged last
-            ).asc(),
-            Encounter.started_at.asc(),
-        )
-        .all()
+    query = Encounter.query.filter(
+        Encounter.status == "ACTIVE",
+        Encounter.stage.in_(stages),
     )
+    if provider_id and provider_id != "all":
+        query = query.filter(Encounter.provider_id == str(provider_id))
+
+    return query.order_by(
+        case(
+            (Encounter.esi_level.in_([1, 2]), 0),  # Emergent first
+            (Encounter.esi_level.isnot(None), 1),  # Triaged (3-5) next
+            else_=2,                               # Untriaged last
+        ).asc(),
+        Encounter.started_at.asc(),
+    ).all()
 
 
-def count_for(department: str) -> int:
+def count_for(department: str, provider_id: str = None) -> int:
     stages = DEPARTMENT_STAGES.get(department)
     if not stages:
         return 0
-    return Encounter.query.filter(
+    query = Encounter.query.filter(
         Encounter.status == "ACTIVE",
         Encounter.stage.in_(stages),
-    ).count()
+    )
+    if provider_id and provider_id != "all":
+        query = query.filter(Encounter.provider_id == str(provider_id))
+    return query.count()

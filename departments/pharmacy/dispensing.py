@@ -30,25 +30,17 @@ logger = logging.getLogger(__name__)
 @login_required
 @roles_required("pharmacy", "admin")
 def prescriptions():
-    """Displays all active prescriptions."""
-    try:
-        # Fetch all active prescriptions
-        active_prescriptions = (
-            PrescribedMedicine.query.filter(PrescribedMedicine.num_days > 0)
-            .options(
-                joinedload(PrescribedMedicine.medicine),
-            )
-            .all()
-        )
+    """Displays pharmacy waiting list using unified patient flow queue."""
+    from departments.shared import queue_service
 
-        return render_template(
-            "pharmacy/prescriptions.html", prescriptions=active_prescriptions
-        )
+    # Show pharmacy queue using the unified patient flow system
+    # This will show patients waiting for medication dispensing (AWAITING_PHARMACY stage)
+    pending_prescriptions = queue_service.queue_for("pharmacy")
 
-    except SQLAlchemyError as e:
-        flash("Something went wrong. Please try again.", "error")
-        logger.debug(f"Error in pharmacy.prescriptions: {e}")
-        return redirect(url_for("pharmacy.index"))
+    return render_template(
+        "pharmacy/prescriptions.html",
+        pending_prescriptions=pending_prescriptions or [],
+    )
 
 
 # record purchase
@@ -465,11 +457,13 @@ def save_dispensed_drugs():
         )
         logger.debug(f"Updated {updated_rows} prescribed medicine rows to status=1")
 
-        # Advance encounter stage after dispensing completion
+        # Advance encounter stage: prescription fully dispensed → let visit_closure
+        # determine the correct next stage (AWAITING_FINAL_BILLING or DISCHARGED)
         from departments.shared.visit_closure import advance_after_completion
         patient_id = prescribed_meds[0].patient_id if prescribed_meds else None
         if patient_id:
             advance_after_completion(patient_id)
+
 
         # Verify before commit
         pre_commit_meds = (

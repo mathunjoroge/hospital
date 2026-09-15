@@ -295,62 +295,91 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
   </div>
 
-  <!-- Waiting List Table -->
-  <div class="md-table-card">
-    <div class="md-table-header d-flex align-items-center justify-content-between">
-      <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-person-lines-fill me-2" style="color: var(--md-primary);"></i>OPD Waiting List</h5>
-      <span class="badge px-3 py-2 rounded-pill" style="background: var(--md-primary);">
-        {{ waiting_list|length }} Patient{{ 's' if waiting_list|length != 1 else '' }}
+  <!-- Waiting List Table Card -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom d-flex align-items-center justify-content-between py-3">
+      <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-person-lines-fill me-2 text-primary"></i>OPD Doctor Waiting List</h5>
+      <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fw-semibold">
+        {{ waiting_list|length }} Patient{{ 's' if waiting_list|length != 1 else '' }} Awaiting Consult
       </span>
     </div>
-    <div class="table-responsive">
-      <table class="table table-md table-hover align-middle mb-0">
-        <thead>
-          <tr>
-            <th>Patient ID</th>
-            <th>Name</th>
-            <th>Sex / DOB</th>
-            <th>Contact</th>
-            <th class="text-end">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for entry in waiting_list %}
-          <tr>
-            <td><span class="badge bg-secondary font-monospace fs-6">{{ entry.patient.patient_id if entry.patient else 'N/A' }}</span></td>
-            <td>
-              <div class="fw-bold text-dark">{{ entry.patient.name if entry.patient else 'N/A' }} {% if entry.esi_level in (1, 2) %}<span class="badge bg-danger ms-1">EMERGENT</span>{% endif %}</div>
-            </td>
-            <td>
-              <div>{{ entry.patient.sex if entry.patient else '—' }}</div>
-              <small class="text-muted">{{ entry.patient.date_of_birth if entry.patient else '—' }}</small>
-            </td>
-            <td>
-              <small><i class="bi bi-telephone me-1 text-muted"></i>{{ entry.patient.contact if entry.patient else '—' }}</small>
-            </td>
-            <td class="text-end">
-              <div class="btn-group">
-                <a href="{{ url_for('medicine.soap_notes', patient_id=entry.patient_id) }}"
-                   class="btn-md-primary btn">
-                  <i class="bi bi-clipboard2-pulse me-1"></i>SBAR Notes
-                </a>
-                <a href="{{ url_for('medicine.chatbot_interface') }}"
-                   class="btn btn-outline-secondary btn-sm">
-                  <i class="bi bi-robot me-1"></i>AI
-                </a>
-              </div>
-            </td>
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="5" class="text-center py-5 text-muted">
-              <i class="bi bi-check-circle-fill text-success display-4 d-block mb-3"></i>
-              No patients currently in the OPD waiting list.
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="card-body p-0">
+      {% if waiting_list %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 60px;">#</th>
+              <th>Patient Details</th>
+              <th>Sex / DOB</th>
+              <th>Stage / Status</th>
+              <th>Check-in Time</th>
+              <th class="text-end" style="width: 220px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in waiting_list %}
+            <tr>
+              <td>
+                <span class="badge bg-primary rounded-pill">{{ loop.index }}</span>
+              </td>
+              <td>
+                <div class="fw-bold text-dark fs-6">
+                  {{ entry.patient.name if entry.patient else 'Unknown Patient' }}
+                  {% if entry.esi_level in (1, 2) %}
+                    <span class="badge bg-danger ms-1">EMERGENT</span>
+                  {% endif %}
+                </div>
+                <small class="badge bg-light text-primary font-monospace border">
+                  {{ entry.patient.patient_id if entry.patient else entry.patient_id }}
+                </small>
+              </td>
+              <td>
+                <div class="text-dark">{{ entry.patient.sex if entry.patient else '—' }}</div>
+                <small class="text-muted">{{ entry.patient.date_of_birth if entry.patient else '—' }}</small>
+              </td>
+              <td>
+                {% if entry.stage == 'IN_CONSULTATION' %}
+                  <span class="badge bg-success bg-opacity-10 text-success border border-success px-2.5 py-1.5 rounded-pill fw-semibold">
+                    <i class="bi bi-clipboard2-pulse me-1"></i> In Consultation
+                  </span>
+                {% elif entry.stage == 'WAITING_DOCTOR_RESULTS' %}
+                  <span class="badge bg-purple bg-opacity-10 text-purple border border-purple px-2.5 py-1.5 rounded-pill fw-semibold">
+                    <i class="bi bi-journal-check me-1"></i> Doctor Reviewing Results
+                  </span>
+                {% else %}
+                  <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-2.5 py-1.5 rounded-pill fw-semibold">
+                    <i class="bi bi-hourglass-split me-1"></i> Awaiting Doctor
+                  </span>
+                {% endif %}
+              </td>
+              <td class="text-muted">
+                <small><i class="bi bi-clock me-1"></i>{{ entry.started_at.strftime('%H:%M') if entry.started_at else '--:--' }}</small>
+              </td>
+              <td class="text-end">
+                <div class="btn-group">
+                  <a href="{{ url_for('medicine.soap_notes', patient_id=entry.patient_id) }}"
+                     class="btn btn-sm btn-primary fw-semibold">
+                    <i class="bi bi-clipboard2-pulse me-1"></i>SBAR Notes
+                  </a>
+                  <a href="{{ url_for('medicine.chatbot_interface') }}"
+                     class="btn btn-sm btn-outline-secondary fw-semibold">
+                    <i class="bi bi-robot me-1"></i>AI Assistant
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5">
+        <i class="bi bi-emoji-smile fs-1 text-success d-block mb-3"></i>
+        <h5 class="text-dark fw-bold">All caught up!</h5>
+        <p class="text-muted mb-0">No patients currently waiting in the OPD doctor queue.</p>
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>

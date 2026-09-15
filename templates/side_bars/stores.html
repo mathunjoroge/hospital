@@ -1,4 +1,5 @@
 <a href="/"><i class="bi bi-house me-2"></i> Home</a>
+<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
 <a href="{{ url_for('stores.index') }}"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a>
 <a href="{{ url_for('stores.inventory') }}"><i class="bi bi-boxes me-2"></i> Drug Inventory</a>
 <a href="{{ url_for('stores.non_pharms') }}"><i class="bi bi-box-seam me-2"></i> Non-Pharm Supplies</a>

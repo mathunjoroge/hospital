@@ -1,4 +1,5 @@
 <div class="sidebar-heading">Triage & Patients</div>
+<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
 <a href="{{ url_for('nursing.index') }}"><i class="bi bi-hourglass-split me-2"></i> Triage Queue</a>
 <a href="{{ url_for('nursing.ward_patients') }}"><i class="bi bi-hospital me-2"></i> Ward Inpatients</a>
 

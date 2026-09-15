@@ -782,16 +782,12 @@
     {% if current_user.is_authenticated %}
     {% set user_role = session.switched_user if session.switched_user else current_user.role %}
     
-    {# Only show Advanced Tools to clinical, administrative, and pharmacy roles #}
-    {% if user_role in ['admin', 'doctor', 'medicine', 'nursing', 'pharmacist', 'billing', 'theatre', 'oncology', 'mch', 'icu', 'renal'] %}
+    {# Show Advanced Tools & Live Queue to all department roles #}
     <div class="sidebar-heading mt-4" style="color: #fbbf24 !important; font-weight: 800; letter-spacing: 0.1em;">✨ Advanced Tools</div>
     
-    {# Live Queue: doctors, clinical, nurses, ICU, theatre #}
-    {% if user_role in ['admin', 'doctor', 'medicine', 'nursing', 'icu', 'theatre'] %}
     <a href="/ui/dashboard/queue" title="Live Waiting Room Queue">
-        <i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Queue
+        <i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue
     </a>
-    {% endif %}
     
     {# Rx Safety (CDS): doctors, medicine, pharmacists, oncology, renal #}
     {% if user_role in ['admin', 'doctor', 'medicine', 'pharmacist', 'oncology', 'renal'] %}
@@ -825,12 +821,10 @@
     </a>
     {% endif %}
     
-    {% endif %}
-    {% endif %}
-    
     <a href="{{ url_for('medicine.chatbot_interface') }}" class="chat">
       <i class="bi bi-chat-dots me-2"></i> Chatbot
     </a>
+    {% endif %}
   </div>
   {% endif %}
   <!-- Main Content -->

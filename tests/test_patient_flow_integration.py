@@ -59,7 +59,7 @@ def test_unified_patient_flow(app, client):
         from departments.models.encounter import Encounter
         enc = Encounter.query.filter_by(patient_id=patient_id).first()
         assert enc is not None, "Encounter should be created on registration"
-        assert enc.stage == "REGISTERED", "New encounter should start at REGISTERED stage"
+        assert enc.stage in ("REGISTERED", "REGISTERED_UNPAID"), "New encounter should start at REGISTERED or REGISTERED_UNPAID stage"
 
         # Legacy table should no longer be written to
         waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()

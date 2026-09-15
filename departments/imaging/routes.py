@@ -845,25 +845,17 @@ def view_imaging_results(result_id):
 @login_required
 @roles_required("imaging", "admin")
 def index():
-    """Display imaging waiting list"""
+    """Display imaging waiting list using unified patient flow queue."""
+    from departments.shared import queue_service  # Fixed import
 
-    try:
-        pending_requests = (
-            RequestedImage.query.filter_by(status=0)
-            .options(
-                joinedload(RequestedImage.patient), joinedload(RequestedImage.imaging)
-            )
-            .all()
-        )
+    # Show imaging queue using the unified patient flow system
+    pending_requests = queue_service.queue_for("imaging")
 
-        return render_template(
-            "imaging/index.html",
-            pending_requests=pending_requests or [],
-            models_loaded=nim_client is not None,
-        )
-    except SQLAlchemyError as e:
-        flash(f"Database error: {e!s}", "error")
-        return redirect(url_for("home"))
+    return render_template(
+        "imaging/index.html",
+        pending_requests=pending_requests or [],
+        models_loaded=True,
+    )
 
 
 # ── Phase 5: DICOM Upload Endpoint ─────────────────────────────────────────

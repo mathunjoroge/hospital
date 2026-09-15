@@ -485,6 +485,49 @@ def pay_all(patient_id):
             bill.receipt_number = receipt_number
             db.session.add(bill)
 
+        # --- Advance encounter stage based on payment type ---
+        from departments.models.encounter import Encounter
+        from departments.shared import queue_service  # Fixed import
+
+        # Find the patient's active encounter
+        encounter = (
+            Encounter.query.filter_by(patient_id=patient_id, status="ACTIVE")
+            .order_by(Encounter.started_at.desc())
+            .first()
+        )
+
+        # Determine payment type from form or receipt context
+        # Check if this includes clinic/specialist fees (direct to doctor queue)
+        includes_clinic_fees = request.form.get("includes_clinic_fees") == "1"
+
+        if encounter:
+            if includes_clinic_fees:
+                # Clinic/specialist patient: paying clinic fees moves them directly to doctor queue
+                encounter.stage = "WAITING_DOCTOR"
+                flash(
+                    f"Payment recorded! Patient moved to Doctor's Queue (clinic fees paid).",
+                    "success",
+                )
+            elif encounter.stage == "REGISTERED_UNPAID":
+                # Registration fee payment: move from billing registration to triage/nursing
+                encounter.stage = "WAITING_TRIAGE"
+                flash(
+                    f"Payment recorded! Patient moved to Nursing Queue (triage/vitals pending).",
+                    "success",
+                )
+            else:
+                # Other billing payments: advance as appropriate
+                if encounter.stage == "AWAITING_BILLING":
+                    encounter.stage = "AWAITING_FINAL_BILLING"
+                elif encounter.stage == "AWAITING_FINAL_BILLING":
+                    encounter.stage = "DISCHARGED"
+                    encounter.close()
+                flash(
+                    f"Payment recorded! Encounter stage updated to {encounter.stage}.",
+                    "success",
+                )
+        # ------------------------------------------------
+
         db.session.commit()
 
         flash(

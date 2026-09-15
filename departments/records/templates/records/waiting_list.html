@@ -1,107 +1,176 @@
 {% extends "base.html" %}
+
+{% block title %}Records — Patient Waiting List{% endblock %}
+
 {% block content %}
-<style>
-  :root {
-    --rc-primary: #1a56db; --rc-primary-dark: #1e3a8a;
-    --rc-header-bg: linear-gradient(135deg, #1e3a8a 0%, #1a56db 60%, #3b82f6 100%);
-    --rc-card-shadow: 0 4px 24px rgba(26,86,219,0.10);
-    --rc-border: #e0e7ff; --rc-bg: #f0f4ff;
-  }
-  body { background: var(--rc-bg); }
-  .rc-header { background: var(--rc-header-bg); border-radius:18px; padding:2rem 2.5rem; color:white; margin-bottom:2rem; box-shadow:0 8px 32px rgba(26,86,219,0.25); position:relative; overflow:hidden; }
-  .rc-header::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.06); }
-  .rc-header h1 { font-size:1.7rem; font-weight:700; margin:0 0 .25rem; }
-  .rc-header p { margin:0; opacity:.8; }
-
-  .rc-card { background:white; border-radius:16px; box-shadow:var(--rc-card-shadow); overflow:hidden; }
-  .rc-card-header { background:linear-gradient(135deg,#f8faff,#eff6ff); padding:1.2rem 1.5rem; border-bottom:1px solid var(--rc-border); display:flex; align-items:center; justify-content:space-between; }
-  .rc-card-header h5 { margin:0; font-weight:700; color:var(--rc-primary-dark); display:flex; align-items:center; gap:.5rem; }
-
-  .rc-table { width:100%; border-collapse:collapse; }
-  .rc-table thead tr { background:linear-gradient(90deg,#1e3a8a,#1a56db); }
-  .rc-table thead th { color:white; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; padding:.9rem 1rem; font-weight:600; }
-  .rc-table tbody tr { border-bottom:1px solid #f1f5f9; transition:background .15s; }
-  .rc-table tbody tr:hover { background:#f0f4ff; }
-  .rc-table tbody td { padding:.85rem 1rem; font-size:.9rem; color:#334155; vertical-align:middle; }
-
-  .status-badge { border-radius:20px; padding:.2rem .8rem; font-size:.78rem; font-weight:700; }
-  .badge-seen { background:#d1fae5; color:#059669; }
-  .badge-not-seen { background:#fff7ed; color:#d97706; }
-  .badge-blue { background:#dbeafe; color:#1d4ed8; }
-
-  .patient-id-chip { background:#eff6ff; color:var(--rc-primary); border-radius:6px; padding:.15rem .55rem; font-family:monospace; font-size:.85rem; font-weight:700; }
-
-  .btn-rc-sm { padding:.3rem .8rem; border-radius:6px; font-size:.8rem; font-weight:600; border:none; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:.3rem; transition:all .15s; }
-  .btn-rc-view { background:#eff6ff; color:var(--rc-primary); }
-  .btn-rc-view:hover { background:var(--rc-primary); color:white; }
-
-  .seen-legend { display:flex; gap:1rem; font-size:.82rem; margin-bottom:1rem; flex-wrap:wrap; }
-  .seen-legend span { display:flex; align-items:center; gap:.3rem; }
-</style>
-
 <div class="container-fluid px-4 py-4">
   {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}{% for category, message in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-    {% endfor %}{% endif %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category in ['error', 'danger'] else category }} alert-dismissible fade show rounded-3 shadow-sm mb-3">
+          <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
   {% endwith %}
 
-  <div class="rc-header">
-    <h1><i class="bi bi-hourglass-split me-2"></i>Patient Waiting List</h1>
-    <p>Patients currently queued for triage and consultation</p>
-  </div>
-
-  <div class="seen-legend">
-    <strong>Status key:</strong>
-    <span><span class="status-badge badge-not-seen">Waiting</span> — pending triage (seen=4 or 0)</span>
-    <span><span class="status-badge badge-blue">In Progress</span> — currently being attended</span>
-    <span><span class="status-badge badge-seen">Completed</span> — fully served</span>
-  </div>
-
-  <div class="rc-card">
-    <div class="rc-card-header">
-      <h5><i class="bi bi-list-ul"></i> Waiting List ({{ waiting_list | length }} patients)</h5>
+  <!-- Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+    <div>
+      <h1 class="h3 mb-0 text-dark fw-bold">
+        <i class="bi bi-hourglass-split text-primary me-2"></i>
+        Records Patient Flow Queue
+      </h1>
+      <p class="text-muted mt-1 mb-0">
+        Live active outpatient encounters across all department stages
+      </p>
     </div>
-    <div style="overflow-x:auto;">
-      <table class="rc-table">
-        <thead>
-          <tr>
-            <th>Patient ID</th>
-            <th>Patient Name</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for entry, patient in waiting_list %}
-          <tr>
-            <td><span class="patient-id-chip">{{ entry.patient_id }}</span></td>
-            <td><strong>{{ patient.name if patient else 'N/A' }} {% if entry.esi_level in (1, 2) %}<span class="badge bg-danger ms-1">EMERGENT</span>{% endif %}</strong></td>
-            <td>
-              {% if entry.seen == 1 %}
-                <span class="status-badge badge-seen"><i class="bi bi-check-circle"></i> Completed</span>
-              {% elif entry.seen == 4 %}
-                <span class="status-badge badge-not-seen"><i class="bi bi-hourglass"></i> Waiting</span>
-              {% else %}
-                <span class="status-badge badge-blue"><i class="bi bi-activity"></i> In Progress</span>
-              {% endif %}
-            </td>
-            <td>
-              <a href="{{ url_for('records.patient_profile', patient_id=entry.patient_id) }}" class="btn-rc-sm btn-rc-view">
-                <i class="bi bi-eye"></i> View Patient
-              </a>
-            </td>
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="4" style="text-align:center; padding:3rem; color:#94a3b8;">
-              <i class="bi bi-inbox" style="font-size:2.5rem; display:block; margin-bottom:.8rem;"></i>
-              No patients in the waiting list.
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('records.new_patient') }}" class="btn btn-primary fw-semibold">
+        <i class="bi bi-person-plus me-1"></i> Register New Patient
+      </a>
+      <a href="{{ url_for('records.waiting_list') }}" class="btn btn-outline-primary fw-semibold">
+        <i class="bi bi-arrow-clockwise me-1"></i> Refresh Queue
+      </a>
+    </div>
+  </div>
+
+  <!-- Stats Summary Row -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <p class="text-muted small text-uppercase fw-bold mb-1">Total in Pipeline</p>
+            <p class="h2 mb-0 fw-bold text-dark">{{ waiting_list | length }}</p>
+          </div>
+          <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+            <i class="bi bi-people-fill fs-3 text-primary"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <p class="text-muted small text-uppercase fw-bold mb-1">Awaiting Registration / Triage</p>
+            {% set awaiting_reg = waiting_list | selectattr('stage', 'in', ['REGISTERED_UNPAID', 'WAITING_TRIAGE']) | list | length %}
+            <p class="h2 mb-0 fw-bold text-warning">{{ awaiting_reg }}</p>
+          </div>
+          <div class="bg-warning bg-opacity-10 rounded-circle p-3">
+            <i class="bi bi-hourglass-split fs-3 text-warning"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <p class="text-muted small text-uppercase fw-bold mb-1">In Active Consult / Care</p>
+            {% set active_care = waiting_list | selectattr('stage', 'in', ['WAITING_DOCTOR', 'IN_CONSULTATION', 'AWAITING_LAB', 'AWAITING_IMAGING', 'WAITING_DOCTOR_RESULTS', 'AWAITING_PHARMACY']) | list | length %}
+            <p class="h2 mb-0 fw-bold text-success">{{ active_care }}</p>
+          </div>
+          <div class="bg-success bg-opacity-10 rounded-circle p-3">
+            <i class="bi bi-clipboard2-pulse fs-3 text-success"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Waiting Room Queue Card -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+      <h5 class="mb-0 fw-bold text-dark">
+        <i class="bi bi-list-ul me-2 text-primary"></i>
+        Live Outpatient Queue
+      </h5>
+      <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fw-semibold">
+        {{ waiting_list | length }} Patient{{ 's' if waiting_list | length != 1 else '' }} Queued
+      </span>
+    </div>
+
+    <div class="card-body p-0">
+      {% if waiting_list %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 60px;">#</th>
+              <th>Patient Details</th>
+              <th>Encounter Type</th>
+              <th>Stage / Location</th>
+              <th>Started At</th>
+              <th class="text-end" style="width: 160px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in waiting_list %}
+            <tr>
+              <td>
+                <span class="badge bg-primary rounded-pill">{{ loop.index }}</span>
+              </td>
+              <td>
+                <div class="fw-bold text-dark">
+                  {{ entry.patient.name if entry.patient else 'Unknown Patient' }}
+                  {% if entry.esi_level in (1, 2) %}
+                    <span class="badge bg-danger ms-1">EMERGENT</span>
+                  {% endif %}
+                </div>
+                <small class="badge bg-light text-primary font-monospace border me-1">
+                  {{ entry.patient_id }}
+                </small>
+              </td>
+              <td>
+                <span class="badge bg-secondary bg-opacity-10 text-secondary fw-semibold">
+                  {{ entry.encounter_type or 'OPD' }}
+                </span>
+              </td>
+              <td>
+                {% set stage_map = {
+                  'REGISTERED_UNPAID': {'text': 'Reg Unpaid', 'color': 'warning'},
+                  'WAITING_TRIAGE': {'text': 'Triage', 'color': 'warning'},
+                  'WAITING_DOCTOR': {'text': 'Doctor Queue', 'color': 'primary'},
+                  'IN_CONSULTATION': {'text': 'In Consult', 'color': 'success'},
+                  'AWAITING_LAB': {'text': 'Lab Order', 'color': 'info'},
+                  'AWAITING_IMAGING': {'text': 'Imaging Order', 'color': 'info'},
+                  'AWAITING_RESULTS': {'text': 'Awaiting Results', 'color': 'info'},
+                  'WAITING_DOCTOR_RESULTS': {'text': 'Doctor Review', 'color': 'purple'},
+                  'AWAITING_PHARMACY': {'text': 'Pharmacy', 'color': 'warning'},
+                  'AWAITING_FINAL_BILLING': {'text': 'Billing Settlement', 'color': 'warning'},
+                  'DISCHARGED': {'text': 'Discharged', 'color': 'secondary'}
+                } %}
+                {% set stage_info = stage_map.get(entry.stage, {'text': entry.stage or 'Registered', 'color': 'secondary'}) %}
+                <span class="badge bg-{{ stage_info.color }} bg-opacity-10 text-{{ stage_info.color }} border border-{{ stage_info.color }} px-2.5 py-1.5 rounded-pill fw-semibold">
+                  <i class="bi bi-activity me-1"></i> {{ stage_info.text }}
+                </span>
+              </td>
+              <td class="text-muted">
+                <small>
+                  <i class="bi bi-clock me-1"></i>
+                  {{ entry.started_at.strftime('%H:%M') if entry.started_at else '--:--' }}
+                </small>
+              </td>
+              <td class="text-end">
+                <a href="{{ url_for('records.patient_profile', patient_id=entry.patient_id) }}" class="btn btn-sm btn-outline-primary fw-semibold">
+                  <i class="bi bi-eye me-1"></i> Profile
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5">
+        <i class="bi bi-emoji-smile fs-1 text-success d-block mb-3"></i>
+        <h5 class="text-dark fw-bold">All caught up!</h5>
+        <p class="text-muted mb-0">There are no patients currently waiting in the records queue.</p>
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>

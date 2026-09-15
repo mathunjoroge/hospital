@@ -66,14 +66,21 @@ class Encounter(db.Model):
         from departments.shared.queue_constants import QueueStatus
         stage_map = {
             "REGISTERED": QueueStatus.WAITING_TRIAGE,
+            "REGISTERED_UNPAID": QueueStatus.WAITING_TRIAGE,
+            "WAITING_TRIAGE": QueueStatus.WAITING_TRIAGE,
             "WAITING_DOCTOR": QueueStatus.VITALS_DONE,
             "IN_CONSULTATION": QueueStatus.IN_CONSULTATION,
+            "AWAITING_LAB": QueueStatus.AWAITING_RESULTS,
+            "AWAITING_IMAGING": QueueStatus.AWAITING_RESULTS,
             "AWAITING_RESULTS": QueueStatus.AWAITING_RESULTS,
+            "WAITING_DOCTOR_RESULTS": QueueStatus.AWAITING_RESULTS,
             "AWAITING_PHARMACY": QueueStatus.AWAITING_PHARMACY,
+            "AWAITING_FINAL_BILLING": QueueStatus.AWAITING_BILLING,
             "AWAITING_BILLING": QueueStatus.AWAITING_BILLING,
             "DISCHARGED": QueueStatus.DISCHARGED,
+            "CANCELLED": QueueStatus.NOT_SEEN,
         }
-        return stage_map.get(self.stage, 0)
+        return stage_map.get(self.stage, QueueStatus.NOT_SEEN)
 
     @property
     def last_updated(self):
@@ -97,23 +104,58 @@ class Encounter(db.Model):
     esi_level = db.Column(db.Integer, nullable=True)  # 1-5 ESI acuity
 
     ALLOWED_STAGE_TRANSITIONS = {  # noqa: RUF012
-        None: {"REGISTERED", "WAITING_DOCTOR", "IN_CONSULTATION", "ADMITTED", "PRE_OP"},
-        "REGISTERED": {"WAITING_DOCTOR", "IN_CONSULTATION", "CANCELLED"},
+        None: {"REGISTERED", "REGISTERED_UNPAID", "WAITING_TRIAGE", "WAITING_DOCTOR", "IN_CONSULTATION", "ADMITTED", "PRE_OP"},
+        "REGISTERED": {"REGISTERED_UNPAID", "WAITING_TRIAGE", "WAITING_DOCTOR", "IN_CONSULTATION", "CANCELLED"},
+        "REGISTERED_UNPAID": {"WAITING_TRIAGE", "WAITING_DOCTOR", "CANCELLED"},
+        "WAITING_TRIAGE": {"WAITING_DOCTOR", "IN_CONSULTATION", "CANCELLED"},
         "WAITING_DOCTOR": {"IN_CONSULTATION", "CANCELLED"},
         "IN_CONSULTATION": {
             "IN_CONSULTATION",
+            "AWAITING_LAB",
+            "AWAITING_IMAGING",
             "AWAITING_RESULTS",
+            "WAITING_DOCTOR_RESULTS",
             "AWAITING_PHARMACY",
+            "AWAITING_FINAL_BILLING",
+            "AWAITING_BILLING",
+            "DISCHARGED",
+        },
+        "AWAITING_LAB": {
+            "WAITING_DOCTOR_RESULTS",
+            "AWAITING_RESULTS",
+            "IN_CONSULTATION",
+            "AWAITING_PHARMACY",
+            "AWAITING_FINAL_BILLING",
+            "AWAITING_BILLING",
+        },
+        "AWAITING_IMAGING": {
+            "WAITING_DOCTOR_RESULTS",
+            "AWAITING_RESULTS",
+            "IN_CONSULTATION",
+            "AWAITING_PHARMACY",
+            "AWAITING_FINAL_BILLING",
             "AWAITING_BILLING",
         },
         "AWAITING_RESULTS": {
+            "WAITING_DOCTOR_RESULTS",
             "IN_CONSULTATION",
             "AWAITING_RESULTS",
             "AWAITING_PHARMACY",
+            "AWAITING_FINAL_BILLING",
             "AWAITING_BILLING",
         },
-        "AWAITING_PHARMACY": {"IN_CONSULTATION", "AWAITING_BILLING"},
-        "AWAITING_BILLING": {"DISCHARGED"},
+        "WAITING_DOCTOR_RESULTS": {
+            "IN_CONSULTATION",
+            "AWAITING_LAB",
+            "AWAITING_IMAGING",
+            "AWAITING_PHARMACY",
+            "AWAITING_FINAL_BILLING",
+            "AWAITING_BILLING",
+            "DISCHARGED",
+        },
+        "AWAITING_PHARMACY": {"IN_CONSULTATION", "AWAITING_FINAL_BILLING", "AWAITING_BILLING", "DISCHARGED"},
+        "AWAITING_FINAL_BILLING": {"DISCHARGED"},
+        "AWAITING_BILLING": {"AWAITING_FINAL_BILLING", "DISCHARGED"},
         "ADMITTED": {"DISCHARGED", "REFERRED_OUT"},
         "REFERRED_OUT": {"DISCHARGED"},
         "PRE_OP": {"INTRA_OP", "CANCELLED"},

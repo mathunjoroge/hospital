@@ -1,4 +1,5 @@
 <div class="sidebar-heading">Renal & Dialysis Unit</div>
+<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
 <a href="{{ url_for('renal.list_sessions') }}"><i class="bi bi-water me-2" style="color: #3b82f6;"></i> Dialysis Sessions</a>
 <a href="{{ url_for('renal.list_sessions') }}?status=IN_PROGRESS"><i class="bi bi-play-circle-fill me-2" style="color: #10b981;"></i> Active HD/CRRT Sessions</a>
 

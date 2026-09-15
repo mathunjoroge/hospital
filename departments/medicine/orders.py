@@ -108,6 +108,18 @@ def request_lab_tests(patient_id):
             db.session.commit()
             flash("Lab tests requested successfully!", "success")
 
+            # ✅ Advance encounter stage: lab ordered → AWAITING_LAB
+            from departments.models.encounter import Encounter
+            _enc = (
+                Encounter.query.filter_by(patient_id=patient_id, status="ACTIVE")
+                .order_by(Encounter.started_at.desc())
+                .first()
+            )
+            if _enc and _enc.stage in ("WAITING_DOCTOR", "IN_CONSULTATION"):
+                _enc.stage = "AWAITING_LAB"
+                db.session.add(_enc)
+                db.session.commit()
+
             # ✅ Redirect accordingly
             if dept == "1":
                 return redirect(url_for("medicine.ward_rounds"))
@@ -203,6 +215,18 @@ def request_imaging(patient_id):
 
             db.session.commit()
             flash("Imaging requested successfully!", "success")
+
+            # ✅ Advance encounter stage: imaging ordered → AWAITING_IMAGING
+            from departments.models.encounter import Encounter
+            _enc = (
+                Encounter.query.filter_by(patient_id=patient_id, status="ACTIVE")
+                .order_by(Encounter.started_at.desc())
+                .first()
+            )
+            if _enc and _enc.stage in ("WAITING_DOCTOR", "IN_CONSULTATION", "AWAITING_LAB"):
+                _enc.stage = "AWAITING_IMAGING"
+                db.session.add(_enc)
+                db.session.commit()
 
             # ✅ Redirect based on dept
             if dept == "1":

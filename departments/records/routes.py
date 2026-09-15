@@ -161,6 +161,31 @@ def new_patient():
         db.session.add(new_p)
         db.session.commit()
 
+        # Initialize encounter with REGISTERED_UNPAID stage (billing registration queue)
+        from departments.models.encounter import Encounter
+        from departments.shared import queue_service  # Fixed import
+
+        # Check if an active encounter already exists for this patient
+        existing_encounter = (
+            Encounter.query.filter_by(patient_id=new_p.patient_id, status="ACTIVE")
+            .order_by(Encounter.started_at.desc())
+            .first()
+        )
+        if not existing_encounter:
+            encounter = Encounter(
+                patient_id=new_p.patient_id,
+                encounter_type="OPD",
+                status="ACTIVE",
+                stage="REGISTERED_UNPAID",  # Start in billing registration queue
+            )
+            db.session.add(encounter)
+            db.session.commit()
+        else:
+            # Update existing encounter stage if needed
+            if existing_encounter.stage != "REGISTERED_UNPAID":
+                existing_encounter.stage = "REGISTERED_UNPAID"
+                db.session.commit()
+
         # Bridge registration to live queue via Appointment
         provider_id = str(getattr(current_user, "id", "1") or "1")
         ScheduleEngine().create_walk_in(
@@ -657,16 +682,32 @@ def book_clinic():
 @login_required
 @roles_required("records", "admin")
 def waiting_list():
-    # Phase 4: read from Encounter instead of PatientWaitingList
+    # Unified patient flow queue: show all active encounters across the pipeline
+    from departments.shared import queue_service  # Fixed import
 
-    waiting_list = (
-        db.session.query(Encounter, Patient)
-        .join(Patient, Encounter.patient_id == Patient.patient_id)
-        .filter(Encounter.status == "ACTIVE")
-        .order_by(Encounter.started_at.asc())
-        .all()
-    )
-    return render_template("records/waiting_list.html", waiting_list=waiting_list)
+    # Collect waits from each department queue in patient flow order
+    waiting_list = []
+    waiting_list += queue_service.queue_for("billing_registration")
+    waiting_list += queue_service.queue_for("nursing")
+    waiting_list += queue_service.queue_for("medicine")
+    waiting_list += queue_service.queue_for("medicine_results")
+    waiting_list += queue_service.queue_for("laboratory")
+    waiting_list += queue_service.queue_for("imaging")
+    waiting_list += queue_service.queue_for("pharmacy")
+    waiting_list += queue_service.queue_for("billing_settlement")
+
+    # Deduplicate by patient_id (a patient can only be in one stage at a time)
+    seen_patients = set()
+    unique_waiting = []
+    for entry in waiting_list:
+        if entry.patient_id not in seen_patients:
+            seen_patients.add(entry.patient_id)
+            unique_waiting.append(entry)
+
+    # Sort by start time (oldest first)
+    unique_waiting.sort(key=lambda e: e.started_at or datetime.min.replace(tzinfo=None))
+
+    return render_template("records/waiting_list.html", waiting_list=unique_waiting)
 
 
 # --- UI Wiring: Active Encounters Summary ---

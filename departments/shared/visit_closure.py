@@ -58,13 +58,33 @@ def determine_next_stage(patient_id: str, enc) -> str:
     pending_labs = _pending_count(RequestedLab, patient_id, enc)
     pending_imaging = _pending_count(RequestedImage, patient_id, enc)
     pending_rx = _pending_count(PrescribedMedicine, patient_id, enc)
+    pending_billing = Billing.query.filter_by(patient_id=patient_id, status=0).count()
 
-    if pending_labs or pending_imaging:
-        return "AWAITING_RESULTS"
-    elif pending_rx:
+    current_stage = getattr(enc, "stage", None)
+
+    # Priority 1: Tests still running → keep them in the lab/imaging queue
+    if pending_labs and pending_imaging:
+        # Multiple types pending, pick the most prominent
+        return current_stage if current_stage in ("AWAITING_LAB", "AWAITING_IMAGING") else "AWAITING_LAB"
+    if pending_labs:
+        return "AWAITING_LAB"
+    if pending_imaging:
+        return "AWAITING_IMAGING"
+
+    # Priority 2: Tests were requested and are now done → Doctor needs to review results
+    # (enc.stage was AWAITING_LAB or AWAITING_IMAGING and tests are now complete)
+    if current_stage in ("AWAITING_LAB", "AWAITING_IMAGING", "AWAITING_RESULTS"):
+        # Tests done → send patient back to Doctor's "Results Review" queue
+        return "WAITING_DOCTOR_RESULTS"
+
+    # Priority 3: Prescriptions still pending dispensing
+    if pending_rx:
         return "AWAITING_PHARMACY"
-    else:
-        return "AWAITING_BILLING"
+    # Priority 4: Billing pending → final billing stage
+    if pending_billing > 0:
+        return "AWAITING_FINAL_BILLING"
+    # No pending work → discharge
+    return "DISCHARGED"
 
 def advance_after_completion(patient_id: str) -> str | None:
     enc = active_encounter(patient_id)

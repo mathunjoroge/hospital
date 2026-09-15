@@ -180,6 +180,14 @@ def remove_all_expiries():
 # expires report
 
 
+@bp.route("/stock_movement", methods=["GET"])
+@login_required
+@roles_required("pharmacy", "admin")
+def stock_movement():
+    """Alias for inventory/stock movements."""
+    return redirect(url_for("pharmacy.inventory"))
+
+
 @bp.route("/inventory", methods=["GET"])
 @login_required
 @roles_required("pharmacy", "admin")

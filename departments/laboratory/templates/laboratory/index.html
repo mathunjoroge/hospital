@@ -1,55 +1,155 @@
 {% extends "base.html" %}
+
+{% block title %}Laboratory — Waiting List{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-        <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-    <h2 class="mb-4 text-center">Laboratory Waiting List</h2>
-
-    <!-- Display Pending Lab Test Requests -->
-    {% if pending_lab_requests %}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">Pending Lab Test Requests</h4>
+<div class="container-fluid px-4 py-4">
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category in ['error', 'danger'] else category }} alert-dismissible fade show rounded-3 shadow-sm mb-3">
+          <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-        <div class="card-body">
-            <table class="table table-striped table-bordered">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Patient Name</th>
-                        <th>Patient ID</th>
-                        <th>Test Name</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for request in pending_lab_requests %}
-                    <tr>
-                        <td>{{ request.patient.name }}</td>
-                        <td>{{ request.patient.patient_id }}</td>
-                        <td>{{ request.lab_test.test_name }} </td>
-
-                           <td>
-                            <a href="{{ url_for('laboratory.process_lab_request', request_id=request.lab_test.id ) }}" class="btn btn-success btn-sm">Process</a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5" class="text-center text-muted">No pending lab test requests available.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+      {% endfor %}
     {% endif %}
+  {% endwith %}
+
+  <!-- Header Banner -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+    <div>
+      <h1 class="h3 mb-0 text-dark fw-bold">
+        <i class="bi bi-flask-fill text-info me-2"></i>
+        Laboratory Worklist & Queue
+      </h1>
+      <p class="text-muted mt-1 mb-0">
+        Pending outpatient lab test requests and specimen processing
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('laboratory.pending_lab_patients') }}" class="btn btn-outline-info fw-semibold">
+        <i class="bi bi-list-task me-1"></i> Pending Lab Orders
+      </a>
+      <a href="{{ url_for('laboratory.lab_reagent_inventory') }}" class="btn btn-outline-secondary fw-semibold">
+        <i class="bi bi-box-seam me-1"></i> Reagents Inventory
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Summary Row -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <p class="text-muted small text-uppercase fw-bold mb-1">Pending Lab Orders</p>
+            <p class="h2 mb-0 fw-bold text-info">{{ pending_lab_requests | length if pending_lab_requests else (pending_requests | length if pending_requests else 0) }}</p>
+          </div>
+          <div class="bg-info bg-opacity-10 rounded-circle p-3">
+            <i class="bi bi-hourglass-split fs-3 text-info"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <p class="text-muted small text-uppercase fw-bold mb-1">Lab Workstation Status</p>
+            <p class="h4 mb-0 fw-bold text-success">LIMS Active</p>
+          </div>
+          <div class="bg-success bg-opacity-10 rounded-circle p-3">
+            <i class="bi bi-check2-circle fs-3 text-success"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <p class="text-muted small text-uppercase fw-bold mb-1">Quick Action</p>
+            <a href="{{ url_for('laboratory.lab_reagents_order') }}" class="btn btn-sm btn-info text-white fw-semibold">
+              <i class="bi bi-cart-plus me-1"></i> Order Reagents
+            </a>
+          </div>
+          <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+            <i class="bi bi-journal-plus fs-3 text-primary"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Laboratory Queue Card -->
+  {% set req_list = pending_requests if pending_requests else (pending_lab_requests if pending_lab_requests else []) %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+      <h5 class="mb-0 fw-bold text-dark">
+        <i class="bi bi-list-ul me-2 text-info"></i>
+        Pending Laboratory Requests
+      </h5>
+      <span class="badge bg-info bg-opacity-10 text-info px-3 py-2 rounded-pill fw-semibold">
+        {{ req_list | length }} Test Order{{ 's' if req_list | length != 1 else '' }}
+      </span>
+    </div>
+
+    <div class="card-body p-0">
+      {% if req_list %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 60px;">#</th>
+              <th>Patient Details</th>
+              <th>Requested Test</th>
+              <th>Stage / Status</th>
+              <th class="text-end" style="width: 160px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for request in req_list %}
+            <tr>
+              <td>
+                <span class="badge bg-info text-white rounded-pill">{{ loop.index }}</span>
+              </td>
+              <td>
+                <div class="fw-bold text-dark fs-6">
+                  {{ request.patient.name if request.patient else (request.name if request.name else 'Unknown Patient') }}
+                </div>
+                <small class="badge bg-light text-info font-monospace border">
+                  {{ request.patient_id if request.patient_id else (request.patient.patient_id if request.patient else 'N/A') }}
+                </small>
+              </td>
+              <td>
+                <div class="fw-semibold text-dark">
+                  {{ request.lab_test.test_name if request.lab_test else (request.test_name if request.test_name else 'Lab Investigation') }}
+                </div>
+              </td>
+              <td>
+                <span class="badge bg-info bg-opacity-10 text-info border border-info px-2.5 py-1.5 rounded-pill fw-semibold">
+                  <i class="bi bi-hourglass-split me-1"></i> Awaiting Laboratory
+                </span>
+              </td>
+              <td class="text-end">
+                <a href="{{ url_for('laboratory.process_lab_request', request_id=request.lab_test.id if request.lab_test else (request.id if request.id else 1)) }}" class="btn btn-sm btn-info text-white fw-semibold">
+                  <i class="bi bi-play-circle me-1"></i> Process Test
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5">
+        <i class="bi bi-emoji-smile fs-1 text-success d-block mb-3"></i>
+        <h5 class="text-dark fw-bold">All caught up!</h5>
+        <p class="text-muted mb-0">No pending lab test requests currently in the queue.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
 </div>
 {% endblock %}

@@ -11,6 +11,7 @@ from extensions import db
 
 from . import bp
 from .lims_service import LIMSService
+from departments.shared import queue_service  # Fixed import
 
 
 @bp.route("/lims-dashboard", methods=["GET"])
@@ -289,3 +290,4 @@ def api_lims_dashboard_metrics():
     """Returns real-time LIMS KPIs and QC pass rates."""
     metrics = LIMSService.get_lims_dashboard_metrics()
     return jsonify(metrics)
+

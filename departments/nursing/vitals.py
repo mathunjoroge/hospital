@@ -107,6 +107,8 @@ def vitals(patient_id):
                         age_years=_age,
                     )
                     _enc.esi_level = _esi
+                    # Advance stage: vitals done → patient ready for doctor
+                    _enc.stage = "WAITING_DOCTOR"
                     db.session.commit()
             except Exception as _e:  # never block vitals capture on ESI math  # noqa: BLE001
                 db.session.rollback()
