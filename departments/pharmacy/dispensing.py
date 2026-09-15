@@ -37,7 +37,6 @@ def prescriptions():
             PrescribedMedicine.query.filter(PrescribedMedicine.num_days > 0)
             .options(
                 joinedload(PrescribedMedicine.medicine),
-                joinedload(PrescribedMedicine.patient),
             )
             .all()
         )
@@ -140,11 +139,28 @@ def dispense_prescription(prescription_id):
             .order_by(Batch.expiry_date.asc())
             .first()
             for medicine in prescribed_medicines
+            if medicine.medicine
         }
 
-        dispensed_drugs = DispensedDrug.query.filter_by(
-            prescription_id=prescription_id
-        ).all()
+        dispensed_drugs_raw = (
+            DispensedDrug.query.filter_by(prescription_id=prescription_id)
+            .options(joinedload(DispensedDrug.drug))
+            .all()
+        )
+        dispensed_drugs = [
+            {
+                "generic_name": d.drug.generic_name if d.drug else "N/A",
+                "id": d.id,
+                "brand_name": d.drug.brand_name if d.drug else "N/A",
+                "dosage_form": d.drug.dosage_form if d.drug else "N/A",
+                "strength": d.drug.strength if d.drug else "N/A",
+                "selling_price": d.drug.selling_price if d.drug else 0,
+                "batch_id": d.batch_id,
+                "quantity_dispensed": d.quantity_dispensed,
+                "total": (d.drug.selling_price * d.quantity_dispensed) if d.drug else 0,
+            }
+            for d in dispensed_drugs_raw
+        ]
 
         return render_template(
             "pharmacy/dispense_prescription.html",

@@ -64,8 +64,9 @@ class PrescribedMedicine(db.Model):
     num_days = db.Column(db.Integer, nullable=False)
     status = db.Column(db.Integer, default=0, nullable=False)
 
-    # Define relationship with Medicine
+    # Define relationship with Medicine & Patient
     medicine = relationship("Medicine", backref="prescribed_medicines")
+    patient = relationship("Patient", backref="prescribed_medicines")
 
     def __init__(
         self,
