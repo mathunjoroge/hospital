@@ -163,7 +163,6 @@ def new_patient():
 
         # Initialize encounter with REGISTERED_UNPAID stage (billing registration queue)
         from departments.models.encounter import Encounter
-        from departments.shared import queue_service  # Fixed import
 
         # Check if an active encounter already exists for this patient
         existing_encounter = (

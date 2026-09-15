@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from flask import jsonify, request
 from flask_login import login_required
 
-from departments.models.records import Patient
 from departments.rbac import roles_required
 
 from . import bp

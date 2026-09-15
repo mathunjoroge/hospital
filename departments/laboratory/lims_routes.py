@@ -11,7 +11,6 @@ from extensions import db
 
 from . import bp
 from .lims_service import LIMSService
-from departments.shared import queue_service  # Fixed import
 
 
 @bp.route("/lims-dashboard", methods=["GET"])

@@ -310,8 +310,6 @@ class ScheduleEngine:
 
         # Format the queue for dashboard display
         from departments.models.records import Patient
-        from departments.models.encounter import Encounter
-        from departments.shared.queue_constants import QueueStatus
 
         now_utc = datetime.now(timezone.utc)
         patient_ids = [a.patient_id for a in all_queue]

@@ -487,7 +487,6 @@ def pay_all(patient_id):
 
         # --- Advance encounter stage based on payment type ---
         from departments.models.encounter import Encounter
-        from departments.shared import queue_service  # Fixed import
 
         # Find the patient's active encounter
         encounter = (
@@ -505,14 +504,14 @@ def pay_all(patient_id):
                 # Clinic/specialist patient: paying clinic fees moves them directly to doctor queue
                 encounter.stage = "WAITING_DOCTOR"
                 flash(
-                    f"Payment recorded! Patient moved to Doctor's Queue (clinic fees paid).",
+                    "Payment recorded! Patient moved to Doctor's Queue (clinic fees paid).",
                     "success",
                 )
             elif encounter.stage == "REGISTERED_UNPAID":
                 # Registration fee payment: move from billing registration to triage/nursing
                 encounter.stage = "WAITING_TRIAGE"
                 flash(
-                    f"Payment recorded! Patient moved to Nursing Queue (triage/vitals pending).",
+                    "Payment recorded! Patient moved to Nursing Queue (triage/vitals pending).",
                     "success",
                 )
             else:

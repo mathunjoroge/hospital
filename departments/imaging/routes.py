@@ -17,7 +17,6 @@ from flask import (
 )
 from flask_login import current_user, login_required
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 
 from departments.api.auth import jwt_or_session_required

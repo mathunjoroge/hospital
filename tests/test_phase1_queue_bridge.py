@@ -37,7 +37,7 @@ def test_live_queue_includes_ready_excludes_in_progress(app):
     visible on the dashboard so staff can see who is currently being seen.
     After call_in, a1's encounter moves to IN_CONSULTATION stage."""
     a1 = ScheduleEngine().create_walk_in(patient_id="P0001", provider_id="1")
-    a2 = ScheduleEngine().create_walk_in(patient_id="P0002", provider_id="1")
+    ScheduleEngine().create_walk_in(patient_id="P0002", provider_id="1")
     ScheduleEngine().mark_triage_complete("P0002")
     ScheduleEngine().call_in(a1.id)
     queue = ScheduleEngine().get_live_queue()
