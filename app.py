@@ -185,6 +185,10 @@ app.config["ENABLE_TELEMEDICINE"] = (
     ).lower()
     == "true"
 )
+app.config["ENABLE_SSO"] = (
+    os.environ.get("ENABLE_SSO", os.environ.get("SSO_ENABLED", "false")).lower()
+    == "true"
+)
 app.config["SESSION_TYPE"] = "redis"
 redis_host = os.environ.get("REDIS_HOST", "localhost")
 redis_port = int(os.environ.get("REDIS_PORT", "6379"))

@@ -11,7 +11,7 @@ Endpoints:
 """
 import logging
 
-from flask import jsonify, redirect, request, session, url_for
+from flask import current_app, jsonify, redirect, request, session, url_for
 from flask_login import login_user
 
 from . import bp
@@ -19,6 +19,25 @@ from .sso_engine import SSOEngine, SSOError
 
 logger = logging.getLogger(__name__)
 _sso_engine = SSOEngine()
+
+
+@bp.before_request
+def check_sso_enabled():
+    """
+    Quarantine the SSO blueprint behind ENABLE_SSO (default False).
+
+    These endpoints establish an authenticated session without going through
+    /login, so they must not be reachable unless an operator has explicitly
+    enabled SSO and configured a real IdP.
+    """
+    if not current_app.config.get("ENABLE_SSO", False):
+        return jsonify(
+            {
+                "error": "SSO is currently disabled by system policy.",
+                "code": "FEATURE_DISABLED",
+            }
+        ), 403
+    return None
 
 
 @bp.route("/login", methods=["GET"])

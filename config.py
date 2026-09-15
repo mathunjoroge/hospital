@@ -88,6 +88,11 @@ class Config:
 
     ENABLE_TELEMEDICINE = os.getenv('ENABLE_TELEMEDICINE', 'false').lower() == 'true'
 
+    # Enterprise SSO (OIDC / LDAP). Default OFF: the blueprint mounts
+    # unauthenticated login endpoints, so it must be explicitly opted into
+    # and only after OIDC_/LDAP_ credentials are actually configured.
+    ENABLE_SSO = os.getenv('ENABLE_SSO', 'false').lower() == 'true'
+
     # WHO ICD-10 API (DECISIONS_PENDING #4 — resolved 2026-09-13)
     WHO_ICD_CLIENT_ID = os.getenv('WHO_ICD_CLIENT_ID', '')
     WHO_ICD_CLIENT_SECRET = os.getenv('WHO_ICD_CLIENT_SECRET', '')
