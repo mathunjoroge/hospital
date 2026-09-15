@@ -141,7 +141,7 @@ class LIMSService:
         rejection_reason: str | None = None,
     ) -> Specimen:
         if isinstance(specimen_id_or_barcode, int) or specimen_id_or_barcode.isdigit():
-            specimen = Specimen.query.get(int(specimen_id_or_barcode))
+            specimen = db.session.get(Specimen, int(specimen_id_or_barcode))
         else:
             specimen = Specimen.query.filter_by(barcode=specimen_id_or_barcode).first()
 
@@ -180,7 +180,7 @@ class LIMSService:
     def log_qc_result(
         cls, qc_sample_id: int, measured_value: float, operator_id: int | None = None
     ) -> LabQCResult:
-        qc_sample = LabQCSample.query.get(qc_sample_id)
+        qc_sample = db.session.get(LabQCSample, qc_sample_id)
         if not qc_sample:
             raise ValueError(f"Lab QC sample not found: {qc_sample_id}")
 

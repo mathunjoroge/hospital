@@ -16,7 +16,6 @@ Capabilities:
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional, Tuple
 
 from departments.models.medicine import TheatreList
 from departments.models.theatre import (
@@ -74,7 +73,7 @@ class TheatreOperationsEngine:
     """Core domain logic engine for theatre operations, perioperative safety, and anesthesia timeline."""
 
     @staticmethod
-    def evaluate_asa_score(asa_status: str, is_emergency: bool = False) -> Dict:
+    def evaluate_asa_score(asa_status: str, is_emergency: bool = False) -> dict:
         """
         Evaluate ASA Physical Status classification & compute perioperative risk grade.
         Emergency cases (is_emergency=True or '-E' suffix) double the baseline risk percentage.
@@ -109,9 +108,9 @@ class TheatreOperationsEngine:
     def record_timeline_event(
         entry_id: int,
         event_type: str,
-        notes: Optional[str] = None,
-        recorded_by: Optional[str] = None,
-    ) -> Dict:
+        notes: str | None = None,
+        recorded_by: str | None = None,
+    ) -> dict:
         """
         Record a timestamped anesthesia timeline event (e.g., INDUCTION, INTUBATION, INCISION).
         """
@@ -165,7 +164,7 @@ class TheatreOperationsEngine:
         return event_obj
 
     @staticmethod
-    def get_anesthesia_timeline_matrix(entry_id: int) -> Dict:
+    def get_anesthesia_timeline_matrix(entry_id: int) -> dict:
         """
         Retrieve complete timeline event matrix aligned with vital sign snapshots.
         """
@@ -207,8 +206,8 @@ class TheatreOperationsEngine:
         or_room: str,
         start_time: datetime,
         duration_minutes: int = 120,
-        exclude_entry_id: Optional[int] = None,
-    ) -> Tuple[bool, Optional[str]]:
+        exclude_entry_id: int | None = None,
+    ) -> tuple[bool, str | None]:
         """
         Check whether an OR room schedule has a time collision with an existing booking.
         """
@@ -250,7 +249,7 @@ class TheatreOperationsEngine:
         return False, None
 
     @staticmethod
-    def calculate_or_utilization_metrics() -> Dict:
+    def calculate_or_utilization_metrics() -> dict:
         """
         Compute Operating Theatre utilization, room occupancy rates, ASA distribution, and turnover time.
         """
@@ -297,12 +296,12 @@ class TheatreOperationsEngine:
     @staticmethod
     def record_intraop_vitals(
         entry_id: int,
-        hr: Optional[int] = None,
-        bp_systolic: Optional[int] = None,
-        bp_diastolic: Optional[int] = None,
-        spo2: Optional[int] = None,
-        etco2: Optional[int] = None,
-        agent_concentration: Optional[float] = None,
+        hr: int | None = None,
+        bp_systolic: int | None = None,
+        bp_diastolic: int | None = None,
+        spo2: int | None = None,
+        etco2: int | None = None,
+        agent_concentration: float | None = None,
     ) -> AnaestheticRecord:
         """Stream a time-stamped intraoperative vital sign snapshot to AnaestheticRecord."""
         entry = db.session.get(TheatreList, entry_id)
@@ -336,7 +335,7 @@ class TheatreOperationsEngine:
         return record
 
     @staticmethod
-    def calculate_fluid_balance(entry_id: int) -> Dict[str, float]:
+    def calculate_fluid_balance(entry_id: int) -> dict[str, float]:
         """Compute intraoperative fluid intake vs. loss summary."""
         record = AnaestheticRecord.query.filter_by(theatre_entry_id=entry_id).first()
         if not record:
@@ -373,7 +372,7 @@ class TheatreOperationsEngine:
         }
 
     @staticmethod
-    def evaluate_who_checklist_gate(entry_id: int, target_stage: str) -> Tuple[bool, str]:
+    def evaluate_who_checklist_gate(entry_id: int, target_stage: str) -> tuple[bool, str]:
         """Verify whether WHO Surgical Safety Checklist gate is passed for target stage transition."""
         checklist = WhoSurgicalChecklist.query.filter_by(theatre_entry_id=entry_id).first()
         stage_clean = (target_stage or "").upper()
@@ -397,7 +396,7 @@ class TheatreOperationsEngine:
         return True, "No specific gate required for stage."
 
     @staticmethod
-    def evaluate_pacu_discharge_readiness(entry_id: int) -> Dict:
+    def evaluate_pacu_discharge_readiness(entry_id: int) -> dict:
         """Evaluate PACU Aldrete Recovery Score (0-10) discharge threshold (>= 9)."""
         note = PostOpNote.query.filter_by(theatre_entry_id=entry_id).first()
         if not note:
@@ -425,7 +424,7 @@ class TheatreOperationsEngine:
         }
 
     @staticmethod
-    def get_or_dashboard_metrics() -> Dict:
+    def get_or_dashboard_metrics() -> dict:
         """Compute real-time Operating Theatre utilization, active cases, and safety metrics."""
         entries = TheatreList.query.order_by(TheatreList.created_at.desc()).limit(50).all()
 

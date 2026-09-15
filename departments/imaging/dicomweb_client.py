@@ -10,7 +10,6 @@ Supports:
 
 import logging
 import os
-from typing import Optional
 
 import requests
 
@@ -26,7 +25,7 @@ DICOMWEB_BASE = os.getenv("DICOMWEB_BASE_URL", f"{ORTHANC_URL}/dicom-web").rstri
 class DICOMwebClient:
     """Client for Orthanc / PACS DICOMweb services and RESTful Store SCU."""
 
-    def __init__(self, base_url: Optional[str] = None, auth: Optional[tuple[str, str]] = None):
+    def __init__(self, base_url: str | None = None, auth: tuple[str, str] | None = None):
         self.base_url = (base_url or DICOMWEB_BASE).rstrip("/")
         self.orthanc_url = ORTHANC_URL
         self.auth = auth or (ORTHANC_USER, ORTHANC_PASS) if ORTHANC_USER else None
@@ -36,9 +35,9 @@ class DICOMwebClient:
     # ---------------------------------------------------------------------------
     def qido_search_studies(
         self,
-        patient_id: Optional[str] = None,
-        modality: Optional[str] = None,
-        study_date: Optional[str] = None,
+        patient_id: str | None = None,
+        modality: str | None = None,
+        study_date: str | None = None,
         limit: int = 50,
     ) -> list[dict]:
         """

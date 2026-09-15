@@ -8,7 +8,6 @@ import hashlib
 import logging
 import random
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
 
 from departments.clinical_trials.models import (
     ClinicalTrialProtocol,
@@ -32,10 +31,10 @@ class ClinicalTrialsEngine:
         principal_investigator: str,
         phase: str = "Phase III",
         target_enrollment: int = 100,
-        inclusion_criteria: Optional[List[str]] = None,
-        exclusion_criteria: Optional[List[str]] = None,
-        treatment_arms: Optional[List[str]] = None,
-        irb_approval_number: Optional[str] = None,
+        inclusion_criteria: list[str] | None = None,
+        exclusion_criteria: list[str] | None = None,
+        treatment_arms: list[str] | None = None,
+        irb_approval_number: str | None = None,
     ) -> ClinicalTrialProtocol:
         """Register a new Clinical Trial Protocol."""
         protocol = ClinicalTrialProtocol(
@@ -59,7 +58,7 @@ class ClinicalTrialsEngine:
         return protocol
 
     @staticmethod
-    def screen_patient_eligibility(protocol_id: str, patient_id: str) -> Dict:
+    def screen_patient_eligibility(protocol_id: str, patient_id: str) -> dict:
         """
         Automated protocol eligibility screening based on patient demographics and clinical criteria.
         Checks:
@@ -74,7 +73,7 @@ class ClinicalTrialsEngine:
         if not patient:
             raise ValueError(f"Patient #{patient_id} not found.")
 
-        reasons: List[str] = []
+        reasons: list[str] = []
         is_eligible = True
 
         if protocol.status != "RECRUITING":
@@ -118,7 +117,7 @@ class ClinicalTrialsEngine:
         }
 
     @staticmethod
-    def record_econsent(participant_id: str, witness_name: Optional[str] = None) -> Dict:
+    def record_econsent(participant_id: str, witness_name: str | None = None) -> dict:
         """
         Record electronic informed consent (e-Consent) with SHA-256 digital signature verification.
         """
@@ -145,7 +144,7 @@ class ClinicalTrialsEngine:
         }
 
     @staticmethod
-    def randomize_participant(participant_id: str) -> Dict:
+    def randomize_participant(participant_id: str) -> dict:
         """
         Randomize a consented trial participant into one of the protocol treatment arms.
         """
@@ -181,8 +180,8 @@ class ClinicalTrialsEngine:
         severity_grade: int = 1,
         is_serious_ae: bool = False,
         causality_assessment: str = "POSSIBLE",
-        reported_by: Optional[str] = None,
-    ) -> Dict:
+        reported_by: str | None = None,
+    ) -> dict:
         """
         Log an Adverse Event (AE) / Serious Adverse Event (SAE) with IRB reporting trigger.
         Grade 4-5 or is_serious_ae=True triggers immediate IRB regulatory escalation alert.
@@ -225,7 +224,7 @@ class ClinicalTrialsEngine:
         }
 
     @staticmethod
-    def get_trial_registry_summary() -> List[Dict]:
+    def get_trial_registry_summary() -> list[dict]:
         """
         Retrieve summary metrics for all active clinical trials.
         """

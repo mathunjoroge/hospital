@@ -128,7 +128,7 @@ def sync_icd10_codes():
             count = import_from_who_api()
             logger.info("[Celery] ICD-10 sync complete: %d codes upserted.", count)
             return {"status": "ok", "codes_upserted": count}
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("[Celery] ICD-10 sync failed: %s", exc)
         raise
 
@@ -152,7 +152,7 @@ def sync_snomed_codes():
             count = import_from_umls_api(fetch_live_api=True)
             logger.info("[Celery] SNOMED CT sync complete: %d codes upserted.", count)
             return {"status": "ok", "codes_upserted": count}
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("[Celery] SNOMED CT sync failed: %s", exc)
         raise
 
@@ -176,7 +176,7 @@ def sync_loinc_codes():
             count = import_from_umls_api(fetch_live_api=True)
             logger.info("[Celery] LOINC sync complete: %d codes upserted.", count)
             return {"status": "ok", "codes_upserted": count}
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("[Celery] LOINC sync failed: %s", exc)
         raise
 

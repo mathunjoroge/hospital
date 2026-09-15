@@ -46,7 +46,7 @@ def patient_login_required(f):
             flash("Please log in to access the patient portal.", "warning")
             return redirect(url_for("patient_portal.login"))
 
-        patient_user = PatientUser.query.get(patient_user_id)
+        patient_user = db.session.get(PatientUser, patient_user_id)
         if not patient_user or not patient_user.is_active:
             session.pop("patient_user_id", None)
             flash("Your portal session is invalid or inactive.", "danger")
@@ -145,7 +145,7 @@ def register():
             patients = Patient.query.filter(Patient.national_id.isnot(None)).all()
             patient = next((p for p in patients if p.national_id == national_id), None)
         elif patient_id and patient_id.isdigit():
-            patient = Patient.query.get(int(patient_id))
+            patient = db.session.get(Patient, int(patient_id))
 
         if not patient:
             flash(

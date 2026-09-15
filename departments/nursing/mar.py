@@ -115,10 +115,10 @@ def trigger_daily_billing():
         AdmittedPatient.discharged_on.is_(None)
     ).all()
     billed_count = 0
-    total_amount = Decimal("0")
+    total_amount = Decimal(0)
 
     for admission in admitted:
-        ward = Ward.query.get(admission.ward_id)
+        ward = db.session.get(Ward, admission.ward_id)
         if not ward:
             continue
 
@@ -126,7 +126,7 @@ def trigger_daily_billing():
 
         invoice = get_or_create_open_invoice(admission.patient_id)
 
-        daily_charge = Decimal(str(ward.daily_charge))
+        daily_charge = ward.daily_charge
 
         # Add daily ward charge line item
         line_item = InvoiceLineItem(

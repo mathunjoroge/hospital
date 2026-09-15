@@ -130,5 +130,5 @@ class TestDICOMIntegration:
         assert "**Findings:**\nLungs are clear." in db_res.result_notes
         assert "**Impression:**\nNormal chest X-ray." in db_res.result_notes
 
-        db_req = RequestedImage.query.get(req.id)
+        db_req = db.session.get(RequestedImage, req.id)
         assert db_req.status == 1  # Processed

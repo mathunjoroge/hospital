@@ -57,7 +57,7 @@ _token_expires_at: float = 0.0  # epoch seconds
 
 def _get_bearer_token() -> str:
     """Return a valid Bearer token, refreshing it when near expiry."""
-    global _cached_token, _token_expires_at  # noqa: PLW0603
+    global _cached_token, _token_expires_at
 
     client_id = os.getenv("WHO_ICD_CLIENT_ID", "")
     client_secret = os.getenv("WHO_ICD_CLIENT_SECRET", "")
@@ -118,7 +118,7 @@ def _api_get(url: str, params: dict | None = None, retries: int = 3) -> dict:
         except requests.HTTPError as exc:
             if exc.response is not None and exc.response.status_code in (401, 403):
                 # Token rejected — force refresh on next attempt
-                global _cached_token  # noqa: PLW0603
+                global _cached_token
                 _cached_token = None
             last_exc = exc
         except requests.RequestException as exc:

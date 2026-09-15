@@ -174,7 +174,7 @@ def complete_session(session_uuid):
     # Discharge the linked TELEHEALTH encounter
     if getattr(session, "encounter_id", None):
         from departments.models.encounter import Encounter
-        enc = Encounter.query.get(session.encounter_id)
+        enc = db.session.get(Encounter, session.encounter_id)
         if enc and enc.stage != "DISCHARGED":
             enc.close()
 

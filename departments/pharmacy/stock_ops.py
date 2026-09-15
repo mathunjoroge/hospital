@@ -41,7 +41,7 @@ def remove_dispensed(dispense_id):
         )
 
     try:
-        dispensed_drug = DispensedDrug.query.get(dispense_id)
+        dispensed_drug = db.session.get(DispensedDrug, dispense_id)
         if not dispensed_drug:
             flash(f"Dispensed drug with ID {dispense_id} does not exist!", "error")
             return redirect(
@@ -58,7 +58,7 @@ def remove_dispensed(dispense_id):
             )
 
         # Reverse stock in same transaction
-        batch = Batch.query.get(dispensed_drug.batch_id) if dispensed_drug.batch_id else None
+        batch = db.session.get(Batch, dispensed_drug.batch_id) if dispensed_drug.batch_id else None
         if batch:
             batch.quantity_in_stock += dispensed_drug.quantity_dispensed
             db.session.add(batch)
@@ -129,7 +129,7 @@ def process_dispense(prescription_id):
                 )
             )
 
-        drug = Drug.query.get(drug_id)
+        drug = db.session.get(Drug, drug_id)
         if not drug:
             flash(f"Drug with ID {drug_id} does not exist!", "error")
             return redirect(

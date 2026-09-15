@@ -202,9 +202,8 @@ class TestWhoIcdClient:
             return_value=token_resp,
         ), patch(
             "departments.medicine.who_icd_client.time.sleep"
-        ):
-            with pytest.raises(RuntimeError):
-                wic._api_get("https://id.who.int/icd/release/10/2019", retries=2)
+        ), pytest.raises(RuntimeError):
+            wic._api_get("https://id.who.int/icd/release/10/2019", retries=2)
 
         # Cache must have been cleared by the 401 handler
         assert wic._cached_token is None
@@ -591,15 +590,14 @@ class TestIcd10Importer:
             yield "A01.0", "Typhoid", "Inf", "A00"
             raise RuntimeError("WHO API exploded mid-walk")
 
-        with app.app_context():
-            with patch(
-                "departments.medicine.who_icd_client.walk_icd10_tree",
-                side_effect=bad_walk,
-            ):
-                from departments.medicine.icd10_importer import import_from_who_api
+        with app.app_context(), patch(
+            "departments.medicine.who_icd_client.walk_icd10_tree",
+            side_effect=bad_walk,
+        ):
+            from departments.medicine.icd10_importer import import_from_who_api
 
-                with pytest.raises(RuntimeError, match="WHO API exploded mid-walk"):
-                    import_from_who_api("2019")
+            with pytest.raises(RuntimeError, match="WHO API exploded mid-walk"):
+                import_from_who_api("2019")
 
     # -- load_icd10_from_csv -------------------------------------------------
 
@@ -705,14 +703,13 @@ class TestSnomedImporter:
         def flaky(term, max_results=20):
             raise requests.ConnectionError("network down")
 
-        with app.app_context():
-            with patch(
-                "departments.medicine.snomed_importer.search_snomed_live",
-                side_effect=flaky,
-            ):
-                from departments.medicine.snomed_importer import import_from_umls_api
+        with app.app_context(), patch(
+            "departments.medicine.snomed_importer.search_snomed_live",
+            side_effect=flaky,
+        ):
+            from departments.medicine.snomed_importer import import_from_umls_api
 
-                count = import_from_umls_api(fetch_live_api=True)
+            count = import_from_umls_api(fetch_live_api=True)
 
         assert count >= 40  # seed still loaded despite every live call failing
 
@@ -728,14 +725,13 @@ class TestSnomedImporter:
         assert codes[0] == {"code": "424754009", "description": "Fever"}
 
     def test_import_snomed_codes_falls_back_to_umls_when_csv_missing(self, app):
-        with app.app_context():
-            with patch(
-                "departments.medicine.snomed_importer.import_from_umls_api",
-                return_value=42,
-            ) as mock_api:
-                from departments.medicine.snomed_importer import import_snomed_codes
+        with app.app_context(), patch(
+            "departments.medicine.snomed_importer.import_from_umls_api",
+            return_value=42,
+        ) as mock_api:
+            from departments.medicine.snomed_importer import import_snomed_codes
 
-                result = import_snomed_codes("/nonexistent/snomed.csv")
+            result = import_snomed_codes("/nonexistent/snomed.csv")
         mock_api.assert_called_once_with(fetch_live_api=True)
         assert result == 42
 
@@ -788,14 +784,13 @@ class TestLoincImporter:
             assert LoincCode.query.filter_by(code="99999-9").count() == 1
 
     def test_import_from_umls_api_skips_failed_live_term(self, app):
-        with app.app_context():
-            with patch(
-                "departments.medicine.loinc_importer.search_loinc_live",
-                side_effect=requests.ConnectionError("loinc timeout"),
-            ):
-                from departments.medicine.loinc_importer import import_from_umls_api
+        with app.app_context(), patch(
+            "departments.medicine.loinc_importer.search_loinc_live",
+            side_effect=requests.ConnectionError("loinc timeout"),
+        ):
+            from departments.medicine.loinc_importer import import_from_umls_api
 
-                count = import_from_umls_api(fetch_live_api=True)
+            count = import_from_umls_api(fetch_live_api=True)
         assert count >= 38
 
     def test_import_from_umls_api_upserts_changed_description(self, app):
@@ -832,14 +827,13 @@ class TestLoincImporter:
         assert codes[0] == {"code": "8302-2", "description": "Body height"}
 
     def test_import_loinc_codes_falls_back_to_umls_when_csv_missing(self, app):
-        with app.app_context():
-            with patch(
-                "departments.medicine.loinc_importer.import_from_umls_api",
-                return_value=41,
-            ) as mock_api:
-                from departments.medicine.loinc_importer import import_loinc_codes
+        with app.app_context(), patch(
+            "departments.medicine.loinc_importer.import_from_umls_api",
+            return_value=41,
+        ) as mock_api:
+            from departments.medicine.loinc_importer import import_loinc_codes
 
-                result = import_loinc_codes("/nonexistent/loinc.csv")
+            result = import_loinc_codes("/nonexistent/loinc.csv")
         mock_api.assert_called_once_with(fetch_live_api=True)
         assert result == 41
 

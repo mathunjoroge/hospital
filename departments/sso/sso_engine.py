@@ -11,7 +11,6 @@ Supports:
 import logging
 import os
 import re
-from typing import Dict, List
 
 from departments.models.user import User
 from extensions import db
@@ -33,7 +32,6 @@ DEFAULT_AD_GROUP_MAPPINGS = {
 
 class SSOError(Exception):
     """Base exception for SSO operations."""
-    pass
 
 
 class SSOEngine:
@@ -83,7 +81,7 @@ class SSOEngine:
         }
         return f"{self.oidc_authorize_url}?{urlencode(params)}"
 
-    def process_oidc_callback(self, code: str, redirect_uri: str) -> Dict:
+    def process_oidc_callback(self, code: str, redirect_uri: str) -> dict:
         """
         Exchange OIDC authorization code for access & ID tokens and retrieve user claims.
         """
@@ -101,7 +99,7 @@ class SSOEngine:
         }
         return user_info
 
-    def authenticate_ldap(self, username: str, password: str) -> Dict:
+    def authenticate_ldap(self, username: str, password: str) -> dict:
         """
         Authenticate user credentials directly against Active Directory / LDAP.
         """
@@ -128,7 +126,7 @@ class SSOEngine:
             "groups": ad_groups,
         }
 
-    def map_ad_groups_to_role(self, groups: List[str]) -> str:
+    def map_ad_groups_to_role(self, groups: list[str]) -> str:
         """
         Map Active Directory / OIDC group membership strings to HIMS app role.
         """
@@ -138,7 +136,7 @@ class SSOEngine:
                     return role
         return "doctor"  # Default fallback role
 
-    def provision_or_sync_user(self, user_info: Dict) -> User:
+    def provision_or_sync_user(self, user_info: dict) -> User:
         """
         Provision a new user or update an existing user's roles and attributes from SSO payload.
         """

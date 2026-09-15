@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from flask_socketio import SocketIO
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
 from departments.models.stores import NonPharmItem, OtherOrder
@@ -109,7 +110,7 @@ def reagents_order():
             lab_reagents=lab_reagents,
         )
 
-    except Exception as e:  # noqa: BLE001
+    except (SQLAlchemyError, ValueError) as e:
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.reagents_order: {e}")
@@ -135,7 +136,7 @@ def lab_reagent_inventory():
             "laboratory/lab_reagent_inventory.html", reagents=reagents
         )
 
-    except Exception as e:  # noqa: BLE001
+    except SQLAlchemyError as e:
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.lab_reagent_inventory: {e}")
         return redirect(url_for("laboratory.index"))
@@ -169,7 +170,8 @@ def request_reagent_restock():
         flash("Reagent restock request submitted!", "success")
         return redirect(url_for("laboratory.lab_reagent_inventory"))
 
-    except Exception as e:  # noqa: BLE001
+    except (SQLAlchemyError, ValueError) as e:
+        db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         print(f"Debug: Error in laboratory.request_reagent_restock: {e}")
         return redirect(url_for("laboratory.lab_reagent_inventory"))

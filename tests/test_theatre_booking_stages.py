@@ -127,7 +127,7 @@ class TestTheatreBookingRoute:
             entry = TheatreList.query.filter_by(patient_id="P-TH-R-01").first()
             assert entry is not None, "TheatreList entry not created"
             assert entry.encounter_id is not None, "encounter_id must be set"
-            enc = Encounter.query.get(entry.encounter_id)
+            enc = db.session.get(Encounter, entry.encounter_id)
             assert enc is not None
             assert enc.encounter_type == "SURGICAL"
             assert enc.stage == "PRE_OP"
@@ -153,7 +153,7 @@ class TestTheatreBookingRoute:
         })
         assert resp.status_code in (200, 302)
         with app.app_context():
-            enc = Encounter.query.get(enc_id)
+            enc = db.session.get(Encounter, enc_id)
             assert enc.stage == "DISCHARGED", f"Expected DISCHARGED, got {enc.stage}"
             assert enc.status == "DISCHARGED"
             assert enc.ended_at is not None
@@ -175,5 +175,5 @@ class TestTheatreBookingRoute:
         resp = client.post(f"/medicine/theatre-transition/{entry_id}/INTRA_OP")
         assert resp.status_code in (200, 302)
         with app.app_context():
-            enc = TheatreList.query.get(entry_id).encounter
+            enc = db.session.get(TheatreList, entry_id).encounter
             assert enc.stage == "INTRA_OP"

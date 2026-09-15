@@ -441,7 +441,7 @@ def test_patient_can_cancel_future_appointment(client, app):
 
     with app.app_context():
         from departments.models.records import ClinicBooking
-        assert ClinicBooking.query.get(booking_id) is None
+        assert db.session.get(ClinicBooking, booking_id) is None
 
 
 def test_patient_cannot_cancel_past_appointment(client, app):
@@ -483,7 +483,7 @@ def test_patient_cannot_cancel_past_appointment(client, app):
 
     with app.app_context():
         from departments.models.records import ClinicBooking
-        assert ClinicBooking.query.get(booking_id) is not None
+        assert db.session.get(ClinicBooking, booking_id) is not None
 
 
 def test_patient_can_view_invoice_details(client, app):

@@ -3,6 +3,7 @@ from datetime import datetime
 
 from flask import jsonify, render_template, request
 from flask_login import current_user, login_required
+from sqlalchemy.exc import SQLAlchemyError
 
 from departments.models.laboratory import LabQCResult, LabQCSample, Specimen
 from departments.rbac import roles_required
@@ -66,7 +67,7 @@ def api_create_specimen():
             ),
             201,
         )
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, KeyError, SQLAlchemyError) as e:
         return jsonify({"error": str(e)}), 400
 
 
@@ -98,7 +99,7 @@ def api_collect_specimen():
                 else None,
             }
         )
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, KeyError, SQLAlchemyError) as e:
         return jsonify({"error": str(e)}), 400
 
 
@@ -130,7 +131,7 @@ def api_receive_specimen():
                 else None,
             }
         )
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, KeyError, SQLAlchemyError) as e:
         return jsonify({"error": str(e)}), 400
 
 
@@ -162,7 +163,7 @@ def api_reject_specimen():
                 "rejection_reason": specimen.rejection_reason,
             }
         )
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, KeyError, SQLAlchemyError) as e:
         return jsonify({"error": str(e)}), 400
 
 
@@ -277,7 +278,7 @@ def api_log_qc_run():
                 "violated_rules": violated_rules,
             }
         )
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, KeyError, SQLAlchemyError) as e:
         return jsonify({"error": str(e)}), 400
 
 

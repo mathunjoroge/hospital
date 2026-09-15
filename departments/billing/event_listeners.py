@@ -155,7 +155,7 @@ def capture_pending_charges(session, flush_context):
                         'receipt_number': getattr(instance, 'receipt_number', None),
                     })
 
-            elif isinstance(instance, Billing):  # noqa: SIM102
+            elif isinstance(instance, Billing):
                 if hasattr(instance, "id") and instance.id is not None:
                     pending.append({
                         'type': 'Billing',

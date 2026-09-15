@@ -37,7 +37,7 @@ def allocate_drug_fefo(drug_id: int, quantity_requested: int) -> list[dict]:
     if quantity_requested <= 0:
         return []
 
-    drug = Drug.query.get(drug_id)
+    drug = db.session.get(Drug, drug_id)
     if not drug:
         raise ValueError(f"Drug ID {drug_id} not found.")
 
@@ -84,11 +84,11 @@ def dispense_medication_fefo(
     Execute 2-step verification dispensing with automated FEFO batch allocation & stock deduction.
     """
     allocations = allocate_drug_fefo(drug_id, quantity)
-    drug = Drug.query.get(drug_id)
+    drug = db.session.get(Drug, drug_id)
     dispensed_records = []
 
     for alloc in allocations:
-        batch = Batch.query.get(alloc["batch_id"])
+        batch = db.session.get(Batch, alloc["batch_id"])
         take_qty = alloc["allocated_quantity"]
 
         # Deduct from batch

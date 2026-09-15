@@ -237,7 +237,7 @@ def unmatched_imaging():
         imaging_id = request.form.get("imaging_id")
 
         if unmatched_id and imaging_id:
-            unmatched_request = UnmatchedImagingRequest.query.get(unmatched_id)
+            unmatched_request = db.session.get(UnmatchedImagingRequest, unmatched_id)
             if unmatched_request:
                 # Move to requested_images table. UnmatchedImagingRequest
                 # doesn't carry its own encounter_id, so scope to whatever

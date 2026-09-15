@@ -80,7 +80,7 @@ def test_staff_credential_already_expired_notification(app, sample_employee):
         assert sent_count > 0
 
         # Verify model status updated to EXPIRED
-        updated_cred = StaffCredential.query.get(cred.id)
+        updated_cred = db.session.get(StaffCredential, cred.id)
         assert updated_cred.status == "EXPIRED"
 
         logs = OutboundNotificationLog.query.filter(

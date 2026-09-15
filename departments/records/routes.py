@@ -612,7 +612,7 @@ def book_clinic():
             }
         ), 400
 
-    clinic = Clinic.query.get(clinic_id)
+    clinic = db.session.get(Clinic, clinic_id)
     if not clinic:
         return jsonify(
             {

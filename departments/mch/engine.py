@@ -124,13 +124,13 @@ class MchEngine:
         Closes an ANC visit by discharging the linked encounter.
         Call this when the patient leaves the MCH clinic after the visit.
         """
-        visit = AncVisit.query.get(visit_id)
+        visit = db.session.get(AncVisit, visit_id)
         if not visit:
             return None
 
         if visit.encounter_id:
             from departments.models.encounter import Encounter
-            enc = Encounter.query.get(visit.encounter_id)
+            enc = db.session.get(Encounter, visit.encounter_id)
             if enc and enc.stage != "DISCHARGED":
                 enc.close()
                 db.session.commit()

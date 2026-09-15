@@ -9,6 +9,7 @@ from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
 
 from departments.rbac import roles_required
+from extensions import db
 
 from . import bp
 from .engine import (
@@ -332,7 +333,7 @@ def get_patient_summary(enrollment_id):
     Get a comprehensive summary of a patient's ART status.
     """
     try:
-        enrollment = ARTEnrollment.query.get(enrollment_id)
+        enrollment = db.session.get(ARTEnrollment, enrollment_id)
         if not enrollment:
             return jsonify({"error": "ART enrollment not found"}), 404
 
@@ -545,7 +546,7 @@ def enroll_ui():
             flash("Patient enrolled successfully!", "success")
             return redirect(url_for("hiv_art.dashboard_ui"))
         except Exception as e:
-            flash(f"Error enrolling patient: {str(e)}", "danger")
+            flash(f"Error enrolling patient: {e!s}", "danger")
 
     regimens = ARTRegimen.query.filter_by(is_preferred=True).all()
     return render_template("hiv_art/enroll.html", regimens=regimens)

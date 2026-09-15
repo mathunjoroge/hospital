@@ -66,7 +66,7 @@ class TestEncryptedStringTypeDecorator:
             db.session.commit()
 
             # Read back through SQLAlchemy model
-            fetched = EncryptedSecretModel.query.get(1)
+            fetched = db.session.get(EncryptedSecretModel, 1)
             assert fetched.secret_data == "MySecretPasscode99"
 
             # Query raw SQL to verify data at rest in DB is encrypted

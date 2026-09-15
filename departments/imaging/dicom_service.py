@@ -7,7 +7,6 @@ Phase 5 — DICOM PACS Integration
 import logging
 import os
 from pathlib import Path
-from typing import Optional
 
 from departments.models.imaging import ImagingResult
 from departments.models.records import Patient
@@ -59,7 +58,7 @@ class DICOMService:
             raise ValueError(f"Invalid DICOM file: {e}")
 
     @staticmethod
-    def store_dicom(file_path: str, imaging_id: Optional[int] = None) -> ImagingResult:
+    def store_dicom(file_path: str, imaging_id: int | None = None) -> ImagingResult:
         """Store a DICOM file and create an ImagingResult record."""
         metadata = DICOMService.parse_dicom(file_path)
 
@@ -136,7 +135,7 @@ class DICOMService:
         return imaging_result
 
     @staticmethod
-    def get_dicom_by_sop_uid(sop_instance_uid: str) -> Optional[str]:
+    def get_dicom_by_sop_uid(sop_instance_uid: str) -> str | None:
         """Retrieve the file path for a DICOM file by SOP Instance UID."""
         result = ImagingResult.query.filter_by(result_id=sop_instance_uid).first()
 

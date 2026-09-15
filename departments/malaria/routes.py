@@ -9,6 +9,7 @@ from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
 
 from departments.rbac import roles_required
+from extensions import db
 
 from . import bp
 from .engine import (
@@ -276,7 +277,7 @@ def get_case_summary(case_id):
     Get a comprehensive summary of a patient's malaria case.
     """
     try:
-        case = MalariaCase.query.get(case_id)
+        case = db.session.get(MalariaCase, case_id)
         if not case:
             return jsonify({"error": "Malaria case not found"}), 404
 
@@ -485,7 +486,7 @@ def new_case_ui():
             flash("Malaria case registered successfully!", "success")
             return redirect(url_for("malaria.dashboard_ui"))
         except Exception as e:
-            flash(f"Error registering case: {str(e)}", "danger")
+            flash(f"Error registering case: {e!s}", "danger")
 
     regimens = MalariaRegimen.query.filter_by(is_preferred=True).all()
     return render_template("malaria/new_case.html", regimens=regimens)

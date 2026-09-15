@@ -79,7 +79,7 @@ def sample_theatre_entry_id(app, sample_patient_id, sample_procedure_id):
 class TestWhoSurgicalChecklist:
     def test_create_who_checklist_default_state(self, app, sample_theatre_entry_id):
         with app.app_context():
-            entry = TheatreList.query.get(sample_theatre_entry_id)
+            entry = db.session.get(TheatreList, sample_theatre_entry_id)
             checklist = WhoSurgicalChecklist(
                 theatre_entry_id=entry.id,
                 patient_id=entry.patient_id,
@@ -96,7 +96,7 @@ class TestWhoSurgicalChecklist:
 
     def test_sign_in_stage_completion(self, app, sample_theatre_entry_id):
         with app.app_context():
-            entry = TheatreList.query.get(sample_theatre_entry_id)
+            entry = db.session.get(TheatreList, sample_theatre_entry_id)
             checklist = WhoSurgicalChecklist(
                 theatre_entry_id=entry.id,
                 patient_id=entry.patient_id,
@@ -115,7 +115,7 @@ class TestWhoSurgicalChecklist:
 
     def test_time_out_and_sign_out_full_progression(self, app, sample_theatre_entry_id):
         with app.app_context():
-            entry = TheatreList.query.get(sample_theatre_entry_id)
+            entry = db.session.get(TheatreList, sample_theatre_entry_id)
             checklist = WhoSurgicalChecklist(
                 theatre_entry_id=entry.id,
                 patient_id=entry.patient_id,
@@ -132,7 +132,7 @@ class TestWhoSurgicalChecklist:
 class TestAnaestheticRecord:
     def test_create_anaesthetic_record_defaults(self, app, sample_theatre_entry_id):
         with app.app_context():
-            entry = TheatreList.query.get(sample_theatre_entry_id)
+            entry = db.session.get(TheatreList, sample_theatre_entry_id)
             record = AnaestheticRecord(
                 theatre_entry_id=entry.id,
                 patient_id=entry.patient_id,
@@ -148,7 +148,7 @@ class TestAnaestheticRecord:
 
     def test_agents_and_vitals_json_properties(self, app, sample_theatre_entry_id):
         with app.app_context():
-            entry = TheatreList.query.get(sample_theatre_entry_id)
+            entry = db.session.get(TheatreList, sample_theatre_entry_id)
             record = AnaestheticRecord(
                 theatre_entry_id=entry.id,
                 patient_id=entry.patient_id,
@@ -165,7 +165,7 @@ class TestAnaestheticRecord:
             db.session.add(record)
             db.session.commit()
 
-            fetched = AnaestheticRecord.query.get(record.id)
+            fetched = db.session.get(AnaestheticRecord, record.id)
             assert len(fetched.agents_administered) == 2
             assert fetched.agents_administered[0]["agent"] == "Propofol"
             assert len(fetched.vitals_series) == 2
@@ -175,7 +175,7 @@ class TestAnaestheticRecord:
 class TestPostOpNote:
     def test_aldrete_score_calculation(self, app, sample_theatre_entry_id):
         with app.app_context():
-            entry = TheatreList.query.get(sample_theatre_entry_id)
+            entry = db.session.get(TheatreList, sample_theatre_entry_id)
             note = PostOpNote(
                 theatre_entry_id=entry.id,
                 patient_id=entry.patient_id,
@@ -197,7 +197,7 @@ class TestPostOpNote:
 
     def test_aldrete_score_below_threshold_fails_pacu_discharge(self, app, sample_theatre_entry_id):
         with app.app_context():
-            entry = TheatreList.query.get(sample_theatre_entry_id)
+            entry = db.session.get(TheatreList, sample_theatre_entry_id)
             note = PostOpNote(
                 theatre_entry_id=entry.id,
                 patient_id=entry.patient_id,
@@ -221,7 +221,7 @@ class TestPostOpNote:
 class TestSurgicalInstrumentCount:
     def test_count_reconciliation_success(self, app, sample_theatre_entry_id):
         with app.app_context():
-            entry = TheatreList.query.get(sample_theatre_entry_id)
+            entry = db.session.get(TheatreList, sample_theatre_entry_id)
             counts = SurgicalInstrumentCount(
                 theatre_entry_id=entry.id,
                 sponges_initial=10,
@@ -246,7 +246,7 @@ class TestSurgicalInstrumentCount:
 
     def test_count_reconciliation_discrepancy_detection(self, app, sample_theatre_entry_id):
         with app.app_context():
-            entry = TheatreList.query.get(sample_theatre_entry_id)
+            entry = db.session.get(TheatreList, sample_theatre_entry_id)
             counts = SurgicalInstrumentCount(
                 theatre_entry_id=entry.id,
                 sponges_initial=10,

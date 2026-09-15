@@ -135,7 +135,7 @@ class ScheduleEngine:
         Moves a patient from SCHEDULED to CHECKED_IN, updating the queue.
         Automatically creates an ACTIVE Encounter for the visit.
         """
-        appt = Appointment.query.get(appointment_id)
+        appt = db.session.get(Appointment, appointment_id)
         if not appt:
             return None
 
@@ -201,7 +201,7 @@ class ScheduleEngine:
         """
         Moves a patient from CHECKED_IN to IN_PROGRESS.
         """
-        appt = Appointment.query.get(appointment_id)
+        appt = db.session.get(Appointment, appointment_id)
         if not appt:
             return None
 
@@ -222,7 +222,7 @@ class ScheduleEngine:
         """
         Marks a patient as a no-show, freeing up the provider's schedule.
         """
-        appt = Appointment.query.get(appointment_id)
+        appt = db.session.get(Appointment, appointment_id)
         if not appt:
             return None
 

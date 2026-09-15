@@ -52,7 +52,7 @@ celery = make_celery(app)
 # ---------------------------------------------------------------------------
 # Celery Beat Schedule
 # ---------------------------------------------------------------------------
-from celery.schedules import crontab  # noqa: E402
+from celery.schedules import crontab
 
 import departments.tasks  # noqa: F401
 

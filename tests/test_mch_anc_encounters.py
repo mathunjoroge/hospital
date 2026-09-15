@@ -65,7 +65,7 @@ def test_anc_visit_creates_encounter(app):
         )
         assert visit.encounter_id is not None, "encounter_id must be set on AncVisit"
 
-        enc = Encounter.query.get(visit.encounter_id)
+        enc = db.session.get(Encounter, visit.encounter_id)
         assert enc is not None
         assert enc.encounter_type == "ANC"
         assert enc.stage == "IN_CONSULTATION"
@@ -82,7 +82,7 @@ def test_anc_encounter_chief_complaint_contains_visit_number(app):
             visit_number=3,
             gestation_weeks=28,
         )
-        enc = Encounter.query.get(visit.encounter_id)
+        enc = db.session.get(Encounter, visit.encounter_id)
         assert "3" in enc.chief_complaint
         assert "28" in enc.chief_complaint
 
@@ -121,7 +121,7 @@ def test_close_anc_visit_discharges_encounter(app):
 
         engine.close_anc_visit(visit.id)
 
-        enc = Encounter.query.get(enc_id)
+        enc = db.session.get(Encounter, enc_id)
         assert enc.stage == "DISCHARGED"
         assert enc.status == "DISCHARGED"
         assert enc.ended_at is not None
@@ -154,8 +154,8 @@ def test_multiple_anc_visits_get_separate_encounters(app):
         assert v1.encounter_id != v2.encounter_id, (
             "Each ANC visit must have a distinct encounter"
         )
-        enc1 = Encounter.query.get(v1.encounter_id)
-        enc2 = Encounter.query.get(v2.encounter_id)
+        enc1 = db.session.get(Encounter, v1.encounter_id)
+        enc2 = db.session.get(Encounter, v2.encounter_id)
         assert enc1.stage == "DISCHARGED"
         assert enc2.stage == "IN_CONSULTATION"
 
@@ -182,7 +182,7 @@ def test_anc_visit_api_creates_encounter(client, app, nursing_user):
         visit = AncVisit.query.filter_by(patient_id="P-ANC-API-01").first()
         assert visit is not None
         assert visit.encounter_id is not None
-        enc = Encounter.query.get(visit.encounter_id)
+        enc = db.session.get(Encounter, visit.encounter_id)
         assert enc.encounter_type == "ANC"
 
 
@@ -200,5 +200,5 @@ def test_close_anc_visit_api(client, app, nursing_user):
     assert resp.status_code == 200
 
     with app.app_context():
-        enc = Encounter.query.get(enc_id)
+        enc = db.session.get(Encounter, enc_id)
         assert enc.stage == "DISCHARGED"

@@ -8,7 +8,6 @@ and clinical workflows for HIV treatment and care.
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Tuple
 
 from extensions import db
 
@@ -27,13 +26,13 @@ logger = logging.getLogger(__name__)
 def create_art_enrollment(
     patient_id: str,
     art_number: str,
-    baseline_cd4: Optional[int] = None,
-    baseline_who_stage: Optional[int] = None,
-    art_start_date: Optional[datetime] = None,
-    facility_enrolled_at: Optional[str] = None,
-    encounter_id: Optional[int] = None,
-    current_regimen_id: Optional[str] = None
-) -> Tuple[bool, str, Optional[ARTEnrollment]]:
+    baseline_cd4: int | None = None,
+    baseline_who_stage: int | None = None,
+    art_start_date: datetime | None = None,
+    facility_enrolled_at: str | None = None,
+    encounter_id: int | None = None,
+    current_regimen_id: str | None = None
+) -> tuple[bool, str, ARTEnrollment | None]:
     """
     Create a new ART enrollment for a patient.
 
@@ -65,7 +64,7 @@ def create_art_enrollment(
 
         # Validate regimen if provided
         if current_regimen_id:
-            regimen = ARTRegimen.query.get(current_regimen_id)
+            regimen = db.session.get(ARTRegimen, current_regimen_id)
             if not regimen:
                 return False, f"ART regimen with ID {current_regimen_id} not found", None
 
@@ -94,7 +93,7 @@ def create_art_enrollment(
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         db.session.rollback()
         logger.error(f"Error creating ART enrollment: {e}")
-        return False, f"Failed to create ART enrollment: {str(e)}", None
+        return False, f"Failed to create ART enrollment: {e!s}", None
 
 
 def update_art_regimen(
@@ -102,8 +101,8 @@ def update_art_regimen(
     new_regimen_id: str,
     change_reason: str,
     approved_by: str,
-    encounter_id: Optional[int] = None
-) -> Tuple[bool, str, Optional[ARTEnrollment]]:
+    encounter_id: int | None = None
+) -> tuple[bool, str, ARTEnrollment | None]:
     """
     Update a patient's ART regimen with validation for line changes.
 
@@ -118,11 +117,11 @@ def update_art_regimen(
         Tuple of (success, message, enrollment_object)
     """
     try:
-        enrollment = ARTEnrollment.query.get(enrollment_id)
+        enrollment = db.session.get(ARTEnrollment, enrollment_id)
         if not enrollment:
             return False, f"ART enrollment {enrollment_id} not found", None
 
-        new_regimen = ARTRegimen.query.get(new_regimen_id)
+        new_regimen = db.session.get(ARTRegimen, new_regimen_id)
         if not new_regimen:
             return False, f"ART regimen {new_regimen_id} not found", None
 
@@ -164,18 +163,18 @@ def update_art_regimen(
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         db.session.rollback()
         logger.error(f"Error updating ART regimen: {e}")
-        return False, f"Failed to update ART regimen: {str(e)}", None
+        return False, f"Failed to update ART regimen: {e!s}", None
 
 
 def record_adherence_visit(
     enrollment_id: str,
     pills_dispensed: int,
     pills_returned: int,
-    visit_date: Optional[datetime] = None,
+    visit_date: datetime | None = None,
     viral_load_ordered: bool = False,
     cd4_ordered: bool = False,
-    encounter_id: Optional[int] = None
-) -> Tuple[bool, str, Optional[AdherenceVisit]]:
+    encounter_id: int | None = None
+) -> tuple[bool, str, AdherenceVisit | None]:
     """
     Record an adherence visit and calculate adherence percentage.
 
@@ -192,7 +191,7 @@ def record_adherence_visit(
         Tuple of (success, message, visit_object)
     """
     try:
-        enrollment = ARTEnrollment.query.get(enrollment_id)
+        enrollment = db.session.get(ARTEnrollment, enrollment_id)
         if not enrollment:
             return False, f"ART enrollment {enrollment_id} not found", None
 
@@ -237,10 +236,10 @@ def record_adherence_visit(
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         db.session.rollback()
         logger.error(f"Error recording adherence visit: {e}")
-        return False, f"Failed to record adherence visit: {str(e)}", None
+        return False, f"Failed to record adherence visit: {e!s}", None
 
 
-def check_missed_visits() -> List[AdherenceVisit]:
+def check_missed_visits() -> list[AdherenceVisit]:
     """
     Check for missed adherence visits (no visit in last 7 days).
     This function would typically be called by a Celery periodic task.
@@ -278,11 +277,11 @@ def check_missed_visits() -> List[AdherenceVisit]:
 
 def record_viral_load(
     enrollment_id: str,
-    viral_load_copies: Optional[int],
+    viral_load_copies: int | None,
     test_type: str = "routine",
-    test_date: Optional[datetime] = None,
-    encounter_id: Optional[int] = None
-) -> Tuple[bool, str, Optional[ViralLoad]]:
+    test_date: datetime | None = None,
+    encounter_id: int | None = None
+) -> tuple[bool, str, ViralLoad | None]:
     """
     Record a viral load test result.
 
@@ -297,7 +296,7 @@ def record_viral_load(
         Tuple of (success, message, viral_load_object)
     """
     try:
-        enrollment = ARTEnrollment.query.get(enrollment_id)
+        enrollment = db.session.get(ARTEnrollment, enrollment_id)
         if not enrollment:
             return False, f"ART enrollment {enrollment_id} not found", None
 
@@ -323,16 +322,16 @@ def record_viral_load(
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         db.session.rollback()
         logger.error(f"Error recording viral load: {e}")
-        return False, f"Failed to record viral load: {str(e)}", None
+        return False, f"Failed to record viral load: {e!s}", None
 
 
 def record_cd4_count(
     enrollment_id: str,
-    cd4_count: Optional[int],
-    cd4_percent: Optional[float] = None,
-    test_date: Optional[datetime] = None,
-    encounter_id: Optional[int] = None
-) -> Tuple[bool, str, Optional[CD4Count]]:
+    cd4_count: int | None,
+    cd4_percent: float | None = None,
+    test_date: datetime | None = None,
+    encounter_id: int | None = None
+) -> tuple[bool, str, CD4Count | None]:
     """
     Record a CD4 count test result.
 
@@ -347,7 +346,7 @@ def record_cd4_count(
         Tuple of (success, message, cd4_object)
     """
     try:
-        enrollment = ARTEnrollment.query.get(enrollment_id)
+        enrollment = db.session.get(ARTEnrollment, enrollment_id)
         if not enrollment:
             return False, f"ART enrollment {enrollment_id} not found", None
 
@@ -372,16 +371,16 @@ def record_cd4_count(
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         db.session.rollback()
         logger.error(f"Error recording CD4 count: {e}")
-        return False, f"Failed to record CD4 count: {str(e)}", None
+        return False, f"Failed to record CD4 count: {e!s}", None
 
 
 def record_who_stage(
     enrollment_id: str,
     who_stage: int,
-    defining_conditions: Optional[str] = None,
-    assessment_date: Optional[datetime] = None,
-    encounter_id: Optional[int] = None
-) -> Tuple[bool, str, Optional[WHOStage]]:
+    defining_conditions: str | None = None,
+    assessment_date: datetime | None = None,
+    encounter_id: int | None = None
+) -> tuple[bool, str, WHOStage | None]:
     """
     Record a WHO clinical staging assessment.
 
@@ -399,7 +398,7 @@ def record_who_stage(
         if who_stage < 1 or who_stage > 4:
             return False, "WHO stage must be between 1 and 4", None
 
-        enrollment = ARTEnrollment.query.get(enrollment_id)
+        enrollment = db.session.get(ARTEnrollment, enrollment_id)
         if not enrollment:
             return False, f"ART enrollment {enrollment_id} not found", None
 
@@ -424,10 +423,10 @@ def record_who_stage(
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         db.session.rollback()
         logger.error(f"Error recording WHO stage: {e}")
-        return False, f"Failed to record WHO stage: {str(e)}", None
+        return False, f"Failed to record WHO stage: {e!s}", None
 
 
-def get_current_regimen(enrollment_id: str) -> Optional[ARTRegimen]:
+def get_current_regimen(enrollment_id: str) -> ARTRegimen | None:
     """
     Get the current ART regimen for an enrollment.
 
@@ -438,7 +437,7 @@ def get_current_regimen(enrollment_id: str) -> Optional[ARTRegimen]:
         Current ART regimen or None if not found
     """
     try:
-        enrollment = ARTEnrollment.query.get(enrollment_id)
+        enrollment = db.session.get(ARTEnrollment, enrollment_id)
         if not enrollment:
             return None
         return enrollment.current_regimen
@@ -447,7 +446,7 @@ def get_current_regimen(enrollment_id: str) -> Optional[ARTRegimen]:
         return None
 
 
-def get_latest_viral_load(enrollment_id: str) -> Optional[ViralLoad]:
+def get_latest_viral_load(enrollment_id: str) -> ViralLoad | None:
     """
     Get the most recent viral load test for an enrollment.
 
@@ -466,7 +465,7 @@ def get_latest_viral_load(enrollment_id: str) -> Optional[ViralLoad]:
         return None
 
 
-def get_latest_cd4_count(enrollment_id: str) -> Optional[CD4Count]:
+def get_latest_cd4_count(enrollment_id: str) -> CD4Count | None:
     """
     Get the most recent CD4 count for an enrollment.
 
@@ -485,7 +484,7 @@ def get_latest_cd4_count(enrollment_id: str) -> Optional[CD4Count]:
         return None
 
 
-def get_latest_who_stage(enrollment_id: str) -> Optional[WHOStage]:
+def get_latest_who_stage(enrollment_id: str) -> WHOStage | None:
     """
     Get the most recent WHO stage assessment for an enrollment.
 
@@ -504,7 +503,7 @@ def get_latest_who_stage(enrollment_id: str) -> Optional[WHOStage]:
         return None
 
 
-def get_adherence_summary(enrollment_id: str, limit: int = 12) -> List[AdherenceVisit]:
+def get_adherence_summary(enrollment_id: str, limit: int = 12) -> list[AdherenceVisit]:
     """
     Get recent adherence visits for an enrollment.
 
@@ -526,7 +525,7 @@ def get_adherence_summary(enrollment_id: str, limit: int = 12) -> List[Adherence
 
 
 # Formulary management functions
-def get_art_formulary() -> List[ARTRegimen]:
+def get_art_formulary() -> list[ARTRegimen]:
     """
     Get all active ART regimens in the formulary.
 
@@ -555,7 +554,7 @@ def is_regimen_valid(regimen_id: str) -> bool:
         True if regimen is valid, False otherwise
     """
     try:
-        regimen = ARTRegimen.query.get(regimen_id)
+        regimen = db.session.get(ARTRegimen, regimen_id)
         if not regimen:
             return False
 
@@ -574,7 +573,7 @@ def log_formulary_change(
     regimen_id: str,
     change_type: str,  # 'create', 'update', 'retire'
     changed_by: str,
-    change_notes: Optional[str] = None
+    change_notes: str | None = None
 ) -> bool:
     """
     Log a change to the ART formulary for audit purposes.

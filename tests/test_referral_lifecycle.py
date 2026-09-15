@@ -54,7 +54,7 @@ def test_referral_acceptance_marks_source_as_referred_out(app):
 
         engine.update_status(referral.id, ReferralStatus.ACCEPTED)
 
-        updated_src = Encounter.query.get(src_id)
+        updated_src = db.session.get(Encounter, src_id)
         assert updated_src.stage == "REFERRED_OUT", (
             f"Expected REFERRED_OUT, got {updated_src.stage}"
         )
@@ -106,7 +106,7 @@ def test_referral_rejection_does_not_change_encounter(app):
 
         engine.update_status(referral.id, ReferralStatus.REJECTED)
 
-        src_after = Encounter.query.get(src_id)
+        src_after = db.session.get(Encounter, src_id)
         assert src_after.stage == original_stage, (
             "Rejection must not alter the source encounter stage"
         )

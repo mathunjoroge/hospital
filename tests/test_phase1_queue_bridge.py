@@ -1,6 +1,7 @@
 # Phase-1 queue bridge: READY-state transitions across the merged queues.
 from departments.appointments.engine import ScheduleEngine
 from departments.appointments.models import Appointment
+from extensions import db
 
 
 def test_walk_in_starts_checked_in(app):
@@ -20,7 +21,7 @@ def test_mark_triage_complete_is_idempotent_noop(app):
     appt = ScheduleEngine().create_walk_in(patient_id="P0002", provider_id="1")
     ScheduleEngine().mark_triage_complete("P0002")
     assert ScheduleEngine().mark_triage_complete("P0002") is None
-    assert Appointment.query.get(appt.id).status == "READY"
+    assert db.session.get(Appointment, appt.id).status == "READY"
 
 
 def test_call_in_accepts_ready(app):

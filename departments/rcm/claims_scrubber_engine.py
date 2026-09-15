@@ -7,7 +7,6 @@ RCM Pre-Submission Claims Scrubbing, EDI 837 Generator & EDI 835 Remittance Pars
 import json
 import re
 from datetime import datetime, timezone
-from typing import Dict, List
 
 from departments.models.records import Patient
 from departments.rcm.models import (
@@ -25,7 +24,7 @@ class ClaimsScrubberEngine:
     # Pre-Claim Rule Scrubber
     # ---------------------------------------------------------------------------
     @staticmethod
-    def scrub_claim(claim_id: str) -> Dict:
+    def scrub_claim(claim_id: str) -> dict:
         """
         Execute pre-submission scrubbing rules on a ClaimSubmission record.
         Rules:
@@ -39,8 +38,8 @@ class ClaimsScrubberEngine:
         if not claim:
             raise ValueError(f"Claim #{claim_id} not found.")
 
-        errors: List[Dict[str, str]] = []
-        warnings: List[Dict[str, str]] = []
+        errors: list[dict[str, str]] = []
+        warnings: list[dict[str, str]] = []
 
         # 1. Primary ICD-10 Format Check
         if not claim.primary_diagnosis_icd10:
@@ -196,7 +195,7 @@ class ClaimsScrubberEngine:
     # EDI 835 Remittance Parser (HIPAA X12 835 ERA Format)
     # ---------------------------------------------------------------------------
     @staticmethod
-    def parse_and_apply_edi_835(edi_content: str) -> Dict:
+    def parse_and_apply_edi_835(edi_content: str) -> dict:
         """
         Parse X12 835 Electronic Remittance Advice (ERA) content and apply claim payment/denial statuses.
         Format segment examples:

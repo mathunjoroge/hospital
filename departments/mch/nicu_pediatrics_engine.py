@@ -7,7 +7,6 @@ Clinical Engine for NICU & Pediatrics Workstation:
 3. WHO / CDC Pediatric Growth Percentiles & Z-Score Calculator
 """
 
-from typing import Dict, Optional
 
 from departments.mch.models import (
     NeonatalApgarRecord,
@@ -32,9 +31,9 @@ class NicuPediatricsEngine:
         grimace: int,
         activity: int,
         respiration: int,
-        resuscitation_notes: Optional[str] = None,
-        recorded_by: Optional[str] = None,
-        encounter_id: Optional[int] = None,
+        resuscitation_notes: str | None = None,
+        recorded_by: str | None = None,
+        encounter_id: int | None = None,
     ) -> NeonatalApgarRecord:
         """
         Compute total APGAR score (0-10) and evaluate neonatal depression risk category.
@@ -159,9 +158,9 @@ class NicuPediatricsEngine:
         patient_id: str,
         age_months: float,
         weight_kg: float,
-        height_cm: Optional[float] = None,
-        head_circumference_cm: Optional[float] = None,
-        encounter_id: Optional[int] = None,
+        height_cm: float | None = None,
+        head_circumference_cm: float | None = None,
+        encounter_id: int | None = None,
     ) -> PediatricGrowthRecord:
         """
         Calculate WHO growth Z-scores for Weight-for-Age, Height-for-Age, and Head Circumference.
@@ -219,7 +218,7 @@ class NicuPediatricsEngine:
         return record
 
     @staticmethod
-    def get_nicu_workstation_summary(patient_id: str) -> Dict:
+    def get_nicu_workstation_summary(patient_id: str) -> dict:
         """
         Aggregate complete NICU & Pediatric workstation profile for a patient.
         """

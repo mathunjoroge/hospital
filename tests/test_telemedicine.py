@@ -187,7 +187,7 @@ def test_start_session_creates_telehealth_encounter(client, app, doctor_user):
         from departments.models.telemedicine import TelemedicineSession
         sess = TelemedicineSession.query.filter_by(session_uuid=session_uuid).first()
         assert sess.encounter_id is not None, "encounter_id must be set after start"
-        enc = Encounter.query.get(sess.encounter_id)
+        enc = db.session.get(Encounter, sess.encounter_id)
         assert enc is not None
         assert enc.encounter_type == "TELEHEALTH"
         assert enc.stage == "IN_CONSULTATION"
@@ -209,7 +209,7 @@ def test_complete_session_discharges_encounter(client, app, doctor_user):
         from departments.models.encounter import Encounter
         from departments.models.telemedicine import TelemedicineSession
         sess = TelemedicineSession.query.filter_by(session_uuid=session_uuid).first()
-        enc = Encounter.query.get(sess.encounter_id)
+        enc = db.session.get(Encounter, sess.encounter_id)
         assert enc.stage == "DISCHARGED"
         assert enc.status == "DISCHARGED"
         assert enc.ended_at is not None

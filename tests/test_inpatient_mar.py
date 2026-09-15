@@ -25,7 +25,6 @@ from departments.models.nursing import MedicationAdmin
 from departments.models.records import Patient
 from departments.models.user import User
 
-
 # ── helpers ────────────────────────────────────────────────────────────────────
 
 def _make_user(app, username, role):

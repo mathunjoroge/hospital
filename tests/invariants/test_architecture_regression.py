@@ -15,7 +15,6 @@ import os
 import re
 from pathlib import Path
 
-
 DEPT_ROOT = Path(__file__).parent.parent.parent / "departments"
 
 

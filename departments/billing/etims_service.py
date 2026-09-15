@@ -11,7 +11,6 @@ Provides:
 import hashlib
 import logging
 from datetime import datetime, timezone
-from typing import Tuple
 
 from departments.models.billing import EtimsConfig, EtimsFiscalReceipt, Invoice
 from extensions import db
@@ -68,7 +67,7 @@ def update_etims_config(
     return config
 
 
-def ping_etims_vscu_connection() -> Tuple[bool, str]:
+def ping_etims_vscu_connection() -> tuple[bool, str]:
     """
     Test connectivity to the configured KRA eTIMS VSCU endpoint.
     """
@@ -88,7 +87,7 @@ def fiscalize_invoice(invoice_id: int) -> EtimsFiscalReceipt:
     Fiscalize a settled invoice under KRA eTIMS rules, generating CU Invoice No and KRA QR Payload.
     """
     config = get_or_create_etims_config()
-    invoice = Invoice.query.get(invoice_id)
+    invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         raise ValueError(f"Invoice #{invoice_id} not found.")
 

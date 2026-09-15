@@ -48,8 +48,8 @@ def test_pharmacy_dispensing_decrements_stock(app):
         db.session.add(dispensed)
         db.session.commit()
 
-        updated_batch = Batch.query.get(batch.id)
-        updated_drug = Drug.query.get(drug.id)
+        updated_batch = db.session.get(Batch, batch.id)
+        updated_drug = db.session.get(Drug, drug.id)
 
         assert updated_batch.quantity_in_stock == 85
         assert updated_drug.quantity_in_stock == 85

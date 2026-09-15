@@ -6,7 +6,7 @@ and standard result parameters (`labresults_templates`).
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from departments.models.laboratory import LabResultTemplate
 from departments.models.medicine import LabTest
@@ -14,7 +14,7 @@ from extensions import db
 
 logger = logging.getLogger(__name__)
 
-STANDARD_LAB_TESTS: List[Dict[str, Any]] = [
+STANDARD_LAB_TESTS: list[dict[str, Any]] = [
     {
         "test_name": "Full Blood Count (FBC/CBC)",
         "loinc_code": "58410-2",

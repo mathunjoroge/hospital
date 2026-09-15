@@ -77,7 +77,7 @@ def _find_medicine_by_barcode(barcode: str):
     """
     try:
         medicine_id = int(barcode)
-        return Medicine.query.get(medicine_id)
+        return db.session.get(Medicine, medicine_id)
     except (ValueError, TypeError):
         return Medicine.query.filter_by(brand_name=barcode).first()
 
@@ -112,7 +112,7 @@ def _check_duplicate_dose(patient_id: str, medicine_id: int) -> bool:
 def _log_audit(event_type: str, detail: str, patient_id: str):
     """Append a BCMA safety event to AuditLog (best-effort; never raises)."""
     try:
-        from departments.api.audit import log_audit_event  # noqa: F401
+        from departments.api.audit import log_audit_event
         log_audit_event(event_type, detail, patient_id=patient_id)
     except Exception:  # noqa: BLE001
         logger.warning("BCMA audit log failed for event %s / patient %s", event_type, patient_id)

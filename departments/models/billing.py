@@ -553,7 +553,7 @@ class Payment(db.Model):
             and "patient_id" not in kwargs
             and kwargs["invoice_id"]
         ):
-            inv = Invoice.query.get(kwargs["invoice_id"])
+            inv = db.session.get(Invoice, kwargs["invoice_id"])
             if inv:
                 kwargs["patient_id"] = inv.patient_id
         super().__init__(**kwargs)

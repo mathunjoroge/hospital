@@ -35,7 +35,7 @@ def _resolve_entry(entry_id=None):
     Returns None if no entry exists.
     """
     if entry_id is not None:
-        entry = TheatreList.query.get(entry_id)
+        entry = db.session.get(TheatreList, entry_id)
         if entry:
             return entry
     # Fall back to most recent theatre booking — do NOT create a dummy one.

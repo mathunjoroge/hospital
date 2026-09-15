@@ -3,6 +3,7 @@ from flask_login import login_required
 
 from departments.models.compliance import PatientConsent
 from departments.models.records import Patient
+from extensions import db
 
 from . import bp
 
@@ -50,7 +51,7 @@ def check_consent():
     except ValueError:
         return jsonify({"error": "patient_id must be an integer"}), 400
 
-    patient = Patient.query.get(patient_id)
+    patient = db.session.get(Patient, patient_id)
     if not patient:
         return jsonify({"error": "Patient not found"}), 404
 

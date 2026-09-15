@@ -45,7 +45,7 @@ def test_art_regimen_creation(client, sample_regimen):
     assert sample_regimen.is_preferred is True
 
     # Test retrieval from DB
-    retrieved = ARTRegimen.query.get(sample_regimen.id)
+    retrieved = db.session.get(ARTRegimen, sample_regimen.id)
     assert retrieved is not None
     assert retrieved.regimen_name == "Tenofovir/Lamivudine/Efavirenz"
 

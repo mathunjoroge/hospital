@@ -147,7 +147,7 @@ def edit_disease(disease_id):
                 db.session.add(new_test)
             else:
                 # Update existing lab test
-                test = DiseaseLab.query.get(int(test_id))
+                test = db.session.get(DiseaseLab, int(test_id))
                 if test:
                     test.lab_test = name
                     test.description = desc

@@ -1,4 +1,5 @@
 from departments.models.encounter import Encounter
+from extensions import db
 
 
 def active_encounter(patient_id: str):
@@ -16,7 +17,7 @@ def is_encounter_open_for_dispensing(encounter_id: int) -> bool:
     """Checks if an encounter is still open for dispensing. Returns False if DISCHARGED/CLOSED."""
     if not encounter_id:
         return True  # Fallback for legacy records
-    enc = Encounter.query.get(encounter_id)
+    enc = db.session.get(Encounter, encounter_id)
     if not enc:
         return True
     terminal_stages = ['DISCHARGED', 'CLOSED']

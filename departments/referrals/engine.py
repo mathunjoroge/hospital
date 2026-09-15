@@ -68,7 +68,7 @@ class ReferralEngine:
         if new_status not in valid_statuses:
             raise ValueError("Invalid referral status")
 
-        referral = Referral.query.get(referral_id)
+        referral = db.session.get(Referral, referral_id)
         if not referral:
             return None
 

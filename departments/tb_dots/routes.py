@@ -9,6 +9,7 @@ from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
 
 from departments.rbac import roles_required
+from extensions import db
 
 from . import bp
 from .engine import (
@@ -377,7 +378,7 @@ def get_patient_summary(enrollment_id):
     Get a comprehensive summary of a patient's TB status.
     """
     try:
-        enrollment = TBEnrollment.query.get(enrollment_id)
+        enrollment = db.session.get(TBEnrollment, enrollment_id)
         if not enrollment:
             return jsonify({"error": "TB enrollment not found"}), 404
 
@@ -607,7 +608,7 @@ def enroll_ui():
             flash("Patient enrolled successfully!", "success")
             return redirect(url_for("tb_dots.dashboard_ui"))
         except Exception as e:
-            flash(f"Error enrolling patient: {str(e)}", "danger")
+            flash(f"Error enrolling patient: {e!s}", "danger")
 
     regimens = TBRegimen.query.filter_by(is_preferred=True).all()
     return render_template("tb_dots/enroll.html", regimens=regimens)

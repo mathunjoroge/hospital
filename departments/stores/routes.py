@@ -360,7 +360,7 @@ def manage_reagent_requests():
             reagent_request = OtherOrder.query.get_or_404(request_id)
 
             if action == "approve":
-                reagent = NonPharmItem.query.get(reagent_request.item_id)
+                reagent = db.session.get(NonPharmItem, reagent_request.item_id)
                 if reagent:
                     reagent.stock_level = max(
                         0, reagent.stock_level - reagent_request.quantity_requested

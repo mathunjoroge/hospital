@@ -28,10 +28,9 @@ from extensions import db
 def client():
     app.config["TESTING"] = True
     app.config["WTF_CSRF_ENABLED"] = False
-    with app.test_client() as client:
-        with app.app_context():
-            db.create_all()
-            yield client
+    with app.test_client() as client, app.app_context():
+        db.create_all()
+        yield client
 
 
 def _make_theatre_setup(app) -> int:

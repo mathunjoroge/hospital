@@ -12,7 +12,7 @@ from typing import Any
 from departments.models.icu import ICUFlowsheetEntry, ICUFluidBalance
 
 
-def calculate_map(systolic: int | float | None, diastolic: int | float | None) -> float | None:
+def calculate_map(systolic: float | None, diastolic: float | None) -> float | None:
     """
     Calculate Mean Arterial Pressure (MAP).
     MAP = Diastolic + 1/3 * (Systolic - Diastolic)

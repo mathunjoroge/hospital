@@ -12,7 +12,6 @@ clinician's identity in a permanent clinical record.
 import pytest
 from werkzeug.security import generate_password_hash
 
-
 # ─── fixtures ─────────────────────────────────────────────────────────────────
 
 @pytest.fixture
@@ -41,6 +40,7 @@ def nurse_user(app, client):
 def admitted_patient(app):
     """Seed the minimum patient record required for MAR tests."""
     from datetime import date
+
     from departments.models.records import Patient
     from extensions import db
 

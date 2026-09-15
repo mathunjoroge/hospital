@@ -165,7 +165,7 @@ class TestBCMAWorkflow:
         assert data["scan_verified"] is True
 
         with app.app_context():
-            admin_rec = MedicationAdmin.query.get(data["record_id"])
+            admin_rec = db.session.get(MedicationAdmin, data["record_id"])
             assert admin_rec is not None
             assert admin_rec.scan_verified is True
             assert admin_rec.patient_id == test_patient.patient_id

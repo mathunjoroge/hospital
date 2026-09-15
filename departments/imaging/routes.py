@@ -16,6 +16,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 
@@ -475,7 +476,7 @@ def process_imaging_request(request_id):
         imaging_request = RequestedImage.query.get_or_404(request_id)
         imaging = Imaging.query.get_or_404(imaging_request.imaging_id)
         logger.debug(f"Loaded imaging request {request_id} and imaging {imaging.id}")
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.exception("Error fetching request {request_id}: ")
         flash(f"Error loading request: {e!s}", "error")
         return redirect(url_for("imaging.index"))
@@ -624,7 +625,7 @@ def process_imaging_request(request_id):
             logger.debug(f"Redirecting to view_result: result_id={result_id}")
             return redirect(url_for("imaging.view", result_id=result_id))
 
-        except Exception:
+        except SQLAlchemyError:
             db.session.rollback()
             logger.exception("Database error: ")
             flash("Error saving results to database", "error")
@@ -632,7 +633,7 @@ def process_imaging_request(request_id):
 
     draft_report = ""
     if imaging_request.result_id:
-        existing_result = ImagingResult.query.get(imaging_request.result_id)
+        existing_result = db.session.get(ImagingResult, imaging_request.result_id)
         if existing_result:
             draft_report = existing_result.result_notes
             logger.debug(f"Draft report loaded: {draft_report[:100]}...")
@@ -706,7 +707,7 @@ def imaging_results():
         logger.debug(f"Retrieved {len(results)} imaging results from database")
 
         return render_template("imaging/imaging_results.html", results=results)
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.exception(f"Error retrieving imaging results: {e!s}")  # noqa: TRY401
         flash(f"Error retrieving results: {e!s}", "error")
         return redirect(url_for("imaging.index"))
@@ -723,7 +724,7 @@ def view_imaging_results(result_id):
             result_id=result_id
         ).first_or_404()
         imaging = (
-            Imaging.query.get(imaging_result.imaging_id)
+            db.session.get(Imaging, imaging_result.imaging_id)
             if imaging_result.imaging_id
             else None
         )
@@ -834,7 +835,7 @@ def view_imaging_results(result_id):
             ai_footer=footer,
         )
 
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.exception("Error viewing result_id=: {e!s}")
         flash(f"An error occurred while loading the imaging results: {e!s}", "error")
         return redirect(url_for("imaging.index"))
@@ -860,7 +861,7 @@ def index():
             pending_requests=pending_requests or [],
             models_loaded=nim_client is not None,
         )
-    except Exception as e:  # noqa: BLE001
+    except SQLAlchemyError as e:
         flash(f"Database error: {e!s}", "error")
         return redirect(url_for("home"))
 

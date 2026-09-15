@@ -18,7 +18,6 @@ References:
 
 import logging
 from datetime import datetime, timezone
-from typing import Optional
 
 from extensions import db
 
@@ -272,7 +271,7 @@ class ColdChainEngine:
 
     # ── Reporting helpers ─────────────────────────────────────────────────────
 
-    def get_stock_summary(self, vaccine_name: Optional[str] = None) -> list[dict]:
+    def get_stock_summary(self, vaccine_name: str | None = None) -> list[dict]:
         """
         Returns current cold-chain stock, optionally filtered by vaccine.
         Includes FEFO-sorted remaining inventory and breach flags.

@@ -167,7 +167,7 @@ class RevenueCycleEngine:
         """
         Initiates an appeal for a denied claim.
         """
-        claim = ClaimSubmission.query.get(claim_id)
+        claim = db.session.get(ClaimSubmission, claim_id)
         if not claim:
             return None
 

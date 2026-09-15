@@ -108,7 +108,7 @@ def import_from_who_api(release: str | None = None) -> int:
         if batch:
             _flush_batch(batch)
 
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("ICD-10 import failed after %d codes: %s", total, exc)
         db.session.rollback()
         raise
@@ -192,7 +192,7 @@ def import_icd10_codes(filepath: str | None = None) -> int:
 if __name__ == '__main__':
     import sys
 
-    from app import app  # noqa: E402
+    from app import app
 
     release = sys.argv[1] if len(sys.argv) > 1 else None
     with app.app_context():

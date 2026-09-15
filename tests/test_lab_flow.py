@@ -46,7 +46,7 @@ def test_lab_flow_request_to_result(app):
         db.session.commit()
 
         # 4. Verify status updated and result saved
-        updated_request = RequestedLab.query.get(lab_request.id)
+        updated_request = db.session.get(RequestedLab, lab_request.id)
         saved_result = LabResult.query.filter_by(result_id="RES-1001").first()
 
         assert updated_request.status == 1

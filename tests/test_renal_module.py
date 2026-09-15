@@ -182,9 +182,8 @@ class TestRenalEngine:
 
     def test_lookup_error_for_missing_session(self, app):
         from departments.renal.engine import update_session_status
-        with app.app_context():
-            with pytest.raises(LookupError):
-                update_session_status(99999, "COMPLETED")
+        with app.app_context(), pytest.raises(LookupError):
+            update_session_status(99999, "COMPLETED")
 
     def test_get_patient_sessions(self, app, nurse_user):
         from datetime import date

@@ -47,6 +47,8 @@ from departments.models.hr import (
     Payroll,
     Rota,
 )
+from sqlalchemy.exc import SQLAlchemyError
+
 from departments.rbac import roles_required
 from extensions import db
 
@@ -102,7 +104,7 @@ def index():
             recent_changes=recent_changes,
         )
 
-    except Exception as e:  # noqa: BLE001
+    except SQLAlchemyError as e:
         flash("Something went wrong. Please try again.", "error")
         logger.error("hr.index failed: %s", e, exc_info=True)
         return redirect(url_for("home"))
@@ -119,7 +121,7 @@ def employee_list():
         employees = Employee.query.order_by(Employee.date_hired.desc()).all()
         return render_template("hr/employee_list.html", employees=employees)
 
-    except Exception as e:  # noqa: BLE001
+    except SQLAlchemyError as e:
         flash("Something went wrong. Please try again.", "error")
         logger.error("hr.employee_list failed: %s", e, exc_info=True)
         return redirect(url_for("home"))
@@ -166,7 +168,7 @@ def new_employee():
 
             # Assign deductions
             for deduction_id in deductions:
-                deduction = Deduction.query.get(deduction_id)
+                deduction = db.session.get(Deduction, deduction_id)
                 if deduction:
                     new_deduction = Deduction(
                         employee_id=new_employee.employee_id,
@@ -188,7 +190,7 @@ def new_employee():
             "hr/new_employee.html", allowances=allowances, deductions=deductions
         )
 
-    except Exception as e:  # noqa: BLE001
+    except (SQLAlchemyError, ValueError) as e:
         flash("Something went wrong. Please try again.", "error")
         logger.error("hr.new_employee failed: %s", e, exc_info=True)
         db.session.rollback()
@@ -229,7 +231,7 @@ def update_employee(employee_id):
 
         return render_template("hr/update_employee.html", employee=employee)
 
-    except Exception as e:  # noqa: BLE001
+    except (SQLAlchemyError, ValueError) as e:
         flash("Something went wrong. Please try again.", "error")
         logger.error("hr.update_employee failed: %s", e, exc_info=True)
         db.session.rollback()
@@ -253,7 +255,7 @@ def delete_employee(employee_id):
         flash(f"Employee {employee.name} deleted successfully!", "success")
         return redirect(url_for("hr.employee_list"))
 
-    except Exception as e:  # noqa: BLE001
+    except SQLAlchemyError as e:
         flash("Something went wrong. Please try again.", "error")
         logger.error("hr.delete_employee failed: %s", e, exc_info=True)
         db.session.rollback()
@@ -366,7 +368,7 @@ def rota_management():
             rota_data=dict(rota_data),  # Convert defaultdict to dict for Jinja2
         )
 
-    except Exception as e:  # noqa: BLE001
+    except (SQLAlchemyError, ValueError) as e:
         flash("Something went wrong. Please try again.", "error")
         logger.error("hr.rota_management failed: %s", e, exc_info=True)
         db.session.rollback()
@@ -410,7 +412,7 @@ def department_reports():
             role_filter=role_filter,
         )
 
-    except Exception as e:  # noqa: BLE001
+    except SQLAlchemyError as e:
         flash("Something went wrong. Please try again.", "error")
         logger.error("hr.department_reports failed: %s", e, exc_info=True)
         return redirect(url_for("hr.index"))
@@ -477,7 +479,7 @@ def export_department_reports():
         output.headers["Content-type"] = "text/csv"
         return output
 
-    except Exception as e:  # noqa: BLE001
+    except SQLAlchemyError as e:
         flash("Something went wrong. Please try again.", "error")
         logger.error("hr.export_department_reports failed: %s", e, exc_info=True)
         return redirect(url_for("hr.department_reports"))
@@ -804,7 +806,7 @@ def approve_leave(leave_id):
     leave.status = "Approved"
     db.session.commit()
 
-    employee = Employee.query.get(leave.employee_id)
+    employee = db.session.get(Employee, leave.employee_id)
     if employee:
         send_email(
             subject="Leave Request Approved",

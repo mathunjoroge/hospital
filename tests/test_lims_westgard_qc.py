@@ -104,7 +104,7 @@ def test_specimen_creation_persists_to_db(app):
             specimen_type="SERUM",
             container_type="SST_GOLD",
         )
-        saved = Specimen.query.get(specimen.id)
+        saved = db.session.get(Specimen, specimen.id)
         assert saved is not None
         assert saved.specimen_type == "SERUM"
         assert saved.container_type == "SST_GOLD"
@@ -200,12 +200,11 @@ def test_specimen_rejection_sets_reason(app):
 
 def test_unknown_specimen_raises_value_error(app):
     """Trying to update a non-existent specimen should raise ValueError."""
-    with app.app_context():
-        with pytest.raises(ValueError, match="not found"):
-            LIMSService.update_specimen_status(
-                specimen_id_or_barcode="SPEC-INVALID-XXXX",
-                new_status="COLLECTED",
-            )
+    with app.app_context(), pytest.raises(ValueError, match="not found"):
+        LIMSService.update_specimen_status(
+            specimen_id_or_barcode="SPEC-INVALID-XXXX",
+            new_status="COLLECTED",
+        )
 
 
 # ── T8.4–T8.9  Westgard Multi-Rule Engine (no DB required) ───────────────────
@@ -348,9 +347,8 @@ def test_lims_qc_logging_reject(app):
 
 def test_lims_qc_logging_nonexistent_sample(app):
     """Logging against non-existent QC sample should raise ValueError."""
-    with app.app_context():
-        with pytest.raises(ValueError, match="not found"):
-            LIMSService.log_qc_result(qc_sample_id=99999, measured_value=5.0)
+    with app.app_context(), pytest.raises(ValueError, match="not found"):
+        LIMSService.log_qc_result(qc_sample_id=99999, measured_value=5.0)
 
 
 # ── T8.11 Dashboard metrics ───────────────────────────────────────────────────

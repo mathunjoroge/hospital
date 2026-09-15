@@ -103,7 +103,7 @@ def remove_batch(batch_id):
     """Removes a batch from inventory and logs it in expiries."""
     try:
         batch = Batch.query.get_or_404(batch_id)
-        drug = Drug.query.get(batch.drug_id)
+        drug = db.session.get(Drug, batch.drug_id)
 
         # Log the batch in expiries table
         expiry_record = Expiry(
@@ -147,7 +147,7 @@ def remove_all_expiries():
             return redirect(url_for("pharmacy.expiries"))
 
         for batch in expired_batches:
-            drug = Drug.query.get(batch.drug_id)
+            drug = db.session.get(Drug, batch.drug_id)
 
             # Log each batch in expiries table
             expiry_record = Expiry(

@@ -72,7 +72,7 @@ def add_to_theatre():
                 return redirect(url_for("medicine.add_to_theatre"))
 
             # Check if procedure exists
-            procedure = TheatreProcedure.query.get(procedure_id)
+            procedure = db.session.get(TheatreProcedure, procedure_id)
             if not procedure:
                 flash("Procedure not found.", "danger")
                 return redirect(url_for("medicine.add_to_theatre"))
@@ -201,7 +201,7 @@ def update_post_op(entry_id):
 
             # Advance the SURGICAL encounter through INTRA_OP -> POST_OP -> DISCHARGED (T3.2)
             if getattr(theatre_entry, "encounter_id", None):
-                enc = Encounter.query.get(theatre_entry.encounter_id)
+                enc = db.session.get(Encounter, theatre_entry.encounter_id)
                 if enc and enc.stage not in ("DISCHARGED", "CANCELLED"):
                     enc.set_stage("INTRA_OP")
                     enc.set_stage("POST_OP")
@@ -281,7 +281,7 @@ def admit_patient():
                 return redirect(url_for("medicine.admit_patient"))
 
             # ✅ Check if ward exists
-            ward = Ward.query.get(ward_id)
+            ward = db.session.get(Ward, ward_id)
             if not ward:
                 flash("Ward not found.", "danger")
                 return redirect(url_for("medicine.admit_patient"))
@@ -349,14 +349,14 @@ def admit_patient():
 def discharge_patient(id):
     """Discharge a patient and free their assigned bed."""
     try:
-        admission = AdmittedPatient.query.get(id)
+        admission = db.session.get(AdmittedPatient, id)
         if not admission:
             flash("Admission record not found.", "danger")
             return redirect(url_for("medicine.view_admitted_patients"))
 
-        ward = Ward.query.get(admission.ward_id)
+        ward = db.session.get(Ward, admission.ward_id)
         # FIX 2: Use stored bed_id, fallback to searching the ward
-        bed = Bed.query.get(admission.bed_id) if admission.bed_id else None
+        bed = db.session.get(Bed, admission.bed_id) if admission.bed_id else None
         if not bed:
             bed = (
                 Bed.query.join(WardRoom, Bed.room_id == WardRoom.id)
@@ -430,7 +430,7 @@ def view_admitted_patients():
 def ward_bed_history(ward_id):
     """View bed history for a ward."""
     try:
-        ward = Ward.query.get(ward_id)
+        ward = db.session.get(Ward, ward_id)
         if not ward:
             flash("Ward not found.", "danger")
             return redirect(url_for("medicine.view_admitted_patients"))
@@ -518,7 +518,7 @@ def ward_rounds():
                 return redirect(url_for("medicine.ward_rounds"))
 
             # Check if admission exists
-            admission = AdmittedPatient.query.get(admission_id)
+            admission = db.session.get(AdmittedPatient, admission_id)
             if not admission:
                 flash("Patient admission not found.", "danger")
                 return redirect(url_for("medicine.ward_rounds"))

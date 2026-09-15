@@ -608,7 +608,7 @@ def record_direct_receipt():
         total_cost += quantity * unit_cost
 
         if item_type == "DRUG":
-            drug = Drug.query.get(drug_id) if drug_id else None
+            drug = db.session.get(Drug, drug_id) if drug_id else None
             if not drug:
                 return jsonify({"error": f"Drug ID {drug_id} not found"}), 404
             batch = Batch(
@@ -633,7 +633,7 @@ def record_direct_receipt():
                 user_id=current_uid,
             )
         elif item_type == "NON_PHARM":
-            non_pharm = NonPharmItem.query.get(non_pharm_id) if non_pharm_id else None
+            non_pharm = db.session.get(NonPharmItem, non_pharm_id) if non_pharm_id else None
             if not non_pharm:
                 return jsonify(
                     {"error": f"Non-pharm item ID {non_pharm_id} not found"}
@@ -684,7 +684,7 @@ def create_supplier_return():
     if not supplier_id or not items_data:
         return jsonify({"error": "supplier_id and items are required"}), 400
 
-    supplier = Supplier.query.get(supplier_id)
+    supplier = db.session.get(Supplier, supplier_id)
     if not supplier:
         return jsonify({"error": "Supplier not found"}), 404
 

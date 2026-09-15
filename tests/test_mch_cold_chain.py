@@ -112,7 +112,7 @@ def test_receive_batch_persists(app):
             expiry_date=FUTURE_DATE,
             storage_location="FRIDGE_B",
         )
-        saved = VaccineBatch.query.get(batch.id)
+        saved = db.session.get(VaccineBatch, batch.id)
         assert saved is not None
         assert saved.vaccine_name == "OPV"
         assert saved.quantity_vials == 100
@@ -164,17 +164,16 @@ def test_receive_batch_rejects_expired(app):
 
 def test_receive_batch_rejects_zero_quantity(app):
     """quantity must be positive."""
-    with app.app_context():
-        with pytest.raises(ValueError, match="quantity must be > 0"):
-            cc_engine.receive_vaccine_batch(
-                vaccine_name="BCG",
-                batch_number="BCG-ZERO",
-                manufacturer="KEMSA",
-                quantity=0,
-                doses_per_vial=1,
-                expiry_date=FUTURE_DATE,
-                storage_location="FRIDGE_A",
-            )
+    with app.app_context(), pytest.raises(ValueError, match="quantity must be > 0"):
+        cc_engine.receive_vaccine_batch(
+            vaccine_name="BCG",
+            batch_number="BCG-ZERO",
+            manufacturer="KEMSA",
+            quantity=0,
+            doses_per_vial=1,
+            expiry_date=FUTURE_DATE,
+            storage_location="FRIDGE_A",
+        )
 
 
 # ── T6.2  FEFO dispensing ────────────────────────────────────────────────────
@@ -279,7 +278,7 @@ def test_temperature_log_persisted(app):
     """Temperature logs must be persisted to the database."""
     with app.app_context():
         log = cc_engine.log_temperature("FRIDGE_B", 6.5, sensor_id="SENSOR-01", notes="routine")
-        saved = VaccineTemperatureLog.query.get(log.id)
+        saved = db.session.get(VaccineTemperatureLog, log.id)
         assert saved is not None
         assert saved.temperature_celsius == 6.5
         assert saved.sensor_id == "SENSOR-01"
@@ -451,7 +450,7 @@ def test_immunization_records_site_and_provider(app):
             adverse_event_noted="Mild swelling",
             deduct_from_cold_chain=False,
         )
-        saved = ImmunizationRecord.query.get(record.id)
+        saved = db.session.get(ImmunizationRecord, record.id)
         assert saved.site_of_injection == "LEFT_THIGH"
         assert saved.administered_by == "Nurse Jane"
         assert saved.adverse_event_noted == "Mild swelling"
@@ -510,7 +509,7 @@ def test_anc_visit_records_clinical_vitals(app):
             urine_protein="NEGATIVE",
             hiv_status="NEGATIVE",
         )
-        saved = AncVisit.query.get(visit.id)
+        saved = db.session.get(AncVisit, visit.id)
         assert saved.blood_pressure_systolic == 120
         assert saved.blood_pressure_diastolic == 80
         assert saved.weight_kg == 65.5

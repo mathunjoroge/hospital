@@ -4,6 +4,7 @@ from decimal import Decimal, InvalidOperation
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
 from departments.api.audit import log_audit_event
@@ -126,7 +127,7 @@ def new_drugs_billing():
             flash(f"Patient with ID {patient_id} does not exist!", "error")
             return redirect(url_for("billing.new_drugs_billing"))
 
-        drug = Drug.query.get(drug_id)
+        drug = db.session.get(Drug, drug_id)
         if not drug:
             flash(f"Drug with ID {drug_id} does not exist!", "error")
             return redirect(url_for("billing.new_drugs_billing"))
@@ -179,7 +180,7 @@ def view_billing(billing_id):
 @login_required
 @roles_required("billing", "admin")
 def update_status(billing_id):
-    billing = Billing.query.get(billing_id) or DrugsBill.query.get(billing_id)
+    billing = db.session.get(Billing, billing_id) or db.session.get(DrugsBill, billing_id)
 
     if not billing:
         flash(f"Billing with ID {billing_id} does not exist!", "error")
@@ -248,7 +249,7 @@ def new_billing():
             flash(f"Patient with ID {patient_id} does not exist!", "error")
             return redirect(url_for("billing.new_billing"))
 
-        charge = Charge.query.get(charge_id)
+        charge = db.session.get(Charge, charge_id)
         if not charge:
             flash(f"Charge with ID {charge_id} does not exist!", "error")
             return redirect(url_for("billing.new_billing"))
@@ -286,7 +287,7 @@ def new_invoice():
             return redirect(url_for("billing.new_invoice"))
 
         patient = Patient.query.filter_by(patient_id=patient_id).first()
-        charge = Charge.query.get(charge_id)
+        charge = db.session.get(Charge, charge_id)
 
         if not patient or not charge:
             flash("Invalid patient or charge selected.", "error")
@@ -354,7 +355,7 @@ def view_unpaid_bills(patient_id):
     admitted_patients_data = []
     for admission in admitted_patients:
         days = (datetime.now(timezone.utc) - admission.admitted_on).days + 1
-        total_cost = Decimal(str(admission.ward.daily_charge or 0)) * Decimal(days)
+        total_cost = (admission.ward.daily_charge or Decimal("0")) * Decimal(days)
         admitted_patients_data.append(
             {
                 "id": admission.id,
@@ -492,7 +493,7 @@ def pay_all(patient_id):
         )
         return redirect(url_for("billing.view_unpaid_bills", patient_id=patient_id))
 
-    except Exception:  # noqa: BLE001
+    except (SQLAlchemyError, ValueError, InvalidOperation):
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         return redirect(url_for("billing.view_unpaid_bills", patient_id=patient_id))
@@ -604,7 +605,7 @@ def pay_bills(patient_id):
             if selected_items["requested_images"]
             else Decimal(0),
             "Ward Admissions": sum(
-                Decimal(str(a.ward.daily_charge or 0))
+                (a.ward.daily_charge or Decimal("0"))
                 * Decimal((datetime.now(timezone.utc) - a.admitted_on).days + 1)
                 for a in selected_items["admitted_patients"]
             )
@@ -777,7 +778,7 @@ def pay_bills(patient_id):
                 paid_items=paid_items,
             )
 
-        except Exception as e:
+        except (SQLAlchemyError, ValueError, InvalidOperation) as e:
             db.session.rollback()
             logger.error(  # noqa: G201
                 f"Error processing payment for patient {patient_id}: {e}", exc_info=True
@@ -813,7 +814,7 @@ def pay_bills(patient_id):
     admitted_patients_data = []
     for admission in admitted_patients:
         days = (datetime.now(timezone.utc) - admission.admitted_on).days + 1
-        total_cost = Decimal(str(admission.ward.daily_charge or 0)) * Decimal(days)
+        total_cost = (admission.ward.daily_charge or Decimal("0")) * Decimal(days)
         admitted_patients_data.append(
             {
                 "id": admission.id,
@@ -914,7 +915,7 @@ def add_charge():
             cost = Decimal(cost)
             if cost < 0:
                 raise ValueError()
-        except Exception:  # noqa: BLE001
+        except (ValueError, InvalidOperation):
             flash("Cost must be a positive number.", "error")
             return redirect(url_for("billing.add_charge"))
 
@@ -955,7 +956,7 @@ def edit_charge(charge_id):
         cost_str = request.form.get("cost", "").strip()
         try:
             charge.cost = Decimal(cost_str)
-        except Exception:  # noqa: BLE001
+        except (ValueError, InvalidOperation):
             flash("Invalid cost value.", "error")
             return redirect(url_for("billing.edit_charge", charge_id=charge_id))
         charge.description = request.form.get("description", charge.description).strip()

@@ -115,8 +115,8 @@ class TestDispensingAndDeduction:
         dispense_medication_fefo(patient.patient_id, drug.id, 15)
 
         # Refresh
-        b1_fresh = Batch.query.get(b1.id)
-        drug_fresh = Drug.query.get(drug.id)
+        b1_fresh = db.session.get(Batch, b1.id)
+        drug_fresh = db.session.get(Drug, drug.id)
         assert b1_fresh.quantity_in_stock == 15  # 30 - 15
         assert drug_fresh.quantity_in_stock == 85  # 100 - 15
 
@@ -148,6 +148,7 @@ class TestFEFOEndpoints:
     @pytest.fixture
     def pharmacist_client(self, app):
         from werkzeug.security import generate_password_hash
+
         from departments.models.user import User
 
         with app.app_context():

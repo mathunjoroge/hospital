@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
 from departments.models.admin import Log
@@ -45,7 +46,7 @@ def prescriptions():
             "pharmacy/prescriptions.html", prescriptions=active_prescriptions
         )
 
-    except Exception as e:  # noqa: BLE001
+    except SQLAlchemyError as e:
         flash("Something went wrong. Please try again.", "error")
         logger.debug(f"Error in pharmacy.prescriptions: {e}")
         return redirect(url_for("pharmacy.index"))
@@ -97,7 +98,7 @@ def view_prescriptions(patient_id):
             prescription_list=prescription_list,
         )
 
-    except Exception as e:  # noqa: BLE001
+    except SQLAlchemyError as e:
         logger.debug(f"Error fetching prescriptions: {e}")
         flash("Something went wrong. Please try again.", "error")
         return redirect(url_for("/"))
@@ -154,7 +155,7 @@ def dispense_prescription(prescription_id):
             dispensed_drugs=dispensed_drugs,
         )
 
-    except Exception:  # noqa: BLE001
+    except SQLAlchemyError:
         flash("Something went wrong. Please try again.", "error")
 
         return redirect(url_for("pharmacy.index"))
@@ -176,7 +177,7 @@ def delete_dispensed_drug(dispensed_drug_id):
         return redirect(request.referrer or url_for("pharmacy.index"))
 
     try:
-        dispensed_drug = DispensedDrug.query.get(dispensed_drug_id)
+        dispensed_drug = db.session.get(DispensedDrug, dispensed_drug_id)
         if not dispensed_drug:
             flash("Dispensed drug not found!", "error")
             return redirect(request.referrer or url_for("pharmacy.index"))
@@ -187,7 +188,7 @@ def delete_dispensed_drug(dispensed_drug_id):
             return redirect(request.referrer or url_for("pharmacy.index"))
 
         # Restore stock to batch transactionally
-        batch = Batch.query.get(dispensed_drug.batch_id) if dispensed_drug.batch_id else None
+        batch = db.session.get(Batch, dispensed_drug.batch_id) if dispensed_drug.batch_id else None
         if batch:
             batch.quantity_in_stock += dispensed_drug.quantity_dispensed
             db.session.add(batch)
@@ -211,7 +212,7 @@ def delete_dispensed_drug(dispensed_drug_id):
         )
         flash("Dispensing record voided and stock restored successfully.", "success")
 
-    except Exception as exc:  # noqa: BLE001
+    except (SQLAlchemyError, ValueError) as exc:
         db.session.rollback()
         logger.error("Error voiding dispensed drug %s: %s", dispensed_drug_id, exc)
         flash("Something went wrong. Please try again.", "error")
@@ -263,13 +264,13 @@ def save_dispensed_drugs():
                 flash("Quantity must be greater than 0!", "error")
                 return redirect(url_for("pharmacy.index"))
 
-            dispensed_drug = DispensedDrug.query.get(drug_id)
+            dispensed_drug = db.session.get(DispensedDrug, drug_id)
             if not dispensed_drug:
                 logger.debug(f"Dispensed drug ID {drug_id} not found")
                 flash(f"Dispensed drug {drug_id} not found!", "error")
                 return redirect(url_for("pharmacy.index"))
 
-            drug = Drug.query.get(dispensed_drug.drug_id)
+            drug = db.session.get(Drug, dispensed_drug.drug_id)
             if not drug:
                 logger.debug(f"Drug ID {dispensed_drug.drug_id} not found")
                 flash("Drug not found!", "error")
@@ -483,7 +484,7 @@ def save_dispensed_drugs():
         logger.debug("Redirecting to pharmacy.index with success message")
         return redirect(url_for("pharmacy.index"))
 
-    except Exception as e:  # noqa: BLE001
+    except (SQLAlchemyError, ValueError, KeyError) as e:
         db.session.rollback()
         logger.debug(f"Exception occurred: {e!s}")
         flash("Something went wrong. Please try again.", "error")
@@ -572,7 +573,7 @@ def save_prescription(prescription_id):
             batch_number = batch_numbers[i]
 
             # Check if the drug exists
-            drug = Drug.query.get(drug_id)
+            drug = db.session.get(Drug, drug_id)
             if not drug:
                 flash(f"Drug with ID {drug_id} does not exist!", "error")
                 return redirect(
@@ -613,7 +614,7 @@ def save_prescription(prescription_id):
         flash("Drugs dispensed successfully!", "success")
         return redirect(url_for("pharmacy.view_prescriptions", patient_id=patient_id))
 
-    except Exception as e:  # noqa: BLE001
+    except (SQLAlchemyError, ValueError, KeyError) as e:
         flash("Something went wrong. Please try again.", "error")
         logger.debug(f"Error in pharmacy.save_prescription: {e}")
         db.session.rollback()  # Rollback changes in case of error

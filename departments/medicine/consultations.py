@@ -310,7 +310,7 @@ def notes(patient_id):
 @login_required
 def reprocess_note(note_id):
     return redirect(
-        url_for("medicine.notes", patient_id=SOAPNote.query.get(note_id).patient_id)
+        url_for("medicine.notes", patient_id=db.session.get(SOAPNote, note_id).patient_id)
     )
 
 
@@ -504,7 +504,7 @@ def recall_to_consult(patient_id):
     enc.set_stage("IN_CONSULTATION")
 
     if enc.appointment_id:
-        appt = Appointment.query.get(enc.appointment_id)
+        appt = db.session.get(Appointment, enc.appointment_id)
         if appt and appt.status in ("CHECKED_IN", "READY", "COMPLETED"):
             appt.status = "IN_PROGRESS"
     db.session.commit()

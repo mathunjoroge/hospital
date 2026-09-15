@@ -11,7 +11,6 @@ read-heavy executive reporting and MoH DHIS2 / KHIS reporting.
 import logging
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 
 from flask import Blueprint, jsonify, request
 from flask_login import login_required
@@ -27,7 +26,7 @@ logger = logging.getLogger(__name__)
 etl_bp = Blueprint("analytics_etl", __name__)
 
 
-def run_daily_kpi_etl(target_date: Optional[date] = None) -> DailyKpiSnapshot:
+def run_daily_kpi_etl(target_date: date | None = None) -> DailyKpiSnapshot:
     """
     Execute read-optimized ETL aggregation for specified target date.
     Defaults to today if target_date is None.

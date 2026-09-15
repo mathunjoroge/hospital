@@ -213,7 +213,7 @@ def edit_prescribed_medicine(medicine_id):
             "prescription_id"
         )
 
-        prescribed_medicine = PrescribedMedicine.query.get(medicine_id)
+        prescribed_medicine = db.session.get(PrescribedMedicine, medicine_id)
         if not prescribed_medicine:
             flash("Prescribed medicine not found.", "error")
             return redirect(url_for("medicine.index"))
@@ -624,7 +624,7 @@ def new_prescription():
 
             # Add drug details
             for drug_id, details in drug_inputs.items():
-                drug = OncologyDrug.query.get(drug_id)
+                drug = db.session.get(OncologyDrug, drug_id)
                 if not drug:
                     flash(f"Drug ID {drug_id} does not exist.", "danger")
                     db.session.rollback()
@@ -717,13 +717,13 @@ def list_prescriptions(patient_id):
     prescription_details = []
 
     for prescription in prescriptions:
-        regimen = OncologyRegimen.query.get(prescription.regimen_id)
+        regimen = db.session.get(OncologyRegimen, prescription.regimen_id)
         drug_details = PrescriptionDrugDetail.query.filter_by(
             prescription_id=prescription.id
         ).all()
         drugs = [
             {
-                "name": OncologyDrug.query.get(detail.drug_id).name,
+                "name": db.session.get(OncologyDrug, detail.drug_id).name,
                 "dosage": detail.dosage,
                 "calculated_dose": detail.calculated_dose,
                 "infusion_fluid": detail.infusion_fluid,
@@ -769,7 +769,7 @@ def all_prescriptions():
         ).all()
         drugs = [
             {
-                "name": OncologyDrug.query.get(detail.drug_id).name,
+                "name": db.session.get(OncologyDrug, detail.drug_id).name,
                 "dosage": detail.dosage,
                 "calculated_dose": detail.calculated_dose,
                 "infusion_fluid": detail.infusion_fluid,

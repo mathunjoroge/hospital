@@ -14,7 +14,6 @@ from decimal import Decimal
 
 import pytest
 
-
 # ─── fixtures ────────────────────────────────────────────────────────────────
 
 @pytest.fixture
@@ -70,8 +69,8 @@ class TestStockNeverNegative:
     """
 
     def test_dispensing_exact_available_stock_succeeds(self, app, pharmacy_seed):
-        from departments.pharmacy.fefo import dispense_medication_fefo
         from departments.models.pharmacy import Drug
+        from departments.pharmacy.fefo import dispense_medication_fefo
         from extensions import db
 
         with app.app_context():
@@ -109,8 +108,8 @@ class TestStockNeverNegative:
 
     def test_zero_stock_drug_cannot_be_dispensed(self, app, pharmacy_seed):
         """Dispensing from a drug with 0 stock must fail, never silently succeed."""
-        from departments.pharmacy.fefo import dispense_medication_fefo
         from departments.models.pharmacy import Batch
+        from departments.pharmacy.fefo import dispense_medication_fefo
         from extensions import db
 
         with app.app_context():
@@ -183,6 +182,7 @@ class TestFinancialFieldPrecision:
     def test_drug_prices_stored_as_numeric(self, app):
         """Drug.buying_price and selling_price must use Numeric, not Float."""
         from sqlalchemy import Numeric as NumericType
+
         from departments.models.pharmacy import Drug
 
         with app.app_context():
@@ -199,6 +199,7 @@ class TestFinancialFieldPrecision:
     def test_decimal_price_roundtrip_exact(self, app, pharmacy_seed):
         """A price like 1.15 must be stored and retrieved exactly, not as 1.1499999..."""
         from decimal import Decimal
+
         from departments.models.pharmacy import Drug
         from extensions import db
 

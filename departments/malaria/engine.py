@@ -8,7 +8,6 @@ and clinical workflows for malaria diagnosis and care.
 
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional, Tuple
 
 from extensions import db
 
@@ -20,16 +19,16 @@ logger = logging.getLogger(__name__)
 def create_malaria_case(
     patient_id: str,
     case_number: str,
-    malaria_species: Optional[str] = None,
-    parasite_density: Optional[int] = None,
-    diagnosis_method: Optional[str] = None,
-    severity: Optional[str] = None,
-    pregnancy_status: Optional[str] = None,
-    treatment_start_date: Optional[datetime] = None,
-    facility_diagnosed_at: Optional[str] = None,
-    encounter_id: Optional[int] = None,
-    current_regimen_id: Optional[str] = None
-) -> Tuple[bool, str, Optional[MalariaCase]]:
+    malaria_species: str | None = None,
+    parasite_density: int | None = None,
+    diagnosis_method: str | None = None,
+    severity: str | None = None,
+    pregnancy_status: str | None = None,
+    treatment_start_date: datetime | None = None,
+    facility_diagnosed_at: str | None = None,
+    encounter_id: int | None = None,
+    current_regimen_id: str | None = None
+) -> tuple[bool, str, MalariaCase | None]:
     """
     Create a new malaria case for a patient.
 
@@ -64,7 +63,7 @@ def create_malaria_case(
 
         # Validate regimen if provided
         if current_regimen_id:
-            regimen = MalariaRegimen.query.get(current_regimen_id)
+            regimen = db.session.get(MalariaRegimen, current_regimen_id)
             if not regimen:
                 return False, f"Malaria regimen with ID {current_regimen_id} not found", None
 
@@ -116,7 +115,7 @@ def create_malaria_case(
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         db.session.rollback()
         logger.error(f"Error creating malaria case: {e}")
-        return False, f"Failed to create malaria case: {str(e)}", None
+        return False, f"Failed to create malaria case: {e!s}", None
 
 
 def update_malaria_regimen(
@@ -124,8 +123,8 @@ def update_malaria_regimen(
     new_regimen_id: str,
     change_reason: str,
     approved_by: str,
-    encounter_id: Optional[int] = None
-) -> Tuple[bool, str, Optional[MalariaCase]]:
+    encounter_id: int | None = None
+) -> tuple[bool, str, MalariaCase | None]:
     """
     Update a patient's malaria regimen with validation for line changes.
 
@@ -140,11 +139,11 @@ def update_malaria_regimen(
         Tuple of (success, message, case_object)
     """
     try:
-        case = MalariaCase.query.get(case_id)
+        case = db.session.get(MalariaCase, case_id)
         if not case:
             return False, f"Malaria case {case_id} not found", None
 
-        new_regimen = MalariaRegimen.query.get(new_regimen_id)
+        new_regimen = db.session.get(MalariaRegimen, new_regimen_id)
         if not new_regimen:
             return False, f"Malaria regimen {new_regimen_id} not found", None
 
@@ -186,15 +185,15 @@ def update_malaria_regimen(
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         db.session.rollback()
         logger.error(f"Error updating malaria regimen: {e}")
-        return False, f"Failed to update malaria regimen: {str(e)}", None
+        return False, f"Failed to update malaria regimen: {e!s}", None
 
 
 def record_treatment_administered(
     case_id: str,
     administered_as_directly_observed: bool = False,
-    date_administered: Optional[datetime] = None,
-    encounter_id: Optional[int] = None
-) -> Tuple[bool, str, Optional[MalariaTreatment]]:
+    date_administered: datetime | None = None,
+    encounter_id: int | None = None
+) -> tuple[bool, str, MalariaTreatment | None]:
     """
     Record a malaria treatment dose administered (either self-observed or directly observed).
 
@@ -208,7 +207,7 @@ def record_treatment_administered(
         Tuple of (success, message, treatment_object)
     """
     try:
-        case = MalariaCase.query.get(case_id)
+        case = db.session.get(MalariaCase, case_id)
         if not case:
             return False, f"Malaria case {case_id} not found", None
 
@@ -239,17 +238,17 @@ def record_treatment_administered(
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         db.session.rollback()
         logger.error(f"Error recording treatment administered: {e}")
-        return False, f"Failed to record treatment administered: {str(e)}", None
+        return False, f"Failed to record treatment administered: {e!s}", None
 
 
 def record_lab_result(
     case_id: str,
     test_type: str,
-    result_value: Optional[str] = None,
-    result_interpretation: Optional[str] = None,
-    test_date: Optional[datetime] = None,
-    encounter_id: Optional[int] = None
-) -> Tuple[bool, str, Optional[MalariaLabResult]]:
+    result_value: str | None = None,
+    result_interpretation: str | None = None,
+    test_date: datetime | None = None,
+    encounter_id: int | None = None
+) -> tuple[bool, str, MalariaLabResult | None]:
     """
     Record a malaria laboratory test result.
 
@@ -265,7 +264,7 @@ def record_lab_result(
         Tuple of (success, message, lab_result_object)
     """
     try:
-        case = MalariaCase.query.get(case_id)
+        case = db.session.get(MalariaCase, case_id)
         if not case:
             return False, f"Malaria case {case_id} not found", None
 
@@ -290,10 +289,10 @@ def record_lab_result(
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         db.session.rollback()
         logger.error(f"Error recording lab result: {e}")
-        return False, f"Failed to record lab result: {str(e)}", None
+        return False, f"Failed to record lab result: {e!s}", None
 
 
-def get_current_regimen(case_id: str) -> Optional[MalariaRegimen]:
+def get_current_regimen(case_id: str) -> MalariaRegimen | None:
     """
     Get the current malaria regimen for a case.
 
@@ -304,7 +303,7 @@ def get_current_regimen(case_id: str) -> Optional[MalariaRegimen]:
         Current malaria regimen or None if not found
     """
     try:
-        case = MalariaCase.query.get(case_id)
+        case = db.session.get(MalariaCase, case_id)
         if not case:
             return None
         return case.current_regimen
@@ -313,7 +312,7 @@ def get_current_regimen(case_id: str) -> Optional[MalariaRegimen]:
         return None
 
 
-def get_latest_lab_result(case_id: str) -> Optional[MalariaLabResult]:
+def get_latest_lab_result(case_id: str) -> MalariaLabResult | None:
     """
     Get the most recent lab test for a case.
 
@@ -332,7 +331,7 @@ def get_latest_lab_result(case_id: str) -> Optional[MalariaLabResult]:
         return None
 
 
-def get_treatment_summary(case_id: str, limit: int = 10) -> List[MalariaTreatment]:
+def get_treatment_summary(case_id: str, limit: int = 10) -> list[MalariaTreatment]:
     """
     Get recent treatments administered for a case.
 
@@ -354,7 +353,7 @@ def get_treatment_summary(case_id: str, limit: int = 10) -> List[MalariaTreatmen
 
 
 # Formulary management functions
-def get_malaria_formulary() -> List[MalariaRegimen]:
+def get_malaria_formulary() -> list[MalariaRegimen]:
     """
     Get all active malaria regimens in the formulary.
 
@@ -383,7 +382,7 @@ def is_malaria_regimen_valid(regimen_id: str) -> bool:
         True if regimen is valid, False otherwise
     """
     try:
-        regimen = MalariaRegimen.query.get(regimen_id)
+        regimen = db.session.get(MalariaRegimen, regimen_id)
         if not regimen:
             return False
 
@@ -402,7 +401,7 @@ def log_malaria_formulary_change(
     regimen_id: str,
     change_type: str,  # 'create', 'update', 'retire'
     changed_by: str,
-    change_notes: Optional[str] = None
+    change_notes: str | None = None
 ) -> bool:
     """
     Log a change to the malaria formulary for audit purposes.
