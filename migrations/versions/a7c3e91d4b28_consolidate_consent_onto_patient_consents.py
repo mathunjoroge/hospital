@@ -53,7 +53,7 @@ def upgrade():
             SELECT p.patient_id,
                    c.consent_type,
                    CASE WHEN c.status = 'ACTIVE' AND c.revoked_at IS NULL
-                        THEN 1 ELSE 0 END,
+                        THEN true ELSE false END,
                    c.granted_at,
                    c.revoked_at,
                    c.revocation_reason

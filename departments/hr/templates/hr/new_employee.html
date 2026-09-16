@@ -58,66 +58,77 @@
             </select>
         </div>
 
-        <!-- Allowances -->
+        <!-- Basic Salary -->
         <div class="mb-3">
-            <label class="form-label fw-bold">Allowances:</label>
+            <label for="basic_salary" class="form-label fw-bold">Basic Salary (optional):</label>
+            <input type="number" step="0.01" min="0" id="basic_salary" name="basic_salary"
+                   class="form-control" placeholder="Leave blank if not yet set">
+            <small class="form-text text-muted">
+                Required before this employee can be included in a payroll run.
+                Can be added later from the employee list.
+            </small>
+        </div>
+
+        <!-- Allowances (informational — assigned automatically by job group) -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Allowances for this job group:</label>
+            <p class="text-muted small">
+                Allowances are applied automatically at payroll time based on the
+                employee's job group — there is nothing to select here.
+            </p>
             <table class="table table-hover align-middle">
                 <thead class="table-dark">
                     <tr>
+                        <th>Job Group</th>
                         <th>Allowance Name</th>
                         <th>Value</th>
-                        <th>Select</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for allowance in allowances %}
                     <tr>
+                        <td>{{ allowance.job_group }}</td>
                         <td>{{ allowance.name }}</td>
                         <td>${{ allowance.value }}</td>
-                        <td>
-                            <input type="checkbox" id="allowance_{{ allowance.id }}" name="allowances" value="{{ allowance.id }}">
-                        </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="3" class="text-center text-muted">No allowances available.</td>
+                        <td colspan="3" class="text-center text-muted">No allowances configured yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
 
-        <!-- Deductions -->
+        <!-- Deductions (informational — applied to every employee at payroll time) -->
         <div class="mb-3">
-            <label class="form-label fw-bold">Deductions:</label>
+            <label class="form-label fw-bold">Standard deductions:</label>
+            <p class="text-muted small">
+                These apply to every employee automatically at payroll time —
+                there is nothing to select here.
+            </p>
             <table class="table table-hover align-middle">
                 <thead class="table-dark">
                     <tr>
                         <th>Deduction Name</th>
-                        <th>Type</th>
                         <th>Value</th>
-                        <th>Select</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for deduction in deductions %}
                     <tr>
                         <td>{{ deduction.name }}</td>
-                        <td>{{ deduction.type }}</td>
                         <td>
-                            {% if deduction.type == 'absolute' %}
-                                ${{ deduction.value }}
-                            {% else %}
+                            {% if deduction.is_percentage %}
                                 {{ deduction.value }}%
+                            {% else %}
+                                ${{ deduction.value }}
                             {% endif %}
-                        </td>
-                        <td>
-                            <input type="checkbox" id="deduction_{{ deduction.id }}" name="deductions" value="{{ deduction.id }}">
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="4" class="text-center text-muted">No deductions available.</td>
+                        <td colspan="2" class="text-center text-muted">No deductions configured yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

@@ -10,7 +10,7 @@
                     <h5>Personal Information</h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('update_profile') }}">
+                    <form method="POST" action="{{ url_for('hr.update_profile', employee_id=employee.id) }}">
                         {{ form.hidden_tag() }}
                         <div class="form-group mb-3">
                             <label for="name" class="form-label">Full Name</label>
@@ -78,7 +78,7 @@
                     <h5>Leave Requests</h5>
                 </div>
                 <div class="card-body">
-                    <a href="{{ url_for('leave_request') }}" class="btn btn-success mb-3">
+                    <a href="{{ url_for('hr.leave_request') }}" class="btn btn-success mb-3">
                         <i class="bi bi-plus-circle"></i> Request Leave
                     </a>
                     <table class="table table-bordered">

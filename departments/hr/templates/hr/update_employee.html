@@ -11,10 +11,43 @@
             <input type="text" id="name" name="name" class="form-control" value="{{ employee.name }}" placeholder="Enter employee name" required>
         </div>
 
-        <!-- Position -->
+        <!-- Role -->
         <div class="mb-3">
-            <label for="position" class="form-label fw-bold">Position:</label>
-            <input type="text" id="position" name="position" class="form-control" value="{{ employee.position }}" placeholder="Enter job title" required>
+            <label for="role" class="form-label fw-bold">Role:</label>
+            <select id="role" name="role" class="form-select" required>
+                <option value="" disabled {% if not employee.role %}selected{% endif %}>Select role</option>
+                <option value="records" {% if employee.role == 'records' %}selected{% endif %}>Records</option>
+                <option value="nursing" {% if employee.role == 'nursing' %}selected{% endif %}>Nursing</option>
+                <option value="pharmacy" {% if employee.role == 'pharmacy' %}selected{% endif %}>Pharmacy</option>
+                <option value="medicine" {% if employee.role == 'medicine' %}selected{% endif %}>Medicine</option>
+                <option value="laboratory" {% if employee.role == 'laboratory' %}selected{% endif %}>Laboratory</option>
+                <option value="imaging" {% if employee.role == 'imaging' %}selected{% endif %}>Imaging</option>
+                <option value="mortuary" {% if employee.role == 'mortuary' %}selected{% endif %}>Mortuary</option>
+                <option value="hr" {% if employee.role == 'hr' %}selected{% endif %}>HR</option>
+                <option value="stores" {% if employee.role == 'stores' %}selected{% endif %}>Stores</option>
+                <option value="admin" {% if employee.role == 'admin' %}selected{% endif %}>Admin</option>
+            </select>
+        </div>
+
+        <!-- Basic Salary -->
+        <div class="mb-3">
+            <label for="basic_salary" class="form-label fw-bold">Basic Salary:</label>
+            <input type="number" step="0.01" min="0" id="basic_salary" name="basic_salary"
+                   class="form-control" value="{{ employee.basic_salary if employee.basic_salary is not none else '' }}"
+                   placeholder="Not yet set">
+            <small class="form-text text-muted">Required before this employee can be included in a payroll run.</small>
+        </div>
+
+        <!-- Linked login account -->
+        <div class="mb-3">
+            <label for="linked_username" class="form-label fw-bold">Linked login account (username):</label>
+            <input type="text" id="linked_username" name="linked_username" class="form-control"
+                   value="{{ employee.user.username if employee.user else '' }}"
+                   placeholder="Leave blank if this employee has no system login">
+            <small class="form-text text-muted">
+                Required for this employee to use self-service features (leave requests,
+                viewing their own payslips, updating their own contact details).
+            </small>
         </div>
 
         <!-- Department -->

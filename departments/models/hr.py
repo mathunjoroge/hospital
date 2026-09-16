@@ -52,9 +52,46 @@ class Employee(db.Model):
     phone = db.Column(db.String(20), nullable=True)
     bank_name = db.Column(db.String(100), nullable=True)
     bank_account = db.Column(db.String(50), nullable=True)
+    # Nullable: an employee not yet assigned a salary is a valid state (new
+    # hire pending HR sign-off), not an error. generate_payroll() treats a
+    # missing value as "not ready for payroll" and skips the employee rather
+    # than crashing the whole run.
+    basic_salary = db.Column(db.Numeric(12, 2), nullable=True)
+
+    # Links this HR record to the login account the employee actually uses.
+    # Employee and User are separate tables with independent auto-increment
+    # sequences — several self-service routes previously compared
+    # current_user.id directly against Employee.id, which only "worked" when
+    # the two happened to share a number by coincidence. Nullable + unique:
+    # not every employee has a login (e.g. contractors on payroll only), and
+    # a login must map to at most one employee record.
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), unique=True, nullable=True, index=True
+    )
+    user = db.relationship("User", foreign_keys=[user_id])
 
     def __repr__(self):
         return f"<Employee {self.name} - ID: {self.employee_id}>"
+
+    @staticmethod
+    def generate_employee_id():
+        """
+        Generate a unique employee ID (E0001, E0002, ...), matching the
+        convention Patient.generate_patient_id() uses for patient_id.
+
+        This was previously called from hr.routes.new_employee() as
+        Employee.generate_employee_id() without ever being defined, so every
+        attempt to add an employee through the UI raised AttributeError.
+        """
+        prefix = "E"
+        with db.session.no_autoflush:
+            last_employee = Employee.query.order_by(Employee.id.desc()).first()
+            if last_employee and last_employee.employee_id.startswith(prefix):
+                tail = last_employee.employee_id[1:]
+                last_number = int(tail) if tail.isdigit() else 0
+            else:
+                last_number = 0
+            return f"{prefix}{last_number + 1:04d}"
 
 
 class Allowance(db.Model):

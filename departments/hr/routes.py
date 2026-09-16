@@ -48,7 +48,8 @@ from departments.models.hr import (
     Payroll,
     Rota,
 )
-from departments.rbac import roles_required
+from departments.models.user import User
+from departments.rbac import get_effective_role, roles_required
 from extensions import db
 
 from . import bp  # Import the blueprint
@@ -56,15 +57,22 @@ from . import bp  # Import the blueprint
 logger = logging.getLogger(__name__)
 
 
-# Define get_effective_role to support role switching
-def get_effective_role():
-    if (
-        current_user.is_authenticated
-        and current_user.role == "admin"
-        and "switched_user" in session
-    ):
-        return session["switched_user"]
-    return current_user.role if current_user.is_authenticated else None
+def _current_employee():
+    """
+    Resolve the Employee record linked to the logged-in User, or None.
+
+    Replaces the previous pattern of using current_user.id as though it were
+    an Employee primary key — Employee and User are separate tables with
+    independent ID sequences, so that comparison was only ever right by
+    coincidence. None means either the account has no linked employee record
+    (e.g. it predates Employee.user_id, or is an admin/system account) or the
+    caller isn't authenticated; callers must handle that case explicitly
+    rather than letting a stray employee_id=None query silently match nothing
+    or the wrong row.
+    """
+    if not current_user.is_authenticated:
+        return None
+    return Employee.query.filter_by(user_id=current_user.id).first()
 
 
 @bp.route("/", methods=["GET"])
@@ -130,7 +138,19 @@ def employee_list():
 @login_required
 @roles_required("hr", "admin")
 def new_employee():
-    """Registers a new employee with allowances and deductions."""
+    """
+    Registers a new employee.
+
+    Allowances and deductions are NOT captured per-employee here: Allowance is
+    keyed by job_group and Deduction applies platform-wide (see
+    generate_payroll(), which pulls both automatically), so there is nothing
+    to select at creation time. This route previously tried to assign both
+    per-employee anyway via `new_employee.allowances.extend(...)` and a
+    per-employee Deduction(employee_id=..., type=...) — neither the
+    relationship nor those columns exist on the real models, so every
+    submission raised AttributeError before a row was ever written, in
+    addition to employee_id generation being undefined entirely.
+    """
 
     try:
         if request.method == "POST":
@@ -139,12 +159,20 @@ def new_employee():
             role = request.form.get("role")
             department = request.form.get("department")
             job_group = request.form.get("job_group")
-            allowances = request.form.getlist("allowances")  # Selected allowances
-            deductions = request.form.getlist("deductions")  # Selected deductions
+            basic_salary_raw = (request.form.get("basic_salary") or "").strip()
 
             # Validate input
             if not all([name, role, department, job_group]):
                 raise ValueError("All fields are required!")
+
+            basic_salary = None
+            if basic_salary_raw:
+                try:
+                    basic_salary = float(basic_salary_raw)
+                except ValueError as exc:
+                    raise ValueError("Basic salary must be a number.") from exc
+                if basic_salary < 0:
+                    raise ValueError("Basic salary cannot be negative.")
 
             # Generate a unique employee ID
             employee_id = Employee.generate_employee_id()
@@ -156,32 +184,15 @@ def new_employee():
                 role=role,
                 department=department,
                 job_group=job_group,
+                basic_salary=basic_salary,
             )
             db.session.add(new_employee)
-
-            # Assign allowances
-            selected_allowances = Allowance.query.filter(
-                Allowance.id.in_(allowances)
-            ).all()
-            new_employee.allowances.extend(selected_allowances)
-
-            # Assign deductions
-            for deduction_id in deductions:
-                deduction = db.session.get(Deduction, deduction_id)
-                if deduction:
-                    new_deduction = Deduction(
-                        employee_id=new_employee.employee_id,
-                        name=deduction.name,
-                        type=deduction.type,
-                        value=deduction.value,
-                    )
-                    db.session.add(new_deduction)
-
             db.session.commit()
             flash(f"Employee {name} added successfully!", "success")
             return redirect(url_for("hr.employee_list"))
 
-        # Fetch all allowances and deductions
+        # GET: show the current global allowance/deduction rules for
+        # reference only — informational, not a per-employee selection.
         allowances = Allowance.query.all()
         deductions = Deduction.query.all()
 
@@ -190,10 +201,10 @@ def new_employee():
         )
 
     except (SQLAlchemyError, ValueError) as e:
-        flash("Something went wrong. Please try again.", "error")
+        flash(str(e) if isinstance(e, ValueError) else "Something went wrong. Please try again.", "error")
         logger.error("hr.new_employee failed: %s", e, exc_info=True)
         db.session.rollback()
-        return redirect(url_for("hr.index"))
+        return redirect(url_for("hr.index") if request.method == "GET" else url_for("hr.new_employee"))
 
 
 @bp.route("/update_employee/<int:employee_id>", methods=["GET", "POST"])
@@ -212,16 +223,43 @@ def update_employee(employee_id):
             role = request.form.get("role")
             department = request.form.get("department")
             is_active = request.form.get("is_active") == "on"  # Checkbox handling
+            basic_salary_raw = (request.form.get("basic_salary") or "").strip()
+            linked_username = (request.form.get("linked_username") or "").strip()
 
             # Validate input
             if not all([name, role, department]):
                 raise ValueError("All fields are required!")
+
+            basic_salary = employee.basic_salary
+            if basic_salary_raw:
+                try:
+                    basic_salary = float(basic_salary_raw)
+                except ValueError as exc:
+                    raise ValueError("Basic salary must be a number.") from exc
+                if basic_salary < 0:
+                    raise ValueError("Basic salary cannot be negative.")
+
+            if linked_username:
+                linked_user = User.query.filter_by(username=linked_username).first()
+                if not linked_user:
+                    raise ValueError(f"No login account found for username '{linked_username}'.")
+                existing_link = Employee.query.filter(
+                    Employee.user_id == linked_user.id, Employee.id != employee.id
+                ).first()
+                if existing_link:
+                    raise ValueError(
+                        f"That login account is already linked to {existing_link.name}."
+                    )
+                employee.user_id = linked_user.id
+            else:
+                employee.user_id = None
 
             # Update employee details
             employee.name = name
             employee.role = role
             employee.department = department
             employee.is_active = is_active
+            employee.basic_salary = basic_salary
             employee.updated_by = current_user.id
 
             db.session.commit()
@@ -231,10 +269,14 @@ def update_employee(employee_id):
         return render_template("hr/update_employee.html", employee=employee)
 
     except (SQLAlchemyError, ValueError) as e:
-        flash("Something went wrong. Please try again.", "error")
+        flash(str(e) if isinstance(e, ValueError) else "Something went wrong. Please try again.", "error")
         logger.error("hr.update_employee failed: %s", e, exc_info=True)
         db.session.rollback()
-        return redirect(url_for("hr.employee_list"))
+        return redirect(
+            url_for("hr.update_employee", employee_id=employee_id)
+            if request.method == "POST"
+            else url_for("hr.employee_list")
+        )
 
 
 @bp.route("/delete_employee/<int:employee_id>", methods=["POST"])
@@ -513,7 +555,13 @@ def generate_payroll(month):
     """Generate payroll for a specific month."""
 
     employees = Employee.query.filter_by(is_active=True).all()
+    skipped = []
+    generated = 0
     for employee in employees:
+        if employee.basic_salary is None:
+            skipped.append(employee.name)
+            continue
+
         # Calculate gross pay (basic salary + allowances)
         allowances = Allowance.query.filter_by(job_group=employee.job_group).all()
         total_allowances = sum(allowance.value for allowance in allowances)
@@ -540,8 +588,18 @@ def generate_payroll(month):
             net_pay=net_pay,
         )
         db.session.add(payroll)
+        generated += 1
     db.session.commit()
-    flash("Payroll generated successfully!", "success")
+
+    if generated:
+        flash(f"Payroll generated for {generated} employee(s).", "success")
+    if skipped:
+        flash(
+            "Skipped (no basic salary on file): " + ", ".join(skipped),
+            "warning",
+        )
+    if not generated and not skipped:
+        flash("No active employees to generate payroll for.", "info")
     return redirect(url_for("hr.payroll_dashboard"))
 
 
@@ -601,10 +659,19 @@ def add_allowance():
 def leave_request():
     """Submit a leave request for the current employee."""
     # Allow all authenticated employees to submit leave requests
+    employee = _current_employee()
+    if not employee:
+        flash(
+            "Your account is not linked to an employee record, so a leave "
+            "request cannot be filed. Ask HR to link your account.",
+            "error",
+        )
+        return redirect(url_for("home"))
+
     form = LeaveRequestForm()
     if form.validate_on_submit():
         leave = Leave(
-            employee_id=current_user.id,  # Use current_user.id instead of hardcoded value
+            employee_id=employee.id,
             start_date=form.start_date.data,
             end_date=form.end_date.data,
             type=form.type.data,
@@ -616,7 +683,7 @@ def leave_request():
     return render_template("hr/leave_request.html", form=form)
 
 
-@bp.route("/hr/reports")
+@bp.route("/reports")
 @login_required
 @roles_required("hr", "admin")
 def reports():
@@ -701,7 +768,15 @@ def reject_leave(leave_id):
 def update_employee_profile():
     """Update profile for the logged-in employee."""
     # Allow all authenticated employees to update their own profile
-    employee = Employee.query.get_or_404(current_user.id)
+    employee = _current_employee()
+    if not employee:
+        flash(
+            "Your account is not linked to an employee record. Ask HR to "
+            "link your account before updating your profile.",
+            "error",
+        )
+        return redirect(url_for("home"))
+
     form = UpdateProfileForm()
 
     if form.validate_on_submit():
@@ -727,7 +802,8 @@ def update_employee_profile():
 def employee_payslips():
     """Display payslips for the logged-in employee."""
     # Allow all authenticated employees to view their own payslips
-    payrolls = Payroll.query.filter_by(employee_id=current_user.id).all()
+    employee = _current_employee()
+    payrolls = Payroll.query.filter_by(employee_id=employee.id).all() if employee else []
     return render_template("hr/employee_payslips.html", payrolls=payrolls)
 
 
@@ -845,9 +921,9 @@ def view_payslip(payroll_id):
     """View a specific payslip."""
     # Allow employees to view their own payslips, HR/admins to view all
     payroll = Payroll.query.get_or_404(payroll_id)
-    if (
-        get_effective_role() not in ["hr", "admin"]
-        and payroll.employee_id != current_user.id
+    employee = _current_employee()
+    if get_effective_role() not in ["hr", "admin"] and (
+        not employee or payroll.employee_id != employee.id
     ):
         flash("Unauthorized access. You can only view your own payslips.", "error")
         return redirect(url_for("home"))
@@ -860,9 +936,9 @@ def download_payslip(payroll_id):
     """Download a specific payslip as PDF."""
     # Allow employees to download their own payslips, HR/admins to download all
     payroll = Payroll.query.get_or_404(payroll_id)
-    if (
-        get_effective_role() not in ["hr", "admin"]
-        and payroll.employee_id != current_user.id
+    employee = _current_employee()
+    if get_effective_role() not in ["hr", "admin"] and (
+        not employee or payroll.employee_id != employee.id
     ):
         flash("Unauthorized access. You can only download your own payslips.", "error")
         return redirect(url_for("home"))

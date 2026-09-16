@@ -116,7 +116,7 @@ def upgrade():
         )
 
     # ── custom_rules ───────────────────────────────────────────────────────
-    with op.batch_alter_table("custom_rules") as batch_op:
+    with op.batch_alter_table("custom_rule") as batch_op:
         batch_op.alter_column(
             "value",
             type_=sa.Numeric(12, 4),
@@ -164,7 +164,7 @@ def downgrade():
     with op.batch_alter_table("labtests") as batch_op:
         batch_op.alter_column("cost", type_=sa.Float(), existing_nullable=False)
 
-    with op.batch_alter_table("custom_rules") as batch_op:
+    with op.batch_alter_table("custom_rule") as batch_op:
         batch_op.alter_column("value", type_=sa.Float(), existing_nullable=False)
 
     with op.batch_alter_table("deductions") as batch_op:
