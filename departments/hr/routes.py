@@ -13,7 +13,6 @@ from flask import (
     render_template,
     request,
     send_file,
-    session,
     url_for,
 )
 from flask_login import current_user, login_required

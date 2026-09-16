@@ -22,7 +22,6 @@ Separately, five self-service routes compared current_user.id (a User PK)
 directly against Employee.id (an unrelated table's PK) as if they were the
 same identifier, which only worked when the two happened to coincide.
 """
-from datetime import date
 
 import pytest
 from werkzeug.security import generate_password_hash
