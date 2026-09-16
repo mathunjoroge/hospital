@@ -163,15 +163,12 @@ class Leave(db.Model):
         db.String(20), default="Pending"
     )  # e.g., Pending, Approved, Rejected
 
+    # employee_profile.html renders an employee's leave history via
+    # employee.leaves; without this relationship the template raised
+    # UndefinedError on every profile visit.
+    employee = db.relationship("Employee", backref="leaves")
 
-class CustomRule(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=True)
-    job_group = db.Column(db.String(50), nullable=True)
-    type = db.Column(db.String(50), nullable=False)  # e.g., deduction, allowance
-    name = db.Column(db.String(100), nullable=False)
-    value = db.Column(db.Numeric(12, 4), nullable=False)
-    is_percentage = db.Column(db.Boolean, default=False)
+
 
 
 class AuditLog(db.Model):

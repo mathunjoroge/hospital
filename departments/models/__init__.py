@@ -28,7 +28,6 @@ from .facility import Facility, get_home_facility
 from .hr import (
     Allowance,
     AuditLog,
-    CustomRule,
     Deduction,
     Employee,
     Leave,
@@ -147,7 +146,6 @@ __all__ = [
     "Clinic",
     "ClinicBill",
     "ClinicBooking",
-    "CustomRule",
     "Deduction",
     "DialysisSession",
     "Disease",

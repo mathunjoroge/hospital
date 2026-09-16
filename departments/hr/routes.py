@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from io import StringIO
 
 from flask import (
+    current_app,
     flash,
     make_response,
     redirect,
@@ -16,7 +17,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
-from flask_mail import Mail, Message
+from flask_mail import Message
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
@@ -285,10 +286,29 @@ def delete_employee(employee_id):
     """Deletes an employee from the system."""
 
     try:
-        # Fetch the employee by ID
         employee = Employee.query.get_or_404(employee_id)
 
-        # Delete the employee
+        # employees.id is referenced by payrolls/leaves without ON DELETE
+        # CASCADE, so a hard DELETE raised IntegrityError for anyone with
+        # payroll or leave history and the caught error showed a generic
+        # failure. Employees are never truly erased from a payroll system
+        # anyway (statutory retention); deactivate instead, and only allow a
+        # hard delete when there is genuinely nothing referencing the row.
+        has_history = (
+            Payroll.query.filter_by(employee_id=employee.id).first() is not None
+            or Leave.query.filter_by(employee_id=employee.id).first() is not None
+        )
+        if has_history:
+            employee.is_active = False
+            employee.updated_by = current_user.id
+            db.session.commit()
+            flash(
+                f"{employee.name} has payroll/leave history, so the record was "
+                "deactivated instead of deleted.",
+                "warning",
+            )
+            return redirect(url_for("hr.employee_list"))
+
         db.session.delete(employee)
         db.session.commit()
 
@@ -678,7 +698,12 @@ def leave_request():
         db.session.add(leave)
         db.session.commit()
         flash("Leave request submitted successfully!", "success")
-        return redirect(url_for("hr.index"))
+        # hr.index is roles_required("hr", "admin") — redirecting there sent
+        # every non-HR employee straight into a 403 right after their request
+        # was filed. Their own profile page lists their leave requests, so they
+        # land somewhere that shows the result (employee_profile permits the
+        # linked employee to view their own record).
+        return redirect(url_for("hr.employee_profile", employee_id=employee.id))
     return render_template("hr/leave_request.html", form=form)
 
 
@@ -716,27 +741,69 @@ def audit_logs():
 
 @bp.route("/employee_profile/<int:employee_id>")
 @login_required
-@roles_required("hr", "admin")
 def employee_profile(employee_id):
-    """Display employee profile."""
+    """
+    Display employee profile — HR/admin for anyone, or the linked employee
+    for their own record (same ownership check view_payslip uses).
 
+    Previously roles_required("hr", "admin") only, which 403'd the self-service
+    flows that land here: update_employee_profile and update_profile redirect
+    to this page after a successful save, so every non-HR employee who updated
+    their contact/bank details was bounced with 403 *after* the write.
+    """
     employee = Employee.query.get_or_404(employee_id)
+    if get_effective_role() not in ["hr", "admin"]:
+        own_employee = _current_employee()
+        if not own_employee or own_employee.id != employee.id:
+            flash("Unauthorized access. You can only view your own profile.", "error")
+            return redirect(url_for("home"))
     return render_template("hr/employee_profile.html", employee=employee)
 
 
 @bp.route("/update_profile/<int:employee_id>", methods=["POST"])
 @login_required
-@roles_required("hr", "admin")
 def update_profile(employee_id):
-    """Update employee profile by HR/admin."""
-
+    """
+    Update employee profile by HR/admin — or by the linked employee for
+    their own record. employee_profile.html posts here for both audiences;
+    when it was roles_required("hr", "admin") only, a self-service employee
+    submitting the form got a 403.
+    """
     employee = Employee.query.get_or_404(employee_id)
-    employee.name = request.form.get("name")
-    employee.department = request.form.get("department")
-    employee.job_group = request.form.get("job_group")
-    db.session.commit()
-    flash("Profile updated successfully!", "success")
-    return redirect(url_for("hr.employee_profile", employee_id=employee.id))
+    is_hr = get_effective_role() in ["hr", "admin"]
+    current_employee = _current_employee()
+    if not is_hr and (not current_employee or current_employee.id != employee.id):
+        flash("Unauthorized access. You can only update your own profile.", "error")
+        return redirect(url_for("home"))
+
+    try:
+
+        # Validate before touching the model: name/department/job_group are
+        # all nullable=False, so a blank submission used to raise IntegrityError
+        # at commit and 500 instead of re-showing the form with an error.
+        name = (request.form.get("name") or "").strip()
+        department = (request.form.get("department") or "").strip()
+        job_group = (request.form.get("job_group") or "").strip()
+        if not all([name, department, job_group]):
+            raise ValueError("All fields are required!")
+
+        employee.name = name
+        # department/job_group drive payroll (Allowance is keyed by job_group)
+        # and org placement, so only HR/admin may change them even though the
+        # shared profile form posts all three fields.
+        if is_hr:
+            employee.department = department
+            employee.job_group = job_group
+            employee.updated_by = current_user.id
+        db.session.commit()
+        flash("Profile updated successfully!", "success")
+        return redirect(url_for("hr.employee_profile", employee_id=employee.id))
+
+    except (SQLAlchemyError, ValueError) as e:
+        flash(str(e) if isinstance(e, ValueError) else "Something went wrong. Please try again.", "error")
+        logger.error("hr.update_profile failed: %s", e, exc_info=True)
+        db.session.rollback()
+        return redirect(url_for("hr.employee_profile", employee_id=employee_id))
 
 
 @bp.route("/leave_management")
@@ -864,10 +931,38 @@ def export_payroll_excel():
 
 
 def send_email(subject, recipient, body):
-    """Send an email notification."""
-    msg = Message(subject, recipients=[recipient])
-    msg.body = body
-    Mail.send(msg)
+    """
+    Send an email notification, best-effort.
+
+    The previous implementation called Mail.send(msg) on the flask_mail.Mail
+    CLASS — the app-bound instance lives in app.py and was never reachable
+    from here — so every call raised TypeError. approve_leave() had already
+    committed the status change by then, so HR saw a 500 after the leave was
+    approved. It also passed recipients=[None] when the employee had no email
+    on file, which raises inside flask_mail itself. Both failure modes are
+    non-fatal now: a missing mail extension or recipient logs and moves on,
+    never after the DB write has been allowed to fail.
+    """
+    if not recipient:
+        logger.warning(
+            "hr.send_email skipped (no recipient on file): subject=%r", subject
+        )
+        return False
+    mail_ext = current_app.extensions.get("mail")
+    if mail_ext is None:
+        logger.warning(
+            "hr.send_email skipped (mail extension not initialised): subject=%r",
+            subject,
+        )
+        return False
+    try:
+        msg = Message(subject, recipients=[recipient])
+        msg.body = body
+        mail_ext.send(msg)
+        return True
+    except Exception:  # noqa: BLE001 — notification must never break the workflow
+        logger.exception("hr.send_email failed: subject=%r", subject)
+        return False
 
 
 @bp.route("/approve_leave/<int:leave_id>")

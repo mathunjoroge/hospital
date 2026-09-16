@@ -23,12 +23,192 @@ directly against Employee.id (an unrelated table's PK) as if they were the
 same identifier, which only worked when the two happened to coincide.
 """
 
+from datetime import datetime
+
 import pytest
 from werkzeug.security import generate_password_hash
 
 from departments.models.hr import Allowance, Deduction, Employee, Leave, Payroll
 from departments.models.user import User
 from extensions import db
+
+# ── P0 regressions: the profile/leave/delete crash cluster ────────────────
+
+def test_employee_profile_renders_for_hr(hr_client, app):
+    """
+    Regression: the template called form.hidden_tag() but the HR route passed
+    no form object, and it iterated employee.leaves which had no relationship
+    — so HR's central profile page raised UndefinedError on every visit.
+    """
+    employee = _make_employee(name="Profile Target")
+    response = hr_client.get(f"/hr/employee_profile/{employee.id}")
+    assert response.status_code == 200
+    assert b"Profile Target" in response.data
+
+
+def test_employee_profile_shows_leave_history(client, app, linked_pair):
+    """employee.leaves must resolve now that the relationship exists."""
+    import datetime as dt
+
+    employee, user = linked_pair
+    db.session.add(Leave(employee_id=employee.id,
+                         start_date=dt.datetime(2026, 10, 1),
+                         end_date=dt.datetime(2026, 10, 5),
+                         type="sick", status="Pending"))
+    db.session.commit()
+
+    client.post("/login", data={"username": "linked_nurse", "password": "Nurse!2345"},
+                follow_redirects=True)
+    response = client.get("/hr/update_employee_profile")  # self-service profile
+    assert response.status_code == 200
+    assert b"2026-10-01" in response.data
+
+
+def test_approve_leave_does_not_crash_after_commit(hr_client, app):
+    """
+    Regression: send_email called Mail.send() on the flask_mail Mail CLASS
+    (the app-bound instance was never reachable from hr.routes), so approval
+    committed the status change and then raised TypeError — a 500 after a
+    successful DB write. Exercises the real code path: an employee with no
+    email on file (recipient=None used to raise inside flask_mail too).
+    """
+    employee = _make_employee(name="Leave Target")  # no email set
+    leave = Leave(employee_id=employee.id,
+                  start_date=datetime(2026, 10, 1), end_date=datetime(2026, 10, 5),
+                  type="sick", status="Pending")
+    db.session.add(leave)
+    db.session.commit()
+
+    response = hr_client.get(f"/hr/approve_leave/{leave.id}", follow_redirects=True)
+    assert response.status_code == 200
+    assert leave.status == "Approved"
+
+
+def test_send_email_survives_missing_mail_extension(app):
+    """current_app.extensions['mail'] absent must degrade, not raise."""
+    from departments.hr.routes import send_email
+    with app.app_context():
+        had_mail = app.extensions.pop("mail", None)
+        try:
+            assert send_email("Subject", "hr@example.com", "body") is False
+        finally:
+            if had_mail is not None:
+                app.extensions["mail"] = had_mail
+
+
+def test_reject_leave_does_not_crash(hr_client, app):
+    employee = _make_employee(name="Reject Target")
+    leave = Leave(employee_id=employee.id,
+                  start_date=datetime(2026, 10, 1), end_date=datetime(2026, 10, 5),
+                  type="sick", status="Pending")
+    db.session.add(leave)
+    db.session.commit()
+    response = hr_client.get(f"/hr/reject_leave/{leave.id}", follow_redirects=True)
+    assert response.status_code == 200
+    assert leave.status == "Rejected"
+
+
+def test_send_email_skips_silently_without_recipient(app):
+    """Unit-level: send_email(None) must not raise (previously recipients=[None])."""
+    from departments.hr.routes import send_email
+    with app.app_context():
+        assert send_email("Subject", None, "body") is False
+
+
+def test_update_profile_rejects_blank_name(hr_client, app):
+    """
+    Regression: update_profile wrote request.form values straight to
+    nullable=False columns, so a blank name raised IntegrityError at commit
+    and 500'd instead of flashing a validation error.
+    """
+    employee = _make_employee(name="Original Name")
+    response = hr_client.post(f"/hr/update_profile/{employee.id}", data={
+        "name": "", "department": "nursing", "job_group": "Group A",
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert db.session.get(Employee, employee.id).name == "Original Name"
+
+
+def test_update_profile_updates_and_stamps_updated_by(hr_client, app):
+    employee = _make_employee(name="Before")
+    assert employee.updated_by is None
+    hr_client.post(f"/hr/update_profile/{employee.id}", data={
+        "name": "After", "department": "records", "job_group": "Group B",
+    })
+    updated = db.session.get(Employee, employee.id)
+    assert updated.name == "After"
+    assert updated.department == "records"
+    assert updated.job_group == "Group B"
+    assert updated.updated_by == User.query.filter_by(username="hr_clerk").first().id
+
+
+def test_employee_cannot_update_another_employees_profile(client, app):
+    """The POST-only route is shared by self-service; cross-employee writes must 302 away."""
+    db.session.add(User(username="plain_emp", role="nursing",
+                        password=generate_password_hash("Plain!234")))
+    db.session.commit()
+    other = _make_employee(employee_id="E-OTHER2", name="Other Person")
+    client.post("/login", data={"username": "plain_emp", "password": "Plain!234"},
+                follow_redirects=True)
+    client.post(f"/hr/update_profile/{other.id}", data={
+        "name": "Hacked Name", "department": "nursing", "job_group": "Group A",
+    }, follow_redirects=False)
+    assert db.session.get(Employee, other.id).name == "Other Person"
+
+
+def test_linked_employee_can_update_own_profile_via_update_profile(client, app, linked_pair):
+    employee, user = linked_pair
+    client.post("/login", data={"username": "linked_nurse", "password": "Nurse!2345"},
+                follow_redirects=True)
+    response = client.post(f"/hr/update_profile/{employee.id}", data={
+        "name": employee.name, "department": "nursing", "job_group": "Group A",
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert db.session.get(Employee, employee.id).name == "Linked Nurse"
+
+
+def test_delete_employee_with_history_is_deactivated_not_deleted(hr_client, app):
+    """
+    Regression: payrolls.employee_id has no ON DELETE CASCADE, so DELETE
+    raised IntegrityError for anyone with payroll history and the route
+    showed a generic error while the row stayed. Deactivate instead.
+    """
+    employee = _make_employee(employee_id="E-HIST", name="History Holder")
+    db.session.add(Payroll(employee_id=employee.id, month="2026-09",
+                           gross_pay=100, total_deductions=0, net_pay=100))
+    db.session.commit()
+    employee_pk = employee.id
+
+    response = hr_client.post(f"/hr/delete_employee/{employee_pk}", follow_redirects=True)
+    assert response.status_code == 200
+    survivor = db.session.get(Employee, employee_pk)
+    assert survivor is not None  # row retained for statutory/audit integrity
+    assert survivor.is_active is False
+
+
+def test_delete_employee_without_history_still_hard_deletes(hr_client, app):
+    employee = _make_employee(employee_id="E-FRESH", name="Fresh Hire No History")
+    employee_pk = employee.id
+    hr_client.post(f"/hr/delete_employee/{employee_pk}", follow_redirects=True)
+    assert db.session.get(Employee, employee_pk) is None
+
+
+def test_leave_request_success_redirects_employees_away_from_403(client, app, linked_pair):
+    """
+    Regression: success redirected to hr.index (roles_required hr/admin), so
+    a regular employee got a 403 immediately after filing a request.
+    """
+    employee, user = linked_pair
+    client.post("/login", data={"username": "linked_nurse", "password": "Nurse!2345"},
+                follow_redirects=True)
+    response = client.post("/hr/leave_request", data={
+        "start_date": "2026-10-01", "end_date": "2026-10-05", "type": "vacation",
+    }, follow_redirects=False)
+    assert response.status_code == 302
+    # Must not land on an HR-only endpoint.
+    assert "/hr/index" not in response.headers["Location"]
+    follow = client.get(response.headers["Location"], follow_redirects=False)
+    assert follow.status_code == 200
 
 
 @pytest.fixture

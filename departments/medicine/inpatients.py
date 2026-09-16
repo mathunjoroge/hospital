@@ -563,6 +563,33 @@ def ward_rounds():
     )
 
 
+@bp.route("/ward-rounds/<int:admission_id>", methods=["GET"])
+@login_required
+def view_ward_rounds(admission_id):
+    """
+    Ward round history for a single admission.
+
+    This was referenced as the redirect target from every branch of
+    add_ward_round() below (success, missing-fields, and error), and linked
+    from inpatients.html, but was never defined anywhere — so submitting a
+    ward round note always raised a BuildError after the note had already
+    been committed: the note saved, but the request still 500'd.
+    """
+    admission = db.session.get(AdmittedPatient, admission_id)
+    if not admission:
+        flash("Patient admission not found.", "danger")
+        return redirect(url_for("medicine.ward_rounds"))
+
+    rounds = (
+        WardRound.query.filter_by(admission_id=admission_id)
+        .order_by(WardRound.created_at.desc())
+        .all()
+    )
+    return render_template(
+        "medicine/ward_round_history.html", rounds=rounds, admission=admission
+    )
+
+
 @bp.route("/ward-rounds/add", methods=["POST"])
 @login_required
 def add_ward_round():
