@@ -782,12 +782,8 @@
     {% if current_user.is_authenticated %}
     {% set user_role = session.switched_user if session.switched_user else current_user.role %}
     
-    {# Show Advanced Tools & Live Queue to all department roles #}
+    {# Show Advanced Tools to all department roles #}
     <div class="sidebar-heading mt-4" style="color: #fbbf24 !important; font-weight: 800; letter-spacing: 0.1em;">✨ Advanced Tools</div>
-    
-    <a href="/ui/dashboard/queue" title="Live Waiting Room Queue">
-        <i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue
-    </a>
     
     {# Rx Safety (CDS): doctors, medicine, pharmacists, oncology, renal #}
     {% if user_role in ['admin', 'doctor', 'medicine', 'pharmacist', 'oncology', 'renal'] %}
@@ -796,7 +792,8 @@
     </a>
     {% endif %}
     {# ═══ NATIONAL DISEASE PROGRAMS ═══ #}
-    {% if user_role in ['admin', 'medicine', 'doctor', 'nursing', 'oncology'] %}
+    {# 'medicine' excluded — disease_programs.html is already included inside medicine.html #}
+    {% if user_role in ['admin', 'doctor', 'nursing', 'oncology'] %}
     <div class="sidebar-heading mt-4" style="color: #f97316 !important; font-weight: 800; letter-spacing: 0.1em;">🦠 Disease Programs</div>
     {% include 'side_bars/disease_programs.html' ignore missing %}
     {% endif %}
@@ -1269,6 +1266,24 @@
         console.log("✅ Select2, Sidebar Nav & Bootstrap initialized successfully!");
       } catch (e) {
         console.error('Initialization error:', e);
+      }
+    });
+
+    // 🔹 Mobile sidebar toggle (hamburger button)
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar) sidebar.classList.toggle('active');
+    }
+
+    // Close sidebar when tapping outside on mobile
+    document.addEventListener('click', function(e) {
+      const sidebar = document.getElementById('sidebar');
+      const toggle = document.querySelector('.sidebar-toggle');
+      if (window.innerWidth <= 768
+          && sidebar && sidebar.classList.contains('active')
+          && !sidebar.contains(e.target)
+          && e.target !== toggle) {
+        sidebar.classList.remove('active');
       }
     });
 

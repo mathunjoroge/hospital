@@ -1,0 +1,244 @@
+diff --git a/templates/base.html b/templates/base.html
+index 57e8de6..9408c00 100644
+--- a/templates/base.html
++++ b/templates/base.html
+@@ -782,13 +782,9 @@
+     {% if current_user.is_authenticated %}
+     {% set user_role = session.switched_user if session.switched_user else current_user.role %}
+     
+-    {# Show Advanced Tools & Live Queue to all department roles #}
++    {# Show Advanced Tools to all department roles #}
+     <div class="sidebar-heading mt-4" style="color: #fbbf24 !important; font-weight: 800; letter-spacing: 0.1em;">✨ Advanced Tools</div>
+     
+-    <a href="/ui/dashboard/queue" title="Live Waiting Room Queue">
+-        <i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue
+-    </a>
+-    
+     {# Rx Safety (CDS): doctors, medicine, pharmacists, oncology, renal #}
+     {% if user_role in ['admin', 'doctor', 'medicine', 'pharmacist', 'oncology', 'renal'] %}
+     <a href="/ui/clinical/prescribe" title="Prescription Safety & Consent Gates">
+@@ -796,7 +792,8 @@
+     </a>
+     {% endif %}
+     {# ═══ NATIONAL DISEASE PROGRAMS ═══ #}
+-    {% if user_role in ['admin', 'medicine', 'doctor', 'nursing', 'oncology'] %}
++    {# 'medicine' excluded — disease_programs.html is already included inside medicine.html #}
++    {% if user_role in ['admin', 'doctor', 'nursing', 'oncology'] %}
+     <div class="sidebar-heading mt-4" style="color: #f97316 !important; font-weight: 800; letter-spacing: 0.1em;">🦠 Disease Programs</div>
+     {% include 'side_bars/disease_programs.html' ignore missing %}
+     {% endif %}
+@@ -1272,6 +1269,24 @@
+       }
+     });
+ 
++    // 🔹 Mobile sidebar toggle (hamburger button)
++    function toggleSidebar() {
++      const sidebar = document.getElementById('sidebar');
++      if (sidebar) sidebar.classList.toggle('active');
++    }
++
++    // Close sidebar when tapping outside on mobile
++    document.addEventListener('click', function(e) {
++      const sidebar = document.getElementById('sidebar');
++      const toggle = document.querySelector('.sidebar-toggle');
++      if (window.innerWidth <= 768
++          && sidebar && sidebar.classList.contains('active')
++          && !sidebar.contains(e.target)
++          && e.target !== toggle) {
++        sidebar.classList.remove('active');
++      }
++    });
++
+     // 🔹 PWA Service Worker & Network Connectivity Monitoring
+     if ('serviceWorker' in navigator) {
+       window.addEventListener('load', () => {
+diff --git a/templates/side_bars/admin.html b/templates/side_bars/admin.html
+index 4b71802..771bc8f 100644
+--- a/templates/side_bars/admin.html
++++ b/templates/side_bars/admin.html
+@@ -1,10 +1,15 @@
+-<a href="{{ url_for('admin.index') }}"><i class="bi bi-house me-2"></i> Home</a>
++<div class="sidebar-heading">System</div>
++<a href="{{ url_for('admin.index') }}"><i class="bi bi-house me-2"></i> Dashboard</a>
+ <a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
+-<a href="{{ url_for('records.khis_exporter_ui') }}"><i class="bi bi-cloud-upload-fill me-2"></i> KHIS & FHIR Exporter</a>
+-<a href="{{ url_for('admin.add_user') }}"><i class="bi bi-person-plus me-2"></i> Add User</a>
++<a href="{{ url_for('admin.system_overview') }}"><i class="bi bi-sliders me-2"></i> System Overview</a>
++<a href="{{ url_for('admin.logs') }}"><i class="bi bi-journal-text me-2"></i> System Logs</a>
++<a href="{{ url_for('analytics.emram_dashboard_view') }}"><i class="bi bi-bar-chart-line me-2"></i> EMRAM Analytics</a>
++
++<div class="sidebar-heading mt-3">User Management</div>
+ <a href="{{ url_for('admin.manage_users') }}"><i class="bi bi-people me-2"></i> Manage Users</a>
+-<a href="{{ url_for('admin.system_overview') }}"><i class="bi bi-gear me-2"></i> System Overview</a>
+-<a href="{{ url_for('compliance.hipaa_dashboard_view') }}"><i class="bi bi-shield-lock me-2"></i> HIPAA &amp; Audit Trail Log</a>
++<a href="{{ url_for('admin.add_user') }}"><i class="bi bi-person-plus me-2"></i> Add User</a>
++
++<div class="sidebar-heading mt-3">Compliance & Reporting</div>
++<a href="{{ url_for('compliance.hipaa_dashboard_view') }}"><i class="bi bi-shield-lock me-2"></i> HIPAA &amp; Audit Trail</a>
+ <a href="{{ url_for('etims.etims_console') }}"><i class="bi bi-receipt-cutoff me-2" style="color: #ef4444;"></i> KRA eTIMS Tax Compliance</a>
+-<a href="{{ url_for('analytics.emram_dashboard_view') }}"><i class="bi bi-bar-chart-line me-2"></i> HIMSS EMRAM Enterprise Analytics</a>
+-<a href="{{ url_for('admin.logs') }}"><i class="bi bi-journal-text me-2"></i> System Logs</a>
+\ No newline at end of file
++<a href="{{ url_for('records.khis_exporter_ui') }}"><i class="bi bi-cloud-upload-fill me-2"></i> KHIS &amp; FHIR Exporter</a>
+diff --git a/templates/side_bars/billing.html b/templates/side_bars/billing.html
+index c2f472a..ac8e744 100644
+--- a/templates/side_bars/billing.html
++++ b/templates/side_bars/billing.html
+@@ -1,6 +1,6 @@
+ <div class="sidebar-heading">Cashier & Bills</div>
+ <a href="{{ url_for('billing.index') }}"><i class="bi bi-person-lines-fill me-2"></i> Unpaid Queue</a>
+-<a href="/ui/dashboard/queue"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
++<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
+ <a href="{{ url_for('billing.list_billings') }}"><i class="bi bi-file-earmark-text-fill me-2"></i> All Invoices</a>
+ <a href="{{ url_for('billing.new_invoice') }}"><i class="bi bi-receipt me-2"></i> Create Invoice</a>
+ <a href="{{ url_for('billing.new_drugs_billing') }}"><i class="bi bi-capsule-pill me-2"></i> Drug Billing</a>
+diff --git a/templates/side_bars/hr.html b/templates/side_bars/hr.html
+index c94ac72..f3b3b7d 100644
+--- a/templates/side_bars/hr.html
++++ b/templates/side_bars/hr.html
+@@ -1,10 +1,17 @@
+-<a href="{{ url_for('hr.index') }}" class="nav-link"><i class="bi bi-house me-2"></i> Home</a>
+-<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}" class="nav-link"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
+-<a href="{{ url_for('hr.employee_list') }}" class="nav-link"><i class="bi bi-people me-2"></i> Employee List</a>
+-<a href="{{ url_for('hr.new_employee') }}" class="nav-link"><i class="bi bi-person-plus me-2"></i> New Employee</a>
+-<a href="{{ url_for('hr.payroll_dashboard') }}" class="nav-link"><i class="bi bi-cash-stack me-2"></i> Payroll</a>
+-<a href="{{ url_for('hr.add_deduction') }}" class="nav-link"><i class="bi bi-dash-circle me-2"></i> Add Deduction</a>
+-<a href="{{ url_for('hr.add_allowance') }}" class="nav-link"><i class="bi bi-plus-circle me-2"></i> Add Allowance</a>
+-<a href="{{ url_for('hr.leave_management') }}" class="nav-link"><i class="bi bi-calendar-event me-2"></i> Leave Management</a>
+-<a href="{{ url_for('hr.reports') }}" class="nav-link"><i class="bi bi-file-earmark-text me-2"></i> Reports</a>
+-<a href="{{ url_for('hr.audit_logs') }}" class="nav-link"><i class="bi bi-list-check me-2"></i> Audit Logs</a>
+\ No newline at end of file
++<div class="sidebar-heading">Overview</div>
++<a href="{{ url_for('hr.index') }}"><i class="bi bi-house me-2"></i> Home</a>
++<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
++
++<div class="sidebar-heading mt-3">Staff</div>
++<a href="{{ url_for('hr.employee_list') }}"><i class="bi bi-people me-2"></i> Employee List</a>
++<a href="{{ url_for('hr.new_employee') }}"><i class="bi bi-person-plus me-2"></i> New Employee</a>
++<a href="{{ url_for('hr.leave_management') }}"><i class="bi bi-calendar-event me-2"></i> Leave Management</a>
++
++<div class="sidebar-heading mt-3">Payroll</div>
++<a href="{{ url_for('hr.payroll_dashboard') }}"><i class="bi bi-cash-stack me-2"></i> Payroll Dashboard</a>
++<a href="{{ url_for('hr.add_deduction') }}"><i class="bi bi-dash-circle me-2"></i> Add Deduction</a>
++<a href="{{ url_for('hr.add_allowance') }}"><i class="bi bi-plus-circle me-2"></i> Add Allowance</a>
++
++<div class="sidebar-heading mt-3">Reports & Audit</div>
++<a href="{{ url_for('hr.reports') }}"><i class="bi bi-file-earmark-text me-2"></i> Reports</a>
++<a href="{{ url_for('hr.audit_logs') }}"><i class="bi bi-shield-check me-2"></i> Audit Logs</a>
+diff --git a/templates/side_bars/imaging.html b/templates/side_bars/imaging.html
+index 4fb11f8..ffb68f4 100644
+--- a/templates/side_bars/imaging.html
++++ b/templates/side_bars/imaging.html
+@@ -1,5 +1,5 @@
+ <a href="{{ url_for('imaging.index') }}"><i class="bi bi-list-check me-2"></i> Department Imaging Requests</a>
+-<a href="/ui/dashboard/queue"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
++<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
+ <a href="{{ url_for('imaging.imaging_results') }}"><i class="bi bi-file-earmark-text me-2"></i> Imaging Results</a>
+ <a href="{{ url_for('imaging.inventory') }}"><i class="bi bi-box-seam me-2"></i> Equipment & Inventory</a>
+ <a href="{{ url_for('imaging.reports') }}"><i class="bi bi-bar-chart-line me-2"></i> Radiology Reports</a>
+diff --git a/templates/side_bars/laboratory.html b/templates/side_bars/laboratory.html
+index ccaa0a4..18a24ab 100644
+--- a/templates/side_bars/laboratory.html
++++ b/templates/side_bars/laboratory.html
+@@ -1,6 +1,6 @@
+ <div class="sidebar-heading">Specimen & Testing</div>
+ <a href="{{ url_for('laboratory.index') }}"><i class="bi bi-list-check me-2"></i> Department Lab Requests</a>
+-<a href="/ui/dashboard/queue"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
++<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
+ <a href="{{ url_for('laboratory.lab_tests') }}"><i class="bi bi-clipboard-data me-2"></i> Lab Test Catalog</a>
+ <a href="{{ url_for('laboratory.search_patient') }}"><i class="bi bi-person-lines-fill me-2"></i> Patient Lab History</a>
+ <a href="{{ url_for('laboratory.abnormal_results') }}"><i class="bi bi-exclamation-triangle me-2" style="color: #ef4444;"></i> Panic / Abnormal Results</a>
+diff --git a/templates/side_bars/pharmacy.html b/templates/side_bars/pharmacy.html
+index 126497c..3bf3dc2 100644
+--- a/templates/side_bars/pharmacy.html
++++ b/templates/side_bars/pharmacy.html
+@@ -1,13 +1,19 @@
++<div class="sidebar-heading" style="color: #ef4444 !important;">⚠ Alerts</div>
++<a href="{{ url_for('pharmacy.low_stock') }}"><i class="bi bi-exclamation-triangle-fill me-2" style="color: #ef4444;"></i> Low Running Stocks</a>
++<a href="{{ url_for('pharmacy.expiries') }}"><i class="bi bi-calendar-x me-2" style="color: #f59e0b;"></i> Expiries</a>
++
++<div class="sidebar-heading mt-3">Dispensing</div>
+ <a href="{{ url_for('pharmacy.index') }}"><i class="bi bi-hourglass-split me-2"></i> Department Waiting List</a>
+-<a href="/ui/dashboard/queue"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
+-<a href="{{ url_for('pharmacy.inventory') }}"><i class="bi bi-boxes me-2"></i> Inventory</a>
++<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
++<a href="{{ url_for('pharmacy.served_requests') }}"><i class="bi bi-check-circle me-2"></i> Served Requests</a>
++<a href="{{ url_for('pharmacy.patient_history') }}"><i class="bi bi-clock-history me-2"></i> Patient Rx History</a>
+ <a href="{{ url_for('pharmacy.controlled_drug_register') }}"><i class="bi bi-journal-medical me-2" style="color: #ef4444;"></i> Controlled Drug Register</a>
++
++<div class="sidebar-heading mt-3">Inventory & Orders</div>
++<a href="{{ url_for('pharmacy.inventory') }}"><i class="bi bi-boxes me-2"></i> Inventory</a>
+ <a href="{{ url_for('pharmacy.drug_requests') }}"><i class="bi bi-truck me-2"></i> Request for Drugs</a>
+-<a href="{{ url_for('pharmacy.pending_requests') }}"><i class="bi bi-hourglass-split me-2"></i> Pending Requests</a>
+-<a href="{{ url_for('pharmacy.served_requests') }}"><i class="bi bi-check-circle me-2"></i> Served Requests</a>
+-<a href="{{ url_for('pharmacy.patient_history') }}"><i class="bi bi-clock-history me-2"></i> Patient History</a>
+-<a href="{{ url_for('pharmacy.analytics') }}"><i class="bi bi-bar-chart-line me-2"></i> Consumption Report</a>
+-<a href="{{ url_for('pharmacy.low_stock') }}"><i class="bi bi-exclamation-triangle me-2"></i> Low Running Stocks</a>
+-<a href="{{ url_for('pharmacy.expiries') }}"><i class="bi bi-calendar-x me-2"></i> Expiries</a>
+-<a href="{{ url_for('pharmacy.analytics') }}"><i class="bi bi-graph-up me-2"></i> Analytics Dashboard</a>
+-<a href="{{ url_for('pharmacy.ai_discovery') }}"><i class="bi bi-robot me-2"></i> AI Drug Discovery</a>
+\ No newline at end of file
++<a href="{{ url_for('pharmacy.pending_requests') }}"><i class="bi bi-inbox me-2"></i> Pending Requests</a>
++
++<div class="sidebar-heading mt-3">Reports</div>
++<a href="{{ url_for('pharmacy.analytics') }}"><i class="bi bi-bar-chart-line me-2"></i> Analytics & Consumption</a>
++<a href="{{ url_for('pharmacy.ai_discovery') }}"><i class="bi bi-robot me-2"></i> AI Drug Discovery</a>
+diff --git a/templates/side_bars/records.html b/templates/side_bars/records.html
+index 6e7d52e..9269826 100644
+--- a/templates/side_bars/records.html
++++ b/templates/side_bars/records.html
+@@ -2,7 +2,7 @@
+ <a href="{{ url_for('records.index') }}"><i class="bi bi-people-fill me-2"></i> Patient List</a>
+ <a href="{{ url_for('records.new_patient') }}"><i class="bi bi-person-plus-fill me-2"></i> New Patient</a>
+ <a href="{{ url_for('records.waiting_list') }}"><i class="bi bi-hourglass-split me-2"></i> Department Waiting List</a>
+-<a href="/ui/dashboard/queue"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
++<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
+ <a href="{{ url_for('records.bookings') }}"><i class="bi bi-calendar-check-fill me-2"></i> Bookings</a>
+ 
+ <div class="sidebar-heading">Clinics</div>
+diff --git a/templates/side_bars/stores.html b/templates/side_bars/stores.html
+index 77c3c97..ce47598 100644
+--- a/templates/side_bars/stores.html
++++ b/templates/side_bars/stores.html
+@@ -1,18 +1,20 @@
+-<a href="/"><i class="bi bi-house me-2"></i> Home</a>
+-<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
++<div class="sidebar-heading">Overview</div>
+ <a href="{{ url_for('stores.index') }}"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a>
++<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
+ <a href="{{ url_for('stores.inventory') }}"><i class="bi bi-boxes me-2"></i> Drug Inventory</a>
+ <a href="{{ url_for('stores.non_pharms') }}"><i class="bi bi-box-seam me-2"></i> Non-Pharm Supplies</a>
+-<hr class="my-2 text-secondary">
++
++<div class="sidebar-heading mt-3">Procurement</div>
+ <a href="{{ url_for('stores.list_suppliers_view') }}"><i class="bi bi-truck me-2"></i> Suppliers Directory</a>
+ <a href="{{ url_for('stores.list_purchase_orders') }}"><i class="bi bi-journal-text me-2"></i> Purchase Orders</a>
+ <a href="{{ url_for('stores.view_direct_receipt') }}"><i class="bi bi-plus-circle me-2"></i> Record Direct Receipt</a>
+ <a href="{{ url_for('stores.receipt_history') }}"><i class="bi bi-clock-history me-2"></i> Receipt History</a>
+-<a href="{{ url_for('stores.list_rtv_view') }}"><i class="bi bi-arrow-return-left me-2"></i> Return to Vendor (RTV)</a>
+ <a href="{{ url_for('stores.manage_reagent_requests') }}"><i class="bi bi-inboxes me-2"></i> Commodity Requisitions</a>
+-<hr class="my-2 text-secondary">
++
++<div class="sidebar-heading mt-3">Stock Operations</div>
++<a href="{{ url_for('stores.list_stock_takes_view') }}"><i class="bi bi-clipboard-check me-2"></i> Physical Stock Take</a>
++<a href="{{ url_for('stores.list_rtv_view') }}"><i class="bi bi-arrow-return-left me-2"></i> Return to Vendor (RTV)</a>
+ <a href="{{ url_for('stores.list_transfers_view') }}"><i class="bi bi-arrow-left-right me-2"></i> Inter-Facility Transfers</a>
+ <a href="{{ url_for('stores.list_disposals_view') }}"><i class="bi bi-trash3 me-2"></i> Disposal Board</a>
+-<a href="{{ url_for('stores.list_stock_takes_view') }}"><i class="bi bi-clipboard-check me-2"></i> Physical Stock Take</a>
+ <a href="{{ url_for('stores.smart_reorder_view') }}"><i class="bi bi-cpu me-2"></i> Smart Reorder AI</a>
+-<a href="{{ url_for('stores.get_reconciliation_report') }}"><i class="bi bi-file-earmark-check me-2"></i> Stock Reconciliation</a>
+\ No newline at end of file
++<a href="{{ url_for('stores.get_reconciliation_report') }}"><i class="bi bi-file-earmark-check me-2"></i> Stock Reconciliation</a>
+diff --git a/templates/side_bars/theatre.html b/templates/side_bars/theatre.html
+index 0e964cd..fb65aac 100644
+--- a/templates/side_bars/theatre.html
++++ b/templates/side_bars/theatre.html
+@@ -10,7 +10,6 @@
+ 
+ <div class="sidebar-heading mt-3">Patient Flow & Communications</div>
+ <a href="{{ url_for('nursing.ward_patients') }}"><i class="bi bi-hospital me-2"></i> Ward Inpatients</a>
+-<a href="/ui/dashboard/queue"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Queue</a>
++<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Queue</a>
+ <a href="{{ url_for('ui_referrals.referral_handover') }}"><i class="bi bi-arrow-left-right me-2" style="color: #6366f1;"></i> Referral & Handover</a>
+-<a href="{{ url_for('ui_referrals.referral_handover') }}"><i class="bi bi-box-arrow-up-right me-2" style="color: #8b5cf6;"></i> Referrals</a>
+ <a href="{{ url_for('medicine.chatbot_interface') }}"><i class="bi bi-robot me-2" style="color: #3b82f6;"></i> Chatbot</a>

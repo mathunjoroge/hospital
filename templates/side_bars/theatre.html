@@ -10,7 +10,6 @@
 
 <div class="sidebar-heading mt-3">Patient Flow & Communications</div>
 <a href="{{ url_for('nursing.ward_patients') }}"><i class="bi bi-hospital me-2"></i> Ward Inpatients</a>
-<a href="/ui/dashboard/queue"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Queue</a>
+<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Queue</a>
 <a href="{{ url_for('ui_referrals.referral_handover') }}"><i class="bi bi-arrow-left-right me-2" style="color: #6366f1;"></i> Referral & Handover</a>
-<a href="{{ url_for('ui_referrals.referral_handover') }}"><i class="bi bi-box-arrow-up-right me-2" style="color: #8b5cf6;"></i> Referrals</a>
 <a href="{{ url_for('medicine.chatbot_interface') }}"><i class="bi bi-robot me-2" style="color: #3b82f6;"></i> Chatbot</a>

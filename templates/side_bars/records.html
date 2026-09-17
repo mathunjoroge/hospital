@@ -2,7 +2,7 @@
 <a href="{{ url_for('records.index') }}"><i class="bi bi-people-fill me-2"></i> Patient List</a>
 <a href="{{ url_for('records.new_patient') }}"><i class="bi bi-person-plus-fill me-2"></i> New Patient</a>
 <a href="{{ url_for('records.waiting_list') }}"><i class="bi bi-hourglass-split me-2"></i> Department Waiting List</a>
-<a href="/ui/dashboard/queue"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
+<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
 <a href="{{ url_for('records.bookings') }}"><i class="bi bi-calendar-check-fill me-2"></i> Bookings</a>
 
 <div class="sidebar-heading">Clinics</div>

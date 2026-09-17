@@ -1,6 +1,6 @@
 <div class="sidebar-heading">Cashier & Bills</div>
 <a href="{{ url_for('billing.index') }}"><i class="bi bi-person-lines-fill me-2"></i> Unpaid Queue</a>
-<a href="/ui/dashboard/queue"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
+<a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}"><i class="bi bi-people-fill me-2" style="color: #f59e0b;"></i> Live Waiting Queue</a>
 <a href="{{ url_for('billing.list_billings') }}"><i class="bi bi-file-earmark-text-fill me-2"></i> All Invoices</a>
 <a href="{{ url_for('billing.new_invoice') }}"><i class="bi bi-receipt me-2"></i> Create Invoice</a>
 <a href="{{ url_for('billing.new_drugs_billing') }}"><i class="bi bi-capsule-pill me-2"></i> Drug Billing</a>
