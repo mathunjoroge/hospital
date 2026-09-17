@@ -1,4 +1,5 @@
 from datetime import date
+
 from werkzeug.security import generate_password_hash
 
 from departments.models.encounter import Encounter
