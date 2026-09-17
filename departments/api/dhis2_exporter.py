@@ -373,6 +373,44 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
         },
     ]
 
+    # 9. MOH 645/743 Antimalarial Commodities and Weight Band Disaggregation
+    from departments.malaria.moh_645_743 import aggregate_moh743_monthly
+    moh743_data = aggregate_moh743_monthly(year, month)
+
+    data_elements.extend([
+        {"dataElement": "MOH645_AL6_DISPENSED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["al_6_dispensed"]},
+        {"dataElement": "MOH645_AL12_DISPENSED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["al_12_dispensed"]},
+        {"dataElement": "MOH645_AL18_DISPENSED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["al_18_dispensed"]},
+        {"dataElement": "MOH645_AL24_DISPENSED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["al_24_dispensed"]},
+        {"dataElement": "MOH645_ARTESUNATE_INJ_DISPENSED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["artesunate_inj_dispensed"]},
+        {"dataElement": "MOH645_QUININE_DISPENSED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["quinine_dispensed"]},
+        {"dataElement": "MOH645_SP_DISPENSED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["sp_dispensed"]},
+        {"dataElement": "MOH645_RDTS_USED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["rdts_used"]},
+        {"dataElement": "MOH645_PATIENTS_TREATED_BY_WBAND_5_14", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["patients_5_14kg"]},
+        {"dataElement": "MOH645_PATIENTS_TREATED_BY_WBAND_15_24", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["patients_15_24kg"]},
+        {"dataElement": "MOH645_PATIENTS_TREATED_BY_WBAND_25_34", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["patients_25_34kg"]},
+        {"dataElement": "MOH645_PATIENTS_TREATED_BY_WBAND_35PLUS", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["patients_35pluskg"]},
+    ])
+
+    # 10. MOH 647 Tracer Health Products and Technologies (HPT)
+    from departments.pharmacy.moh_647 import aggregate_moh647_monthly
+    moh647_data = aggregate_moh647_monthly(year, month)
+
+    data_elements.extend([
+        {"dataElement": "MOH647_TOTAL_TRACER_ITEMS_MONITORED", "category": "MOH 647 (Tracer HPT)", "value": moh647_data["total_monitored"]},
+        {"dataElement": "MOH647_TRACER_ITEMS_IN_STOCK", "category": "MOH 647 (Tracer HPT)", "value": moh647_data["in_stock_count"]},
+        {"dataElement": "MOH647_TRACER_ITEMS_STOCKOUT_COUNT", "category": "MOH 647 (Tracer HPT)", "value": moh647_data["stockout_count"]},
+        {"dataElement": "MOH647_TRACER_ITEMS_LOW_STOCK_COUNT", "category": "MOH 647 (Tracer HPT)", "value": moh647_data["low_stock_count"]},
+    ])
+
+    for item in moh647_data["tracer_items"]:
+        code_clean = "MOH647_" + item["generic_name"].upper().replace(" ", "_").replace("/", "_").replace("-", "_") + "_ISSUED"
+        data_elements.append({
+            "dataElement": code_clean,
+            "category": f"MOH 647 ({item['category']})",
+            "value": item["issued"]
+        })
+
     return {
         "period": period_str,
         "year": year,
@@ -416,6 +454,8 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
             key=lambda x: x["count"],
             reverse=True,
         )[:10],
+        "malaria_commodities": moh743_data,
+        "tracer_hpt": moh647_data,
         "data_elements": data_elements,
         "khis_upload_readiness": _khis_upload_readiness(data_elements),
     }

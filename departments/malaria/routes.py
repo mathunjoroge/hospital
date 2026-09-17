@@ -113,6 +113,7 @@ def register_case():
         diagnosis_method=diagnosis_method,
         severity=severity,
         pregnancy_status=pregnancy_status,
+        weight_kg=data.get("weight_kg"),
         treatment_start_date=treatment_start_date,
         facility_diagnosed_at=data.get("facility_diagnosed_at"),
         encounter_id=data.get("encounter_id"),

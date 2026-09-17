@@ -24,6 +24,7 @@ def create_malaria_case(
     diagnosis_method: str | None = None,
     severity: str | None = None,
     pregnancy_status: str | None = None,
+    weight_kg: float | None = None,
     treatment_start_date: datetime | None = None,
     facility_diagnosed_at: str | None = None,
     encounter_id: int | None = None,
@@ -40,6 +41,7 @@ def create_malaria_case(
         diagnosis_method: Method used for diagnosis (microscopy, RDT, PCR)
         severity: Case severity (uncomplicated, severe)
         pregnancy_status: Pregnancy status (not_pregnant, pregnant_first_trimester, pregnant_second_trimester, pregnant_third_trimester, postpartum)
+        weight_kg: Patient weight in kg (for MOH-645/743 weight band classification)
         treatment_start_date: Date malaria treatment was started (defaults to now)
         facility_diagnosed_at: Facility where diagnosis occurred
         encounter_id: Associated encounter ID
@@ -100,6 +102,7 @@ def create_malaria_case(
             diagnosis_method=diagnosis_method,
             severity=severity,
             pregnancy_status=pregnancy_status,
+            weight_kg=weight_kg,
             treatment_start_date=treatment_start_date,
             facility_diagnosed_at=facility_diagnosed_at,
             encounter_id=encounter_id,

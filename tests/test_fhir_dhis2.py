@@ -273,6 +273,69 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         self.assertIn(b"National KHIS & HL7 FHIR Exporter", res.data)
         self.assertIn(b"Download KHIS CSV", res.data)
         self.assertIn(b"View DHIS2 JSON", res.data)
+        self.assertIn(b"MOH 645 &amp; MOH 743", res.data)
+
+    def test_moh645_743_weight_band_classification(self):
+        """Test weight band classification and age fallback."""
+        from departments.malaria.moh_645_743 import classify_al_weight_band, estimate_weight_from_age, classify_drug_category
+
+        self.assertEqual(classify_al_weight_band(10.0), "AL6")
+        self.assertEqual(classify_al_weight_band(18.0), "AL12")
+        self.assertEqual(classify_al_weight_band(30.0), "AL18")
+        self.assertEqual(classify_al_weight_band(45.0), "AL24")
+
+        self.assertEqual(estimate_weight_from_age(2), 10.0)
+        self.assertEqual(estimate_weight_from_age(5), 20.0)
+        self.assertEqual(estimate_weight_from_age(10), 30.0)
+        self.assertEqual(estimate_weight_from_age(20), 45.0)
+
+        self.assertEqual(classify_drug_category("Artemether 20mg / Lumefantrine 120mg"), "al")
+        self.assertEqual(classify_drug_category("Artesunate 60mg Injectable"), "artesunate")
+        self.assertEqual(classify_drug_category("Quinine Sulphate 300mg"), "quinine")
+        self.assertEqual(classify_drug_category("Sulfadoxine Pyrimethamine 500/25mg"), "sp")
+
+    def test_moh645_743_dhis2_export_elements(self):
+        """Test that MOH-645/743 data elements are present in DHIS2 export outputs."""
+        self.client.post(
+            "/login", data={"username": "test_admin_fhir", "password": "password123"}
+        )
+        res = self.client.get("/api/khis/export/dhis2_json")
+        self.assertEqual(res.status_code, 200)
+        data = res.json
+
+        element_names = [dv["dataElement"] for dv in data["dataValues"]]
+        self.assertIn("MOH645_AL6_DISPENSED", element_names)
+        self.assertIn("MOH645_AL12_DISPENSED", element_names)
+        self.assertIn("MOH645_AL18_DISPENSED", element_names)
+        self.assertIn("MOH645_AL24_DISPENSED", element_names)
+        self.assertIn("MOH645_ARTESUNATE_INJ_DISPENSED", element_names)
+        self.assertIn("MOH645_QUININE_DISPENSED", element_names)
+        self.assertIn("MOH645_SP_DISPENSED", element_names)
+        self.assertIn("MOH645_PATIENTS_TREATED_BY_WBAND_35PLUS", element_names)
+
+    def test_moh647_tracer_hpt_aggregation(self):
+        """Test MOH 647 Tracer HPT commodity categorization and export elements."""
+        from departments.pharmacy.moh_647 import classify_tracer_item, aggregate_moh647_monthly
+
+        match1 = classify_tracer_item("Amoxicillin 250mg Capsules")
+        self.assertIsNotNone(match1)
+        self.assertEqual(match1["category"], "Antimicrobials")
+
+        match2 = classify_tracer_item("Oxytocin 10IU Injection")
+        self.assertIsNotNone(match2)
+        self.assertEqual(match2["category"], "Maternal & Reproductive")
+
+        self.client.post(
+            "/login", data={"username": "test_admin_fhir", "password": "password123"}
+        )
+        res = self.client.get("/api/khis/export/dhis2_json")
+        self.assertEqual(res.status_code, 200)
+        data = res.json
+
+        element_names = [dv["dataElement"] for dv in data["dataValues"]]
+        self.assertIn("MOH647_TOTAL_TRACER_ITEMS_MONITORED", element_names)
+        self.assertIn("MOH647_TRACER_ITEMS_IN_STOCK", element_names)
+        self.assertIn("MOH647_TRACER_ITEMS_STOCKOUT_COUNT", element_names)
 
 
 if __name__ == "__main__":

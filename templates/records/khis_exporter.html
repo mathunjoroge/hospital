@@ -159,6 +159,204 @@
     </div>
   </div>
 
+  <!-- MOH-645 / MOH-743 Malaria Commodities & Weight Band Section -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+      <h5 class="fw-bold mb-0"><i class="bi bi-capsule me-2 text-danger"></i> Malaria Commodities &amp; Weight Band Reporting (MOH 645 &amp; MOH 743)</h5>
+      <span class="badge bg-danger-subtle text-danger">Pharmacy &amp; Stock Integration</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-4">
+        <!-- AL Dispensed by Weight Band -->
+        <div class="col-md-6">
+          <h6 class="fw-bold text-muted mb-3"><i class="bi bi-box-seam me-1"></i> Artemether-Lumefantrine (AL) Packs Dispensed</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Weight Band</th>
+                  <th>AL Pack</th>
+                  <th>Standard Dose</th>
+                  <th class="text-end">Dispensed Quantity</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="badge bg-info text-dark">5 kg to &lt;15 kg</span></td>
+                  <td class="fw-semibold">AL 6</td>
+                  <td>1 tab/dose (6 tabs)</td>
+                  <td class="text-end fw-bold text-primary">{{ aggregated.malaria_commodities.al_6_dispensed }}</td>
+                </tr>
+                <tr>
+                  <td><span class="badge bg-primary">15 kg to &lt;25 kg</span></td>
+                  <td class="fw-semibold">AL 12</td>
+                  <td>2 tabs/dose (12 tabs)</td>
+                  <td class="text-end fw-bold text-primary">{{ aggregated.malaria_commodities.al_12_dispensed }}</td>
+                </tr>
+                <tr>
+                  <td><span class="badge bg-warning text-dark">25 kg to &lt;35 kg</span></td>
+                  <td class="fw-semibold">AL 18</td>
+                  <td>3 tabs/dose (18 tabs)</td>
+                  <td class="text-end fw-bold text-primary">{{ aggregated.malaria_commodities.al_18_dispensed }}</td>
+                </tr>
+                <tr>
+                  <td><span class="badge bg-success">&ge;35 kg</span></td>
+                  <td class="fw-semibold">AL 24</td>
+                  <td>4 tabs/dose (24 tabs)</td>
+                  <td class="text-end fw-bold text-primary">{{ aggregated.malaria_commodities.al_24_dispensed }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Patients Treated by Weight Band -->
+        <div class="col-md-6">
+          <h6 class="fw-bold text-muted mb-3"><i class="bi bi-people me-1"></i> Patients Treated by Weight Band</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Weight Category</th>
+                  <th class="text-end">Patients Count</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>5 kg &ndash; 14 kg</td>
+                  <td class="text-end fw-bold text-success">{{ aggregated.malaria_commodities.patients_5_14kg }}</td>
+                </tr>
+                <tr>
+                  <td>15 kg &ndash; 24 kg</td>
+                  <td class="text-end fw-bold text-success">{{ aggregated.malaria_commodities.patients_15_24kg }}</td>
+                </tr>
+                <tr>
+                  <td>25 kg &ndash; 34 kg</td>
+                  <td class="text-end fw-bold text-success">{{ aggregated.malaria_commodities.patients_25_34kg }}</td>
+                </tr>
+                <tr>
+                  <td>35 kg and over</td>
+                  <td class="text-end fw-bold text-success">{{ aggregated.malaria_commodities.patients_35pluskg }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Other Antimalarials & Stock Summary -->
+      <div class="row g-3 mt-2 pt-3 border-top">
+        <div class="col-md-3">
+          <div class="p-3 bg-light rounded text-center">
+            <span class="text-muted small d-block">Artesunate Inj Dispensed</span>
+            <span class="fs-4 fw-bold text-danger">{{ aggregated.malaria_commodities.artesunate_inj_dispensed }}</span>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 bg-light rounded text-center">
+            <span class="text-muted small d-block">Quinine Dispensed</span>
+            <span class="fs-4 fw-bold text-primary">{{ aggregated.malaria_commodities.quinine_dispensed }}</span>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 bg-light rounded text-center">
+            <span class="text-muted small d-block">SP (IPTp) Dispensed</span>
+            <span class="fs-4 fw-bold text-warning">{{ aggregated.malaria_commodities.sp_dispensed }}</span>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 bg-light rounded text-center">
+            <span class="text-muted small d-block">RDT Kits Used</span>
+            <span class="fs-4 fw-bold text-info">{{ aggregated.malaria_commodities.rdts_used }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOH-647 Facility Tracer Health Products and Technologies (HPT) Section -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+      <h5 class="fw-bold mb-0"><i class="bi bi-boxes me-2 text-primary"></i> Facility Tracer Health Products &amp; Technologies Report (MOH 647)</h5>
+      <span class="badge bg-primary-subtle text-primary">KEMSA &amp; County Supply Chain Report</span>
+    </div>
+    <div class="card-body">
+      <!-- MOH 647 Summary Badges -->
+      <div class="row g-3 mb-4">
+        <div class="col-md-3">
+          <div class="p-3 border rounded bg-light text-center">
+            <span class="text-muted small fw-semibold d-block">Tracer Items Monitored</span>
+            <span class="fs-4 fw-bold text-dark">{{ aggregated.tracer_hpt.total_monitored }}</span>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 border rounded bg-success-subtle text-center">
+            <span class="text-success small fw-semibold d-block">Items In Stock</span>
+            <span class="fs-4 fw-bold text-success">{{ aggregated.tracer_hpt.in_stock_count }}</span>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 border rounded bg-warning-subtle text-center">
+            <span class="text-warning-emphasis small fw-semibold d-block">Low Stock Items</span>
+            <span class="fs-4 fw-bold text-warning-emphasis">{{ aggregated.tracer_hpt.low_stock_count }}</span>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 border rounded bg-danger-subtle text-center">
+            <span class="text-danger small fw-semibold d-block">Stockout Items</span>
+            <span class="fs-4 fw-bold text-danger">{{ aggregated.tracer_hpt.stockout_count }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tracer Inventory Table -->
+      <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Category</th>
+              <th>Tracer Commodity</th>
+              <th>Unit</th>
+              <th class="text-end">Beginning Stock</th>
+              <th class="text-end">Received</th>
+              <th class="text-end">Issued / Dispensed</th>
+              <th class="text-end">Losses / Expiries</th>
+              <th class="text-end">Ending Stock</th>
+              <th class="text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in aggregated.tracer_hpt.tracer_items %}
+            <tr>
+              <td><span class="badge bg-secondary">{{ item.category }}</span></td>
+              <td class="fw-semibold">{{ item.generic_name }}</td>
+              <td><small class="text-muted">{{ item.unit }}</small></td>
+              <td class="text-end">{{ item.beginning_stock }}</td>
+              <td class="text-end text-success">+{{ item.received }}</td>
+              <td class="text-end text-primary">-{{ item.issued }}</td>
+              <td class="text-end text-danger">-{{ item.losses }}</td>
+              <td class="text-end fw-bold">{{ item.ending_stock }}</td>
+              <td class="text-center">
+                {% if item.is_stockout %}
+                <span class="badge bg-danger">STOCKOUT</span>
+                {% elif item.is_low_stock %}
+                <span class="badge bg-warning text-dark">LOW STOCK</span>
+                {% else %}
+                <span class="badge bg-success">IN STOCK</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="9" class="text-center text-muted py-3">No tracer commodities recorded for the selected period.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- KHIS Upload Readiness -->
   {% if not aggregated.khis_upload_readiness.ready %}
   <div class="alert alert-warning d-flex align-items-start shadow-sm mb-4">

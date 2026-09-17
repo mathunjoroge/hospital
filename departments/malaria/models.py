@@ -20,6 +20,7 @@ class MalariaCase(db.Model):
     diagnosis_method = db.Column(db.String(20), nullable=True)  # microscopy, RDT, PCR
     severity = db.Column(db.String(20), nullable=True)  # uncomplicated, severe
     pregnancy_status = db.Column(db.String(20), nullable=True)  # not_pregnant, pregnant_first_trimester, etc.
+    weight_kg = db.Column(db.Float, nullable=True)  # Patient weight in kg (for MOH-645/743 weight band classification)
     treatment_start_date = db.Column(db.DateTime(timezone=True), nullable=True)
     current_regimen_id = db.Column(db.String(36), db.ForeignKey('malaria_regimens.id'), nullable=True, index=True)
     facility_diagnosed_at = db.Column(db.String(100), nullable=True)
