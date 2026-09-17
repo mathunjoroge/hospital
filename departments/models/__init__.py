@@ -23,6 +23,7 @@ from .billing import (
 )
 from .break_glass import BreakGlassAccessLog
 from .budget import VoteHead
+from .clinical_regimens import MasterClinicalRegimen
 from .encounter import Encounter
 from .facility import Facility, get_home_facility
 from .hr import (
@@ -179,6 +180,7 @@ __all__ = [
     "Leave",
     "Log",
     "LoincCode",
+    "MasterClinicalRegimen",
     "MedicationAdmin",
     "Medicine",
     "Messages",

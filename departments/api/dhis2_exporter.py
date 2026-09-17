@@ -443,6 +443,22 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
             "value": fcdrr["ending_balance"],
         })
 
+    # 12. NTLD-P TB & TPT (TB Preventive Therapy) Master Clinical Regimens
+    from departments.tb_dots.ntldp_tb_tpt import aggregate_ntldp_tb_tpt_monthly
+    ntldp_tb_data = aggregate_ntldp_tb_tpt_monthly(year, month)
+
+    data_elements.extend([
+        {"dataElement": "NTLDP_TB_ACTIVE_TOTAL", "category": "NTLD-P TB", "value": ntldp_tb_data["total_tb_active_patients"]},
+        {"dataElement": "NTLDP_TPT_ACTIVE_TOTAL", "category": "NTLD-P TPT", "value": ntldp_tb_data["total_tpt_active_patients"]},
+    ])
+
+    for reg in ntldp_tb_data["regimen_details"]:
+        data_elements.append({
+            "dataElement": f"NTLDP_{reg['nascop_ntldp_code'].upper().replace('-', '_')}_ACTIVE",
+            "category": f"NTLD-P ({reg['program_domain']}: {reg['regimen_acronym']})",
+            "value": reg["total_active_patients"],
+        })
+
     return {
         "period": period_str,
         "year": year,
@@ -490,6 +506,7 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
         "tracer_hpt": moh647_data,
         "hiv_arv_regimens": moh731_arv_data,
         "arv_fcdrr": moh729b_fcdrr_data,
+        "tb_tpt_regimens": ntldp_tb_data,
         "data_elements": data_elements,
         "khis_upload_readiness": _khis_upload_readiness(data_elements),
     }
