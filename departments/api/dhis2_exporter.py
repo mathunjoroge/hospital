@@ -459,6 +459,20 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
             "value": reg["total_active_patients"],
         })
 
+    # 13. PMTCT & Viral Load Suppression (TX_PVLS)
+    from departments.hiv_art.moh_731_729b import aggregate_pmtct_tx_pvls_monthly
+    pmtct_pvls_data = aggregate_pmtct_tx_pvls_monthly(year, month)
+
+    data_elements.extend([
+        {"dataElement": "MOH731_PMTCT_ART_COUNT", "category": "MOH 731 PMTCT", "value": pmtct_pvls_data["pmtct_art_count"]},
+        {"dataElement": "MOH731_HEI_PROPHYLAXIS_COUNT", "category": "MOH 731 PMTCT", "value": pmtct_pvls_data["hei_prophylaxis_count"]},
+        {"dataElement": "MOH731_EID_6WK_PCR_COUNT", "category": "MOH 731 PMTCT", "value": pmtct_pvls_data["eid_6wk_pcr_count"]},
+        {"dataElement": "MOH731_TX_PVLS_ELIGIBLE", "category": "MOH 731 (TX_PVLS)", "value": pmtct_pvls_data["tx_pvls_eligible"]},
+        {"dataElement": "MOH731_TX_PVLS_TESTED", "category": "MOH 731 (TX_PVLS)", "value": pmtct_pvls_data["tx_pvls_tested"]},
+        {"dataElement": "MOH731_TX_PVLS_SUPPRESSED", "category": "MOH 731 (TX_PVLS)", "value": pmtct_pvls_data["tx_pvls_suppressed"]},
+        {"dataElement": "MOH731_TX_PVLS_UNSUPPRESSED", "category": "MOH 731 (TX_PVLS)", "value": pmtct_pvls_data["tx_pvls_unsuppressed"]},
+    ])
+
     return {
         "period": period_str,
         "year": year,
@@ -507,6 +521,7 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
         "hiv_arv_regimens": moh731_arv_data,
         "arv_fcdrr": moh729b_fcdrr_data,
         "tb_tpt_regimens": ntldp_tb_data,
+        "pmtct_pvls": pmtct_pvls_data,
         "data_elements": data_elements,
         "khis_upload_readiness": _khis_upload_readiness(data_elements),
     }

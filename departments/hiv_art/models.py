@@ -20,6 +20,14 @@ class ARTEnrollment(db.Model):
     art_start_date = db.Column(db.DateTime(timezone=True), nullable=True)
     current_regimen_id = db.Column(db.String(36), db.ForeignKey('art_regimens.id'), nullable=True, index=True)
     facility_enrolled_at = db.Column(db.String(100), nullable=True)
+    # PMTCT & HEI EID fields
+    is_pregnant = db.Column(db.Boolean, default=False)
+    is_breastfeeding = db.Column(db.Boolean, default=False)
+    hei_infant_prophylaxis = db.Column(db.String(50), nullable=True)  # NVP_SYRUP, AZT_SYRUP, DUAL_PROPHYLAXIS
+    eid_dna_pcr_6wk_result = db.Column(db.String(20), nullable=True)  # POSITIVE, NEGATIVE, PENDING
+    eid_dna_pcr_12mo_result = db.Column(db.String(20), nullable=True)
+    eid_antibody_18mo_result = db.Column(db.String(20), nullable=True)
+
     # FK to the Encounter opened when this ART enrollment starts
     encounter_id = db.Column(
         db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True

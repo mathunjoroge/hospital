@@ -23,6 +23,7 @@ class TBEnrollment(db.Model):
     treatment_start_date = db.Column(db.DateTime(timezone=True), nullable=True)
     current_regimen_id = db.Column(db.String(36), db.ForeignKey('tb_regimens.id'), nullable=True, index=True)
     facility_enrolled_at = db.Column(db.String(100), nullable=True)
+    recommended_regimen_code = db.Column(db.String(30), nullable=True)  # DS-TB-ADULT, DR-BPaLM, DR-BPaL, DR-INDIVIDUALIZED
     # FK to the Encounter opened when this TB enrollment starts
     encounter_id = db.Column(
         db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
@@ -97,6 +98,10 @@ class SputumResult(db.Model):
     culture_result = db.Column(db.String(20), nullable=True)  # negative, positive, contaminated
     culture_species = db.Column(db.String(50), nullable=True)  # M. tuberculosis, etc.
     drug_susceptibility = db.Column(db.Text, nullable=True)  # JSON or text for DST results
+    # GeneXpert MTB/RIF and DST fields
+    genexpert_mtb_result = db.Column(db.String(30), nullable=True)  # MTB_DETECTED, MTB_NOT_DETECTED, INVALID
+    rifampicin_resistance = db.Column(db.String(30), nullable=True)  # RIF_SUSCEPTIBLE, RIF_RESISTANT, INDETERMINATE
+    fluoroquinolone_resistance = db.Column(db.String(30), nullable=True)  # FQ_SUSCEPTIBLE, FQ_RESISTANT, NOT_TESTED
     # FK to the Encounter when this test was ordered
     encounter_id = db.Column(
         db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True

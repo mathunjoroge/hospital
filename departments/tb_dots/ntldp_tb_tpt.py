@@ -263,3 +263,63 @@ def aggregate_ntldp_tb_tpt_monthly(year: int = None, month: int = None) -> dict:
         "total_tpt_active_patients": total_tpt_active,
         "regimen_details": sorted(list(regimen_counts.values()), key=lambda x: x["nascop_ntldp_code"]),
     }
+
+
+def classify_dr_tb_regimen_from_genexpert(
+    genexpert_result: str,
+    rifampicin_resistance: str,
+    fluoroquinolone_resistance: str = "FQ_SUSCEPTIBLE",
+    age_years: int = 25,
+    is_pregnant: bool = False,
+    prior_bdq_exposure: bool = False,
+) -> dict:
+    """
+    Automated Clinical Decision Tree: Classify GeneXpert MTB/RIF and DST results
+    to recommend the official NTLD-P national TB regimen.
+    """
+    result_clean = (genexpert_result or "").strip().upper()
+    rif_clean = (rifampicin_resistance or "").strip().upper()
+    fq_clean = (fluoroquinolone_resistance or "").strip().upper()
+
+    if result_clean != "MTB_DETECTED":
+        return {
+            "recommended_code": "NO_TB_DETECTED",
+            "regimen_acronym": "N/A",
+            "rationale": "GeneXpert did not detect M. tuberculosis complex.",
+        }
+
+    # DS-TB Branch
+    if rif_clean in ("RIF_SUSCEPTIBLE", "NOT_DETECTED"):
+        code = "DS-TB-PED" if age_years < 15 else "DS-TB-ADULT"
+        matched = classify_ntldp_regimen(code)
+        return {
+            "recommended_code": code,
+            "regimen_acronym": matched["regimen_acronym"],
+            "rationale": f"DS-TB RIF-Susceptible. Recommended regimen: {matched['drug_components']}",
+        }
+
+    # DR-TB Branch (RIF Resistant)
+    if prior_bdq_exposure or (is_pregnant and fq_clean == "FQ_RESISTANT"):
+        matched = classify_ntldp_regimen("DR-INDIVIDUALIZED")
+        return {
+            "recommended_code": "DR-INDIVIDUALIZED",
+            "regimen_acronym": matched["regimen_acronym"],
+            "rationale": "Contraindicated for 6-month BPaLM/BPaL due to prior exposure or clinical complexity. Construct individualized 18-20 month regimen (Group A + Group B + Group C).",
+        }
+
+    if fq_clean == "FQ_RESISTANT":
+        matched = classify_ntldp_regimen("DR-BPaL")
+        return {
+            "recommended_code": "DR-BPaL",
+            "regimen_acronym": matched["regimen_acronym"],
+            "rationale": "Pre-XDR TB (RIF-Resistant + FQ-Resistant). Recommended 6-month all-oral BPaL (Bedaquiline + Pretomanid + Linezolid).",
+        }
+
+    # Default MDR/RR-TB FQ-Susceptible -> BPaLM
+    matched = classify_ntldp_regimen("DR-BPaLM")
+    return {
+        "recommended_code": "DR-BPaLM",
+        "regimen_acronym": matched["regimen_acronym"],
+        "rationale": "Primary Preferred 1st-line DR-TB: 6-month all-oral BPaLM (Bedaquiline + Pretomanid + Linezolid + Moxifloxacin).",
+    }
+

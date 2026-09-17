@@ -548,6 +548,104 @@
     </div>
   </div>
 
+  <!-- PMTCT, Viral Load Suppression (TX_PVLS) & GeneXpert DR-TB Decision Cards -->
+  <div class="row g-4 mb-4">
+    <!-- PMTCT & TX_PVLS Card -->
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+          <h5 class="fw-bold mb-0"><i class="bi bi-shield-fill-plus me-2 text-danger"></i> PMTCT &amp; Viral Load Suppression (TX_PVLS)</h5>
+          <span class="badge bg-danger-subtle text-danger">MOH 731 RH/HIV</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <div class="p-3 bg-light rounded">
+                <span class="text-muted small d-block fw-semibold">PMTCT Maternal ART</span>
+                <span class="fs-4 fw-bold text-primary">{{ aggregated.pmtct_pvls.pmtct_art_count }}</span>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 bg-light rounded">
+                <span class="text-muted small d-block fw-semibold">HEI Infant Prophylaxis</span>
+                <span class="fs-4 fw-bold text-success">{{ aggregated.pmtct_pvls.hei_prophylaxis_count }}</span>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 bg-light rounded">
+                <span class="text-muted small d-block fw-semibold">EID 6-Wk PCR Tested</span>
+                <span class="fs-4 fw-bold text-info">{{ aggregated.pmtct_pvls.eid_6wk_pcr_count }}</span>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 bg-light rounded">
+                <span class="text-muted small d-block fw-semibold">VL Suppression Rate</span>
+                <span class="fs-4 fw-bold text-success">{{ aggregated.pmtct_pvls.suppression_rate_pct }}%</span>
+              </div>
+            </div>
+          </div>
+          <table class="table table-sm table-bordered mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>TX_PVLS Category</th>
+                <th class="text-end">Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Eligible for VL (&ge;6 Months ART)</td>
+                <td class="text-end fw-semibold">{{ aggregated.pmtct_pvls.tx_pvls_eligible }}</td>
+              </tr>
+              <tr>
+                <td>Tested for VL in 12 Months</td>
+                <td class="text-end fw-semibold text-primary">{{ aggregated.pmtct_pvls.tx_pvls_tested }}</td>
+              </tr>
+              <tr>
+                <td>Suppressed (&lt;50 copies/mL)</td>
+                <td class="text-end fw-bold text-success">{{ aggregated.pmtct_pvls.tx_pvls_suppressed }}</td>
+              </tr>
+              <tr>
+                <td>Unsuppressed (&ge;1,000 copies/mL - EAC)</td>
+                <td class="text-end fw-bold text-danger">{{ aggregated.pmtct_pvls.tx_pvls_unsuppressed }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- GeneXpert DR-TB Decision Engine Card -->
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100 border-start border-4 border-warning">
+        <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+          <h5 class="fw-bold mb-0"><i class="bi bi-cpu me-2 text-warning"></i> GeneXpert DR-TB Regimen Decision Engine</h5>
+          <span class="badge bg-warning text-dark">Automated Clinical AI</span>
+        </div>
+        <div class="card-body">
+          <p class="small text-muted mb-3">Automated NTLD-P drug-resistant TB regimen decision tree based on GeneXpert MTB/RIF and Fluoroquinolone DST results:</p>
+          <div class="list-group list-group-flush mb-0 small">
+            <div class="list-group-item px-0 py-2">
+              <span class="badge bg-success me-2">RIF-Susceptible</span>
+              <strong>DS-TB Regimen</strong> (2RHZE/4RH Adult or 2RHZ/4RH Pediatric)
+            </div>
+            <div class="list-group-item px-0 py-2">
+              <span class="badge bg-danger me-2">RIF-Resistant + FQ-Susceptible</span>
+              <strong>BPaLM Regimen</strong> (6-Month All-Oral BDQ + Pa + LZD + MFX)
+            </div>
+            <div class="list-group-item px-0 py-2">
+              <span class="badge bg-dark me-2">RIF-Resistant + FQ-Resistant (Pre-XDR)</span>
+              <strong>BPaL Regimen</strong> (6-Month All-Oral BDQ + Pa + LZD)
+            </div>
+            <div class="list-group-item px-0 py-2">
+              <span class="badge bg-secondary me-2">Prior BDQ/LZD / Complex Toxicity</span>
+              <strong>Individualized Longer Oral DR-TB</strong> (18–20 Months Group A/B/C)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- KHIS Upload Readiness -->
   {% if not aggregated.khis_upload_readiness.ready %}
   <div class="alert alert-warning d-flex align-items-start shadow-sm mb-4">

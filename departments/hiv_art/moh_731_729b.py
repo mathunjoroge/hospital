@@ -433,3 +433,79 @@ def aggregate_moh729b_fcdrr_monthly(year: int = None, month: int = None) -> dict
         "total_requested_packs": total_requested,
         "fcdrr_details": fcdrr_items,
     }
+
+
+def aggregate_pmtct_tx_pvls_monthly(year: int = None, month: int = None) -> dict:
+    """
+    Aggregate PMTCT (Maternal ART, HEI Prophylaxis & EID) and Viral Load Suppression (TX_PVLS) Metrics.
+    """
+    today = date.today()
+    if year is None:
+        year = today.year
+    if month is None:
+        month = today.month
+
+    period_str = f"{year}{month:02d}"
+    if month == 12:
+        end_date = date(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        end_date = date(year, month + 1, 1) - timedelta(days=1)
+
+    end_dt = datetime.combine(end_date, datetime.max.time())
+    six_months_ago = end_dt - timedelta(days=180)
+
+    # 1. PMTCT Metrics
+    pmtct_art_count = ARTEnrollment.query.filter(
+        or_(ARTEnrollment.is_pregnant.is_(True), ARTEnrollment.is_breastfeeding.is_(True)),
+        ARTEnrollment.enrollment_date <= end_dt,
+    ).count()
+
+    hei_prophylaxis_count = ARTEnrollment.query.filter(
+        ARTEnrollment.hei_infant_prophylaxis.isnot(None),
+        ARTEnrollment.enrollment_date <= end_dt,
+    ).count()
+
+    eid_6wk_pcr_count = ARTEnrollment.query.filter(
+        ARTEnrollment.eid_dna_pcr_6wk_result.isnot(None),
+        ARTEnrollment.enrollment_date <= end_dt,
+    ).count()
+
+    # 2. Viral Load Suppression (TX_PVLS) Metrics
+    tx_pvls_eligible = ARTEnrollment.query.filter(
+        ARTEnrollment.art_start_date <= six_months_ago,
+    ).count()
+
+    from departments.hiv_art.models import ViralLoad
+    vl_records = (
+        db.session.query(ViralLoad)
+        .filter(ViralLoad.test_date <= end_dt)
+        .order_by(ViralLoad.test_date.desc())
+        .all()
+    )
+
+    # Latest VL per patient
+    latest_vl = {}
+    for vl in vl_records:
+        if vl.patient_id not in latest_vl:
+            latest_vl[vl.patient_id] = vl
+
+    tx_pvls_tested = len(latest_vl)
+    tx_pvls_suppressed = sum(1 for vl in latest_vl.values() if vl.viral_load_copies is not None and vl.viral_load_copies < 50)
+    tx_pvls_unsuppressed = sum(1 for vl in latest_vl.values() if vl.viral_load_copies is not None and vl.viral_load_copies >= 1000)
+
+    suppression_rate = round((tx_pvls_suppressed / tx_pvls_tested * 100), 1) if tx_pvls_tested > 0 else 100.0
+
+    return {
+        "period": period_str,
+        "year": year,
+        "month": month,
+        "pmtct_art_count": pmtct_art_count,
+        "hei_prophylaxis_count": hei_prophylaxis_count,
+        "eid_6wk_pcr_count": eid_6wk_pcr_count,
+        "tx_pvls_eligible": tx_pvls_eligible,
+        "tx_pvls_tested": tx_pvls_tested,
+        "tx_pvls_suppressed": tx_pvls_suppressed,
+        "tx_pvls_unsuppressed": tx_pvls_unsuppressed,
+        "suppression_rate_pct": suppression_rate,
+    }
+
