@@ -4,13 +4,18 @@ from extensions import db
 
 def active_encounter(patient_id: str):
     """
-    Returns the active (non-discharged) encounter for a given patient.
+    Returns the active (non-discharged, non-cancelled) encounter for a given patient.
     Falls back to None if no active encounter exists.
     """
-    enc = Encounter.query.filter_by(patient_id=patient_id).order_by(Encounter.id.desc()).first()
-    if enc and getattr(enc, 'stage', None) != 'DISCHARGED':
+    enc = (
+        Encounter.query.filter_by(patient_id=patient_id, status="ACTIVE")
+        .order_by(Encounter.id.desc())
+        .first()
+    )
+    if enc and getattr(enc, "stage", None) not in ("DISCHARGED", "CANCELLED", "CLOSED"):
         return enc
     return None
+
 
 
 def is_encounter_open_for_dispensing(encounter_id: int) -> bool:

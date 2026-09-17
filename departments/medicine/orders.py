@@ -80,6 +80,8 @@ def request_lab_tests(patient_id):
                     lab_id = key.split("[")[1].split("]")[0]
                     descriptions[lab_id] = value.strip() if value else ""
 
+            encounter = active_encounter(patient_id)
+
             for lab_test_id in lab_test_ids:
                 description = descriptions.get(str(lab_test_id), "").strip()
 
@@ -99,6 +101,7 @@ def request_lab_tests(patient_id):
 
                 new_lab_request = RequestedLab(
                     patient_id=patient_id,
+                    encounter_id=encounter.id if encounter else None,
                     lab_test_id=lab_test_id,
                     result_id=result_id,
                     description=description or None,
@@ -109,15 +112,9 @@ def request_lab_tests(patient_id):
             flash("Lab tests requested successfully!", "success")
 
             # ✅ Advance encounter stage: lab ordered → AWAITING_LAB
-            from departments.models.encounter import Encounter
-            _enc = (
-                Encounter.query.filter_by(patient_id=patient_id, status="ACTIVE")
-                .order_by(Encounter.started_at.desc())
-                .first()
-            )
-            if _enc and _enc.stage in ("WAITING_DOCTOR", "IN_CONSULTATION"):
-                _enc.stage = "AWAITING_LAB"
-                db.session.add(_enc)
+            if encounter and encounter.stage in ("WAITING_DOCTOR", "IN_CONSULTATION"):
+                encounter.stage = "AWAITING_LAB"
+                db.session.add(encounter)
                 db.session.commit()
 
             # ✅ Redirect accordingly
@@ -188,6 +185,8 @@ def request_imaging(patient_id):
                     imaging_id = key.split("[")[1].split("]")[0]
                     descriptions[imaging_id] = value.strip() if value else ""
 
+            encounter = active_encounter(patient_id)
+
             for imaging_id in imaging_ids:
                 description = descriptions.get(str(imaging_id), "").strip()
 
@@ -207,6 +206,7 @@ def request_imaging(patient_id):
                 result_id = str(uuid.uuid4())
                 new_image_request = RequestedImage(
                     patient_id=patient_id,
+                    encounter_id=encounter.id if encounter else None,
                     imaging_id=imaging_id,
                     result_id=result_id,
                     description=description or None,
@@ -217,15 +217,9 @@ def request_imaging(patient_id):
             flash("Imaging requested successfully!", "success")
 
             # ✅ Advance encounter stage: imaging ordered → AWAITING_IMAGING
-            from departments.models.encounter import Encounter
-            _enc = (
-                Encounter.query.filter_by(patient_id=patient_id, status="ACTIVE")
-                .order_by(Encounter.started_at.desc())
-                .first()
-            )
-            if _enc and _enc.stage in ("WAITING_DOCTOR", "IN_CONSULTATION", "AWAITING_LAB"):
-                _enc.stage = "AWAITING_IMAGING"
-                db.session.add(_enc)
+            if encounter and encounter.stage in ("WAITING_DOCTOR", "IN_CONSULTATION", "AWAITING_LAB"):
+                encounter.stage = "AWAITING_IMAGING"
+                db.session.add(encounter)
                 db.session.commit()
 
             # ✅ Redirect based on dept
