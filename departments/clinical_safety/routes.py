@@ -24,6 +24,47 @@ def index():
     return "Clinical Safety & CDS Module Active - Phase 4 MVP"
 
 
+@bp.route("/api/search-drugs", methods=["GET"])
+@login_required
+def search_drugs():
+    """
+    Search drugs by generic name or brand name for prescription autocomplete.
+    Query param: q (search string)
+    """
+    from departments.models.pharmacy import Drug
+    q = request.args.get("q", "").strip()
+    if not q:
+        drugs = Drug.query.order_by(Drug.generic_name).limit(30).all()
+    else:
+        drugs = (
+            Drug.query.filter(
+                (Drug.generic_name.ilike(f"%{q}%"))
+                | (Drug.brand_name.ilike(f"%{q}%"))
+            )
+            .order_by(Drug.generic_name)
+            .limit(50)
+            .all()
+        )
+
+    results = []
+    for d in drugs:
+        label = f"{d.generic_name}"
+        if d.brand_name:
+            label += f" ({d.brand_name})"
+        if d.strength:
+            label += f" - {d.strength}"
+        results.append({
+            "id": d.id,
+            "text": label,
+            "generic_name": d.generic_name,
+            "brand_name": d.brand_name or "",
+            "strength": d.strength or "",
+            "dosage_form": d.dosage_form or ""
+        })
+
+    return jsonify({"results": results}), 200
+
+
 @bp.route("/api/check", methods=["POST"])
 @login_required
 @roles_required("doctor", "pharmacist")

@@ -644,6 +644,60 @@
           </li>
           {% endif %}
         </ul>
+
+        {% if current_user.is_authenticated %}
+        <!-- Global Patient Live Search -->
+        <div class="d-none d-md-block mx-auto position-relative" style="width: 280px;" x-data="globalPatientSearch()">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-white border-0 text-muted"><i class="bi bi-search"></i></span>
+            <input type="text" 
+                   x-model="query" 
+                   @input.debounce.300ms="search" 
+                   @focus="isOpen = true"
+                   class="form-control border-0 shadow-none ps-0" 
+                   placeholder="Search patient by MRN / name..."
+                   style="background: rgba(255, 255, 255, 0.95); font-size: 0.85rem;">
+          </div>
+          <div x-show="isOpen && results.length > 0" 
+               @click.outside="isOpen = false"
+               class="list-group position-absolute w-100 shadow-lg mt-1 rounded-3 border-0 overflow-hidden" 
+               style="z-index: 1055; max-height: 250px; overflow-y: auto;">
+            <template x-for="p in results" :key="p.id">
+              <a :href="'/records/patient/' + p.id" 
+                 class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2 px-3 small">
+                <div>
+                  <strong class="text-dark d-block" x-text="p.text"></strong>
+                  <span class="text-muted font-monospace" style="font-size: 0.75rem;">MRN: <span x-text="p.id"></span></span>
+                </div>
+                <i class="bi bi-chevron-right text-muted small"></i>
+              </a>
+            </template>
+          </div>
+        </div>
+        <script>
+        function globalPatientSearch() {
+          return {
+            query: '',
+            results: [],
+            isOpen: false,
+            async search() {
+              if (!this.query.trim()) {
+                this.results = [];
+                return;
+              }
+              try {
+                const res = await fetch(`/api/patients/search?q=${encodeURIComponent(this.query)}`);
+                const data = await res.json();
+                this.results = data || [];
+                this.isOpen = true;
+              } catch (e) {
+                console.error('Patient search error:', e);
+              }
+            }
+          }
+        }
+        </script>
+        {% endif %}
         <ul class="navbar-nav ms-auto align-items-center">
           {% if current_user.is_authenticated %}
           <!-- Admin Switch User Dropdown -->

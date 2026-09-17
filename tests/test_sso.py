@@ -48,8 +48,10 @@ def test_sso_endpoints_disabled_by_default(client, app, method, path):
     assert response.get_json()["code"] == "FEATURE_DISABLED"
 
 
-def test_sso_engine_defaults_to_disabled():
+def test_sso_engine_defaults_to_disabled(monkeypatch):
     """SSOEngine must not default to enabled when no env vars are present."""
+    monkeypatch.delenv("ENABLE_SSO", raising=False)
+    monkeypatch.delenv("SSO_ENABLED", raising=False)
     assert SSOEngine().enabled is False
 
 

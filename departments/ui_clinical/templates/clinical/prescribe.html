@@ -47,20 +47,64 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-bottom">
                     <h5 class="mb-0">
-                        <i class="bi bi-capsule me-2"></i>
-                        New Prescription
+                        <i class="bi bi-capsule me-2 text-primary"></i>
+                        Select Drugs for Safety Check
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Drug IDs (comma-separated)</label>
-                        <input type="text" x-model="drugIds" class="form-control" placeholder="e.g., 1, 2, 3">
+                    <div class="mb-3 position-relative">
+                        <label class="form-label fw-semibold">Search Drugs by Name</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                            <input type="text" 
+                                   x-model="drugSearchQuery" 
+                                   @input.debounce.300ms="searchDrugs"
+                                   @focus="showDrugDropdown = true"
+                                   class="form-control" 
+                                   placeholder="Type generic or brand name (e.g. Amoxicillin)">
+                        </div>
+                        
+                        <!-- Search Dropdown Results -->
+                        <div x-show="showDrugDropdown && drugSearchResults.length > 0" 
+                             @click.outside="showDrugDropdown = false"
+                             class="list-group position-absolute w-100 shadow-sm mt-1" 
+                             style="z-index: 1050; max-height: 220px; overflow-y: auto;">
+                            <template x-for="drug in drugSearchResults" :key="drug.id">
+                                <button type="button" 
+                                        @click="addDrug(drug)" 
+                                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2 px-3">
+                                    <div>
+                                        <strong x-text="drug.text"></strong>
+                                        <small class="text-muted d-block" x-text="drug.dosage_form"></small>
+                                    </div>
+                                    <span class="badge bg-primary rounded-pill"><i class="bi bi-plus"></i> Select</span>
+                                </button>
+                            </template>
+                        </div>
                     </div>
-                    <button @click="runSafetyCheck" :disabled="consentStatus !== 'ACTIVE'" class="btn btn-primary w-100">
+
+                    <!-- Selected Drugs Badges -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small text-uppercase text-muted">Selected Drugs (<span x-text="selectedDrugs.length"></span>)</label>
+                        <div class="d-flex flex-wrap gap-2 min-vh-25">
+                            <template x-for="drug in selectedDrugs" :key="drug.id">
+                                <span class="badge bg-light text-dark border p-2 d-flex align-items-center gap-2">
+                                    <i class="bi bi-capsule text-primary"></i>
+                                    <span x-text="drug.text"></span>
+                                    <button type="button" @click="removeDrug(drug.id)" class="btn-close btn-close-xs" aria-label="Remove"></button>
+                                </span>
+                            </template>
+                            <div x-show="selectedDrugs.length === 0" class="text-muted small italic">
+                                No drugs selected yet. Search and pick drugs above.
+                            </div>
+                        </div>
+                    </div>
+
+                    <button @click="runSafetyCheck" :disabled="consentStatus !== 'ACTIVE' || selectedDrugs.length === 0" class="btn btn-primary w-100 fw-semibold">
                         <i class="bi bi-shield-fill-check me-2"></i> Run CDS Safety Check
                     </button>
-                    <small class="text-muted mt-2 d-block">
-                        <i class="bi bi-info-circle me-1"></i> Consent must be active to proceed
+                    <small class="text-muted mt-2 d-block text-center">
+                        <i class="bi bi-info-circle me-1"></i> Active DPA consent &amp; selected drugs required
                     </small>
                 </div>
             </div>
@@ -71,7 +115,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-bottom">
                     <h5 class="mb-0">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <i class="bi bi-exclamation-triangle me-2 text-warning"></i>
                         CDS Safety Alerts
                     </h5>
                 </div>
@@ -99,15 +143,15 @@
 
                     <!-- Action link to official prescription page -->
                     <div x-show="hasRunCheck && patientId" class="mt-3 text-end">
-                        <a :href="'/medicine/prescribe_drugs/' + patientId" class="btn btn-success btn-lg">
+                        <a :href="'/medicine/prescribe_drugs/' + patientId" class="btn btn-success btn-lg fw-semibold">
                             <i class="bi bi-prescription2 me-2"></i> Proceed to Clinical Prescription Form
                         </a>
                     </div>
 
                     <!-- Initial state -->
                     <div x-show="!hasRunCheck" class="text-center py-5 text-muted">
-                        <i class="bi bi-shield fs-1 d-block mb-3"></i>
-                        <p class="mb-0">Enter patient and drug information to run safety checks</p>
+                        <i class="bi bi-shield fs-1 d-block mb-3 text-primary"></i>
+                        <p class="mb-0">Enter patient ID and select drugs to run clinical safety checks</p>
                     </div>
                 </div>
             </div>
@@ -119,10 +163,40 @@
 function prescriptionApp() {
     return {
         patientId: '', 
-        drugIds: '', 
+        drugSearchQuery: '',
+        drugSearchResults: [],
+        showDrugDropdown: false,
+        selectedDrugs: [],
         consentStatus: null, 
         hasRunCheck: false, 
         alerts: [],
+
+        async searchDrugs() {
+            if (!this.drugSearchQuery.trim()) {
+                this.drugSearchResults = [];
+                return;
+            }
+            try {
+                const res = await fetch(`/clinical-safety/api/search-drugs?q=${encodeURIComponent(this.drugSearchQuery)}`);
+                const data = await res.json();
+                this.drugSearchResults = data.results || [];
+                this.showDrugDropdown = true;
+            } catch (e) {
+                console.error('Drug search failed:', e);
+            }
+        },
+
+        addDrug(drug) {
+            if (!this.selectedDrugs.some(d => d.id === drug.id)) {
+                this.selectedDrugs.push(drug);
+            }
+            this.drugSearchQuery = '';
+            this.showDrugDropdown = false;
+        },
+
+        removeDrug(drugId) {
+            this.selectedDrugs = this.selectedDrugs.filter(d => d.id !== drugId);
+        },
         
         async checkConsent() {
             if (!this.patientId) {
@@ -140,12 +214,12 @@ function prescriptionApp() {
         },
         
         async runSafetyCheck() {
-            if (!this.patientId || !this.drugIds) {
-                alert('Please enter Patient ID and Drug IDs');
+            if (!this.patientId || this.selectedDrugs.length === 0) {
+                alert('Please enter Patient ID and select at least one drug');
                 return;
             }
             try {
-                const drugArray = this.drugIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+                const drugArray = this.selectedDrugs.map(d => d.id);
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 const res = await fetch('/clinical-safety/api/check', {
                     method: 'POST',
@@ -170,3 +244,4 @@ function prescriptionApp() {
 }
 </script>
 {% endblock %}
+
