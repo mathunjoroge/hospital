@@ -2,63 +2,76 @@
 {% block content %}
 <style>
   :root {
-    --rc-primary: #1a56db; --rc-primary-dark: #1e3a8a;
-    --rc-header-bg: linear-gradient(135deg, #1e3a8a 0%, #1a56db 60%, #3b82f6 100%);
-    --rc-card-shadow: 0 4px 24px rgba(26,86,219,0.10);
-    --rc-border: #e0e7ff; --rc-bg: #f0f4ff;
+    --rc-primary: #1e40af;
+    --rc-primary-dark: #1e3a8a;
+    --rc-header-bg: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
+    --rc-card-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    --rc-border: #e2e8f0;
+    --rc-bg: #f8fafc;
   }
   body { background: var(--rc-bg); }
-  .rc-header { background: var(--rc-header-bg); border-radius:18px; padding:2rem 2.5rem; color:white; margin-bottom:2rem; box-shadow:0 8px 32px rgba(26,86,219,0.25); position:relative; overflow:hidden; }
-  .rc-header::before { content:''; position:absolute; top:-40px; right:-40px; width:220px; height:220px; border-radius:50%; background:rgba(255,255,255,0.06); }
-  .rc-header::after { content:''; position:absolute; bottom:-60px; left:30%; width:280px; height:280px; border-radius:50%; background:rgba(255,255,255,0.04); }
-  .rc-header-inner { position:relative; z-index:1; display:flex; align-items:center; gap:1.5rem; }
-  .patient-avatar { width:80px; height:80px; border-radius:50%; background:rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size:2rem; font-weight:800; color:white; border:3px solid rgba(255,255,255,0.4); flex-shrink:0; }
-  .rc-header h1 { font-size:1.7rem; font-weight:700; margin:0 0 .2rem; }
-  .rc-header .pid-badge { background:rgba(255,255,255,0.2); border-radius:8px; padding:.2rem .8rem; font-family:monospace; font-size:1rem; display:inline-block; }
-  .rc-header p { margin:.3rem 0 0; opacity:.8; }
+  .rc-header { background: var(--rc-header-bg); border-radius: 20px; padding: 2.25rem 2.5rem; color: white; margin-bottom: 2rem; box-shadow: 0 10px 30px rgba(37, 99, 235, 0.2); position: relative; overflow: hidden; }
+  .rc-header::before { content:''; position: absolute; top: -50px; right: -50px; width: 250px; height: 250px; border-radius: 50%; background: rgba(255,255,255,0.06); }
+  .rc-header::after { content:''; position: absolute; bottom: -70px; left: 35%; width: 300px; height: 300px; border-radius: 50%; background: rgba(255,255,255,0.04); }
+  .rc-header-inner { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem; }
+  .patient-avatar { width: 84px; height: 84px; border-radius: 50%; background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 100%); display: flex; align-items: center; justify-content: center; font-size: 2.2rem; font-weight: 800; color: white; border: 3px solid rgba(255,255,255,0.4); flex-shrink: 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+  .rc-header h1 { font-size: 1.85rem; font-weight: 800; margin: 0 0 0.3rem; letter-spacing: -0.02em; }
+  .rc-header .pid-badge { background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); border-radius: 8px; padding: 0.25rem 0.85rem; font-family: monospace; font-size: 1rem; font-weight: 700; display: inline-block; border: 1px solid rgba(255,255,255,0.25); }
+  .rc-header p { margin: 0.4rem 0 0; opacity: 0.85; font-size: 0.92rem; }
 
-  .action-bar { display:flex; gap:.8rem; margin-bottom:1.5rem; flex-wrap:wrap; }
-  .btn-action { border-radius:9px; padding:.55rem 1.2rem; font-weight:600; font-size:.88rem; display:inline-flex; align-items:center; gap:.4rem; cursor:pointer; transition:all .2s; text-decoration:none; border:none; }
-  .btn-action-primary { background:var(--rc-header-bg); color:white; }
-  .btn-action-primary:hover { opacity:.9; color:white; transform:translateY(-1px); }
-  .btn-action-outline { background:white; color:var(--rc-primary); border:1.5px solid var(--rc-border); }
-  .btn-action-outline:hover { background:#eff6ff; color:var(--rc-primary); }
-  .btn-action-danger { background:#fff1f2; color:#e11d48; border:1.5px solid #fecdd3; }
-  .btn-action-danger:hover { background:#e11d48; color:white; }
+  .action-bar { display: flex; gap: 0.8rem; margin-bottom: 1.75rem; flex-wrap: wrap; }
+  .btn-action { border-radius: 10px; padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; transition: all 0.2s; text-decoration: none; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+  .btn-action-primary { background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%); color: white; box-shadow: 0 4px 12px rgba(37,99,235,0.25); }
+  .btn-action-primary:hover { opacity: 0.95; color: white; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(37,99,235,0.35); }
+  .btn-action-outline { background: white; color: #1e293b; border: 1px solid var(--rc-border); }
+  .btn-action-outline:hover { background: #f1f5f9; color: var(--rc-primary); border-color: #cbd5e1; }
 
-  .profile-grid { display:grid; grid-template-columns:2fr 1fr; gap:1.5rem; }
-  @media(max-width:900px){ .profile-grid { grid-template-columns:1fr; } }
+  .profile-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; }
+  @media(max-width: 900px){ .profile-grid { grid-template-columns: 1fr; } }
 
-  .info-card { background:white; border-radius:16px; box-shadow:var(--rc-card-shadow); overflow:hidden; margin-bottom:1.5rem; }
-  .info-card-header { padding:1rem 1.5rem; border-bottom:1px solid var(--rc-border); display:flex; align-items:center; gap:.5rem; font-weight:700; color:var(--rc-primary-dark); background:linear-gradient(135deg,#f8faff,#eff6ff); }
-  .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:0; }
-  .info-item { padding:1rem 1.5rem; border-bottom:1px solid #f1f5f9; }
-  .info-item:nth-child(odd) { border-right:1px solid #f1f5f9; }
-  .info-label { font-size:.75rem; text-transform:uppercase; letter-spacing:.06em; color:#94a3b8; font-weight:600; margin-bottom:.2rem; }
-  .info-value { font-size:.95rem; color:#1e293b; font-weight:500; }
+  .info-card { background: white; border-radius: 16px; border: 1px solid var(--rc-border); box-shadow: var(--rc-card-shadow); overflow: hidden; margin-bottom: 1.5rem; }
+  .info-card-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--rc-border); display: flex; align-items: center; gap: 0.6rem; font-weight: 700; color: #0f172a; background: #f8fafc; font-size: 1.02rem; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .info-item { padding: 1rem 1.5rem; border-bottom: 1px solid #f1f5f9; }
+  .info-item:nth-child(odd) { border-right: 1px solid #f1f5f9; }
+  .info-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700; margin-bottom: 0.25rem; }
+  .info-value { font-size: 0.95rem; color: #0f172a; font-weight: 500; }
 
-  .quick-stat { background:white; border-radius:12px; box-shadow:var(--rc-card-shadow); padding:1.2rem; text-align:center; border-top:3px solid var(--rc-primary); margin-bottom:1rem; }
-  .quick-stat .qs-num { font-size:2rem; font-weight:800; color:var(--rc-primary); }
-  .quick-stat .qs-label { font-size:.8rem; color:#64748b; text-transform:uppercase; letter-spacing:.04em; }
-  .quick-stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
+  .quick-stat { background: white; border-radius: 14px; border: 1px solid var(--rc-border); box-shadow: var(--rc-card-shadow); padding: 1.25rem; text-align: center; border-top: 4px solid var(--rc-primary); margin-bottom: 1rem; transition: transform 0.2s; }
+  .quick-stat:hover { transform: translateY(-2px); }
+  .quick-stat .qs-num { font-size: 2.1rem; font-weight: 800; color: var(--rc-primary); line-height: 1; margin-bottom: 0.3rem; }
+  .quick-stat .qs-label { font-size: 0.78rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+  .quick-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-bottom: 1.5rem; }
 
-  .blood-badge { display:inline-block; background:linear-gradient(135deg,#fee2e2,#fecaca); color:#991b1b; border-radius:10px; padding:.3rem .9rem; font-weight:800; font-size:1.1rem; }
-  .sex-badge { border-radius:20px; padding:.2rem .8rem; font-size:.82rem; font-weight:600; }
-  .badge-male { background:#dbeafe; color:#1d4ed8; }
-  .badge-female { background:#fce7f3; color:#be185d; }
-  .badge-other { background:#f3f4f6; color:#374151; }
+  .blood-badge { display: inline-block; background: linear-gradient(135deg, #fee2e2, #fecaca); color: #991b1b; border-radius: 10px; padding: 0.35rem 0.9rem; font-weight: 800; font-size: 1.05rem; border: 1px solid #fca5a5; }
+  .sex-badge { border-radius: 20px; padding: 0.25rem 0.85rem; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem; }
+  .badge-male { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  .badge-female { background: #fce7f3; color: #be185d; border: 1px solid #fbcfe8; }
+  .badge-other { background: #f3f4f6; color: #374151; }
 </style>
 
 <div class="container-fluid px-4 py-4">
 
-  <!-- Header -->
+  <!-- Header Banner -->
   <div class="rc-header">
     <div class="rc-header-inner">
-      <div class="patient-avatar">{{ patient.name[0].upper() }}</div>
+      <div class="d-flex align-items-center gap-4">
+        <div class="patient-avatar">{{ patient.name[0].upper() if patient.name else 'P' }}</div>
+        <div>
+          <h1>{{ patient.name }}</h1>
+          <div class="d-flex align-items-center gap-2 mt-1">
+            <span class="pid-badge">{{ patient.patient_id }}</span>
+            {% if patient.sex == 'Male' %}<span class="sex-badge badge-male"><i class="bi bi-gender-male"></i> Male</span>
+            {% elif patient.sex == 'Female' %}<span class="sex-badge badge-female"><i class="bi bi-gender-female"></i> Female</span>
+            {% else %}<span class="sex-badge badge-other">{{ patient.sex }}</span>{% endif %}
+          </div>
+          <p class="mb-0"><i class="bi bi-calendar-check me-1"></i> Registered on {{ patient.date_registered.strftime('%d %B %Y') if patient.date_registered else 'N/A' }}</p>
+        </div>
+      </div>
       <div>
-        <h1>{{ patient.name }}</h1>
-        <span class="pid-badge">{{ patient.patient_id }}</span>
-        <p>Registered on {{ patient.date_registered.strftime('%d %B %Y') }}</p>
+        <span class="badge bg-white bg-opacity-20 text-white px-3 py-2 rounded-pill fw-bold" style="font-size: 0.9rem;">
+          <i class="bi bi-heart-pulse-fill me-1 text-danger"></i> Active Record
+        </span>
       </div>
     </div>
   </div>
@@ -72,27 +85,27 @@
       <i class="bi bi-pencil"></i> Edit Details
     </a>
     <a href="{{ url_for('records.index') }}" class="btn-action btn-action-outline">
-      <i class="bi bi-arrow-left"></i> Back to List
+      <i class="bi bi-arrow-left"></i> Back to Patient Directory
     </a>
   </div>
 
   <div class="profile-grid">
-    <!-- Left column -->
+    <!-- Left column: Details -->
     <div>
-      <!-- Personal Info -->
+      <!-- Personal Information -->
       <div class="info-card">
-        <div class="info-card-header"><i class="bi bi-person-badge"></i> Personal Information</div>
+        <div class="info-card-header"><i class="bi bi-person-badge text-primary"></i> Personal Information</div>
         <div class="info-grid">
           <div class="info-item">
             <div class="info-label">Full Name</div>
-            <div class="info-value">{{ patient.name }}</div>
+            <div class="info-value fw-bold">{{ patient.name }}</div>
           </div>
           <div class="info-item">
             <div class="info-label">Patient ID</div>
-            <div class="info-value" style="font-family:monospace; font-weight:700;">{{ patient.patient_id }}</div>
+            <div class="info-value" style="font-family: monospace; font-weight: 700; color: var(--rc-primary);">{{ patient.patient_id }}</div>
           </div>
           <div class="info-item">
-            <div class="info-label">Sex</div>
+            <div class="info-label">Sex / Gender</div>
             <div class="info-value">
               {% if patient.sex == 'Male' %}<span class="sex-badge badge-male"><i class="bi bi-gender-male"></i> Male</span>
               {% elif patient.sex == 'Female' %}<span class="sex-badge badge-female"><i class="bi bi-gender-female"></i> Female</span>
@@ -101,50 +114,50 @@
           </div>
           <div class="info-item">
             <div class="info-label">Date of Birth</div>
-            <div class="info-value">{{ patient.date_of_birth.strftime('%d %B %Y') }}</div>
+            <div class="info-value">{{ patient.date_of_birth.strftime('%d %B %Y') if patient.date_of_birth else 'N/A' }}</div>
           </div>
           <div class="info-item">
             <div class="info-label">Marital Status</div>
-            <div class="info-value">{{ patient.marital_status }}</div>
+            <div class="info-value">{{ patient.marital_status or 'Not Specified' }}</div>
           </div>
           <div class="info-item">
             <div class="info-label">Blood Group</div>
-            <div class="info-value"><span class="blood-badge">{{ patient.blood_group }}</span></div>
+            <div class="info-value"><span class="blood-badge">{{ patient.blood_group or 'N/A' }}</span></div>
           </div>
-          <div class="info-item" style="grid-column:span 2;">
+          <div class="info-item" style="grid-column: span 2;">
             <div class="info-label">Place of Residence</div>
-            <div class="info-value">{{ patient.place_of_residence }}</div>
+            <div class="info-value">{{ patient.place_of_residence or 'N/A' }}</div>
           </div>
-          <div class="info-item" style="grid-column:span 2;">
+          <div class="info-item" style="grid-column: span 2;">
             <div class="info-label">National ID / Passport</div>
-            <div class="info-value">{{ patient.national_id }}</div>
+            <div class="info-value" style="font-family: monospace;">{{ patient.national_id or 'N/A' }}</div>
           </div>
         </div>
       </div>
 
-      <!-- Contact Info -->
+      <!-- Contact Information -->
       <div class="info-card">
-        <div class="info-card-header"><i class="bi bi-telephone"></i> Contact Information</div>
+        <div class="info-card-header"><i class="bi bi-telephone text-primary"></i> Contact & Next of Kin Information</div>
         <div class="info-grid">
           <div class="info-item">
             <div class="info-label">Primary Contact</div>
-            <div class="info-value">{{ patient.contact }}</div>
+            <div class="info-value">{{ patient.contact or 'N/A' }}</div>
           </div>
           <div class="info-item">
             <div class="info-label">Emergency Contact</div>
-            <div class="info-value">{{ patient.emergency_contact }}</div>
+            <div class="info-value">{{ patient.emergency_contact or 'N/A' }}</div>
           </div>
           <div class="info-item">
-            <div class="info-label">Next of Kin</div>
-            <div class="info-value">{{ patient.next_of_kin }}</div>
+            <div class="info-label">Next of Kin Name</div>
+            <div class="info-value">{{ patient.next_of_kin or 'N/A' }}</div>
           </div>
           <div class="info-item">
             <div class="info-label">Relationship</div>
-            <div class="info-value">{{ patient.relationship_with_next_of_kin }}</div>
+            <div class="info-value">{{ patient.relationship_with_next_of_kin or 'N/A' }}</div>
           </div>
-          <div class="info-item" style="grid-column:span 2;">
-            <div class="info-label">Next of Kin Contact</div>
-            <div class="info-value">{{ patient.next_of_kin_contact }}</div>
+          <div class="info-item" style="grid-column: span 2;">
+            <div class="info-label">Next of Kin Phone Contact</div>
+            <div class="info-value">{{ patient.next_of_kin_contact or 'N/A' }}</div>
           </div>
         </div>
       </div>
@@ -152,16 +165,16 @@
       <!-- Insurance & Employment -->
       {% if patient.insurance_provider or patient.occupation %}
       <div class="info-card">
-        <div class="info-card-header"><i class="bi bi-shield-check"></i> Insurance & Employment</div>
+        <div class="info-card-header"><i class="bi bi-shield-check text-primary"></i> Insurance & Employment (SHA / SHIF)</div>
         <div class="info-grid">
           {% if patient.insurance_provider %}
           <div class="info-item">
             <div class="info-label">Insurance Provider</div>
-            <div class="info-value">{{ patient.insurance_provider }}</div>
+            <div class="info-value fw-semibold text-primary">{{ patient.insurance_provider }}</div>
           </div>
           <div class="info-item">
-            <div class="info-label">Policy Number</div>
-            <div class="info-value">{{ patient.insurance_policy_number or '—' }}</div>
+            <div class="info-label">Policy / Member Number</div>
+            <div class="info-value" style="font-family: monospace;">{{ patient.insurance_policy_number or '—' }}</div>
           </div>
           {% endif %}
           {% if patient.occupation %}
@@ -170,7 +183,7 @@
             <div class="info-value">{{ patient.occupation }}</div>
           </div>
           <div class="info-item">
-            <div class="info-label">Employer</div>
+            <div class="info-label">Employer Name</div>
             <div class="info-value">{{ patient.employer_name or '—' }}</div>
           </div>
           {% endif %}
@@ -179,41 +192,53 @@
       {% endif %}
     </div>
 
-    <!-- Right column -->
+    <!-- Right column: Stats & Bookings -->
     <div>
       <div class="quick-stats-grid">
         <div class="quick-stat">
-          <div class="qs-num">{{ patient.waiting_list | length }}</div>
-          <div class="qs-label">Queue Entries</div>
+          <div class="qs-num">{{ patient.waiting_list | length if patient.waiting_list else 0 }}</div>
+          <div class="qs-label">Queue Visits</div>
         </div>
-        <div class="quick-stat" style="border-top-color:#6366f1;">
-          <div class="qs-num" style="color:#6366f1;">{{ patient.bookings | length }}</div>
+        <div class="quick-stat" style="border-top-color: #6366f1;">
+          <div class="qs-num" style="color: #6366f1;">{{ patient.bookings | length if patient.bookings else 0 }}</div>
           <div class="qs-label">Bookings</div>
         </div>
-        <div class="quick-stat" style="border-top-color:#059669;">
-          <div class="qs-num" style="color:#059669;">{{ patient.requested_labs | length }}</div>
+        <div class="quick-stat" style="border-top-color: #10b981;">
+          <div class="qs-num" style="color: #10b981;">{{ patient.requested_labs | length if patient.requested_labs else 0 }}</div>
           <div class="qs-label">Lab Tests</div>
         </div>
-        <div class="quick-stat" style="border-top-color:#d97706;">
-          <div class="qs-num" style="color:#d97706;">{{ patient.bills | length }}</div>
-          <div class="qs-label">Bills</div>
+        <div class="quick-stat" style="border-top-color: #f59e0b;">
+          <div class="qs-num" style="color: #f59e0b;">{{ patient.bills | length if patient.bills else 0 }}</div>
+          <div class="qs-label">Invoices</div>
         </div>
       </div>
 
-      <!-- Recent Bookings -->
+      <!-- Recent Clinic Bookings -->
       <div class="info-card">
-        <div class="info-card-header"><i class="bi bi-calendar3"></i> Recent Clinic Bookings</div>
+        <div class="info-card-header"><i class="bi bi-calendar3 text-primary"></i> Recent Clinic Bookings</div>
         {% if patient.bookings %}
           {% for b in patient.bookings[:5] %}
-          <div style="padding:.8rem 1.2rem; border-bottom:1px solid #f1f5f9; font-size:.88rem;">
-            <div style="font-weight:600; color:#1e293b;">{{ b.clinic.name if b.clinic else 'N/A' }}</div>
-            <div style="color:#64748b; font-size:.8rem;">{{ b.clinic_date.strftime('%d %b %Y') }} —
-              {% if b.seen %}<span style="color:#059669;">Attended</span>{% else %}<span style="color:#d97706;">Pending</span>{% endif %}
+          <div style="padding: 0.9rem 1.25rem; border-bottom: 1px solid #f1f5f9; font-size: 0.88rem;" class="d-flex justify-content-between align-items-center">
+            <div>
+              <div style="font-weight: 700; color: #0f172a;">{{ b.clinic.name if b.clinic else 'General Clinic' }}</div>
+              <div style="color: #64748b; font-size: 0.8rem;" class="mt-1">
+                <i class="bi bi-clock me-1"></i>{{ b.clinic_date.strftime('%d %b %Y') if b.clinic_date else 'N/A' }}
+              </div>
+            </div>
+            <div>
+              {% if b.seen %}
+                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-2.5 py-1.5 font-semibold"><i class="bi bi-check-circle-fill me-1"></i>Attended</span>
+              {% else %}
+                <span class="badge bg-warning bg-opacity-10 text-warning rounded-pill px-2.5 py-1.5 font-semibold"><i class="bi bi-hourglass-split me-1"></i>Pending</span>
+              {% endif %}
             </div>
           </div>
           {% endfor %}
         {% else %}
-          <div style="padding:1.5rem; text-align:center; color:#94a3b8; font-size:.88rem;">No bookings yet.</div>
+          <div style="padding: 2.5rem 1rem; text-align: center; color: #94a3b8; font-size: 0.88rem;">
+            <i class="bi bi-calendar-x d-block fs-3 mb-2 opacity-50"></i>
+            No clinic bookings recorded.
+          </div>
         {% endif %}
       </div>
     </div>
@@ -221,3 +246,4 @@
 
 </div>
 {% endblock %}
+

@@ -3,12 +3,17 @@
 {% block title %}My Appointments{% endblock %}
 
 {% block content %}
-<h2>My Appointments</h2>
+<div class="card-header-flex" style="margin-bottom: 1.5rem; border: none; padding: 0;">
+    <div>
+        <h2 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: white;"><i class="bi bi-calendar-event text-primary"></i> My Appointments</h2>
+        <p style="color: var(--text-muted); margin: 0.25rem 0 0 0; font-size: 0.9rem;">View scheduled clinical consultations or submit a new appointment request</p>
+    </div>
+</div>
 
 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
     <div>
         <div class="card">
-            <h3>Appointment History & Bookings</h3>
+            <h3 class="card-title" style="margin-bottom: 1.25rem;"><i class="bi bi-clock-history text-primary"></i> Appointment History & Bookings</h3>
             {% if bookings %}
                 <table>
                     <thead>
@@ -17,45 +22,50 @@
                             <th>Clinic</th>
                             <th>Notes</th>
                             <th>Status</th>
+                            <th style="text-align: right;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for b in bookings %}
                         <tr>
-                            <td>{{ b.booking_date }}</td>
+                            <td><strong style="color: white;">{{ b.booking_date }}</strong></td>
                             <td>{{ b.clinic.name if b.clinic else 'General Clinic' }}</td>
-                            <td>{{ b.notes or '-' }}</td>
+                            <td><span style="color: var(--text-muted);">{{ b.notes or '—' }}</span></td>
                             <td>
                                 {% if b.status == 'Confirmed' %}
-                                    <span class="badge badge-success">Confirmed</span>
+                                    <span class="badge badge-success"><i class="bi bi-check-circle-fill"></i> Confirmed</span>
                                 {% elif b.status == 'Pending' %}
-                                    <span class="badge badge-warning">Pending</span>
+                                    <span class="badge badge-warning"><i class="bi bi-hourglass-split"></i> Pending</span>
                                 {% else %}
                                     <span class="badge badge-info">{{ b.status }}</span>
                                 {% endif %}
                             </td>
+                            <td style="text-align: right;">
+                                <form action="{{ url_for('patient_portal.cancel_appointment', booking_id=b.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to cancel this appointment?');">
+                                    <button type="submit" class="btn" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); padding: 0.3rem 0.65rem; font-size: 0.8rem; box-shadow: none;">
+                                        <i class="bi bi-x-circle"></i> Cancel
+                                    </button>
+                                </form>
+                            </td>
                         </tr>
-                        
-            <td style="text-align: right;">
-                <form action="{{ url_for('patient_portal.cancel_appointment', booking_id=b.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to cancel this appointment?');">
-                    <button type="submit" class="btn" style="background-color: var(--accent-red); padding: 0.3rem 0.6rem; font-size: 0.85rem;">Cancel</button>
-                </form>
-            </td>
-                {% endfor %}
+                        {% endfor %}
                     </tbody>
                 </table>
             {% else %}
-                <p style="color: var(--text-muted);">No appointments recorded.</p>
+                <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
+                    <i class="bi bi-calendar-x" style="font-size: 2.5rem; display: block; margin-bottom: 0.5rem; opacity: 0.4;"></i>
+                    <p style="margin: 0;">No appointments recorded yet.</p>
+                </div>
             {% endif %}
         </div>
     </div>
 
     <div>
         <div class="card">
-            <h3>Book New Appointment</h3>
+            <h3 class="card-title" style="margin-bottom: 1.25rem;"><i class="bi bi-calendar-plus text-primary"></i> Book New Appointment</h3>
             <form action="{{ url_for('patient_portal.book_appointment') }}" method="POST">
                 <div class="form-group">
-                    <label for="clinic_id">Select Clinic</label>
+                    <label for="clinic_id">Select Clinic / Specialty</label>
                     <select id="clinic_id" name="clinic_id" class="form-control" required>
                         <option value="">-- Choose Clinic --</option>
                         {% for clinic in clinics %}
@@ -68,12 +78,13 @@
                     <input type="date" id="booking_date" name="booking_date" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label for="notes">Reason / Notes</label>
-                    <textarea id="notes" name="notes" class="form-control" rows="3" placeholder="Describe symptoms or reason for visit..."></textarea>
+                    <label for="notes">Reason / Symptoms</label>
+                    <textarea id="notes" name="notes" class="form-control" rows="3" placeholder="Describe reason for visit or current symptoms..."></textarea>
                 </div>
-                <button type="submit" class="btn" style="width: 100%;">Submit Booking Request</button>
+                <button type="submit" class="btn" style="width: 100%;"><i class="bi bi-send"></i> Submit Booking Request</button>
             </form>
         </div>
     </div>
 </div>
 {% endblock %}
+

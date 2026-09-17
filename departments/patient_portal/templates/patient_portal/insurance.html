@@ -3,10 +3,15 @@
 {% block title %}Insurance & Claims{% endblock %}
 
 {% block content %}
-<h2>Insurance & Claims (SHA / SHIF)</h2>
+<div class="card-header-flex" style="margin-bottom: 1.5rem; border: none; padding: 0;">
+    <div>
+        <h2 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: white;"><i class="bi bi-shield-check text-primary"></i> Insurance & Claims (SHA / SHIF)</h2>
+        <p style="color: var(--text-muted); margin: 0.25rem 0 0 0; font-size: 0.9rem;">View active health insurance coverage policies and track submitted claim processing statuses</p>
+    </div>
+</div>
 
 <div class="card">
-    <h3>Active Insurance Coverages</h3>
+    <h3 class="card-title" style="margin-bottom: 1.25rem;"><i class="bi bi-card-checklist text-primary"></i> Active Insurance Coverages</h3>
     {% if policies %}
         <table>
             <thead>
@@ -19,20 +24,23 @@
             <tbody>
                 {% for pol in policies %}
                 <tr>
-                    <td>{{ pol.scheme.name if pol.scheme else 'SHA/SHIF Scheme' }}</td>
-                    <td>{{ pol.policy_number or 'N/A' }}</td>
-                    <td><span class="badge badge-success">{{ 'Active' if pol.is_active else 'Inactive' }}</span></td>
+                    <td><strong style="color: white;">{{ pol.scheme.name if pol.scheme else 'SHA/SHIF Scheme' }}</strong></td>
+                    <td><span style="font-family: monospace; color: var(--text-muted);">{{ pol.policy_number or 'N/A' }}</span></td>
+                    <td><span class="badge {{ 'badge-success' if pol.is_active else 'badge-danger' }}"><i class="bi bi-circle-fill"></i> {{ 'Active' if pol.is_active else 'Inactive' }}</span></td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     {% else %}
-        <p style="color: var(--text-muted);">No active insurance policies linked to your patient profile.</p>
+        <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
+            <i class="bi bi-shield-slash" style="font-size: 2.5rem; display: block; margin-bottom: 0.5rem; opacity: 0.4;"></i>
+            <p style="margin: 0;">No active insurance policies linked to your patient profile.</p>
+        </div>
     {% endif %}
 </div>
 
 <div class="card">
-    <h3>Submitted Insurance Claims</h3>
+    <h3 class="card-title" style="margin-bottom: 1.25rem;"><i class="bi bi-file-earmark-spreadsheet text-primary"></i> Submitted Insurance Claims</h3>
     {% if claims %}
         <table>
             <thead>
@@ -47,17 +55,17 @@
             <tbody>
                 {% for c in claims %}
                 <tr>
-                    <td>#{{ c.id }}</td>
+                    <td><span style="font-family: monospace; color: white;">#{{ c.id }}</span></td>
                     <td>{{ c.created_at.strftime('%Y-%m-%d') if c.created_at else '-' }}</td>
-                    <td>KES {{ "%.2f"|format(c.claimed_amount or 0.0) }}</td>
-                    <td>KES {{ "%.2f"|format(c.approved_amount or 0.0) }}</td>
+                    <td><strong style="color: white;">KES {{ "%.2f"|format(c.claimed_amount or 0.0) }}</strong></td>
+                    <td><strong style="color: var(--accent-green);">KES {{ "%.2f"|format(c.approved_amount or 0.0) }}</strong></td>
                     <td>
                         {% if c.status == 'APPROVED' %}
-                            <span class="badge badge-success">APPROVED</span>
+                            <span class="badge badge-success"><i class="bi bi-check-circle-fill"></i> APPROVED</span>
                         {% elif c.status == 'REJECTED' %}
-                            <span class="badge badge-danger">REJECTED</span>
+                            <span class="badge badge-danger"><i class="bi bi-x-circle-fill"></i> REJECTED</span>
                         {% else %}
-                            <span class="badge badge-warning">{{ c.status }}</span>
+                            <span class="badge badge-warning"><i class="bi bi-clock-history"></i> {{ c.status }}</span>
                         {% endif %}
                     </td>
                 </tr>
@@ -65,7 +73,11 @@
             </tbody>
         </table>
     {% else %}
-        <p style="color: var(--text-muted);">No insurance claims submitted.</p>
+        <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
+            <i class="bi bi-journal-x" style="font-size: 2.5rem; display: block; margin-bottom: 0.5rem; opacity: 0.4;"></i>
+            <p style="margin: 0;">No insurance claims submitted.</p>
+        </div>
     {% endif %}
 </div>
 {% endblock %}
+

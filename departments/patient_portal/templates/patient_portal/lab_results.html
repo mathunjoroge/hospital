@@ -3,33 +3,44 @@
 {% block title %}Verified Lab Results{% endblock %}
 
 {% block content %}
-<h2>Verified Laboratory Results</h2>
-<p style="color: var(--text-muted);">Only lab results that have been formally reviewed and released by clinical staff are displayed below.</p>
+<div class="card-header-flex" style="margin-bottom: 1.5rem; border: none; padding: 0;">
+    <div>
+        <h2 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: white;"><i class="bi bi-file-earmark-medical text-primary"></i> Verified Laboratory Results</h2>
+        <p style="color: var(--text-muted); margin: 0.25rem 0 0 0; font-size: 0.9rem;">Only lab results that have been formally reviewed and released by clinical staff are displayed below.</p>
+    </div>
+</div>
 
 <div class="card">
     {% if labs %}
         <table>
             <thead>
                 <tr>
-                    <th>Date Requested</th>
-                    <th>Lab Test Name</th>
+                    <th>Date & Time</th>
+                    <th>Laboratory Examination</th>
                     <th>Status</th>
-                    <th>Result / Summary</th>
+                    <th>Result / Findings Summary</th>
                 </tr>
             </thead>
             <tbody>
                 {% for lab in labs %}
                 <tr>
-                    <td>{{ lab.created_at.strftime('%Y-%m-%d %H:%M') if lab.created_at else 'N/A' }}</td>
-                    <td><strong>{{ lab.test_name or 'Laboratory Exam' }}</strong></td>
-                    <td><span class="badge badge-success">{{ lab.status }}</span></td>
-                    <td>{{ lab.result_summary or lab.findings or 'Verified — No abnormal findings.' }}</td>
+                    <td><span style="color: var(--text-muted);">{{ lab.created_at.strftime('%Y-%m-%d %H:%M') if lab.created_at else 'N/A' }}</span></td>
+                    <td><strong style="color: white; font-size: 0.95rem;">{{ lab.test_name or 'Laboratory Exam' }}</strong></td>
+                    <td><span class="badge badge-success"><i class="bi bi-patch-check-fill"></i> {{ lab.status }}</span></td>
+                    <td>
+                        <span style="color: #cbd5e1;">{{ lab.result_summary or lab.findings or 'Verified — No abnormal findings.' }}</span>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     {% else %}
-        <p style="color: var(--text-muted); padding: 1rem 0;">No verified or released laboratory results are available at this time. Results will appear here once reviewed by your doctor.</p>
+        <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+            <i class="bi bi-clipboard2-check" style="font-size: 3rem; display: block; margin-bottom: 0.75rem; opacity: 0.4;"></i>
+            <h4 style="color: white; margin: 0 0 0.25rem 0;">No Lab Results Released</h4>
+            <p style="margin: 0; font-size: 0.9rem;">No verified laboratory results are available at this time. Results will appear here once reviewed by your doctor.</p>
+        </div>
     {% endif %}
 </div>
 {% endblock %}
+

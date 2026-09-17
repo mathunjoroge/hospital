@@ -3,10 +3,15 @@
 {% block title %}Billing & Invoices{% endblock %}
 
 {% block content %}
-<h2>Billing & Payment History</h2>
+<div class="card-header-flex" style="margin-bottom: 1.5rem; border: none; padding: 0;">
+    <div>
+        <h2 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: white;"><i class="bi bi-receipt text-primary"></i> Billing & Payment History</h2>
+        <p style="color: var(--text-muted); margin: 0.25rem 0 0 0; font-size: 0.9rem;">Review patient invoices, balances, and recent payment transaction receipts</p>
+    </div>
+</div>
 
 <div class="card">
-    <h3>Invoices</h3>
+    <h3 class="card-title" style="margin-bottom: 1.25rem;"><i class="bi bi-file-text text-primary"></i> Invoices</h3>
     {% if invoices %}
         <table>
             <thead>
@@ -16,65 +21,73 @@
                     <th>Total Amount</th>
                     <th>Paid Amount</th>
                     <th>Status</th>
-                <th style="text-align: right;">Action</th>
+                    <th style="text-align: right;">Action</th>
                 </tr>
             </thead>
             <tbody>
                 {% for inv in invoices %}
                 <tr>
-                    <td>#{{ inv.id }}</td>
+                    <td><strong style="color: white; font-family: monospace;">#{{ inv.id }}</strong></td>
                     <td>{{ inv.created_at.strftime('%Y-%m-%d') if inv.created_at else '-' }}</td>
-                    <td>KES {{ "%.2f"|format(inv.total_amount or 0.0) }}</td>
-                    <td>KES {{ "%.2f"|format(inv.paid_amount or 0.0) }}</td>
+                    <td><strong style="color: white;">KES {{ "%.2f"|format(inv.total_amount or 0.0) }}</strong></td>
+                    <td><span style="color: var(--accent-green);">KES {{ "%.2f"|format(inv.paid_amount or 0.0) }}</span></td>
                     <td>
                         {% if inv.status == 'PAID' %}
-                            <span class="badge badge-success">PAID</span>
+                            <span class="badge badge-success"><i class="bi bi-check-all"></i> PAID</span>
                         {% elif inv.status == 'PARTIAL' %}
-                            <span class="badge badge-warning">PARTIAL</span>
+                            <span class="badge badge-warning"><i class="bi bi-clock-history"></i> PARTIAL</span>
                         {% else %}
                             <span class="badge badge-info">{{ inv.status }}</span>
                         {% endif %}
                     </td>
+                    <td style="text-align: right;">
+                        <a href="{{ url_for('patient_portal.invoice_detail', invoice_id=inv.id) }}" class="btn" style="padding: 0.35rem 0.8rem; font-size: 0.82rem;">
+                            <i class="bi bi-eye"></i> View & Pay
+                        </a>
+                    </td>
                 </tr>
-                
-            <td style="text-align: right;">
-                <a href="{{ url_for('patient_portal.invoice_detail', invoice_id=invoice.id) }}" class="btn" style="padding: 0.3rem 0.8rem; font-size: 0.85rem; background-color: var(--primary);">View & Pay</a>
-            </td>
                 {% endfor %}
             </tbody>
         </table>
     {% else %}
-        <p style="color: var(--text-muted);">No invoices on record.</p>
+        <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
+            <i class="bi bi-receipt-cutoff" style="font-size: 2.5rem; display: block; margin-bottom: 0.5rem; opacity: 0.4;"></i>
+            <p style="margin: 0;">No invoices on record.</p>
+        </div>
     {% endif %}
 </div>
 
 <div class="card">
-    <h3>Payments Received</h3>
+    <h3 class="card-title" style="margin-bottom: 1.25rem;"><i class="bi bi-credit-card-2-front text-primary"></i> Payments Received</h3>
     {% if payments %}
         <table>
             <thead>
                 <tr>
                     <th>Payment #</th>
-                    <th>Date</th>
-                    <th>Amount</th>
-                    <th>Method</th>
-                    <th>Reference</th>
+                    <th>Date & Time</th>
+                    <th>Amount Paid</th>
+                    <th>Payment Method</th>
+                    <th>Transaction Reference</th>
                 </tr>
             </thead>
             <tbody>
                 {% for p in payments %}
                 <tr>
-                    <td>#{{ p.id }}</td>
+                    <td><span style="font-family: monospace; color: white;">#{{ p.id }}</span></td>
                     <td>{{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '-' }}</td>
-                    <td>KES {{ "%.2f"|format(p.amount or 0.0) }}</td>
-                    <td>{{ p.payment_method or 'Cash/M-Pesa' }}</td>
-                    <td>{{ p.transaction_reference or '-' }}</td>
+                    <td><strong style="color: var(--accent-green);">KES {{ "%.2f"|format(p.amount or 0.0) }}</strong></td>
+                    <td><span class="badge badge-info"><i class="bi bi-phone"></i> {{ p.payment_method or 'Cash/M-Pesa' }}</span></td>
+                    <td><span style="font-family: monospace; color: var(--text-muted);">{{ p.transaction_reference or '-' }}</span></td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     {% else %}
-        <p style="color: var(--text-muted);">No payment transactions recorded.</p>
+        <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
+            <i class="bi bi-wallet2" style="font-size: 2.5rem; display: block; margin-bottom: 0.5rem; opacity: 0.4;"></i>
+            <p style="margin: 0;">No payment transactions recorded.</p>
+        </div>
     {% endif %}
 </div>
 {% endblock %}
+
