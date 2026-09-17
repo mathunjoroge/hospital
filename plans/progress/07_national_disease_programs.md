@@ -56,11 +56,11 @@ Branch: `feat/phase7-national-programs`. Never commit to `main` directly, never 
 
 **7C — Malaria**
 
-| Item | Acceptance criteria |
-|------|---------------------|
-| P7-09 | Data model: `MalariaTest` (RDT/microscopy), species (P. falciparum/vivax/malariae), parasite density, treatment prescribed, outcome. |
-| P7-10 | Wire to DHIS2 exporter: MOH 705A/B malaria cases. Monthly export (the exporter partially exists in `dhis2_exporter.py` — extend it, don't rebuild). |
-| P7-11 | Outbreak signal: if malaria cases in any 7-day window exceed 2× the 4-week rolling average, generate a public health alert to the facility medical officer. |
+| Item | Acceptance criteria | Status |
+|------|---------------------|--------|
+| P7-09 | Data model: `MalariaCase` (RDT/microscopy/PCR), species (P. falciparum/vivax/malariae/ovale/knowlesi/mixed), parasite density, `MalariaTreatment`, `MalariaRegimen`, `MalariaLabResult` follow-up results. | ✅ Done (`departments/malaria/models.py`) |
+| P7-10 | Wire to DHIS2 exporter: MOH 705A/B malaria cases. Monthly export (extended `dhis2_exporter.py`, did not rebuild). | ✅ Done — 2026-09-17. Clinical sign-off confirmed per `DECISIONS_PENDING.md` item 11. Adds confirmed cases by age band (<5/≥5) × diagnosis method (microscopy/RDT/other), severe cases, cases in pregnancy, cases with treatment started, and species breakdown. Deliberately omits a test-positivity-rate data element since the module only stores confirmed cases (no negative-test register), so a computed TPR would always read 100% — see comment in `dhis2_exporter.py`. Export identifiers (`dataElement`/`orgUnit`/`categoryOptionCombo`) are still internal human-readable codes pending real KHIS UID mapping (`KHIS_DATA_ELEMENT_UID_MAP` in `dhis2_exporter.py`); the `khisReady` flag on every export response reflects this. |
+| P7-11 | Outbreak signal: if malaria cases in any 7-day window exceed 2× the 4-week rolling average, generate a public health alert to the facility medical officer. | Not started |
 
 ## Done when (per program)
 

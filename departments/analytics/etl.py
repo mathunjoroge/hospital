@@ -159,6 +159,24 @@ def run_daily_kpi_etl(target_date: date | None = None) -> DailyKpiSnapshot:
                 if k.lower() in diag.lower():
                     surveillance_counter[k] += 1
 
+    # Malaria has a dedicated, structured module (departments/malaria).
+    # Take the larger of the free-text SOAP note keyword match (used for the
+    # other, not-yet-structured programs above) and the real confirmed-case
+    # count, so a facility that hasn't fully adopted structured malaria
+    # logging yet doesn't lose the keyword signal, while one that has gets
+    # the more accurate structured number reflected here.
+    try:
+        from departments.malaria.models import MalariaCase
+
+        structured_malaria_count = MalariaCase.query.filter(
+            db.func.date(MalariaCase.diagnosis_date) == target_date,
+        ).count()
+        surveillance_counter["Malaria"] = max(
+            surveillance_counter["Malaria"], structured_malaria_count
+        )
+    except Exception as e:
+        logger.warning(f"Could not compute structured malaria count for ETL snapshot: {e}")
+
     top_diagnoses = dict(diag_counter.most_common(10))
 
     # Upsert snapshot record

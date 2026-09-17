@@ -4,6 +4,7 @@ from datetime import date, datetime, timezone
 from werkzeug.security import generate_password_hash
 
 from app import app, db
+from departments.malaria.models import MalariaCase
 from departments.mch.models import AncVisit, ImmunizationRecord
 from departments.models.encounter import Encounter
 from departments.models.medicine import SOAPNote
@@ -133,6 +134,21 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
             db.session.add(imm)
             db.session.commit()
 
+        # Seed Malaria Case (confirmed, RDT, adult/over-5 patient)
+        malaria_case = MalariaCase.query.filter_by(case_number="MAL-FHIR-001").first()
+        if not malaria_case:
+            malaria_case = MalariaCase(
+                patient_id="P-FHIR-001",
+                case_number="MAL-FHIR-001",
+                malaria_species="falciparum",
+                diagnosis_method="RDT",
+                severity="uncomplicated",
+                pregnancy_status="not_pregnant",
+                diagnosis_date=datetime.now(timezone.utc),
+            )
+            db.session.add(malaria_case)
+            db.session.commit()
+
         self.patient_id = "P-FHIR-001"
 
     def tearDown(self):
@@ -208,6 +224,8 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         element_names = [dv["dataElement"] for dv in data["dataValues"]]
         self.assertIn("MOH731_ANC_VISITS_TOTAL", element_names)
         self.assertIn("MOH710_IMMUNIZATIONS_ADMINISTERED", element_names)
+        self.assertIn("MOH705_MALARIA_CONFIRMED_TOTAL", element_names)
+        self.assertIn("khisReady", data)
 
     def test_dhis2_csv_export(self):
         """Test GET /api/khis/export/csv."""
@@ -221,6 +239,28 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         self.assertIn(b"dataElement,period,orgUnit", res.data)
         self.assertIn(b"MOH731_ANC_VISITS_TOTAL", res.data)
         self.assertIn(b"MOH710_IMMUNIZATIONS_ADMINISTERED", res.data)
+        self.assertIn(b"MOH705_MALARIA_CONFIRMED_TOTAL", res.data)
+
+    def test_dhis2_malaria_case_disaggregation(self):
+        """Confirmed malaria case should be counted, correctly disaggregated
+        by age band and diagnosis method, and reflected in the summary."""
+        self.client.post(
+            "/login", data={"username": "test_admin_fhir", "password": "password123"}
+        )
+        res = self.client.get("/api/khis/reports/monthly")
+
+        self.assertEqual(res.status_code, 200)
+        data = res.json
+        elements = {e["dataElement"]: e["value"] for e in data["data_elements"]}
+
+        # Seeded patient (Jane Wanjiku Doe, DOB 1995-05-20) is over 5, and
+        # the seeded case used diagnosis_method="RDT".
+        self.assertGreaterEqual(elements["MOH705_MALARIA_CONFIRMED_RDT_OVER5"], 1)
+        self.assertEqual(elements["MOH705_MALARIA_CONFIRMED_RDT_UNDER5"], 0)
+        self.assertGreaterEqual(elements["MOH705_MALARIA_CONFIRMED_TOTAL"], 1)
+        self.assertGreaterEqual(data["summary"]["malaria_confirmed_total"], 1)
+        self.assertIn("khis_upload_readiness", data)
+        self.assertIn("unmapped_data_elements", data["khis_upload_readiness"])
 
     def test_khis_exporter_ui_route(self):
         """Test GET /records/khis_exporter UI dashboard endpoint."""

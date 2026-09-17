@@ -129,6 +129,7 @@ Per Process Integrity rules (P.1), hard stops are enforced for decisions with fi
      *Rationale:* ["Allows clinical workflow refinement before reporting complexity; follows successful pattern from other modules"]
 
 * **Implementation:** Proceeding on `feat/phase7-national-programs` (or similar branch name) once created.
+  * **2026-09-17 update:** Malaria (7C) clinical sign-off confirmed. `dhis2_exporter.py` extended per P7-10 (MOH 705A/B malaria case reporting — confirmed cases by age band and diagnosis method, severe cases, cases in pregnancy, treatment-started cases). HIV/ART (7A) and TB/DOTS (7B) DHIS2 wiring remain pending their own clinical sign-off — do not extend the exporter for those without repeating this same confirmation step.
 
 
 

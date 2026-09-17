@@ -32,7 +32,7 @@
 ## PHASE 3 — Interoperability & AI governance
 
 - [x] **3.1 FHIR interoperability layer** ✅ (5/5 tests passing)
-- [x] **3.2 DHIS2/KHIS reporting export** ✅ (5/5 tests passing)
+- [x] **3.2 DHIS2/KHIS reporting export** ✅ (8/8 tests passing — now includes malaria MOH 705A/B case reporting, see Phase 7C below)
 - [x] **3.3 Govern the AI/NLP layer** ✅ (ai_audit.py: structured audit logging, input validation, mode disclosure, AITimer)
 - [x] **3.4 Offline-first considerations** ✅ (Service Worker `sw.js`, PWA `manifest.json`, `offline.html`, auto-network detection banner)
 

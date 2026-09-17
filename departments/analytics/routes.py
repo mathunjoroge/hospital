@@ -138,6 +138,10 @@ def export_moh_dhis2():
             {"dataElement": "MOH_LAB_TESTS", "value": snapshot.total_lab_tests_ordered},
             {"dataElement": "MOH_BED_OCCUPANCY_PCT", "value": snapshot.bed_occupancy_rate},
             {"dataElement": "MOH_ALOS_DAYS", "value": snapshot.avg_length_of_stay},
+            {
+                "dataElement": "MOH_MALARIA_CONFIRMED_CASES",
+                "value": (snapshot.disease_surveillance_json or {}).get("Malaria", 0),
+            },
         ],
     }
 

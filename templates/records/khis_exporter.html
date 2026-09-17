@@ -89,7 +89,94 @@
         </div>
       </div>
     </div>
+    <!-- Malaria Confirmed Cases -->
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100 border-start border-4 border-danger">
+        <div class="card-body">
+          <span class="text-uppercase text-muted fw-bold small">Malaria Confirmed Cases</span>
+          <h3 class="fw-bold my-2 text-danger">{{ aggregated.summary.malaria_confirmed_total }}</h3>
+          <span class="badge bg-danger-subtle text-danger">MOH 705A/B (NMCP)</span>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <!-- Malaria Program Detail -->
+  <div class="row g-4 mb-4">
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 border-0">
+          <h5 class="fw-bold mb-0"><i class="bi bi-bug me-2 text-danger"></i> Malaria Program Report (NMCP)</h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-6 col-md-3">
+              <div class="text-muted small">Under 5 yrs</div>
+              <div class="fw-bold fs-5">{{ aggregated.summary.malaria_confirmed_under5 }}</div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="text-muted small">5 yrs &amp; over</div>
+              <div class="fw-bold fs-5">{{ aggregated.summary.malaria_confirmed_over5 }}</div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="text-muted small">Severe cases</div>
+              <div class="fw-bold fs-5 text-danger">{{ aggregated.summary.malaria_severe }}</div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="text-muted small">In pregnancy</div>
+              <div class="fw-bold fs-5 text-danger">{{ aggregated.summary.malaria_in_pregnancy }}</div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="text-muted small">Treatment started</div>
+              <div class="fw-bold fs-5">{{ aggregated.summary.malaria_treated }}</div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="text-muted small">Share of OPD</div>
+              <div class="fw-bold fs-5">{{ aggregated.summary.malaria_pct_of_opd }}%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 border-0">
+          <h5 class="fw-bold mb-0"><i class="bi bi-droplet-half me-2 text-danger"></i> Confirmed Species</h5>
+        </div>
+        <div class="card-body p-0">
+          <ul class="list-group list-group-flush">
+            {% for sp in aggregated.malaria_species_breakdown %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span class="text-capitalize">{{ sp.species }}</span>
+              <span class="badge bg-danger rounded-pill">{{ sp.count }}</span>
+            </li>
+            {% else %}
+            <li class="list-group-item text-muted text-center py-3">No malaria cases recorded for selected period.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KHIS Upload Readiness -->
+  {% if not aggregated.khis_upload_readiness.ready %}
+  <div class="alert alert-warning d-flex align-items-start shadow-sm mb-4">
+    <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+    <div>
+      <strong>Not yet mapped for live KHIS upload.</strong>
+      This export uses internal readable codes until real KHIS data element / org unit UIDs are
+      configured in <code>departments/api/dhis2_exporter.py</code>
+      ({{ aggregated.khis_upload_readiness.unmapped_data_elements|length }} data element(s) unmapped).
+      The CSV/JSON shape is otherwise DHIS2-import-ready.
+    </div>
+  </div>
+  {% else %}
+  <div class="alert alert-success d-flex align-items-center shadow-sm mb-4">
+    <i class="bi bi-check-circle-fill me-2"></i>
+    <div>All data elements and the org unit are mapped to real KHIS UIDs — this export is ready to submit.</div>
+  </div>
+  {% endif %}
 
   <!-- Detailed Data Elements & Top Diagnoses -->
   <div class="row g-4 mb-4">

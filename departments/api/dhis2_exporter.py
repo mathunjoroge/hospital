@@ -1,13 +1,29 @@
 """
 departments/api/dhis2_exporter.py
 ───────────────────────────────────
-DHIS2 / KHIS Monthly Aggregate Data Exporter for Kenya Ministry of Health (MOH 705A/B, 711, 731).
+DHIS2 / KHIS Monthly Aggregate Data Exporter for Kenya Ministry of Health
+(MOH 705A/B, 711, 731) plus the National Malaria Control Programme (NMCP)
+malaria case return, which is submitted through the same MOH 705A/B channel.
 Generates standard DHIS2 dataValueSets JSON and downloadable CSV formats.
 
 Blueprint endpoints (registered under /api/khis):
   - GET /api/khis/reports/monthly?year=YYYY&month=MM
   - GET /api/khis/export/dhis2_json?year=YYYY&month=MM
   - GET /api/khis/export/csv?year=YYYY&month=MM
+
+NOTE ON DATA ELEMENT / ORG UNIT IDENTIFIERS:
+The `dataElement` and `orgUnit` values below are human-readable internal
+codes, not the real DHIS2 UIDs used by the live KHIS instance. Before this
+export is submitted to production KHIS, each code must be mapped to its
+real UID via KHIS_DATA_ELEMENT_UID_MAP / KHIS_ORG_UNIT_UID (defined just
+below) — pulled from the facility's KHIS metadata (Maintenance app or
+`/api/dataElements.json` on the KHIS instance). The dataValueSet shape
+itself (dataElement, period, orgUnit, categoryOptionCombo, value) already
+matches the DHIS2 import spec, so once real UIDs are filled in, the JSON
+output can be POSTed directly to KHIS's `/api/dataValueSets` endpoint.
+Every export response also carries a `khisReady` flag (JSON) /
+`khis_upload_readiness` (internal dict) so the exporter never silently
+implies an unmapped export is safe to upload.
 """
 
 import csv
@@ -24,6 +40,7 @@ from flask import (
 )
 
 from departments.api.auth import jwt_or_session_required
+from departments.malaria.models import MalariaCase
 from departments.mch.models import AncVisit, ImmunizationRecord
 from departments.models.laboratory import LabResult
 from departments.models.medicine import AdmittedPatient, PrescribedMedicine, SOAPNote
@@ -35,6 +52,60 @@ logger = logging.getLogger(__name__)
 khis_bp = Blueprint("khis", __name__)
 
 DEFAULT_ORG_UNIT_ID = "KE_MOH_HOSPITAL_001"
+
+# ---------------------------------------------------------------------------
+# KHIS live-instance identifier mapping
+# ---------------------------------------------------------------------------
+# Real DHIS2 dataElement / orgUnit / categoryOptionCombo UIDs are specific to
+# the facility's KHIS account and are NOT known at build time, so they are
+# intentionally left blank here rather than guessed. To go live:
+#   1. Log into the facility's KHIS instance → Maintenance app → Data Element,
+#      (or GET https://hiskenya.org/api/dataElements.json?filter=name:like:<name>
+#      with facility API credentials) and look up the UID for each code below.
+#   2. Fill in KHIS_DATA_ELEMENT_UID_MAP, KHIS_ORG_UNIT_UID and
+#      KHIS_CATEGORY_OPTION_COMBO_UID (the facility's "default" COC UID).
+# Until a code is mapped, the export falls back to the internal human-readable
+# code so nothing is silently dropped — but `khisReady` will be False and the
+# unmapped codes are listed, so this is never accidentally treated as
+# submit-ready.
+KHIS_DATA_ELEMENT_UID_MAP: dict[str, str] = {
+    # "MOH705A_UNDER5_OPD_MALE": "<real-dhis2-uid>",
+}
+KHIS_ORG_UNIT_UID: str | None = None
+KHIS_CATEGORY_OPTION_COMBO_UID: str | None = None
+
+
+def _resolve_data_element(code: str) -> str:
+    """Map an internal data element code to its real KHIS UID if configured."""
+    return KHIS_DATA_ELEMENT_UID_MAP.get(code, code)
+
+
+def _resolve_org_unit(code: str) -> str:
+    return KHIS_ORG_UNIT_UID or code
+
+
+def _resolve_category_option_combo() -> str:
+    return KHIS_CATEGORY_OPTION_COMBO_UID or "default"
+
+
+def _khis_upload_readiness(data_elements: list[dict]) -> dict:
+    """
+    Report whether this export is mapped to real KHIS UIDs and thus safe to
+    POST to the live instance. Codes that lack an entry in
+    KHIS_DATA_ELEMENT_UID_MAP are listed so it's obvious what's left to map.
+    """
+    unmapped = sorted(
+        {
+            elem["dataElement"]
+            for elem in data_elements
+            if elem["dataElement"] not in KHIS_DATA_ELEMENT_UID_MAP
+        }
+    )
+    return {
+        "ready": not unmapped and bool(KHIS_ORG_UNIT_UID),
+        "org_unit_mapped": bool(KHIS_ORG_UNIT_UID),
+        "unmapped_data_elements": unmapped,
+    }
 
 
 def calculate_age(dob: date | None) -> int:
@@ -122,6 +193,76 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
         ImmunizationRecord.administered_at <= end_date,
     ).count()
 
+    # 8. Malaria Cases (MOH 705A/B — National Malaria Control Programme return)
+    # Every MalariaCase row is a parasitologically confirmed case (microscopy,
+    # RDT or PCR) — the module has no "suspected but not tested"/negative
+    # record, so we report confirmed cases and their standard NMCP
+    # disaggregations only. We deliberately do NOT compute a test-positivity
+    # rate here: doing so from confirmed-only records would always read
+    # 100% and misrepresent the real KHIS indicator, which needs a
+    # separate "total tested" register this module doesn't capture yet.
+    malaria_cases = MalariaCase.query.filter(
+        MalariaCase.diagnosis_date >= start_date,
+        MalariaCase.diagnosis_date <= end_date,
+    ).all()
+
+    malaria_confirmed_microscopy_u5 = 0
+    malaria_confirmed_microscopy_o5 = 0
+    malaria_confirmed_rdt_u5 = 0
+    malaria_confirmed_rdt_o5 = 0
+    malaria_confirmed_other_u5 = 0  # PCR / unspecified method
+    malaria_confirmed_other_o5 = 0
+    malaria_severe_count = 0
+    malaria_in_pregnancy_count = 0
+    malaria_species_breakdown: dict[str, int] = {}
+
+    for case in malaria_cases:
+        patient = Patient.query.filter_by(patient_id=case.patient_id).first()
+        age = calculate_age(patient.date_of_birth) if patient else 25
+        method = (case.diagnosis_method or "").strip().lower()
+
+        if method == "microscopy":
+            if age < 5:
+                malaria_confirmed_microscopy_u5 += 1
+            else:
+                malaria_confirmed_microscopy_o5 += 1
+        elif method == "rdt":
+            if age < 5:
+                malaria_confirmed_rdt_u5 += 1
+            else:
+                malaria_confirmed_rdt_o5 += 1
+        else:
+            if age < 5:
+                malaria_confirmed_other_u5 += 1
+            else:
+                malaria_confirmed_other_o5 += 1
+
+        if (case.severity or "").strip().lower() == "severe":
+            malaria_severe_count += 1
+
+        pregnancy_status = (case.pregnancy_status or "").strip().lower()
+        if pregnancy_status and pregnancy_status not in ("not_pregnant", ""):
+            malaria_in_pregnancy_count += 1
+
+        species = (case.malaria_species or "unspecified").strip().lower()
+        malaria_species_breakdown[species] = malaria_species_breakdown.get(species, 0) + 1
+
+    malaria_confirmed_total = (
+        malaria_confirmed_microscopy_u5
+        + malaria_confirmed_microscopy_o5
+        + malaria_confirmed_rdt_u5
+        + malaria_confirmed_rdt_o5
+        + malaria_confirmed_other_u5
+        + malaria_confirmed_other_o5
+    )
+
+    # Cases where antimalarial treatment was started within the period
+    # (NMCP "cases treated" indicator).
+    malaria_treated_count = MalariaCase.query.filter(
+        MalariaCase.treatment_start_date >= start_date,
+        MalariaCase.treatment_start_date <= end_date,
+    ).count()
+
     period_str = f"{year}{month:02d}"
 
     data_elements = [
@@ -180,6 +321,56 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
             "category": "MOH 710",
             "value": immunizations_count,
         },
+        {
+            "dataElement": "MOH705_MALARIA_CONFIRMED_MICROSCOPY_UNDER5",
+            "category": "MOH 705A/B (Malaria)",
+            "value": malaria_confirmed_microscopy_u5,
+        },
+        {
+            "dataElement": "MOH705_MALARIA_CONFIRMED_MICROSCOPY_OVER5",
+            "category": "MOH 705A/B (Malaria)",
+            "value": malaria_confirmed_microscopy_o5,
+        },
+        {
+            "dataElement": "MOH705_MALARIA_CONFIRMED_RDT_UNDER5",
+            "category": "MOH 705A/B (Malaria)",
+            "value": malaria_confirmed_rdt_u5,
+        },
+        {
+            "dataElement": "MOH705_MALARIA_CONFIRMED_RDT_OVER5",
+            "category": "MOH 705A/B (Malaria)",
+            "value": malaria_confirmed_rdt_o5,
+        },
+        {
+            "dataElement": "MOH705_MALARIA_CONFIRMED_OTHER_METHOD_UNDER5",
+            "category": "MOH 705A/B (Malaria)",
+            "value": malaria_confirmed_other_u5,
+        },
+        {
+            "dataElement": "MOH705_MALARIA_CONFIRMED_OTHER_METHOD_OVER5",
+            "category": "MOH 705A/B (Malaria)",
+            "value": malaria_confirmed_other_o5,
+        },
+        {
+            "dataElement": "MOH705_MALARIA_CONFIRMED_TOTAL",
+            "category": "MOH 705A/B (Malaria)",
+            "value": malaria_confirmed_total,
+        },
+        {
+            "dataElement": "MOH705_MALARIA_SEVERE_CASES",
+            "category": "MOH 705A/B (Malaria)",
+            "value": malaria_severe_count,
+        },
+        {
+            "dataElement": "MOH705_MALARIA_CASES_IN_PREGNANCY",
+            "category": "MOH 705A/B (Malaria)",
+            "value": malaria_in_pregnancy_count,
+        },
+        {
+            "dataElement": "MOH705_MALARIA_CASES_TREATED",
+            "category": "MOH 705A/B (Malaria)",
+            "value": malaria_treated_count,
+        },
     ]
 
     return {
@@ -199,13 +390,34 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
             "prescriptions": prescriptions_count,
             "anc_visits": anc_visits_count,
             "immunizations": immunizations_count,
+            "malaria_confirmed_total": malaria_confirmed_total,
+            "malaria_confirmed_under5": malaria_confirmed_microscopy_u5
+            + malaria_confirmed_rdt_u5
+            + malaria_confirmed_other_u5,
+            "malaria_confirmed_over5": malaria_confirmed_microscopy_o5
+            + malaria_confirmed_rdt_o5
+            + malaria_confirmed_other_o5,
+            "malaria_severe": malaria_severe_count,
+            "malaria_in_pregnancy": malaria_in_pregnancy_count,
+            "malaria_treated": malaria_treated_count,
+            "malaria_pct_of_opd": round(
+                (malaria_confirmed_total / len(soap_notes) * 100), 1
+            )
+            if soap_notes
+            else 0.0,
         },
+        "malaria_species_breakdown": sorted(
+            [{"species": k, "count": v} for k, v in malaria_species_breakdown.items()],
+            key=lambda x: x["count"],
+            reverse=True,
+        ),
         "top_diagnoses": sorted(
             [{"diagnosis": k, "count": v} for k, v in diagnosis_counts.items()],
             key=lambda x: x["count"],
             reverse=True,
         )[:10],
         "data_elements": data_elements,
+        "khis_upload_readiness": _khis_upload_readiness(data_elements),
     }
 
 
@@ -224,9 +436,10 @@ def export_dhis2_json():
     for elem in aggregated["data_elements"]:
         data_values.append(
             {
-                "dataElement": elem["dataElement"],
+                "dataElement": _resolve_data_element(elem["dataElement"]),
                 "period": aggregated["period"],
-                "orgUnit": aggregated["orgUnit"],
+                "orgUnit": _resolve_org_unit(aggregated["orgUnit"]),
+                "categoryOptionCombo": _resolve_category_option_combo(),
                 "value": str(elem["value"]),
             }
         )
@@ -235,8 +448,14 @@ def export_dhis2_json():
         "dataSet": "MOH_MONTHLY_SUMMARY_V2",
         "completeDate": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "period": aggregated["period"],
-        "orgUnit": aggregated["orgUnit"],
+        "orgUnit": _resolve_org_unit(aggregated["orgUnit"]),
         "dataValues": data_values,
+        # True only once every code below is mapped to a real KHIS UID via
+        # KHIS_DATA_ELEMENT_UID_MAP / KHIS_ORG_UNIT_UID — see module header.
+        "khisReady": aggregated["khis_upload_readiness"]["ready"],
+        "unmappedDataElements": aggregated["khis_upload_readiness"][
+            "unmapped_data_elements"
+        ],
     }
 
     return jsonify(payload)
@@ -262,10 +481,10 @@ def export_dhis2_csv():
     for elem in aggregated["data_elements"]:
         writer.writerow(
             [
-                elem["dataElement"],
+                _resolve_data_element(elem["dataElement"]),
                 aggregated["period"],
-                aggregated["orgUnit"],
-                "default",
+                _resolve_org_unit(aggregated["orgUnit"]),
+                _resolve_category_option_combo(),
                 elem["value"],
             ]
         )
