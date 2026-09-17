@@ -337,6 +337,37 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         self.assertIn("MOH647_TRACER_ITEMS_IN_STOCK", element_names)
         self.assertIn("MOH647_TRACER_ITEMS_STOCKOUT_COUNT", element_names)
 
+    def test_moh731_and_moh729b_arv_aggregation(self):
+        """Test MOH 731 ARV regimen classification and MOH 729B FCDRR aggregation."""
+        from departments.hiv_art.moh_731_729b import (
+            classify_nascop_regimen,
+            aggregate_moh731_arv_monthly,
+            aggregate_moh729b_fcdrr_monthly,
+        )
+
+        match1 = classify_nascop_regimen("AF1A")
+        self.assertIsNotNone(match1)
+        self.assertEqual(match1["regimen_line"], "Adult_1st")
+        self.assertIn("TLD", match1["regimen_name"])
+
+        match2 = classify_nascop_regimen(arv_drugs_text="Tenofovir/Lamivudine/Dolutegravir")
+        self.assertIsNotNone(match2)
+        self.assertEqual(match2["regimen_code"], "AF1A")
+
+        self.client.post(
+            "/login", data={"username": "test_admin_fhir", "password": "password123"}
+        )
+        res = self.client.get("/api/khis/export/dhis2_json")
+        self.assertEqual(res.status_code, 200)
+        data = res.json
+
+        element_names = [dv["dataElement"] for dv in data["dataValues"]]
+        self.assertIn("MOH731_TX_CURR_TOTAL", element_names)
+        self.assertIn("MOH731_TX_NEW_TOTAL", element_names)
+        self.assertIn("MOH731_TX_CURR_AF1A", element_names)
+        self.assertIn("MOH729B_ARV_TLD_300_300_50_DISPENSED", element_names)
+        self.assertIn("MOH729B_ARV_TLD_300_300_50_ENDING_STOCK", element_names)
+
 
 if __name__ == "__main__":
     unittest.main()

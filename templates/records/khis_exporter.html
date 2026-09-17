@@ -357,6 +357,119 @@
     </div>
   </div>
 
+  <!-- MOH-731 & MOH-729B HIV/AIDS Care & Treatment Section -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+      <h5 class="fw-bold mb-0"><i class="bi bi-heart-pulse me-2 text-danger"></i> HIV/AIDS Care &amp; Treatment Report (MOH 731 &amp; MOH 729B ARV FCDRR)</h5>
+      <span class="badge bg-danger-subtle text-danger">NASCOP &amp; KHIS CCC Report</span>
+    </div>
+    <div class="card-body">
+      <!-- Summary Metrics Row -->
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <div class="p-3 border rounded bg-light d-flex justify-content-between align-items-center">
+            <div>
+              <span class="text-muted small fw-semibold d-block">Active Patients on ART (TX_CURR)</span>
+              <h4 class="fw-bold text-primary mb-0">{{ aggregated.hiv_arv_regimens.tx_curr_total }}</h4>
+            </div>
+            <span class="badge bg-primary fs-6">MOH 731</span>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="p-3 border rounded bg-light d-flex justify-content-between align-items-center">
+            <div>
+              <span class="text-muted small fw-semibold d-block">New Initiations in Month (TX_NEW)</span>
+              <h4 class="fw-bold text-success mb-0">{{ aggregated.hiv_arv_regimens.tx_new_total }}</h4>
+            </div>
+            <span class="badge bg-success fs-6">MOH 731</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARV Regimen Distribution Table (MOH 731) -->
+      <h6 class="fw-bold text-muted mb-3"><i class="bi bi-people me-1"></i> 1. MOH 731 Active Patients by NASCOP ARV Regimen</h6>
+      <div class="table-responsive mb-4">
+        <table class="table table-bordered table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Regimen Code</th>
+              <th>Line Tier</th>
+              <th>Standard Drug Combination</th>
+              <th>Target Population</th>
+              <th class="text-end">Male</th>
+              <th class="text-end">Female</th>
+              <th class="text-end">Total Active (TX_CURR)</th>
+              <th class="text-end">New Started (TX_NEW)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for reg in aggregated.hiv_arv_regimens.regimen_details %}
+            <tr>
+              <td><span class="badge bg-dark">{{ reg.regimen_code }}</span></td>
+              <td><span class="badge bg-secondary">{{ reg.regimen_line }}</span></td>
+              <td class="fw-semibold">{{ reg.regimen_name }}</td>
+              <td><small class="text-muted">{{ reg.target_pop }}</small></td>
+              <td class="text-end">{{ reg.active_patients_male }}</td>
+              <td class="text-end">{{ reg.active_patients_female }}</td>
+              <td class="text-end fw-bold text-primary">{{ reg.total_active_patients }}</td>
+              <td class="text-end fw-bold text-success">{{ reg.new_patients_started }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-3">No active ART patients recorded for selected period.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ARV FCDRR Commodity Report Table (MOH 729B) -->
+      <h6 class="fw-bold text-muted mb-3"><i class="bi bi-capsule-capsule me-1"></i> 2. MOH 729B ARV FCDRR Commodity &amp; Requisition Report</h6>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Regimen</th>
+              <th>ARV Product Code</th>
+              <th>Pack Size</th>
+              <th class="text-end">Patients</th>
+              <th class="text-end">Beginning Stock</th>
+              <th class="text-end">Received</th>
+              <th class="text-end">Dispensed</th>
+              <th class="text-end">Losses</th>
+              <th class="text-end">Ending Stock</th>
+              <th class="text-end">Stockout Days</th>
+              <th class="text-end">MOS</th>
+              <th class="text-end">Requested Packs</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fcdrr in aggregated.arv_fcdrr.fcdrr_details %}
+            <tr>
+              <td><span class="badge bg-dark">{{ fcdrr.regimen_code }}</span></td>
+              <td class="fw-semibold">{{ fcdrr.arv_drug_code }}</td>
+              <td><small class="text-muted">{{ fcdrr.unit_pack_size }}</small></td>
+              <td class="text-end fw-semibold">{{ fcdrr.patients_on_regimen }}</td>
+              <td class="text-end">{{ fcdrr.beginning_balance }}</td>
+              <td class="text-end text-success">+{{ fcdrr.quantity_received }}</td>
+              <td class="text-end text-primary">-{{ fcdrr.quantity_dispensed }}</td>
+              <td class="text-end text-danger">-{{ fcdrr.losses_adjustments }}</td>
+              <td class="text-end fw-bold">{{ fcdrr.ending_balance }}</td>
+              <td class="text-end {% if fcdrr.days_stocked_out > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">{{ fcdrr.days_stocked_out }}</td>
+              <td class="text-end fw-semibold">{{ fcdrr.months_of_stock }}</td>
+              <td class="text-end fw-bold text-success">{{ fcdrr.quantity_requested }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="12" class="text-center text-muted py-3">No ARV FCDRR commodity records for selected period.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- KHIS Upload Readiness -->
   {% if not aggregated.khis_upload_readiness.ready %}
   <div class="alert alert-warning d-flex align-items-start shadow-sm mb-4">

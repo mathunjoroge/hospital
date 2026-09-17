@@ -411,6 +411,38 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
             "value": item["issued"]
         })
 
+    # 11. MOH 731 HIV/AIDS Summary (ARV Regimen Patient Counts) & MOH 729B ARV FCDRR
+    from departments.hiv_art.moh_731_729b import (
+        aggregate_moh731_arv_monthly,
+        aggregate_moh729b_fcdrr_monthly,
+    )
+    moh731_arv_data = aggregate_moh731_arv_monthly(year, month)
+    moh729b_fcdrr_data = aggregate_moh729b_fcdrr_monthly(year, month)
+
+    data_elements.extend([
+        {"dataElement": "MOH731_TX_CURR_TOTAL", "category": "MOH 731 (HIV ART)", "value": moh731_arv_data["tx_curr_total"]},
+        {"dataElement": "MOH731_TX_NEW_TOTAL", "category": "MOH 731 (HIV ART)", "value": moh731_arv_data["tx_new_total"]},
+    ])
+
+    for reg in moh731_arv_data["regimen_details"]:
+        data_elements.append({
+            "dataElement": f"MOH731_TX_CURR_{reg['regimen_code']}",
+            "category": f"MOH 731 (Regimen: {reg['regimen_line']})",
+            "value": reg["total_active_patients"],
+        })
+
+    for fcdrr in moh729b_fcdrr_data["fcdrr_details"]:
+        data_elements.append({
+            "dataElement": f"MOH729B_{fcdrr['arv_drug_code']}_DISPENSED",
+            "category": "MOH 729B ARV FCDRR",
+            "value": fcdrr["quantity_dispensed"],
+        })
+        data_elements.append({
+            "dataElement": f"MOH729B_{fcdrr['arv_drug_code']}_ENDING_STOCK",
+            "category": "MOH 729B ARV FCDRR",
+            "value": fcdrr["ending_balance"],
+        })
+
     return {
         "period": period_str,
         "year": year,
@@ -456,6 +488,8 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
         )[:10],
         "malaria_commodities": moh743_data,
         "tracer_hpt": moh647_data,
+        "hiv_arv_regimens": moh731_arv_data,
+        "arv_fcdrr": moh729b_fcdrr_data,
         "data_elements": data_elements,
         "khis_upload_readiness": _khis_upload_readiness(data_elements),
     }

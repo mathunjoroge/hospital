@@ -155,3 +155,47 @@ class WHOStage(db.Model):
 
     def __repr__(self):
         return f"<WHOStage {self.patient_id}: Stage {self.who_stage}>"
+
+
+class MOH731ARVRegimenPatientMonthly(db.Model):
+    """MOH 731 HIV/AIDS Monthly Summary — ARV Regimen Patient Counts."""
+    __tablename__ = "moh_731_arv_regimen_patients_monthly"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    facility_id = db.Column(db.String(50), nullable=False, default="KE_MOH_HOSPITAL_001")
+    period = db.Column(db.String(6), nullable=False, index=True)  # YYYYMM
+    regimen_code = db.Column(db.String(20), nullable=False, index=True)  # e.g., AF1A, AF1B, PF1A
+    regimen_line = db.Column(db.String(20), nullable=False)  # Adult_1st, Adult_2nd, Ped_1st, Ped_2nd, 3rd_Line
+    active_patients_male = db.Column(db.Integer, default=0, nullable=False)
+    active_patients_female = db.Column(db.Integer, default=0, nullable=False)
+    total_active_patients = db.Column(db.Integer, default=0, nullable=False)
+    new_patients_started = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return f"<MOH731ARVRegimen {self.period} - {self.regimen_code}: {self.total_active_patients} active>"
+
+
+class MOH729BARVFCDRRMonthly(db.Model):
+    """MOH 729B ARV FCDRR Monthly — ARV Commodity & Patient Load Report."""
+    __tablename__ = "moh_729b_arv_fcdrr_monthly"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    facility_id = db.Column(db.String(50), nullable=False, default="KE_MOH_HOSPITAL_001")
+    period = db.Column(db.String(6), nullable=False, index=True)  # YYYYMM
+    arv_drug_code = db.Column(db.String(40), nullable=False, index=True)  # e.g., ARV_TLD_300_300_50
+    unit_pack_size = db.Column(db.String(20), nullable=False)  # Bottle_30s, Bottle_90s, Bottle_180s
+    patients_on_regimen = db.Column(db.Integer, default=0, nullable=False)
+    beginning_balance = db.Column(db.Integer, default=0, nullable=False)
+    quantity_received = db.Column(db.Integer, default=0, nullable=False)
+    quantity_dispensed = db.Column(db.Integer, default=0, nullable=False)
+    losses_adjustments = db.Column(db.Integer, default=0, nullable=False)
+    ending_balance = db.Column(db.Integer, default=0, nullable=False)
+    days_stocked_out = db.Column(db.Integer, default=0, nullable=False)
+    months_of_stock = db.Column(db.Numeric(4, 2), default=0.00, nullable=False)
+    quantity_requested = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return f"<MOH729BARVFCDRR {self.period} - {self.arv_drug_code}: {self.patients_on_regimen} patients, stock={self.ending_balance}>"
+
