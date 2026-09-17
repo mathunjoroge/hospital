@@ -4,14 +4,14 @@ Kenya MOH-645 & MOH-743 Malaria Commodity & Weight Band Reporting Engine.
 MOH-645: Health Facility Daily Activity Register for Malaria Commodities
 MOH-743: Health Facility Monthly Summary Report for Malaria Commodities
 """
-from datetime import date, datetime, timedelta, timezone
-from sqlalchemy import func, extract, or_, and_
+from datetime import date, datetime, timedelta
 
-from extensions import db
-from departments.models.pharmacy import DispensedDrug, Drug, Batch
+from sqlalchemy import func, or_
+
+from departments.malaria.models import MalariaCase, MalariaLabResult
+from departments.models.pharmacy import DispensedDrug, Drug
 from departments.models.records import Patient
-from departments.malaria.models import MalariaCase, MalariaLabResult, MalariaTreatment
-
+from extensions import db
 
 ANTIMALARIAL_KEYWORDS = {
     "al": ["artemether", "lumefantrine", "coartem", "al 6", "al 12", "al 18", "al 24", "al6", "al12", "al18", "al24"],

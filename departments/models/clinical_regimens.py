@@ -2,6 +2,7 @@
 Master Clinical Regimens Model (NASCOP ARV, NTLD-P TB, and TPT Regimens)
 """
 from datetime import datetime, timezone
+
 from extensions import db
 
 

@@ -1,23 +1,20 @@
 """
 Unit tests for NASCOP ARV and NTLD-P TB/TPT Master Clinical Regimens.
 """
-import pytest
 from datetime import datetime, timezone
-from extensions import db
-from departments.models.clinical_regimens import MasterClinicalRegimen
+
+from departments.api.dhis2_exporter import aggregate_monthly_khis_data
 from departments.hiv_art.moh_731_729b import (
     NASCOP_REGIMEN_CATALOG,
     classify_nascop_regimen,
-    aggregate_moh731_arv_monthly,
-    aggregate_moh729b_fcdrr_monthly,
 )
+from departments.models.clinical_regimens import MasterClinicalRegimen
 from departments.tb_dots.ntldp_tb_tpt import (
     NTLDP_TB_TPT_CATALOG,
+    aggregate_ntldp_tb_tpt_monthly,
     classify_ntldp_regimen,
     seed_master_clinical_regimens_catalog,
-    aggregate_ntldp_tb_tpt_monthly,
 )
-from departments.api.dhis2_exporter import aggregate_monthly_khis_data
 
 
 def test_nascop_regimen_catalog_completeness():

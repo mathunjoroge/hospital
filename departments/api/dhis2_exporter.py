@@ -413,8 +413,8 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
 
     # 11. MOH 731 HIV/AIDS Summary (ARV Regimen Patient Counts) & MOH 729B ARV FCDRR
     from departments.hiv_art.moh_731_729b import (
-        aggregate_moh731_arv_monthly,
         aggregate_moh729b_fcdrr_monthly,
+        aggregate_moh731_arv_monthly,
     )
     moh731_arv_data = aggregate_moh731_arv_monthly(year, month)
     moh729b_fcdrr_data = aggregate_moh729b_fcdrr_monthly(year, month)

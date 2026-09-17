@@ -6,15 +6,13 @@ Covers:
 - Drug-Resistant TB (DR-TB): All-Oral BPaLM, BPaL, and Individualized 18-20 month regimens
 - TB Preventive Therapy (TPT): 3HP, 1HP, 3RH, 6H (+ Vit B6), 6LFX
 """
-from datetime import date, datetime, timedelta, timezone
-from sqlalchemy import func, or_, and_
+from datetime import date, datetime, timedelta
 
-from extensions import db
+from departments.hiv_art.moh_731_729b import NASCOP_REGIMEN_CATALOG
+from departments.models.clinical_regimens import MasterClinicalRegimen
 from departments.models.records import Patient
 from departments.tb_dots.models import TBEnrollment, TBRegimen
-from departments.models.clinical_regimens import MasterClinicalRegimen
-from departments.hiv_art.moh_731_729b import NASCOP_REGIMEN_CATALOG
-
+from extensions import db
 
 NTLDP_TB_TPT_CATALOG = [
     # 1. Drug-Susceptible TB (DS-TB)

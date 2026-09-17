@@ -5,14 +5,12 @@ MOH 647: Health Facility Tracer Health Products and Technologies Data Report For
 Tracks inventory levels, consumption (dispensed/issued), receipts, losses/expiries,
 ending physical counts, and stockout statuses for essential Kenya MOH tracer commodities.
 """
-from datetime import date, datetime, timedelta, timezone
-from sqlalchemy import func, or_, and_
+from datetime import date, datetime, timedelta
 
+from sqlalchemy import func, or_
+
+from departments.models.pharmacy import DispensedDrug, Drug, Expiry, Purchase
 from extensions import db
-from departments.models.pharmacy import Drug, DispensedDrug, Purchase, Expiry, Batch
-from departments.models.stock_movement import StockMovement
-from departments.models.stores import NonPharmItem
-
 
 MOH647_TRACER_CATALOG = [
     {

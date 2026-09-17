@@ -4,20 +4,20 @@ Kenya MOH 731 HIV/AIDS Summary & MOH 729B ARV FCDRR Reporting Engine.
 MOH 731: HIV/AIDS Monthly Summary (ARV Regimen Section)
 MOH 729B: ARV FCDRR (Facility Consumption Data Report and Request)
 """
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from decimal import Decimal
-from sqlalchemy import func, or_, and_
 
-from extensions import db
-from departments.models.pharmacy import Drug, DispensedDrug, Purchase, Expiry
-from departments.models.records import Patient
+from sqlalchemy import func, or_
+
 from departments.hiv_art.models import (
     ARTEnrollment,
     ARTRegimen,
-    MOH731ARVRegimenPatientMonthly,
     MOH729BARVFCDRRMonthly,
+    MOH731ARVRegimenPatientMonthly,
 )
-
+from departments.models.pharmacy import DispensedDrug, Drug, Expiry, Purchase
+from departments.models.records import Patient
+from extensions import db
 
 NASCOP_REGIMEN_CATALOG = [
     {

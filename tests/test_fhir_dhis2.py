@@ -277,7 +277,11 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
 
     def test_moh645_743_weight_band_classification(self):
         """Test weight band classification and age fallback."""
-        from departments.malaria.moh_645_743 import classify_al_weight_band, estimate_weight_from_age, classify_drug_category
+        from departments.malaria.moh_645_743 import (
+            classify_al_weight_band,
+            classify_drug_category,
+            estimate_weight_from_age,
+        )
 
         self.assertEqual(classify_al_weight_band(10.0), "AL6")
         self.assertEqual(classify_al_weight_band(18.0), "AL12")
@@ -315,7 +319,9 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
 
     def test_moh647_tracer_hpt_aggregation(self):
         """Test MOH 647 Tracer HPT commodity categorization and export elements."""
-        from departments.pharmacy.moh_647 import classify_tracer_item, aggregate_moh647_monthly
+        from departments.pharmacy.moh_647 import (
+            classify_tracer_item,
+        )
 
         match1 = classify_tracer_item("Amoxicillin 250mg Capsules")
         self.assertIsNotNone(match1)
@@ -341,8 +347,6 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         """Test MOH 731 ARV regimen classification and MOH 729B FCDRR aggregation."""
         from departments.hiv_art.moh_731_729b import (
             classify_nascop_regimen,
-            aggregate_moh731_arv_monthly,
-            aggregate_moh729b_fcdrr_monthly,
         )
 
         match1 = classify_nascop_regimen("AF1A")
