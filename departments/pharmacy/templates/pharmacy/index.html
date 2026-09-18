@@ -38,7 +38,7 @@
       <a href="{{ url_for('pharmacy.expiries') }}" class="btn btn-outline-warning fw-semibold text-dark rounded-3">
         <i class="bi bi-exclamation-triangle me-1.5 text-warning"></i> FEFO Expiries
       </a>
-      <a href="{{ url_for('pharmacy.controlled_drugs_log') if 'controlled_drugs_log' in url_for.__globals__ else url_for('pharmacy.inventory') }}" class="btn btn-outline-danger fw-semibold rounded-3">
+      <a href="{{ url_for('pharmacy.controlled_drug_register') }}" class="btn btn-outline-danger fw-semibold rounded-3">
         <i class="bi bi-journal-medical me-1.5 text-danger"></i> Controlled Drugs Register
       </a>
       <a href="{{ url_for('pharmacy.inventory') }}" class="btn btn-success fw-bold text-white rounded-3 shadow-sm px-3">
