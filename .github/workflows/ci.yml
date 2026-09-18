@@ -83,8 +83,13 @@ jobs:
         if: always()
         run: |
           python -c "
-          import xml.etree.ElementTree as ET
+          import os
           import sys
+          import xml.etree.ElementTree as ET
+
+          if not os.path.exists('test-results.xml'):
+              print('::warning::test-results.xml not found. Pytest step may have been skipped or failed prior to XML generation.')
+              sys.exit(0)
 
           try:
               tree = ET.parse('test-results.xml')
