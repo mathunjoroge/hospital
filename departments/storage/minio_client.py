@@ -11,6 +11,7 @@ Data Protection Act (2019) and fallback to local volume storage when offline.
 import io
 import logging
 import os
+import tempfile
 from typing import Any
 
 from flask import current_app
@@ -108,7 +109,7 @@ class MedicalFileStorage:
                 logger.exception(f"Error saving file to MinIO: {exc}. Falling back to local storage.")
 
         # Local volume fallback
-        fallback_dir = os.path.join("/tmp", "hospital_storage_fallback", bucket)
+        fallback_dir = os.path.join(tempfile.gettempdir(), "hospital_storage_fallback", bucket)
         os.makedirs(fallback_dir, exist_ok=True)
         file_path = os.path.join(fallback_dir, filename)
         with open(file_path, "wb") as f:
