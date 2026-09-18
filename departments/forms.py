@@ -11,7 +11,7 @@ from wtforms import (
     SubmitField,
     TextAreaField,
 )
-from wtforms.validators import DataRequired, Email, Length
+from wtforms.validators import DataRequired, Email, Length, ValidationError
 
 from departments.models.medicine import CancerStage, CancerType
 from departments.models.records import Patient
@@ -51,6 +51,16 @@ class LeaveRequestForm(FlaskForm):
         validators=[DataRequired()],
     )
     submit = SubmitField("Submit Leave Request")
+
+    def validate_end_date(self, field):
+        """
+        Previously nothing checked date ordering at all, so a request with
+        end_date before start_date was accepted as-is: Leave.days (and any
+        balance math built on it) would silently go negative instead of
+        the request being rejected up front.
+        """
+        if self.start_date.data and field.data and field.data < self.start_date.data:
+            raise ValidationError("End date cannot be before the start date.")
 
 
 class UpdateProfileForm(FlaskForm):

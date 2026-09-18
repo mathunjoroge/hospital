@@ -3,7 +3,37 @@
 <div class="container mt-5">
     <h2 class="mb-4 text-center">Employee List</h2>
 
-    {% if employees %}
+    <!-- Search & Filter -->
+    <form method="GET" class="row g-2 align-items-end mb-4">
+        <div class="col-sm-4">
+            <label class="form-label" for="search">Search</label>
+            <input type="text" id="search" name="search" class="form-control"
+                   placeholder="Name or Employee ID" value="{{ search or '' }}">
+        </div>
+        <div class="col-sm-3">
+            <label class="form-label" for="department">Department</label>
+            <select id="department" name="department" class="form-select">
+                <option value="">All departments</option>
+                {% for dept in departments %}
+                <option value="{{ dept }}" {% if dept == department_filter %}selected{% endif %}>{{ dept }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-sm-3">
+            <label class="form-label" for="status">Status</label>
+            <select id="status" name="status" class="form-select">
+                <option value="" {% if not status %}selected{% endif %}>All</option>
+                <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </div>
+        <div class="col-sm-2 d-grid">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-search"></i> Filter
+            </button>
+        </div>
+    </form>
+
     <table class="table table-hover align-middle">
         <thead class="table-dark">
             <tr>
@@ -46,12 +76,17 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="7" class="text-center text-muted">No employees available.</td>
+                <td colspan="7" class="text-center text-muted">
+                    {% if search or status or department_filter %}
+                    No employees match this filter.
+                    {% else %}
+                    No employees available.
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-    {% endif %}
 
     <!-- Add New Employee Button -->
     <div class="text-center mt-4">

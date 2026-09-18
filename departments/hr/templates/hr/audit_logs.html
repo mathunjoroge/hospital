@@ -15,10 +15,14 @@
         <tbody>
             {% for log in logs %}
             <tr>
-                <td>{{ log.user_id }}</td>
+                <td>{{ log.user.username if log.user else 'system' }}</td>
                 <td>{{ log.action }}</td>
-                <td>{{ log.timestamp }}</td>
+                <td>{{ log.timestamp.strftime('%d/%m/%Y %H:%M') if log.timestamp else '' }}</td>
                 <td>{{ log.details }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center text-muted">No audit log entries yet.</td>
             </tr>
             {% endfor %}
         </tbody>

@@ -75,6 +75,32 @@ def _current_employee():
     return Employee.query.filter_by(user_id=current_user.id).first()
 
 
+def _log_hr_action(action, details):
+    """
+    Record an HR audit trail entry, best-effort.
+
+    Nothing previously wrote to AuditLog at all: hr/audit_logs.html always
+    rendered an empty table, and the HR dashboard's "Recent Changes" card
+    was backed by two hardcoded fake entries (see the old index() comment
+    "Replace with actual query logic"). This is called from every HR route
+    that actually changes something, mirroring the pattern send_email()
+    already uses — a logging failure must never roll back or mask the
+    change it's describing.
+    """
+    try:
+        db.session.add(
+            AuditLog(
+                user_id=current_user.id if current_user.is_authenticated else None,
+                action=action,
+                details=details,
+            )
+        )
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        logger.exception("hr._log_hr_action failed: action=%r", action)
+
+
 @bp.route("/", methods=["GET"])
 @login_required
 @roles_required("hr", "admin")
@@ -91,17 +117,19 @@ def index():
         inactive_employees_count = len(inactive_employees)
         total_employees_count = active_employees_count + inactive_employees_count
 
-        # Fetch recent changes (e.g., log entries)
+        # Recent changes, from the real HR audit trail. This used to be two
+        # hardcoded entries ("Employee E0001 marked as inactive...") that
+        # never changed no matter what HR actually did, because nothing
+        # wrote to AuditLog — see _log_hr_action(), now called from every
+        # mutating HR route.
+        recent_logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(5).all()
         recent_changes = [
             {
-                "description": "Employee E0001 marked as inactive.",
-                "date": datetime.now(timezone.utc) - timedelta(days=1),
-            },
-            {
-                "description": "New employee E0002 added to the system.",
-                "date": datetime.now(timezone.utc) - timedelta(days=2),
-            },
-        ]  # Replace with actual query logic
+                "description": f"{log.action} — {log.details}",
+                "date": log.timestamp,
+            }
+            for log in recent_logs
+        ]
 
         return render_template(
             "hr/index.html",
@@ -121,12 +149,59 @@ def index():
 @login_required
 @roles_required("hr", "admin")
 def employee_list():
-    """Displays the list of all employees."""
+    """
+    Displays the list of employees, filterable by status/department and
+    searchable by name or employee ID.
+
+    The HR dashboard has always linked here with ?status=active and
+    ?status=inactive (see hr/index.html's "Active Employees" / "Inactive
+    Employees" cards), but this route ignored request.args entirely and
+    always returned every employee — so both cards silently opened the
+    exact same unfiltered list instead of what they promised.
+    """
 
     try:
-        # Fetch all employees
-        employees = Employee.query.order_by(Employee.date_hired.desc()).all()
-        return render_template("hr/employee_list.html", employees=employees)
+        search = (request.args.get("search") or "").strip()
+        status = (request.args.get("status") or "").strip().lower()
+        department_filter = (request.args.get("department") or "").strip()
+
+        query = Employee.query
+        if status == "active":
+            query = query.filter_by(is_active=True)
+        elif status == "inactive":
+            query = query.filter_by(is_active=False)
+
+        if department_filter:
+            query = query.filter(Employee.department == department_filter)
+
+        if search:
+            like = f"%{search}%"
+            query = query.filter(
+                db.or_(Employee.name.ilike(like), Employee.employee_id.ilike(like))
+            )
+
+        employees = query.order_by(Employee.date_hired.desc()).all()
+
+        # Distinct departments for the filter dropdown, independent of the
+        # current filters so switching department doesn't shrink the list
+        # of choices offered.
+        departments = [
+            row[0]
+            for row in db.session.query(Employee.department)
+            .distinct()
+            .order_by(Employee.department)
+            .all()
+            if row[0]
+        ]
+
+        return render_template(
+            "hr/employee_list.html",
+            employees=employees,
+            departments=departments,
+            search=search,
+            status=status,
+            department_filter=department_filter,
+        )
 
     except SQLAlchemyError as e:
         flash("Something went wrong. Please try again.", "error")
@@ -188,6 +263,10 @@ def new_employee():
             )
             db.session.add(new_employee)
             db.session.commit()
+            _log_hr_action(
+                "Employee Created",
+                f"{employee_id} ({name}) added to {department}, job group {job_group}.",
+            )
             flash(f"Employee {name} added successfully!", "success")
             return redirect(url_for("hr.employee_list"))
 
@@ -263,6 +342,10 @@ def update_employee(employee_id):
             employee.updated_by = current_user.id
 
             db.session.commit()
+            _log_hr_action(
+                "Employee Updated",
+                f"{employee.employee_id} ({name}) updated by {current_user.username}.",
+            )
             flash(f"Employee {name} updated successfully!", "success")
             return redirect(url_for("hr.employee_list"))
 
@@ -302,6 +385,11 @@ def delete_employee(employee_id):
             employee.is_active = False
             employee.updated_by = current_user.id
             db.session.commit()
+            _log_hr_action(
+                "Employee Deactivated",
+                f"{employee.employee_id} ({employee.name}) deactivated "
+                "(payroll/leave history retained).",
+            )
             flash(
                 f"{employee.name} has payroll/leave history, so the record was "
                 "deactivated instead of deleted.",
@@ -309,8 +397,14 @@ def delete_employee(employee_id):
             )
             return redirect(url_for("hr.employee_list"))
 
+        employee_id_label, employee_name = employee.employee_id, employee.name
         db.session.delete(employee)
         db.session.commit()
+        _log_hr_action(
+            "Employee Deleted",
+            f"{employee_id_label} ({employee_name}) permanently deleted "
+            f"by {current_user.username} (no payroll/leave history).",
+        )
 
         flash(f"Employee {employee.name} deleted successfully!", "success")
         return redirect(url_for("hr.employee_list"))
@@ -418,6 +512,7 @@ def rota_management():
             rota.shift_8_8 = night_shifts[0] if night_shifts else None
 
             db.session.commit()
+            _log_hr_action("Rota Generated", f"Rota generated for {week_range}.")
             flash(f"Rota for {week_range} generated successfully!", "success")
             return redirect(url_for("hr.rota_management"))
 
@@ -571,11 +666,21 @@ def payroll_dashboard():
 @login_required
 @roles_required("hr", "admin")
 def generate_payroll(month):
-    """Generate payroll for a specific month."""
+    """
+    Generate payroll for a specific month.
+
+    Re-running this for a month it's already been run for used to insert a
+    second Payroll row per employee — nothing checked for an existing
+    record first — silently doubling every reported gross/net figure and
+    leaving two payslips per employee for the same month. Existing records
+    are now recalculated in place instead of duplicated, so generate_payroll
+    is safe to re-run after a late allowance/deduction change.
+    """
 
     employees = Employee.query.filter_by(is_active=True).all()
     skipped = []
-    generated = 0
+    created = 0
+    updated = 0
     for employee in employees:
         if employee.basic_salary is None:
             skipped.append(employee.name)
@@ -598,26 +703,43 @@ def generate_payroll(month):
         # Calculate net pay
         net_pay = gross_pay - total_deductions
 
-        # Create payroll record
-        payroll = Payroll(
-            employee_id=employee.id,
-            month=month,
-            gross_pay=gross_pay,
-            total_deductions=total_deductions,
-            net_pay=net_pay,
-        )
-        db.session.add(payroll)
-        generated += 1
+        payroll = Payroll.query.filter_by(employee_id=employee.id, month=month).first()
+        if payroll:
+            payroll.gross_pay = gross_pay
+            payroll.total_deductions = total_deductions
+            payroll.net_pay = net_pay
+            updated += 1
+        else:
+            payroll = Payroll(
+                employee_id=employee.id,
+                month=month,
+                gross_pay=gross_pay,
+                total_deductions=total_deductions,
+                net_pay=net_pay,
+            )
+            db.session.add(payroll)
+            created += 1
     db.session.commit()
+    _log_hr_action(
+        "Payroll Generated",
+        f"{month}: {created} created, {updated} recalculated, "
+        f"{len(skipped)} skipped (no basic salary).",
+    )
 
-    if generated:
-        flash(f"Payroll generated for {generated} employee(s).", "success")
+    if created:
+        flash(f"Payroll generated for {created} employee(s).", "success")
+    if updated:
+        flash(
+            f"Payroll for {updated} employee(s) already existed for {month} "
+            "and was recalculated instead of duplicated.",
+            "info",
+        )
     if skipped:
         flash(
             "Skipped (no basic salary on file): " + ", ".join(skipped),
             "warning",
         )
-    if not generated and not skipped:
+    if not created and not updated and not skipped:
         flash("No active employees to generate payroll for.", "info")
     return redirect(url_for("hr.payroll_dashboard"))
 
@@ -650,6 +772,12 @@ def add_deduction():
         )
         db.session.add(deduction)
         db.session.commit()
+        _log_hr_action(
+            "Deduction Added",
+            f"{deduction.name}: "
+            + (f"{deduction.value}%" if deduction.is_percentage else str(deduction.value))
+            + " (applies to all employees).",
+        )
         flash("Deduction added successfully!", "success")
         return redirect(url_for("hr.payroll_dashboard"))
     return render_template("hr/add_deduction.html", form=form)
@@ -668,6 +796,10 @@ def add_allowance():
         )
         db.session.add(allowance)
         db.session.commit()
+        _log_hr_action(
+            "Allowance Added",
+            f"{allowance.name}: {allowance.value} for job group {allowance.job_group}.",
+        )
         flash("Allowance added successfully!", "success")
         return redirect(url_for("hr.payroll_dashboard"))
     return render_template("hr/add_allowance.html", form=form)
@@ -689,14 +821,66 @@ def leave_request():
 
     form = LeaveRequestForm()
     if form.validate_on_submit():
+        # DateField gives back date objects, but Leave.start_date/end_date
+        # are DateTime columns — comparing/storing a bare date next to rows
+        # stored as datetime (as approve_leave's own history does) risks a
+        # dtype mismatch in the overlap query below on some backends, so
+        # normalize to datetime once, here.
+        start_date = datetime.combine(form.start_date.data, datetime.min.time())
+        end_date = datetime.combine(form.end_date.data, datetime.min.time())
+        leave_type = form.type.data
+        requested_days = (end_date - start_date).days + 1
+
+        # Two employees, or the same employee twice, could otherwise both
+        # have a Pending/Approved leave covering the same days — nothing
+        # previously checked this, so approve_leave() would happily approve
+        # overlapping time off. Standard interval-overlap test: two ranges
+        # overlap unless one ends before the other starts.
+        overlapping = Leave.query.filter(
+            Leave.employee_id == employee.id,
+            Leave.status.in_(["Pending", "Approved"]),
+            Leave.start_date <= end_date,
+            Leave.end_date >= start_date,
+        ).first()
+        if overlapping:
+            flash(
+                f"You already have a {overlapping.status.lower()} "
+                f"{overlapping.type} request from "
+                f"{overlapping.start_date.date()} to {overlapping.end_date.date()} "
+                "that overlaps these dates.",
+                "error",
+            )
+            return render_template("hr/leave_request.html", form=form, employee=employee)
+
+        # Only vacation is capped against the annual entitlement; sick leave
+        # (and any other future leave type) is uncapped here by design —
+        # HR reviews those on approval instead of the system hard-blocking
+        # a genuinely sick employee.
+        if leave_type == "vacation":
+            remaining = employee.leave_days_remaining()
+            if requested_days > remaining:
+                flash(
+                    f"This request is for {requested_days} day(s) of vacation, "
+                    f"but only {remaining} remain this year.",
+                    "error",
+                )
+                return render_template(
+                    "hr/leave_request.html", form=form, employee=employee
+                )
+
         leave = Leave(
             employee_id=employee.id,
-            start_date=form.start_date.data,
-            end_date=form.end_date.data,
-            type=form.type.data,
+            start_date=start_date,
+            end_date=end_date,
+            type=leave_type,
         )
         db.session.add(leave)
         db.session.commit()
+        _log_hr_action(
+            "Leave Requested",
+            f"{employee.employee_id} ({employee.name}) requested {requested_days} "
+            f"day(s) {leave_type} leave, {start_date} to {end_date}.",
+        )
         flash("Leave request submitted successfully!", "success")
         # hr.index is roles_required("hr", "admin") — redirecting there sent
         # every non-HR employee straight into a 403 right after their request
@@ -704,7 +888,7 @@ def leave_request():
         # land somewhere that shows the result (employee_profile permits the
         # linked employee to view their own record).
         return redirect(url_for("hr.employee_profile", employee_id=employee.id))
-    return render_template("hr/leave_request.html", form=form)
+    return render_template("hr/leave_request.html", form=form, employee=employee)
 
 
 @bp.route("/reports")
@@ -735,7 +919,7 @@ def reports():
 def audit_logs():
     """Display audit logs."""
 
-    logs = AuditLog.query.all()
+    logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).all()
     return render_template("hr/audit_logs.html", logs=logs)
 
 
@@ -825,6 +1009,14 @@ def reject_leave(leave_id):
     leave = Leave.query.get_or_404(leave_id)
     leave.status = "Rejected"
     db.session.commit()
+    employee = db.session.get(Employee, leave.employee_id)
+    if employee:
+        _log_hr_action(
+            "Leave Rejected",
+            f"{employee.employee_id} ({employee.name}) {leave.type} leave "
+            f"{leave.start_date.date()} to {leave.end_date.date()} rejected "
+            f"by {current_user.username}.",
+        )
     flash("Leave request rejected successfully!", "danger")
     return redirect(url_for("hr.leave_management"))
 
@@ -977,6 +1169,12 @@ def approve_leave(leave_id):
 
     employee = db.session.get(Employee, leave.employee_id)
     if employee:
+        _log_hr_action(
+            "Leave Approved",
+            f"{employee.employee_id} ({employee.name}) {leave.type} leave "
+            f"{leave.start_date.date()} to {leave.end_date.date()} approved "
+            f"by {current_user.username}.",
+        )
         send_email(
             subject="Leave Request Approved",
             recipient=employee.email,

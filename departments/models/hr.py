@@ -1,6 +1,14 @@
 from datetime import datetime, timezone
 
+from sqlalchemy import extract
+
 from extensions import db
+
+# Statutory minimum annual leave entitlement (Kenya Employment Act, s.28):
+# 21 working days per completed 12 months of service. Used as the default
+# for Employee.annual_leave_days so existing rows (and the seed data) get a
+# sane value without HR having to configure anything on day one.
+DEFAULT_ANNUAL_LEAVE_DAYS = 21
 
 
 # Rota Table
@@ -70,8 +78,38 @@ class Employee(db.Model):
     )
     user = db.relationship("User", foreign_keys=[user_id])
 
+    # Annual (vacation) leave entitlement in working days. Previously there
+    # was no entitlement anywhere in the schema, so leave_request() had no
+    # way to tell a legitimate vacation request from one that would leave an
+    # employee with negative leave — every request was accepted regardless
+    # of how many days the employee had already taken that year.
+    annual_leave_days = db.Column(
+        db.Integer, nullable=False, default=DEFAULT_ANNUAL_LEAVE_DAYS
+    )
+
     def __repr__(self):
         return f"<Employee {self.name} - ID: {self.employee_id}>"
+
+    def leave_days_used(self, leave_type="vacation", year=None):
+        """
+        Sum of Approved leave days of `leave_type` for this employee in
+        `year` (defaults to the current year). Pending/Rejected requests
+        don't count against the balance — only leave HR has actually
+        approved does.
+        """
+        year = year or datetime.now(timezone.utc).year
+        approved = Leave.query.filter(
+            Leave.employee_id == self.id,
+            Leave.type == leave_type,
+            Leave.status == "Approved",
+            extract("year", Leave.start_date) == year,
+        ).all()
+        return sum(leave.days for leave in approved)
+
+    def leave_days_remaining(self, year=None):
+        """Vacation days left against annual_leave_days for `year`."""
+        entitlement = self.annual_leave_days or 0
+        return entitlement - self.leave_days_used(leave_type="vacation", year=year)
 
     @staticmethod
     def generate_employee_id():
@@ -168,7 +206,12 @@ class Leave(db.Model):
     # UndefinedError on every profile visit.
     employee = db.relationship("Employee", backref="leaves")
 
-
+    @property
+    def days(self):
+        """Inclusive day count (a single-day leave is 1 day, not 0)."""
+        if not self.start_date or not self.end_date:
+            return 0
+        return (self.end_date - self.start_date).days + 1
 
 
 class AuditLog(db.Model):
@@ -181,6 +224,13 @@ class AuditLog(db.Model):
     details = db.Column(
         db.Text, nullable=False
     )  # JSON or text description of the change
+
+    # Nothing ever populated this table (hr.routes had no write path at
+    # all), so hr/audit_logs.html always rendered an empty table and the HR
+    # dashboard's "Recent Changes" card was backed by two hardcoded fake
+    # entries instead of anything that actually happened. The relationship
+    # lets the template show a username instead of a bare numeric user_id.
+    user = db.relationship("User", foreign_keys=[user_id])
 
 
 class StaffCredential(db.Model):

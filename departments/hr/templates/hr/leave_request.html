@@ -2,6 +2,12 @@
 {% block content %}
 <div class="container mt-4">
     <h1>Leave Request</h1>
+    {% if employee %}
+    <p class="text-muted">
+        Vacation days remaining this year:
+        <strong>{{ employee.leave_days_remaining() }}</strong> of {{ employee.annual_leave_days }}.
+    </p>
+    {% endif %}
     <form method="POST">
         {{ form.hidden_tag() }}
         <div class="form-group">

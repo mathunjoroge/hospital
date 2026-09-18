@@ -82,6 +82,10 @@
                     <h5>Leave Requests</h5>
                 </div>
                 <div class="card-body">
+                    <p class="text-muted">
+                        Vacation days remaining this year:
+                        <strong>{{ employee.leave_days_remaining() }}</strong> of {{ employee.annual_leave_days }}.
+                    </p>
                     <a href="{{ url_for('hr.leave_request') }}" class="btn btn-success mb-3">
                         <i class="bi bi-plus-circle"></i> Request Leave
                     </a>

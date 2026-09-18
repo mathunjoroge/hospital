@@ -28,7 +28,7 @@ from datetime import datetime
 import pytest
 from werkzeug.security import generate_password_hash
 
-from departments.models.hr import Allowance, Deduction, Employee, Leave, Payroll
+from departments.models.hr import Allowance, AuditLog, Deduction, Employee, Leave, Payroll
 from departments.models.user import User
 from extensions import db
 
@@ -635,3 +635,207 @@ def test_hr_templates_reference_no_missing_endpoints(app):
                 broken.append(f"{template}: {endpoint}")
 
     assert not broken, "HR templates reference endpoints that do not exist:\n" + "\n".join(broken)
+
+
+# ── HR audit trail: previously nothing ever wrote to AuditLog ─────────────
+
+def test_new_employee_writes_an_audit_log_entry(hr_client, app):
+    hr_client.post("/hr/new_employee", data={
+        "name": "Audited Hire", "role": "nursing", "department": "nursing",
+        "job_group": "Group A",
+    })
+    log = AuditLog.query.order_by(AuditLog.id.desc()).first()
+    assert log is not None
+    assert log.action == "Employee Created"
+    assert "Audited Hire" in log.details
+
+
+def test_delete_employee_writes_an_audit_log_entry(hr_client, app):
+    employee = _make_employee(employee_id="E-DEL", name="Delete Target")
+    employee_pk = employee.id
+    hr_client.post(f"/hr/delete_employee/{employee_pk}")
+    log = AuditLog.query.filter_by(action="Employee Deleted").first()
+    assert log is not None
+    assert "Delete Target" in log.details
+
+
+def test_approve_leave_writes_an_audit_log_entry(hr_client, app):
+    employee = _make_employee(employee_id="E-APR", name="Approve Target")
+    leave = Leave(employee_id=employee.id,
+                  start_date=datetime(2026, 10, 1), end_date=datetime(2026, 10, 2),
+                  type="vacation", status="Pending")
+    db.session.add(leave)
+    db.session.commit()
+
+    hr_client.get(f"/hr/approve_leave/{leave.id}")
+    log = AuditLog.query.filter_by(action="Leave Approved").first()
+    assert log is not None
+    assert "Approve Target" in log.details
+
+
+def test_add_allowance_and_deduction_write_audit_log_entries(hr_client, app):
+    hr_client.post("/hr/add_allowance", data={
+        "job_group": "Group A", "name": "Housing", "value": "5000",
+    })
+    hr_client.post("/hr/add_deduction", data={
+        "name": "PAYE", "value": "10", "is_percentage": "y",
+    })
+    assert AuditLog.query.filter_by(action="Allowance Added").count() == 1
+    assert AuditLog.query.filter_by(action="Deduction Added").count() == 1
+
+
+def test_dashboard_recent_changes_reflects_real_audit_log(hr_client, app):
+    """
+    Regression: index() used two hardcoded fake entries ("Employee E0001
+    marked as inactive...") that never changed no matter what HR actually
+    did.
+    """
+    hr_client.post("/hr/new_employee", data={
+        "name": "Dashboard Proof", "role": "nursing", "department": "nursing",
+        "job_group": "Group A",
+    })
+    response = hr_client.get("/hr/")
+    assert response.status_code == 200
+    assert b"Dashboard Proof" in response.data
+    assert b"Employee E0001 marked as inactive" not in response.data
+
+
+# ── employee_list: dashboard status filters were previously ignored ───────
+
+def test_employee_list_status_filter_matches_dashboard_links(hr_client, app):
+    """
+    Regression: hr/index.html links to employee_list?status=active and
+    ?status=inactive, but the route ignored request.args entirely and
+    always returned every employee regardless of which card was clicked.
+    """
+    _make_employee(employee_id="E-ACT", name="Active One", is_active=True)
+    _make_employee(employee_id="E-INACT", name="Inactive One", is_active=False)
+
+    active_resp = hr_client.get("/hr/employee_list?status=active")
+    assert b"Active One" in active_resp.data
+    assert b"Inactive One" not in active_resp.data
+
+    inactive_resp = hr_client.get("/hr/employee_list?status=inactive")
+    assert b"Inactive One" in inactive_resp.data
+    assert b"Active One" not in inactive_resp.data
+
+
+def test_employee_list_search_by_name_or_employee_id(hr_client, app):
+    _make_employee(employee_id="E-FIND", name="Findable Employee")
+    _make_employee(employee_id="E-OTHER", name="Someone Else")
+
+    by_name = hr_client.get("/hr/employee_list?search=Findable")
+    assert b"Findable Employee" in by_name.data
+    assert b"Someone Else" not in by_name.data
+
+    by_id = hr_client.get("/hr/employee_list?search=E-FIND")
+    assert b"Findable Employee" in by_id.data
+
+
+def test_employee_list_department_filter(hr_client, app):
+    _make_employee(employee_id="E-NUR", name="Nurse Person", department="nursing")
+    _make_employee(employee_id="E-LAB", name="Lab Person", department="laboratory")
+
+    response = hr_client.get("/hr/employee_list?department=laboratory")
+    assert b"Lab Person" in response.data
+    assert b"Nurse Person" not in response.data
+
+
+# ── Leave balance tracking ─────────────────────────────────────────────────
+
+def test_leave_days_remaining_defaults_to_full_entitlement(app):
+    employee = _make_employee(employee_id="E-BAL1", name="Fresh Balance")
+    assert employee.annual_leave_days == 21
+    assert employee.leave_days_remaining() == 21
+
+
+def test_leave_days_remaining_only_counts_approved_vacation(app):
+    employee = _make_employee(employee_id="E-BAL2", name="Balance Target")
+    db.session.add(Leave(employee_id=employee.id,
+                         start_date=datetime(2026, 1, 1), end_date=datetime(2026, 1, 5),
+                         type="vacation", status="Approved"))  # 5 days
+    db.session.add(Leave(employee_id=employee.id,
+                         start_date=datetime(2026, 2, 1), end_date=datetime(2026, 2, 2),
+                         type="vacation", status="Pending"))  # not counted yet
+    db.session.add(Leave(employee_id=employee.id,
+                         start_date=datetime(2026, 3, 1), end_date=datetime(2026, 3, 10),
+                         type="sick", status="Approved"))  # different type, not counted
+    db.session.commit()
+
+    assert employee.leave_days_used() == 5
+    assert employee.leave_days_remaining() == 16
+
+
+def test_leave_request_rejects_end_date_before_start_date(client, app, linked_pair):
+    employee, user = linked_pair
+    client.post("/login", data={"username": "linked_nurse", "password": "Nurse!2345"})
+    response = client.post("/hr/leave_request", data={
+        "start_date": "2026-10-10", "end_date": "2026-10-05", "type": "vacation",
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert Leave.query.count() == 0
+
+
+def test_leave_request_rejects_overlapping_pending_request(client, app, linked_pair):
+    employee, user = linked_pair
+    client.post("/login", data={"username": "linked_nurse", "password": "Nurse!2345"})
+    client.post("/hr/leave_request", data={
+        "start_date": "2026-10-01", "end_date": "2026-10-10", "type": "vacation",
+    })
+    assert Leave.query.count() == 1
+
+    response = client.post("/hr/leave_request", data={
+        "start_date": "2026-10-05", "end_date": "2026-10-06", "type": "vacation",
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    # Second, overlapping request must not have been saved.
+    assert Leave.query.count() == 1
+
+
+def test_leave_request_rejects_requests_beyond_annual_balance(client, app, linked_pair):
+    employee, user = linked_pair
+    employee.annual_leave_days = 5
+    db.session.commit()
+
+    client.post("/login", data={"username": "linked_nurse", "password": "Nurse!2345"})
+    response = client.post("/hr/leave_request", data={
+        # 10 inclusive days requested against a 5-day entitlement.
+        "start_date": "2026-10-01", "end_date": "2026-10-10", "type": "vacation",
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert Leave.query.count() == 0
+
+
+def test_leave_request_sick_leave_is_not_capped_by_vacation_balance(client, app, linked_pair):
+    employee, user = linked_pair
+    employee.annual_leave_days = 1
+    db.session.commit()
+
+    client.post("/login", data={"username": "linked_nurse", "password": "Nurse!2345"})
+    response = client.post("/hr/leave_request", data={
+        "start_date": "2026-10-01", "end_date": "2026-10-10", "type": "sick",
+    }, follow_redirects=True)
+    assert response.status_code == 200
+    assert Leave.query.filter_by(type="sick").count() == 1
+
+
+# ── Payroll idempotency ─────────────────────────────────────────────────────
+
+def test_generate_payroll_twice_updates_instead_of_duplicating(hr_client, app):
+    """
+    Regression: re-running generate_payroll for a month it had already run
+    for inserted a second Payroll row per employee instead of recalculating
+    the existing one, silently doubling every reported figure.
+    """
+    _make_employee(employee_id="E-IDEMP", name="Idempotent Target", basic_salary=10000)
+
+    hr_client.get("/hr/generate_payroll/2026-09")
+    assert Payroll.query.filter_by(month="2026-09").count() == 1
+
+    db.session.add(Allowance(job_group="Group A", name="Housing", value=1000))
+    db.session.commit()
+
+    hr_client.get("/hr/generate_payroll/2026-09")
+    assert Payroll.query.filter_by(month="2026-09").count() == 1  # still one row
+    payroll = Payroll.query.filter_by(month="2026-09").first()
+    assert float(payroll.gross_pay) == 11000.0  # recalculated with the new allowance
