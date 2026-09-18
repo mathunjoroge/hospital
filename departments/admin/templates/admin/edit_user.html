@@ -1,50 +1,115 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">Edit User: {{ user.username }}</h2>
-
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">User Details</h4>
-        </div>
-        <div class="card-body">
-            <form method="POST" novalidate>
-                {{ form.hidden_tag() }}
-
-                <div class="mb-3">
-                    <label for="username" class="form-label">Username</label>
-                    {{ form.username(class="form-control", id="username") }}
-                    {% for error in form.username.errors %}
-                        <span class="text-danger">{{ error }}</span>
-                    {% endfor %}
-                </div>
-
-                <div class="mb-3">
-                    <label for="role" class="form-label">Role</label>
-                    {{ form.role(class="form-select", id="role") }}
-                    {% for error in form.role.errors %}
-                        <span class="text-danger">{{ error }}</span>
-                    {% endfor %}
-                </div>
-
-                <div class="text-center">
-                    {{ form.submit(class="btn btn-primary") }}
-                    <a href="{{ url_for('admin.manage_users') }}" class="btn btn-secondary ms-2">Cancel</a>
-                </div>
-            </form>
-        </div>
+<div class="container py-4" style="max-width: 640px;">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h3 class="fw-bold mb-0"><i class="bi bi-pencil-square me-2 text-primary"></i>Edit User: {{ user.username }}</h3>
+      <small class="text-muted">Update account details, role, email, or active status.</small>
     </div>
+    <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i> Back
+    </a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-primary text-white fw-bold">
+      <i class="bi bi-person-gear me-2"></i>Account Details
+    </div>
+    <div class="card-body p-4">
+      <!-- Read-only info strip -->
+      <div class="bg-light rounded-3 p-3 mb-4 d-flex gap-4 flex-wrap">
+        <span class="small text-muted"><strong>ID:</strong> {{ user.id }}</span>
+        {% if user.created_at %}
+        <span class="small text-muted"><strong>Created:</strong> {{ user.created_at.strftime('%Y-%m-%d') }}</span>
+        {% endif %}
+        {% if user.last_login %}
+        <span class="small text-muted"><strong>Last login:</strong> {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
+        {% else %}
+        <span class="small text-muted"><strong>Last login:</strong> Never</span>
+        {% endif %}
+        <span class="small text-muted"><strong>MFA:</strong>
+          {% if user.mfa_enabled %}<span class="badge bg-success">Enabled</span>{% else %}<span class="badge bg-secondary">Disabled</span>{% endif %}
+        </span>
+      </div>
+
+      <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+          <label for="username" class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
+          {{ form.username(class="form-control", id="username") }}
+          {% for error in form.username.errors %}
+            <div class="text-danger small mt-1">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label for="full_name" class="form-label fw-semibold">Full Name</label>
+          {{ form.full_name(class="form-control", id="full_name", placeholder="e.g. Jane Wambui Mwangi") }}
+          {% for error in form.full_name.errors %}
+            <div class="text-danger small mt-1">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label for="email" class="form-label fw-semibold">Email Address</label>
+          {{ form.email(class="form-control", id="email") }}
+          {% for error in form.email.errors %}
+            <div class="text-danger small mt-1">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label for="role" class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
+          {{ form.role(class="form-select", id="role") }}
+          {% for error in form.role.errors %}
+            <div class="text-danger small mt-1">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="mb-4">
+          <div class="form-check form-switch">
+            {{ form.is_active(class="form-check-input", id="is_active") }}
+            <label class="form-check-label fw-semibold" for="is_active">Account Active</label>
+          </div>
+          <div class="form-text text-muted">Inactive accounts cannot log in but are not deleted.</div>
+        </div>
+
+        <div class="d-grid gap-2">
+          {{ form.submit(class="btn btn-primary fw-bold py-2") }}
+          <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if user.mfa_enabled %}
+  <div class="card border-warning mt-3">
+    <div class="card-body d-flex align-items-center justify-content-between">
+      <div>
+        <strong><i class="bi bi-shield-lock me-2 text-warning"></i>MFA is enabled</strong>
+        <div class="text-muted small">Disable only if the user has lost their authenticator device.</div>
+      </div>
+      <form action="{{ url_for('admin.disable_mfa', user_id=user.id) }}" method="POST"
+            onsubmit="return confirm('Disable MFA for {{ user.username }}? They must re-enrol on next login.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <button type="submit" class="btn btn-sm btn-outline-warning fw-bold">
+          <i class="bi bi-shield-x me-1"></i> Disable MFA
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

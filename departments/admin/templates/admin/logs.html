@@ -1,43 +1,124 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">System Logs</h2>
+<div class="container-fluid py-4 px-4">
 
-    {% if logs %}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-info text-white">
-            <h4 class="mb-0">Recent Logs (Last 100)</h4>
-        </div>
-        <div class="card-body">
-            <table class="table table-striped">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>Level</th>
-                        <th>Message</th>
-                        <th>Source</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for log in logs %}
-                    <tr>
-                        <td>{{ log.timestamp.strftime('%d-%m-%Y %H:%M:%S') }}</td>
-                        <td>{{ log.level }}</td>
-                        <td>{{ log.message }}</td>
-                    
-                        <td>{{ log.source | default("N/A") }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h3 class="fw-bold mb-0"><i class="bi bi-journal-text me-2 text-secondary"></i>System Logs</h3>
+      <small class="text-muted">Internal application event log (paginated, filterable).</small>
     </div>
-    {% else %}
-    <p class="text-muted text-center">No logs available.</p>
+    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i> Dashboard
+    </a>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body bg-light rounded">
+      <form method="GET" action="{{ url_for('admin.logs') }}" class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label small fw-bold text-muted">Search Message</label>
+          <input type="text" name="q" class="form-control form-control-sm"
+                 placeholder="keyword…" value="{{ search_filter }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-bold text-muted">Level</label>
+          <select name="level" class="form-select form-select-sm">
+            <option value="">All Levels</option>
+            <option value="INFO"    {% if level_filter=='INFO'    %}selected{% endif %}>INFO</option>
+            <option value="WARNING" {% if level_filter=='WARNING' %}selected{% endif %}>WARNING</option>
+            <option value="ERROR"   {% if level_filter=='ERROR'   %}selected{% endif %}>ERROR</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-bold text-muted">Source</label>
+          <input type="text" name="source" class="form-control form-control-sm"
+                 placeholder="e.g. admin, pharmacy" value="{{ source_filter }}">
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button type="submit" class="btn btn-sm btn-primary flex-fill">
+            <i class="bi bi-filter me-1"></i> Filter
+          </button>
+          <a href="{{ url_for('admin.logs') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Log Table -->
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3 border-0">
+      <h6 class="m-0 fw-bold text-secondary">
+        Entries: {{ pagination.total }} total — Page {{ pagination.page }} of {{ pagination.pages }}
+      </h6>
+    </div>
+    <div class="card-body p-0">
+      {% if logs %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 table-sm">
+          <thead class="table-light">
+            <tr>
+              <th>Timestamp</th>
+              <th>Level</th>
+              <th>Source</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in logs %}
+            <tr class="{% if log.level == 'ERROR' %}table-danger{% elif log.level == 'WARNING' %}table-warning{% endif %}">
+              <td class="text-nowrap small text-muted">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+              <td>
+                {% if log.level == 'ERROR' %}
+                  <span class="badge bg-danger">ERROR</span>
+                {% elif log.level == 'WARNING' %}
+                  <span class="badge bg-warning text-dark">WARN</span>
+                {% else %}
+                  <span class="badge bg-secondary">INFO</span>
+                {% endif %}
+              </td>
+              <td><code class="small">{{ log.source | default("—") }}</code></td>
+              <td class="small" style="max-width:500px; word-break:break-word;">{{ log.message }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="p-5 text-center text-muted">
+        <i class="bi bi-journal-x display-4 mb-3 d-block"></i>
+        <p>No log entries match your criteria.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <div class="card-footer bg-white border-0 py-3">
+      <nav>
+        <ul class="pagination pagination-sm justify-content-center mb-0">
+          {% if pagination.has_prev %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.logs', page=pagination.prev_num, level=level_filter, source=source_filter, q=search_filter) }}">
+              &laquo; Prev
+            </a>
+          </li>
+          {% endif %}
+          <li class="page-item disabled">
+            <span class="page-link">Page {{ pagination.page }} / {{ pagination.pages }}</span>
+          </li>
+          {% if pagination.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.logs', page=pagination.next_num, level=level_filter, source=source_filter, q=search_filter) }}">
+              Next &raquo;
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
     {% endif %}
-
-    <div class="text-center mt-4">
-        <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Back to Dashboard</a>
-    </div>
+  </div>
 </div>
 {% endblock %}

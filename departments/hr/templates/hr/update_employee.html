@@ -1,85 +1,132 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mt-5">
-    <h2 class="mb-4 text-center">Update Employee</h2>
+  <h2 class="mb-4 text-center">Update Employee</h2>
+  <form method="POST" action="{{ url_for('hr.update_employee', employee_id=employee.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-    <form method="POST" action="{{ url_for('hr.update_employee', employee_id=employee.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <!-- Name -->
+    <div class="row">
+      <!-- Left column: core details -->
+      <div class="col-md-6">
+        <h5 class="text-muted mb-3">Core Details</h5>
+
         <div class="mb-3">
-            <label for="name" class="form-label fw-bold">Name:</label>
-            <input type="text" id="name" name="name" class="form-control" value="{{ employee.name }}" placeholder="Enter employee name" required>
+          <label for="name" class="form-label fw-bold">Full Name</label>
+          <input type="text" id="name" name="name" class="form-control" value="{{ employee.name }}" required>
         </div>
 
-        <!-- Role -->
         <div class="mb-3">
-            <label for="role" class="form-label fw-bold">Role:</label>
-            <select id="role" name="role" class="form-select" required>
-                <option value="" disabled {% if not employee.role %}selected{% endif %}>Select role</option>
-                <option value="records" {% if employee.role == 'records' %}selected{% endif %}>Records</option>
-                <option value="nursing" {% if employee.role == 'nursing' %}selected{% endif %}>Nursing</option>
-                <option value="pharmacy" {% if employee.role == 'pharmacy' %}selected{% endif %}>Pharmacy</option>
-                <option value="medicine" {% if employee.role == 'medicine' %}selected{% endif %}>Medicine</option>
-                <option value="laboratory" {% if employee.role == 'laboratory' %}selected{% endif %}>Laboratory</option>
-                <option value="imaging" {% if employee.role == 'imaging' %}selected{% endif %}>Imaging</option>
-                <option value="mortuary" {% if employee.role == 'mortuary' %}selected{% endif %}>Mortuary</option>
-                <option value="hr" {% if employee.role == 'hr' %}selected{% endif %}>HR</option>
-                <option value="stores" {% if employee.role == 'stores' %}selected{% endif %}>Stores</option>
-                <option value="admin" {% if employee.role == 'admin' %}selected{% endif %}>Admin</option>
-            </select>
+          <label for="role" class="form-label fw-bold">Role</label>
+          <select id="role" name="role" class="form-select" required>
+            <option value="" disabled {% if not employee.role %}selected{% endif %}>Select role</option>
+            {% for r in ['records','nursing','pharmacy','medicine','laboratory','imaging','mortuary','hr','stores','admin'] %}
+            <option value="{{ r }}" {% if employee.role == r %}selected{% endif %}>{{ r | title }}</option>
+            {% endfor %}
+          </select>
         </div>
 
-        <!-- Basic Salary -->
         <div class="mb-3">
-            <label for="basic_salary" class="form-label fw-bold">Basic Salary:</label>
-            <input type="number" step="0.01" min="0" id="basic_salary" name="basic_salary"
-                   class="form-control" value="{{ employee.basic_salary if employee.basic_salary is not none else '' }}"
-                   placeholder="Not yet set">
-            <small class="form-text text-muted">Required before this employee can be included in a payroll run.</small>
+          <label for="department" class="form-label fw-bold">Department</label>
+          <select id="department" name="department" class="form-select" required>
+            <option value="" disabled {% if not employee.department %}selected{% endif %}>Select department</option>
+            {% for d in ['records','nursing','pharmacy','medicine','laboratory','imaging','mortuary','hr','stores','admin'] %}
+            <option value="{{ d }}" {% if employee.department == d %}selected{% endif %}>{{ d | title }}</option>
+            {% endfor %}
+          </select>
         </div>
 
-        <!-- Linked login account -->
         <div class="mb-3">
-            <label for="linked_username" class="form-label fw-bold">Linked login account (username):</label>
-            <input type="text" id="linked_username" name="linked_username" class="form-control"
-                   value="{{ employee.user.username if employee.user else '' }}"
-                   placeholder="Leave blank if this employee has no system login">
-            <small class="form-text text-muted">
-                Required for this employee to use self-service features (leave requests,
-                viewing their own payslips, updating their own contact details).
-            </small>
+          <label for="job_group" class="form-label fw-bold">Job Group</label>
+          <select id="job_group" name="job_group" class="form-select">
+            {% for g in ['Group A','Group B','Group C','Group D'] %}
+            <option value="{{ g }}" {% if employee.job_group == g %}selected{% endif %}>{{ g }}</option>
+            {% endfor %}
+          </select>
         </div>
 
-        <!-- Department -->
         <div class="mb-3">
-            <label for="department" class="form-label fw-bold">Department:</label>
-            <select id="department" name="department" class="form-select" required>
-                <option value="" disabled {% if not employee.department %}selected{% endif %}>Select department</option>
-                <option value="records" {% if employee.department == 'records' %}selected{% endif %}>Records</option>
-                <option value="nursing" {% if employee.department == 'nursing' %}selected{% endif %}>Nursing</option>
-                <option value="pharmacy" {% if employee.department == 'pharmacy' %}selected{% endif %}>Pharmacy</option>
-                <option value="medicine" {% if employee.department == 'medicine' %}selected{% endif %}>Medicine</option>
-                <option value="laboratory" {% if employee.department == 'laboratory' %}selected{% endif %}>Laboratory</option>
-                <option value="imaging" {% if employee.department == 'imaging' %}selected{% endif %}>Imaging</option>
-                <option value="mortuary" {% if employee.department == 'mortuary' %}selected{% endif %}>Mortuary</option>
-                <option value="hr" {% if employee.department == 'hr' %}selected{% endif %}>HR</option>
-                <option value="stores" {% if employee.department == 'stores' %}selected{% endif %}>Stores</option>
-                <option value="admin" {% if employee.department == 'admin' %}selected{% endif %}>Admin</option>
-            </select>
+          <label for="basic_salary" class="form-label fw-bold">Basic Salary (KES)</label>
+          <input type="number" step="0.01" min="0" id="basic_salary" name="basic_salary"
+                 class="form-control" value="{{ employee.basic_salary if employee.basic_salary is not none else '' }}"
+                 placeholder="Not yet set">
         </div>
 
-        <!-- Employment Status -->
+        <div class="mb-3">
+          <label for="contract_type" class="form-label fw-bold">Contract Type</label>
+          <select id="contract_type" name="contract_type" class="form-select">
+            {% for ct in [('permanent','Permanent'),('contract','Fixed-Term Contract'),('locum','Locum'),('intern','Intern / Attachment')] %}
+            <option value="{{ ct[0] }}" {% if employee.contract_type == ct[0] %}selected{% endif %}>{{ ct[1] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="linked_username" class="form-label fw-bold">Linked login account (username)</label>
+          <input type="text" id="linked_username" name="linked_username" class="form-control"
+                 value="{{ employee.user.username if employee.user else '' }}"
+                 placeholder="Leave blank if no system login">
+          <small class="form-text text-muted">Required for self-service (leave, payslips, profile).</small>
+        </div>
+
         <div class="mb-3 form-check">
-            <input type="checkbox" id="is_active" name="is_active" class="form-check-input" {% if employee.is_active %}checked{% endif %}>
-            <label for="is_active" class="form-check-label fw-bold">Is Active:</label>
+          <input type="checkbox" id="is_active" name="is_active" class="form-check-input" {% if employee.is_active %}checked{% endif %}>
+          <label for="is_active" class="form-check-label fw-bold">Active</label>
+        </div>
+      </div>
+
+      <!-- Right column: statutory & NOK -->
+      <div class="col-md-6">
+        <h5 class="text-muted mb-3">Statutory & Emergency Contact</h5>
+
+        <div class="mb-3">
+          <label for="national_id" class="form-label fw-bold">National ID / Passport</label>
+          <input type="text" id="national_id" name="national_id" class="form-control"
+                 value="{{ employee.national_id or '' }}" placeholder="e.g. 12345678">
         </div>
 
-        <!-- Submit Button -->
-        <div class="text-center">
-            <button type="submit" class="btn btn-primary btn-lg px-4">
-                <i class="bi bi-save me-2"></i> Save Changes
-            </button>
+        <div class="mb-3">
+          <label for="kra_pin" class="form-label fw-bold">KRA PIN</label>
+          <input type="text" id="kra_pin" name="kra_pin" class="form-control"
+                 value="{{ employee.kra_pin or '' }}" placeholder="e.g. A001234567X">
+          <small class="form-text text-muted">Required for PAYE processing.</small>
         </div>
-    </form>
+
+        <hr>
+        <h6 class="text-muted">Next of Kin / Emergency Contact</h6>
+        <p class="text-muted small">Who should be contacted if this employee has a medical emergency at work?</p>
+
+        <div class="mb-3">
+          <label for="nok_name" class="form-label fw-bold">NOK Full Name</label>
+          <input type="text" id="nok_name" name="nok_name" class="form-control"
+                 value="{{ employee.nok_name or '' }}" placeholder="e.g. Jane Doe">
+        </div>
+
+        <div class="mb-3">
+          <label for="nok_phone" class="form-label fw-bold">NOK Phone Number</label>
+          <input type="tel" id="nok_phone" name="nok_phone" class="form-control"
+                 value="{{ employee.nok_phone or '' }}" placeholder="e.g. 0712345678">
+        </div>
+
+        <div class="mb-3">
+          <label for="nok_relationship" class="form-label fw-bold">Relationship</label>
+          <select id="nok_relationship" name="nok_relationship" class="form-select">
+            <option value="">— select —</option>
+            {% for rel in ['Spouse','Parent','Sibling','Child','Friend','Other'] %}
+            <option value="{{ rel }}" {% if employee.nok_relationship == rel %}selected{% endif %}>{{ rel }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center mt-3">
+      <button type="submit" class="btn btn-primary btn-lg px-4">
+        <i class="bi bi-save me-2"></i> Save Changes
+      </button>
+      <a href="{{ url_for('hr.employee_profile', employee_id=employee.id) }}" class="btn btn-secondary btn-lg px-4 ms-2">
+        <i class="bi bi-x-circle me-2"></i> Cancel
+      </a>
+    </div>
+  </form>
 </div>
 {% endblock %}

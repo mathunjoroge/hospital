@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Disciplinary Records</h1>
+    <a href="{{ url_for('hr.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Dashboard</a>
+  </div>
+  <p class="text-muted small">
+    Records are confidential. Per the Employment Act s.41, a fair hearing and written record
+    are required before summary dismissal. All entries are retained for audit purposes.
+  </p>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-dark">
+        <tr><th>Employee</th><th>Date</th><th>Type</th><th>Description</th><th>Action Taken</th><th>Outcome</th><th>By</th></tr>
+      </thead>
+      <tbody>
+        {% for rec in records %}
+        <tr>
+          <td>{{ rec.employee.name }}</td>
+          <td>{{ rec.incident_date.strftime('%d/%m/%Y') }}</td>
+          <td>
+            <span class="badge bg-{% if rec.incident_type in ['dismissal','suspension'] %}danger{% elif 'warning' in rec.incident_type %}warning text-dark{% else %}secondary{% endif %}">
+              {{ rec.incident_type | replace('_',' ') | title }}
+            </span>
+          </td>
+          <td class="text-truncate" style="max-width:200px">{{ rec.description }}</td>
+          <td class="text-truncate" style="max-width:200px">{{ rec.action_taken }}</td>
+          <td>{{ rec.outcome or '—' }}</td>
+          <td>{{ rec.reviewer.username }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-3">No disciplinary records on file.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

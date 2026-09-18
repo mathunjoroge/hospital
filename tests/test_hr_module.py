@@ -86,7 +86,8 @@ def test_approve_leave_does_not_crash_after_commit(hr_client, app):
     db.session.add(leave)
     db.session.commit()
 
-    response = hr_client.get(f"/hr/approve_leave/{leave.id}", follow_redirects=True)
+    # approve_leave is now POST-only (CSRF safety); GET returns 405.
+    response = hr_client.post(f"/hr/approve_leave/{leave.id}", follow_redirects=True)
     assert response.status_code == 200
     assert leave.status == "Approved"
 
@@ -110,7 +111,8 @@ def test_reject_leave_does_not_crash(hr_client, app):
                   type="sick", status="Pending")
     db.session.add(leave)
     db.session.commit()
-    response = hr_client.get(f"/hr/reject_leave/{leave.id}", follow_redirects=True)
+    # reject_leave is now POST-only (CSRF safety); GET returns 405.
+    response = hr_client.post(f"/hr/reject_leave/{leave.id}", follow_redirects=True)
     assert response.status_code == 200
     assert leave.status == "Rejected"
 
@@ -209,7 +211,7 @@ def test_leave_request_success_redirects_employees_away_from_403(client, app, li
     client.post("/login", data={"username": "linked_nurse", "password": "Nurse!2345"},
                 follow_redirects=True)
     response = client.post("/hr/leave_request", data={
-        "start_date": "2026-10-01", "end_date": "2026-10-05", "type": "vacation",
+        "start_date": "2026-10-01", "end_date": "2026-10-05", "type": "annual",
     }, follow_redirects=False)
     assert response.status_code == 302
     # Must not land on an HR-only endpoint.
@@ -532,7 +534,7 @@ def test_leave_request_uses_linked_employee(client, app, linked_pair):
     client.post("/login", data={"username": "linked_nurse", "password": "Nurse!2345"},
                 follow_redirects=True)
     client.post("/hr/leave_request", data={
-        "start_date": "2026-10-01", "end_date": "2026-10-05", "type": "vacation",
+        "start_date": "2026-10-01", "end_date": "2026-10-05", "type": "annual",
     }, follow_redirects=True)
 
     leave = Leave.query.first()

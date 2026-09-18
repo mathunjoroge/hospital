@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Leave Balances</h1>
+    <a href="{{ url_for('hr.index') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Dashboard
+    </a>
+  </div>
+
+  <!-- Set / update balance -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header bg-success text-white"><h5 class="mb-0">Set Leave Balance</h5></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('hr.set_leave_balance') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div class="row g-3 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label">Employee</label>
+            <select name="employee_id" class="form-select" required>
+              <option value="">— select —</option>
+              {% for emp in employees %}
+              <option value="{{ emp.id }}">{{ emp.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Year</label>
+            <input type="number" name="year" class="form-control" value="{{ selected_year }}" min="2020" required>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Leave Type</label>
+            <select name="leave_type" class="form-select" required>
+              {% for lt in ['annual','sick','maternity','paternity','compassionate','study','unpaid'] %}
+              <option value="{{ lt }}">{{ lt | title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Entitled Days</label>
+            <input type="number" name="entitled_days" class="form-control" value="21" min="0" required>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Carried Over</label>
+            <input type="number" name="carried_over" class="form-control" value="0" min="0">
+          </div>
+          <div class="col-md-1">
+            <button type="submit" class="btn btn-success w-100">Save</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Filter -->
+  <form method="GET" class="row g-2 mb-3">
+    <div class="col-auto">
+      <select name="employee_id" class="form-select form-select-sm">
+        <option value="">All Employees</option>
+        {% for emp in employees %}
+        <option value="{{ emp.id }}" {% if selected_employee_id == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <input type="number" name="year" class="form-control form-control-sm" value="{{ selected_year }}" min="2020" style="width:90px">
+    </div>
+    <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Filter</button></div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-dark">
+        <tr><th>Employee</th><th>Year</th><th>Type</th><th>Entitled</th><th>Carried Over</th><th>Used</th><th>Remaining</th></tr>
+      </thead>
+      <tbody>
+        {% for bal in balances %}
+        <tr>
+          <td>{{ bal.employee.name }}</td>
+          <td>{{ bal.year }}</td>
+          <td>{{ bal.leave_type | title }}</td>
+          <td>{{ bal.entitled_days }}</td>
+          <td>{{ bal.carried_over }}</td>
+          <td>{{ bal.used_days }}</td>
+          <td>
+            <span class="badge bg-{% if bal.remaining_days > 10 %}success{% elif bal.remaining_days > 0 %}warning text-dark{% else %}danger{% endif %}">
+              {{ bal.remaining_days }} days
+            </span>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-3">No leave balances configured.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

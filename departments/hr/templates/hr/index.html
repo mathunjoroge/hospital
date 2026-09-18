@@ -2,35 +2,145 @@
 {% block title %}HR Command Centre — Human Resources{% endblock %}
 
 {% block content %}
+<style>
+  .hr-hero-banner {
+    background: linear-gradient(135deg, #2e1065 0%, #4c1d95 60%, #5b21b6 100%);
+    border-radius: 16px;
+    padding: 28px 36px;
+    color: #ffffff;
+    box-shadow: 0 10px 30px -5px rgba(76, 29, 149, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hr-hero-banner::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
+    pointer-events: none;
+  }
+
+  .hr-metric-card {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05);
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    position: relative;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .hr-metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -4px rgba(15, 23, 42, 0.12);
+    border-color: rgba(139, 92, 246, 0.4);
+    color: inherit;
+  }
+  .hr-metric-accent {
+    height: 4px;
+    width: 100%;
+  }
+
+  .hr-icon-shape {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+  }
+
+  /* Color preset helper classes to avoid inline Jinja styles */
+  .icon-box-blue { background: #dbeafe; color: #2563eb; }
+  .icon-box-emerald { background: #dcfce7; color: #16a34a; }
+  .icon-box-amber { background: #fef3c7; color: #d97706; }
+  .icon-box-sky { background: #e0f2fe; color: #0284c7; }
+  .icon-box-indigo { background: #e0e7ff; color: #4f46e5; }
+  .icon-box-cyan { background: #cff4fc; color: #0891b2; }
+  .icon-box-purple { background: #f3e8ff; color: #7c3aed; }
+  .icon-box-teal { background: #d1fae5; color: #059669; }
+  .icon-box-orange { background: #ffedd5; color: #ea580c; }
+  .icon-box-pink { background: #fce7f3; color: #db2777; }
+  .icon-box-rose { background: #fee2e2; color: #dc2626; }
+
+  .hr-action-card {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+    transition: all 0.2s ease-in-out;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    height: 100%;
+  }
+  .hr-action-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.10);
+    border-color: #cbd5e1;
+    color: inherit;
+  }
+
+  .section-title-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 4px 12px;
+    border-radius: 20px;
+  }
+
+  .text-purple { color: #7c3aed !important; }
+  .bg-purple { background-color: #7c3aed !important; }
+</style>
+
 <div class="container-fluid px-4 py-4">
 
-  <!-- ── Header ─────────────────────────────────────────────────────── -->
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+  <!-- Header Hero Banner -->
+  <div class="hr-hero-banner d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
     <div>
-      <div class="d-flex align-items-center gap-2 mb-1">
-        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-3 py-1 rounded-pill small fw-semibold">
-          <i class="bi bi-shield-check me-1"></i> HR Administration
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge bg-purple-500 bg-opacity-20 text-light border border-light border-opacity-20 px-3 py-1 rounded-pill small fw-semibold">
+          <i class="bi bi-shield-check me-1"></i> Human Resources Department
         </span>
       </div>
-      <h1 class="h3 mb-0 fw-bold text-dark">
-        <i class="bi bi-people-fill text-primary me-2"></i>HR Command Centre
-      </h1>
-      <p class="text-muted mt-1 mb-0">Workforce management, payroll processing, leave approvals &amp; shift scheduling</p>
+      <h2 class="fw-bold mb-1 d-flex align-items-center gap-2">
+        <i class="bi bi-people-fill text-warning me-1"></i>HR Command Centre
+      </h2>
+      <p class="mb-0 text-white-50">Workforce management, payroll processing, leave approvals &amp; shift scheduling</p>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
-      <a href="{{ url_for('hr.new_employee') }}" class="btn btn-primary fw-semibold shadow-sm">
-        <i class="bi bi-person-plus-fill me-1"></i> Add Employee
+    <div class="d-flex gap-2 flex-wrap flex-shrink-0">
+      <a href="{{ url_for('hr.new_employee') }}" class="btn btn-light fw-semibold text-purple px-4 py-2 shadow-sm rounded-3">
+        <i class="bi bi-person-plus-fill me-2"></i>Add Employee
       </a>
-      <a href="{{ url_for('hr.payroll_dashboard') }}" class="btn btn-outline-secondary fw-semibold">
-        <i class="bi bi-cash-stack me-1"></i> Payroll
+      <a href="{{ url_for('hr.payroll_dashboard') }}" class="btn btn-outline-light fw-semibold px-3 py-2 rounded-3">
+        <i class="bi bi-cash-stack me-2"></i>Payroll Dashboard
+      </a>
+      <a href="{{ url_for('hr.leave_management') }}" class="btn btn-outline-light fw-semibold px-3 py-2 rounded-3">
+        <i class="bi bi-calendar-check me-2"></i>Leave Requests
       </a>
     </div>
   </div>
 
+  <!-- Flash Messages -->
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm rounded-3 mb-3" role="alert">
+        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm rounded-3 mb-4" role="alert">
           {{ message }}
           <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
@@ -38,88 +148,139 @@
     {% endif %}
   {% endwith %}
 
-  <!-- ── KPI Cards ──────────────────────────────────────────────────── -->
-  <div class="row g-4 mb-4">
-    <div class="col-6 col-md-4 col-lg-4">
-      <a href="{{ url_for('hr.employee_list') }}" class="text-decoration-none">
-        <div class="card border-0 shadow-sm h-100 kpi-card">
-          <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-              <p class="text-muted small text-uppercase fw-bold mb-1">Total Workforce</p>
-              <p class="h2 mb-0 fw-bold text-dark">{{ total_employees_count }}</p>
-              <small class="text-muted">All staff on record</small>
-            </div>
-            <div class="bg-primary bg-opacity-10 rounded-circle p-3">
-              <i class="bi bi-people-fill fs-3 text-primary"></i>
+  <!-- ── Metric Cards Row (5 Cards) ─────────────────────────────────── -->
+  <div class="row g-3 mb-4">
+    <!-- Total Workforce -->
+    <div class="col-xl-2 col-md-4 col-6">
+      <a href="{{ url_for('hr.employee_list') }}" class="hr-metric-card h-100">
+        <div class="hr-metric-accent bg-primary"></div>
+        <div class="p-3">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="text-muted small fw-bold text-uppercase">Total Workforce</span>
+            <div class="hr-icon-shape bg-primary bg-opacity-10 text-primary">
+              <i class="bi bi-people-fill"></i>
             </div>
           </div>
+          <h2 class="fw-bold text-dark mb-1">{{ total_employees_count }}</h2>
+          <span class="text-primary small fw-semibold">
+            All Records <i class="bi bi-arrow-right ms-1"></i>
+          </span>
         </div>
       </a>
     </div>
-    <div class="col-6 col-md-4 col-lg-4">
-      <a href="{{ url_for('hr.employee_list', status='active') }}" class="text-decoration-none">
-        <div class="card border-0 shadow-sm h-100 kpi-card">
-          <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-              <p class="text-muted small text-uppercase fw-bold mb-1">Active Staff</p>
-              <p class="h2 mb-0 fw-bold text-success">{{ active_employees_count }}</p>
-              <small class="text-muted">Currently employed</small>
-            </div>
-            <div class="bg-success bg-opacity-10 rounded-circle p-3">
-              <i class="bi bi-person-check-fill fs-3 text-success"></i>
+
+    <!-- Active Staff -->
+    <div class="col-xl-2 col-md-4 col-6">
+      <a href="{{ url_for('hr.employee_list', status='active') }}" class="hr-metric-card h-100">
+        <div class="hr-metric-accent bg-success"></div>
+        <div class="p-3">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="text-muted small fw-bold text-uppercase">Active Staff</span>
+            <div class="hr-icon-shape bg-success bg-opacity-10 text-success">
+              <i class="bi bi-person-check-fill"></i>
             </div>
           </div>
+          <h2 class="fw-bold text-success mb-1">{{ active_employees_count }}</h2>
+          <span class="text-success small fw-semibold">
+            Employed Now <i class="bi bi-arrow-right ms-1"></i>
+          </span>
         </div>
       </a>
     </div>
-    <div class="col-6 col-md-4 col-lg-4">
-      <a href="{{ url_for('hr.employee_list', status='inactive') }}" class="text-decoration-none">
-        <div class="card border-0 shadow-sm h-100 kpi-card">
-          <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-              <p class="text-muted small text-uppercase fw-bold mb-1">Inactive / Separated</p>
-              <p class="h2 mb-0 fw-bold text-danger">{{ inactive_employees_count }}</p>
-              <small class="text-muted">Deactivated records</small>
-            </div>
-            <div class="bg-danger bg-opacity-10 rounded-circle p-3">
-              <i class="bi bi-person-x-fill fs-3 text-danger"></i>
+
+    <!-- Inactive / Separated -->
+    <div class="col-xl-2 col-md-4 col-6">
+      <a href="{{ url_for('hr.employee_list', status='inactive') }}" class="hr-metric-card h-100">
+        <div class="hr-metric-accent bg-secondary"></div>
+        <div class="p-3">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="text-muted small fw-bold text-uppercase">Inactive</span>
+            <div class="hr-icon-shape bg-secondary bg-opacity-10 text-secondary">
+              <i class="bi bi-person-x-fill"></i>
             </div>
           </div>
+          <h2 class="fw-bold text-danger mb-1">{{ inactive_employees_count }}</h2>
+          <span class="text-secondary small fw-semibold">
+            Deactivated <i class="bi bi-arrow-right ms-1"></i>
+          </span>
+        </div>
+      </a>
+    </div>
+
+    <!-- Expiring Credentials -->
+    <div class="col-xl-3 col-md-6 col-6">
+      <a href="{{ url_for('hr.staff_credentials') }}" class="hr-metric-card h-100">
+        <div class="hr-metric-accent bg-warning"></div>
+        <div class="p-3">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="text-muted small fw-bold text-uppercase">Expiring Creds</span>
+            <div class="hr-icon-shape bg-warning bg-opacity-10 text-warning">
+              <i class="bi bi-patch-exclamation-fill"></i>
+            </div>
+          </div>
+          <h2 class="fw-bold {% if expiring_credentials > 0 %}text-danger{% else %}text-dark{% endif %} mb-1">{{ expiring_credentials }}</h2>
+          <span class="text-warning text-darken-2 small fw-semibold">
+            Licences &lt;30d <i class="bi bi-arrow-right ms-1"></i>
+          </span>
+        </div>
+      </a>
+    </div>
+
+    <!-- Pending Leave Requests -->
+    <div class="col-xl-3 col-md-6 col-12">
+      <a href="{{ url_for('hr.leave_management') }}" class="hr-metric-card h-100">
+        <div class="hr-metric-accent bg-purple"></div>
+        <div class="p-3">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="text-muted small fw-bold text-uppercase">Pending Leaves</span>
+            <div class="hr-icon-shape icon-box-purple">
+              <i class="bi bi-hourglass-split"></i>
+            </div>
+          </div>
+          <h2 class="fw-bold {% if pending_leaves > 0 %}text-purple{% else %}text-dark{% endif %} mb-1">{{ pending_leaves }}</h2>
+          <span class="text-purple small fw-semibold">
+            Awaiting Review <i class="bi bi-arrow-right ms-1"></i>
+          </span>
         </div>
       </a>
     </div>
   </div>
 
-  <!-- ── Quick Actions ──────────────────────────────────────────────── -->
+  <!-- ── Feature Modules & Quick Actions ────────────────────────────── -->
   <div class="row g-3 mb-4">
     <div class="col-12">
-      <h5 class="fw-bold text-dark mb-3">
-        <i class="bi bi-lightning-fill text-warning me-2"></i>Quick Actions
-      </h5>
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="section-title-badge bg-primary bg-opacity-10 text-primary">
+          <i class="bi bi-grid-fill"></i> HR Management Modules
+        </span>
+      </div>
     </div>
 
-    {% set actions = [
-      ('hr.employee_list',      'bi-people',                    'primary',   'Employee Directory',    'Browse & manage all staff records'),
-      ('hr.new_employee',       'bi-person-plus-fill',          'success',   'Add New Employee',      'Onboard a new team member'),
-      ('hr.payroll_dashboard',  'bi-cash-stack',                'info',      'Payroll Dashboard',     'Generate & review monthly payroll'),
-      ('hr.leave_management',   'bi-calendar-check-fill',       'warning',   'Leave Management',      'Approve or reject leave requests'),
-      ('hr.rota_management',    'bi-calendar-event-fill',       'secondary', 'Rota & Scheduling',     'Manage shift rotas by week'),
-      ('hr.department_reports', 'bi-bar-chart-fill',            'primary',   'Department Reports',    'Headcount distribution by dept'),
-      ('hr.reports',            'bi-file-earmark-spreadsheet',  'success',   'Payroll Reports',       'Filter & export payroll summaries'),
-      ('hr.audit_logs',         'bi-shield-lock-fill',          'danger',    'Audit Logs',            'Full HR activity trail'),
+    {% set hr_modules = [
+      (url_for('hr.employee_list'), 'bi-person-lines-fill', 'icon-box-blue', 'Employee Directory', 'Browse & manage all staff records'),
+      (url_for('hr.new_employee'), 'bi-person-plus-fill', 'icon-box-emerald', 'Add New Employee', 'Onboard a new team member'),
+      (url_for('hr.leave_management'), 'bi-calendar-check-fill', 'icon-box-amber', 'Leave Management', 'Approve or reject leave requests'),
+      (url_for('hr.leave_balance'), 'bi-pie-chart-fill', 'icon-box-sky', 'Leave Balances', 'Manage staff annual leave balances'),
+      (url_for('hr.rota_management'), 'bi-calendar-week-fill', 'icon-box-indigo', 'Rota & Scheduling', 'Manage weekly shift rotas'),
+      (url_for('hr.payroll_dashboard'), 'bi-cash-stack', 'icon-box-cyan', 'Payroll Dashboard', 'Generate & review monthly payroll'),
+      (url_for('hr.department_reports'), 'bi-bar-chart-fill', 'icon-box-purple', 'Department Headcount', 'Staff distribution by department'),
+      (url_for('hr.reports'), 'bi-file-earmark-spreadsheet-fill', 'icon-box-teal', 'Payroll Exports', 'Filter & export payroll summaries'),
+      (url_for('hr.staff_credentials'), 'bi-award-fill', 'icon-box-orange', 'Staff Credentials', 'Licence & credential expiry tracker'),
+      (url_for('hr.performance_reviews'), 'bi-star-fill', 'icon-box-pink', 'Performance Reviews', 'Employee appraisals & reviews'),
+      (url_for('hr.training_records'), 'bi-journal-check', 'icon-box-sky', 'Training & CPD Records', 'CPD points & training history'),
+      (url_for('hr.disciplinary_records'), 'bi-exclamation-triangle-fill', 'icon-box-rose', 'Disciplinary Records', 'Formal warnings & action logs')
     ] %}
 
-    {% for endpoint, icon, color, title, desc in actions %}
-    <div class="col-6 col-md-4 col-lg-3">
-      <a href="{{ url_for(endpoint) }}" class="text-decoration-none">
-        <div class="card border-0 shadow-sm h-100 action-card">
-          <div class="card-body text-center py-4">
-            <div class="bg-{{ color }} bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
-                 style="width:56px;height:56px;">
-              <i class="bi {{ icon }} fs-4 text-{{ color }}"></i>
-            </div>
-            <h6 class="fw-bold text-dark mb-1">{{ title }}</h6>
-            <p class="text-muted small mb-0">{{ desc }}</p>
+    {% for module_url, icon_class, box_class, title, desc in hr_modules %}
+    <div class="col-xl-3 col-md-4 col-sm-6">
+      <a href="{{ module_url }}" class="hr-action-card p-3">
+        <div class="d-flex align-items-center">
+          <div class="hr-icon-shape me-3 {{ box_class }}">
+            <i class="bi {{ icon_class }}"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-dark small">{{ title }}</div>
+            <div class="text-muted" style="font-size:0.78rem;">{{ desc }}</div>
           </div>
         </div>
       </a>
@@ -127,54 +288,47 @@
     {% endfor %}
   </div>
 
-  <!-- ── Recent Activity ────────────────────────────────────────────── -->
-  <div class="card border-0 shadow-sm">
-    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
-      <h5 class="mb-0 fw-bold text-dark">
-        <i class="bi bi-clock-history text-primary me-2"></i>Recent Activity
-      </h5>
-      <a href="{{ url_for('hr.audit_logs') }}" class="btn btn-sm btn-outline-primary fw-semibold">
-        View All Logs
+  <!-- ── Recent HR Audit Trail Activity ─────────────────────────────── -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3 px-4">
+      <div class="d-flex align-items-center gap-2">
+        <div class="hr-icon-shape bg-primary bg-opacity-10 text-primary" style="width:36px;height:36px;font-size:1.1rem;">
+          <i class="bi bi-clock-history"></i>
+        </div>
+        <h5 class="mb-0 fw-bold text-dark">Recent HR Audit Activity</h5>
+      </div>
+      <a href="{{ url_for('hr.audit_logs') }}" class="btn btn-sm btn-outline-primary fw-semibold rounded-pill px-3">
+        View All Logs <i class="bi bi-arrow-right ms-1"></i>
       </a>
     </div>
     <div class="card-body p-0">
       {% if recent_changes %}
-      <ul class="list-group list-group-flush">
+      <div class="list-group list-group-flush">
         {% for change in recent_changes %}
-        <li class="list-group-item d-flex align-items-start gap-3 py-3 px-4">
-          <div class="bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-               style="width:38px;height:38px;">
-            <i class="bi bi-activity text-primary"></i>
+        <div class="list-group-item d-flex align-items-center justify-content-between py-3 px-4 border-bottom">
+          <div class="d-flex align-items-center gap-3">
+            <div class="hr-icon-shape bg-primary bg-opacity-10 text-primary flex-shrink-0" style="width:36px;height:36px;font-size:1rem;">
+              <i class="bi bi-activity"></i>
+            </div>
+            <div>
+              <div class="fw-semibold text-dark mb-0">{{ change.description }}</div>
+            </div>
           </div>
-          <div class="flex-grow-1">
-            <p class="mb-0 fw-semibold text-dark">{{ change.description }}</p>
-          </div>
-          <span class="badge bg-primary bg-opacity-10 text-primary border border-primary rounded-pill px-3 py-1 small fw-semibold flex-shrink-0">
-            {{ change.date.strftime('%d %b, %H:%M') }}
+          <span class="badge bg-light text-muted border px-3 py-2 rounded-pill small fw-normal flex-shrink-0 ms-3">
+            <i class="bi bi-clock me-1"></i>{{ change.date.strftime('%d %b %Y, %H:%M') }}
           </span>
-        </li>
+        </div>
         {% endfor %}
-      </ul>
+      </div>
       {% else %}
       <div class="text-center py-5">
-        <i class="bi bi-clock fs-1 text-muted d-block mb-3"></i>
-        <h6 class="text-dark fw-bold">No Recent Activity</h6>
-        <p class="text-muted mb-0">HR audit trail will appear here as actions are performed.</p>
+        <i class="bi bi-clock-history fs-1 text-muted d-block mb-3"></i>
+        <h6 class="text-dark fw-bold mb-1">No HR Audit Logged Yet</h6>
+        <p class="text-muted mb-0 small">Audit trail entries will automatically record here as HR actions occur.</p>
       </div>
       {% endif %}
     </div>
   </div>
 
 </div>
-
-<style>
-.kpi-card, .action-card {
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-  cursor: pointer;
-}
-.kpi-card:hover, .action-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.1) !important;
-}
-</style>
 {% endblock %}

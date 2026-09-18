@@ -1,0 +1,2699 @@
+From b80b6cde5a3f5b9dfe4b52c4dc443a3d2fb86df4 Mon Sep 17 00:00:00 2001
+From: HMIS Patch <patch@hmis.dev>
+Date: Fri, 18 Sep 2026 06:20:13 +0000
+Subject: [PATCH] fix(admin): add missing features to admin department
+
+Problems fixed in this commit:
+
+1. User model (departments/models/user.py)
+   - Add email (unique, indexed) for password-reset notifications
+   - Add full_name for display in user tables
+   - Add is_active (soft-disable without deleting the account)
+   - Add created_at timestamp (account creation audit)
+   - Add last_login timestamp (populated on every successful login)
+
+2. Database migration (migrations/versions/a1b2c3d4e5f6_...)
+   - Alembic migration to ADD all five new columns to the users table
+   - Includes downgrade() for safe rollback
+   - Chained from latest head (fefcbf381ba9)
+
+3. routes.py (departments/admin/routes.py)
+   - AddUserForm: add full_name + email fields with Optional/Email validators
+   - EditUserForm: add full_name + email + is_active BooleanField
+   - add_user(): persist full_name, email, is_active; email uniqueness check
+   - edit_user(): persist full_name, email, is_active; audit log includes changes
+   - manage_users(): replace .all() with .paginate(per_page=25); add status
+     filter (locked / inactive / no_mfa); search now covers email + full_name
+   - NEW disable_mfa(user_id): admin can revoke MFA after device loss
+   - NEW bulk_user_action(): activate / deactivate / lock / unlock / delete
+     multiple users in one POST; skips the admin's own account
+   - system_overview(): expose inactive_count; add optional psutil CPU/
+     memory/disk metrics; propagate all new stats to template
+   - index(): compute locked_count, mfa_count, inactive_count,
+     expiring_creds_count at dashboard load
+
+4. app.py
+   - Populate user.last_login = now(utc) on successful password login
+   - Populate user.last_login = now(utc) on successful MFA-verified login
+
+5. Admin sidebar (templates/side_bars/admin.html)
+   - Add links: Executive Analytics, Audit Trail, Outbound Notifications,
+     Staff Credentials (were implemented but never wired into the nav)
+   - Add link: Setup My MFA (mfa_setup route was orphaned)
+
+6. Admin index dashboard (departments/admin/templates/admin/index.html)
+   - Replace 3-card row with 6 metric cards: Total Users, Locked, MFA On,
+     Inactive, Credentials Expiring (30 d), System Online
+   - Add Quick Actions row: Analytics, Audit Trail, Notifications, Staff
+     Credentials, System Logs, Setup MFA, HIPAA/Compliance, KRA eTIMS
+   - All 8 previously-missing route links now surface from the dashboard
+
+7. manage_users.html (rebuilt)
+   - Pagination with iter_pages() ellipsis navigation
+   - Status filter dropdown (Locked / Inactive / No MFA)
+   - Search covers username + email + full_name
+   - Display full_name and email beneath username
+   - Display last_login column
+   - Bulk-action toolbar (select-all checkbox + activate/deactivate/delete)
+   - Disable MFA button per row (when MFA is enabled)
+
+8. add_user.html (rebuilt)
+   - Full Name and Email Address fields added
+
+9. edit_user.html (rebuilt)
+   - Full Name, Email, is_active toggle, last_login info strip
+   - Inline Disable MFA card when MFA is active on the account
+
+10. system_overview.html (rebuilt)
+    - 6 KPI cards (adds Inactive card)
+    - CPU / Memory / Disk progress-bar gauges (psutil, graceful fallback)
+---
+ app.py                                        |   9 +
+ departments/admin/routes.py                   | 505 ++++++++++++++++--
+ .../admin/templates/admin/add_user.html       | 115 ++--
+ .../admin/templates/admin/credentials.html    | 129 +++++
+ .../admin/templates/admin/edit_user.html      | 149 ++++--
+ departments/admin/templates/admin/index.html  | 232 ++++++--
+ departments/admin/templates/admin/logs.html   | 149 ++++--
+ .../admin/templates/admin/manage_users.html   | 331 +++++++++---
+ .../admin/outbound_notifications.html         | 150 ++++++
+ .../admin/templates/admin/reset_password.html |  50 ++
+ .../templates/admin/system_overview.html      | 195 ++++++-
+ departments/models/user.py                    |  13 +
+ ...r_model_email_fullname_active_lastlogin.py |  49 ++
+ templates/side_bars/admin.html                |   7 +
+ 14 files changed, 1801 insertions(+), 282 deletions(-)
+ create mode 100644 departments/admin/templates/admin/credentials.html
+ create mode 100644 departments/admin/templates/admin/outbound_notifications.html
+ create mode 100644 departments/admin/templates/admin/reset_password.html
+ create mode 100644 migrations/versions/a1b2c3d4e5f6_admin_user_model_email_fullname_active_lastlogin.py
+
+diff --git a/app.py b/app.py
+index db91c8c..1cccd0f 100644
+--- a/app.py
++++ b/app.py
+@@ -476,6 +476,11 @@ def login():
+                 if check_password_hash(user.password, password):
+                     user.failed_login_attempts = 0
+                     user.locked_until = None
++                    # Record last login timestamp (added by fix/admin-department-missing-features)
++                    try:
++                        user.last_login = datetime.now(timezone.utc)
++                    except Exception:
++                        pass
+                     db.session.commit()
+ 
+                     if user.mfa_enabled or (user.role == "admin" and user.totp_secret):
+@@ -543,6 +548,10 @@ def mfa_verify():
+         totp = pyotp.TOTP(user.totp_secret)
+         if totp.verify(code):
+             session.pop("mfa_pending_user_id", None)
++            try:
++                user.last_login = datetime.now(timezone.utc)
++            except Exception:
++                pass
+             login_user(user)
+             db.session.add(
+                 Log(
+diff --git a/departments/admin/routes.py b/departments/admin/routes.py
+index 974c82a..27397db 100644
+--- a/departments/admin/routes.py
++++ b/departments/admin/routes.py
+@@ -1,16 +1,16 @@
+ import base64
+ import io
+ import logging
+-from datetime import datetime, timezone
++from datetime import datetime, timedelta, timezone
+ 
+ import pyotp
+ import qrcode
+-from flask import abort, flash, redirect, render_template, request, session, url_for
++from flask import abort, flash, jsonify, redirect, render_template, request, session, url_for
+ from flask_login import current_user, login_required
+ from flask_wtf import FlaskForm
+ from werkzeug.security import generate_password_hash
+-from wtforms import PasswordField, SelectField, StringField, SubmitField
+-from wtforms.validators import DataRequired, Length
++from wtforms import BooleanField, EmailField, PasswordField, SelectField, StringField, SubmitField
++from wtforms.validators import DataRequired, Email, Length, Optional
+ 
+ from departments.api.audit import log_audit_event
+ from departments.models.admin import Log
+@@ -51,29 +51,38 @@ class AddUserForm(FlaskForm):
+     username = StringField(
+         "Username", validators=[DataRequired(), Length(min=4, max=80)]
+     )
++    full_name = StringField("Full Name", validators=[Optional(), Length(max=120)])
++    email = EmailField("Email Address", validators=[Optional(), Email(), Length(max=120)])
+     password = PasswordField(
+         "Password", validators=[DataRequired(), Length(min=6, max=120)]
+     )
+     role = SelectField("Role", choices=ROLES, validators=[DataRequired()])
+     submit = SubmitField("Add User")
+-    # edit user
+ 
+ 
+ class EditUserForm(FlaskForm):
+     username = StringField(
+         "Username", validators=[DataRequired(), Length(min=4, max=80)]
+     )
++    full_name = StringField("Full Name", validators=[Optional(), Length(max=120)])
++    email = EmailField("Email Address", validators=[Optional(), Email(), Length(max=120)])
+     role = SelectField("Role", choices=ROLES, validators=[DataRequired()])
++    is_active = BooleanField("Account Active", default=True)
+     submit = SubmitField("Update User")
+ 
+ 
++class ResetPasswordForm(FlaskForm):
++    new_password = PasswordField(
++        "New Password", validators=[DataRequired(), Length(min=8, max=120)]
++    )
++    submit = SubmitField("Reset Password")
++
++
+ @bp.route("/admin/switch_user", methods=["POST"])
+ @bp.route("/switch_user", methods=["POST"])
+ @login_required
+ def switch_user():
+     # Guard against non-admins using the real role, NOT the effective role.
+-    # Using @roles_required("admin") here would abort(403) when an admin is
+-    # already switched to another role and tries to switch again.
+     if getattr(current_user, "role", None) != "admin":
+         abort(403)
+ 
+@@ -130,7 +139,6 @@ def switch_user():
+         "admin": "admin.index",
+     }
+ 
+-    # Redirect to the role-specific homepage
+     return redirect(url_for(role_homepages.get(new_role, "home")))
+ 
+ 
+@@ -162,17 +170,35 @@ def get_effective_role():
+ 
+ 
+ @bp.route("/index", methods=["GET"])
+-@bp.route("/", methods=["GET"])  # Add this to handle /admin directly
++@bp.route("/", methods=["GET"])
+ @login_required
+ @roles_required("admin")
+ def index():
+     """Admin dashboard showing all users."""
+ 
+     try:
+-        department = request.args.get(
+-            "department", "admin"
+-        )  # Get department from query parameter
++        department = request.args.get("department", "admin")
+         users = User.query.order_by(User.username).all()
++        now = datetime.now(timezone.utc)
++
++        # Quick stats for the dashboard
++        locked_count = sum(
++            1 for u in users if u.locked_until and u.locked_until > now
++        )
++        mfa_count = sum(1 for u in users if u.mfa_enabled)
++        inactive_count = sum(1 for u in users if not getattr(u, "is_active", True))
++
++        # Expiring credentials count (within 30 days)
++        expiring_creds_count = 0
++        try:
++            from departments.models.hr import StaffCredential
++            cutoff = now.date() + timedelta(days=30)
++            expiring_creds_count = StaffCredential.query.filter(
++                StaffCredential.expiry_date <= cutoff
++            ).count()
++        except Exception:
++            pass
++
+         logger.info(
+             f"Admin {current_user.id} accessed dashboard with department {department}"
+         )
+@@ -185,7 +211,15 @@ def index():
+             )
+         )
+         db.session.commit()
+-        return render_template("admin/index.html", users=users, department=department)
++        return render_template(
++            "admin/index.html",
++            users=users,
++            department=department,
++            locked_count=locked_count,
++            mfa_count=mfa_count,
++            inactive_count=inactive_count,
++            expiring_creds_count=expiring_creds_count,
++        )
+     except Exception as e:
+         flash("Something went wrong. Please try again.", "error")
+         logger.exception("Error in admin.index: ")
+@@ -244,12 +278,21 @@ def add_user():
+                 db.session.commit()
+                 return render_template("admin/add_user.html", form=form)
+ 
++            # Check email uniqueness if provided
++            email_val = form.email.data.strip() if form.email.data else None
++            if email_val and User.query.filter_by(email=email_val).first():
++                flash("Email address already in use by another account.", "error")
++                return render_template("admin/add_user.html", form=form)
++
+             new_user = User(
+                 username=form.username.data,
++                full_name=form.full_name.data.strip() if form.full_name.data else None,
++                email=email_val,
+                 password=generate_password_hash(
+                     form.password.data, method="pbkdf2:sha256"
+                 ),
+                 role=form.role.data,
++                is_active=True,
+             )
+ 
+             db.session.add(new_user)
+@@ -263,6 +306,12 @@ def add_user():
+                     source="admin",
+                 )
+             )
++            log_audit_event(
++                action="USER_CREATED",
++                resource_type="User",
++                resource_id=str(new_user.id),
++                details={"username": new_user.username, "role": new_user.role, "email": new_user.email},
++            )
+             db.session.commit()
+             flash(f"User {form.username.data} added successfully.", "success")
+             return redirect(url_for("admin.index"))
+@@ -289,10 +338,40 @@ def add_user():
+ @login_required
+ @roles_required("admin")
+ def manage_users():
+-    """Admin page to manage existing users."""
++    """Admin page to manage existing users with search/filter/pagination support."""
+ 
+     try:
+-        users = User.query.order_by(User.username).all()
++        search_query = request.args.get("q", "").strip()
++        role_filter = request.args.get("role", "").strip()
++        status_filter = request.args.get("status", "").strip()
++        page = request.args.get("page", 1, type=int)
++        per_page = 25
++
++        query = User.query
++
++        if search_query:
++            query = query.filter(
++                db.or_(
++                    User.username.ilike(f"%{search_query}%"),
++                    User.email.ilike(f"%{search_query}%"),
++                    User.full_name.ilike(f"%{search_query}%"),
++                )
++            )
++        if role_filter:
++            query = query.filter(User.role == role_filter)
++        if status_filter == "locked":
++            now = datetime.now(timezone.utc)
++            query = query.filter(User.locked_until > now)
++        elif status_filter == "inactive":
++            query = query.filter(User.is_active == False)  # noqa: E712
++        elif status_filter == "no_mfa":
++            query = query.filter(User.mfa_enabled == False)  # noqa: E712
++
++        pagination = query.order_by(User.username).paginate(
++            page=page, per_page=per_page, error_out=False
++        )
++        now = datetime.now(timezone.utc)
++
+         logger.info(f"Admin {current_user.id} accessed manage users page")
+         db.session.add(
+             Log(
+@@ -303,7 +382,16 @@ def manage_users():
+             )
+         )
+         db.session.commit()
+-        return render_template("admin/manage_users.html", users=users)
++        return render_template(
++            "admin/manage_users.html",
++            users=pagination.items,
++            pagination=pagination,
++            roles=ROLES,
++            search_query=search_query,
++            role_filter=role_filter,
++            status_filter=status_filter,
++            now=now,
++        )
+     except Exception as e:
+         flash("Something went wrong. Please try again.", "error")
+         logger.exception("Error in admin.manage_users: ")
+@@ -326,11 +414,10 @@ def edit_user(user_id):
+     """Admin page to edit an existing user."""
+ 
+     user = User.query.get_or_404(user_id)
+-    form = EditUserForm(obj=user)  # Prepopulate form with user data
++    form = EditUserForm(obj=user)
+ 
+     if form.validate_on_submit():
+         try:
+-            # Check for username conflicts (excluding the current user)
+             existing_user = User.query.filter_by(username=form.username.data).first()
+             if existing_user and existing_user.id != user.id:
+                 flash("Username already exists.", "error")
+@@ -348,8 +435,21 @@ def edit_user(user_id):
+                 db.session.commit()
+                 return render_template("admin/edit_user.html", form=form, user=user)
+ 
++            # Check email uniqueness
++            email_val = form.email.data.strip() if form.email.data else None
++            if email_val:
++                existing_email = User.query.filter_by(email=email_val).first()
++                if existing_email and existing_email.id != user.id:
++                    flash("Email address already in use by another account.", "error")
++                    return render_template("admin/edit_user.html", form=form, user=user)
++
++            old_role = user.role
++            old_active = getattr(user, "is_active", True)
+             user.username = form.username.data
++            user.full_name = form.full_name.data.strip() if form.full_name.data else user.full_name
++            user.email = email_val
+             user.role = form.role.data
++            user.is_active = form.is_active.data
+             db.session.commit()
+             logger.info(
+                 f"Admin {current_user.id} updated user {user.username} (ID: {user.id})"
+@@ -362,6 +462,18 @@ def edit_user(user_id):
+                     source="admin",
+                 )
+             )
++            log_audit_event(
++                action="USER_UPDATED",
++                resource_type="User",
++                resource_id=str(user.id),
++                details={
++                    "username": user.username,
++                    "old_role": old_role,
++                    "new_role": user.role,
++                    "is_active": user.is_active,
++                    "active_changed": old_active != user.is_active,
++                },
++            )
+             db.session.commit()
+             flash(f"User {user.username} updated successfully.", "success")
+             return redirect(url_for("admin.manage_users"))
+@@ -405,21 +517,28 @@ def delete_user(user_id):
+             db.session.commit()
+             return redirect(url_for("admin.manage_users"))
+ 
++        deleted_username = user.username
+         db.session.delete(user)
+         db.session.commit()
+         logger.info(
+-            f"Admin {current_user.id} deleted user {user.username} (ID: {user.id})"
++            f"Admin {current_user.id} deleted user {deleted_username} (ID: {user_id})"
+         )
+         db.session.add(
+             Log(
+                 level="INFO",
+-                message=f"Admin {current_user.username} (ID: {current_user.id}) deleted user {user.username} (ID: {user.id})",
++                message=f"Admin {current_user.username} (ID: {current_user.id}) deleted user {deleted_username} (ID: {user_id})",
+                 user_id=current_user.id,
+                 source="admin",
+             )
+         )
++        log_audit_event(
++            action="USER_DELETED",
++            resource_type="User",
++            resource_id=str(user_id),
++            details={"username": deleted_username},
++        )
+         db.session.commit()
+-        flash(f"User {user.username} deleted successfully.", "success")
++        flash(f"User {deleted_username} deleted successfully.", "success")
+         return redirect(url_for("admin.manage_users"))
+     except Exception as e:
+         db.session.rollback()
+@@ -437,14 +556,287 @@ def delete_user(user_id):
+         return redirect(url_for("admin.manage_users"))
+ 
+ 
++@bp.route("/reset_password/<int:user_id>", methods=["GET", "POST"])
++@login_required
++@roles_required("admin")
++def reset_password(user_id):
++    """Admin action to reset a user's password."""
++    user = User.query.get_or_404(user_id)
++    form = ResetPasswordForm()
++
++    if form.validate_on_submit():
++        try:
++            valid_pwd, pwd_msg = validate_password_complexity(form.new_password.data)
++            if not valid_pwd:
++                flash(pwd_msg, "error")
++                return render_template("admin/reset_password.html", form=form, user=user)
++
++            user.password = generate_password_hash(
++                form.new_password.data, method="pbkdf2:sha256"
++            )
++            # Clear lockout on manual password reset
++            user.failed_login_attempts = 0
++            user.locked_until = None
++            db.session.commit()
++
++            db.session.add(
++                Log(
++                    level="INFO",
++                    message=f"Admin {current_user.username} reset password for user {user.username} (ID: {user.id})",
++                    user_id=current_user.id,
++                    source="admin",
++                )
++            )
++            log_audit_event(
++                action="PASSWORD_RESET",
++                resource_type="User",
++                resource_id=str(user.id),
++                details={"target_username": user.username, "lockout_cleared": True},
++            )
++            db.session.commit()
++            flash(f"Password for {user.username} has been reset successfully.", "success")
++            return redirect(url_for("admin.manage_users"))
++        except Exception as e:
++            db.session.rollback()
++            flash("Something went wrong. Please try again.", "error")
++            logger.exception("Error in admin.reset_password: ")
++            return render_template("admin/reset_password.html", form=form, user=user)
++
++    return render_template("admin/reset_password.html", form=form, user=user)
++
++
++@bp.route("/lock_user/<int:user_id>", methods=["POST"])
++@login_required
++@roles_required("admin")
++def lock_user(user_id):
++    """Admin action to lock a user account (sets locked_until far in the future)."""
++    user = User.query.get_or_404(user_id)
++
++    if user.id == current_user.id:
++        flash("You cannot lock your own account.", "error")
++        return redirect(url_for("admin.manage_users"))
++
++    try:
++        # Lock indefinitely (10 years)
++        user.locked_until = datetime.now(timezone.utc) + timedelta(days=3650)
++        db.session.commit()
++        db.session.add(
++            Log(
++                level="WARNING",
++                message=f"Admin {current_user.username} locked account for user {user.username} (ID: {user.id})",
++                user_id=current_user.id,
++                source="admin",
++            )
++        )
++        log_audit_event(
++            action="USER_LOCKED",
++            resource_type="User",
++            resource_id=str(user.id),
++            details={"username": user.username, "locked_by": current_user.username},
++        )
++        db.session.commit()
++        flash(f"Account for {user.username} has been locked.", "warning")
++    except Exception as e:
++        db.session.rollback()
++        flash("Failed to lock account. Please try again.", "error")
++        logger.exception("Error in admin.lock_user: ")
++
++    return redirect(url_for("admin.manage_users"))
++
++
++@bp.route("/unlock_user/<int:user_id>", methods=["POST"])
++@login_required
++@roles_required("admin")
++def unlock_user(user_id):
++    """Admin action to unlock a locked user account."""
++    user = User.query.get_or_404(user_id)
++
++    try:
++        user.locked_until = None
++        user.failed_login_attempts = 0
++        db.session.commit()
++        db.session.add(
++            Log(
++                level="INFO",
++                message=f"Admin {current_user.username} unlocked account for user {user.username} (ID: {user.id})",
++                user_id=current_user.id,
++                source="admin",
++            )
++        )
++        log_audit_event(
++            action="USER_UNLOCKED",
++            resource_type="User",
++            resource_id=str(user.id),
++            details={"username": user.username, "unlocked_by": current_user.username},
++        )
++        db.session.commit()
++        flash(f"Account for {user.username} has been unlocked.", "success")
++    except Exception as e:
++        db.session.rollback()
++        flash("Failed to unlock account. Please try again.", "error")
++        logger.exception("Error in admin.unlock_user: ")
++
++    return redirect(url_for("admin.manage_users"))
++
++
++@bp.route("/disable_mfa/<int:user_id>", methods=["POST"])
++@login_required
++@roles_required("admin")
++def disable_mfa(user_id):
++    """Admin action to disable MFA for a user (e.g. after device loss)."""
++    user = User.query.get_or_404(user_id)
++
++    try:
++        user.mfa_enabled = False
++        user.totp_secret = None
++        db.session.commit()
++        db.session.add(
++            Log(
++                level="WARNING",
++                message=f"Admin {current_user.username} disabled MFA for user {user.username} (ID: {user.id})",
++                user_id=current_user.id,
++                source="admin",
++            )
++        )
++        log_audit_event(
++            action="MFA_DISABLED_BY_ADMIN",
++            resource_type="User",
++            resource_id=str(user.id),
++            details={"username": user.username, "disabled_by": current_user.username},
++        )
++        db.session.commit()
++        flash(f"MFA disabled for {user.username}. They must re-enroll on next login.", "warning")
++    except Exception as e:
++        db.session.rollback()
++        flash("Failed to disable MFA. Please try again.", "error")
++        logger.exception("Error in admin.disable_mfa: ")
++
++    return redirect(url_for("admin.manage_users"))
++
++
++@bp.route("/bulk_user_action", methods=["POST"])
++@login_required
++@roles_required("admin")
++def bulk_user_action():
++    """Admin bulk action: lock, unlock, or delete multiple users at once."""
++    action = request.form.get("bulk_action")
++    user_ids_raw = request.form.getlist("user_ids")
++
++    if not action or not user_ids_raw:
++        flash("No action or users selected.", "warning")
++        return redirect(url_for("admin.manage_users"))
++
++    try:
++        user_ids = [int(uid) for uid in user_ids_raw if uid.isdigit()]
++        # Never touch the current admin's own account in bulk
++        user_ids = [uid for uid in user_ids if uid != current_user.id]
++        users = User.query.filter(User.id.in_(user_ids)).all()
++
++        if not users:
++            flash("No valid users selected.", "warning")
++            return redirect(url_for("admin.manage_users"))
++
++        affected = 0
++        now = datetime.now(timezone.utc)
++
++        for user in users:
++            if action == "lock":
++                user.locked_until = now + timedelta(days=3650)
++                affected += 1
++            elif action == "unlock":
++                user.locked_until = None
++                user.failed_login_attempts = 0
++                affected += 1
++            elif action == "deactivate":
++                user.is_active = False
++                affected += 1
++            elif action == "activate":
++                user.is_active = True
++                affected += 1
++            elif action == "delete":
++                db.session.delete(user)
++                affected += 1
++
++        db.session.commit()
++        log_audit_event(
++            action=f"BULK_{action.upper()}",
++            resource_type="User",
++            resource_id="bulk",
++            details={"user_ids": user_ids, "affected": affected, "action": action},
++        )
++        db.session.add(
++            Log(
++                level="WARNING" if action in ("lock", "delete", "deactivate") else "INFO",
++                message=f"Admin {current_user.username} performed bulk {action} on {affected} user(s)",
++                user_id=current_user.id,
++                source="admin",
++            )
++        )
++        db.session.commit()
++        flash(f"Bulk {action} applied to {affected} user(s).", "success")
++    except Exception as e:
++        db.session.rollback()
++        flash("Bulk action failed. Please try again.", "error")
++        logger.exception("Error in admin.bulk_user_action: ")
++
++    return redirect(url_for("admin.manage_users"))
++
++
+ @bp.route("/system_overview", methods=["GET"])
+ @login_required
+ @roles_required("admin")
+ def system_overview():
+     """Admin page showing system stats."""
++    import platform
++    import sys
+ 
+     try:
++        from sqlalchemy import text
++
+         user_count = User.query.count()
++        role_breakdown = db.session.execute(
++            text("SELECT role, COUNT(*) as cnt FROM users GROUP BY role ORDER BY cnt DESC")
++        ).fetchall()
++
++        now = datetime.now(timezone.utc)
++        locked_count = User.query.filter(
++            User.locked_until > now
++        ).count()
++        mfa_enabled_count = User.query.filter(User.mfa_enabled == True).count()  # noqa: E712
++        inactive_count = User.query.filter(User.is_active == False).count()  # noqa: E712
++
++        recent_logs = Log.query.order_by(Log.timestamp.desc()).limit(5).all()
++        error_count = Log.query.filter(Log.level == "ERROR").count()
++        warning_count = Log.query.filter(Log.level == "WARNING").count()
++
++        # System resource usage (psutil optional)
++        cpu_percent = None
++        memory_percent = None
++        disk_percent = None
++        try:
++            import psutil
++            cpu_percent = psutil.cpu_percent(interval=0.5)
++            memory_percent = psutil.virtual_memory().percent
++            disk_percent = psutil.disk_usage("/").percent
++        except ImportError:
++            pass
++
++        stats = {
++            "user_count": user_count,
++            "locked_count": locked_count,
++            "mfa_enabled_count": mfa_enabled_count,
++            "inactive_count": inactive_count,
++            "role_breakdown": [{"role": r[0], "count": r[1]} for r in role_breakdown],
++            "error_count": error_count,
++            "warning_count": warning_count,
++            "recent_logs": recent_logs,
++            "python_version": sys.version.split()[0],
++            "platform": platform.system(),
++            "cpu_percent": cpu_percent,
++            "memory_percent": memory_percent,
++            "disk_percent": disk_percent,
++        }
++
+         logger.info(f"Admin {current_user.id} accessed system overview")
+         db.session.add(
+             Log(
+@@ -455,7 +847,7 @@ def system_overview():
+             )
+         )
+         db.session.commit()
+-        return render_template("admin/system_overview.html", user_count=user_count)
++        return render_template("admin/system_overview.html", stats=stats, user_count=user_count)
+     except Exception as e:
+         flash("Something went wrong. Please try again.", "error")
+         logger.exception("Error in admin.system_overview: ")
+@@ -475,12 +867,27 @@ def system_overview():
+ @login_required
+ @roles_required("admin")
+ def logs():
+-    """Admin page showing system logs."""
++    """Admin page showing system logs with pagination and filtering."""
+ 
+     try:
+-        logs = (
+-            Log.query.order_by(Log.timestamp.desc()).limit(100).all()
+-        )  # Last 100 logs
++        page = request.args.get("page", 1, type=int)
++        level_filter = request.args.get("level", "").strip()
++        source_filter = request.args.get("source", "").strip()
++        search_filter = request.args.get("q", "").strip()
++
++        query = Log.query
++
++        if level_filter:
++            query = query.filter(Log.level == level_filter.upper())
++        if source_filter:
++            query = query.filter(Log.source.ilike(f"%{source_filter}%"))
++        if search_filter:
++            query = query.filter(Log.message.ilike(f"%{search_filter}%"))
++
++        pagination = query.order_by(Log.timestamp.desc()).paginate(
++            page=page, per_page=50, error_out=False
++        )
++
+         logger.info(f"Admin {current_user.id} viewed system logs")
+         db.session.add(
+             Log(
+@@ -491,7 +898,14 @@ def logs():
+             )
+         )
+         db.session.commit()
+-        return render_template("admin/logs.html", logs=logs)
++        return render_template(
++            "admin/logs.html",
++            logs=pagination.items,
++            pagination=pagination,
++            level_filter=level_filter,
++            source_filter=source_filter,
++            search_filter=search_filter,
++        )
+     except Exception as e:
+         flash("Something went wrong. Please try again.", "error")
+         logger.exception("Error in admin.logs: ")
+@@ -534,6 +948,12 @@ def mfa_setup():
+             user.mfa_enabled = True
+             db.session.commit()
+             session.pop("mfa_setup_secret", None)
++            log_audit_event(
++                action="MFA_ENABLED",
++                resource_type="User",
++                resource_id=str(user.id),
++                details={"username": user.username},
++            )
+             flash("MFA has been successfully enabled for your account!", "success")
+             return redirect(url_for("admin.index"))
+         else:
+@@ -586,8 +1006,6 @@ def audit_trail():
+ @roles_required("admin")
+ def export_audit_trail():
+     """Export system audit logs as structured JSON for SIEM integration."""
+-    from flask import jsonify
+-
+     from departments.models.compliance import AuditLog
+ 
+     logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(1000).all()
+@@ -607,8 +1025,6 @@ def export_audit_trail():
+ @roles_required("admin")
+ def outbound_notifications():
+     """Admin dashboard view for outbound patient notification logs."""
+-    from flask import jsonify
+-
+     from departments.models.notification_log import OutboundNotificationLog
+ 
+     page = request.args.get("page", 1, type=int)
+@@ -659,7 +1075,14 @@ def outbound_notifications():
+             }
+         )
+ 
+-    return render_template("admin/logs.html", logs=pagination.items)
++    return render_template(
++        "admin/outbound_notifications.html",
++        logs=pagination.items,
++        pagination=pagination,
++        event_filter=event_filter,
++        status_filter=status_filter,
++        recipient_filter=recipient_filter,
++    )
+ 
+ 
+ @bp.route("/admin/analytics", methods=["GET"])
+@@ -668,8 +1091,6 @@ def outbound_notifications():
+ @roles_required("admin")
+ def analytics():
+     """Admin dashboard view for hospital-wide executive KPIs and analytics."""
+-    from flask import jsonify
+-
+     from departments.admin.analytics import get_executive_kpi_summary
+ 
+     kpis = get_executive_kpi_summary()
+@@ -685,8 +1106,6 @@ def analytics():
+ @roles_required("admin", "hr")
+ def staff_credentials():
+     """Admin/HR view to manage and list staff credentials sorted by days-until-expiry (soonest first)."""
+-    from flask import jsonify
+-
+     from departments.models.hr import StaffCredential
+ 
+     if request.method == "POST":
+@@ -708,8 +1127,6 @@ def staff_credentials():
+                 }
+             ), 400
+ 
+-        from datetime import datetime
+-
+         try:
+             expiry_date = datetime.strptime(expiry_date_str, "%Y-%m-%d").date()  # noqa: DTZ007
+         except ValueError:
+@@ -724,6 +1141,12 @@ def staff_credentials():
+         )
+         db.session.add(cred)
+         db.session.commit()
++        log_audit_event(
++            action="CREDENTIAL_ADDED",
++            resource_type="StaffCredential",
++            resource_id=str(cred.id),
++            details={"staff_name": staff_name, "credential_type": credential_type},
++        )
+         return jsonify(
+             {
+                 "success": True,
+@@ -757,7 +1180,7 @@ def staff_credentials():
+     ):
+         return jsonify(items)
+ 
+-    return render_template("admin/credentials.html", credentials=credentials)
++    return render_template("admin/credentials.html", credentials=credentials, items=items)
+ 
+ 
+ @bp.route("/admin/credentials/alerts", methods=["GET"])
+@@ -765,10 +1188,6 @@ def staff_credentials():
+ @roles_required("admin", "hr")
+ def staff_credential_alerts():
+     """API endpoint returning staff credentials expiring within N threshold days (default 30 days)."""
+-    from datetime import timedelta
+-
+-    from flask import jsonify
+-
+     from departments.models.hr import StaffCredential
+ 
+     threshold_days = request.args.get("days", 30, type=int)
+diff --git a/departments/admin/templates/admin/add_user.html b/departments/admin/templates/admin/add_user.html
+index 1180820..0e39ab5 100644
+--- a/departments/admin/templates/admin/add_user.html
++++ b/departments/admin/templates/admin/add_user.html
+@@ -1,50 +1,83 @@
+ {% extends "base.html" %}
+ {% block content %}
+-<div class="container mt-5">
+-    <h2 class="mb-4 text-center">Add New User</h2>
++<div class="container py-4" style="max-width: 640px;">
++  <div class="d-flex justify-content-between align-items-center mb-4">
++    <div>
++      <h3 class="fw-bold mb-0"><i class="bi bi-person-plus me-2 text-primary"></i>Add New User</h3>
++      <small class="text-muted">Create a new system account with a role and optional contact details.</small>
++    </div>
++    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm">
++      <i class="bi bi-arrow-left me-1"></i> Dashboard
++    </a>
++  </div>
+ 
+-    <div class="card shadow-sm mb-4">
+-        <div class="card-header bg-primary text-white">
+-            <h4 class="mb-0">User Details</h4>
+-        </div>
+-        <div class="card-body">
+-            <form method="POST" novalidate>
+-                {{ form.hidden_tag() }}
+-
+-                <div class="mb-3">
+-                    <label for="username" class="form-label">Username</label>
+-                    {{ form.username(class="form-control", id="username") }}
+-                    {% for error in form.username.errors %}
+-                        <span class="text-danger">{{ error }}</span>
+-                    {% endfor %}
+-                </div>
+-
+-                <div class="mb-3">
+-                    <label for="password" class="form-label">Password</label>
+-                    {{ form.password(class="form-control", id="password") }}
+-                    {% for error in form.password.errors %}
+-                        <span class="text-danger">{{ error }}</span>
+-                    {% endfor %}
+-                </div>
+-
+-                <div class="mb-3">
+-                    <label for="role" class="form-label">Role</label>
+-                    {{ form.role(class="form-select", id="role") }}
+-                    {% for error in form.role.errors %}
+-                        <span class="text-danger">{{ error }}</span>
+-                    {% endfor %}
+-                </div>
+-
+-                <div class="text-center">
+-                    {{ form.submit(class="btn btn-primary") }}
+-                </div>
+-            </form>
++  {% with messages = get_flashed_messages(with_categories=true) %}
++    {% if messages %}
++      {% for category, message in messages %}
++        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
++          {{ message }}
++          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+         </div>
++      {% endfor %}
++    {% endif %}
++  {% endwith %}
++
++  <div class="card shadow-sm border-0">
++    <div class="card-header bg-primary text-white fw-bold">
++      <i class="bi bi-person-badge me-2"></i>User Details
+     </div>
++    <div class="card-body p-4">
++      <form method="POST" novalidate>
++        {{ form.hidden_tag() }}
++
++        <div class="mb-3">
++          <label for="username" class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
++          {{ form.username(class="form-control", id="username", placeholder="e.g. nurse_jane") }}
++          {% for error in form.username.errors %}
++            <div class="text-danger small mt-1">{{ error }}</div>
++          {% endfor %}
++        </div>
++
++        <div class="mb-3">
++          <label for="full_name" class="form-label fw-semibold">Full Name</label>
++          {{ form.full_name(class="form-control", id="full_name", placeholder="e.g. Jane Wambui Mwangi") }}
++          {% for error in form.full_name.errors %}
++            <div class="text-danger small mt-1">{{ error }}</div>
++          {% endfor %}
++        </div>
+ 
+-    <!-- Back Button -->
+-    <div class="text-center mt-4">
+-        <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Back to Dashboard</a>
++        <div class="mb-3">
++          <label for="email" class="form-label fw-semibold">Email Address</label>
++          {{ form.email(class="form-control", id="email", placeholder="e.g. jane@hospital.go.ke") }}
++          <div class="form-text text-muted">Used for password reset notifications. Optional but recommended.</div>
++          {% for error in form.email.errors %}
++            <div class="text-danger small mt-1">{{ error }}</div>
++          {% endfor %}
++        </div>
++
++        <div class="mb-3">
++          <label for="password" class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
++          {{ form.password(class="form-control", id="password", placeholder="Min 8 chars, upper, digit, symbol") }}
++          <div class="form-text text-muted">Must contain uppercase, a digit, and a special character.</div>
++          {% for error in form.password.errors %}
++            <div class="text-danger small mt-1">{{ error }}</div>
++          {% endfor %}
++        </div>
++
++        <div class="mb-4">
++          <label for="role" class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
++          {{ form.role(class="form-select", id="role") }}
++          {% for error in form.role.errors %}
++            <div class="text-danger small mt-1">{{ error }}</div>
++          {% endfor %}
++        </div>
++
++        <div class="d-grid gap-2">
++          {{ form.submit(class="btn btn-primary fw-bold py-2") }}
++          <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-secondary">Cancel</a>
++        </div>
++      </form>
+     </div>
++  </div>
+ </div>
+ {% endblock %}
+diff --git a/departments/admin/templates/admin/credentials.html b/departments/admin/templates/admin/credentials.html
+new file mode 100644
+index 0000000..0f5b873
+--- /dev/null
++++ b/departments/admin/templates/admin/credentials.html
+@@ -0,0 +1,129 @@
++{% extends "base.html" %}
++{% block content %}
++<div class="container-fluid py-4 px-4">
++
++  <!-- Header -->
++  <div class="d-flex justify-content-between align-items-center mb-4">
++    <div>
++      <h3 class="fw-bold mb-0"><i class="bi bi-patch-check me-2 text-primary"></i>Staff Credentials</h3>
++      <small class="text-muted">Professional licences and certification expiry tracker. Sorted by soonest expiry.</small>
++    </div>
++    <div class="d-flex gap-2">
++      <a href="{{ url_for('admin.staff_credential_alerts') }}" target="_blank"
++         class="btn btn-outline-warning btn-sm">
++        <i class="bi bi-exclamation-triangle me-1"></i> Expiry Alerts (30d)
++      </a>
++      <a href="{{ url_for('admin.staff_credentials', format='json') }}" target="_blank"
++         class="btn btn-outline-primary btn-sm">
++        <i class="bi bi-filetype-json me-1"></i> Export JSON
++      </a>
++      <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm">
++        <i class="bi bi-arrow-left me-1"></i> Dashboard
++      </a>
++    </div>
++  </div>
++
++  <!-- Add Credential Form -->
++  <div class="card shadow-sm border-0 mb-4">
++    <div class="card-header bg-white fw-bold border-0">
++      <i class="bi bi-plus-circle me-2 text-success"></i>Add New Credential
++    </div>
++    <div class="card-body">
++      <form method="POST" action="{{ url_for('admin.staff_credentials') }}" class="row g-3">
++        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
++        <div class="col-md-3">
++          <label class="form-label small fw-bold text-muted">Staff Name</label>
++          <input type="text" name="staff_name" class="form-control form-control-sm"
++                 placeholder="Full name" required>
++        </div>
++        <div class="col-md-2">
++          <label class="form-label small fw-bold text-muted">Employee ID</label>
++          <input type="text" name="employee_id" class="form-control form-control-sm"
++                 placeholder="Optional">
++        </div>
++        <div class="col-md-2">
++          <label class="form-label small fw-bold text-muted">Credential Type</label>
++          <input type="text" name="credential_type" class="form-control form-control-sm"
++                 placeholder="e.g. Medical Licence" required>
++        </div>
++        <div class="col-md-2">
++          <label class="form-label small fw-bold text-muted">Credential Number</label>
++          <input type="text" name="credential_number" class="form-control form-control-sm"
++                 placeholder="e.g. ML-2024-001" required>
++        </div>
++        <div class="col-md-2">
++          <label class="form-label small fw-bold text-muted">Expiry Date</label>
++          <input type="date" name="expiry_date" class="form-control form-control-sm" required>
++        </div>
++        <div class="col-md-1 d-flex align-items-end">
++          <button type="submit" class="btn btn-sm btn-success w-100">
++            <i class="bi bi-plus"></i> Add
++          </button>
++        </div>
++      </form>
++    </div>
++  </div>
++
++  <!-- Credentials Table -->
++  <div class="card shadow-sm border-0">
++    <div class="card-header bg-white py-3 border-0">
++      <h6 class="m-0 fw-bold text-primary">
++        <i class="bi bi-list-check me-1"></i>{{ items|length }} Credential(s) on Record
++      </h6>
++    </div>
++    <div class="card-body p-0">
++      {% if items %}
++      <div class="table-responsive">
++        <table class="table table-hover align-middle mb-0">
++          <thead class="table-light">
++            <tr>
++              <th>Staff Name</th>
++              <th>Employee ID</th>
++              <th>Type</th>
++              <th>Number</th>
++              <th>Expiry Date</th>
++              <th>Days Left</th>
++              <th>Status</th>
++            </tr>
++          </thead>
++          <tbody>
++            {% for item in items %}
++            <tr class="
++              {% if item.status == 'EXPIRED' %}table-danger
++              {% elif item.status == 'WARNING' %}table-warning
++              {% endif %}">
++              <td class="fw-semibold">{{ item.staff_name }}</td>
++              <td class="small text-muted">{{ item.employee_id or '—' }}</td>
++              <td>{{ item.credential_type }}</td>
++              <td><code class="small">{{ item.credential_number }}</code></td>
++              <td class="small">{{ item.expiry_date }}</td>
++              <td class="fw-semibold
++                {% if item.days_until_expiry < 0 %}text-danger
++                {% elif item.days_until_expiry <= 30 %}text-warning
++                {% else %}text-success{% endif %}">
++                {{ item.days_until_expiry }}d
++              </td>
++              <td>
++                {% if item.status == 'EXPIRED' %}
++                  <span class="badge bg-danger">EXPIRED</span>
++                {% elif item.status == 'WARNING' %}
++                  <span class="badge bg-warning text-dark">EXPIRING SOON</span>
++                {% else %}
++                  <span class="badge bg-success">ACTIVE</span>
++                {% endif %}
++              </td>
++            </tr>
++            {% endfor %}
++          </tbody>
++        </table>
++      </div>
++      {% else %}
++      <div class="p-5 text-center text-muted">
++        <i class="bi bi-patch-question display-4 mb-3 d-block"></i>
++        <p>No staff credentials recorded yet. Use the form above to add the first one.</p>
++      </div>
++      {% endif %}
++    </div>
++  </div>
++</div>
++{% endblock %}
+diff --git a/departments/admin/templates/admin/edit_user.html b/departments/admin/templates/admin/edit_user.html
+index 8eb6efe..d3f2ee5 100644
+--- a/departments/admin/templates/admin/edit_user.html
++++ b/departments/admin/templates/admin/edit_user.html
+@@ -1,50 +1,115 @@
+ {% extends "base.html" %}
+ {% block content %}
+-<div class="container mt-5">
+-    <h2 class="mb-4 text-center">Edit User: {{ user.username }}</h2>
+-
+-    <!-- Flash Messages -->
+-    {% with messages = get_flashed_messages(with_categories=true) %}
+-        {% if messages %}
+-            {% for category, message in messages %}
+-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+-                    {{ message }}
+-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+-                </div>
+-            {% endfor %}
++<div class="container py-4" style="max-width: 640px;">
++  <div class="d-flex justify-content-between align-items-center mb-4">
++    <div>
++      <h3 class="fw-bold mb-0"><i class="bi bi-pencil-square me-2 text-primary"></i>Edit User: {{ user.username }}</h3>
++      <small class="text-muted">Update account details, role, email, or active status.</small>
++    </div>
++    <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-secondary btn-sm">
++      <i class="bi bi-arrow-left me-1"></i> Back
++    </a>
++  </div>
++
++  {% with messages = get_flashed_messages(with_categories=true) %}
++    {% if messages %}
++      {% for category, message in messages %}
++        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
++          {{ message }}
++          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
++        </div>
++      {% endfor %}
++    {% endif %}
++  {% endwith %}
++
++  <div class="card shadow-sm border-0">
++    <div class="card-header bg-primary text-white fw-bold">
++      <i class="bi bi-person-gear me-2"></i>Account Details
++    </div>
++    <div class="card-body p-4">
++      <!-- Read-only info strip -->
++      <div class="bg-light rounded-3 p-3 mb-4 d-flex gap-4 flex-wrap">
++        <span class="small text-muted"><strong>ID:</strong> {{ user.id }}</span>
++        {% if user.created_at %}
++        <span class="small text-muted"><strong>Created:</strong> {{ user.created_at.strftime('%Y-%m-%d') }}</span>
+         {% endif %}
+-    {% endwith %}
++        {% if user.last_login %}
++        <span class="small text-muted"><strong>Last login:</strong> {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
++        {% else %}
++        <span class="small text-muted"><strong>Last login:</strong> Never</span>
++        {% endif %}
++        <span class="small text-muted"><strong>MFA:</strong>
++          {% if user.mfa_enabled %}<span class="badge bg-success">Enabled</span>{% else %}<span class="badge bg-secondary">Disabled</span>{% endif %}
++        </span>
++      </div>
++
++      <form method="POST" novalidate>
++        {{ form.hidden_tag() }}
++
++        <div class="mb-3">
++          <label for="username" class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
++          {{ form.username(class="form-control", id="username") }}
++          {% for error in form.username.errors %}
++            <div class="text-danger small mt-1">{{ error }}</div>
++          {% endfor %}
++        </div>
+ 
+-    <div class="card shadow-sm mb-4">
+-        <div class="card-header bg-primary text-white">
+-            <h4 class="mb-0">User Details</h4>
++        <div class="mb-3">
++          <label for="full_name" class="form-label fw-semibold">Full Name</label>
++          {{ form.full_name(class="form-control", id="full_name", placeholder="e.g. Jane Wambui Mwangi") }}
++          {% for error in form.full_name.errors %}
++            <div class="text-danger small mt-1">{{ error }}</div>
++          {% endfor %}
+         </div>
+-        <div class="card-body">
+-            <form method="POST" novalidate>
+-                {{ form.hidden_tag() }}
+-
+-                <div class="mb-3">
+-                    <label for="username" class="form-label">Username</label>
+-                    {{ form.username(class="form-control", id="username") }}
+-                    {% for error in form.username.errors %}
+-                        <span class="text-danger">{{ error }}</span>
+-                    {% endfor %}
+-                </div>
+-
+-                <div class="mb-3">
+-                    <label for="role" class="form-label">Role</label>
+-                    {{ form.role(class="form-select", id="role") }}
+-                    {% for error in form.role.errors %}
+-                        <span class="text-danger">{{ error }}</span>
+-                    {% endfor %}
+-                </div>
+-
+-                <div class="text-center">
+-                    {{ form.submit(class="btn btn-primary") }}
+-                    <a href="{{ url_for('admin.manage_users') }}" class="btn btn-secondary ms-2">Cancel</a>
+-                </div>
+-            </form>
++
++        <div class="mb-3">
++          <label for="email" class="form-label fw-semibold">Email Address</label>
++          {{ form.email(class="form-control", id="email") }}
++          {% for error in form.email.errors %}
++            <div class="text-danger small mt-1">{{ error }}</div>
++          {% endfor %}
++        </div>
++
++        <div class="mb-3">
++          <label for="role" class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
++          {{ form.role(class="form-select", id="role") }}
++          {% for error in form.role.errors %}
++            <div class="text-danger small mt-1">{{ error }}</div>
++          {% endfor %}
++        </div>
++
++        <div class="mb-4">
++          <div class="form-check form-switch">
++            {{ form.is_active(class="form-check-input", id="is_active") }}
++            <label class="form-check-label fw-semibold" for="is_active">Account Active</label>
++          </div>
++          <div class="form-text text-muted">Inactive accounts cannot log in but are not deleted.</div>
+         </div>
++
++        <div class="d-grid gap-2">
++          {{ form.submit(class="btn btn-primary fw-bold py-2") }}
++          <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-secondary">Cancel</a>
++        </div>
++      </form>
++    </div>
++  </div>
++
++  {% if user.mfa_enabled %}
++  <div class="card border-warning mt-3">
++    <div class="card-body d-flex align-items-center justify-content-between">
++      <div>
++        <strong><i class="bi bi-shield-lock me-2 text-warning"></i>MFA is enabled</strong>
++        <div class="text-muted small">Disable only if the user has lost their authenticator device.</div>
++      </div>
++      <form action="{{ url_for('admin.disable_mfa', user_id=user.id) }}" method="POST"
++            onsubmit="return confirm('Disable MFA for {{ user.username }}? They must re-enrol on next login.');">
++        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
++        <button type="submit" class="btn btn-sm btn-outline-warning fw-bold">
++          <i class="bi bi-shield-x me-1"></i> Disable MFA
++        </button>
++      </form>
+     </div>
++  </div>
++  {% endif %}
+ </div>
+-{% endblock %}
+\ No newline at end of file
++{% endblock %}
+diff --git a/departments/admin/templates/admin/index.html b/departments/admin/templates/admin/index.html
+index c8af476..e656e31 100644
+--- a/departments/admin/templates/admin/index.html
++++ b/departments/admin/templates/admin/index.html
+@@ -21,7 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
+                 container.innerHTML = '<div class="alert alert-info w-100">No active encounters at the moment.</div>';
+                 return;
+             }
+-
+             const colors = {
+                 'SURGICAL': 'danger', 'IPD': 'primary', 'OPD': 'secondary',
+                 'TELEHEALTH': 'info', 'ANC': 'success', 'EMERGENCY': 'warning', 'REFERRAL': 'dark'
+@@ -30,17 +29,14 @@ document.addEventListener('DOMContentLoaded', () => {
+                 'SURGICAL': '🔪', 'IPD': '🛏️', 'OPD': '🩺',
+                 'TELEHEALTH': '📱', 'ANC': '🤰', 'EMERGENCY': '🚑', 'REFERRAL': '🔀'
+             };
+-
+             let html = '';
+             for (const [type, stages] of Object.entries(data.by_type)) {
+                 const color = colors[type] || 'light';
+                 const icon = icons[type] || '📋';
+                 const totalForType = Object.values(stages).reduce((a, b) => a + b, 0);
+-                
+                 let stageDetails = Object.entries(stages)
+                     .map(([stage, count]) => `<span class="badge bg-light text-dark me-1">${stage.replace('_', ' ')}: ${count}</span>`)
+                     .join('');
+-
+                 html += `
+                     <div class="card border-${color} shadow-sm" style="min-width: 220px;">
+                         <div class="card-body">
+@@ -59,7 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
+         });
+ });
+ </script>
+-<!-- End Widget -->
+ 
+ <style>
+   .admin-banner {
+@@ -70,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
+     box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
+     margin-bottom: 30px;
+   }
+-  
+   .stat-card {
+     background: #ffffff;
+     border-radius: 14px;
+@@ -90,7 +84,6 @@ document.addEventListener('DOMContentLoaded', () => {
+     align-items: center;
+     justify-content: space-between;
+   }
+-
+   .dept-card-btn {
+     border-radius: 12px;
+     min-height: 84px;
+@@ -107,6 +100,20 @@ document.addEventListener('DOMContentLoaded', () => {
+     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.10);
+     border-color: currentColor;
+   }
++  .quick-action-card {
++    border-radius: 12px;
++    border: 1px solid rgba(15,23,42,0.08);
++    box-shadow: 0 2px 10px rgba(15,23,42,0.05);
++    transition: transform 0.2s ease;
++    text-decoration: none;
++    color: inherit;
++    display: block;
++  }
++  .quick-action-card:hover {
++    transform: translateY(-3px);
++    box-shadow: 0 8px 20px rgba(15,23,42,0.10);
++    color: inherit;
++  }
+ </style>
+ 
+ <div class="container-fluid py-4 px-4">
+@@ -133,54 +140,204 @@ document.addEventListener('DOMContentLoaded', () => {
+       {% endif %}
+   {% endwith %}
+ 
+-  <!-- Dashboard Overview Metrics -->
++  <!-- Dashboard Overview Metrics (6 cards) -->
+   <div class="row g-4 mb-4">
+-    <div class="col-md-4">
+-      <div class="stat-card border-start border-4 border-primary">
++    <div class="col-md-2 col-sm-4">
++      <div class="stat-card border-start border-4 border-primary h-100">
++        <div class="stat-card-header bg-light">
++          <span class="text-primary small"><i class="bi bi-people me-1"></i> Total Users</span>
++        </div>
++        <div class="card-body text-center py-3">
++          <h2 class="fw-bold text-dark mb-1">{{ users|length }}</h2>
++          <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-primary btn-sm fw-semibold w-100">
++            <i class="bi bi-gear me-1"></i> Manage
++          </a>
++        </div>
++      </div>
++    </div>
++
++    <div class="col-md-2 col-sm-4">
++      <div class="stat-card border-start border-4 border-danger h-100">
+         <div class="stat-card-header bg-light">
+-          <span class="text-primary"><i class="bi bi-people me-2"></i> Total Active Users</span>
+-          <span class="badge bg-primary-subtle text-primary rounded-pill px-3">Users</span>
++          <span class="text-danger small"><i class="bi bi-lock-fill me-1"></i> Locked</span>
+         </div>
+-        <div class="card-body text-center p-4">
+-          <h1 class="fw-bold text-dark mb-2">{{ users|length }}</h1>
+-          <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-primary btn-sm fw-semibold">
+-            <i class="bi bi-gear me-1"></i> Manage User Accounts
++        <div class="card-body text-center py-3">
++          <h2 class="fw-bold {% if locked_count > 0 %}text-danger{% else %}text-dark{% endif %} mb-1">{{ locked_count }}</h2>
++          <a href="{{ url_for('admin.manage_users', status='locked') }}" class="btn btn-outline-danger btn-sm fw-semibold w-100">
++            <i class="bi bi-search me-1"></i> Review
+           </a>
+         </div>
+       </div>
+     </div>
+ 
+-    <div class="col-md-4">
+-      <div class="stat-card border-start border-4 border-success">
++    <div class="col-md-2 col-sm-4">
++      <div class="stat-card border-start border-4 border-success h-100">
+         <div class="stat-card-header bg-light">
+-          <span class="text-success"><i class="bi bi-activity me-2"></i> System Status</span>
+-          <span class="badge bg-success text-white rounded-pill px-3">Live</span>
++          <span class="text-success small"><i class="bi bi-shield-check me-1"></i> MFA On</span>
+         </div>
+-        <div class="card-body text-center p-4">
+-          <h1 class="fw-bold text-success mb-2">Online</h1>
+-          <a href="{{ url_for('admin.system_overview') }}" class="btn btn-outline-success btn-sm fw-semibold">
+-            <i class="bi bi-eye me-1"></i> View System Health
++        <div class="card-body text-center py-3">
++          <h2 class="fw-bold text-dark mb-1">{{ mfa_count }}</h2>
++          <a href="{{ url_for('admin.manage_users', status='no_mfa') }}" class="btn btn-outline-success btn-sm fw-semibold w-100">
++            <i class="bi bi-search me-1"></i> No MFA
+           </a>
+         </div>
+       </div>
+     </div>
+ 
+-    <div class="col-md-4">
+-      <div class="stat-card border-start border-4 border-purple" style="border-color: var(--dept-hr) !important;">
++    <div class="col-md-2 col-sm-4">
++      <div class="stat-card border-start border-4 border-secondary h-100">
+         <div class="stat-card-header bg-light">
+-          <span style="color: var(--dept-hr);"><i class="bi bi-journal-text me-2"></i> Audit & Activity Logs</span>
+-          <span class="badge text-white rounded-pill px-3" style="background-color: var(--dept-hr);">Logs</span>
++          <span class="text-secondary small"><i class="bi bi-person-slash me-1"></i> Inactive</span>
+         </div>
+-        <div class="card-body text-center p-4">
+-          <h1 class="fw-bold mb-2" style="color: var(--dept-hr);">System Logs</h1>
+-          <a href="{{ url_for('admin.logs') }}" class="btn btn-outline-dark btn-sm fw-semibold" style="border-color: var(--dept-hr); color: var(--dept-hr);">
+-            <i class="bi bi-clock-history me-1"></i> Inspect System Logs
++        <div class="card-body text-center py-3">
++          <h2 class="fw-bold {% if inactive_count > 0 %}text-warning{% else %}text-dark{% endif %} mb-1">{{ inactive_count }}</h2>
++          <a href="{{ url_for('admin.manage_users', status='inactive') }}" class="btn btn-outline-secondary btn-sm fw-semibold w-100">
++            <i class="bi bi-search me-1"></i> View
++          </a>
++        </div>
++      </div>
++    </div>
++
++    <div class="col-md-2 col-sm-4">
++      <div class="stat-card border-start border-4 border-warning h-100">
++        <div class="stat-card-header bg-light">
++          <span class="text-warning small"><i class="bi bi-patch-exclamation me-1"></i> Creds Expiring</span>
++        </div>
++        <div class="card-body text-center py-3">
++          <h2 class="fw-bold {% if expiring_creds_count > 0 %}text-danger{% else %}text-dark{% endif %} mb-1">{{ expiring_creds_count }}</h2>
++          <a href="{{ url_for('admin.staff_credentials') }}" class="btn btn-outline-warning btn-sm fw-semibold w-100">
++            <i class="bi bi-eye me-1"></i> View
++          </a>
++        </div>
++      </div>
++    </div>
++
++    <div class="col-md-2 col-sm-4">
++      <div class="stat-card border-start border-4 border-info h-100">
++        <div class="stat-card-header bg-light">
++          <span class="text-info small"><i class="bi bi-activity me-1"></i> System</span>
++        </div>
++        <div class="card-body text-center py-3">
++          <h2 class="fw-bold text-success mb-1">Online</h2>
++          <a href="{{ url_for('admin.system_overview') }}" class="btn btn-outline-info btn-sm fw-semibold w-100">
++            <i class="bi bi-eye me-1"></i> Health
+           </a>
+         </div>
+       </div>
+     </div>
+   </div>
+ 
++  <!-- Quick Actions Row -->
++  <div class="row g-3 mb-4">
++    <div class="col-12">
++      <h5 class="fw-bold text-dark mb-3"><i class="bi bi-lightning-charge me-2 text-warning"></i>Quick Actions</h5>
++    </div>
++    <div class="col-md-3 col-sm-6">
++      <a href="{{ url_for('admin.analytics') }}" class="quick-action-card p-3 bg-white">
++        <div class="d-flex align-items-center">
++          <div class="rounded-3 p-2 me-3" style="background:#e0f2fe;">
++            <i class="bi bi-graph-up-arrow fs-4" style="color:#0284c7;"></i>
++          </div>
++          <div>
++            <div class="fw-bold small">Executive Analytics</div>
++            <div class="text-muted" style="font-size:0.78rem;">Beds, revenue, claims KPIs</div>
++          </div>
++        </div>
++      </a>
++    </div>
++    <div class="col-md-3 col-sm-6">
++      <a href="{{ url_for('admin.audit_trail') }}" class="quick-action-card p-3 bg-white">
++        <div class="d-flex align-items-center">
++          <div class="rounded-3 p-2 me-3" style="background:#ede9fe;">
++            <i class="bi bi-shield-check fs-4" style="color:#7c3aed;"></i>
++          </div>
++          <div>
++            <div class="fw-bold small">Audit Trail</div>
++            <div class="text-muted" style="font-size:0.78rem;">DPA 2019 compliance log</div>
++          </div>
++        </div>
++      </a>
++    </div>
++    <div class="col-md-3 col-sm-6">
++      <a href="{{ url_for('admin.outbound_notifications') }}" class="quick-action-card p-3 bg-white">
++        <div class="d-flex align-items-center">
++          <div class="rounded-3 p-2 me-3" style="background:#e0f9fb;">
++            <i class="bi bi-bell fs-4" style="color:#0891b2;"></i>
++          </div>
++          <div>
++            <div class="fw-bold small">Notifications Log</div>
++            <div class="text-muted" style="font-size:0.78rem;">SMS / email / push sent</div>
++          </div>
++        </div>
++      </a>
++    </div>
++    <div class="col-md-3 col-sm-6">
++      <a href="{{ url_for('admin.staff_credentials') }}" class="quick-action-card p-3 bg-white">
++        <div class="d-flex align-items-center">
++          <div class="rounded-3 p-2 me-3" style="background:#fef9c3;">
++            <i class="bi bi-patch-check fs-4" style="color:#d97706;"></i>
++          </div>
++          <div>
++            <div class="fw-bold small">Staff Credentials</div>
++            <div class="text-muted" style="font-size:0.78rem;">Licence expiry tracker</div>
++          </div>
++        </div>
++      </a>
++    </div>
++    <div class="col-md-3 col-sm-6">
++      <a href="{{ url_for('admin.logs') }}" class="quick-action-card p-3 bg-white">
++        <div class="d-flex align-items-center">
++          <div class="rounded-3 p-2 me-3" style="background:#f1f5f9;">
++            <i class="bi bi-journal-text fs-4 text-secondary"></i>
++          </div>
++          <div>
++            <div class="fw-bold small">System Logs</div>
++            <div class="text-muted" style="font-size:0.78rem;">Application event log</div>
++          </div>
++        </div>
++      </a>
++    </div>
++    <div class="col-md-3 col-sm-6">
++      <a href="{{ url_for('admin.mfa_setup') }}" class="quick-action-card p-3 bg-white">
++        <div class="d-flex align-items-center">
++          <div class="rounded-3 p-2 me-3" style="background:#f0fdf4;">
++            <i class="bi bi-shield-lock fs-4" style="color:#16a34a;"></i>
++          </div>
++          <div>
++            <div class="fw-bold small">Setup My MFA</div>
++            <div class="text-muted" style="font-size:0.78rem;">TOTP authenticator enrol</div>
++          </div>
++        </div>
++      </a>
++    </div>
++    <div class="col-md-3 col-sm-6">
++      <a href="{{ url_for('compliance.hipaa_dashboard_view') }}" class="quick-action-card p-3 bg-white">
++        <div class="d-flex align-items-center">
++          <div class="rounded-3 p-2 me-3" style="background:#fff7ed;">
++            <i class="bi bi-file-earmark-lock2 fs-4" style="color:#ea580c;"></i>
++          </div>
++          <div>
++            <div class="fw-bold small">HIPAA / Compliance</div>
++            <div class="text-muted" style="font-size:0.78rem;">Privacy & data protection</div>
++          </div>
++        </div>
++      </a>
++    </div>
++    <div class="col-md-3 col-sm-6">
++      <a href="{{ url_for('etims.etims_console') }}" class="quick-action-card p-3 bg-white">
++        <div class="d-flex align-items-center">
++          <div class="rounded-3 p-2 me-3" style="background:#fef2f2;">
++            <i class="bi bi-receipt-cutoff fs-4" style="color:#ef4444;"></i>
++          </div>
++          <div>
++            <div class="fw-bold small">KRA eTIMS</div>
++            <div class="text-muted" style="font-size:0.78rem;">Tax compliance console</div>
++          </div>
++        </div>
++      </a>
++    </div>
++  </div>
++
+   <!-- Department Control Panel -->
+   <div class="stat-card p-4 mb-4">
+     <div class="border-bottom pb-3 mb-4 d-flex justify-content-between align-items-center">
+@@ -194,9 +351,9 @@ document.addEventListener('DOMContentLoaded', () => {
+       </button>
+       <ul class="dropdown-menu w-100 shadow-lg border-0 rounded-3 p-3" aria-labelledby="adminSwitchUserDropdown">
+         <li><h6 class="dropdown-header text-uppercase fw-bold text-muted px-2 py-1 mb-2 small"><i class="bi bi-arrow-repeat me-1"></i> Choose Role to Switch To</h6></li>
+-        
++
+         <form id="adminPageSwitchRoleForm" action="{{ url_for('admin.switch_user') }}" method="POST" style="display:none;">
+-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
++          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+           <input type="hidden" name="role" id="adminPageSwitchRoleInput" value="">
+         </form>
+ 
+@@ -221,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
+         <div class="row g-2">
+         {% for r_code, r_label, r_icon, r_color in role_items %}
+           <div class="col-md-4 col-6">
+-            <button type="button" 
++            <button type="button"
+                     class="dropdown-item d-flex align-items-center justify-content-between rounded-3 py-2 px-3 border {% if session.switched_user == r_code %}active text-white bg-primary fw-bold border-primary{% else %}bg-light border-light{% endif %}"
+                     onclick="document.getElementById('adminPageSwitchRoleInput').value='{{ r_code }}'; document.getElementById('adminPageSwitchRoleForm').submit();">
+               <span>
+@@ -269,7 +426,6 @@ document.addEventListener('DOMContentLoaded', () => {
+           <i class="bi bi-flask me-2 fs-4"></i> Laboratory
+         </a>
+       </div>
+-
+       <div class="col-md-3 col-sm-6">
+         <a href="{{ url_for('imaging.index') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: #7c3aed;">
+           <i class="bi bi-camera me-2 fs-4"></i> Imaging
+@@ -290,7 +446,6 @@ document.addEventListener('DOMContentLoaded', () => {
+           <i class="bi bi-box-seam me-2 fs-4"></i> Store / Inventory
+         </a>
+       </div>
+-
+       <div class="col-md-3 col-sm-6">
+         <a href="{{ url_for('hr.index') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: #6b21a8;">
+           <i class="bi bi-people me-2 fs-4"></i> HR / Staff
+@@ -311,7 +466,6 @@ document.addEventListener('DOMContentLoaded', () => {
+           <i class="bi bi-radioactive me-2 fs-4"></i> Oncology
+         </a>
+       </div>
+-
+       <div class="col-md-3 col-sm-6">
+         <a href="{{ url_for('mch.index') }}" class="btn dept-card-btn w-100 d-flex align-items-center justify-content-center" style="color: #db2777;">
+           <i class="bi bi-balloon-heart me-2 fs-4"></i> MCH / NICU
+@@ -342,4 +496,4 @@ document.addEventListener('DOMContentLoaded', () => {
+     </a>
+   </div>
+ </div>
+-{% endblock %}
+\ No newline at end of file
++{% endblock %}
+diff --git a/departments/admin/templates/admin/logs.html b/departments/admin/templates/admin/logs.html
+index 1bc4c88..7399d2f 100644
+--- a/departments/admin/templates/admin/logs.html
++++ b/departments/admin/templates/admin/logs.html
+@@ -1,43 +1,124 @@
+ {% extends "base.html" %}
+ {% block content %}
+-<div class="container mt-5">
+-    <h2 class="mb-4 text-center">System Logs</h2>
++<div class="container-fluid py-4 px-4">
+ 
+-    {% if logs %}
+-    <div class="card shadow-sm mb-4">
+-        <div class="card-header bg-info text-white">
+-            <h4 class="mb-0">Recent Logs (Last 100)</h4>
++  <!-- Header -->
++  <div class="d-flex justify-content-between align-items-center mb-4">
++    <div>
++      <h3 class="fw-bold mb-0"><i class="bi bi-journal-text me-2 text-secondary"></i>System Logs</h3>
++      <small class="text-muted">Internal application event log (paginated, filterable).</small>
++    </div>
++    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm">
++      <i class="bi bi-arrow-left me-1"></i> Dashboard
++    </a>
++  </div>
++
++  <!-- Filter Bar -->
++  <div class="card shadow-sm border-0 mb-4">
++    <div class="card-body bg-light rounded">
++      <form method="GET" action="{{ url_for('admin.logs') }}" class="row g-3 align-items-end">
++        <div class="col-md-3">
++          <label class="form-label small fw-bold text-muted">Search Message</label>
++          <input type="text" name="q" class="form-control form-control-sm"
++                 placeholder="keyword…" value="{{ search_filter }}">
++        </div>
++        <div class="col-md-3">
++          <label class="form-label small fw-bold text-muted">Level</label>
++          <select name="level" class="form-select form-select-sm">
++            <option value="">All Levels</option>
++            <option value="INFO"    {% if level_filter=='INFO'    %}selected{% endif %}>INFO</option>
++            <option value="WARNING" {% if level_filter=='WARNING' %}selected{% endif %}>WARNING</option>
++            <option value="ERROR"   {% if level_filter=='ERROR'   %}selected{% endif %}>ERROR</option>
++          </select>
+         </div>
+-        <div class="card-body">
+-            <table class="table table-striped">
+-                <thead class="table-dark">
+-                    <tr>
+-                        <th>Timestamp</th>
+-                        <th>Level</th>
+-                        <th>Message</th>
+-                        <th>Source</th>
+-                    </tr>
+-                </thead>
+-                <tbody>
+-                    {% for log in logs %}
+-                    <tr>
+-                        <td>{{ log.timestamp.strftime('%d-%m-%Y %H:%M:%S') }}</td>
+-                        <td>{{ log.level }}</td>
+-                        <td>{{ log.message }}</td>
+-                    
+-                        <td>{{ log.source | default("N/A") }}</td>
+-                    </tr>
+-                    {% endfor %}
+-                </tbody>
+-            </table>
++        <div class="col-md-3">
++          <label class="form-label small fw-bold text-muted">Source</label>
++          <input type="text" name="source" class="form-control form-control-sm"
++                 placeholder="e.g. admin, pharmacy" value="{{ source_filter }}">
+         </div>
++        <div class="col-md-3 d-flex gap-2">
++          <button type="submit" class="btn btn-sm btn-primary flex-fill">
++            <i class="bi bi-filter me-1"></i> Filter
++          </button>
++          <a href="{{ url_for('admin.logs') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
++        </div>
++      </form>
+     </div>
+-    {% else %}
+-    <p class="text-muted text-center">No logs available.</p>
+-    {% endif %}
++  </div>
+ 
+-    <div class="text-center mt-4">
+-        <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Back to Dashboard</a>
++  <!-- Log Table -->
++  <div class="card shadow-sm border-0">
++    <div class="card-header bg-white py-3 border-0">
++      <h6 class="m-0 fw-bold text-secondary">
++        Entries: {{ pagination.total }} total — Page {{ pagination.page }} of {{ pagination.pages }}
++      </h6>
+     </div>
++    <div class="card-body p-0">
++      {% if logs %}
++      <div class="table-responsive">
++        <table class="table table-hover align-middle mb-0 table-sm">
++          <thead class="table-light">
++            <tr>
++              <th>Timestamp</th>
++              <th>Level</th>
++              <th>Source</th>
++              <th>Message</th>
++            </tr>
++          </thead>
++          <tbody>
++            {% for log in logs %}
++            <tr class="{% if log.level == 'ERROR' %}table-danger{% elif log.level == 'WARNING' %}table-warning{% endif %}">
++              <td class="text-nowrap small text-muted">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
++              <td>
++                {% if log.level == 'ERROR' %}
++                  <span class="badge bg-danger">ERROR</span>
++                {% elif log.level == 'WARNING' %}
++                  <span class="badge bg-warning text-dark">WARN</span>
++                {% else %}
++                  <span class="badge bg-secondary">INFO</span>
++                {% endif %}
++              </td>
++              <td><code class="small">{{ log.source | default("—") }}</code></td>
++              <td class="small" style="max-width:500px; word-break:break-word;">{{ log.message }}</td>
++            </tr>
++            {% endfor %}
++          </tbody>
++        </table>
++      </div>
++      {% else %}
++      <div class="p-5 text-center text-muted">
++        <i class="bi bi-journal-x display-4 mb-3 d-block"></i>
++        <p>No log entries match your criteria.</p>
++      </div>
++      {% endif %}
++    </div>
++
++    <!-- Pagination -->
++    {% if pagination.pages > 1 %}
++    <div class="card-footer bg-white border-0 py-3">
++      <nav>
++        <ul class="pagination pagination-sm justify-content-center mb-0">
++          {% if pagination.has_prev %}
++          <li class="page-item">
++            <a class="page-link" href="{{ url_for('admin.logs', page=pagination.prev_num, level=level_filter, source=source_filter, q=search_filter) }}">
++              &laquo; Prev
++            </a>
++          </li>
++          {% endif %}
++          <li class="page-item disabled">
++            <span class="page-link">Page {{ pagination.page }} / {{ pagination.pages }}</span>
++          </li>
++          {% if pagination.has_next %}
++          <li class="page-item">
++            <a class="page-link" href="{{ url_for('admin.logs', page=pagination.next_num, level=level_filter, source=source_filter, q=search_filter) }}">
++              Next &raquo;
++            </a>
++          </li>
++          {% endif %}
++        </ul>
++      </nav>
++    </div>
++    {% endif %}
++  </div>
+ </div>
+-{% endblock %}
+\ No newline at end of file
++{% endblock %}
+diff --git a/departments/admin/templates/admin/manage_users.html b/departments/admin/templates/admin/manage_users.html
+index ff5b9cd..28c4411 100644
+--- a/departments/admin/templates/admin/manage_users.html
++++ b/departments/admin/templates/admin/manage_users.html
+@@ -1,83 +1,268 @@
+ {% extends "base.html" %}
+ {% block content %}
+-<div class="container mt-5">
+-    <h2 class="mb-4 text-center">Manage Users</h2>
++<div class="container-fluid py-4 px-4">
+ 
+-    <!-- Flash Messages -->
+-    {% with messages = get_flashed_messages(with_categories=true) %}
+-        {% if messages %}
+-            {% for category, message in messages %}
+-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+-                    {{ message }}
+-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+-                </div>
+-            {% endfor %}
+-        {% endif %}
+-    {% endwith %}
++  <!-- Header -->
++  <div class="d-flex justify-content-between align-items-center mb-4">
++    <div>
++      <h3 class="fw-bold mb-0"><i class="bi bi-people me-2 text-primary"></i>Manage Users</h3>
++      <small class="text-muted">Search, filter, lock, unlock, reset passwords and edit system accounts.</small>
++    </div>
++    <div class="d-flex gap-2">
++      <a href="{{ url_for('admin.add_user') }}" class="btn btn-primary fw-semibold">
++        <i class="bi bi-person-plus me-1"></i> Add User
++      </a>
++      <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary">
++        <i class="bi bi-arrow-left me-1"></i> Dashboard
++      </a>
++    </div>
++  </div>
+ 
+-    {% if users %}
+-    <div class="card shadow-sm mb-4">
+-        <div class="card-header bg-primary text-white">
+-            <h4 class="mb-0">User List</h4>
++  <!-- Flash Messages -->
++  {% with messages = get_flashed_messages(with_categories=true) %}
++    {% if messages %}
++      {% for category, message in messages %}
++        <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3" role="alert">
++          {{ message }}
++          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+         </div>
+-        <div class="card-body">
+-            <table class="table table-striped">
+-                <thead class="table-dark">
+-                    <tr>
+-                        <th>Username</th>
+-                        <th>Role</th>
+-                        <th>Actions</th>
+-                    </tr>
+-                </thead>
+-                <tbody>
+-                    {% for user in users %}
+-                    <tr>
+-                        <td>{{ user.username }}</td>
+-                        <td>{{ user.role }}</td>
+-                        <td>
+-                            <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" 
+-                               class="btn btn-sm btn-secondary me-2" title="Edit User">
+-                                <i class="bi bi-pencil"></i> Edit
+-                            </a>
+-                            <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" 
+-                                  style="display:inline;" 
+-                                  onsubmit="return confirm('Are you sure you want to delete {{ user.username }}?');">
+-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+-                                <button type="submit" class="btn btn-sm btn-danger" title="Delete User">
+-                                    <i class="bi bi-trash"></i> Delete
+-                                </button>
+-                            </form>
+-                        </td>
+-                    </tr>
+-                    {% endfor %}
+-                </tbody>
+-            </table>
++      {% endfor %}
++    {% endif %}
++  {% endwith %}
++
++  <!-- Search & Filter Bar -->
++  <div class="card shadow-sm border-0 mb-4">
++    <div class="card-body bg-light rounded">
++      <form method="GET" action="{{ url_for('admin.manage_users') }}" class="row g-3 align-items-end">
++        <div class="col-md-3">
++          <label class="form-label small fw-bold text-muted">Search</label>
++          <input type="text" name="q" class="form-control form-control-sm" placeholder="Username, name or email"
++                 value="{{ search_query }}">
+         </div>
++        <div class="col-md-3">
++          <label class="form-label small fw-bold text-muted">Filter by Role</label>
++          <select name="role" class="form-select form-select-sm">
++            <option value="">All Roles</option>
++            {% for r_val, r_label in roles %}
++              <option value="{{ r_val }}" {% if role_filter == r_val %}selected{% endif %}>{{ r_label }}</option>
++            {% endfor %}
++          </select>
++        </div>
++        <div class="col-md-3">
++          <label class="form-label small fw-bold text-muted">Account Status</label>
++          <select name="status" class="form-select form-select-sm">
++            <option value="">All Statuses</option>
++            <option value="locked"   {% if status_filter == 'locked'   %}selected{% endif %}>Locked</option>
++            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
++            <option value="no_mfa"   {% if status_filter == 'no_mfa'   %}selected{% endif %}>No MFA</option>
++          </select>
++        </div>
++        <div class="col-md-3 d-flex gap-2">
++          <button type="submit" class="btn btn-sm btn-primary flex-fill">
++            <i class="bi bi-search me-1"></i> Search
++          </button>
++          <a href="{{ url_for('admin.manage_users') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
++        </div>
++      </form>
+     </div>
+-    {% else %}
+-    <p class="text-muted text-center">No users found in the system.</p>
+-    {% endif %}
+-    <!-- Navigation Buttons -->
+-    <div class="text-center mt-4">
+-        <a href="{{ url_for('admin.add_user') }}" class="btn btn-primary me-2">
+-            <i class="bi bi-person-plus me-2"></i> Add New User
+-        </a>
+-        <a href="{{ url_for('admin.manage_users') }}" class="btn btn-primary me-2">
+-            <i class="bi bi-people me-2"></i> Manage Users
+-        </a>
+-        <a href="{{ url_for('admin.system_overview') }}" class="btn btn-primary me-2">
+-            <i class="bi bi-gear me-2"></i> System Overview
+-        </a>
+-        <a href="{{ url_for('admin.logs') }}" class="btn btn-primary">
+-            <i class="bi bi-journal-text me-2"></i> System Logs
+-        </a>
++  </div>
++
++  {% if users %}
++  <!-- Bulk Action Form wraps the whole table -->
++  <form id="bulkForm" action="{{ url_for('admin.bulk_user_action') }}" method="POST">
++    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
++    <input type="hidden" name="bulk_action" id="bulkActionInput" value="">
++
++  <div class="card shadow-sm border-0">
++    <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
++      <h6 class="m-0 fw-bold text-primary">
++        <i class="bi bi-list-ul me-1"></i>
++        {{ pagination.total }} User(s) — Page {{ pagination.page }} of {{ pagination.pages }}
++      </h6>
++      <div class="d-flex gap-2 align-items-center">
++        <span class="text-muted small me-1">Bulk:</span>
++        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="bulkAction('activate')">Activate</button>
++        <button type="button" class="btn btn-sm btn-outline-warning" onclick="bulkAction('deactivate')">Deactivate</button>
++        <button type="button" class="btn btn-sm btn-outline-danger"
++                onclick="if(confirm('Delete selected users? This cannot be undone.')) bulkAction('delete')">Delete</button>
++      </div>
+     </div>
+-</div>
+-    <!-- Back Button -->
+-    <div class="text-center mt-4">
+-        <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">
+-            <i class="bi bi-arrow-left me-2"></i> Back to Dashboard
+-        </a>
++    <div class="card-body p-0">
++      <div class="table-responsive">
++        <table class="table table-hover align-middle mb-0">
++          <thead class="table-light">
++            <tr>
++              <th><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
++              <th>#</th>
++              <th>User</th>
++              <th>Role</th>
++              <th>MFA</th>
++              <th>Status</th>
++              <th>Last Login</th>
++              <th>Actions</th>
++            </tr>
++          </thead>
++          <tbody>
++            {% for user in users %}
++            {% set is_locked = user.locked_until and user.locked_until > now %}
++            {% set is_inactive = not user.is_active %}
++            <tr class="{% if is_locked %}table-warning{% elif is_inactive %}table-secondary{% endif %}">
++              <td>
++                {% if user.id != current_user.id %}
++                <input type="checkbox" name="user_ids" value="{{ user.id }}" class="user-checkbox">
++                {% endif %}
++              </td>
++              <td class="text-muted small">{{ user.id }}</td>
++              <td>
++                <div>
++                  <strong>{{ user.username }}</strong>
++                  {% if user.id == current_user.id %}
++                    <span class="badge bg-info ms-1 small">You</span>
++                  {% endif %}
++                </div>
++                {% if user.full_name %}
++                  <div class="text-muted small">{{ user.full_name }}</div>
++                {% endif %}
++                {% if user.email %}
++                  <div class="text-muted small"><i class="bi bi-envelope me-1"></i>{{ user.email }}</div>
++                {% endif %}
++              </td>
++              <td>
++                <span class="badge rounded-pill px-3 py-1"
++                  style="background:#e0e7ff;color:#3730a3;font-size:0.78rem;">
++                  {{ user.role|capitalize }}
++                </span>
++              </td>
++              <td>
++                {% if user.mfa_enabled %}
++                  <span class="badge bg-success-subtle text-success"><i class="bi bi-shield-check me-1"></i>On</span>
++                {% else %}
++                  <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-shield-x me-1"></i>Off</span>
++                {% endif %}
++              </td>
++              <td>
++                {% if is_locked %}
++                  <span class="badge bg-danger"><i class="bi bi-lock-fill me-1"></i>Locked</span>
++                {% elif is_inactive %}
++                  <span class="badge bg-secondary"><i class="bi bi-person-slash me-1"></i>Inactive</span>
++                {% else %}
++                  <span class="badge bg-success"><i class="bi bi-unlock-fill me-1"></i>Active</span>
++                {% endif %}
++                {% if user.failed_login_attempts > 0 %}
++                  <span class="badge bg-warning text-dark ms-1" title="{{ user.failed_login_attempts }} failed login attempt(s)">
++                    <i class="bi bi-exclamation-triangle me-1"></i>{{ user.failed_login_attempts }}
++                  </span>
++                {% endif %}
++              </td>
++              <td class="text-muted small text-nowrap">
++                {% if user.last_login %}
++                  {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
++                {% else %}
++                  <span class="text-muted fst-italic">Never</span>
++                {% endif %}
++              </td>
++              <td>
++                <div class="d-flex gap-1 flex-wrap">
++                  <a href="{{ url_for('admin.edit_user', user_id=user.id) }}"
++                     class="btn btn-sm btn-outline-primary" title="Edit User">
++                    <i class="bi bi-pencil"></i>
++                  </a>
++                  <a href="{{ url_for('admin.reset_password', user_id=user.id) }}"
++                     class="btn btn-sm btn-outline-warning" title="Reset Password">
++                    <i class="bi bi-key"></i>
++                  </a>
++                  {% if user.id != current_user.id %}
++                    {% if is_locked %}
++                      <form action="{{ url_for('admin.unlock_user', user_id=user.id) }}" method="POST" style="display:inline;">
++                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
++                        <button type="submit" class="btn btn-sm btn-outline-success" title="Unlock Account">
++                          <i class="bi bi-unlock"></i>
++                        </button>
++                      </form>
++                    {% else %}
++                      <form action="{{ url_for('admin.lock_user', user_id=user.id) }}" method="POST" style="display:inline;"
++                            onsubmit="return confirm('Lock account for {{ user.username }}?');">
++                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
++                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Lock Account">
++                          <i class="bi bi-lock"></i>
++                        </button>
++                      </form>
++                    {% endif %}
++                    {% if user.mfa_enabled %}
++                      <form action="{{ url_for('admin.disable_mfa', user_id=user.id) }}" method="POST" style="display:inline;"
++                            onsubmit="return confirm('Disable MFA for {{ user.username }}?');">
++                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
++                        <button type="submit" class="btn btn-sm btn-outline-info" title="Disable MFA">
++                          <i class="bi bi-shield-x"></i>
++                        </button>
++                      </form>
++                    {% endif %}
++                    <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" style="display:inline;"
++                          onsubmit="return confirm('Permanently delete user {{ user.username }}? This cannot be undone.');">
++                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
++                      <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete User">
++                        <i class="bi bi-trash"></i>
++                      </button>
++                    </form>
++                  {% endif %}
++                </div>
++              </td>
++            </tr>
++            {% endfor %}
++          </tbody>
++        </table>
++      </div>
++    </div>
++
++    <!-- Pagination -->
++    {% if pagination.pages > 1 %}
++    <div class="card-footer bg-white border-0 py-3">
++      <nav>
++        <ul class="pagination pagination-sm justify-content-center mb-0">
++          {% if pagination.has_prev %}
++          <li class="page-item">
++            <a class="page-link" href="{{ url_for('admin.manage_users', page=pagination.prev_num, q=search_query, role=role_filter, status=status_filter) }}">&laquo; Prev</a>
++          </li>
++          {% endif %}
++          {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
++            {% if p %}
++              <li class="page-item {% if p == pagination.page %}active{% endif %}">
++                <a class="page-link" href="{{ url_for('admin.manage_users', page=p, q=search_query, role=role_filter, status=status_filter) }}">{{ p }}</a>
++              </li>
++            {% else %}
++              <li class="page-item disabled"><span class="page-link">…</span></li>
++            {% endif %}
++          {% endfor %}
++          {% if pagination.has_next %}
++          <li class="page-item">
++            <a class="page-link" href="{{ url_for('admin.manage_users', page=pagination.next_num, q=search_query, role=role_filter, status=status_filter) }}">Next &raquo;</a>
++          </li>
++          {% endif %}
++        </ul>
++      </nav>
+     </div>
++    {% endif %}
++  </div>
++  </form>
++
++  {% else %}
++  <div class="text-center py-5 text-muted">
++    <i class="bi bi-person-x display-4 d-block mb-3"></i>
++    <p>No users found matching your criteria.</p>
++    <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-secondary btn-sm">Clear Filters</a>
++  </div>
++  {% endif %}
+ </div>
+-{% endblock %}
+\ No newline at end of file
++
++<script>
++function toggleAll(master) {
++  document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = master.checked);
++}
++function bulkAction(action) {
++  const checked = document.querySelectorAll('.user-checkbox:checked');
++  if (checked.length === 0) { alert('Please select at least one user.'); return; }
++  document.getElementById('bulkActionInput').value = action;
++  document.getElementById('bulkForm').submit();
++}
++</script>
++{% endblock %}
+diff --git a/departments/admin/templates/admin/outbound_notifications.html b/departments/admin/templates/admin/outbound_notifications.html
+new file mode 100644
+index 0000000..bc6d797
+--- /dev/null
++++ b/departments/admin/templates/admin/outbound_notifications.html
+@@ -0,0 +1,150 @@
++{% extends "base.html" %}
++{% block content %}
++<div class="container-fluid py-4 px-4">
++
++  <!-- Header -->
++  <div class="d-flex justify-content-between align-items-center mb-4">
++    <div>
++      <h3 class="fw-bold mb-0"><i class="bi bi-bell me-2 text-info"></i>Outbound Notifications</h3>
++      <small class="text-muted">Outbound SMS / email / push alerts sent to patients and staff.</small>
++    </div>
++    <div class="d-flex gap-2">
++      <a href="{{ url_for('admin.outbound_notifications', format='json') }}" target="_blank"
++         class="btn btn-outline-primary btn-sm">
++        <i class="bi bi-filetype-json me-1"></i> Export JSON
++      </a>
++      <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm">
++        <i class="bi bi-arrow-left me-1"></i> Dashboard
++      </a>
++    </div>
++  </div>
++
++  <!-- Filters -->
++  <div class="card shadow-sm border-0 mb-4">
++    <div class="card-body bg-light rounded">
++      <form method="GET" action="{{ url_for('admin.outbound_notifications') }}" class="row g-3 align-items-end">
++        <div class="col-md-3">
++          <label class="form-label small fw-bold text-muted">Event Type</label>
++          <input type="text" name="event_type" class="form-control form-control-sm"
++                 placeholder="e.g. APPOINTMENT_REMINDER" value="{{ event_filter }}">
++        </div>
++        <div class="col-md-3">
++          <label class="form-label small fw-bold text-muted">Status</label>
++          <select name="status" class="form-select form-select-sm">
++            <option value="">All</option>
++            <option value="SENT"    {% if status_filter=='SENT'    %}selected{% endif %}>SENT</option>
++            <option value="FAILED"  {% if status_filter=='FAILED'  %}selected{% endif %}>FAILED</option>
++            <option value="PENDING" {% if status_filter=='PENDING' %}selected{% endif %}>PENDING</option>
++          </select>
++        </div>
++        <div class="col-md-3">
++          <label class="form-label small fw-bold text-muted">Recipient</label>
++          <input type="text" name="recipient" class="form-control form-control-sm"
++                 placeholder="+254…" value="{{ recipient_filter }}">
++        </div>
++        <div class="col-md-3 d-flex gap-2">
++          <button type="submit" class="btn btn-sm btn-primary flex-fill">
++            <i class="bi bi-filter me-1"></i> Filter
++          </button>
++          <a href="{{ url_for('admin.outbound_notifications') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
++        </div>
++      </form>
++    </div>
++  </div>
++
++  <!-- Table -->
++  <div class="card shadow-sm border-0">
++    <div class="card-header bg-white py-3 border-0">
++      <h6 class="m-0 fw-bold text-info">
++        {{ pagination.total }} notification(s) — Page {{ pagination.page }} of {{ pagination.pages }}
++      </h6>
++    </div>
++    <div class="card-body p-0">
++      {% if logs %}
++      <div class="table-responsive">
++        <table class="table table-hover align-middle mb-0 table-sm">
++          <thead class="table-light">
++            <tr>
++              <th>Sent At</th>
++              <th>Patient ID</th>
++              <th>Recipient</th>
++              <th>Channel</th>
++              <th>Event</th>
++              <th>Subject</th>
++              <th>Status</th>
++              <th>Error</th>
++            </tr>
++          </thead>
++          <tbody>
++            {% for log in logs %}
++            <tr class="{% if log.status == 'FAILED' %}table-danger{% endif %}">
++              <td class="text-nowrap small text-muted">
++                {{ log.sent_at.strftime('%Y-%m-%d %H:%M') if log.sent_at else (log.created_at.strftime('%Y-%m-%d %H:%M') if log.created_at else '—') }}
++              </td>
++              <td class="small">{{ log.patient_id or '—' }}</td>
++              <td class="small"><code>{{ log.recipient or '—' }}</code></td>
++              <td>
++                {% if log.channel == 'SMS' %}
++                  <span class="badge bg-success">SMS</span>
++                {% elif log.channel == 'EMAIL' %}
++                  <span class="badge bg-primary">Email</span>
++                {% elif log.channel == 'PUSH' %}
++                  <span class="badge bg-info text-dark">Push</span>
++                {% else %}
++                  <span class="badge bg-secondary">{{ log.channel or '—' }}</span>
++                {% endif %}
++              </td>
++              <td class="small">{{ log.event_type or '—' }}</td>
++              <td class="small text-truncate" style="max-width:200px;" title="{{ log.subject }}">
++                {{ log.subject or '—' }}
++              </td>
++              <td>
++                {% if log.status == 'SENT' %}
++                  <span class="badge bg-success">SENT</span>
++                {% elif log.status == 'FAILED' %}
++                  <span class="badge bg-danger">FAILED</span>
++                {% elif log.status == 'PENDING' %}
++                  <span class="badge bg-warning text-dark">PENDING</span>
++                {% else %}
++                  <span class="badge bg-secondary">{{ log.status or '—' }}</span>
++                {% endif %}
++              </td>
++              <td class="small text-danger text-truncate" style="max-width:180px;" title="{{ log.error_message }}">
++                {{ log.error_message or '' }}
++              </td>
++            </tr>
++            {% endfor %}
++          </tbody>
++        </table>
++      </div>
++      {% else %}
++      <div class="p-5 text-center text-muted">
++        <i class="bi bi-bell-slash display-4 mb-3 d-block"></i>
++        <p>No outbound notification records found.</p>
++      </div>
++      {% endif %}
++    </div>
++
++    <!-- Pagination -->
++    {% if pagination.pages > 1 %}
++    <div class="card-footer bg-white border-0 py-3">
++      <nav>
++        <ul class="pagination pagination-sm justify-content-center mb-0">
++          {% if pagination.has_prev %}
++          <li class="page-item">
++            <a class="page-link" href="{{ url_for('admin.outbound_notifications', page=pagination.prev_num, event_type=event_filter, status=status_filter, recipient=recipient_filter) }}">&laquo; Prev</a>
++          </li>
++          {% endif %}
++          <li class="page-item disabled"><span class="page-link">{{ pagination.page }} / {{ pagination.pages }}</span></li>
++          {% if pagination.has_next %}
++          <li class="page-item">
++            <a class="page-link" href="{{ url_for('admin.outbound_notifications', page=pagination.next_num, event_type=event_filter, status=status_filter, recipient=recipient_filter) }}">Next &raquo;</a>
++          </li>
++          {% endif %}
++        </ul>
++      </nav>
++    </div>
++    {% endif %}
++  </div>
++</div>
++{% endblock %}
+diff --git a/departments/admin/templates/admin/reset_password.html b/departments/admin/templates/admin/reset_password.html
+new file mode 100644
+index 0000000..6382c0b
+--- /dev/null
++++ b/departments/admin/templates/admin/reset_password.html
+@@ -0,0 +1,50 @@
++{% extends "base.html" %}
++{% block content %}
++<div class="container mt-5" style="max-width:520px;">
++  <div class="card shadow-sm border-0">
++    <div class="card-header bg-warning text-dark">
++      <h5 class="mb-0"><i class="bi bi-key me-2"></i>Reset Password — {{ user.username }}</h5>
++    </div>
++    <div class="card-body">
++
++      {% with messages = get_flashed_messages(with_categories=true) %}
++        {% if messages %}
++          {% for category, message in messages %}
++            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
++              {{ message }}
++              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
++            </div>
++          {% endfor %}
++        {% endif %}
++      {% endwith %}
++
++      <p class="text-muted mb-4">
++        You are resetting the password for <strong>{{ user.username }}</strong>
++        (Role: <span class="badge bg-secondary">{{ user.role }}</span>).
++        This will also clear any account lockout.
++      </p>
++
++      <form method="POST" novalidate>
++        {{ form.hidden_tag() }}
++        <div class="mb-3">
++          <label for="new_password" class="form-label fw-semibold">New Password</label>
++          {{ form.new_password(class="form-control", id="new_password", autocomplete="new-password") }}
++          {% for error in form.new_password.errors %}
++            <span class="text-danger small">{{ error }}</span>
++          {% endfor %}
++          <ul class="form-text text-muted small mt-1 mb-0 ps-3">
++            <li>At least 8 characters</li>
++            <li>One uppercase letter</li>
++            <li>One digit</li>
++            <li>One special character (!@#$%^&amp;*…)</li>
++          </ul>
++        </div>
++        <div class="d-flex gap-2 mt-4">
++          {{ form.submit(class="btn btn-warning fw-semibold flex-fill") }}
++          <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-secondary flex-fill">Cancel</a>
++        </div>
++      </form>
++    </div>
++  </div>
++</div>
++{% endblock %}
+diff --git a/departments/admin/templates/admin/system_overview.html b/departments/admin/templates/admin/system_overview.html
+index 0818cbc..a9c733e 100644
+--- a/departments/admin/templates/admin/system_overview.html
++++ b/departments/admin/templates/admin/system_overview.html
+@@ -1,17 +1,192 @@
+ {% extends "base.html" %}
+ {% block content %}
+-<div class="container mt-5">
+-    <h2 class="mb-4 text-center">System Overview</h2>
+-    <div class="card shadow-sm mb-4">
+-        <div class="card-header bg-info text-white">
+-            <h4 class="mb-0">System Stats</h4>
++<div class="container-fluid py-4 px-4">
++
++  <!-- Header -->
++  <div class="d-flex justify-content-between align-items-center mb-4">
++    <div>
++      <h3 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-info"></i>System Overview</h3>
++      <small class="text-muted">Live snapshot of HMIS health, users, resources, and logs.</small>
++    </div>
++    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm">
++      <i class="bi bi-arrow-left me-1"></i> Dashboard
++    </a>
++  </div>
++
++  <!-- KPI Cards Row -->
++  <div class="row g-4 mb-4">
++    <div class="col-md-2 col-sm-4">
++      <div class="card border-0 shadow-sm h-100 border-start border-4 border-primary">
++        <div class="card-body text-center py-3">
++          <div class="text-muted small fw-semibold text-uppercase mb-1"><i class="bi bi-people me-1 text-primary"></i> Total Users</div>
++          <h2 class="fw-bold text-dark">{{ stats.user_count }}</h2>
++          <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-primary btn-sm mt-1 w-100">Manage</a>
++        </div>
++      </div>
++    </div>
++    <div class="col-md-2 col-sm-4">
++      <div class="card border-0 shadow-sm h-100 border-start border-4 border-danger">
++        <div class="card-body text-center py-3">
++          <div class="text-muted small fw-semibold text-uppercase mb-1"><i class="bi bi-lock-fill me-1 text-danger"></i> Locked</div>
++          <h2 class="fw-bold {% if stats.locked_count > 0 %}text-danger{% else %}text-dark{% endif %}">{{ stats.locked_count }}</h2>
++          <a href="{{ url_for('admin.manage_users', status='locked') }}" class="btn btn-outline-danger btn-sm mt-1 w-100">Review</a>
++        </div>
++      </div>
++    </div>
++    <div class="col-md-2 col-sm-4">
++      <div class="card border-0 shadow-sm h-100 border-start border-4 border-secondary">
++        <div class="card-body text-center py-3">
++          <div class="text-muted small fw-semibold text-uppercase mb-1"><i class="bi bi-person-slash me-1 text-secondary"></i> Inactive</div>
++          <h2 class="fw-bold {% if stats.inactive_count > 0 %}text-warning{% else %}text-dark{% endif %}">{{ stats.inactive_count }}</h2>
++          <a href="{{ url_for('admin.manage_users', status='inactive') }}" class="btn btn-outline-secondary btn-sm mt-1 w-100">View</a>
++        </div>
++      </div>
++    </div>
++    <div class="col-md-2 col-sm-4">
++      <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
++        <div class="card-body text-center py-3">
++          <div class="text-muted small fw-semibold text-uppercase mb-1"><i class="bi bi-shield-check me-1 text-success"></i> MFA Enabled</div>
++          <h2 class="fw-bold text-dark">{{ stats.mfa_enabled_count }}</h2>
++          <small class="text-muted">of {{ stats.user_count }} users</small>
++        </div>
++      </div>
++    </div>
++    <div class="col-md-2 col-sm-4">
++      <div class="card border-0 shadow-sm h-100 border-start border-4 border-warning">
++        <div class="card-body text-center py-3">
++          <div class="text-muted small fw-semibold text-uppercase mb-1"><i class="bi bi-exclamation-triangle me-1 text-warning"></i> Log Errors</div>
++          <h2 class="fw-bold {% if stats.error_count > 0 %}text-danger{% else %}text-dark{% endif %}">{{ stats.error_count }}</h2>
++          <small class="text-muted">{{ stats.warning_count }} warn(s)</small>
++        </div>
++      </div>
++    </div>
++    <div class="col-md-2 col-sm-4">
++      <div class="card border-0 shadow-sm h-100 border-start border-4 border-info">
++        <div class="card-body text-center py-3">
++          <div class="text-muted small fw-semibold text-uppercase mb-1"><i class="bi bi-circle-fill text-success me-1" style="font-size:.5rem;vertical-align:middle;"></i> Status</div>
++          <h2 class="fw-bold text-success">Online</h2>
++          <small class="text-muted">DB Connected</small>
++        </div>
++      </div>
++    </div>
++  </div>
++
++  <!-- Resource Gauges (psutil) -->
++  {% if stats.cpu_percent is not none %}
++  <div class="card shadow-sm border-0 mb-4">
++    <div class="card-header bg-white border-0 fw-bold text-dark">
++      <i class="bi bi-cpu me-2 text-primary"></i>Server Resource Usage
++    </div>
++    <div class="card-body">
++      <div class="row g-4">
++        <div class="col-md-4">
++          <div class="d-flex justify-content-between mb-1">
++            <small class="fw-semibold">CPU</small>
++            <small class="text-muted">{{ stats.cpu_percent }}%</small>
++          </div>
++          <div class="progress" style="height:12px;">
++            <div class="progress-bar {% if stats.cpu_percent > 80 %}bg-danger{% elif stats.cpu_percent > 60 %}bg-warning{% else %}bg-success{% endif %}"
++                 style="width:{{ stats.cpu_percent }}%"></div>
++          </div>
++        </div>
++        <div class="col-md-4">
++          <div class="d-flex justify-content-between mb-1">
++            <small class="fw-semibold">Memory</small>
++            <small class="text-muted">{{ stats.memory_percent }}%</small>
++          </div>
++          <div class="progress" style="height:12px;">
++            <div class="progress-bar {% if stats.memory_percent > 85 %}bg-danger{% elif stats.memory_percent > 70 %}bg-warning{% else %}bg-info{% endif %}"
++                 style="width:{{ stats.memory_percent }}%"></div>
++          </div>
++        </div>
++        <div class="col-md-4">
++          <div class="d-flex justify-content-between mb-1">
++            <small class="fw-semibold">Disk</small>
++            <small class="text-muted">{{ stats.disk_percent }}%</small>
++          </div>
++          <div class="progress" style="height:12px;">
++            <div class="progress-bar {% if stats.disk_percent > 90 %}bg-danger{% elif stats.disk_percent > 75 %}bg-warning{% else %}bg-primary{% endif %}"
++                 style="width:{{ stats.disk_percent }}%"></div>
++          </div>
++        </div>
++      </div>
++    </div>
++  </div>
++  {% endif %}
++
++  <div class="row g-4">
++    <!-- Role Breakdown -->
++    <div class="col-md-5">
++      <div class="card shadow-sm border-0 h-100">
++        <div class="card-header bg-white border-0 fw-bold text-dark">
++          <i class="bi bi-diagram-3 me-2 text-primary"></i>Users by Role
++        </div>
++        <div class="card-body p-0">
++          <table class="table table-hover mb-0">
++            <thead class="table-light">
++              <tr><th>Role</th><th class="text-end">Count</th></tr>
++            </thead>
++            <tbody>
++              {% for row in stats.role_breakdown %}
++              <tr>
++                <td><span class="badge bg-light text-dark border">{{ row.role|capitalize }}</span></td>
++                <td class="text-end fw-semibold">{{ row.count }}</td>
++              </tr>
++              {% else %}
++              <tr><td colspan="2" class="text-center text-muted py-3">No roles found.</td></tr>
++              {% endfor %}
++            </tbody>
++          </table>
++        </div>
++      </div>
++    </div>
++
++    <!-- Recent Activity -->
++    <div class="col-md-7">
++      <div class="card shadow-sm border-0 h-100">
++        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
++          <span class="fw-bold text-dark"><i class="bi bi-clock-history me-2 text-secondary"></i>Recent Log Activity</span>
++          <a href="{{ url_for('admin.logs') }}" class="btn btn-outline-secondary btn-sm">View All</a>
+         </div>
+-        <div class="card-body">
+-            <p><strong>Total Users:</strong> {{ user_count }}</p>
++        <div class="card-body p-0">
++          <table class="table table-sm mb-0">
++            <thead class="table-light">
++              <tr><th>Time</th><th>Level</th><th>Message</th></tr>
++            </thead>
++            <tbody>
++              {% for log in stats.recent_logs %}
++              <tr>
++                <td class="text-nowrap small text-muted">{{ log.timestamp.strftime('%H:%M:%S') }}</td>
++                <td>
++                  {% if log.level == 'ERROR' %}
++                    <span class="badge bg-danger">ERROR</span>
++                  {% elif log.level == 'WARNING' %}
++                    <span class="badge bg-warning text-dark">WARN</span>
++                  {% else %}
++                    <span class="badge bg-secondary">INFO</span>
++                  {% endif %}
++                </td>
++                <td class="small text-truncate" style="max-width:320px;" title="{{ log.message }}">
++                  {{ log.message }}
++                </td>
++              </tr>
++              {% else %}
++              <tr><td colspan="3" class="text-center text-muted py-3">No recent logs.</td></tr>
++              {% endfor %}
++            </tbody>
++          </table>
+         </div>
++      </div>
+     </div>
+-    <div class="text-center mt-4">
+-        <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Back to Dashboard</a>
++  </div>
++
++  <!-- Environment info -->
++  <div class="card shadow-sm border-0 mt-4">
++    <div class="card-body d-flex gap-4 flex-wrap">
++      <span class="text-muted small"><i class="bi bi-cpu me-1"></i><strong>Platform:</strong> {{ stats.platform }}</span>
++      <span class="text-muted small"><i class="bi bi-braces me-1"></i><strong>Python:</strong> {{ stats.python_version }}</span>
++      <span class="text-muted small"><i class="bi bi-circle-fill text-success me-1" style="font-size:.5rem;vertical-align:middle;"></i><strong>DB:</strong> Connected</span>
+     </div>
++  </div>
+ </div>
+-{% endblock %}
+\ No newline at end of file
++{% endblock %}
+diff --git a/departments/models/user.py b/departments/models/user.py
+index 32d023e..843f486 100644
+--- a/departments/models/user.py
++++ b/departments/models/user.py
+@@ -1,3 +1,5 @@
++from datetime import datetime, timezone
++
+ from flask_login import UserMixin
+ 
+ from extensions import db  # Import db from extensions
+@@ -14,3 +16,14 @@ class User(UserMixin, db.Model):
+     locked_until = db.Column(db.DateTime, nullable=True)
+     totp_secret = db.Column(db.String(64), nullable=True)
+     mfa_enabled = db.Column(db.Boolean, default=False, nullable=False)
++
++    # ── Fields added by fix/admin-department-missing-features ──────────────
++    email = db.Column(db.String(120), unique=True, nullable=True, index=True)
++    full_name = db.Column(db.String(120), nullable=True)
++    is_active = db.Column(db.Boolean, default=True, nullable=False)
++    created_at = db.Column(
++        db.DateTime(timezone=True),
++        default=lambda: datetime.now(timezone.utc),
++        nullable=True,
++    )
++    last_login = db.Column(db.DateTime(timezone=True), nullable=True)
+diff --git a/migrations/versions/a1b2c3d4e5f6_admin_user_model_email_fullname_active_lastlogin.py b/migrations/versions/a1b2c3d4e5f6_admin_user_model_email_fullname_active_lastlogin.py
+new file mode 100644
+index 0000000..f57d2f3
+--- /dev/null
++++ b/migrations/versions/a1b2c3d4e5f6_admin_user_model_email_fullname_active_lastlogin.py
+@@ -0,0 +1,49 @@
++"""admin: add email, full_name, is_active, created_at, last_login to users table
++
++Revision ID: a1b2c3d4e5f6
++Revises: fefcbf381ba9
++Create Date: 2026-09-18 00:00:00.000000
++
++Adds five columns that were missing from the staff User model:
++- email        : unique contact email for password-reset notifications
++- full_name    : display name for the UI (manage_users table)
++- is_active    : soft-disable without deleting accounts
++- created_at   : account creation timestamp for audit purposes
++- last_login   : populated on successful login for the system overview
++"""
++from alembic import op
++import sqlalchemy as sa
++
++# revision identifiers, used by Alembic.
++revision = 'a1b2c3d4e5f6'
++down_revision = 'fefcbf381ba9'
++branch_labels = None
++depends_on = None
++
++
++def upgrade():
++    with op.batch_alter_table('users', schema=None) as batch_op:
++        batch_op.add_column(sa.Column('email', sa.String(length=120), nullable=True))
++        batch_op.add_column(sa.Column('full_name', sa.String(length=120), nullable=True))
++        batch_op.add_column(
++            sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.true())
++        )
++        batch_op.add_column(
++            sa.Column('created_at', sa.DateTime(timezone=True), nullable=True)
++        )
++        batch_op.add_column(
++            sa.Column('last_login', sa.DateTime(timezone=True), nullable=True)
++        )
++        batch_op.create_unique_constraint('uq_users_email', ['email'])
++        batch_op.create_index('ix_users_email', ['email'], unique=True)
++
++
++def downgrade():
++    with op.batch_alter_table('users', schema=None) as batch_op:
++        batch_op.drop_index('ix_users_email')
++        batch_op.drop_constraint('uq_users_email', type_='unique')
++        batch_op.drop_column('last_login')
++        batch_op.drop_column('created_at')
++        batch_op.drop_column('is_active')
++        batch_op.drop_column('full_name')
++        batch_op.drop_column('email')
+diff --git a/templates/side_bars/admin.html b/templates/side_bars/admin.html
+index 771bc8f..cb6cbd4 100644
+--- a/templates/side_bars/admin.html
++++ b/templates/side_bars/admin.html
+@@ -8,6 +8,13 @@
+ <div class="sidebar-heading mt-3">User Management</div>
+ <a href="{{ url_for('admin.manage_users') }}"><i class="bi bi-people me-2"></i> Manage Users</a>
+ <a href="{{ url_for('admin.add_user') }}"><i class="bi bi-person-plus me-2"></i> Add User</a>
++<a href="{{ url_for('admin.mfa_setup') }}"><i class="bi bi-shield-lock me-2"></i> Setup My MFA</a>
++
++<div class="sidebar-heading mt-3">Analytics & Reports</div>
++<a href="{{ url_for('admin.analytics') }}"><i class="bi bi-graph-up-arrow me-2" style="color: #0284c7;"></i> Executive Analytics</a>
++<a href="{{ url_for('admin.audit_trail') }}"><i class="bi bi-shield-check me-2" style="color: #7c3aed;"></i> Audit Trail</a>
++<a href="{{ url_for('admin.outbound_notifications') }}"><i class="bi bi-bell me-2" style="color: #0891b2;"></i> Outbound Notifications</a>
++<a href="{{ url_for('admin.staff_credentials') }}"><i class="bi bi-patch-check me-2" style="color: #d97706;"></i> Staff Credentials</a>
+ 
+ <div class="sidebar-heading mt-3">Compliance & Reporting</div>
+ <a href="{{ url_for('compliance.hipaa_dashboard_view') }}"><i class="bi bi-shield-lock me-2"></i> HIPAA &amp; Audit Trail</a>
+-- 
+2.43.0
+

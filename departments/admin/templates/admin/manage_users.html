@@ -1,83 +1,268 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">Manage Users</h2>
+<div class="container-fluid py-4 px-4">
 
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
-    {% if users %}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">User List</h4>
-        </div>
-        <div class="card-body">
-            <table class="table table-striped">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Username</th>
-                        <th>Role</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in users %}
-                    <tr>
-                        <td>{{ user.username }}</td>
-                        <td>{{ user.role }}</td>
-                        <td>
-                            <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" 
-                               class="btn btn-sm btn-secondary me-2" title="Edit User">
-                                <i class="bi bi-pencil"></i> Edit
-                            </a>
-                            <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" 
-                                  style="display:inline;" 
-                                  onsubmit="return confirm('Are you sure you want to delete {{ user.username }}?');">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                <button type="submit" class="btn btn-sm btn-danger" title="Delete User">
-                                    <i class="bi bi-trash"></i> Delete
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h3 class="fw-bold mb-0"><i class="bi bi-people me-2 text-primary"></i>Manage Users</h3>
+      <small class="text-muted">Search, filter, lock, unlock, reset passwords and edit system accounts.</small>
     </div>
-    {% else %}
-    <p class="text-muted text-center">No users found in the system.</p>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('admin.add_user') }}" class="btn btn-primary fw-semibold">
+        <i class="bi bi-person-plus me-1"></i> Add User
+      </a>
+      <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Dashboard
+      </a>
+    </div>
+  </div>
+
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
     {% endif %}
-    <!-- Navigation Buttons -->
-    <div class="text-center mt-4">
-        <a href="{{ url_for('admin.add_user') }}" class="btn btn-primary me-2">
-            <i class="bi bi-person-plus me-2"></i> Add New User
-        </a>
-        <a href="{{ url_for('admin.manage_users') }}" class="btn btn-primary me-2">
-            <i class="bi bi-people me-2"></i> Manage Users
-        </a>
-        <a href="{{ url_for('admin.system_overview') }}" class="btn btn-primary me-2">
-            <i class="bi bi-gear me-2"></i> System Overview
-        </a>
-        <a href="{{ url_for('admin.logs') }}" class="btn btn-primary">
-            <i class="bi bi-journal-text me-2"></i> System Logs
-        </a>
+  {% endwith %}
+
+  <!-- Search & Filter Bar -->
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body bg-light rounded">
+      <form method="GET" action="{{ url_for('admin.manage_users') }}" class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label small fw-bold text-muted">Search</label>
+          <input type="text" name="q" class="form-control form-control-sm" placeholder="Username, name or email"
+                 value="{{ search_query }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-bold text-muted">Filter by Role</label>
+          <select name="role" class="form-select form-select-sm">
+            <option value="">All Roles</option>
+            {% for r_val, r_label in roles %}
+              <option value="{{ r_val }}" {% if role_filter == r_val %}selected{% endif %}>{{ r_label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-bold text-muted">Account Status</label>
+          <select name="status" class="form-select form-select-sm">
+            <option value="">All Statuses</option>
+            <option value="locked"   {% if status_filter == 'locked'   %}selected{% endif %}>Locked</option>
+            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+            <option value="no_mfa"   {% if status_filter == 'no_mfa'   %}selected{% endif %}>No MFA</option>
+          </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button type="submit" class="btn btn-sm btn-primary flex-fill">
+            <i class="bi bi-search me-1"></i> Search
+          </button>
+          <a href="{{ url_for('admin.manage_users') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+        </div>
+      </form>
     </div>
-</div>
-    <!-- Back Button -->
-    <div class="text-center mt-4">
-        <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">
-            <i class="bi bi-arrow-left me-2"></i> Back to Dashboard
-        </a>
+  </div>
+
+  {% if users %}
+  <!-- Bulk Action Form wraps the whole table -->
+  <form id="bulkForm" action="{{ url_for('admin.bulk_user_action') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <input type="hidden" name="bulk_action" id="bulkActionInput" value="">
+
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+      <h6 class="m-0 fw-bold text-primary">
+        <i class="bi bi-list-ul me-1"></i>
+        {{ pagination.total }} User(s) — Page {{ pagination.page }} of {{ pagination.pages }}
+      </h6>
+      <div class="d-flex gap-2 align-items-center">
+        <span class="text-muted small me-1">Bulk:</span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="bulkAction('activate')">Activate</button>
+        <button type="button" class="btn btn-sm btn-outline-warning" onclick="bulkAction('deactivate')">Deactivate</button>
+        <button type="button" class="btn btn-sm btn-outline-danger"
+                onclick="if(confirm('Delete selected users? This cannot be undone.')) bulkAction('delete')">Delete</button>
+      </div>
     </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
+              <th>#</th>
+              <th>User</th>
+              <th>Role</th>
+              <th>MFA</th>
+              <th>Status</th>
+              <th>Last Login</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+            {% set is_locked = user.locked_until and user.locked_until > now %}
+            {% set is_inactive = not user.is_active %}
+            <tr class="{% if is_locked %}table-warning{% elif is_inactive %}table-secondary{% endif %}">
+              <td>
+                {% if user.id != current_user.id %}
+                <input type="checkbox" name="user_ids" value="{{ user.id }}" class="user-checkbox">
+                {% endif %}
+              </td>
+              <td class="text-muted small">{{ user.id }}</td>
+              <td>
+                <div>
+                  <strong>{{ user.username }}</strong>
+                  {% if user.id == current_user.id %}
+                    <span class="badge bg-info ms-1 small">You</span>
+                  {% endif %}
+                </div>
+                {% if user.full_name %}
+                  <div class="text-muted small">{{ user.full_name }}</div>
+                {% endif %}
+                {% if user.email %}
+                  <div class="text-muted small"><i class="bi bi-envelope me-1"></i>{{ user.email }}</div>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge rounded-pill px-3 py-1"
+                  style="background:#e0e7ff;color:#3730a3;font-size:0.78rem;">
+                  {{ user.role|capitalize }}
+                </span>
+              </td>
+              <td>
+                {% if user.mfa_enabled %}
+                  <span class="badge bg-success-subtle text-success"><i class="bi bi-shield-check me-1"></i>On</span>
+                {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-shield-x me-1"></i>Off</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if is_locked %}
+                  <span class="badge bg-danger"><i class="bi bi-lock-fill me-1"></i>Locked</span>
+                {% elif is_inactive %}
+                  <span class="badge bg-secondary"><i class="bi bi-person-slash me-1"></i>Inactive</span>
+                {% else %}
+                  <span class="badge bg-success"><i class="bi bi-unlock-fill me-1"></i>Active</span>
+                {% endif %}
+                {% if user.failed_login_attempts > 0 %}
+                  <span class="badge bg-warning text-dark ms-1" title="{{ user.failed_login_attempts }} failed login attempt(s)">
+                    <i class="bi bi-exclamation-triangle me-1"></i>{{ user.failed_login_attempts }}
+                  </span>
+                {% endif %}
+              </td>
+              <td class="text-muted small text-nowrap">
+                {% if user.last_login %}
+                  {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
+                {% else %}
+                  <span class="text-muted fst-italic">Never</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="d-flex gap-1 flex-wrap">
+                  <a href="{{ url_for('admin.edit_user', user_id=user.id) }}"
+                     class="btn btn-sm btn-outline-primary" title="Edit User">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  <a href="{{ url_for('admin.reset_password', user_id=user.id) }}"
+                     class="btn btn-sm btn-outline-warning" title="Reset Password">
+                    <i class="bi bi-key"></i>
+                  </a>
+                  {% if user.id != current_user.id %}
+                    {% if is_locked %}
+                      <form action="{{ url_for('admin.unlock_user', user_id=user.id) }}" method="POST" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="btn btn-sm btn-outline-success" title="Unlock Account">
+                          <i class="bi bi-unlock"></i>
+                        </button>
+                      </form>
+                    {% else %}
+                      <form action="{{ url_for('admin.lock_user', user_id=user.id) }}" method="POST" style="display:inline;"
+                            onsubmit="return confirm('Lock account for {{ user.username }}?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Lock Account">
+                          <i class="bi bi-lock"></i>
+                        </button>
+                      </form>
+                    {% endif %}
+                    {% if user.mfa_enabled %}
+                      <form action="{{ url_for('admin.disable_mfa', user_id=user.id) }}" method="POST" style="display:inline;"
+                            onsubmit="return confirm('Disable MFA for {{ user.username }}?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="btn btn-sm btn-outline-info" title="Disable MFA">
+                          <i class="bi bi-shield-x"></i>
+                        </button>
+                      </form>
+                    {% endif %}
+                    <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" style="display:inline;"
+                          onsubmit="return confirm('Permanently delete user {{ user.username }}? This cannot be undone.');">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                      <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete User">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <div class="card-footer bg-white border-0 py-3">
+      <nav>
+        <ul class="pagination pagination-sm justify-content-center mb-0">
+          {% if pagination.has_prev %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.manage_users', page=pagination.prev_num, q=search_query, role=role_filter, status=status_filter) }}">&laquo; Prev</a>
+          </li>
+          {% endif %}
+          {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+              <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('admin.manage_users', page=p, q=search_query, role=role_filter, status=status_filter) }}">{{ p }}</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+          {% endfor %}
+          {% if pagination.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.manage_users', page=pagination.next_num, q=search_query, role=role_filter, status=status_filter) }}">Next &raquo;</a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+  </form>
+
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-person-x display-4 d-block mb-3"></i>
+    <p>No users found matching your criteria.</p>
+    <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-secondary btn-sm">Clear Filters</a>
+  </div>
+  {% endif %}
 </div>
+
+<script>
+function toggleAll(master) {
+  document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = master.checked);
+}
+function bulkAction(action) {
+  const checked = document.querySelectorAll('.user-checkbox:checked');
+  if (checked.length === 0) { alert('Please select at least one user.'); return; }
+  document.getElementById('bulkActionInput').value = action;
+  document.getElementById('bulkForm').submit();
+}
+</script>
 {% endblock %}

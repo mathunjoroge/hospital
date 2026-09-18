@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from flask_login import UserMixin
 
 from extensions import db  # Import db from extensions
@@ -14,3 +16,14 @@ class User(UserMixin, db.Model):
     locked_until = db.Column(db.DateTime, nullable=True)
     totp_secret = db.Column(db.String(64), nullable=True)
     mfa_enabled = db.Column(db.Boolean, default=False, nullable=False)
+
+    # ── Fields added by fix/admin-department-missing-features ──────────────
+    email = db.Column(db.String(120), unique=True, nullable=True, index=True)
+    full_name = db.Column(db.String(120), nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=True,
+    )
+    last_login = db.Column(db.DateTime(timezone=True), nullable=True)

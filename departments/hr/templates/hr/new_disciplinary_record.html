@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4" style="max-width:700px">
+  <h1 class="mb-1">Record Disciplinary Action</h1>
+  <p class="text-muted mb-1">Employee: <strong>{{ employee.name }}</strong> ({{ employee.employee_id }})</p>
+  <div class="alert alert-warning py-2 mb-4">
+    <i class="bi bi-shield-exclamation me-1"></i>
+    This record is permanent and confidential. Ensure a fair hearing has taken place before filing.
+  </div>
+
+  <form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        {{ form.incident_date.label(class="form-label fw-bold") }}
+        {{ form.incident_date(class="form-control") }}
+      </div>
+      <div class="col-md-6 mb-3">
+        {{ form.incident_type.label(class="form-label fw-bold") }}
+        {{ form.incident_type(class="form-select") }}
+      </div>
+    </div>
+    <div class="mb-3">
+      {{ form.description.label(class="form-label fw-bold") }}
+      {{ form.description(class="form-control", rows=4, placeholder="Describe the incident objectively…") }}
+    </div>
+    <div class="mb-3">
+      {{ form.action_taken.label(class="form-label fw-bold") }}
+      {{ form.action_taken(class="form-control", rows=3, placeholder="What action was taken by HR / management…") }}
+    </div>
+    <div class="mb-3">
+      {{ form.outcome.label(class="form-label fw-bold") }}
+      {{ form.outcome(class="form-select") }}
+    </div>
+    <div class="d-flex gap-2">
+      {{ form.submit(class="btn btn-danger") }}
+      <a href="{{ url_for('hr.employee_profile', employee_id=employee.id) }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

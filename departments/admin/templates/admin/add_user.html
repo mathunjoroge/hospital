@@ -1,50 +1,83 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">Add New User</h2>
-
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">User Details</h4>
-        </div>
-        <div class="card-body">
-            <form method="POST" novalidate>
-                {{ form.hidden_tag() }}
-
-                <div class="mb-3">
-                    <label for="username" class="form-label">Username</label>
-                    {{ form.username(class="form-control", id="username") }}
-                    {% for error in form.username.errors %}
-                        <span class="text-danger">{{ error }}</span>
-                    {% endfor %}
-                </div>
-
-                <div class="mb-3">
-                    <label for="password" class="form-label">Password</label>
-                    {{ form.password(class="form-control", id="password") }}
-                    {% for error in form.password.errors %}
-                        <span class="text-danger">{{ error }}</span>
-                    {% endfor %}
-                </div>
-
-                <div class="mb-3">
-                    <label for="role" class="form-label">Role</label>
-                    {{ form.role(class="form-select", id="role") }}
-                    {% for error in form.role.errors %}
-                        <span class="text-danger">{{ error }}</span>
-                    {% endfor %}
-                </div>
-
-                <div class="text-center">
-                    {{ form.submit(class="btn btn-primary") }}
-                </div>
-            </form>
-        </div>
+<div class="container py-4" style="max-width: 640px;">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h3 class="fw-bold mb-0"><i class="bi bi-person-plus me-2 text-primary"></i>Add New User</h3>
+      <small class="text-muted">Create a new system account with a role and optional contact details.</small>
     </div>
+    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i> Dashboard
+    </a>
+  </div>
 
-    <!-- Back Button -->
-    <div class="text-center mt-4">
-        <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Back to Dashboard</a>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-primary text-white fw-bold">
+      <i class="bi bi-person-badge me-2"></i>User Details
     </div>
+    <div class="card-body p-4">
+      <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+          <label for="username" class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
+          {{ form.username(class="form-control", id="username", placeholder="e.g. nurse_jane") }}
+          {% for error in form.username.errors %}
+            <div class="text-danger small mt-1">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label for="full_name" class="form-label fw-semibold">Full Name</label>
+          {{ form.full_name(class="form-control", id="full_name", placeholder="e.g. Jane Wambui Mwangi") }}
+          {% for error in form.full_name.errors %}
+            <div class="text-danger small mt-1">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label for="email" class="form-label fw-semibold">Email Address</label>
+          {{ form.email(class="form-control", id="email", placeholder="e.g. jane@hospital.go.ke") }}
+          <div class="form-text text-muted">Used for password reset notifications. Optional but recommended.</div>
+          {% for error in form.email.errors %}
+            <div class="text-danger small mt-1">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label for="password" class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
+          {{ form.password(class="form-control", id="password", placeholder="Min 8 chars, upper, digit, symbol") }}
+          <div class="form-text text-muted">Must contain uppercase, a digit, and a special character.</div>
+          {% for error in form.password.errors %}
+            <div class="text-danger small mt-1">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="mb-4">
+          <label for="role" class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
+          {{ form.role(class="form-select", id="role") }}
+          {% for error in form.role.errors %}
+            <div class="text-danger small mt-1">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="d-grid gap-2">
+          {{ form.submit(class="btn btn-primary fw-bold py-2") }}
+          <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 {% endblock %}

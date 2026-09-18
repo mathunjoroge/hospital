@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4" style="max-width:700px">
+  <h1 class="mb-1">New Performance Review</h1>
+  <p class="text-muted mb-4">Employee: <strong>{{ employee.name }}</strong> ({{ employee.employee_id }})</p>
+
+  <form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+      {{ form.review_period.label(class="form-label fw-bold") }}
+      {{ form.review_period(class="form-control", placeholder="e.g. 2026-Annual") }}
+    </div>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        {{ form.review_type.label(class="form-label fw-bold") }}
+        {{ form.review_type(class="form-select") }}
+      </div>
+      <div class="col-md-6 mb-3">
+        {{ form.score.label(class="form-label fw-bold") }}
+        {{ form.score(class="form-select") }}
+      </div>
+    </div>
+    <div class="mb-3">
+      {{ form.strengths.label(class="form-label fw-bold") }}
+      {{ form.strengths(class="form-control", rows=3) }}
+    </div>
+    <div class="mb-3">
+      {{ form.areas_for_improvement.label(class="form-label fw-bold") }}
+      {{ form.areas_for_improvement(class="form-control", rows=3) }}
+    </div>
+    <div class="mb-3">
+      {{ form.goals_next_period.label(class="form-label fw-bold") }}
+      {{ form.goals_next_period(class="form-control", rows=3) }}
+    </div>
+    <div class="mb-3">
+      {{ form.comments.label(class="form-label fw-bold") }}
+      {{ form.comments(class="form-control", rows=2) }}
+    </div>
+    <div class="d-flex gap-2">
+      {{ form.submit(class="btn btn-primary") }}
+      <a href="{{ url_for('hr.employee_profile', employee_id=employee.id) }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid py-4 px-4">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h3 class="fw-bold mb-0"><i class="bi bi-bell me-2 text-info"></i>Outbound Notifications</h3>
+      <small class="text-muted">Outbound SMS / email / push alerts sent to patients and staff.</small>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('admin.outbound_notifications', format='json') }}" target="_blank"
+         class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-filetype-json me-1"></i> Export JSON
+      </a>
+      <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Dashboard
+      </a>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body bg-light rounded">
+      <form method="GET" action="{{ url_for('admin.outbound_notifications') }}" class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label small fw-bold text-muted">Event Type</label>
+          <input type="text" name="event_type" class="form-control form-control-sm"
+                 placeholder="e.g. APPOINTMENT_REMINDER" value="{{ event_filter }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-bold text-muted">Status</label>
+          <select name="status" class="form-select form-select-sm">
+            <option value="">All</option>
+            <option value="SENT"    {% if status_filter=='SENT'    %}selected{% endif %}>SENT</option>
+            <option value="FAILED"  {% if status_filter=='FAILED'  %}selected{% endif %}>FAILED</option>
+            <option value="PENDING" {% if status_filter=='PENDING' %}selected{% endif %}>PENDING</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-bold text-muted">Recipient</label>
+          <input type="text" name="recipient" class="form-control form-control-sm"
+                 placeholder="+254…" value="{{ recipient_filter }}">
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button type="submit" class="btn btn-sm btn-primary flex-fill">
+            <i class="bi bi-filter me-1"></i> Filter
+          </button>
+          <a href="{{ url_for('admin.outbound_notifications') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3 border-0">
+      <h6 class="m-0 fw-bold text-info">
+        {{ pagination.total }} notification(s) — Page {{ pagination.page }} of {{ pagination.pages }}
+      </h6>
+    </div>
+    <div class="card-body p-0">
+      {% if logs %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 table-sm">
+          <thead class="table-light">
+            <tr>
+              <th>Sent At</th>
+              <th>Patient ID</th>
+              <th>Recipient</th>
+              <th>Channel</th>
+              <th>Event</th>
+              <th>Subject</th>
+              <th>Status</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in logs %}
+            <tr class="{% if log.status == 'FAILED' %}table-danger{% endif %}">
+              <td class="text-nowrap small text-muted">
+                {{ log.sent_at.strftime('%Y-%m-%d %H:%M') if log.sent_at else (log.created_at.strftime('%Y-%m-%d %H:%M') if log.created_at else '—') }}
+              </td>
+              <td class="small">{{ log.patient_id or '—' }}</td>
+              <td class="small"><code>{{ log.recipient or '—' }}</code></td>
+              <td>
+                {% if log.channel == 'SMS' %}
+                  <span class="badge bg-success">SMS</span>
+                {% elif log.channel == 'EMAIL' %}
+                  <span class="badge bg-primary">Email</span>
+                {% elif log.channel == 'PUSH' %}
+                  <span class="badge bg-info text-dark">Push</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ log.channel or '—' }}</span>
+                {% endif %}
+              </td>
+              <td class="small">{{ log.event_type or '—' }}</td>
+              <td class="small text-truncate" style="max-width:200px;" title="{{ log.subject }}">
+                {{ log.subject or '—' }}
+              </td>
+              <td>
+                {% if log.status == 'SENT' %}
+                  <span class="badge bg-success">SENT</span>
+                {% elif log.status == 'FAILED' %}
+                  <span class="badge bg-danger">FAILED</span>
+                {% elif log.status == 'PENDING' %}
+                  <span class="badge bg-warning text-dark">PENDING</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ log.status or '—' }}</span>
+                {% endif %}
+              </td>
+              <td class="small text-danger text-truncate" style="max-width:180px;" title="{{ log.error_message }}">
+                {{ log.error_message or '' }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="p-5 text-center text-muted">
+        <i class="bi bi-bell-slash display-4 mb-3 d-block"></i>
+        <p>No outbound notification records found.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <div class="card-footer bg-white border-0 py-3">
+      <nav>
+        <ul class="pagination pagination-sm justify-content-center mb-0">
+          {% if pagination.has_prev %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.outbound_notifications', page=pagination.prev_num, event_type=event_filter, status=status_filter, recipient=recipient_filter) }}">&laquo; Prev</a>
+          </li>
+          {% endif %}
+          <li class="page-item disabled"><span class="page-link">{{ pagination.page }} / {{ pagination.pages }}</span></li>
+          {% if pagination.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.outbound_notifications', page=pagination.next_num, event_type=event_filter, status=status_filter, recipient=recipient_filter) }}">Next &raquo;</a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

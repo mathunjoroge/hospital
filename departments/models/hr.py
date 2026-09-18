@@ -66,23 +66,26 @@ class Employee(db.Model):
     # than crashing the whole run.
     basic_salary = db.Column(db.Numeric(12, 2), nullable=True)
 
+    # ── Contract / probation ──────────────────────────────────────────────
+    contract_type = db.Column(
+        db.String(30), nullable=True, default="permanent"
+    )  # permanent | contract | locum | intern
+    probation_end_date = db.Column(db.Date, nullable=True)  # NULL means confirmed/not on probation
+    national_id = db.Column(db.String(30), nullable=True)   # National ID / Passport number
+    kra_pin = db.Column(db.String(20), nullable=True)       # KRA PIN for payroll statutory purposes
+
+    # ── Next of kin / emergency contact ──────────────────────────────────
+    nok_name = db.Column(db.String(100), nullable=True)
+    nok_phone = db.Column(db.String(20), nullable=True)
+    nok_relationship = db.Column(db.String(50), nullable=True)  # e.g. spouse, parent, sibling
+
     # Links this HR record to the login account the employee actually uses.
-    # Employee and User are separate tables with independent auto-increment
-    # sequences — several self-service routes previously compared
-    # current_user.id directly against Employee.id, which only "worked" when
-    # the two happened to share a number by coincidence. Nullable + unique:
-    # not every employee has a login (e.g. contractors on payroll only), and
-    # a login must map to at most one employee record.
     user_id = db.Column(
         db.Integer, db.ForeignKey("users.id"), unique=True, nullable=True, index=True
     )
     user = db.relationship("User", foreign_keys=[user_id])
 
-    # Annual (vacation) leave entitlement in working days. Previously there
-    # was no entitlement anywhere in the schema, so leave_request() had no
-    # way to tell a legitimate vacation request from one that would leave an
-    # employee with negative leave — every request was accepted regardless
-    # of how many days the employee had already taken that year.
+    # Annual (vacation) leave entitlement in working days.
     annual_leave_days = db.Column(
         db.Integer, nullable=False, default=DEFAULT_ANNUAL_LEAVE_DAYS
     )
@@ -200,6 +203,9 @@ class Leave(db.Model):
     status = db.Column(
         db.String(20), default="Pending"
     )  # e.g., Pending, Approved, Rejected
+    reason = db.Column(db.Text, nullable=True)          # Optional reason/notes from employee
+    approved_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
 
     # employee_profile.html renders an employee's leave history via
     # employee.leaves; without this relationship the template raised
@@ -263,3 +269,124 @@ class StaffCredential(db.Model):
 
     def __repr__(self):
         return f"<StaffCredential {self.staff_name} - {self.credential_type} ({self.credential_number})>"
+
+
+class LeaveBalance(db.Model):
+    """
+    Annual leave entitlement and usage per employee per year.
+
+    Kenyan Employment Act: permanent employees earn 21 working days annual
+    leave per year minimum. Sick leave and other statutory types are
+    tracked here so HR can see remaining balances at a glance.
+    """
+    __tablename__ = "leave_balances"
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False)
+    year = db.Column(db.Integer, nullable=False)                   # e.g. 2026
+    leave_type = db.Column(db.String(50), nullable=False)          # annual | sick | maternity | …
+    entitled_days = db.Column(db.Integer, nullable=False, default=21)
+    used_days = db.Column(db.Integer, nullable=False, default=0)
+    carried_over = db.Column(db.Integer, nullable=False, default=0)  # days carried from prior year
+
+    employee = db.relationship("Employee", backref="leave_balances")
+
+    __table_args__ = (
+        db.UniqueConstraint("employee_id", "year", "leave_type", name="uq_leave_balance"),
+    )
+
+    @property
+    def remaining_days(self):
+        return max(0, self.entitled_days + self.carried_over - self.used_days)
+
+    def __repr__(self):
+        return f"<LeaveBalance emp={self.employee_id} year={self.year} type={self.leave_type} remaining={self.remaining_days}>"
+
+
+class PerformanceReview(db.Model):
+    """
+    Staff performance appraisal record.
+
+    Supports annual / mid-year / probation-review cycles.
+    Score is 1–5 (1=Unsatisfactory, 3=Meets Expectations, 5=Outstanding).
+    """
+    __tablename__ = "performance_reviews"
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False)
+    reviewer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    review_period = db.Column(db.String(50), nullable=False)  # e.g. "2026-H1", "2026-Annual"
+    review_type = db.Column(db.String(30), nullable=False, default="annual")  # annual | probation | mid-year
+    score = db.Column(db.Integer, nullable=False)             # 1–5
+    strengths = db.Column(db.Text, nullable=True)
+    areas_for_improvement = db.Column(db.Text, nullable=True)
+    goals_next_period = db.Column(db.Text, nullable=True)
+    comments = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    employee = db.relationship("Employee", backref="performance_reviews")
+    reviewer = db.relationship("User", foreign_keys=[reviewer_id])
+
+    def __repr__(self):
+        return f"<PerformanceReview emp={self.employee_id} period={self.review_period} score={self.score}>"
+
+
+class TrainingRecord(db.Model):
+    """
+    Staff training, CPD (Continuing Professional Development), and
+    certification completion records.
+
+    Regulatory bodies (KMPDC, NCK, PPB) require CPD points — this table
+    provides an auditable log per employee.
+    """
+    __tablename__ = "training_records"
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False)
+    title = db.Column(db.String(200), nullable=False)         # Course / workshop title
+    provider = db.Column(db.String(200), nullable=True)       # Training institution
+    training_type = db.Column(db.String(50), nullable=False, default="cpd")
+    # cpd | mandatory | skills | leadership | induction | conference
+    date_completed = db.Column(db.Date, nullable=False)
+    expiry_date = db.Column(db.Date, nullable=True)           # If certification expires
+    cpd_points = db.Column(db.Integer, nullable=True)         # CPD points earned
+    certificate_number = db.Column(db.String(100), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    recorded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    employee = db.relationship("Employee", backref="training_records")
+    recorder = db.relationship("User", foreign_keys=[recorded_by])
+
+    def __repr__(self):
+        return f"<TrainingRecord emp={self.employee_id} title={self.title!r}>"
+
+
+class DisciplinaryRecord(db.Model):
+    """
+    Staff disciplinary action log.
+
+    Kenyan Employment Act s.41 requires a fair hearing and written record
+    before any summary dismissal. This table provides the auditable trail
+    HR needs.
+    """
+    __tablename__ = "disciplinary_records"
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False)
+    incident_date = db.Column(db.Date, nullable=False)
+    incident_type = db.Column(db.String(50), nullable=False)
+    # verbal_warning | written_warning | final_warning | suspension | dismissal | other
+    description = db.Column(db.Text, nullable=False)          # What happened
+    action_taken = db.Column(db.Text, nullable=False)         # What HR/management did
+    outcome = db.Column(db.String(50), nullable=True)         # resolved | appeal_pending | dismissed
+    reviewed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)  # False = expunged
+
+    employee = db.relationship("Employee", backref="disciplinary_records")
+    reviewer = db.relationship("User", foreign_keys=[reviewed_by])
+
+    def __repr__(self):
+        return f"<DisciplinaryRecord emp={self.employee_id} type={self.incident_type} date={self.incident_date}>"
+

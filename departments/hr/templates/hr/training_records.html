@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Training &amp; CPD Records</h1>
+    <a href="{{ url_for('hr.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Dashboard</a>
+  </div>
+  <p class="text-muted">To add a record, open an employee's profile and click <strong>Log Training</strong>.</p>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-dark">
+        <tr><th>Employee</th><th>Title</th><th>Type</th><th>Provider</th><th>Completed</th><th>CPD Pts</th><th>Cert #</th><th>Expires</th></tr>
+      </thead>
+      <tbody>
+        {% for rec in records %}
+        <tr>
+          <td>{{ rec.employee.name }}</td>
+          <td>{{ rec.title }}</td>
+          <td><span class="badge bg-secondary">{{ rec.training_type | upper }}</span></td>
+          <td>{{ rec.provider or '—' }}</td>
+          <td>{{ rec.date_completed.strftime('%d/%m/%Y') }}</td>
+          <td>{{ rec.cpd_points or '—' }}</td>
+          <td>{{ rec.certificate_number or '—' }}</td>
+          <td>
+            {% if rec.expiry_date %}
+              {% set days = (rec.expiry_date - today).days if today is defined else 999 %}
+              <span class="{% if rec.expiry_date < today %}text-danger{% elif (rec.expiry_date - today).days <= 30 %}text-warning{% endif %}">
+                {{ rec.expiry_date.strftime('%d/%m/%Y') }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-3">No training records found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

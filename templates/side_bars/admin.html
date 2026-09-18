@@ -8,6 +8,13 @@
 <div class="sidebar-heading mt-3">User Management</div>
 <a href="{{ url_for('admin.manage_users') }}"><i class="bi bi-people me-2"></i> Manage Users</a>
 <a href="{{ url_for('admin.add_user') }}"><i class="bi bi-person-plus me-2"></i> Add User</a>
+<a href="{{ url_for('admin.mfa_setup') }}"><i class="bi bi-shield-lock me-2"></i> Setup My MFA</a>
+
+<div class="sidebar-heading mt-3">Analytics & Reports</div>
+<a href="{{ url_for('admin.analytics') }}"><i class="bi bi-graph-up-arrow me-2" style="color: #0284c7;"></i> Executive Analytics</a>
+<a href="{{ url_for('admin.audit_trail') }}"><i class="bi bi-shield-check me-2" style="color: #7c3aed;"></i> Audit Trail</a>
+<a href="{{ url_for('admin.outbound_notifications') }}"><i class="bi bi-bell me-2" style="color: #0891b2;"></i> Outbound Notifications</a>
+<a href="{{ url_for('admin.staff_credentials') }}"><i class="bi bi-patch-check me-2" style="color: #d97706;"></i> Staff Credentials</a>
 
 <div class="sidebar-heading mt-3">Compliance & Reporting</div>
 <a href="{{ url_for('compliance.hipaa_dashboard_view') }}"><i class="bi bi-shield-lock me-2"></i> HIPAA &amp; Audit Trail</a>

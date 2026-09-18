@@ -1,16 +1,16 @@
 import base64
 import io
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pyotp
 import qrcode
-from flask import abort, flash, redirect, render_template, request, session, url_for
+from flask import abort, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from werkzeug.security import generate_password_hash
-from wtforms import PasswordField, SelectField, StringField, SubmitField
-from wtforms.validators import DataRequired, Length
+from wtforms import BooleanField, EmailField, PasswordField, SelectField, StringField, SubmitField
+from wtforms.validators import DataRequired, Email, Length, Optional
 
 from departments.api.audit import log_audit_event
 from departments.models.admin import Log
@@ -51,20 +51,31 @@ class AddUserForm(FlaskForm):
     username = StringField(
         "Username", validators=[DataRequired(), Length(min=4, max=80)]
     )
+    full_name = StringField("Full Name", validators=[Optional(), Length(max=120)])
+    email = EmailField("Email Address", validators=[Optional(), Email(), Length(max=120)])
     password = PasswordField(
         "Password", validators=[DataRequired(), Length(min=6, max=120)]
     )
     role = SelectField("Role", choices=ROLES, validators=[DataRequired()])
     submit = SubmitField("Add User")
-    # edit user
 
 
 class EditUserForm(FlaskForm):
     username = StringField(
         "Username", validators=[DataRequired(), Length(min=4, max=80)]
     )
+    full_name = StringField("Full Name", validators=[Optional(), Length(max=120)])
+    email = EmailField("Email Address", validators=[Optional(), Email(), Length(max=120)])
     role = SelectField("Role", choices=ROLES, validators=[DataRequired()])
+    is_active = BooleanField("Account Active", default=True)
     submit = SubmitField("Update User")
+
+
+class ResetPasswordForm(FlaskForm):
+    new_password = PasswordField(
+        "New Password", validators=[DataRequired(), Length(min=8, max=120)]
+    )
+    submit = SubmitField("Reset Password")
 
 
 @bp.route("/admin/switch_user", methods=["POST"])
@@ -72,8 +83,6 @@ class EditUserForm(FlaskForm):
 @login_required
 def switch_user():
     # Guard against non-admins using the real role, NOT the effective role.
-    # Using @roles_required("admin") here would abort(403) when an admin is
-    # already switched to another role and tries to switch again.
     if getattr(current_user, "role", None) != "admin":
         abort(403)
 
@@ -130,7 +139,6 @@ def switch_user():
         "admin": "admin.index",
     }
 
-    # Redirect to the role-specific homepage
     return redirect(url_for(role_homepages.get(new_role, "home")))
 
 
@@ -162,17 +170,35 @@ def get_effective_role():
 
 
 @bp.route("/index", methods=["GET"])
-@bp.route("/", methods=["GET"])  # Add this to handle /admin directly
+@bp.route("/", methods=["GET"])
 @login_required
 @roles_required("admin")
 def index():
     """Admin dashboard showing all users."""
 
     try:
-        department = request.args.get(
-            "department", "admin"
-        )  # Get department from query parameter
+        department = request.args.get("department", "admin")
         users = User.query.order_by(User.username).all()
+        now = datetime.now(timezone.utc)
+
+        # Quick stats for the dashboard
+        locked_count = sum(
+            1 for u in users if u.locked_until and u.locked_until > now
+        )
+        mfa_count = sum(1 for u in users if u.mfa_enabled)
+        inactive_count = sum(1 for u in users if not getattr(u, "is_active", True))
+
+        # Expiring credentials count (within 30 days)
+        expiring_creds_count = 0
+        try:
+            from departments.models.hr import StaffCredential
+            cutoff = now.date() + timedelta(days=30)
+            expiring_creds_count = StaffCredential.query.filter(
+                StaffCredential.expiry_date <= cutoff
+            ).count()
+        except Exception:
+            pass
+
         logger.info(
             f"Admin {current_user.id} accessed dashboard with department {department}"
         )
@@ -185,7 +211,15 @@ def index():
             )
         )
         db.session.commit()
-        return render_template("admin/index.html", users=users, department=department)
+        return render_template(
+            "admin/index.html",
+            users=users,
+            department=department,
+            locked_count=locked_count,
+            mfa_count=mfa_count,
+            inactive_count=inactive_count,
+            expiring_creds_count=expiring_creds_count,
+        )
     except Exception as e:
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in admin.index: ")
@@ -244,12 +278,21 @@ def add_user():
                 db.session.commit()
                 return render_template("admin/add_user.html", form=form)
 
+            # Check email uniqueness if provided
+            email_val = form.email.data.strip() if form.email.data else None
+            if email_val and User.query.filter_by(email=email_val).first():
+                flash("Email address already in use by another account.", "error")
+                return render_template("admin/add_user.html", form=form)
+
             new_user = User(
                 username=form.username.data,
+                full_name=form.full_name.data.strip() if form.full_name.data else None,
+                email=email_val,
                 password=generate_password_hash(
                     form.password.data, method="pbkdf2:sha256"
                 ),
                 role=form.role.data,
+                is_active=True,
             )
 
             db.session.add(new_user)
@@ -262,6 +305,12 @@ def add_user():
                     user_id=current_user.id,
                     source="admin",
                 )
+            )
+            log_audit_event(
+                action="USER_CREATED",
+                resource_type="User",
+                resource_id=str(new_user.id),
+                details={"username": new_user.username, "role": new_user.role, "email": new_user.email},
             )
             db.session.commit()
             flash(f"User {form.username.data} added successfully.", "success")
@@ -289,10 +338,40 @@ def add_user():
 @login_required
 @roles_required("admin")
 def manage_users():
-    """Admin page to manage existing users."""
+    """Admin page to manage existing users with search/filter/pagination support."""
 
     try:
-        users = User.query.order_by(User.username).all()
+        search_query = request.args.get("q", "").strip()
+        role_filter = request.args.get("role", "").strip()
+        status_filter = request.args.get("status", "").strip()
+        page = request.args.get("page", 1, type=int)
+        per_page = 25
+
+        query = User.query
+
+        if search_query:
+            query = query.filter(
+                db.or_(
+                    User.username.ilike(f"%{search_query}%"),
+                    User.email.ilike(f"%{search_query}%"),
+                    User.full_name.ilike(f"%{search_query}%"),
+                )
+            )
+        if role_filter:
+            query = query.filter(User.role == role_filter)
+        if status_filter == "locked":
+            now = datetime.now(timezone.utc)
+            query = query.filter(User.locked_until > now)
+        elif status_filter == "inactive":
+            query = query.filter(User.is_active == False)  # noqa: E712
+        elif status_filter == "no_mfa":
+            query = query.filter(User.mfa_enabled == False)  # noqa: E712
+
+        pagination = query.order_by(User.username).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        now = datetime.now(timezone.utc)
+
         logger.info(f"Admin {current_user.id} accessed manage users page")
         db.session.add(
             Log(
@@ -303,7 +382,16 @@ def manage_users():
             )
         )
         db.session.commit()
-        return render_template("admin/manage_users.html", users=users)
+        return render_template(
+            "admin/manage_users.html",
+            users=pagination.items,
+            pagination=pagination,
+            roles=ROLES,
+            search_query=search_query,
+            role_filter=role_filter,
+            status_filter=status_filter,
+            now=now,
+        )
     except Exception as e:
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in admin.manage_users: ")
@@ -326,11 +414,10 @@ def edit_user(user_id):
     """Admin page to edit an existing user."""
 
     user = User.query.get_or_404(user_id)
-    form = EditUserForm(obj=user)  # Prepopulate form with user data
+    form = EditUserForm(obj=user)
 
     if form.validate_on_submit():
         try:
-            # Check for username conflicts (excluding the current user)
             existing_user = User.query.filter_by(username=form.username.data).first()
             if existing_user and existing_user.id != user.id:
                 flash("Username already exists.", "error")
@@ -348,8 +435,21 @@ def edit_user(user_id):
                 db.session.commit()
                 return render_template("admin/edit_user.html", form=form, user=user)
 
+            # Check email uniqueness
+            email_val = form.email.data.strip() if form.email.data else None
+            if email_val:
+                existing_email = User.query.filter_by(email=email_val).first()
+                if existing_email and existing_email.id != user.id:
+                    flash("Email address already in use by another account.", "error")
+                    return render_template("admin/edit_user.html", form=form, user=user)
+
+            old_role = user.role
+            old_active = getattr(user, "is_active", True)
             user.username = form.username.data
+            user.full_name = form.full_name.data.strip() if form.full_name.data else user.full_name
+            user.email = email_val
             user.role = form.role.data
+            user.is_active = form.is_active.data
             db.session.commit()
             logger.info(
                 f"Admin {current_user.id} updated user {user.username} (ID: {user.id})"
@@ -361,6 +461,18 @@ def edit_user(user_id):
                     user_id=current_user.id,
                     source="admin",
                 )
+            )
+            log_audit_event(
+                action="USER_UPDATED",
+                resource_type="User",
+                resource_id=str(user.id),
+                details={
+                    "username": user.username,
+                    "old_role": old_role,
+                    "new_role": user.role,
+                    "is_active": user.is_active,
+                    "active_changed": old_active != user.is_active,
+                },
             )
             db.session.commit()
             flash(f"User {user.username} updated successfully.", "success")
@@ -405,21 +517,28 @@ def delete_user(user_id):
             db.session.commit()
             return redirect(url_for("admin.manage_users"))
 
+        deleted_username = user.username
         db.session.delete(user)
         db.session.commit()
         logger.info(
-            f"Admin {current_user.id} deleted user {user.username} (ID: {user.id})"
+            f"Admin {current_user.id} deleted user {deleted_username} (ID: {user_id})"
         )
         db.session.add(
             Log(
                 level="INFO",
-                message=f"Admin {current_user.username} (ID: {current_user.id}) deleted user {user.username} (ID: {user.id})",
+                message=f"Admin {current_user.username} (ID: {current_user.id}) deleted user {deleted_username} (ID: {user_id})",
                 user_id=current_user.id,
                 source="admin",
             )
         )
+        log_audit_event(
+            action="USER_DELETED",
+            resource_type="User",
+            resource_id=str(user_id),
+            details={"username": deleted_username},
+        )
         db.session.commit()
-        flash(f"User {user.username} deleted successfully.", "success")
+        flash(f"User {deleted_username} deleted successfully.", "success")
         return redirect(url_for("admin.manage_users"))
     except Exception as e:
         db.session.rollback()
@@ -437,14 +556,287 @@ def delete_user(user_id):
         return redirect(url_for("admin.manage_users"))
 
 
+@bp.route("/reset_password/<int:user_id>", methods=["GET", "POST"])
+@login_required
+@roles_required("admin")
+def reset_password(user_id):
+    """Admin action to reset a user's password."""
+    user = User.query.get_or_404(user_id)
+    form = ResetPasswordForm()
+
+    if form.validate_on_submit():
+        try:
+            valid_pwd, pwd_msg = validate_password_complexity(form.new_password.data)
+            if not valid_pwd:
+                flash(pwd_msg, "error")
+                return render_template("admin/reset_password.html", form=form, user=user)
+
+            user.password = generate_password_hash(
+                form.new_password.data, method="pbkdf2:sha256"
+            )
+            # Clear lockout on manual password reset
+            user.failed_login_attempts = 0
+            user.locked_until = None
+            db.session.commit()
+
+            db.session.add(
+                Log(
+                    level="INFO",
+                    message=f"Admin {current_user.username} reset password for user {user.username} (ID: {user.id})",
+                    user_id=current_user.id,
+                    source="admin",
+                )
+            )
+            log_audit_event(
+                action="PASSWORD_RESET",
+                resource_type="User",
+                resource_id=str(user.id),
+                details={"target_username": user.username, "lockout_cleared": True},
+            )
+            db.session.commit()
+            flash(f"Password for {user.username} has been reset successfully.", "success")
+            return redirect(url_for("admin.manage_users"))
+        except Exception as e:
+            db.session.rollback()
+            flash("Something went wrong. Please try again.", "error")
+            logger.exception("Error in admin.reset_password: ")
+            return render_template("admin/reset_password.html", form=form, user=user)
+
+    return render_template("admin/reset_password.html", form=form, user=user)
+
+
+@bp.route("/lock_user/<int:user_id>", methods=["POST"])
+@login_required
+@roles_required("admin")
+def lock_user(user_id):
+    """Admin action to lock a user account (sets locked_until far in the future)."""
+    user = User.query.get_or_404(user_id)
+
+    if user.id == current_user.id:
+        flash("You cannot lock your own account.", "error")
+        return redirect(url_for("admin.manage_users"))
+
+    try:
+        # Lock indefinitely (10 years)
+        user.locked_until = datetime.now(timezone.utc) + timedelta(days=3650)
+        db.session.commit()
+        db.session.add(
+            Log(
+                level="WARNING",
+                message=f"Admin {current_user.username} locked account for user {user.username} (ID: {user.id})",
+                user_id=current_user.id,
+                source="admin",
+            )
+        )
+        log_audit_event(
+            action="USER_LOCKED",
+            resource_type="User",
+            resource_id=str(user.id),
+            details={"username": user.username, "locked_by": current_user.username},
+        )
+        db.session.commit()
+        flash(f"Account for {user.username} has been locked.", "warning")
+    except Exception as e:
+        db.session.rollback()
+        flash("Failed to lock account. Please try again.", "error")
+        logger.exception("Error in admin.lock_user: ")
+
+    return redirect(url_for("admin.manage_users"))
+
+
+@bp.route("/unlock_user/<int:user_id>", methods=["POST"])
+@login_required
+@roles_required("admin")
+def unlock_user(user_id):
+    """Admin action to unlock a locked user account."""
+    user = User.query.get_or_404(user_id)
+
+    try:
+        user.locked_until = None
+        user.failed_login_attempts = 0
+        db.session.commit()
+        db.session.add(
+            Log(
+                level="INFO",
+                message=f"Admin {current_user.username} unlocked account for user {user.username} (ID: {user.id})",
+                user_id=current_user.id,
+                source="admin",
+            )
+        )
+        log_audit_event(
+            action="USER_UNLOCKED",
+            resource_type="User",
+            resource_id=str(user.id),
+            details={"username": user.username, "unlocked_by": current_user.username},
+        )
+        db.session.commit()
+        flash(f"Account for {user.username} has been unlocked.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash("Failed to unlock account. Please try again.", "error")
+        logger.exception("Error in admin.unlock_user: ")
+
+    return redirect(url_for("admin.manage_users"))
+
+
+@bp.route("/disable_mfa/<int:user_id>", methods=["POST"])
+@login_required
+@roles_required("admin")
+def disable_mfa(user_id):
+    """Admin action to disable MFA for a user (e.g. after device loss)."""
+    user = User.query.get_or_404(user_id)
+
+    try:
+        user.mfa_enabled = False
+        user.totp_secret = None
+        db.session.commit()
+        db.session.add(
+            Log(
+                level="WARNING",
+                message=f"Admin {current_user.username} disabled MFA for user {user.username} (ID: {user.id})",
+                user_id=current_user.id,
+                source="admin",
+            )
+        )
+        log_audit_event(
+            action="MFA_DISABLED_BY_ADMIN",
+            resource_type="User",
+            resource_id=str(user.id),
+            details={"username": user.username, "disabled_by": current_user.username},
+        )
+        db.session.commit()
+        flash(f"MFA disabled for {user.username}. They must re-enroll on next login.", "warning")
+    except Exception as e:
+        db.session.rollback()
+        flash("Failed to disable MFA. Please try again.", "error")
+        logger.exception("Error in admin.disable_mfa: ")
+
+    return redirect(url_for("admin.manage_users"))
+
+
+@bp.route("/bulk_user_action", methods=["POST"])
+@login_required
+@roles_required("admin")
+def bulk_user_action():
+    """Admin bulk action: lock, unlock, or delete multiple users at once."""
+    action = request.form.get("bulk_action")
+    user_ids_raw = request.form.getlist("user_ids")
+
+    if not action or not user_ids_raw:
+        flash("No action or users selected.", "warning")
+        return redirect(url_for("admin.manage_users"))
+
+    try:
+        user_ids = [int(uid) for uid in user_ids_raw if uid.isdigit()]
+        # Never touch the current admin's own account in bulk
+        user_ids = [uid for uid in user_ids if uid != current_user.id]
+        users = User.query.filter(User.id.in_(user_ids)).all()
+
+        if not users:
+            flash("No valid users selected.", "warning")
+            return redirect(url_for("admin.manage_users"))
+
+        affected = 0
+        now = datetime.now(timezone.utc)
+
+        for user in users:
+            if action == "lock":
+                user.locked_until = now + timedelta(days=3650)
+                affected += 1
+            elif action == "unlock":
+                user.locked_until = None
+                user.failed_login_attempts = 0
+                affected += 1
+            elif action == "deactivate":
+                user.is_active = False
+                affected += 1
+            elif action == "activate":
+                user.is_active = True
+                affected += 1
+            elif action == "delete":
+                db.session.delete(user)
+                affected += 1
+
+        db.session.commit()
+        log_audit_event(
+            action=f"BULK_{action.upper()}",
+            resource_type="User",
+            resource_id="bulk",
+            details={"user_ids": user_ids, "affected": affected, "action": action},
+        )
+        db.session.add(
+            Log(
+                level="WARNING" if action in ("lock", "delete", "deactivate") else "INFO",
+                message=f"Admin {current_user.username} performed bulk {action} on {affected} user(s)",
+                user_id=current_user.id,
+                source="admin",
+            )
+        )
+        db.session.commit()
+        flash(f"Bulk {action} applied to {affected} user(s).", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash("Bulk action failed. Please try again.", "error")
+        logger.exception("Error in admin.bulk_user_action: ")
+
+    return redirect(url_for("admin.manage_users"))
+
+
 @bp.route("/system_overview", methods=["GET"])
 @login_required
 @roles_required("admin")
 def system_overview():
     """Admin page showing system stats."""
+    import platform
+    import sys
 
     try:
+        from sqlalchemy import text
+
         user_count = User.query.count()
+        role_breakdown = db.session.execute(
+            text("SELECT role, COUNT(*) as cnt FROM users GROUP BY role ORDER BY cnt DESC")
+        ).fetchall()
+
+        now = datetime.now(timezone.utc)
+        locked_count = User.query.filter(
+            User.locked_until > now
+        ).count()
+        mfa_enabled_count = User.query.filter(User.mfa_enabled == True).count()  # noqa: E712
+        inactive_count = User.query.filter(User.is_active == False).count()  # noqa: E712
+
+        recent_logs = Log.query.order_by(Log.timestamp.desc()).limit(5).all()
+        error_count = Log.query.filter(Log.level == "ERROR").count()
+        warning_count = Log.query.filter(Log.level == "WARNING").count()
+
+        # System resource usage (psutil optional)
+        cpu_percent = None
+        memory_percent = None
+        disk_percent = None
+        try:
+            import psutil
+            cpu_percent = psutil.cpu_percent(interval=0.5)
+            memory_percent = psutil.virtual_memory().percent
+            disk_percent = psutil.disk_usage("/").percent
+        except ImportError:
+            pass
+
+        stats = {
+            "user_count": user_count,
+            "locked_count": locked_count,
+            "mfa_enabled_count": mfa_enabled_count,
+            "inactive_count": inactive_count,
+            "role_breakdown": [{"role": r[0], "count": r[1]} for r in role_breakdown],
+            "error_count": error_count,
+            "warning_count": warning_count,
+            "recent_logs": recent_logs,
+            "python_version": sys.version.split()[0],
+            "platform": platform.system(),
+            "cpu_percent": cpu_percent,
+            "memory_percent": memory_percent,
+            "disk_percent": disk_percent,
+        }
+
         logger.info(f"Admin {current_user.id} accessed system overview")
         db.session.add(
             Log(
@@ -455,7 +847,7 @@ def system_overview():
             )
         )
         db.session.commit()
-        return render_template("admin/system_overview.html", user_count=user_count)
+        return render_template("admin/system_overview.html", stats=stats, user_count=user_count)
     except Exception as e:
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in admin.system_overview: ")
@@ -475,12 +867,27 @@ def system_overview():
 @login_required
 @roles_required("admin")
 def logs():
-    """Admin page showing system logs."""
+    """Admin page showing system logs with pagination and filtering."""
 
     try:
-        logs = (
-            Log.query.order_by(Log.timestamp.desc()).limit(100).all()
-        )  # Last 100 logs
+        page = request.args.get("page", 1, type=int)
+        level_filter = request.args.get("level", "").strip()
+        source_filter = request.args.get("source", "").strip()
+        search_filter = request.args.get("q", "").strip()
+
+        query = Log.query
+
+        if level_filter:
+            query = query.filter(Log.level == level_filter.upper())
+        if source_filter:
+            query = query.filter(Log.source.ilike(f"%{source_filter}%"))
+        if search_filter:
+            query = query.filter(Log.message.ilike(f"%{search_filter}%"))
+
+        pagination = query.order_by(Log.timestamp.desc()).paginate(
+            page=page, per_page=50, error_out=False
+        )
+
         logger.info(f"Admin {current_user.id} viewed system logs")
         db.session.add(
             Log(
@@ -491,7 +898,14 @@ def logs():
             )
         )
         db.session.commit()
-        return render_template("admin/logs.html", logs=logs)
+        return render_template(
+            "admin/logs.html",
+            logs=pagination.items,
+            pagination=pagination,
+            level_filter=level_filter,
+            source_filter=source_filter,
+            search_filter=search_filter,
+        )
     except Exception as e:
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in admin.logs: ")
@@ -534,6 +948,12 @@ def mfa_setup():
             user.mfa_enabled = True
             db.session.commit()
             session.pop("mfa_setup_secret", None)
+            log_audit_event(
+                action="MFA_ENABLED",
+                resource_type="User",
+                resource_id=str(user.id),
+                details={"username": user.username},
+            )
             flash("MFA has been successfully enabled for your account!", "success")
             return redirect(url_for("admin.index"))
         else:
@@ -586,8 +1006,6 @@ def audit_trail():
 @roles_required("admin")
 def export_audit_trail():
     """Export system audit logs as structured JSON for SIEM integration."""
-    from flask import jsonify
-
     from departments.models.compliance import AuditLog
 
     logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(1000).all()
@@ -607,8 +1025,6 @@ def export_audit_trail():
 @roles_required("admin")
 def outbound_notifications():
     """Admin dashboard view for outbound patient notification logs."""
-    from flask import jsonify
-
     from departments.models.notification_log import OutboundNotificationLog
 
     page = request.args.get("page", 1, type=int)
@@ -659,7 +1075,14 @@ def outbound_notifications():
             }
         )
 
-    return render_template("admin/logs.html", logs=pagination.items)
+    return render_template(
+        "admin/outbound_notifications.html",
+        logs=pagination.items,
+        pagination=pagination,
+        event_filter=event_filter,
+        status_filter=status_filter,
+        recipient_filter=recipient_filter,
+    )
 
 
 @bp.route("/admin/analytics", methods=["GET"])
@@ -668,8 +1091,6 @@ def outbound_notifications():
 @roles_required("admin")
 def analytics():
     """Admin dashboard view for hospital-wide executive KPIs and analytics."""
-    from flask import jsonify
-
     from departments.admin.analytics import get_executive_kpi_summary
 
     kpis = get_executive_kpi_summary()
@@ -685,8 +1106,6 @@ def analytics():
 @roles_required("admin", "hr")
 def staff_credentials():
     """Admin/HR view to manage and list staff credentials sorted by days-until-expiry (soonest first)."""
-    from flask import jsonify
-
     from departments.models.hr import StaffCredential
 
     if request.method == "POST":
@@ -708,8 +1127,6 @@ def staff_credentials():
                 }
             ), 400
 
-        from datetime import datetime
-
         try:
             expiry_date = datetime.strptime(expiry_date_str, "%Y-%m-%d").date()  # noqa: DTZ007
         except ValueError:
@@ -724,6 +1141,12 @@ def staff_credentials():
         )
         db.session.add(cred)
         db.session.commit()
+        log_audit_event(
+            action="CREDENTIAL_ADDED",
+            resource_type="StaffCredential",
+            resource_id=str(cred.id),
+            details={"staff_name": staff_name, "credential_type": credential_type},
+        )
         return jsonify(
             {
                 "success": True,
@@ -757,7 +1180,7 @@ def staff_credentials():
     ):
         return jsonify(items)
 
-    return render_template("admin/credentials.html", credentials=credentials)
+    return render_template("admin/credentials.html", credentials=credentials, items=items)
 
 
 @bp.route("/admin/credentials/alerts", methods=["GET"])
@@ -765,10 +1188,6 @@ def staff_credentials():
 @roles_required("admin", "hr")
 def staff_credential_alerts():
     """API endpoint returning staff credentials expiring within N threshold days (default 30 days)."""
-    from datetime import timedelta
-
-    from flask import jsonify
-
     from departments.models.hr import StaffCredential
 
     threshold_days = request.args.get("days", 30, type=int)

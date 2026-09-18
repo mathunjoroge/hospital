@@ -1,17 +1,192 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">System Overview</h2>
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-info text-white">
-            <h4 class="mb-0">System Stats</h4>
-        </div>
-        <div class="card-body">
-            <p><strong>Total Users:</strong> {{ user_count }}</p>
-        </div>
+<div class="container-fluid py-4 px-4">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h3 class="fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-info"></i>System Overview</h3>
+      <small class="text-muted">Live snapshot of HMIS health, users, resources, and logs.</small>
     </div>
-    <div class="text-center mt-4">
-        <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Back to Dashboard</a>
+    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i> Dashboard
+    </a>
+  </div>
+
+  <!-- KPI Cards Row -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-2 col-sm-4">
+      <div class="card border-0 shadow-sm h-100 border-start border-4 border-primary">
+        <div class="card-body text-center py-3">
+          <div class="text-muted small fw-semibold text-uppercase mb-1"><i class="bi bi-people me-1 text-primary"></i> Total Users</div>
+          <h2 class="fw-bold text-dark">{{ stats.user_count }}</h2>
+          <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-primary btn-sm mt-1 w-100">Manage</a>
+        </div>
+      </div>
     </div>
+    <div class="col-md-2 col-sm-4">
+      <div class="card border-0 shadow-sm h-100 border-start border-4 border-danger">
+        <div class="card-body text-center py-3">
+          <div class="text-muted small fw-semibold text-uppercase mb-1"><i class="bi bi-lock-fill me-1 text-danger"></i> Locked</div>
+          <h2 class="fw-bold {% if stats.locked_count > 0 %}text-danger{% else %}text-dark{% endif %}">{{ stats.locked_count }}</h2>
+          <a href="{{ url_for('admin.manage_users', status='locked') }}" class="btn btn-outline-danger btn-sm mt-1 w-100">Review</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2 col-sm-4">
+      <div class="card border-0 shadow-sm h-100 border-start border-4 border-secondary">
+        <div class="card-body text-center py-3">
+          <div class="text-muted small fw-semibold text-uppercase mb-1"><i class="bi bi-person-slash me-1 text-secondary"></i> Inactive</div>
+          <h2 class="fw-bold {% if stats.inactive_count > 0 %}text-warning{% else %}text-dark{% endif %}">{{ stats.inactive_count }}</h2>
+          <a href="{{ url_for('admin.manage_users', status='inactive') }}" class="btn btn-outline-secondary btn-sm mt-1 w-100">View</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2 col-sm-4">
+      <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
+        <div class="card-body text-center py-3">
+          <div class="text-muted small fw-semibold text-uppercase mb-1"><i class="bi bi-shield-check me-1 text-success"></i> MFA Enabled</div>
+          <h2 class="fw-bold text-dark">{{ stats.mfa_enabled_count }}</h2>
+          <small class="text-muted">of {{ stats.user_count }} users</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2 col-sm-4">
+      <div class="card border-0 shadow-sm h-100 border-start border-4 border-warning">
+        <div class="card-body text-center py-3">
+          <div class="text-muted small fw-semibold text-uppercase mb-1"><i class="bi bi-exclamation-triangle me-1 text-warning"></i> Log Errors</div>
+          <h2 class="fw-bold {% if stats.error_count > 0 %}text-danger{% else %}text-dark{% endif %}">{{ stats.error_count }}</h2>
+          <small class="text-muted">{{ stats.warning_count }} warn(s)</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2 col-sm-4">
+      <div class="card border-0 shadow-sm h-100 border-start border-4 border-info">
+        <div class="card-body text-center py-3">
+          <div class="text-muted small fw-semibold text-uppercase mb-1"><i class="bi bi-circle-fill text-success me-1" style="font-size:.5rem;vertical-align:middle;"></i> Status</div>
+          <h2 class="fw-bold text-success">Online</h2>
+          <small class="text-muted">DB Connected</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resource Gauges (psutil) -->
+  {% if stats.cpu_percent is not none %}
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white border-0 fw-bold text-dark">
+      <i class="bi bi-cpu me-2 text-primary"></i>Server Resource Usage
+    </div>
+    <div class="card-body">
+      <div class="row g-4">
+        <div class="col-md-4">
+          <div class="d-flex justify-content-between mb-1">
+            <small class="fw-semibold">CPU</small>
+            <small class="text-muted">{{ stats.cpu_percent }}%</small>
+          </div>
+          <div class="progress" style="height:12px;">
+            <div class="progress-bar {% if stats.cpu_percent > 80 %}bg-danger{% elif stats.cpu_percent > 60 %}bg-warning{% else %}bg-success{% endif %}"
+                 style="width:{{ stats.cpu_percent }}%"></div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="d-flex justify-content-between mb-1">
+            <small class="fw-semibold">Memory</small>
+            <small class="text-muted">{{ stats.memory_percent }}%</small>
+          </div>
+          <div class="progress" style="height:12px;">
+            <div class="progress-bar {% if stats.memory_percent > 85 %}bg-danger{% elif stats.memory_percent > 70 %}bg-warning{% else %}bg-info{% endif %}"
+                 style="width:{{ stats.memory_percent }}%"></div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="d-flex justify-content-between mb-1">
+            <small class="fw-semibold">Disk</small>
+            <small class="text-muted">{{ stats.disk_percent }}%</small>
+          </div>
+          <div class="progress" style="height:12px;">
+            <div class="progress-bar {% if stats.disk_percent > 90 %}bg-danger{% elif stats.disk_percent > 75 %}bg-warning{% else %}bg-primary{% endif %}"
+                 style="width:{{ stats.disk_percent }}%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="row g-4">
+    <!-- Role Breakdown -->
+    <div class="col-md-5">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white border-0 fw-bold text-dark">
+          <i class="bi bi-diagram-3 me-2 text-primary"></i>Users by Role
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr><th>Role</th><th class="text-end">Count</th></tr>
+            </thead>
+            <tbody>
+              {% for row in stats.role_breakdown %}
+              <tr>
+                <td><span class="badge bg-light text-dark border">{{ row.role|capitalize }}</span></td>
+                <td class="text-end fw-semibold">{{ row.count }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="2" class="text-center text-muted py-3">No roles found.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="col-md-7">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+          <span class="fw-bold text-dark"><i class="bi bi-clock-history me-2 text-secondary"></i>Recent Log Activity</span>
+          <a href="{{ url_for('admin.logs') }}" class="btn btn-outline-secondary btn-sm">View All</a>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <thead class="table-light">
+              <tr><th>Time</th><th>Level</th><th>Message</th></tr>
+            </thead>
+            <tbody>
+              {% for log in stats.recent_logs %}
+              <tr>
+                <td class="text-nowrap small text-muted">{{ log.timestamp.strftime('%H:%M:%S') }}</td>
+                <td>
+                  {% if log.level == 'ERROR' %}
+                    <span class="badge bg-danger">ERROR</span>
+                  {% elif log.level == 'WARNING' %}
+                    <span class="badge bg-warning text-dark">WARN</span>
+                  {% else %}
+                    <span class="badge bg-secondary">INFO</span>
+                  {% endif %}
+                </td>
+                <td class="small text-truncate" style="max-width:320px;" title="{{ log.message }}">
+                  {{ log.message }}
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="3" class="text-center text-muted py-3">No recent logs.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Environment info -->
+  <div class="card shadow-sm border-0 mt-4">
+    <div class="card-body d-flex gap-4 flex-wrap">
+      <span class="text-muted small"><i class="bi bi-cpu me-1"></i><strong>Platform:</strong> {{ stats.platform }}</span>
+      <span class="text-muted small"><i class="bi bi-braces me-1"></i><strong>Python:</strong> {{ stats.python_version }}</span>
+      <span class="text-muted small"><i class="bi bi-circle-fill text-success me-1" style="font-size:.5rem;vertical-align:middle;"></i><strong>DB:</strong> Connected</span>
+    </div>
+  </div>
 </div>
 {% endblock %}

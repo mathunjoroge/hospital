@@ -476,6 +476,11 @@ def login():
                 if check_password_hash(user.password, password):
                     user.failed_login_attempts = 0
                     user.locked_until = None
+                    # Record last login timestamp (added by fix/admin-department-missing-features)
+                    try:
+                        user.last_login = datetime.now(timezone.utc)
+                    except Exception:
+                        pass
                     db.session.commit()
 
                     if user.mfa_enabled or (user.role == "admin" and user.totp_secret):
@@ -543,6 +548,10 @@ def mfa_verify():
         totp = pyotp.TOTP(user.totp_secret)
         if totp.verify(code):
             session.pop("mfa_pending_user_id", None)
+            try:
+                user.last_login = datetime.now(timezone.utc)
+            except Exception:
+                pass
             login_user(user)
             db.session.add(
                 Log(

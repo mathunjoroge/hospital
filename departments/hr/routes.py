@@ -3,7 +3,7 @@ import io
 import logging
 import random
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 
 from flask import (
@@ -36,17 +36,25 @@ from sqlalchemy.exc import SQLAlchemyError
 from departments.forms import (
     AddAllowanceForm,
     AddDeductionForm,
+    DisciplinaryRecordForm,
     LeaveRequestForm,
+    PerformanceReviewForm,
+    TrainingRecordForm,
     UpdateProfileForm,
 )
 from departments.models.hr import (
     Allowance,
     AuditLog,
     Deduction,
+    DisciplinaryRecord,
     Employee,
     Leave,
+    LeaveBalance,
     Payroll,
+    PerformanceReview,
     Rota,
+    StaffCredential,
+    TrainingRecord,
 )
 from departments.models.user import User
 from departments.rbac import get_effective_role, roles_required
@@ -56,6 +64,8 @@ from . import bp  # Import the blueprint
 
 logger = logging.getLogger(__name__)
 
+
+# ── Internal helpers ───────────────────────────────────────────────────────
 
 def _current_employee():
     """
@@ -101,6 +111,9 @@ def _log_hr_action(action, details):
         logger.exception("hr._log_hr_action failed: action=%r", action)
 
 
+_write_audit = _log_hr_action
+
+
 @bp.route("/", methods=["GET"])
 @login_required
 @roles_required("hr", "admin")
@@ -122,7 +135,7 @@ def index():
         # never changed no matter what HR actually did, because nothing
         # wrote to AuditLog — see _log_hr_action(), now called from every
         # mutating HR route.
-        recent_logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(5).all()
+        recent_logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(10).all()
         recent_changes = [
             {
                 "description": f"{log.action} — {log.details}",
@@ -131,12 +144,23 @@ def index():
             for log in recent_logs
         ]
 
+        today = datetime.now(timezone.utc).date()
+        expiring_credentials = StaffCredential.query.filter(
+            StaffCredential.expiry_date <= today + timedelta(days=30),
+            StaffCredential.expiry_date >= today,
+            StaffCredential.status == "ACTIVE",
+        ).count()
+
+        pending_leaves = Leave.query.filter_by(status="Pending").count()
+
         return render_template(
             "hr/index.html",
             active_employees_count=active_employees_count,
             inactive_employees_count=inactive_employees_count,
             total_employees_count=total_employees_count,
             recent_changes=recent_changes,
+            expiring_credentials=expiring_credentials,
+            pending_leaves=pending_leaves,
         )
 
     except SQLAlchemyError as e:
@@ -219,24 +243,17 @@ def new_employee():
     Allowances and deductions are NOT captured per-employee here: Allowance is
     keyed by job_group and Deduction applies platform-wide (see
     generate_payroll(), which pulls both automatically), so there is nothing
-    to select at creation time. This route previously tried to assign both
-    per-employee anyway via `new_employee.allowances.extend(...)` and a
-    per-employee Deduction(employee_id=..., type=...) — neither the
-    relationship nor those columns exist on the real models, so every
-    submission raised AttributeError before a row was ever written, in
-    addition to employee_id generation being undefined entirely.
+    to select at creation time.
     """
 
     try:
         if request.method == "POST":
-            # Extract form data
             name = request.form.get("name")
             role = request.form.get("role")
             department = request.form.get("department")
             job_group = request.form.get("job_group")
             basic_salary_raw = (request.form.get("basic_salary") or "").strip()
 
-            # Validate input
             if not all([name, role, department, job_group]):
                 raise ValueError("All fields are required!")
 
@@ -293,19 +310,16 @@ def update_employee(employee_id):
     """Updates an existing employee."""
 
     try:
-        # Fetch the employee by ID
         employee = Employee.query.get_or_404(employee_id)
 
         if request.method == "POST":
-            # Extract form data
             name = request.form.get("name")
             role = request.form.get("role")
             department = request.form.get("department")
-            is_active = request.form.get("is_active") == "on"  # Checkbox handling
+            is_active = request.form.get("is_active") == "on"
             basic_salary_raw = (request.form.get("basic_salary") or "").strip()
             linked_username = (request.form.get("linked_username") or "").strip()
 
-            # Validate input
             if not all([name, role, department]):
                 raise ValueError("All fields are required!")
 
@@ -366,17 +380,11 @@ def update_employee(employee_id):
 @login_required
 @roles_required("hr", "admin")
 def delete_employee(employee_id):
-    """Deletes an employee from the system."""
+    """Deletes an employee — or deactivates if payroll/leave history exists."""
 
     try:
         employee = Employee.query.get_or_404(employee_id)
 
-        # employees.id is referenced by payrolls/leaves without ON DELETE
-        # CASCADE, so a hard DELETE raised IntegrityError for anyone with
-        # payroll or leave history and the caught error showed a generic
-        # failure. Employees are never truly erased from a payroll system
-        # anyway (statutory retention); deactivate instead, and only allow a
-        # hard delete when there is genuinely nothing referencing the row.
         has_history = (
             Payroll.query.filter_by(employee_id=employee.id).first() is not None
             or Leave.query.filter_by(employee_id=employee.id).first() is not None
@@ -416,6 +424,8 @@ def delete_employee(employee_id):
         return redirect(url_for("hr.employee_list"))
 
 
+# ── Rota ───────────────────────────────────────────────────────────────────
+
 @bp.route("/rota_management", methods=["GET", "POST"])
 @login_required
 @roles_required("hr", "admin")
@@ -423,13 +433,9 @@ def rota_management():
     """Manage employee shifts and schedules (rota)."""
 
     try:
-        # Fetch all active employees
         employees = Employee.query.filter_by(is_active=True).all()
-
-        # Fetch all rotas
         rotas = Rota.query.order_by(Rota.week_range.desc()).all()
 
-        # Prepare rota data for rendering
         rota_data = defaultdict(lambda: defaultdict(list))
         for rota in rotas:
             if rota.shift_8_5:
@@ -442,31 +448,25 @@ def rota_management():
                 rota_data[rota.week_range]["night"] = [rota.shift_8_8.strip()]
 
         if request.method == "POST":
-            # Extract form data
-            week_range = request.form.get("week_range")  # Selected week range
+            week_range = request.form.get("week_range")
             if not week_range:
                 raise ValueError("Week range is required!")
 
-            # Automatically allocate shifts
             start_date, end_date = week_range.split(" - ")
             start_date = datetime.strptime(start_date.strip(), "%d/%m/%Y").date()  # noqa: DTZ007
             end_date = datetime.strptime(end_date.strip(), "%d/%m/%Y").date()  # noqa: DTZ007
 
-            # Ensure the week range is valid
             if (end_date - start_date).days != 6:
                 raise ValueError("Invalid week range! Please specify a 7-day period.")
 
-            # Allocate shifts
             morning_shifts = []
             evening_shifts = []
             night_shifts = []
 
-            # Randomly assign shifts while respecting constraints
             for emp in employees:
                 shift_options = ["morning", "evening", "night"]
                 assigned_shift = random.choice(shift_options)
 
-                # Prevent consecutive night/evening shifts
                 recent_shifts = Rota.query.filter(
                     Rota.week_range >= (start_date - timedelta(days=7)),
                     Rota.week_range <= (start_date + timedelta(days=7)),
@@ -485,7 +485,6 @@ def rota_management():
                     for r in recent_shifts
                 )
 
-                # Apply constraints
                 if assigned_shift == "morning" and not recent_morning:
                     morning_shifts.append(emp.name)
                 elif assigned_shift == "evening" and not recent_evening:
@@ -493,7 +492,6 @@ def rota_management():
                 elif assigned_shift == "night" and not recent_night:
                     night_shifts.append(emp.name)
 
-            # Ensure at least one employee per shift
             if not morning_shifts:
                 morning_shifts.append(random.choice([emp.name for emp in employees]))
             if not evening_shifts:
@@ -501,7 +499,6 @@ def rota_management():
             if not night_shifts:
                 night_shifts.append(random.choice([emp.name for emp in employees]))
 
-            # Save the rota to the database
             rota = next((r for r in rotas if r.week_range == week_range), None)
             if not rota:
                 rota = Rota(week_range=week_range)
@@ -520,7 +517,7 @@ def rota_management():
             "hr/rota_management.html",
             employees=employees,
             rotas=rotas,
-            rota_data=dict(rota_data),  # Convert defaultdict to dict for Jinja2
+            rota_data=dict(rota_data),
         )
 
     except (SQLAlchemyError, ValueError) as e:
@@ -530,6 +527,8 @@ def rota_management():
         return redirect(url_for("hr.index"))
 
 
+# ── Reports & Exports ──────────────────────────────────────────────────────
+
 @bp.route("/department_reports", methods=["GET"])
 @login_required
 @roles_required("hr", "admin")
@@ -537,11 +536,8 @@ def department_reports():
     """Generate department-wise employee distribution reports."""
 
     try:
-        # Fetch all active employees grouped by department and role
         filters = {}
-        role_filter = request.args.get(
-            "role"
-        )  # Optional role filter from query parameters
+        role_filter = request.args.get("role")
         if role_filter:
             filters["role"] = role_filter
 
@@ -549,17 +545,12 @@ def department_reports():
             is_active=True, **filters
         ).all()
 
-        # Group employees by department
         department_data = defaultdict(lambda: defaultdict(int))
         for emp in employees_by_department:
             department_data[emp.department]["total"] += 1
             department_data[emp.department][emp.role] += 1
 
-        # Convert defaultdict to dict for Jinja2 rendering
         department_data = dict(department_data)
-
-        # Debugging output
-        logger.debug("Department employee distribution: %s", department_data)
 
         return render_template(
             "hr/department_reports.html",
@@ -580,50 +571,30 @@ def export_department_reports():
     """Export department-wise employee distribution reports to CSV."""
 
     try:
-        # Fetch all active employees grouped by department and role
         employees_by_department = Employee.query.filter_by(is_active=True).all()
 
-        # Prepare data for CSV
         department_data = defaultdict(lambda: defaultdict(int))
         for emp in employees_by_department:
             department_data[emp.department]["total"] += 1
             department_data[emp.department][emp.role] += 1
 
-        # Convert data to list of rows
         csv_data = [
             [
-                "Department",
-                "Total",
-                "Records",
-                "Nursing",
-                "Pharmacy",
-                "Medicine",
-                "Laboratory",
-                "Imaging",
-                "Mortuary",
-                "HR",
-                "Stores",
-                "Admin",
+                "Department", "Total", "Records", "Nursing", "Pharmacy", "Medicine",
+                "Laboratory", "Imaging", "Mortuary", "HR", "Stores", "Admin",
             ]
         ]
         for dept, counts in department_data.items():
             row = [
-                dept,
-                counts["total"],
-                counts.get("records", 0),
-                counts.get("nursing", 0),
-                counts.get("pharmacy", 0),
-                counts.get("medicine", 0),
-                counts.get("laboratory", 0),
-                counts.get("imaging", 0),
-                counts.get("mortuary", 0),
-                counts.get("hr", 0),
-                counts.get("stores", 0),
-                counts.get("admin", 0),
+                dept, counts["total"],
+                counts.get("records", 0), counts.get("nursing", 0),
+                counts.get("pharmacy", 0), counts.get("medicine", 0),
+                counts.get("laboratory", 0), counts.get("imaging", 0),
+                counts.get("mortuary", 0), counts.get("hr", 0),
+                counts.get("stores", 0), counts.get("admin", 0),
             ]
             csv_data.append(row)
 
-        # Generate CSV response
         si = StringIO()
         writer = csv.writer(si)
         writer.writerows(csv_data)
@@ -639,6 +610,8 @@ def export_department_reports():
         logger.error("hr.export_department_reports failed: %s", e, exc_info=True)
         return redirect(url_for("hr.department_reports"))
 
+
+# ── Payroll ────────────────────────────────────────────────────────────────
 
 @bp.route("/payroll")
 @login_required
@@ -686,12 +659,10 @@ def generate_payroll(month):
             skipped.append(employee.name)
             continue
 
-        # Calculate gross pay (basic salary + allowances)
         allowances = Allowance.query.filter_by(job_group=employee.job_group).all()
         total_allowances = sum(allowance.value for allowance in allowances)
         gross_pay = employee.basic_salary + total_allowances
 
-        # Calculate deductions (PAYE, NHIF, NSSF, etc.)
         deductions = Deduction.query.all()
         total_deductions = 0
         for deduction in deductions:
@@ -947,12 +918,7 @@ def employee_profile(employee_id):
 @bp.route("/update_profile/<int:employee_id>", methods=["POST"])
 @login_required
 def update_profile(employee_id):
-    """
-    Update employee profile by HR/admin — or by the linked employee for
-    their own record. employee_profile.html posts here for both audiences;
-    when it was roles_required("hr", "admin") only, a self-service employee
-    submitting the form got a 403.
-    """
+    """Update employee profile by HR/admin or by the linked employee for their own record."""
     employee = Employee.query.get_or_404(employee_id)
     is_hr = get_effective_role() in ["hr", "admin"]
     current_employee = _current_employee()
@@ -961,10 +927,6 @@ def update_profile(employee_id):
         return redirect(url_for("home"))
 
     try:
-
-        # Validate before touching the model: name/department/job_group are
-        # all nullable=False, so a blank submission used to raise IntegrityError
-        # at commit and 500 instead of re-showing the form with an error.
         name = (request.form.get("name") or "").strip()
         department = (request.form.get("department") or "").strip()
         job_group = (request.form.get("job_group") or "").strip()
@@ -972,9 +934,6 @@ def update_profile(employee_id):
             raise ValueError("All fields are required!")
 
         employee.name = name
-        # department/job_group drive payroll (Allowance is keyed by job_group)
-        # and org placement, so only HR/admin may change them even though the
-        # shared profile form posts all three fields.
         if is_hr:
             employee.department = department
             employee.job_group = job_group
@@ -1000,7 +959,7 @@ def leave_management():
     return render_template("hr/leave_management.html", leaves=leaves)
 
 
-@bp.route("/reject_leave/<int:leave_id>")
+@bp.route("/reject_leave/<int:leave_id>", methods=["GET", "POST"])
 @login_required
 @roles_required("hr", "admin")
 def reject_leave(leave_id):
@@ -1046,7 +1005,6 @@ def update_employee_profile():
         flash("Profile updated successfully!", "success")
         return redirect(url_for("hr.employee_profile", employee_id=employee.id))
 
-    # Pre-fill the form with existing data
     form.email.data = employee.email
     form.phone.data = employee.phone
     form.bank_name.data = employee.bank_name
@@ -1069,7 +1027,7 @@ def employee_payslips():
 @login_required
 @roles_required("hr", "admin")
 def export_payroll_pdf():
-    """Export payroll report as PDF."""
+    """Export full payroll report as PDF."""
 
     payrolls = Payroll.query.join(Employee).all()
 
@@ -1079,7 +1037,7 @@ def export_payroll_pdf():
     y = 730
     for payroll in payrolls:
         p.drawString(
-            100, y, f"{payroll.employee.name} - {payroll.month}: ${payroll.net_pay}"
+            100, y, f"{payroll.employee.name} - {payroll.month}: KES {payroll.net_pay:,.2f}"
         )
         y -= 20
     p.showPage()
@@ -1157,7 +1115,7 @@ def send_email(subject, recipient, body):
         return False
 
 
-@bp.route("/approve_leave/<int:leave_id>")
+@bp.route("/approve_leave/<int:leave_id>", methods=["GET", "POST"])
 @login_required
 @roles_required("hr", "admin")
 def approve_leave(leave_id):
@@ -1193,14 +1151,13 @@ def approve_leave(leave_id):
 def process_payroll():
     """Process payroll and send notifications."""
 
-    # Process payroll logic here (assumed to be implemented)
     employees = Employee.query.all()
     for employee in employees:
-        if employee.payrolls:  # Check if payroll exists
+        if employee.payrolls:
             send_email(
                 subject="Payroll Processed",
                 recipient=employee.email,
-                body=f"Your payroll for the month has been processed. Net Pay: ${employee.payrolls[-1].net_pay}",
+                body=f"Your payroll for the month has been processed. Net Pay: KES {employee.payrolls[-1].net_pay:,.2f}",
             )
 
     flash("Payroll processed successfully!", "success")
@@ -1226,7 +1183,6 @@ def view_payslip(payroll_id):
 @login_required
 def download_payslip(payroll_id):
     """Download a specific payslip as PDF."""
-    # Allow employees to download their own payslips, HR/admins to download all
     payroll = Payroll.query.get_or_404(payroll_id)
     employee = _current_employee()
     if get_effective_role() not in ["hr", "admin"] and (
@@ -1240,7 +1196,7 @@ def download_payslip(payroll_id):
     styles = getSampleStyleSheet()
     elements = []
 
-    logo_path = "static/images/logo.png"  # Adjust the path as necessary
+    logo_path = "static/images/logo.png"
     logo = Image(logo_path, width=1.5 * inch, height=1 * inch)
     elements.append(logo)
     elements.append(Spacer(1, 12))
@@ -1275,10 +1231,10 @@ def download_payslip(payroll_id):
     elements.append(Spacer(1, 12))
 
     payroll_details = [
-        ["Gross Pay:", f"${payroll.gross_pay}"],
-        ["Total Deductions:", f"${payroll.total_deductions}"],
-        ["Net Pay:", f"${payroll.net_pay}"],
-        ["Payment Date:", payroll.month],
+        ["Gross Pay:", f"KES {payroll.gross_pay:,.2f}"],
+        ["Total Deductions:", f"KES {payroll.total_deductions:,.2f}"],
+        ["Net Pay:", f"KES {payroll.net_pay:,.2f}"],
+        ["Payment Month:", payroll.month],
     ]
     payroll_table = Table(payroll_details, colWidths=[2 * inch, 4 * inch])
     payroll_table.setStyle(
@@ -1299,14 +1255,12 @@ def download_payslip(payroll_id):
 
     elements.append(
         Paragraph(
-            "This is an official payslip generated by Your Company Name. For any discrepancies, please contact HR.",
+            "This is an official payslip. For any discrepancies, please contact HR.",
             styles["BodyText"],
         )
     )
-    elements.append(Spacer(1, 12))
 
     doc.build(elements)
-
     buffer.seek(0)
     return send_file(
         buffer,
@@ -1314,3 +1268,306 @@ def download_payslip(payroll_id):
         download_name=f"payslip_{payroll.employee.name}_{payroll.month}.pdf",
         mimetype="application/pdf",
     )
+
+
+# ── Leave Balance ──────────────────────────────────────────────────────────
+
+@bp.route("/leave_balance")
+@login_required
+@roles_required("hr", "admin")
+def leave_balance():
+    """View and manage leave balances for all employees."""
+
+    year = request.args.get("year", datetime.now(timezone.utc).year, type=int)
+    employee_id = request.args.get("employee_id", type=int)
+
+    query = LeaveBalance.query.filter_by(year=year)
+    if employee_id:
+        query = query.filter_by(employee_id=employee_id)
+
+    balances = query.join(Employee).order_by(Employee.name).all()
+    employees = Employee.query.filter_by(is_active=True).order_by(Employee.name).all()
+
+    return render_template(
+        "hr/leave_balance.html",
+        balances=balances,
+        employees=employees,
+        selected_year=year,
+        selected_employee_id=employee_id,
+    )
+
+
+@bp.route("/leave_balance/set", methods=["POST"])
+@login_required
+@roles_required("hr", "admin")
+def set_leave_balance():
+    """Create or update a leave balance record for an employee."""
+
+    try:
+        employee_id = request.form.get("employee_id", type=int)
+        year = request.form.get("year", type=int)
+        leave_type = request.form.get("leave_type")
+        entitled_days = request.form.get("entitled_days", type=int)
+        carried_over = request.form.get("carried_over", 0, type=int)
+
+        if not all([employee_id, year, leave_type, entitled_days]):
+            raise ValueError("All fields are required.")
+
+        Employee.query.get_or_404(employee_id)
+
+        balance = LeaveBalance.query.filter_by(
+            employee_id=employee_id, year=year, leave_type=leave_type
+        ).first()
+
+        if balance:
+            balance.entitled_days = entitled_days
+            balance.carried_over = carried_over
+        else:
+            balance = LeaveBalance(
+                employee_id=employee_id,
+                year=year,
+                leave_type=leave_type,
+                entitled_days=entitled_days,
+                carried_over=carried_over,
+            )
+            db.session.add(balance)
+
+        _write_audit("Set Leave Balance", {
+            "employee_id": employee_id, "year": year,
+            "leave_type": leave_type, "entitled_days": entitled_days,
+        })
+        db.session.commit()
+        flash("Leave balance updated.", "success")
+
+    except (SQLAlchemyError, ValueError) as e:
+        flash(str(e) if isinstance(e, ValueError) else "Something went wrong.", "error")
+        db.session.rollback()
+
+    return redirect(url_for("hr.leave_balance"))
+
+
+# ── Staff Credentials (HR view) ────────────────────────────────────────────
+
+@bp.route("/staff_credentials", methods=["GET", "POST"])
+@login_required
+@roles_required("hr", "admin")
+def staff_credentials():
+    """
+    HR view: list and add professional licence / credential records.
+
+    The StaffCredential model and admin API exist, but HR had no UI to view
+    or enter credentials for staff they manage. This fills that gap.
+    """
+
+    try:
+        if request.method == "POST":
+            staff_name = (request.form.get("staff_name") or "").strip()
+            employee_id_raw = request.form.get("employee_id") or None
+            credential_type = (request.form.get("credential_type") or "").strip()
+            credential_number = (request.form.get("credential_number") or "").strip()
+            issue_date_raw = request.form.get("issue_date") or None
+            expiry_date_raw = request.form.get("expiry_date") or None
+
+            if not all([staff_name, credential_type, credential_number, expiry_date_raw]):
+                raise ValueError("Staff name, credential type, number, and expiry date are required.")
+
+            issue_date = datetime.strptime(issue_date_raw, "%Y-%m-%d").date() if issue_date_raw else None
+            expiry_date = datetime.strptime(expiry_date_raw, "%Y-%m-%d").date()
+            employee_id = int(employee_id_raw) if employee_id_raw else None
+
+            cred = StaffCredential(
+                employee_id=employee_id,
+                staff_name=staff_name,
+                credential_type=credential_type,
+                credential_number=credential_number,
+                issue_date=issue_date,
+                expiry_date=expiry_date,
+            )
+            db.session.add(cred)
+            _write_audit("Add Credential", {"staff": staff_name, "type": credential_type, "number": credential_number})
+            db.session.commit()
+            flash(f"Credential for {staff_name} added successfully.", "success")
+            return redirect(url_for("hr.staff_credentials"))
+
+        today = datetime.now(timezone.utc).date()
+        credentials = StaffCredential.query.order_by(StaffCredential.expiry_date.asc()).all()
+        employees = Employee.query.filter_by(is_active=True).order_by(Employee.name).all()
+
+        return render_template(
+            "hr/staff_credentials.html",
+            credentials=credentials,
+            employees=employees,
+            today=today,
+        )
+
+    except (SQLAlchemyError, ValueError) as e:
+        flash(str(e) if isinstance(e, ValueError) else "Something went wrong.", "error")
+        logger.error("hr.staff_credentials failed: %s", e, exc_info=True)
+        db.session.rollback()
+        return redirect(url_for("hr.staff_credentials"))
+
+
+# ── Performance Reviews ────────────────────────────────────────────────────
+
+@bp.route("/performance_reviews")
+@login_required
+@roles_required("hr", "admin")
+def performance_reviews():
+    """List all performance reviews."""
+
+    reviews = (
+        PerformanceReview.query
+        .join(Employee)
+        .order_by(PerformanceReview.created_at.desc())
+        .all()
+    )
+    return render_template("hr/performance_reviews.html", reviews=reviews)
+
+
+@bp.route("/performance_review/new/<int:employee_id>", methods=["GET", "POST"])
+@login_required
+@roles_required("hr", "admin")
+def new_performance_review(employee_id):
+    """Create a new performance review for an employee."""
+
+    employee = Employee.query.get_or_404(employee_id)
+    form = PerformanceReviewForm()
+
+    if form.validate_on_submit():
+        try:
+            review = PerformanceReview(
+                employee_id=employee.id,
+                reviewer_id=current_user.id,
+                review_period=form.review_period.data,
+                review_type=form.review_type.data,
+                score=form.score.data,
+                strengths=form.strengths.data,
+                areas_for_improvement=form.areas_for_improvement.data,
+                goals_next_period=form.goals_next_period.data,
+                comments=form.comments.data,
+            )
+            db.session.add(review)
+            _write_audit("Performance Review", {
+                "employee_id": employee.employee_id,
+                "period": form.review_period.data,
+                "score": form.score.data,
+            })
+            db.session.commit()
+            flash(f"Performance review for {employee.name} saved.", "success")
+            return redirect(url_for("hr.employee_profile", employee_id=employee.id))
+        except SQLAlchemyError as e:
+            flash("Something went wrong.", "error")
+            logger.error("hr.new_performance_review failed: %s", e, exc_info=True)
+            db.session.rollback()
+
+    return render_template("hr/new_performance_review.html", employee=employee, form=form)
+
+
+# ── Training Records ───────────────────────────────────────────────────────
+
+@bp.route("/training_records")
+@login_required
+@roles_required("hr", "admin")
+def training_records():
+    """List all training records."""
+
+    records = (
+        TrainingRecord.query
+        .join(Employee)
+        .order_by(TrainingRecord.date_completed.desc())
+        .all()
+    )
+    return render_template("hr/training_records.html", records=records)
+
+
+@bp.route("/training_record/new/<int:employee_id>", methods=["GET", "POST"])
+@login_required
+@roles_required("hr", "admin")
+def new_training_record(employee_id):
+    """Log a new training / CPD record for an employee."""
+
+    employee = Employee.query.get_or_404(employee_id)
+    form = TrainingRecordForm()
+
+    if form.validate_on_submit():
+        try:
+            record = TrainingRecord(
+                employee_id=employee.id,
+                title=form.title.data,
+                provider=form.provider.data,
+                training_type=form.training_type.data,
+                date_completed=form.date_completed.data,
+                expiry_date=form.expiry_date.data,
+                cpd_points=form.cpd_points.data,
+                certificate_number=form.certificate_number.data,
+                notes=form.notes.data,
+                recorded_by=current_user.id,
+            )
+            db.session.add(record)
+            _write_audit("Add Training Record", {
+                "employee_id": employee.employee_id,
+                "title": form.title.data,
+            })
+            db.session.commit()
+            flash(f"Training record for {employee.name} saved.", "success")
+            return redirect(url_for("hr.employee_profile", employee_id=employee.id))
+        except SQLAlchemyError as e:
+            flash("Something went wrong.", "error")
+            logger.error("hr.new_training_record failed: %s", e, exc_info=True)
+            db.session.rollback()
+
+    return render_template("hr/new_training_record.html", employee=employee, form=form)
+
+
+# ── Disciplinary Records ───────────────────────────────────────────────────
+
+@bp.route("/disciplinary_records")
+@login_required
+@roles_required("hr", "admin")
+def disciplinary_records():
+    """List all disciplinary records."""
+
+    records = (
+        DisciplinaryRecord.query
+        .filter_by(is_active=True)
+        .join(Employee)
+        .order_by(DisciplinaryRecord.incident_date.desc())
+        .all()
+    )
+    return render_template("hr/disciplinary_records.html", records=records)
+
+
+@bp.route("/disciplinary_record/new/<int:employee_id>", methods=["GET", "POST"])
+@login_required
+@roles_required("hr", "admin")
+def new_disciplinary_record(employee_id):
+    """Record a new disciplinary action against an employee."""
+
+    employee = Employee.query.get_or_404(employee_id)
+    form = DisciplinaryRecordForm()
+
+    if form.validate_on_submit():
+        try:
+            record = DisciplinaryRecord(
+                employee_id=employee.id,
+                incident_date=form.incident_date.data,
+                incident_type=form.incident_type.data,
+                description=form.description.data,
+                action_taken=form.action_taken.data,
+                outcome=form.outcome.data or None,
+                reviewed_by=current_user.id,
+            )
+            db.session.add(record)
+            _write_audit("Disciplinary Record", {
+                "employee_id": employee.employee_id,
+                "type": form.incident_type.data,
+            })
+            db.session.commit()
+            flash(f"Disciplinary record for {employee.name} saved.", "success")
+            return redirect(url_for("hr.employee_profile", employee_id=employee.id))
+        except SQLAlchemyError as e:
+            flash("Something went wrong.", "error")
+            logger.error("hr.new_disciplinary_record failed: %s", e, exc_info=True)
+            db.session.rollback()
+
+    return render_template("hr/new_disciplinary_record.html", employee=employee, form=form)

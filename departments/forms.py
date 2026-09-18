@@ -6,12 +6,13 @@ from wtforms import (
     DateField,
     FloatField,
     HiddenField,
+    IntegerField,
     SelectField,
     StringField,
     SubmitField,
     TextAreaField,
 )
-from wtforms.validators import DataRequired, Email, Length, ValidationError
+from wtforms.validators import DataRequired, Email, Length, Optional, ValidationError
 
 from departments.models.medicine import CancerStage, CancerType
 from departments.models.records import Patient
@@ -47,7 +48,16 @@ class LeaveRequestForm(FlaskForm):
     end_date = DateField("End Date", validators=[DataRequired()])
     type = SelectField(
         "Leave Type",
-        choices=[("sick", "Sick Leave"), ("vacation", "Vacation")],
+        choices=[
+            ("annual", "Annual Leave"),
+            ("vacation", "Vacation Leave"),
+            ("sick", "Sick Leave"),
+            ("maternity", "Maternity Leave"),
+            ("paternity", "Paternity Leave"),
+            ("compassionate", "Compassionate Leave"),
+            ("study", "Study / Exam Leave"),
+            ("unpaid", "Unpaid Leave"),
+        ],
         validators=[DataRequired()],
     )
     submit = SubmitField("Submit Leave Request")
@@ -130,3 +140,76 @@ class OncologyNoteForm(FlaskForm):
         "Note Content", validators=[DataRequired(), Length(min=1, max=1000)]
     )
     submit_note = SubmitField("Add Note")
+
+class PerformanceReviewForm(FlaskForm):
+    review_period = StringField("Review Period (e.g. 2026-Annual)", validators=[DataRequired()])
+    review_type = SelectField(
+        "Review Type",
+        choices=[("annual", "Annual"), ("mid-year", "Mid-Year"), ("probation", "Probation")],
+    )
+    score = SelectField(
+        "Overall Score",
+        choices=[
+            ("1", "1 – Unsatisfactory"),
+            ("2", "2 – Below Expectations"),
+            ("3", "3 – Meets Expectations"),
+            ("4", "4 – Exceeds Expectations"),
+            ("5", "5 – Outstanding"),
+        ],
+        coerce=int,
+    )
+    strengths = TextAreaField("Strengths")
+    areas_for_improvement = TextAreaField("Areas for Improvement")
+    goals_next_period = TextAreaField("Goals for Next Period")
+    comments = TextAreaField("Additional Comments")
+    submit = SubmitField("Save Review")
+
+
+class TrainingRecordForm(FlaskForm):
+    title = StringField("Training Title", validators=[DataRequired()])
+    provider = StringField("Provider / Institution")
+    training_type = SelectField(
+        "Training Type",
+        choices=[
+            ("cpd", "CPD / Continuous Professional Development"),
+            ("mandatory", "Mandatory / Statutory"),
+            ("skills", "Clinical / Technical Skills"),
+            ("leadership", "Leadership & Management"),
+            ("induction", "Induction"),
+            ("conference", "Conference / Seminar"),
+        ],
+    )
+    date_completed = DateField("Date Completed", validators=[DataRequired()])
+    expiry_date = DateField("Expiry Date (if applicable)", validators=[Optional()])
+    cpd_points = IntegerField("CPD Points Earned", validators=[Optional()])
+    certificate_number = StringField("Certificate / Reference Number")
+    notes = TextAreaField("Notes")
+    submit = SubmitField("Save Record")
+
+
+class DisciplinaryRecordForm(FlaskForm):
+    incident_date = DateField("Incident Date", validators=[DataRequired()])
+    incident_type = SelectField(
+        "Incident / Action Type",
+        choices=[
+            ("verbal_warning", "Verbal Warning"),
+            ("written_warning", "Written Warning"),
+            ("final_warning", "Final Written Warning"),
+            ("suspension", "Suspension"),
+            ("dismissal", "Dismissal"),
+            ("other", "Other"),
+        ],
+    )
+    description = TextAreaField("Incident Description", validators=[DataRequired()])
+    action_taken = TextAreaField("Action Taken", validators=[DataRequired()])
+    outcome = SelectField(
+        "Outcome",
+        choices=[
+            ("", "— select —"),
+            ("resolved", "Resolved"),
+            ("appeal_pending", "Appeal Pending"),
+            ("dismissed", "Dismissed"),
+        ],
+        validators=[Optional()],
+    )
+    submit = SubmitField("Save Record")
