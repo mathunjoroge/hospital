@@ -10,6 +10,7 @@ Provides:
   GET  /pharmacy/controlled-drugs/api/reconcile/<date>/<shift>  – Shift list
   POST /pharmacy/controlled-drugs/api/reconcile  – Submit shift reconciliation
 """
+
 import logging
 from datetime import date
 
@@ -44,42 +45,48 @@ def controlled_drug_register():
     Render the Controlled Drug Register console.
     """
     # All controlled substances
-    controlled_drugs = Drug.query.filter_by(is_controlled=True).order_by(
-        Drug.generic_name
-    ).all()
+    controlled_drugs = (
+        Drug.query.filter_by(is_controlled=True).order_by(Drug.generic_name).all()
+    )
 
     # Build balance summary for each controlled drug
     drug_summaries = []
     for drug in controlled_drugs:
-        last_balance = ControlledDrugBalance.query.filter_by(
-            drug_id=drug.id
-        ).order_by(ControlledDrugBalance.recorded_at.desc()).first()
+        last_balance = (
+            ControlledDrugBalance.query.filter_by(drug_id=drug.id)
+            .order_by(ControlledDrugBalance.recorded_at.desc())
+            .first()
+        )
 
         current_balance = last_balance.balance_after if last_balance else 0.0
 
-        drug_summaries.append({
-            "id": drug.id,
-            "generic_name": drug.generic_name,
-            "brand_name": drug.brand_name or "",
-            "schedule_class": drug.schedule_class or "Schedule IV",
-            "dosage_form": drug.dosage_form,
-            "strength": drug.strength,
-            "current_balance": current_balance,
-            "last_updated": last_balance.recorded_at.strftime("%Y-%m-%d %H:%M") if last_balance else "—",
-        })
+        drug_summaries.append(
+            {
+                "id": drug.id,
+                "generic_name": drug.generic_name,
+                "brand_name": drug.brand_name or "",
+                "schedule_class": drug.schedule_class or "Schedule IV",
+                "dosage_form": drug.dosage_form,
+                "strength": drug.strength,
+                "current_balance": current_balance,
+                "last_updated": last_balance.recorded_at.strftime("%Y-%m-%d %H:%M")
+                if last_balance
+                else "—",
+            }
+        )
 
     # Recent dispenses (last 50)
     recent_dispenses = (
-        ControlledDrugDispense.query
-        .order_by(ControlledDrugDispense.dispense_datetime.desc())
+        ControlledDrugDispense.query.order_by(
+            ControlledDrugDispense.dispense_datetime.desc()
+        )
         .limit(50)
         .all()
     )
 
     # Recent reconciliations (last 20)
     recent_reconciliations = (
-        ShiftReconciliation.query
-        .order_by(ShiftReconciliation.reconciled_at.desc())
+        ShiftReconciliation.query.order_by(ShiftReconciliation.reconciled_at.desc())
         .limit(20)
         .all()
     )
@@ -112,28 +119,29 @@ def controlled_drug_ledger():
         return jsonify({"error": "drug_id query parameter is required"}), 400
 
     entries = (
-        ControlledDrugBalance.query
-        .filter_by(drug_id=drug_id)
+        ControlledDrugBalance.query.filter_by(drug_id=drug_id)
         .order_by(ControlledDrugBalance.recorded_at.desc())
         .limit(limit)
         .all()
     )
 
-    return jsonify({
-        "drug_id": drug_id,
-        "count": len(entries),
-        "ledger": [
-            {
-                "id": e.id,
-                "transaction_type": e.transaction_type,
-                "quantity_change": e.quantity_change,
-                "balance_after": e.balance_after,
-                "recorded_at": e.recorded_at.strftime("%Y-%m-%d %H:%M"),
-                "notes": e.notes,
-            }
-            for e in entries
-        ],
-    }), 200
+    return jsonify(
+        {
+            "drug_id": drug_id,
+            "count": len(entries),
+            "ledger": [
+                {
+                    "id": e.id,
+                    "transaction_type": e.transaction_type,
+                    "quantity_change": e.quantity_change,
+                    "balance_after": e.balance_after,
+                    "recorded_at": e.recorded_at.strftime("%Y-%m-%d %H:%M"),
+                    "notes": e.notes,
+                }
+                for e in entries
+            ],
+        }
+    ), 200
 
 
 @bp.route("/controlled-drugs/api/dispense", methods=["POST"])
@@ -156,9 +164,11 @@ def controlled_drug_dispense_api():
     second_signatory_role = data.get("second_signatory_role", "pharmacist")
 
     if not all([patient_id, drug_id, dose_mg, second_signatory_id]):
-        return jsonify({
-            "error": "patient_id, drug_id, dose_mg, and second_signatory_id are required"
-        }), 400
+        return jsonify(
+            {
+                "error": "patient_id, drug_id, dose_mg, and second_signatory_id are required"
+            }
+        ), 400
 
     try:
         dispense = dispense_controlled_drug(
@@ -171,14 +181,17 @@ def controlled_drug_dispense_api():
             user_id=current_user.id,
         )
         from extensions import db
+
         db.session.commit()
 
-        return jsonify({
-            "status": "success",
-            "message": f"Controlled drug dispensed and ledger updated. Balance after: {dispense.balance_after} mg",
-            "dispense_id": dispense.id,
-            "balance_after": dispense.balance_after,
-        }), 201
+        return jsonify(
+            {
+                "status": "success",
+                "message": f"Controlled drug dispensed and ledger updated. Balance after: {dispense.balance_after} mg",
+                "dispense_id": dispense.id,
+                "balance_after": dispense.balance_after,
+            }
+        ), 201
 
     except ControlledDrugError as exc:
         return jsonify({"error": str(exc)}), 422
@@ -207,9 +220,11 @@ def submit_reconciliation_api():
     physical_count = data.get("physical_count")
 
     if not all([drug_id, shift_date_str, physical_count is not None]):
-        return jsonify({
-            "error": "drug_id, shift_date, shift_type, and physical_count are required"
-        }), 400
+        return jsonify(
+            {
+                "error": "drug_id, shift_date, shift_type, and physical_count are required"
+            }
+        ), 400
 
     try:
         shift_date = date.fromisoformat(shift_date_str)
@@ -225,23 +240,29 @@ def submit_reconciliation_api():
             user_id=current_user.id,
         )
         from extensions import db
+
         db.session.commit()
 
-        return jsonify({
-            "status": "success",
-            "message": "Shift reconciliation completed — no discrepancy.",
-            "reconciliation_id": recon.id,
-            "variance": recon.variance,
-            "status_flag": recon.status,
-        }), 201
+        return jsonify(
+            {
+                "status": "success",
+                "message": "Shift reconciliation completed — no discrepancy.",
+                "reconciliation_id": recon.id,
+                "variance": recon.variance,
+                "status_flag": recon.status,
+            }
+        ), 201
 
     except ControlledDrugError as exc:
         from extensions import db
+
         db.session.rollback()
-        return jsonify({
-            "error": str(exc),
-            "status": "DISCREPANCY",
-        }), 422
+        return jsonify(
+            {
+                "error": str(exc),
+                "status": "DISCREPANCY",
+            }
+        ), 422
 
     except Exception:
         logger.exception("Unexpected error during shift reconciliation")

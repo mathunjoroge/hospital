@@ -23,11 +23,34 @@ logger = logging.getLogger(__name__)
 
 # Common clinical search terms to query UMLS API for rich SNOMED CT coverage
 _SNOMED_SEARCH_TERMS = [
-    "hypertension", "diabetes", "fever", "pneumonia", "malaria", "asthma",
-    "tuberculosis", "appendicitis", "sepsis", "anemia", "infection",
-    "headache", "chest pain", "cough", "dyspnea", "cesarean", "delivery",
-    "fracture", "stroke", "heart failure", "kidney disease", "gastritis",
-    "cancer", "carcinoma", "epilepsy", "migraine", "diarrhea", "vomiting"
+    "hypertension",
+    "diabetes",
+    "fever",
+    "pneumonia",
+    "malaria",
+    "asthma",
+    "tuberculosis",
+    "appendicitis",
+    "sepsis",
+    "anemia",
+    "infection",
+    "headache",
+    "chest pain",
+    "cough",
+    "dyspnea",
+    "cesarean",
+    "delivery",
+    "fracture",
+    "stroke",
+    "heart failure",
+    "kidney disease",
+    "gastritis",
+    "cancer",
+    "carcinoma",
+    "epilepsy",
+    "migraine",
+    "diarrhea",
+    "vomiting",
 ]
 
 
@@ -105,10 +128,12 @@ def load_snomed_from_csv(filepath: str) -> list[dict]:
     with open(filepath, newline="", encoding="utf-8") as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            codes.append({
-                "code": row["CODE"].strip(),
-                "description": row["DESCRIPTION"].strip(),
-            })
+            codes.append(
+                {
+                    "code": row["CODE"].strip(),
+                    "description": row["DESCRIPTION"].strip(),
+                }
+            )
     return codes
 
 
@@ -118,7 +143,10 @@ def import_snomed_codes(filepath: str | None = None) -> int:
         filepath = os.getenv("SNOMED_CSV_PATH", "/app/data/snomed_codes.csv")
 
     if not os.path.exists(filepath):
-        logger.info("SNOMED CSV file not found at %s. Falling back to UMLS API import.", filepath)
+        logger.info(
+            "SNOMED CSV file not found at %s. Falling back to UMLS API import.",
+            filepath,
+        )
         return import_from_umls_api(fetch_live_api=True)
 
     codes = load_snomed_from_csv(filepath)

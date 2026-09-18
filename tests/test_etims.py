@@ -3,6 +3,7 @@ tests/test_etims.py
 ───────────────────
 Unit and integration tests for KRA eTIMS Tax Compliance & Fiscalization engine.
 """
+
 from datetime import date
 
 import pytest
@@ -83,7 +84,9 @@ def test_etims_config_save_api(client, admin_username):
         "is_sandbox": True,
         "enabled": True,
     }
-    res = client.post("/admin/etims/config", json=payload, headers={"Accept": "application/json"})
+    res = client.post(
+        "/admin/etims/config", json=payload, headers={"Accept": "application/json"}
+    )
     assert res.status_code == 200
     data = res.get_json()
     assert data["status"] == "success"

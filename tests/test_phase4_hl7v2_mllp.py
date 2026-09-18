@@ -33,8 +33,10 @@ AUTH_HEADER = {"X-HL7-API-Key": API_KEY}
 # Shared fixtures
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _make_patient(db, patient_id="HL7P001"):
     from departments.models.records import Patient
+
     p = Patient(
         patient_id=patient_id,
         name="Test Patient",
@@ -51,6 +53,7 @@ def _make_patient(db, patient_id="HL7P001"):
 
 def _make_labtest(db):
     from departments.models.medicine import LabTest
+
     lt = LabTest(test_name="Haematology Panel", cost=500.0)
     db.session.add(lt)
     db.session.commit()
@@ -68,12 +71,14 @@ def _seed(db):
 # P4-03 — POST /api/hl7/oru
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestOruIngestJsonPath:
     """Plain-JSON content-type path (simplest — used by load test too)."""
 
     def test_happy_path_normal_result(self, client, app):
         with app.app_context():
             from extensions import db
+
             _seed(db)
 
         rv = client.post(
@@ -96,6 +101,7 @@ class TestOruIngestJsonPath:
     def test_panic_critical_low_hemoglobin(self, client, app):
         with app.app_context():
             from extensions import db
+
             _seed(db)
 
         rv = client.post(
@@ -103,7 +109,7 @@ class TestOruIngestJsonPath:
             json={
                 "patient_id": "HL7P001",
                 "parameter_name": "Hemoglobin",
-                "result_value": 4.5,   # below panic_low of 7.0
+                "result_value": 4.5,  # below panic_low of 7.0
             },
             headers=AUTH_HEADER,
         )
@@ -115,6 +121,7 @@ class TestOruIngestJsonPath:
     def test_abnormal_high_potassium(self, client, app):
         with app.app_context():
             from extensions import db
+
             _seed(db)
 
         rv = client.post(
@@ -122,7 +129,7 @@ class TestOruIngestJsonPath:
             json={
                 "patient_id": "HL7P001",
                 "parameter_name": "Potassium",
-                "result_value": 5.8,   # above normal_high 5.1, below panic_high 6.2
+                "result_value": 5.8,  # above normal_high 5.1, below panic_high 6.2
             },
             headers=AUTH_HEADER,
         )
@@ -133,6 +140,7 @@ class TestOruIngestJsonPath:
     def test_missing_patient_id_returns_400(self, client, app):
         with app.app_context():
             from extensions import db
+
             _seed(db)
 
         rv = client.post(
@@ -145,6 +153,7 @@ class TestOruIngestJsonPath:
     def test_unknown_patient_returns_422(self, client, app):
         with app.app_context():
             from extensions import db
+
             db.create_all()
 
         rv = client.post(
@@ -166,6 +175,7 @@ class TestOruIngestAuth:
     def test_no_auth_returns_401(self, client, app):
         with app.app_context():
             from extensions import db
+
             db.create_all()
 
         rv = client.post("/api/hl7/oru", json={"patient_id": "X"})
@@ -174,6 +184,7 @@ class TestOruIngestAuth:
     def test_wrong_key_returns_401(self, client, app):
         with app.app_context():
             from extensions import db
+
             db.create_all()
 
         rv = client.post(
@@ -186,6 +197,7 @@ class TestOruIngestAuth:
     def test_bearer_token_auth_accepted(self, client, app):
         with app.app_context():
             from extensions import db
+
             _seed(db)
 
         rv = client.post(
@@ -214,6 +226,7 @@ class TestOruIngestRawHL7Path:
     def test_raw_hl7_accepted_and_stored(self, client, app):
         with app.app_context():
             from extensions import db
+
             _seed(db)
 
         rv = client.post(
@@ -232,6 +245,7 @@ class TestOruIngestRawHL7Path:
     def test_raw_hl7_result_stored_with_source_system(self, client, app):
         with app.app_context():
             from extensions import db
+
             _seed(db)
 
             client.post(
@@ -242,6 +256,7 @@ class TestOruIngestRawHL7Path:
             )
 
             from departments.models.laboratory import LabResult
+
             res = LabResult.query.filter_by(patient_id="HL7P001").first()
             assert res is not None
             assert res.source_system == "ANALYSER"
@@ -260,9 +275,7 @@ class TestOruIngestFhirPath:
             "contained": [
                 {
                     "resourceType": "Observation",
-                    "code": {
-                        "coding": [{"code": param.lower(), "display": param}]
-                    },
+                    "code": {"coding": [{"code": param.lower(), "display": param}]},
                     "valueQuantity": {"value": value, "unit": unit},
                     "note": [{"text": "Auto-verified"}],
                 }
@@ -272,6 +285,7 @@ class TestOruIngestFhirPath:
     def test_fhir_happy_path(self, client, app):
         with app.app_context():
             from extensions import db
+
             _seed(db)
 
         rv = client.post(
@@ -289,6 +303,7 @@ class TestOruIngestFhirPath:
     def test_fhir_panic_critical(self, client, app):
         with app.app_context():
             from extensions import db
+
             _seed(db)
 
         # panic_low for potassium = 2.8; use 2.0 to trigger PANIC_CRITICAL
@@ -306,6 +321,7 @@ class TestStatusEndpoint:
     def test_status_200_no_auth(self, client, app):
         with app.app_context():
             from extensions import db
+
             db.create_all()
 
         rv = client.get("/api/hl7/status")
@@ -316,6 +332,7 @@ class TestStatusEndpoint:
 # ─────────────────────────────────────────────────────────────────────────────
 # P4-04 — ADT sender
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestAdtMessageBuilders:
     """Unit-test HL7 message string output — no network, no DB."""
@@ -332,6 +349,7 @@ class TestAdtMessageBuilders:
 
     def test_a01_contains_admit_trigger(self):
         from departments.hl7.adt_sender import build_adt_a01
+
         msg = build_adt_a01(self._mock_patient(), ward="WARD2", bed="B04")
         assert "ADT^A01" in msg
         assert "P12345" in msg
@@ -339,23 +357,27 @@ class TestAdtMessageBuilders:
 
     def test_a03_contains_discharge_trigger(self):
         from departments.hl7.adt_sender import build_adt_a03
+
         msg = build_adt_a03(self._mock_patient())
         assert "ADT^A03" in msg
         assert "P12345" in msg
 
     def test_a08_contains_update_trigger(self):
         from departments.hl7.adt_sender import build_adt_a08
+
         msg = build_adt_a08(self._mock_patient())
         assert "ADT^A08" in msg
 
     def test_a28_contains_registration_trigger(self):
         from departments.hl7.adt_sender import build_adt_a28
+
         msg = build_adt_a28(self._mock_patient())
         assert "ADT^A28" in msg
         assert "Jane" in msg
 
     def test_pid_segment_maps_sex_correctly(self):
         from departments.hl7.adt_sender import _pid
+
         p = self._mock_patient()
         p.sex = "Female"
         pid = _pid(p)
@@ -363,6 +385,7 @@ class TestAdtMessageBuilders:
 
     def test_pid_segment_male(self):
         from departments.hl7.adt_sender import _pid
+
         p = self._mock_patient()
         p.sex = "Male"
         pid = _pid(p)
@@ -376,15 +399,18 @@ class TestAdtSenderFireAndForget:
         """With MLLP_DOWNSTREAM_HOST unset, send_adt_async must not raise."""
         os.environ.pop("MLLP_DOWNSTREAM_HOST", None)
         from departments.hl7 import adt_sender
+
         adt_sender.MLLP_DOWNSTREAM_HOST = ""
 
         from departments.hl7.adt_sender import send_adt_async
+
         # Should complete without error; daemon thread spawns and exits quietly
         send_adt_async("MSH|dummy\r")
         time.sleep(0.05)  # allow daemon thread to run
 
     def test_on_patient_registered_fires_without_crash(self):
         from departments.hl7.adt_sender import on_patient_registered
+
         p = MagicMock()
         p.patient_id = "MOCK001"
         p.name = "Mock Patient"
@@ -401,25 +427,29 @@ class TestAdtSenderFireAndForget:
 # P4-07 — panic wiring: evaluate_panic_level called from ingest_lab_result
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestPanicWiring:
     """Verify ingest_lab_result correctly calls evaluate_panic_level."""
 
     def test_panic_status_persisted_to_db(self, app):
         with app.app_context():
             from extensions import db
+
             _patient, _ = _seed(db)
 
             from departments.api.hl7_receiver import ingest_lab_result
+
             result = ingest_lab_result(
                 patient_id="HL7P001",
                 parameter_name="hemoglobin",
-                result_value=3.0,   # panic critical low
+                result_value=3.0,  # panic critical low
             )
 
             assert result["panic_status"] == "PANIC_CRITICAL"
             assert "CRITICAL" in result["panic_message"]
 
             from departments.models.laboratory import LabResult
+
             row = LabResult.query.filter_by(result_id=result["result_id"]).first()
             assert row is not None
             assert row.panic_status == "PANIC_CRITICAL"
@@ -428,9 +458,11 @@ class TestPanicWiring:
     def test_normal_result_stored_normal(self, app):
         with app.app_context():
             from extensions import db
+
             _seed(db)
 
             from departments.api.hl7_receiver import ingest_lab_result
+
             result = ingest_lab_result(
                 patient_id="HL7P001",
                 parameter_name="sodium",
@@ -441,9 +473,11 @@ class TestPanicWiring:
     def test_unknown_parameter_defaults_normal(self, app):
         with app.app_context():
             from extensions import db
+
             _seed(db)
 
             from departments.api.hl7_receiver import ingest_lab_result
+
             result = ingest_lab_result(
                 patient_id="HL7P001",
                 parameter_name="exotic_biomarker_xyz",
@@ -457,18 +491,22 @@ class TestPanicWiring:
         import inspect
 
         from departments.laboratory.panic_alerts import evaluate_panic_level
+
         sig = inspect.signature(evaluate_panic_level)
         params = list(sig.parameters.keys())
-        assert params == ["parameter_name", "value"], (
-            f"evaluate_panic_level signature changed: {params}"
-        )
+        assert params == [
+            "parameter_name",
+            "value",
+        ], f"evaluate_panic_level signature changed: {params}"
 
     def test_ingest_sets_source_system_column(self, app):
         with app.app_context():
             from extensions import db
+
             _seed(db)
 
             from departments.api.hl7_receiver import ingest_lab_result
+
             ingest_lab_result(
                 patient_id="HL7P001",
                 parameter_name="Glucose",
@@ -477,15 +515,18 @@ class TestPanicWiring:
             )
 
             from departments.models.laboratory import LabResult
+
             row = LabResult.query.filter_by(patient_id="HL7P001").first()
             assert row.source_system == "TEST_ANALYSER"
 
     def test_ingest_stores_raw_hl7_text(self, app):
         with app.app_context():
             from extensions import db
+
             _seed(db)
 
             from departments.api.hl7_receiver import ingest_lab_result
+
             raw = "MSH|^~\\&|LIS|KE|||ORU^R01|001|P|2.5\r"
             ingest_lab_result(
                 patient_id="HL7P001",
@@ -495,6 +536,7 @@ class TestPanicWiring:
             )
 
             from departments.models.laboratory import LabResult
+
             row = LabResult.query.filter_by(patient_id="HL7P001").first()
             assert row.raw_hl7 == raw
 
@@ -502,6 +544,7 @@ class TestPanicWiring:
 # ─────────────────────────────────────────────────────────────────────────────
 # MLLP daemon unit tests (no live TCP)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestMllpAckBuilder:
     """Unit tests for the MLLP ACK builder — no network required."""
@@ -513,36 +556,41 @@ class TestMllpAckBuilder:
 
     def test_ack_starts_with_start_block(self):
         from departments.hl7.mllp_daemon import MLLP_SB, _build_ack
+
         ack = _build_ack(self.RAW_ORU, "AA")
         assert ack[0:1] == MLLP_SB
 
     def test_ack_ends_with_eb_cr(self):
         from departments.hl7.mllp_daemon import MLLP_CR, MLLP_EB, _build_ack
+
         ack = _build_ack(self.RAW_ORU, "AA")
         assert ack[-2:-1] == MLLP_EB
         assert ack[-1:] == MLLP_CR
 
     def test_ack_contains_aa_code(self):
         from departments.hl7.mllp_daemon import _build_ack
+
         ack = _build_ack(self.RAW_ORU, "AA").decode("utf-8")
         assert "MSA|AA|CTRL001" in ack
 
     def test_ack_ae_on_error(self):
         from departments.hl7.mllp_daemon import _build_ack
+
         ack = _build_ack(self.RAW_ORU, "AE", "Flask error").decode("utf-8")
         assert "MSA|AE" in ack
         assert "Flask error" in ack
 
     def test_ack_contains_msh_segment(self):
         from departments.hl7.mllp_daemon import _build_ack
+
         ack = _build_ack(self.RAW_ORU, "AA").decode("utf-8")
         assert ack.count("MSH|") >= 1
         assert "MSA|AA" in ack
 
-
     def test_ack_handles_malformed_msh(self):
         """Test _build_ack with missing or malformed MSH header."""
         from departments.hl7.mllp_daemon import _build_ack
+
         # Message with no MSH header
         malformed_msg = "PID=1||P001\r\nPV1=1|O|2026^01^01\r\n"
         ack = _build_ack(malformed_msg, "AA").decode("utf-8")
@@ -552,9 +600,11 @@ class TestMllpAckBuilder:
         assert "|HMIS|KE|LIS|KE|" in ack  # Default facility values
         assert "HMIS|KE|LIS|KE" in ack  # Default facility values
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 # P4-08 — Load test scaffold: 50 concurrent ORU messages
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestLoadScaffold:
     """
@@ -575,6 +625,7 @@ class TestLoadScaffold:
     def _seed_load_patient(self, db, patient_id, name):
         from departments.models.medicine import LabTest
         from departments.models.records import Patient
+
         p = Patient(
             patient_id=patient_id,
             name=name,
@@ -592,6 +643,7 @@ class TestLoadScaffold:
         """50 sequential POST /api/hl7/oru requests -- all must return 201."""
         with app.app_context():
             from extensions import db
+
             self._seed_load_patient(db, "LOAD001", "Load Test Patient")
 
         results = []
@@ -614,11 +666,14 @@ class TestLoadScaffold:
             f"status codes: {set(results)}"
         )
 
-    @pytest.mark.skip(reason="SQLite in-memory cannot handle concurrent writes; run this against PostgreSQL CI with locust/k6")
+    @pytest.mark.skip(
+        reason="SQLite in-memory cannot handle concurrent writes; run this against PostgreSQL CI with locust/k6"
+    )
     def test_50_concurrent_oru_ingest(self, client, app):
         """SQLite-skipped; meaningful against PostgreSQL. See docs/testing/load_test.md."""
         with app.app_context():
             from extensions import db
+
             self._seed_load_patient(db, "CONC001", "Concurrent Load Patient")
 
         results = []
@@ -643,10 +698,7 @@ class TestLoadScaffold:
                 with lock:
                     errors.append(str(exc))
 
-        threads = [
-            threading.Thread(target=post_oru, args=(i,))
-            for i in range(self.N)
-        ]
+        threads = [threading.Thread(target=post_oru, args=(i,)) for i in range(self.N)]
         for t in threads:
             t.start()
         for t in threads:
@@ -668,6 +720,7 @@ class TestLoadScaffold:
         """Verify result_id UUID uniqueness across sequential requests."""
         with app.app_context():
             from extensions import db
+
             self._seed_load_patient(db, "UUID001", "UUID Test Patient")
 
         collected_ids = []
@@ -688,4 +741,6 @@ class TestLoadScaffold:
         for i in range(20):
             post_and_collect(i)
 
-        assert len(collected_ids) == len(set(collected_ids)), "Duplicate result_ids detected!"
+        assert len(collected_ids) == len(
+            set(collected_ids)
+        ), "Duplicate result_ids detected!"

@@ -30,12 +30,19 @@ def test_protocol_creation_and_screening(app):
         assert len(protocol.treatment_arms) == 2
 
         # Create active patient
-        pat = Patient(patient_id="PAT_CT_01", name="Trial Patient One", sex="Female", date_of_birth=date(1980, 2, 14))
+        pat = Patient(
+            patient_id="PAT_CT_01",
+            name="Trial Patient One",
+            sex="Female",
+            date_of_birth=date(1980, 2, 14),
+        )
         db.session.add(pat)
         db.session.commit()
 
         # Screen patient eligibility
-        screen_res = ClinicalTrialsEngine.screen_patient_eligibility(protocol.id, "PAT_CT_01")
+        screen_res = ClinicalTrialsEngine.screen_patient_eligibility(
+            protocol.id, "PAT_CT_01"
+        )
         assert screen_res["is_eligible"] is True
         assert screen_res["screening_status"] == "ELIGIBLE"
 
@@ -51,15 +58,24 @@ def test_econsent_and_randomization(app):
             phase="Phase II",
             treatment_arms=["Arm 1: Novel Inotrope", "Arm 2: Placebo"],
         )
-        pat = Patient(patient_id="PAT_CT_02", name="Trial Patient Two", sex="Male", date_of_birth=date(1975, 8, 20))
+        pat = Patient(
+            patient_id="PAT_CT_02",
+            name="Trial Patient Two",
+            sex="Male",
+            date_of_birth=date(1975, 8, 20),
+        )
         db.session.add(pat)
         db.session.commit()
 
-        screen_res = ClinicalTrialsEngine.screen_patient_eligibility(protocol.id, "PAT_CT_02")
+        screen_res = ClinicalTrialsEngine.screen_patient_eligibility(
+            protocol.id, "PAT_CT_02"
+        )
         pid = screen_res["participant_id"]
 
         # Record e-Consent
-        consent_res = ClinicalTrialsEngine.record_econsent(pid, witness_name="Nurse Joy")
+        consent_res = ClinicalTrialsEngine.record_econsent(
+            pid, witness_name="Nurse Joy"
+        )
         assert consent_res["consent_status"] == "SIGNED_ECONSENT"
         assert consent_res["digital_signature_hash"] is not None
         assert len(consent_res["digital_signature_hash"]) == 64  # SHA-256 hex length
@@ -81,11 +97,18 @@ def test_adverse_event_sae_logging(app):
             principal_investigator="Dr. Carol White",
             phase="Phase I",
         )
-        pat = Patient(patient_id="PAT_CT_03", name="Trial Patient Three", sex="Female", date_of_birth=date(1993, 11, 5))
+        pat = Patient(
+            patient_id="PAT_CT_03",
+            name="Trial Patient Three",
+            sex="Female",
+            date_of_birth=date(1993, 11, 5),
+        )
         db.session.add(pat)
         db.session.commit()
 
-        screen_res = ClinicalTrialsEngine.screen_patient_eligibility(protocol.id, "PAT_CT_03")
+        screen_res = ClinicalTrialsEngine.screen_patient_eligibility(
+            protocol.id, "PAT_CT_03"
+        )
         pid = screen_res["participant_id"]
 
         # Log Mild Grade 1 AE
@@ -117,7 +140,12 @@ def test_adverse_event_sae_logging(app):
 def test_clinical_trials_api_endpoints(client, app, admin_user):
     """Test HTTP API endpoints for Protocols, Screening, e-Consent, Randomization, and SAE Logging."""
     with app.app_context():
-        pat = Patient(patient_id="PAT_CT_API", name="API Trial Patient", sex="Male", date_of_birth=date(1988, 6, 12))
+        pat = Patient(
+            patient_id="PAT_CT_API",
+            name="API Trial Patient",
+            sex="Male",
+            date_of_birth=date(1988, 6, 12),
+        )
         db.session.add(pat)
         db.session.commit()
 

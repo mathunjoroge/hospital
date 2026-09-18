@@ -34,7 +34,9 @@ def get_umls_api_key() -> str:
     return os.getenv("UMLS_API_KEY", "")
 
 
-def search_umls(query: str, sab: str = "SNOMEDCT_US", max_results: int = 20) -> list[dict]:
+def search_umls(
+    query: str, sab: str = "SNOMEDCT_US", max_results: int = 20
+) -> list[dict]:
     """
     Search UMLS REST API for concepts matching query in specified source vocabulary (sab).
 
@@ -80,11 +82,13 @@ def search_umls(query: str, sab: str = "SNOMEDCT_US", max_results: int = 20) -> 
 
             if code not in seen_codes:
                 seen_codes.add(code)
-                results.append({
-                    "code": code,
-                    "description": name,
-                    "cui": cui,
-                })
+                results.append(
+                    {
+                        "code": code,
+                        "description": name,
+                        "cui": cui,
+                    }
+                )
                 if len(results) >= max_results:
                     break
 
@@ -212,48 +216,120 @@ def get_core_loinc_seed_dataset() -> list[dict]:
         {"code": "8867-4", "description": "Heart rate"},
         {"code": "8480-6", "description": "Systolic blood pressure"},
         {"code": "8462-4", "description": "Diastolic blood pressure"},
-        {"code": "2708-6", "description": "Oxygen saturation in Arterial blood by Pulse oximetry"},
+        {
+            "code": "2708-6",
+            "description": "Oxygen saturation in Arterial blood by Pulse oximetry",
+        },
         {"code": "9279-1", "description": "Respiratory rate"},
         {"code": "718-7", "description": "Hemoglobin [Mass/volume] in Blood"},
         {"code": "4544-3", "description": "Hematocrit [Volume Fraction] in Blood"},
-        {"code": "6690-2", "description": "Leukocytes [#/volume] in Blood by Automated count"},
-        {"code": "777-3", "description": "Platelets [#/volume] in Blood by Automated count"},
-        {"code": "1558-6", "description": "Fasting glucose [Mass/volume] in Serum or Plasma"},
+        {
+            "code": "6690-2",
+            "description": "Leukocytes [#/volume] in Blood by Automated count",
+        },
+        {
+            "code": "777-3",
+            "description": "Platelets [#/volume] in Blood by Automated count",
+        },
+        {
+            "code": "1558-6",
+            "description": "Fasting glucose [Mass/volume] in Serum or Plasma",
+        },
         {"code": "2345-7", "description": "Glucose [Mass/volume] in Serum or Plasma"},
         {"code": "4548-4", "description": "Hemoglobin A1c/Hemoglobin.total in Blood"},
-        {"code": "2160-0", "description": "Creatinine [Mass/volume] in Serum or Plasma"},
-        {"code": "3094-0", "description": "Urea nitrogen [Mass/volume] in Serum or Plasma"},
-        {"code": "1742-6", "description": "Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma"},
-        {"code": "1920-8", "description": "Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma"},
-        {"code": "1975-2", "description": "Bilirubin.total [Mass/volume] in Serum or Plasma"},
-        {"code": "2093-3", "description": "Cholesterol [Mass/volume] in Serum or Plasma"},
-        {"code": "2571-8", "description": "Triglyceride [Mass/volume] in Serum or Plasma"},
-        {"code": "2085-9", "description": "Cholesterol in HDL [Mass/volume] in Serum or Plasma"},
-        {"code": "13457-7", "description": "Cholesterol in LDL [Mass/volume] in Serum or Plasma"},
+        {
+            "code": "2160-0",
+            "description": "Creatinine [Mass/volume] in Serum or Plasma",
+        },
+        {
+            "code": "3094-0",
+            "description": "Urea nitrogen [Mass/volume] in Serum or Plasma",
+        },
+        {
+            "code": "1742-6",
+            "description": "Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma",
+        },
+        {
+            "code": "1920-8",
+            "description": "Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma",
+        },
+        {
+            "code": "1975-2",
+            "description": "Bilirubin.total [Mass/volume] in Serum or Plasma",
+        },
+        {
+            "code": "2093-3",
+            "description": "Cholesterol [Mass/volume] in Serum or Plasma",
+        },
+        {
+            "code": "2571-8",
+            "description": "Triglyceride [Mass/volume] in Serum or Plasma",
+        },
+        {
+            "code": "2085-9",
+            "description": "Cholesterol in HDL [Mass/volume] in Serum or Plasma",
+        },
+        {
+            "code": "13457-7",
+            "description": "Cholesterol in LDL [Mass/volume] in Serum or Plasma",
+        },
         {"code": "2951-2", "description": "Sodium [Moles/volume] in Serum or Plasma"},
-        {"code": "2823-3", "description": "Potassium [Moles/volume] in Serum or Plasma"},
+        {
+            "code": "2823-3",
+            "description": "Potassium [Moles/volume] in Serum or Plasma",
+        },
         {"code": "2075-0", "description": "Chloride [Moles/volume] in Serum or Plasma"},
-        {"code": "1963-8", "description": "Bicarbonate [Moles/volume] in Serum or Plasma"},
+        {
+            "code": "1963-8",
+            "description": "Bicarbonate [Moles/volume] in Serum or Plasma",
+        },
         {"code": "17861-6", "description": "Calcium [Mass/volume] in Serum or Plasma"},
         {"code": "2777-1", "description": "Phosphate [Mass/volume] in Serum or Plasma"},
         {"code": "2601-3", "description": "Magnesium [Mass/volume] in Serum or Plasma"},
-        {"code": "1988-5", "description": "C reactive protein [Mass/volume] in Serum or Plasma"},
-        {"code": "6598-7", "description": "Troponin T.cardiac [Mass/volume] in Serum or Plasma"},
-        {"code": "34571-0", "description": "Plasmodium sp identification in Blood by Light microscopy"},
+        {
+            "code": "1988-5",
+            "description": "C reactive protein [Mass/volume] in Serum or Plasma",
+        },
+        {
+            "code": "6598-7",
+            "description": "Troponin T.cardiac [Mass/volume] in Serum or Plasma",
+        },
+        {
+            "code": "34571-0",
+            "description": "Plasmodium sp identification in Blood by Light microscopy",
+        },
         {"code": "43012-4", "description": "HIV 1+2 Ab screening rapid test in Blood"},
-        {"code": "24357-6", "description": "Urinalysis automated dipstick panel - Urine"},
+        {
+            "code": "24357-6",
+            "description": "Urinalysis automated dipstick panel - Urine",
+        },
         {"code": "24467-3", "description": "CD4 cells [#/volume] in Blood"},
-        {"code": "25835-0", "description": "HIV 1 RNA [#/volume] (viral load) in Plasma by NAA with probe"},
+        {
+            "code": "25835-0",
+            "description": "HIV 1 RNA [#/volume] (viral load) in Plasma by NAA with probe",
+        },
         {"code": "600-7", "description": "Bacteria identified in Blood by Culture"},
-        {"code": "88206-8", "description": "Mycobacterium tuberculosis DNA [Presence] in Sputum by NAA with probe"},
+        {
+            "code": "88206-8",
+            "description": "Mycobacterium tuberculosis DNA [Presence] in Sputum by NAA with probe",
+        },
         {"code": "14804-9", "description": "Lactate [Moles/volume] in Blood"},
-        {"code": "33914-3", "description": "Glomerular filtration rate/1.73 sq M.predicted [Volume Rate/Area] in Serum or Plasma (CKD-EPI)"},
-        {"code": "20505-4", "description": "Bilirubin.direct [Mass/volume] in Serum or Plasma"},
+        {
+            "code": "33914-3",
+            "description": "Glomerular filtration rate/1.73 sq M.predicted [Volume Rate/Area] in Serum or Plasma (CKD-EPI)",
+        },
+        {
+            "code": "20505-4",
+            "description": "Bilirubin.direct [Mass/volume] in Serum or Plasma",
+        },
         {"code": "1751-7", "description": "Albumin [Mass/volume] in Serum or Plasma"},
         {"code": "2885-2", "description": "Protein [Mass/volume] in Serum or Plasma"},
         {"code": "2888-6", "description": "Protein [Mass/volume] in Urine"},
         {"code": "14933-6", "description": "Prothrombin time (PT)"},
         {"code": "6301-6", "description": "INR in Blood by Coagulation assay"},
         {"code": "3173-2", "description": "aPTT in Blood by Coagulation assay"},
-        {"code": "48065-7", "description": "Fibrin D-dimer FEU [Mass/volume] in Platelet poor plasma"},
+        {
+            "code": "48065-7",
+            "description": "Fibrin D-dimer FEU [Mass/volume] in Platelet poor plasma",
+        },
     ]

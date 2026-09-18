@@ -48,7 +48,9 @@ def test_admin_switched_user_role_enforcement(client):
         sess.pop("switched_user", None)
 
     resp_normal = client.get("/admin/")
-    assert resp_normal.status_code == 200, f"Expected 200 for un-switched admin, got {resp_normal.status_code}"
+    assert (
+        resp_normal.status_code == 200
+    ), f"Expected 200 for un-switched admin, got {resp_normal.status_code}"
 
     # 2. Admin with switched_user = 'nursing' -> Restricted from admin route (403 Forbidden)
     with client.session_transaction() as sess:
@@ -57,7 +59,9 @@ def test_admin_switched_user_role_enforcement(client):
         sess["switched_user"] = "nursing"
 
     resp_switched = client.get("/admin/")
-    assert resp_switched.status_code == 403, f"Expected 403 for admin switched to nursing, got {resp_switched.status_code}"
+    assert (
+        resp_switched.status_code == 403
+    ), f"Expected 403 for admin switched to nursing, got {resp_switched.status_code}"
 
 
 def test_admin_revert_user_route(client):
@@ -65,7 +69,9 @@ def test_admin_revert_user_route(client):
     Verify that an admin in a switched role state can access /admin/revert_user
     to clear switched_user and successfully revert back to full admin access.
     """
-    admin_user = User(id=1001, username="revert_admin", password="password", role="admin")
+    admin_user = User(
+        id=1001, username="revert_admin", password="password", role="admin"
+    )
     db.session.add(admin_user)
     db.session.commit()
 

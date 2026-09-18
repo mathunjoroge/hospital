@@ -88,6 +88,7 @@ class DICOMService:
 
             # Find or create Imaging record
             from departments.models.medicine import Imaging
+
             imaging = None
             if imaging_id:
                 imaging = db.session.get(Imaging, imaging_id)
@@ -95,7 +96,8 @@ class DICOMService:
             if not imaging:
                 # Create a generic imaging record using Imaging model fields
                 imaging = Imaging(
-                    imaging_type=metadata["study_description"] or f"{metadata['modality']} Study",
+                    imaging_type=metadata["study_description"]
+                    or f"{metadata['modality']} Study",
                     cost=0.0,
                 )
                 db.session.add(imaging)
@@ -105,7 +107,11 @@ class DICOMService:
 
             stow_res = dicomweb_client.stow_store_instances(str(dest_path))
             orthanc_uid = stow_res.get("orthanc_id")
-            storage_backend = "orthanc_pacs" if stow_res.get("status") == "success" else "local_orthanc"
+            storage_backend = (
+                "orthanc_pacs"
+                if stow_res.get("status") == "success"
+                else "local_orthanc"
+            )
 
             imaging_result = ImagingResult(
                 result_id=sop_uid,
@@ -130,7 +136,12 @@ class DICOMService:
             db.session.add(imaging_result)
             db.session.commit()
 
-            logger.info("Stored DICOM file: %s -> %s (PACS Orthanc UID: %s)", file_path, dest_path, orthanc_uid)
+            logger.info(
+                "Stored DICOM file: %s -> %s (PACS Orthanc UID: %s)",
+                file_path,
+                dest_path,
+                orthanc_uid,
+            )
 
         return imaging_result
 
@@ -166,10 +177,12 @@ class DICOMService:
                 }
 
             studies[study_uid]["series_count"] += 1
-            studies[study_uid]["instances"].append({
-                "sop_instance_uid": result.result_id,
-                "series_instance_uid": metadata.get("series_instance_uid", ""),
-                "modality": metadata.get("modality", ""),
-            })
+            studies[study_uid]["instances"].append(
+                {
+                    "sop_instance_uid": result.result_id,
+                    "series_instance_uid": metadata.get("series_instance_uid", ""),
+                    "modality": metadata.get("modality", ""),
+                }
+            )
 
         return list(studies.values())

@@ -79,7 +79,9 @@ def test_chemo_builder_endpoints(client, app, admin_user):
     assert b"Chemotherapy Protocol Builder" in resp_ui.data
 
     # Test GET calculate chemo API
-    resp_calc = client.get("/medicine/oncology/api/calculate-chemo?patient_id=PAT_ONCO_TEST&protocol=AC-T&height=170&weight=70")
+    resp_calc = client.get(
+        "/medicine/oncology/api/calculate-chemo?patient_id=PAT_ONCO_TEST&protocol=AC-T&height=170&weight=70"
+    )
     assert resp_calc.status_code == 200
     calc_data = resp_calc.get_json()
     assert calc_data["protocol_name"] == "AC-T"

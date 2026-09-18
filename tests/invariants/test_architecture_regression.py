@@ -32,6 +32,7 @@ def _source(path: Path) -> str:
 
 # ─── identity fallback pattern ─────────────────────────────────────────────────
 
+
 class TestNoIdentityFallback:
     """
     INVARIANT: session.get("user_id", 1) — or any integer fallback — must
@@ -50,10 +51,16 @@ class TestNoIdentityFallback:
             for lineno, line in enumerate(src.splitlines(), 1):
                 stripped = line.strip()
                 # Skip pure comment lines and docstring references
-                if stripped.startswith("#") or stripped.startswith('"""') or stripped.startswith("- "):
+                if (
+                    stripped.startswith("#")
+                    or stripped.startswith('"""')
+                    or stripped.startswith("- ")
+                ):
                     continue
                 if self.PATTERN.search(line):
-                    violations.append(f"{path.relative_to(DEPT_ROOT.parent)}:{lineno}: {stripped}")
+                    violations.append(
+                        f"{path.relative_to(DEPT_ROOT.parent)}:{lineno}: {stripped}"
+                    )
 
         assert not violations, (
             "ARCHITECTURE REGRESSION: session.get('user_id', <default>) found. "
@@ -63,6 +70,7 @@ class TestNoIdentityFallback:
 
 
 # ─── float in financial models ─────────────────────────────────────────────────
+
 
 class TestNoFloatFinancialColumns:
     """
@@ -111,8 +119,7 @@ class TestNoFloatFinancialColumns:
 
         assert not violations, (
             "ARCHITECTURE REGRESSION: db.Float found on a financial column.\n"
-            "Use db.Numeric(precision, scale) instead.\n"
-            + "\n".join(violations)
+            "Use db.Numeric(precision, scale) instead.\n" + "\n".join(violations)
         )
 
 
@@ -121,15 +128,30 @@ class TestNoFloatFinancialColumns:
 # Routes that are explicitly permitted to be unauthenticated (login page, static assets, etc.)
 ALLOWED_UNAUTH_ROUTES = {
     # Auth flows
-    "login", "logout", "register", "reset_password", "confirm_email",
-    "patient_login", "patient_register", "patient_forgot_password",
-    "patient_reset_password", "verify_mfa", "oauth_callback",
+    "login",
+    "logout",
+    "register",
+    "reset_password",
+    "confirm_email",
+    "patient_login",
+    "patient_register",
+    "patient_forgot_password",
+    "patient_reset_password",
+    "verify_mfa",
+    "oauth_callback",
     # Health checks / static
-    "health", "healthz", "favicon", "static",
+    "health",
+    "healthz",
+    "favicon",
+    "static",
     # FHIR capability statement (public by spec)
-    "fhir_capability", "capability_statement",
+    "fhir_capability",
+    "capability_statement",
     # SSO entry points
-    "sso_login", "sso_callback", "oidc_callback", "ldap_login",
+    "sso_login",
+    "sso_callback",
+    "oidc_callback",
+    "ldap_login",
 }
 
 CLINICAL_WRITE_KEYWORDS = re.compile(
@@ -151,8 +173,12 @@ class TestClinicalWriteRoutesRequireAuth:
     def _route_functions_without_auth(self):
         """Yield (path, lineno, func_name) for clinical routes missing auth."""
         auth_decorators = {
-            "login_required", "roles_required", "require_role",
-            "jwt_required", "token_required", "patient_login_required",
+            "login_required",
+            "roles_required",
+            "require_role",
+            "jwt_required",
+            "token_required",
+            "patient_login_required",
         }
         for path in _python_files():
             try:
@@ -199,6 +225,7 @@ class TestClinicalWriteRoutesRequireAuth:
 
 # ─── stock constraint validation ───────────────────────────────────────────────
 
+
 class TestStockCheckConstraintsDefined:
     """
     INVARIANT: Drug and Batch models must define CheckConstraints preventing
@@ -209,8 +236,7 @@ class TestStockCheckConstraintsDefined:
         from departments.models.pharmacy import Drug
 
         constraint_names = {
-            c.name for c in Drug.__table__.constraints
-            if hasattr(c, "name") and c.name
+            c.name for c in Drug.__table__.constraints if hasattr(c, "name") and c.name
         }
         assert "ck_drug_stock_non_negative" in constraint_names, (
             "ARCHITECTURE REGRESSION: Drug model is missing the "
@@ -222,8 +248,7 @@ class TestStockCheckConstraintsDefined:
         from departments.models.pharmacy import Batch
 
         constraint_names = {
-            c.name for c in Batch.__table__.constraints
-            if hasattr(c, "name") and c.name
+            c.name for c in Batch.__table__.constraints if hasattr(c, "name") and c.name
         }
         assert "ck_batch_stock_non_negative" in constraint_names, (
             "ARCHITECTURE REGRESSION: Batch model is missing the "
@@ -232,6 +257,7 @@ class TestStockCheckConstraintsDefined:
 
 
 # ─── debug print detection ────────────────────────────────────────────────────
+
 
 class TestNoDebugPrintsInRoutes:
     """
@@ -249,7 +275,9 @@ class TestNoDebugPrintsInRoutes:
                 continue
             src = _source(path)
             for lineno, line in enumerate(src.splitlines(), 1):
-                if re.match(r"\s*print\s*\(", line) and not line.strip().startswith("#"):
+                if re.match(r"\s*print\s*\(", line) and not line.strip().startswith(
+                    "#"
+                ):
                     violations.append(
                         f"{path.relative_to(DEPT_ROOT.parent)}:{lineno}: {line.strip()}"
                     )

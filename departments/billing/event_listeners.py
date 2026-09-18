@@ -37,7 +37,7 @@ _thread_local = threading.local()
 
 def _get_pending_charges():
     """Get thread-local pending charges list."""
-    if not hasattr(_thread_local, 'pending_charges'):
+    if not hasattr(_thread_local, "pending_charges"):
         _thread_local.pending_charges = []
     return _thread_local.pending_charges
 
@@ -74,96 +74,124 @@ def capture_pending_charges(session, flush_context):
         try:
             if isinstance(instance, RequestedLab):
                 if hasattr(instance, "id") and instance.id is not None:
-                    pending.append({
-                        'type': 'RequestedLab',
-                        'patient_id': instance.patient_id,
-                        'source_id': instance.id,
-                        'lab_test_id': instance.lab_test_id,
-                        'encounter_id': getattr(instance, 'encounter_id', None),
-                    })
+                    pending.append(
+                        {
+                            "type": "RequestedLab",
+                            "patient_id": instance.patient_id,
+                            "source_id": instance.id,
+                            "lab_test_id": instance.lab_test_id,
+                            "encounter_id": getattr(instance, "encounter_id", None),
+                        }
+                    )
 
             elif isinstance(instance, RequestedImage):
                 if hasattr(instance, "id") and instance.id is not None:
-                    pending.append({
-                        'type': 'RequestedImage',
-                        'patient_id': instance.patient_id,
-                        'source_id': instance.id,
-                        'imaging_id': instance.imaging_id,
-                        'encounter_id': getattr(instance, 'encounter_id', None),
-                    })
+                    pending.append(
+                        {
+                            "type": "RequestedImage",
+                            "patient_id": instance.patient_id,
+                            "source_id": instance.id,
+                            "imaging_id": instance.imaging_id,
+                            "encounter_id": getattr(instance, "encounter_id", None),
+                        }
+                    )
 
             elif isinstance(instance, PrescribedMedicine):
                 if hasattr(instance, "id") and instance.id is not None:
-                    pending.append({
-                        'type': 'PrescribedMedicine',
-                        'patient_id': instance.patient_id,
-                        'source_id': instance.id,
-                        'medicine_id': instance.medicine_id,
-                        'encounter_id': getattr(instance, 'encounter_id', None),
-                    })
+                    pending.append(
+                        {
+                            "type": "PrescribedMedicine",
+                            "patient_id": instance.patient_id,
+                            "source_id": instance.id,
+                            "medicine_id": instance.medicine_id,
+                            "encounter_id": getattr(instance, "encounter_id", None),
+                        }
+                    )
 
             elif isinstance(instance, DispensedDrug):
                 if hasattr(instance, "id") and instance.id is not None:
-                    pending.append({
-                        'type': 'DispensedDrug',
-                        'patient_id': instance.patient_id,
-                        'source_id': instance.id,
-                        'drug_name': getattr(instance, 'drug_name', 'Medication'),
-                        'unit_price': float(getattr(instance, 'unit_price', 0) or 0),
-                        'quantity': int(getattr(instance, 'quantity', 1) or 1),
-                        'encounter_id': getattr(instance, 'encounter_id', None),
-                    })
+                    pending.append(
+                        {
+                            "type": "DispensedDrug",
+                            "patient_id": instance.patient_id,
+                            "source_id": instance.id,
+                            "drug_name": getattr(instance, "drug_name", "Medication"),
+                            "unit_price": float(
+                                getattr(instance, "unit_price", 0) or 0
+                            ),
+                            "quantity": int(getattr(instance, "quantity", 1) or 1),
+                            "encounter_id": getattr(instance, "encounter_id", None),
+                        }
+                    )
 
             elif isinstance(instance, TheatreList):
                 if hasattr(instance, "id") and instance.id is not None:
-                    pending.append({
-                        'type': 'TheatreList',
-                        'patient_id': instance.patient_id,
-                        'source_id': instance.id,
-                        'procedure_id': instance.procedure_id,
-                        'encounter_id': getattr(instance, 'encounter_id', None),
-                    })
+                    pending.append(
+                        {
+                            "type": "TheatreList",
+                            "patient_id": instance.patient_id,
+                            "source_id": instance.id,
+                            "procedure_id": instance.procedure_id,
+                            "encounter_id": getattr(instance, "encounter_id", None),
+                        }
+                    )
 
             elif isinstance(instance, ClinicBooking):
                 if hasattr(instance, "id") and instance.id is not None:
-                    pending.append({
-                        'type': 'ClinicBooking',
-                        'patient_id': instance.patient_id,
-                        'source_id': instance.id,
-                        'consultation_fee': float(getattr(instance, 'consultation_fee', 0) or 0),
-                        'encounter_id': getattr(instance, 'encounter_id', None),
-                    })
+                    pending.append(
+                        {
+                            "type": "ClinicBooking",
+                            "patient_id": instance.patient_id,
+                            "source_id": instance.id,
+                            "consultation_fee": float(
+                                getattr(instance, "consultation_fee", 0) or 0
+                            ),
+                            "encounter_id": getattr(instance, "encounter_id", None),
+                        }
+                    )
 
             # Payment sync
             elif isinstance(instance, PaidBill):
                 if hasattr(instance, "id") and instance.id is not None:
-                    pending.append({
-                        'type': 'PaidBill',
-                        'patient_id': instance.patient_id,
-                        'amount': float(getattr(instance, 'amount_paid', 0) or 0),
-                        'payment_method': getattr(instance, 'payment_method', 'cash'),
-                        'receipt_number': getattr(instance, 'receipt_number', None),
-                    })
+                    pending.append(
+                        {
+                            "type": "PaidBill",
+                            "patient_id": instance.patient_id,
+                            "amount": float(getattr(instance, "amount_paid", 0) or 0),
+                            "payment_method": getattr(
+                                instance, "payment_method", "cash"
+                            ),
+                            "receipt_number": getattr(instance, "receipt_number", None),
+                        }
+                    )
 
             elif isinstance(instance, DrugsBill):
                 if hasattr(instance, "id") and instance.id is not None:
-                    pending.append({
-                        'type': 'DrugsBill',
-                        'patient_id': instance.patient_id,
-                        'amount': float(getattr(instance, 'total', 0) or 0),
-                        'payment_method': getattr(instance, 'payment_method', 'cash'),
-                        'receipt_number': getattr(instance, 'receipt_number', None),
-                    })
+                    pending.append(
+                        {
+                            "type": "DrugsBill",
+                            "patient_id": instance.patient_id,
+                            "amount": float(getattr(instance, "total", 0) or 0),
+                            "payment_method": getattr(
+                                instance, "payment_method", "cash"
+                            ),
+                            "receipt_number": getattr(instance, "receipt_number", None),
+                        }
+                    )
 
             elif isinstance(instance, Billing):
                 if hasattr(instance, "id") and instance.id is not None:
-                    pending.append({
-                        'type': 'Billing',
-                        'patient_id': instance.patient_id,
-                        'amount': float(getattr(instance, 'amount', 0) or 0),
-                        'payment_method': getattr(instance, 'payment_method', 'cash'),
-                        'receipt_number': getattr(instance, 'receipt_number', None),
-                    })
+                    pending.append(
+                        {
+                            "type": "Billing",
+                            "patient_id": instance.patient_id,
+                            "amount": float(getattr(instance, "amount", 0) or 0),
+                            "payment_method": getattr(
+                                instance, "payment_method", "cash"
+                            ),
+                            "receipt_number": getattr(instance, "receipt_number", None),
+                        }
+                    )
 
             # Decision #7: flat billing line on session completion
             elif isinstance(instance, DialysisSession):  # noqa: SIM102
@@ -172,12 +200,14 @@ def capture_pending_charges(session, flush_context):
                     and instance.id is not None
                     and getattr(instance, "status", "") == "COMPLETED"
                 ):
-                    pending.append({
-                        'type': 'DialysisSession',
-                        'patient_id': instance.patient_id,
-                        'source_id': instance.id,
-                        'modality': getattr(instance, 'modality', 'HD'),
-                    })
+                    pending.append(
+                        {
+                            "type": "DialysisSession",
+                            "patient_id": instance.patient_id,
+                            "source_id": instance.id,
+                            "modality": getattr(instance, "modality", "HD"),
+                        }
+                    )
 
         except Exception:
             logger.exception("Error capturing charge data: ")
@@ -232,124 +262,144 @@ def sync_billing_events(session, flush_context):
     try:
         for charge_data in pending:
             try:
-                charge_type = charge_data['type']
+                charge_type = charge_data["type"]
 
                 # ── Charge sync ──────────────────────────────────────
-                if charge_type == 'RequestedLab':
-                    lab_test = sync_session.get(LabTest, charge_data['lab_test_id'])
+                if charge_type == "RequestedLab":
+                    lab_test = sync_session.get(LabTest, charge_data["lab_test_id"])
                     if lab_test:
                         sync_charge(
-                            patient_id=charge_data['patient_id'],
+                            patient_id=charge_data["patient_id"],
                             source_table="requested_lab",
-                            source_id=charge_data['source_id'],
+                            source_id=charge_data["source_id"],
                             description=f"Lab Test: {lab_test.test_name}",
                             category="lab",
                             amount=float(lab_test.cost or 0),
-                            source_encounter_id=charge_data.get('encounter_id'),
+                            source_encounter_id=charge_data.get("encounter_id"),
                             _session=sync_session,
                         )
-                        logger.info(f"Synced lab charge for RequestedLab #{charge_data['source_id']}")
+                        logger.info(
+                            f"Synced lab charge for RequestedLab #{charge_data['source_id']}"
+                        )
 
-                elif charge_type == 'RequestedImage':
-                    imaging = sync_session.get(Imaging, charge_data['imaging_id'])
+                elif charge_type == "RequestedImage":
+                    imaging = sync_session.get(Imaging, charge_data["imaging_id"])
                     if imaging:
                         sync_charge(
-                            patient_id=charge_data['patient_id'],
+                            patient_id=charge_data["patient_id"],
                             source_table="requested_image",
-                            source_id=charge_data['source_id'],
+                            source_id=charge_data["source_id"],
                             description=f"Imaging: {imaging.imaging_type}",
                             category="imaging",
                             amount=float(imaging.cost or 0),
-                            source_encounter_id=charge_data.get('encounter_id'),
+                            source_encounter_id=charge_data.get("encounter_id"),
                             _session=sync_session,
                         )
-                        logger.info(f"Synced imaging charge for RequestedImage #{charge_data['source_id']}")
+                        logger.info(
+                            f"Synced imaging charge for RequestedImage #{charge_data['source_id']}"
+                        )
 
-                elif charge_type == 'PrescribedMedicine':
-                    med = sync_session.get(Medicine, charge_data['medicine_id'])
+                elif charge_type == "PrescribedMedicine":
+                    med = sync_session.get(Medicine, charge_data["medicine_id"])
                     med_name = med.generic_name if med else "Medication"
                     sync_charge(
-                        patient_id=charge_data['patient_id'],
+                        patient_id=charge_data["patient_id"],
                         source_table="prescribed_medicine",
-                        source_id=charge_data['source_id'],
+                        source_id=charge_data["source_id"],
                         description=f"Prescription: {med_name}",
                         category="drug",
                         amount=0.0,  # Cost resolved at dispensing
-                        source_encounter_id=charge_data.get('encounter_id'),
+                        source_encounter_id=charge_data.get("encounter_id"),
                         _session=sync_session,
                     )
-                    logger.info(f"Synced prescription charge for PrescribedMedicine #{charge_data['source_id']}")
+                    logger.info(
+                        f"Synced prescription charge for PrescribedMedicine #{charge_data['source_id']}"
+                    )
 
-                elif charge_type == 'DispensedDrug':
+                elif charge_type == "DispensedDrug":
                     sync_charge(
-                        patient_id=charge_data['patient_id'],
+                        patient_id=charge_data["patient_id"],
                         source_table="dispensed_drug",
-                        source_id=charge_data['source_id'],
+                        source_id=charge_data["source_id"],
                         description=f"Dispensed: {charge_data['drug_name']}",
                         category="drug",
-                        amount=charge_data['unit_price'],
-                        quantity=charge_data['quantity'],
-                        source_encounter_id=charge_data.get('encounter_id'),
+                        amount=charge_data["unit_price"],
+                        quantity=charge_data["quantity"],
+                        source_encounter_id=charge_data.get("encounter_id"),
                         _session=sync_session,
                     )
-                    logger.info(f"Synced drug charge for DispensedDrug #{charge_data['source_id']}")
+                    logger.info(
+                        f"Synced drug charge for DispensedDrug #{charge_data['source_id']}"
+                    )
 
-                elif charge_type == 'TheatreList':
-                    procedure = sync_session.get(TheatreProcedure, charge_data['procedure_id'])
+                elif charge_type == "TheatreList":
+                    procedure = sync_session.get(
+                        TheatreProcedure, charge_data["procedure_id"]
+                    )
                     if procedure:
                         sync_charge(
-                            patient_id=charge_data['patient_id'],
+                            patient_id=charge_data["patient_id"],
                             source_table="theatre_list",
-                            source_id=charge_data['source_id'],
+                            source_id=charge_data["source_id"],
                             description=f"Theatre: {procedure.name}",
                             category="theatre",
                             amount=float(procedure.cost or 0),
-                            source_encounter_id=charge_data.get('encounter_id'),
+                            source_encounter_id=charge_data.get("encounter_id"),
                             _session=sync_session,
                         )
-                        logger.info(f"Synced theatre charge for TheatreList #{charge_data['source_id']}")
+                        logger.info(
+                            f"Synced theatre charge for TheatreList #{charge_data['source_id']}"
+                        )
 
-                elif charge_type == 'ClinicBooking':
+                elif charge_type == "ClinicBooking":
                     sync_charge(
-                        patient_id=charge_data['patient_id'],
+                        patient_id=charge_data["patient_id"],
                         source_table="clinic_booking",
-                        source_id=charge_data['source_id'],
+                        source_id=charge_data["source_id"],
                         description="Consultation Fee",
                         category="consult",
-                        amount=charge_data['consultation_fee'],
-                        source_encounter_id=charge_data.get('encounter_id'),
+                        amount=charge_data["consultation_fee"],
+                        source_encounter_id=charge_data.get("encounter_id"),
                         _session=sync_session,
                     )
-                    logger.info(f"Synced consult charge for ClinicBooking #{charge_data['source_id']}")
+                    logger.info(
+                        f"Synced consult charge for ClinicBooking #{charge_data['source_id']}"
+                    )
 
                 # ── Payment sync ─────────────────────────────────────
-                elif charge_type in ('PaidBill', 'DrugsBill', 'Billing'):
-                    if charge_data['amount'] > 0:
+                elif charge_type in ("PaidBill", "DrugsBill", "Billing"):
+                    if charge_data["amount"] > 0:
                         sync_payment(
-                            patient_id=charge_data['patient_id'],
-                            amount=charge_data['amount'],
-                            payment_method=charge_data['payment_method'],
-                            receipt_number=charge_data.get('receipt_number'),
-                                _session=sync_session,
-                            )
-                        logger.info(f"Synced payment for {charge_type} #{charge_data.get('source_id', 'N/A')}")
+                            patient_id=charge_data["patient_id"],
+                            amount=charge_data["amount"],
+                            payment_method=charge_data["payment_method"],
+                            receipt_number=charge_data.get("receipt_number"),
+                            _session=sync_session,
+                        )
+                        logger.info(
+                            f"Synced payment for {charge_type} #{charge_data.get('source_id', 'N/A')}"
+                        )
 
                 # ── Dialysis session billing (Decision §23 #7) ────────
-                elif charge_type == 'DialysisSession':
-                    modality = charge_data.get('modality', 'HD')
+                elif charge_type == "DialysisSession":
+                    modality = charge_data.get("modality", "HD")
                     sync_charge(
-                        patient_id=charge_data['patient_id'],
+                        patient_id=charge_data["patient_id"],
                         source_table="dialysis_sessions",
-                        source_id=charge_data['source_id'],
+                        source_id=charge_data["source_id"],
                         description=f"Dialysis Session — {modality}",
                         category="procedure",
                         amount=0.0,  # Facility configures unit cost in billing master
                         _session=sync_session,
                     )
-                    logger.info(f"Synced dialysis charge for DialysisSession #{charge_data['source_id']} ({modality})")
+                    logger.info(
+                        f"Synced dialysis charge for DialysisSession #{charge_data['source_id']} ({modality})"
+                    )
 
             except Exception:
-                logger.exception("Error syncing billing for {charge_data.get('type', 'unknown')}: ")
+                logger.exception(
+                    "Error syncing billing for {charge_data.get('type', 'unknown')}: "
+                )
                 sync_session.rollback()
                 continue
 
@@ -363,8 +413,8 @@ def sync_billing_events(session, flush_context):
         sync_session.commit()
         logger.info(
             "Billing sync committed successfully"
-            if should_commit else
-            "Billing sync completed (test mode, savepoint released)"
+            if should_commit
+            else "Billing sync completed (test mode, savepoint released)"
         )
 
     except Exception:
@@ -381,4 +431,6 @@ def sync_billing_events(session, flush_context):
 
 def register_billing_sync_listeners():
     """Register billing sync event listeners during app initialization."""
-    logger.info("✅ Billing sync event listeners registered (two-phase + independent session + thread-safe)")
+    logger.info(
+        "✅ Billing sync event listeners registered (two-phase + independent session + thread-safe)"
+    )

@@ -21,7 +21,9 @@ from extensions import db
 
 
 def _patient(pid):
-    p = Patient(patient_id=pid, name=f"Test {pid}", sex="F", date_of_birth=date(1990, 1, 1))
+    p = Patient(
+        patient_id=pid, name=f"Test {pid}", sex="F", date_of_birth=date(1990, 1, 1)
+    )
     db.session.add(p)
     db.session.add(PatientWaitingList(patient_id=pid, seen=QueueStatus.WAITING_TRIAGE))
     db.session.commit()
@@ -32,16 +34,23 @@ def test_stage_machine_legal_chain(app):
     enc = Encounter(patient_id="P1", encounter_type="OPD", status="ACTIVE")
     db.session.add(enc)
     db.session.commit()
-    for stage in ["REGISTERED", "WAITING_DOCTOR", "IN_CONSULTATION",
-                  "AWAITING_RESULTS", "IN_CONSULTATION", "AWAITING_PHARMACY",
-                  "AWAITING_BILLING"]:
+    for stage in [
+        "REGISTERED",
+        "WAITING_DOCTOR",
+        "IN_CONSULTATION",
+        "AWAITING_RESULTS",
+        "IN_CONSULTATION",
+        "AWAITING_PHARMACY",
+        "AWAITING_BILLING",
+    ]:
         assert enc.set_stage(stage) is True, stage
     assert enc.stage == "AWAITING_BILLING"
 
 
 def test_stage_machine_refuses_illegal_jumps(app):
-    enc = Encounter(patient_id="P1", encounter_type="OPD", status="ACTIVE",
-                    stage="REGISTERED")
+    enc = Encounter(
+        patient_id="P1", encounter_type="OPD", status="ACTIVE", stage="REGISTERED"
+    )
     db.session.add(enc)
     db.session.commit()
     assert enc.set_stage("DISCHARGED") is False
@@ -73,7 +82,6 @@ def test_visit_not_closed_while_labs_pending(app):
     assert visit_closure.active_encounter("P0001").status == "ACTIVE"
 
 
-
 def test_old_closed_encounter_pending_lab_does_not_block_new_visit(app):
     """Tier 2.4: a stale pending lab scoped to a PAST, closed encounter must
     not block today's visit from closing - only work on the current
@@ -88,7 +96,9 @@ def test_old_closed_encounter_pending_lab_does_not_block_new_visit(app):
     db.session.add(old_enc)
     db.session.commit()
     db.session.add(
-        RequestedLab(patient_id="P0001", encounter_id=old_enc.id, lab_test_id=lt.id, status=0)
+        RequestedLab(
+            patient_id="P0001", encounter_id=old_enc.id, lab_test_id=lt.id, status=0
+        )
     )
     db.session.commit()
 
@@ -97,6 +107,7 @@ def test_old_closed_encounter_pending_lab_does_not_block_new_visit(app):
     assert visit_closure.maybe_close_encounter("P0001") is True
     new_enc = visit_closure.active_encounter("P0001")
     assert new_enc is None or new_enc.status == "DISCHARGED"
+
 
 def test_visit_closes_when_no_work_no_debt(app):
     _patient("P0001")
@@ -115,13 +126,26 @@ def test_full_payment_closes_scoped_encounter(app):
     inv = Invoice(patient_id="P0001", encounter_id=enc.id, status=InvoiceStatus.ISSUED)
     db.session.add(inv)
     db.session.commit()
-    db.session.add(InvoiceLineItem(invoice_id=inv.id, description="Consult",
-                                   category="consult", quantity=1,
-                                   unit_price=1000, total=1000))
+    db.session.add(
+        InvoiceLineItem(
+            invoice_id=inv.id,
+            description="Consult",
+            category="consult",
+            quantity=1,
+            unit_price=1000,
+            total=1000,
+        )
+    )
     db.session.commit()
     inv.recalculate()
-    db.session.add(Payment(invoice_id=inv.id, patient_id="P0001", amount=1000,
-                           method=PaymentMethod.CASH))
+    db.session.add(
+        Payment(
+            invoice_id=inv.id,
+            patient_id="P0001",
+            amount=1000,
+            method=PaymentMethod.CASH,
+        )
+    )
     db.session.commit()
     inv.recalculate()
     db.session.refresh(enc)
@@ -131,6 +155,7 @@ def test_full_payment_closes_scoped_encounter(app):
 
 def test_post_consult_charges_still_scope_to_open_encounter(app):
     from departments.billing.sync import get_or_create_open_invoice
+
     _patient("P0001")
     ScheduleEngine().create_walk_in(patient_id="P0001")
     enc = visit_closure.active_encounter("P0001")
@@ -140,12 +165,20 @@ def test_post_consult_charges_still_scope_to_open_encounter(app):
 
 def test_discharge_route_force_closes(app, client):
     with app.app_context():
-        db.session.add(User(id=1, username="doc1",
-                            password=generate_password_hash("password123"),
-                            role="admin"))
+        db.session.add(
+            User(
+                id=1,
+                username="doc1",
+                password=generate_password_hash("password123"),
+                role="admin",
+            )
+        )
         db.session.commit()
-    client.post("/login", data={"username": "doc1", "password": "password123"},
-                follow_redirects=True)
+    client.post(
+        "/login",
+        data={"username": "doc1", "password": "password123"},
+        follow_redirects=True,
+    )
     _patient("P0001")
     ScheduleEngine().create_walk_in(patient_id="P0001")
     lt = LabTest(test_name="CBC", cost=500)

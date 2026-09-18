@@ -128,9 +128,29 @@ def check_in_patient(appointment_id: str):
 
 
 @bp.route("/api/queue/<provider_id>", methods=["GET"], strict_slashes=False)
-@bp.route("/api/queue", methods=["GET"], defaults={"provider_id": "all"}, strict_slashes=False)
+@bp.route(
+    "/api/queue", methods=["GET"], defaults={"provider_id": "all"}, strict_slashes=False
+)
 @login_required
-@roles_required("doctor", "medicine", "nursing", "admin", "records", "laboratory", "imaging", "pharmacy", "pharmacist", "billing", "stores", "hr", "theatre", "oncology", "mch", "icu", "renal")
+@roles_required(
+    "doctor",
+    "medicine",
+    "nursing",
+    "admin",
+    "records",
+    "laboratory",
+    "imaging",
+    "pharmacy",
+    "pharmacist",
+    "billing",
+    "stores",
+    "hr",
+    "theatre",
+    "oncology",
+    "mch",
+    "icu",
+    "renal",
+)
 def get_live_queue(provider_id: str):
     """
     Retrieves the live waiting room queue for the provider's display (or all providers).
@@ -140,9 +160,12 @@ def get_live_queue(provider_id: str):
 
     if provider_id == "all":
         today_appts = Appointment.query.filter(
-            Appointment.scheduled_start >= now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+            Appointment.scheduled_start
+            >= now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
         ).all()
-        in_consultation = Appointment.query.filter(Appointment.status == "IN_PROGRESS").count()
+        in_consultation = Appointment.query.filter(
+            Appointment.status == "IN_PROGRESS"
+        ).count()
     else:
         today_appts = _engine.get_provider_schedule(provider_id, now_utc)
         in_consultation = Appointment.query.filter(
@@ -210,7 +233,16 @@ def mark_no_show(appointment_id: str):
 @bp.route("/api/queue/<provider_id>/rows", methods=["GET"])
 @bp.route("/api/queue/rows", methods=["GET"], defaults={"provider_id": "all"})
 @login_required
-@roles_required("doctor", "nursing", "records", "laboratory", "imaging", "pharmacy", "billing", "admin")
+@roles_required(
+    "doctor",
+    "nursing",
+    "records",
+    "laboratory",
+    "imaging",
+    "pharmacy",
+    "billing",
+    "admin",
+)
 def get_live_queue_rows(provider_id: str):
     """
     Returns HTML table rows for the HTMX live queue dashboard.
@@ -232,15 +264,31 @@ def get_live_queue_rows(provider_id: str):
             color = appt.get("stage_color", "bg-gray-100 text-gray-800")
             status_label = appt.get("stage_display", "Waiting")
             appt_id = appt.get("id") or appt.get("appointment_id") or ""
-            disabled = 'disabled class="opacity-50 cursor-not-allowed"' if appt.get("stage") in ["IN_CONSULTATION", "DISCHARGED"] else ""
+            disabled = (
+                'disabled class="opacity-50 cursor-not-allowed"'
+                if appt.get("stage") in ["IN_CONSULTATION", "DISCHARGED"]
+                else ""
+            )
         else:
             pid = getattr(appt, "patient_id", "")
             patient_display = f"Patient {pid}"
-            checked_in_time = appt.updated_at.strftime("%H:%M") if getattr(appt, "updated_at", None) else "--:--"
-            color = "bg-amber-100 text-amber-800" if getattr(appt, "status", "") == "CHECKED_IN" else "bg-gray-100 text-gray-800"
+            checked_in_time = (
+                appt.updated_at.strftime("%H:%M")
+                if getattr(appt, "updated_at", None)
+                else "--:--"
+            )
+            color = (
+                "bg-amber-100 text-amber-800"
+                if getattr(appt, "status", "") == "CHECKED_IN"
+                else "bg-gray-100 text-gray-800"
+            )
             status_label = getattr(appt, "status", "").replace("_", " ")
             appt_id = getattr(appt, "id", "")
-            disabled = 'disabled class="opacity-50 cursor-not-allowed"' if getattr(appt, "status", "") != "CHECKED_IN" else ""
+            disabled = (
+                'disabled class="opacity-50 cursor-not-allowed"'
+                if getattr(appt, "status", "") != "CHECKED_IN"
+                else ""
+            )
 
         rows.append(
             f'<tr class="border-b border-gray-100 hover:bg-gray-50 transition">'
@@ -259,5 +307,3 @@ def get_live_queue_rows(provider_id: str):
         )
 
     return "\n".join(rows)
-
-

@@ -46,6 +46,7 @@ _CONNECT_TIMEOUT = 5  # seconds
 
 # ── HL7 message builders ──────────────────────────────────────────────────────
 
+
 def _now_hl7() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
 
@@ -81,44 +82,29 @@ def _pv1(event_code: str, bed: str = "", ward: str = "") -> str:
 def build_adt_a01(patient, ward: str = "", bed: str = "") -> str:
     """ADT^A01 — Admit/Visit Notification."""
     ctrl_id = f"ADT{_now_hl7()}"
-    return (
-        _msh("ADT^A01^ADT_A01", ctrl_id)
-        + _pid(patient)
-        + _pv1("A", bed, ward)
-    )
+    return _msh("ADT^A01^ADT_A01", ctrl_id) + _pid(patient) + _pv1("A", bed, ward)
 
 
 def build_adt_a03(patient, ward: str = "", bed: str = "") -> str:
     """ADT^A03 — Discharge/End Visit."""
     ctrl_id = f"ADT{_now_hl7()}"
-    return (
-        _msh("ADT^A03^ADT_A03", ctrl_id)
-        + _pid(patient)
-        + _pv1("O", bed, ward)
-    )
+    return _msh("ADT^A03^ADT_A03", ctrl_id) + _pid(patient) + _pv1("O", bed, ward)
 
 
 def build_adt_a08(patient) -> str:
     """ADT^A08 — Update Patient Information."""
     ctrl_id = f"ADT{_now_hl7()}"
-    return (
-        _msh("ADT^A08^ADT_A08", ctrl_id)
-        + _pid(patient)
-        + _pv1("U")
-    )
+    return _msh("ADT^A08^ADT_A08", ctrl_id) + _pid(patient) + _pv1("U")
 
 
 def build_adt_a28(patient) -> str:
     """ADT^A28 — Add Person Information (new registration)."""
     ctrl_id = f"ADT{_now_hl7()}"
-    return (
-        _msh("ADT^A28^ADT_A01", ctrl_id)
-        + _pid(patient)
-        + _pv1("O")
-    )
+    return _msh("ADT^A28^ADT_A01", ctrl_id) + _pid(patient) + _pv1("O")
 
 
 # ── Fire-and-forget MLLP sender ───────────────────────────────────────────────
+
 
 def _send_mllp_blocking(raw_msg: str) -> None:
     """Synchronous MLLP send — always called from a daemon thread."""
@@ -137,7 +123,9 @@ def _send_mllp_blocking(raw_msg: str) -> None:
     except OSError as exc:
         logger.warning(
             "ADT send failed to %s:%s — %s",
-            MLLP_DOWNSTREAM_HOST, MLLP_DOWNSTREAM_PORT, exc,
+            MLLP_DOWNSTREAM_HOST,
+            MLLP_DOWNSTREAM_PORT,
+            exc,
         )
 
 
@@ -152,6 +140,7 @@ def send_adt_async(raw_msg: str) -> None:
 
 
 # ── Public API used by SQLAlchemy event listeners ────────────────────────────
+
 
 def on_patient_registered(patient) -> None:
     """Call after a new Patient row is committed."""

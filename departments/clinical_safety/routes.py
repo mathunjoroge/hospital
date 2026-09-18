@@ -32,14 +32,14 @@ def search_drugs():
     Query param: q (search string)
     """
     from departments.models.pharmacy import Drug
+
     q = request.args.get("q", "").strip()
     if not q:
         drugs = Drug.query.order_by(Drug.generic_name).limit(30).all()
     else:
         drugs = (
             Drug.query.filter(
-                (Drug.generic_name.ilike(f"%{q}%"))
-                | (Drug.brand_name.ilike(f"%{q}%"))
+                (Drug.generic_name.ilike(f"%{q}%")) | (Drug.brand_name.ilike(f"%{q}%"))
             )
             .order_by(Drug.generic_name)
             .limit(50)
@@ -53,14 +53,16 @@ def search_drugs():
             label += f" ({d.brand_name})"
         if d.strength:
             label += f" - {d.strength}"
-        results.append({
-            "id": d.id,
-            "text": label,
-            "generic_name": d.generic_name,
-            "brand_name": d.brand_name or "",
-            "strength": d.strength or "",
-            "dosage_form": d.dosage_form or ""
-        })
+        results.append(
+            {
+                "id": d.id,
+                "text": label,
+                "generic_name": d.generic_name,
+                "brand_name": d.brand_name or "",
+                "strength": d.strength or "",
+                "dosage_form": d.dosage_form or "",
+            }
+        )
 
     return jsonify({"results": results}), 200
 

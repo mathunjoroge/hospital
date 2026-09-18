@@ -83,7 +83,9 @@ def index():
 
 @bp.route("/inventory", methods=["GET"])
 @login_required
-@roles_required("store", "stores", "admin", "imaging", "medicine", "nursing", "pharmacy")
+@roles_required(
+    "store", "stores", "admin", "imaging", "medicine", "nursing", "pharmacy"
+)
 def inventory():
     try:
         drugs = Drug.query.order_by(Drug.generic_name).all()

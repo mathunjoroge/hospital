@@ -4,6 +4,7 @@ Kenya MOH-645 & MOH-743 Malaria Commodity & Weight Band Reporting Engine.
 MOH-645: Health Facility Daily Activity Register for Malaria Commodities
 MOH-743: Health Facility Monthly Summary Report for Malaria Commodities
 """
+
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import func, or_
@@ -14,7 +15,19 @@ from departments.models.records import Patient
 from extensions import db
 
 ANTIMALARIAL_KEYWORDS = {
-    "al": ["artemether", "lumefantrine", "coartem", "al 6", "al 12", "al 18", "al 24", "al6", "al12", "al18", "al24"],
+    "al": [
+        "artemether",
+        "lumefantrine",
+        "coartem",
+        "al 6",
+        "al 12",
+        "al 18",
+        "al 24",
+        "al6",
+        "al12",
+        "al18",
+        "al24",
+    ],
     "artesunate": ["artesunate"],
     "quinine": ["quinine"],
     "sp": ["sulfadoxine", "pyrimethamine", "fansidar"],
@@ -74,7 +87,9 @@ def classify_drug_category(generic_name: str) -> str:
     return None
 
 
-def get_patient_weight_or_estimate(patient_id: str, ref_date: date = None) -> tuple[float, str]:
+def get_patient_weight_or_estimate(
+    patient_id: str, ref_date: date = None
+) -> tuple[float, str]:
     """
     Determine patient weight in kg.
     First checks MalariaCase.weight_kg, falls back to Patient.date_of_birth age estimation.
@@ -120,7 +135,14 @@ def aggregate_moh645_daily(target_date: date = None) -> dict:
         .join(Drug, DispensedDrug.drug_id == Drug.id)
         .filter(DispensedDrug.date_dispensed >= start_dt)
         .filter(DispensedDrug.date_dispensed <= end_dt)
-        .filter(or_(DispensedDrug.status == "0", DispensedDrug.status == "COMPLETED", DispensedDrug.status == "DISPENSED", DispensedDrug.status.is_(None)))
+        .filter(
+            or_(
+                DispensedDrug.status == "0",
+                DispensedDrug.status == "COMPLETED",
+                DispensedDrug.status == "DISPENSED",
+                DispensedDrug.status.is_(None),
+            )
+        )
         .all()
     )
 
@@ -227,7 +249,14 @@ def aggregate_moh743_monthly(year: int = None, month: int = None) -> dict:
         .join(Drug, DispensedDrug.drug_id == Drug.id)
         .filter(DispensedDrug.date_dispensed >= start_dt)
         .filter(DispensedDrug.date_dispensed <= end_dt)
-        .filter(or_(DispensedDrug.status == "0", DispensedDrug.status == "COMPLETED", DispensedDrug.status == "DISPENSED", DispensedDrug.status.is_(None)))
+        .filter(
+            or_(
+                DispensedDrug.status == "0",
+                DispensedDrug.status == "COMPLETED",
+                DispensedDrug.status == "DISPENSED",
+                DispensedDrug.status.is_(None),
+            )
+        )
         .all()
     )
 
@@ -302,9 +331,7 @@ def aggregate_moh743_monthly(year: int = None, month: int = None) -> dict:
     monthly_data["total_patients_treated"] = len(patient_seen_bands)
 
     rdt_count = (
-        MalariaLabResult.query.filter(
-            MalariaLabResult.test_date >= start_dt
-        )
+        MalariaLabResult.query.filter(MalariaLabResult.test_date >= start_dt)
         .filter(MalariaLabResult.test_date <= end_dt)
         .filter(MalariaLabResult.test_type.ilike("%RDT%"))
         .count()

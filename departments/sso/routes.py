@@ -9,6 +9,7 @@ Endpoints:
   POST /auth/sso/ldap           – Direct Active Directory / LDAP bind login API
   GET  /auth/sso/status         – SSO Configuration & Health check endpoint
 """
+
 import logging
 
 from flask import current_app, jsonify, redirect, request, session, url_for
@@ -49,7 +50,9 @@ def sso_login():
     redirect_uri = url_for("sso.sso_callback", _external=True)
     state = request.args.get("state", "sso_auth_state")
 
-    auth_url = _sso_engine.get_oidc_authorization_url(redirect_uri=redirect_uri, state=state)
+    auth_url = _sso_engine.get_oidc_authorization_url(
+        redirect_uri=redirect_uri, state=state
+    )
     return redirect(auth_url)
 
 
@@ -62,26 +65,36 @@ def sso_callback():
     code = request.args.get("code")
 
     if not code:
-        return jsonify({"error": "Missing authorization code from Identity Provider."}), 400
+        return jsonify(
+            {"error": "Missing authorization code from Identity Provider."}
+        ), 400
 
     try:
         redirect_uri = url_for("sso.sso_callback", _external=True)
-        user_claims = _sso_engine.process_oidc_callback(code=code, redirect_uri=redirect_uri)
+        user_claims = _sso_engine.process_oidc_callback(
+            code=code, redirect_uri=redirect_uri
+        )
         user = _sso_engine.provision_or_sync_user(user_claims)
 
         login_user(user)
         session["sso_provider"] = "oidc"
 
         if request.headers.get("Accept") == "application/json":
-            return jsonify({
-                "status": "success",
-                "message": f"Successfully authenticated via OIDC SSO as {user.username}",
-                "user_id": user.id,
-                "username": user.username,
-                "role": user.role,
-            }), 200
+            return jsonify(
+                {
+                    "status": "success",
+                    "message": f"Successfully authenticated via OIDC SSO as {user.username}",
+                    "user_id": user.id,
+                    "username": user.username,
+                    "role": user.role,
+                }
+            ), 200
 
-        return redirect(url_for("ui_dashboard.dashboard") if "ui_dashboard.dashboard" in session else "/")
+        return redirect(
+            url_for("ui_dashboard.dashboard")
+            if "ui_dashboard.dashboard" in session
+            else "/"
+        )
 
     except SSOError as exc:
         return jsonify({"error": str(exc)}), 401
@@ -113,19 +126,23 @@ def ldap_login():
         login_user(user)
         session["sso_provider"] = "ldap"
 
-        return jsonify({
-            "status": "success",
-            "message": f"Authenticated via Active Directory / LDAP as {user.username}",
-            "user_id": user.id,
-            "username": user.username,
-            "role": user.role,
-        }), 200
+        return jsonify(
+            {
+                "status": "success",
+                "message": f"Authenticated via Active Directory / LDAP as {user.username}",
+                "user_id": user.id,
+                "username": user.username,
+                "role": user.role,
+            }
+        ), 200
 
     except SSOError as exc:
         return jsonify({"error": str(exc)}), 401
     except Exception:
         logger.exception("Unexpected error during LDAP authentication")
-        return jsonify({"error": "Internal server error during Active Directory login."}), 500
+        return jsonify(
+            {"error": "Internal server error during Active Directory login."}
+        ), 500
 
 
 @bp.route("/status", methods=["GET"])
@@ -134,10 +151,15 @@ def sso_status():
     GET /auth/sso/status
     Returns SSO configuration and provider health status.
     """
-    return jsonify({
-        "sso_enabled": _sso_engine.enabled,
-        "provider": _sso_engine.provider,
-        "oidc_issuer": _sso_engine.oidc_issuer,
-        "ldap_server": _sso_engine.ldap_server,
-        "supported_methods": ["OIDC (Azure AD/Keycloak)", "Active Directory / LDAP Bind"],
-    }), 200
+    return jsonify(
+        {
+            "sso_enabled": _sso_engine.enabled,
+            "provider": _sso_engine.provider,
+            "oidc_issuer": _sso_engine.oidc_issuer,
+            "ldap_server": _sso_engine.ldap_server,
+            "supported_methods": [
+                "OIDC (Azure AD/Keycloak)",
+                "Active Directory / LDAP Bind",
+            ],
+        }
+    ), 200

@@ -217,7 +217,11 @@ def request_imaging(patient_id):
             flash("Imaging requested successfully!", "success")
 
             # ✅ Advance encounter stage: imaging ordered → AWAITING_IMAGING
-            if encounter and encounter.stage in ("WAITING_DOCTOR", "IN_CONSULTATION", "AWAITING_LAB"):
+            if encounter and encounter.stage in (
+                "WAITING_DOCTOR",
+                "IN_CONSULTATION",
+                "AWAITING_LAB",
+            ):
                 encounter.stage = "AWAITING_IMAGING"
                 db.session.add(encounter)
                 db.session.commit()

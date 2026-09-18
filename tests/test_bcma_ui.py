@@ -40,9 +40,11 @@ def test_bcma_scanner_ui_route(client, app, admin_user):
 def test_bcma_scanner_requires_auth(client):
     """GET /nursing/bcma/scanner without auth redirects or returns 401/302."""
     resp = client.get("/nursing/bcma/scanner", follow_redirects=False)
-    assert resp.status_code in (302, 401, 403), (
-        f"Expected redirect/auth error, got {resp.status_code}"
-    )
+    assert resp.status_code in (
+        302,
+        401,
+        403,
+    ), f"Expected redirect/auth error, got {resp.status_code}"
 
 
 def test_bcma_verify_endpoint_returns_400_missing_fields(client, app, admin_user):

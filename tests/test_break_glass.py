@@ -381,9 +381,7 @@ def test_invoke_empty_reason_raises(app, doctor_user):
 def test_invoke_ineligible_role_raises(app, records_user):
     """invoke_break_glass raises PermissionError for non-eligible roles."""
     with app.app_context(), pytest.raises(PermissionError, match="authorised"):
-        invoke_break_glass(
-            reason="Attempting unauthorised override", user=records_user
-        )
+        invoke_break_glass(reason="Attempting unauthorised override", user=records_user)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -21,11 +21,36 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 1500.0,
         "description": "Complete Blood Count including WBC, RBC, Hemoglobin, Hematocrit, and Platelets.",
         "parameters": [
-            {"parameter_name": "Hemoglobin", "normal_range_low": 12.0, "normal_range_high": 17.5, "unit": "g/dL"},
-            {"parameter_name": "Leukocytes (WBC)", "normal_range_low": 4.0, "normal_range_high": 11.0, "unit": "10^3/uL"},
-            {"parameter_name": "Platelets", "normal_range_low": 150.0, "normal_range_high": 450.0, "unit": "10^3/uL"},
-            {"parameter_name": "Hematocrit (HCT)", "normal_range_low": 36.0, "normal_range_high": 52.0, "unit": "%"},
-            {"parameter_name": "Erythrocytes (RBC)", "normal_range_low": 4.2, "normal_range_high": 5.9, "unit": "10^6/uL"},
+            {
+                "parameter_name": "Hemoglobin",
+                "normal_range_low": 12.0,
+                "normal_range_high": 17.5,
+                "unit": "g/dL",
+            },
+            {
+                "parameter_name": "Leukocytes (WBC)",
+                "normal_range_low": 4.0,
+                "normal_range_high": 11.0,
+                "unit": "10^3/uL",
+            },
+            {
+                "parameter_name": "Platelets",
+                "normal_range_low": 150.0,
+                "normal_range_high": 450.0,
+                "unit": "10^3/uL",
+            },
+            {
+                "parameter_name": "Hematocrit (HCT)",
+                "normal_range_low": 36.0,
+                "normal_range_high": 52.0,
+                "unit": "%",
+            },
+            {
+                "parameter_name": "Erythrocytes (RBC)",
+                "normal_range_low": 4.2,
+                "normal_range_high": 5.9,
+                "unit": "10^6/uL",
+            },
         ],
     },
     {
@@ -34,7 +59,12 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 500.0,
         "description": "Measurement of blood glucose after an overnight fast (minimum 8 hours).",
         "parameters": [
-            {"parameter_name": "Fasting Glucose", "normal_range_low": 3.9, "normal_range_high": 5.6, "unit": "mmol/L"},
+            {
+                "parameter_name": "Fasting Glucose",
+                "normal_range_low": 3.9,
+                "normal_range_high": 5.6,
+                "unit": "mmol/L",
+            },
         ],
     },
     {
@@ -43,7 +73,12 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 500.0,
         "description": "Random measurement of plasma glucose level.",
         "parameters": [
-            {"parameter_name": "Random Glucose", "normal_range_low": 3.9, "normal_range_high": 7.8, "unit": "mmol/L"},
+            {
+                "parameter_name": "Random Glucose",
+                "normal_range_low": 3.9,
+                "normal_range_high": 7.8,
+                "unit": "mmol/L",
+            },
         ],
     },
     {
@@ -52,7 +87,12 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 2000.0,
         "description": "Average blood glucose levels over the past 2 to 3 months.",
         "parameters": [
-            {"parameter_name": "HbA1c Percentage", "normal_range_low": 4.0, "normal_range_high": 5.6, "unit": "%"},
+            {
+                "parameter_name": "HbA1c Percentage",
+                "normal_range_low": 4.0,
+                "normal_range_high": 5.6,
+                "unit": "%",
+            },
         ],
     },
     {
@@ -61,11 +101,36 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 2500.0,
         "description": "Assessment of kidney function including Serum Creatinine, Urea, and Electrolytes.",
         "parameters": [
-            {"parameter_name": "Serum Creatinine", "normal_range_low": 53.0, "normal_range_high": 115.0, "unit": "umol/L"},
-            {"parameter_name": "Blood Urea Nitrogen", "normal_range_low": 2.5, "normal_range_high": 7.1, "unit": "mmol/L"},
-            {"parameter_name": "Sodium (Na+)", "normal_range_low": 135.0, "normal_range_high": 145.0, "unit": "mmol/L"},
-            {"parameter_name": "Potassium (K+)", "normal_range_low": 3.5, "normal_range_high": 5.1, "unit": "mmol/L"},
-            {"parameter_name": "Chloride (Cl-)", "normal_range_low": 96.0, "normal_range_high": 106.0, "unit": "mmol/L"},
+            {
+                "parameter_name": "Serum Creatinine",
+                "normal_range_low": 53.0,
+                "normal_range_high": 115.0,
+                "unit": "umol/L",
+            },
+            {
+                "parameter_name": "Blood Urea Nitrogen",
+                "normal_range_low": 2.5,
+                "normal_range_high": 7.1,
+                "unit": "mmol/L",
+            },
+            {
+                "parameter_name": "Sodium (Na+)",
+                "normal_range_low": 135.0,
+                "normal_range_high": 145.0,
+                "unit": "mmol/L",
+            },
+            {
+                "parameter_name": "Potassium (K+)",
+                "normal_range_low": 3.5,
+                "normal_range_high": 5.1,
+                "unit": "mmol/L",
+            },
+            {
+                "parameter_name": "Chloride (Cl-)",
+                "normal_range_low": 96.0,
+                "normal_range_high": 106.0,
+                "unit": "mmol/L",
+            },
         ],
     },
     {
@@ -74,12 +139,42 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 2500.0,
         "description": "Evaluates liver enzymes, proteins, and bilirubin levels.",
         "parameters": [
-            {"parameter_name": "ALT (SGPT)", "normal_range_low": 7.0, "normal_range_high": 56.0, "unit": "U/L"},
-            {"parameter_name": "AST (SGOT)", "normal_range_low": 10.0, "normal_range_high": 40.0, "unit": "U/L"},
-            {"parameter_name": "Total Bilirubin", "normal_range_low": 3.4, "normal_range_high": 20.5, "unit": "umol/L"},
-            {"parameter_name": "Direct Bilirubin", "normal_range_low": 0.0, "normal_range_high": 5.1, "unit": "umol/L"},
-            {"parameter_name": "Alkaline Phosphatase (ALP)", "normal_range_low": 44.0, "normal_range_high": 147.0, "unit": "U/L"},
-            {"parameter_name": "Serum Albumin", "normal_range_low": 35.0, "normal_range_high": 50.0, "unit": "g/L"},
+            {
+                "parameter_name": "ALT (SGPT)",
+                "normal_range_low": 7.0,
+                "normal_range_high": 56.0,
+                "unit": "U/L",
+            },
+            {
+                "parameter_name": "AST (SGOT)",
+                "normal_range_low": 10.0,
+                "normal_range_high": 40.0,
+                "unit": "U/L",
+            },
+            {
+                "parameter_name": "Total Bilirubin",
+                "normal_range_low": 3.4,
+                "normal_range_high": 20.5,
+                "unit": "umol/L",
+            },
+            {
+                "parameter_name": "Direct Bilirubin",
+                "normal_range_low": 0.0,
+                "normal_range_high": 5.1,
+                "unit": "umol/L",
+            },
+            {
+                "parameter_name": "Alkaline Phosphatase (ALP)",
+                "normal_range_low": 44.0,
+                "normal_range_high": 147.0,
+                "unit": "U/L",
+            },
+            {
+                "parameter_name": "Serum Albumin",
+                "normal_range_low": 35.0,
+                "normal_range_high": 50.0,
+                "unit": "g/L",
+            },
         ],
     },
     {
@@ -88,10 +183,30 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 3000.0,
         "description": "Measures total cholesterol, HDL, LDL, and triglycerides.",
         "parameters": [
-            {"parameter_name": "Total Cholesterol", "normal_range_low": 3.0, "normal_range_high": 5.2, "unit": "mmol/L"},
-            {"parameter_name": "HDL Cholesterol", "normal_range_low": 1.0, "normal_range_high": 2.1, "unit": "mmol/L"},
-            {"parameter_name": "LDL Cholesterol", "normal_range_low": 0.0, "normal_range_high": 3.3, "unit": "mmol/L"},
-            {"parameter_name": "Triglycerides", "normal_range_low": 0.4, "normal_range_high": 1.7, "unit": "mmol/L"},
+            {
+                "parameter_name": "Total Cholesterol",
+                "normal_range_low": 3.0,
+                "normal_range_high": 5.2,
+                "unit": "mmol/L",
+            },
+            {
+                "parameter_name": "HDL Cholesterol",
+                "normal_range_low": 1.0,
+                "normal_range_high": 2.1,
+                "unit": "mmol/L",
+            },
+            {
+                "parameter_name": "LDL Cholesterol",
+                "normal_range_low": 0.0,
+                "normal_range_high": 3.3,
+                "unit": "mmol/L",
+            },
+            {
+                "parameter_name": "Triglycerides",
+                "normal_range_low": 0.4,
+                "normal_range_high": 1.7,
+                "unit": "mmol/L",
+            },
         ],
     },
     {
@@ -100,7 +215,12 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 500.0,
         "description": "Antigen-based rapid test for Plasmodium falciparum and vivax.",
         "parameters": [
-            {"parameter_name": "Plasmodium falciparum Ag", "normal_range_low": 0.0, "normal_range_high": 0.0, "unit": "Negative/Positive"},
+            {
+                "parameter_name": "Plasmodium falciparum Ag",
+                "normal_range_low": 0.0,
+                "normal_range_high": 0.0,
+                "unit": "Negative/Positive",
+            },
         ],
     },
     {
@@ -109,11 +229,36 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 800.0,
         "description": "Screening test to check urine parameters including pH, protein, glucose, and sediment.",
         "parameters": [
-            {"parameter_name": "pH", "normal_range_low": 5.0, "normal_range_high": 8.0, "unit": "pH units"},
-            {"parameter_name": "Specific Gravity", "normal_range_low": 1.005, "normal_range_high": 1.030, "unit": "sg"},
-            {"parameter_name": "Urine Protein", "normal_range_low": 0.0, "normal_range_high": 0.15, "unit": "g/L"},
-            {"parameter_name": "Urine Glucose", "normal_range_low": 0.0, "normal_range_high": 0.8, "unit": "mmol/L"},
-            {"parameter_name": "Leukocyte Esterase", "normal_range_low": 0.0, "normal_range_high": 0.0, "unit": "Negative/Positive"},
+            {
+                "parameter_name": "pH",
+                "normal_range_low": 5.0,
+                "normal_range_high": 8.0,
+                "unit": "pH units",
+            },
+            {
+                "parameter_name": "Specific Gravity",
+                "normal_range_low": 1.005,
+                "normal_range_high": 1.030,
+                "unit": "sg",
+            },
+            {
+                "parameter_name": "Urine Protein",
+                "normal_range_low": 0.0,
+                "normal_range_high": 0.15,
+                "unit": "g/L",
+            },
+            {
+                "parameter_name": "Urine Glucose",
+                "normal_range_low": 0.0,
+                "normal_range_high": 0.8,
+                "unit": "mmol/L",
+            },
+            {
+                "parameter_name": "Leukocyte Esterase",
+                "normal_range_low": 0.0,
+                "normal_range_high": 0.0,
+                "unit": "Negative/Positive",
+            },
         ],
     },
     {
@@ -122,7 +267,12 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 0.0,
         "description": "Qualitative rapid immunoassay for antibodies to HIV-1 and HIV-2.",
         "parameters": [
-            {"parameter_name": "HIV 1/2 Antibody", "normal_range_low": 0.0, "normal_range_high": 0.0, "unit": "Non-Reactive"},
+            {
+                "parameter_name": "HIV 1/2 Antibody",
+                "normal_range_low": 0.0,
+                "normal_range_high": 0.0,
+                "unit": "Non-Reactive",
+            },
         ],
     },
     {
@@ -131,7 +281,12 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 3500.0,
         "description": "Quantitative PCR measurement of HIV-1 RNA copies in plasma.",
         "parameters": [
-            {"parameter_name": "HIV-1 RNA Copies", "normal_range_low": 0.0, "normal_range_high": 50.0, "unit": "copies/mL"},
+            {
+                "parameter_name": "HIV-1 RNA Copies",
+                "normal_range_low": 0.0,
+                "normal_range_high": 50.0,
+                "unit": "copies/mL",
+            },
         ],
     },
     {
@@ -140,7 +295,12 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 2000.0,
         "description": "Flow cytometry determination of absolute CD4 lymphocyte count.",
         "parameters": [
-            {"parameter_name": "CD4 Count", "normal_range_low": 500.0, "normal_range_high": 1500.0, "unit": "cells/uL"},
+            {
+                "parameter_name": "CD4 Count",
+                "normal_range_low": 500.0,
+                "normal_range_high": 1500.0,
+                "unit": "cells/uL",
+            },
         ],
     },
     {
@@ -149,8 +309,18 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 2500.0,
         "description": "Automated nucleic acid amplification test for Mycobacterium tuberculosis and rifampicin resistance.",
         "parameters": [
-            {"parameter_name": "MTB DNA", "normal_range_low": 0.0, "normal_range_high": 0.0, "unit": "Not Detected"},
-            {"parameter_name": "Rifampicin Resistance", "normal_range_low": 0.0, "normal_range_high": 0.0, "unit": "Not Detected"},
+            {
+                "parameter_name": "MTB DNA",
+                "normal_range_low": 0.0,
+                "normal_range_high": 0.0,
+                "unit": "Not Detected",
+            },
+            {
+                "parameter_name": "Rifampicin Resistance",
+                "normal_range_low": 0.0,
+                "normal_range_high": 0.0,
+                "unit": "Not Detected",
+            },
         ],
     },
     {
@@ -159,8 +329,18 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 800.0,
         "description": "Microscopic and macroscopic examination of stool specimen.",
         "parameters": [
-            {"parameter_name": "Ova and Parasites", "normal_range_low": 0.0, "normal_range_high": 0.0, "unit": "Not Seen"},
-            {"parameter_name": "Pus Cells (WBC)", "normal_range_low": 0.0, "normal_range_high": 5.0, "unit": "/HPF"},
+            {
+                "parameter_name": "Ova and Parasites",
+                "normal_range_low": 0.0,
+                "normal_range_high": 0.0,
+                "unit": "Not Seen",
+            },
+            {
+                "parameter_name": "Pus Cells (WBC)",
+                "normal_range_low": 0.0,
+                "normal_range_high": 5.0,
+                "unit": "/HPF",
+            },
         ],
     },
     {
@@ -169,7 +349,12 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 2000.0,
         "description": "Quantitative assay for serum TSH level.",
         "parameters": [
-            {"parameter_name": "Serum TSH", "normal_range_low": 0.4, "normal_range_high": 4.2, "unit": "uIU/mL"},
+            {
+                "parameter_name": "Serum TSH",
+                "normal_range_low": 0.4,
+                "normal_range_high": 4.2,
+                "unit": "uIU/mL",
+            },
         ],
     },
     {
@@ -178,7 +363,12 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 1200.0,
         "description": "Inflammatory marker evaluation.",
         "parameters": [
-            {"parameter_name": "CRP Level", "normal_range_low": 0.0, "normal_range_high": 10.0, "unit": "mg/L"},
+            {
+                "parameter_name": "CRP Level",
+                "normal_range_low": 0.0,
+                "normal_range_high": 10.0,
+                "unit": "mg/L",
+            },
         ],
     },
     {
@@ -187,7 +377,12 @@ STANDARD_LAB_TESTS: list[dict[str, Any]] = [
         "cost": 700.0,
         "description": "Nonspecific measurement of systemic inflammation.",
         "parameters": [
-            {"parameter_name": "ESR Rate", "normal_range_low": 0.0, "normal_range_high": 20.0, "unit": "mm/hr"},
+            {
+                "parameter_name": "ESR Rate",
+                "normal_range_low": 0.0,
+                "normal_range_high": 20.0,
+                "unit": "mm/hr",
+            },
         ],
     },
 ]

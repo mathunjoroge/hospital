@@ -17,6 +17,7 @@ The only thing mocked is the network transport (MOCK_SYNC replaces LDAP's TCP
 layer with an in-memory directory); the search filter, entry parsing, and
 bind-as-user logic in sso_engine.py all run for real against it.
 """
+
 import pytest
 from ldap3 import MOCK_SYNC, Connection, Server
 from ldap3.core.exceptions import LDAPBindError

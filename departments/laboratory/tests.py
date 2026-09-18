@@ -58,7 +58,6 @@ def index():
         return redirect(url_for("laboratory.index"))
 
 
-
 # display available lab tests
 @bp.route("/lab_tests", methods=["GET"])
 @login_required

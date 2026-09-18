@@ -19,7 +19,9 @@ from .lims_service import LIMSService
 def lims_dashboard():
     """Renders the LIMS Specimen Tracking and Westgard QC Dashboard UI."""
     metrics = LIMSService.get_lims_dashboard_metrics()
-    recent_specimens = Specimen.query.order_by(Specimen.created_at.desc()).limit(20).all()
+    recent_specimens = (
+        Specimen.query.order_by(Specimen.created_at.desc()).limit(20).all()
+    )
     qc_samples = LabQCSample.query.order_by(LabQCSample.control_name).all()
     recent_qc_runs = (
         LabQCResult.query.order_by(LabQCResult.run_timestamp.desc()).limit(15).all()
@@ -213,7 +215,16 @@ def api_create_qc_sample():
     target_sd = data.get("target_sd")
     expiration_date_str = data.get("expiration_date")
 
-    if not all([control_name, lot_number, analyzer_name, parameter_name, target_mean, target_sd]):
+    if not all(
+        [
+            control_name,
+            lot_number,
+            analyzer_name,
+            parameter_name,
+            target_mean,
+            target_sd,
+        ]
+    ):
         return jsonify({"error": "Missing required QC sample parameters"}), 400
 
     exp_date = None
@@ -289,4 +300,3 @@ def api_lims_dashboard_metrics():
     """Returns real-time LIMS KPIs and QC pass rates."""
     metrics = LIMSService.get_lims_dashboard_metrics()
     return jsonify(metrics)
-

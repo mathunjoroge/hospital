@@ -245,7 +245,9 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
             malaria_in_pregnancy_count += 1
 
         species = (case.malaria_species or "unspecified").strip().lower()
-        malaria_species_breakdown[species] = malaria_species_breakdown.get(species, 0) + 1
+        malaria_species_breakdown[species] = (
+            malaria_species_breakdown.get(species, 0) + 1
+        )
 
     malaria_confirmed_total = (
         malaria_confirmed_microscopy_u5
@@ -375,103 +377,244 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
 
     # 9. MOH 645/743 Antimalarial Commodities and Weight Band Disaggregation
     from departments.malaria.moh_645_743 import aggregate_moh743_monthly
+
     moh743_data = aggregate_moh743_monthly(year, month)
 
-    data_elements.extend([
-        {"dataElement": "MOH645_AL6_DISPENSED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["al_6_dispensed"]},
-        {"dataElement": "MOH645_AL12_DISPENSED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["al_12_dispensed"]},
-        {"dataElement": "MOH645_AL18_DISPENSED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["al_18_dispensed"]},
-        {"dataElement": "MOH645_AL24_DISPENSED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["al_24_dispensed"]},
-        {"dataElement": "MOH645_ARTESUNATE_INJ_DISPENSED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["artesunate_inj_dispensed"]},
-        {"dataElement": "MOH645_QUININE_DISPENSED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["quinine_dispensed"]},
-        {"dataElement": "MOH645_SP_DISPENSED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["sp_dispensed"]},
-        {"dataElement": "MOH645_RDTS_USED", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["rdts_used"]},
-        {"dataElement": "MOH645_PATIENTS_TREATED_BY_WBAND_5_14", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["patients_5_14kg"]},
-        {"dataElement": "MOH645_PATIENTS_TREATED_BY_WBAND_15_24", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["patients_15_24kg"]},
-        {"dataElement": "MOH645_PATIENTS_TREATED_BY_WBAND_25_34", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["patients_25_34kg"]},
-        {"dataElement": "MOH645_PATIENTS_TREATED_BY_WBAND_35PLUS", "category": "MOH 645/743 (Malaria Commodities)", "value": moh743_data["patients_35pluskg"]},
-    ])
+    data_elements.extend(
+        [
+            {
+                "dataElement": "MOH645_AL6_DISPENSED",
+                "category": "MOH 645/743 (Malaria Commodities)",
+                "value": moh743_data["al_6_dispensed"],
+            },
+            {
+                "dataElement": "MOH645_AL12_DISPENSED",
+                "category": "MOH 645/743 (Malaria Commodities)",
+                "value": moh743_data["al_12_dispensed"],
+            },
+            {
+                "dataElement": "MOH645_AL18_DISPENSED",
+                "category": "MOH 645/743 (Malaria Commodities)",
+                "value": moh743_data["al_18_dispensed"],
+            },
+            {
+                "dataElement": "MOH645_AL24_DISPENSED",
+                "category": "MOH 645/743 (Malaria Commodities)",
+                "value": moh743_data["al_24_dispensed"],
+            },
+            {
+                "dataElement": "MOH645_ARTESUNATE_INJ_DISPENSED",
+                "category": "MOH 645/743 (Malaria Commodities)",
+                "value": moh743_data["artesunate_inj_dispensed"],
+            },
+            {
+                "dataElement": "MOH645_QUININE_DISPENSED",
+                "category": "MOH 645/743 (Malaria Commodities)",
+                "value": moh743_data["quinine_dispensed"],
+            },
+            {
+                "dataElement": "MOH645_SP_DISPENSED",
+                "category": "MOH 645/743 (Malaria Commodities)",
+                "value": moh743_data["sp_dispensed"],
+            },
+            {
+                "dataElement": "MOH645_RDTS_USED",
+                "category": "MOH 645/743 (Malaria Commodities)",
+                "value": moh743_data["rdts_used"],
+            },
+            {
+                "dataElement": "MOH645_PATIENTS_TREATED_BY_WBAND_5_14",
+                "category": "MOH 645/743 (Malaria Commodities)",
+                "value": moh743_data["patients_5_14kg"],
+            },
+            {
+                "dataElement": "MOH645_PATIENTS_TREATED_BY_WBAND_15_24",
+                "category": "MOH 645/743 (Malaria Commodities)",
+                "value": moh743_data["patients_15_24kg"],
+            },
+            {
+                "dataElement": "MOH645_PATIENTS_TREATED_BY_WBAND_25_34",
+                "category": "MOH 645/743 (Malaria Commodities)",
+                "value": moh743_data["patients_25_34kg"],
+            },
+            {
+                "dataElement": "MOH645_PATIENTS_TREATED_BY_WBAND_35PLUS",
+                "category": "MOH 645/743 (Malaria Commodities)",
+                "value": moh743_data["patients_35pluskg"],
+            },
+        ]
+    )
 
     # 10. MOH 647 Tracer Health Products and Technologies (HPT)
     from departments.pharmacy.moh_647 import aggregate_moh647_monthly
+
     moh647_data = aggregate_moh647_monthly(year, month)
 
-    data_elements.extend([
-        {"dataElement": "MOH647_TOTAL_TRACER_ITEMS_MONITORED", "category": "MOH 647 (Tracer HPT)", "value": moh647_data["total_monitored"]},
-        {"dataElement": "MOH647_TRACER_ITEMS_IN_STOCK", "category": "MOH 647 (Tracer HPT)", "value": moh647_data["in_stock_count"]},
-        {"dataElement": "MOH647_TRACER_ITEMS_STOCKOUT_COUNT", "category": "MOH 647 (Tracer HPT)", "value": moh647_data["stockout_count"]},
-        {"dataElement": "MOH647_TRACER_ITEMS_LOW_STOCK_COUNT", "category": "MOH 647 (Tracer HPT)", "value": moh647_data["low_stock_count"]},
-    ])
+    data_elements.extend(
+        [
+            {
+                "dataElement": "MOH647_TOTAL_TRACER_ITEMS_MONITORED",
+                "category": "MOH 647 (Tracer HPT)",
+                "value": moh647_data["total_monitored"],
+            },
+            {
+                "dataElement": "MOH647_TRACER_ITEMS_IN_STOCK",
+                "category": "MOH 647 (Tracer HPT)",
+                "value": moh647_data["in_stock_count"],
+            },
+            {
+                "dataElement": "MOH647_TRACER_ITEMS_STOCKOUT_COUNT",
+                "category": "MOH 647 (Tracer HPT)",
+                "value": moh647_data["stockout_count"],
+            },
+            {
+                "dataElement": "MOH647_TRACER_ITEMS_LOW_STOCK_COUNT",
+                "category": "MOH 647 (Tracer HPT)",
+                "value": moh647_data["low_stock_count"],
+            },
+        ]
+    )
 
     for item in moh647_data["tracer_items"]:
-        code_clean = "MOH647_" + item["generic_name"].upper().replace(" ", "_").replace("/", "_").replace("-", "_") + "_ISSUED"
-        data_elements.append({
-            "dataElement": code_clean,
-            "category": f"MOH 647 ({item['category']})",
-            "value": item["issued"]
-        })
+        code_clean = (
+            "MOH647_"
+            + item["generic_name"]
+            .upper()
+            .replace(" ", "_")
+            .replace("/", "_")
+            .replace("-", "_")
+            + "_ISSUED"
+        )
+        data_elements.append(
+            {
+                "dataElement": code_clean,
+                "category": f"MOH 647 ({item['category']})",
+                "value": item["issued"],
+            }
+        )
 
     # 11. MOH 731 HIV/AIDS Summary (ARV Regimen Patient Counts) & MOH 729B ARV FCDRR
     from departments.hiv_art.moh_731_729b import (
         aggregate_moh729b_fcdrr_monthly,
         aggregate_moh731_arv_monthly,
     )
+
     moh731_arv_data = aggregate_moh731_arv_monthly(year, month)
     moh729b_fcdrr_data = aggregate_moh729b_fcdrr_monthly(year, month)
 
-    data_elements.extend([
-        {"dataElement": "MOH731_TX_CURR_TOTAL", "category": "MOH 731 (HIV ART)", "value": moh731_arv_data["tx_curr_total"]},
-        {"dataElement": "MOH731_TX_NEW_TOTAL", "category": "MOH 731 (HIV ART)", "value": moh731_arv_data["tx_new_total"]},
-    ])
+    data_elements.extend(
+        [
+            {
+                "dataElement": "MOH731_TX_CURR_TOTAL",
+                "category": "MOH 731 (HIV ART)",
+                "value": moh731_arv_data["tx_curr_total"],
+            },
+            {
+                "dataElement": "MOH731_TX_NEW_TOTAL",
+                "category": "MOH 731 (HIV ART)",
+                "value": moh731_arv_data["tx_new_total"],
+            },
+        ]
+    )
 
     for reg in moh731_arv_data["regimen_details"]:
-        data_elements.append({
-            "dataElement": f"MOH731_TX_CURR_{reg['regimen_code']}",
-            "category": f"MOH 731 (Regimen: {reg['regimen_line']})",
-            "value": reg["total_active_patients"],
-        })
+        data_elements.append(
+            {
+                "dataElement": f"MOH731_TX_CURR_{reg['regimen_code']}",
+                "category": f"MOH 731 (Regimen: {reg['regimen_line']})",
+                "value": reg["total_active_patients"],
+            }
+        )
 
     for fcdrr in moh729b_fcdrr_data["fcdrr_details"]:
-        data_elements.append({
-            "dataElement": f"MOH729B_{fcdrr['arv_drug_code']}_DISPENSED",
-            "category": "MOH 729B ARV FCDRR",
-            "value": fcdrr["quantity_dispensed"],
-        })
-        data_elements.append({
-            "dataElement": f"MOH729B_{fcdrr['arv_drug_code']}_ENDING_STOCK",
-            "category": "MOH 729B ARV FCDRR",
-            "value": fcdrr["ending_balance"],
-        })
+        data_elements.append(
+            {
+                "dataElement": f"MOH729B_{fcdrr['arv_drug_code']}_DISPENSED",
+                "category": "MOH 729B ARV FCDRR",
+                "value": fcdrr["quantity_dispensed"],
+            }
+        )
+        data_elements.append(
+            {
+                "dataElement": f"MOH729B_{fcdrr['arv_drug_code']}_ENDING_STOCK",
+                "category": "MOH 729B ARV FCDRR",
+                "value": fcdrr["ending_balance"],
+            }
+        )
 
     # 12. NTLD-P TB & TPT (TB Preventive Therapy) Master Clinical Regimens
     from departments.tb_dots.ntldp_tb_tpt import aggregate_ntldp_tb_tpt_monthly
+
     ntldp_tb_data = aggregate_ntldp_tb_tpt_monthly(year, month)
 
-    data_elements.extend([
-        {"dataElement": "NTLDP_TB_ACTIVE_TOTAL", "category": "NTLD-P TB", "value": ntldp_tb_data["total_tb_active_patients"]},
-        {"dataElement": "NTLDP_TPT_ACTIVE_TOTAL", "category": "NTLD-P TPT", "value": ntldp_tb_data["total_tpt_active_patients"]},
-    ])
+    data_elements.extend(
+        [
+            {
+                "dataElement": "NTLDP_TB_ACTIVE_TOTAL",
+                "category": "NTLD-P TB",
+                "value": ntldp_tb_data["total_tb_active_patients"],
+            },
+            {
+                "dataElement": "NTLDP_TPT_ACTIVE_TOTAL",
+                "category": "NTLD-P TPT",
+                "value": ntldp_tb_data["total_tpt_active_patients"],
+            },
+        ]
+    )
 
     for reg in ntldp_tb_data["regimen_details"]:
-        data_elements.append({
-            "dataElement": f"NTLDP_{reg['nascop_ntldp_code'].upper().replace('-', '_')}_ACTIVE",
-            "category": f"NTLD-P ({reg['program_domain']}: {reg['regimen_acronym']})",
-            "value": reg["total_active_patients"],
-        })
+        data_elements.append(
+            {
+                "dataElement": f"NTLDP_{reg['nascop_ntldp_code'].upper().replace('-', '_')}_ACTIVE",
+                "category": f"NTLD-P ({reg['program_domain']}: {reg['regimen_acronym']})",
+                "value": reg["total_active_patients"],
+            }
+        )
 
     # 13. PMTCT & Viral Load Suppression (TX_PVLS)
     from departments.hiv_art.moh_731_729b import aggregate_pmtct_tx_pvls_monthly
+
     pmtct_pvls_data = aggregate_pmtct_tx_pvls_monthly(year, month)
 
-    data_elements.extend([
-        {"dataElement": "MOH731_PMTCT_ART_COUNT", "category": "MOH 731 PMTCT", "value": pmtct_pvls_data["pmtct_art_count"]},
-        {"dataElement": "MOH731_HEI_PROPHYLAXIS_COUNT", "category": "MOH 731 PMTCT", "value": pmtct_pvls_data["hei_prophylaxis_count"]},
-        {"dataElement": "MOH731_EID_6WK_PCR_COUNT", "category": "MOH 731 PMTCT", "value": pmtct_pvls_data["eid_6wk_pcr_count"]},
-        {"dataElement": "MOH731_TX_PVLS_ELIGIBLE", "category": "MOH 731 (TX_PVLS)", "value": pmtct_pvls_data["tx_pvls_eligible"]},
-        {"dataElement": "MOH731_TX_PVLS_TESTED", "category": "MOH 731 (TX_PVLS)", "value": pmtct_pvls_data["tx_pvls_tested"]},
-        {"dataElement": "MOH731_TX_PVLS_SUPPRESSED", "category": "MOH 731 (TX_PVLS)", "value": pmtct_pvls_data["tx_pvls_suppressed"]},
-        {"dataElement": "MOH731_TX_PVLS_UNSUPPRESSED", "category": "MOH 731 (TX_PVLS)", "value": pmtct_pvls_data["tx_pvls_unsuppressed"]},
-    ])
+    data_elements.extend(
+        [
+            {
+                "dataElement": "MOH731_PMTCT_ART_COUNT",
+                "category": "MOH 731 PMTCT",
+                "value": pmtct_pvls_data["pmtct_art_count"],
+            },
+            {
+                "dataElement": "MOH731_HEI_PROPHYLAXIS_COUNT",
+                "category": "MOH 731 PMTCT",
+                "value": pmtct_pvls_data["hei_prophylaxis_count"],
+            },
+            {
+                "dataElement": "MOH731_EID_6WK_PCR_COUNT",
+                "category": "MOH 731 PMTCT",
+                "value": pmtct_pvls_data["eid_6wk_pcr_count"],
+            },
+            {
+                "dataElement": "MOH731_TX_PVLS_ELIGIBLE",
+                "category": "MOH 731 (TX_PVLS)",
+                "value": pmtct_pvls_data["tx_pvls_eligible"],
+            },
+            {
+                "dataElement": "MOH731_TX_PVLS_TESTED",
+                "category": "MOH 731 (TX_PVLS)",
+                "value": pmtct_pvls_data["tx_pvls_tested"],
+            },
+            {
+                "dataElement": "MOH731_TX_PVLS_SUPPRESSED",
+                "category": "MOH 731 (TX_PVLS)",
+                "value": pmtct_pvls_data["tx_pvls_suppressed"],
+            },
+            {
+                "dataElement": "MOH731_TX_PVLS_UNSUPPRESSED",
+                "category": "MOH 731 (TX_PVLS)",
+                "value": pmtct_pvls_data["tx_pvls_unsuppressed"],
+            },
+        ]
+    )
 
     return {
         "period": period_str,

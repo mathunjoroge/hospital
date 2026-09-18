@@ -44,7 +44,8 @@ class ClinicalTrialsEngine:
             principal_investigator=principal_investigator,
             phase=phase,
             target_enrollment=target_enrollment,
-            irb_approval_number=irb_approval_number or f"IRB-{datetime.now(timezone.utc).strftime('%Y%m%d')}",
+            irb_approval_number=irb_approval_number
+            or f"IRB-{datetime.now(timezone.utc).strftime('%Y%m%d')}",
         )
         if inclusion_criteria:
             protocol.inclusion_criteria = inclusion_criteria
@@ -78,11 +79,15 @@ class ClinicalTrialsEngine:
 
         if protocol.status != "RECRUITING":
             is_eligible = False
-            reasons.append(f"Protocol is currently in status '{protocol.status}', not accepting new recruitment.")
+            reasons.append(
+                f"Protocol is currently in status '{protocol.status}', not accepting new recruitment."
+            )
 
         if protocol.current_enrollment >= protocol.target_enrollment:
             is_eligible = False
-            reasons.append(f"Target enrollment capacity ({protocol.target_enrollment}) has been reached.")
+            reasons.append(
+                f"Target enrollment capacity ({protocol.target_enrollment}) has been reached."
+            )
 
         if not patient.is_active:
             is_eligible = False
@@ -98,12 +103,16 @@ class ClinicalTrialsEngine:
                 protocol_id=protocol_id,
                 patient_id=patient_id,
                 enrollment_status="ELIGIBLE" if is_eligible else "INELIGIBLE",
-                screening_notes="; ".join(reasons) if reasons else "Eligible for enrollment.",
+                screening_notes="; ".join(reasons)
+                if reasons
+                else "Eligible for enrollment.",
             )
             db.session.add(participant)
         else:
             participant.enrollment_status = "ELIGIBLE" if is_eligible else "INELIGIBLE"
-            participant.screening_notes = "; ".join(reasons) if reasons else "Eligible for enrollment."
+            participant.screening_notes = (
+                "; ".join(reasons) if reasons else "Eligible for enrollment."
+            )
 
         db.session.commit()
 
@@ -113,7 +122,9 @@ class ClinicalTrialsEngine:
             "patient_id": patient_id,
             "is_eligible": is_eligible,
             "screening_status": participant.enrollment_status,
-            "screening_reasons": reasons if reasons else ["Passed automated eligibility screening."],
+            "screening_reasons": reasons
+            if reasons
+            else ["Passed automated eligibility screening."],
         }
 
     @staticmethod
@@ -228,24 +239,28 @@ class ClinicalTrialsEngine:
         """
         Retrieve summary metrics for all active clinical trials.
         """
-        protocols = ClinicalTrialProtocol.query.order_by(ClinicalTrialProtocol.created_at.desc()).all()
+        protocols = ClinicalTrialProtocol.query.order_by(
+            ClinicalTrialProtocol.created_at.desc()
+        ).all()
         summary = []
 
         for p in protocols:
             total_ae = p.adverse_events.count()
             sae_count = p.adverse_events.filter_by(is_serious_ae=True).count()
-            summary.append({
-                "id": p.id,
-                "protocol_number": p.protocol_number,
-                "title": p.title,
-                "phase": p.phase,
-                "sponsor": p.sponsor,
-                "principal_investigator": p.principal_investigator,
-                "status": p.status,
-                "target_enrollment": p.target_enrollment,
-                "current_enrollment": p.current_enrollment,
-                "total_adverse_events": total_ae,
-                "serious_adverse_events": sae_count,
-            })
+            summary.append(
+                {
+                    "id": p.id,
+                    "protocol_number": p.protocol_number,
+                    "title": p.title,
+                    "phase": p.phase,
+                    "sponsor": p.sponsor,
+                    "principal_investigator": p.principal_investigator,
+                    "status": p.status,
+                    "target_enrollment": p.target_enrollment,
+                    "current_enrollment": p.current_enrollment,
+                    "total_adverse_events": total_ae,
+                    "serious_adverse_events": sae_count,
+                }
+            )
 
         return summary

@@ -12,6 +12,7 @@ These blueprints existed in the codebase with full models/engine/routes
 but were never registered in app.py, so none of this was previously
 reachable. This test would 404 on every assertion before that fix.
 """
+
 from datetime import date, datetime, timedelta, timezone
 
 import pytest

@@ -119,7 +119,6 @@ class Partogram(db.Model):
     )  # e.g., 'negative', '1+', '2+', '3+'
     # Patient and metadata
 
-
     def __repr__(self):
         return f"<Partogram(id={self.id}, patient_id={self.patient_id}, timestamp={self.timestamp})>"
 
@@ -141,8 +140,12 @@ class MedicationAdmin(db.Model):
     )
     override_reason = db.Column(db.Text, nullable=True)
     override_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
-    user = db.relationship("User", foreign_keys=[recorded_by], backref="medication_admin")
-    override_user = db.relationship("User", foreign_keys=[override_by], backref="bcma_overrides")
+    user = db.relationship(
+        "User", foreign_keys=[recorded_by], backref="medication_admin"
+    )
+    override_user = db.relationship(
+        "User", foreign_keys=[override_by], backref="bcma_overrides"
+    )
 
 
 class Messages(db.Model):

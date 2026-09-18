@@ -9,6 +9,7 @@ Endpoints:
   POST /admin/etims/test          – Test KRA VSCU API connectivity
   POST /admin/etims/fiscalize/<id>– Fiscalize invoice & return KRA QR code
 """
+
 import logging
 
 from flask import Blueprint, jsonify, render_template, request
@@ -38,8 +39,7 @@ def etims_console():
     """
     config = get_or_create_etims_config()
     recent_receipts = (
-        EtimsFiscalReceipt.query
-        .order_by(EtimsFiscalReceipt.fiscalized_at.desc())
+        EtimsFiscalReceipt.query.order_by(EtimsFiscalReceipt.fiscalized_at.desc())
         .limit(20)
         .all()
     )
@@ -73,7 +73,9 @@ def save_etims_config():
     exemptions_note = data.get("exemptions_note")
 
     if not kra_pin or not device_serial:
-        return jsonify({"error": "KRA PIN and Control Unit Serial Number are required."}), 400
+        return jsonify(
+            {"error": "KRA PIN and Control Unit Serial Number are required."}
+        ), 400
 
     config = update_etims_config(
         kra_pin=kra_pin,
@@ -87,17 +89,19 @@ def save_etims_config():
     )
 
     if request.headers.get("Accept") == "application/json" or request.is_json:
-        return jsonify({
-            "status": "success",
-            "message": f"KRA eTIMS configuration saved successfully for PIN {config.kra_pin}",
-            "config": {
-                "kra_pin": config.kra_pin,
-                "branch_code": config.branch_code,
-                "device_serial": config.device_serial,
-                "is_sandbox": config.is_sandbox,
-                "enabled": config.enabled,
-            },
-        }), 200
+        return jsonify(
+            {
+                "status": "success",
+                "message": f"KRA eTIMS configuration saved successfully for PIN {config.kra_pin}",
+                "config": {
+                    "kra_pin": config.kra_pin,
+                    "branch_code": config.branch_code,
+                    "device_serial": config.device_serial,
+                    "is_sandbox": config.is_sandbox,
+                    "enabled": config.enabled,
+                },
+            }
+        ), 200
 
     return jsonify({"status": "success", "message": "Settings saved."})
 
@@ -125,15 +129,17 @@ def fiscalize_invoice_api(invoice_id: int):
     """
     try:
         receipt = fiscalize_invoice(invoice_id)
-        return jsonify({
-            "status": "success",
-            "message": "Invoice fiscalized with KRA eTIMS VSCU.",
-            "cu_invoice_number": receipt.cu_invoice_number,
-            "cu_serial_number": receipt.cu_serial_number,
-            "qr_code_url": receipt.qr_code_url,
-            "fiscal_signature": receipt.fiscal_signature,
-            "fiscalized_at": receipt.fiscalized_at.isoformat(),
-        }), 200
+        return jsonify(
+            {
+                "status": "success",
+                "message": "Invoice fiscalized with KRA eTIMS VSCU.",
+                "cu_invoice_number": receipt.cu_invoice_number,
+                "cu_serial_number": receipt.cu_serial_number,
+                "qr_code_url": receipt.qr_code_url,
+                "fiscal_signature": receipt.fiscal_signature,
+                "fiscalized_at": receipt.fiscalized_at.isoformat(),
+            }
+        ), 200
     except Exception as exc:
         logger.exception("Error fiscalizing invoice #%d", invoice_id)
         return jsonify({"error": str(exc)}), 422

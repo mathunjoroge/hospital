@@ -89,8 +89,8 @@ if os.environ.get("FLASK_ENV") == "production" and not _encryption_key:
     raise RuntimeError(
         "CRITICAL SECURITY ERROR: ENCRYPTION_KEY environment variable is not set. "
         "Patient identity fields cannot be encrypted. "
-        "Generate a key with: python3 -c \"from cryptography.fernet import Fernet; "
-        "print(Fernet.generate_key().decode())\" and add it to your .env file."
+        'Generate a key with: python3 -c "from cryptography.fernet import Fernet; '
+        'print(Fernet.generate_key().decode())" and add it to your .env file.'
     )
 
 
@@ -104,10 +104,10 @@ import threading
 import time as _time
 
 _metrics_lock = threading.Lock()
-_request_count_total: int = 0       # all requests
-_request_error_count: int = 0       # 4xx + 5xx responses
+_request_count_total: int = 0  # all requests
+_request_error_count: int = 0  # 4xx + 5xx responses
 _request_latency_sum_ms: float = 0.0
-_request_latency_count: int = 0     # number of timed requests
+_request_latency_count: int = 0  # number of timed requests
 
 
 @app.before_request
@@ -151,7 +151,9 @@ def set_security_headers_and_request_id(response):
 
     # HSTS: set over HTTPS (production) or when FORCE_HTTPS=true. 1 year max-age; includeSubDomains.
     # Not set in dev/test by default because it would break plain HTTP local dev.
-    if os.environ.get("FLASK_ENV") == "production" or os.environ.get("FORCE_HTTPS", "").lower() in ("true", "1"):
+    if os.environ.get("FLASK_ENV") == "production" or os.environ.get(
+        "FORCE_HTTPS", ""
+    ).lower() in ("true", "1"):
         response.headers["Strict-Transport-Security"] = (
             "max-age=31536000; includeSubDomains"
         )
@@ -177,6 +179,7 @@ def set_security_headers_and_request_id(response):
             "frame-ancestors 'self'"
         )
     return response
+
 
 app.config["SECRET_KEY"] = secret_key
 app.config["ENABLE_TELEMEDICINE"] = (
@@ -465,7 +468,15 @@ def login():
         try:
             user = User.query.filter_by(username=username).first()
             if user:
-                locked_time = user.locked_until if (user.locked_until and user.locked_until.tzinfo) else (user.locked_until.replace(tzinfo=timezone.utc) if user.locked_until else None)
+                locked_time = (
+                    user.locked_until
+                    if (user.locked_until and user.locked_until.tzinfo)
+                    else (
+                        user.locked_until.replace(tzinfo=timezone.utc)
+                        if user.locked_until
+                        else None
+                    )
+                )
                 if locked_time and locked_time > datetime.now(timezone.utc):
                     flash(
                         "Account locked due to too many failed attempts. Please try again later.",
@@ -728,7 +739,6 @@ def metrics():
     return "\n".join(lines) + "\n", 200, {"Content-Type": "text/plain; version=0.0.4"}
 
 
-
 from departments.admin import bp as admin_bp
 from departments.analytics import bp as analytics_bp
 from departments.analytics.etl import etl_bp
@@ -837,10 +847,13 @@ app.register_blueprint(ccda_bp)
 app.register_blueprint(etl_bp)
 app.register_blueprint(fhir_bp, url_prefix="/api/fhir/R4")
 
+
 @app.route("/.well-known/smart-configuration", methods=["GET"])
 def root_smart_configuration():
     from departments.api.fhir import get_smart_configuration
+
     return get_smart_configuration()
+
 
 from departments.billing.etims_routes import etims_bp
 from departments.clinical_trials import bp as clinical_trials_bp
@@ -865,6 +878,7 @@ setup_observability(app)
 def set_rls_session_variable():
     """Set the PostgreSQL session variable for RLS policies."""
     import os
+
     # Skip entirely in test environments to avoid SQLite/RLS incompatibilities
     if app.config.get("TESTING") or os.environ.get("PYTEST_CURRENT_TEST"):
         return
@@ -875,10 +889,15 @@ def set_rls_session_variable():
 
     facility_id = None
     try:
-        if current_user and current_user.is_authenticated and getattr(current_user, 'facility_id', None):
+        if (
+            current_user
+            and current_user.is_authenticated
+            and getattr(current_user, "facility_id", None)
+        ):
             facility_id = current_user.facility_id
         else:
             from departments.models.facility import get_home_facility
+
             home = get_home_facility(create_if_missing=False)
             if home:
                 facility_id = home.id
@@ -887,15 +906,19 @@ def set_rls_session_variable():
 
     if facility_id:
         try:
-            db.session.execute(db.text(f"SET app.current_facility_id = '{facility_id}'"))
+            db.session.execute(
+                db.text(f"SET app.current_facility_id = '{facility_id}'")
+            )
         except Exception:  # noqa: S110, BLE001
             pass  # Fail silently if DB doesn't support SET (e.g. SQLite fallback)
+
 
 if __name__ == "__main__":
     with app.app_context():
         try:
             # Ensure all database tables exist (including newly added department models)
             import departments.models  # noqa: F401
+
             db.create_all()
 
             from werkzeug.security import generate_password_hash
@@ -917,12 +940,16 @@ if __name__ == "__main__":
                 print("   Run `flask db upgrade` to ensure the schema is up to date.")
             # Auto-seed lab test catalog with LOINC mappings if empty
             from departments.models.medicine import LabTest
+
             if LabTest.query.count() == 0:
                 from departments.laboratory.lab_catalog_seeder import (
                     seed_lab_test_catalog,
                 )
+
                 count = seed_lab_test_catalog()
-                print(f"✅ Auto-seeded {count} lab tests into catalog with LOINC mappings.")
+                print(
+                    f"✅ Auto-seeded {count} lab tests into catalog with LOINC mappings."
+                )
             else:
                 print("✅ Database connection verified & admin user exists.")
         except Exception as exc:  # noqa: BLE001

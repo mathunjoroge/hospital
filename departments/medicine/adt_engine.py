@@ -80,7 +80,9 @@ class ADTEngine:
             raise ValueError(f"Bed ID {bed_id} not found in Room {room.room_number}.")
 
         if bed.status != "AVAILABLE" or bed.occupied:
-            raise ValueError(f"Bed {bed.bed_number} is not available for admission (Current status: {bed.status}).")
+            raise ValueError(
+                f"Bed {bed.bed_number} is not available for admission (Current status: {bed.status})."
+            )
 
         now = datetime.now(timezone.utc)
 
@@ -101,9 +103,13 @@ class ADTEngine:
         bed.status = "OCCUPIED"
 
         # 3. Recalculate Ward Occupancy
-        ward.occupied_beds = db.session.query(Bed).join(WardRoom).filter(
-            WardRoom.ward_id == ward_id, Bed.occupied.is_(True)
-        ).count() + 1
+        ward.occupied_beds = (
+            db.session.query(Bed)
+            .join(WardRoom)
+            .filter(WardRoom.ward_id == ward_id, Bed.occupied.is_(True))
+            .count()
+            + 1
+        )
 
         # 4. Record WardBedHistory
         history = WardBedHistory(
@@ -180,16 +186,26 @@ class ADTEngine:
         if not new_ward:
             raise ValueError(f"Destination Ward ID {new_ward_id} not found.")
 
-        new_room = db.session.query(WardRoom).filter_by(id=new_room_id, ward_id=new_ward_id).first()
+        new_room = (
+            db.session.query(WardRoom)
+            .filter_by(id=new_room_id, ward_id=new_ward_id)
+            .first()
+        )
         if not new_room:
-            raise ValueError(f"Destination Room ID {new_room_id} not found in Ward {new_ward.name}.")
+            raise ValueError(
+                f"Destination Room ID {new_room_id} not found in Ward {new_ward.name}."
+            )
 
-        new_bed = db.session.query(Bed).filter_by(id=new_bed_id, room_id=new_room_id).first()
+        new_bed = (
+            db.session.query(Bed).filter_by(id=new_bed_id, room_id=new_room_id).first()
+        )
         if not new_bed:
             raise ValueError(f"Destination Bed ID {new_bed_id} not found.")
 
         if new_bed.status != "AVAILABLE" or new_bed.occupied:
-            raise ValueError(f"Destination Bed {new_bed.bed_number} is not available for transfer.")
+            raise ValueError(
+                f"Destination Bed {new_bed.bed_number} is not available for transfer."
+            )
 
         old_ward_id = admission.ward_id
         old_bed_id = admission.bed_id
@@ -215,13 +231,19 @@ class ADTEngine:
         if old_ward_id:
             old_ward = db.session.get(Ward, old_ward_id)
             if old_ward:
-                old_ward.occupied_beds = db.session.query(Bed).join(WardRoom).filter(
-                    WardRoom.ward_id == old_ward_id, Bed.occupied.is_(True)
-                ).count()
+                old_ward.occupied_beds = (
+                    db.session.query(Bed)
+                    .join(WardRoom)
+                    .filter(WardRoom.ward_id == old_ward_id, Bed.occupied.is_(True))
+                    .count()
+                )
 
-        new_ward.occupied_beds = db.session.query(Bed).join(WardRoom).filter(
-            WardRoom.ward_id == new_ward_id, Bed.occupied.is_(True)
-        ).count()
+        new_ward.occupied_beds = (
+            db.session.query(Bed)
+            .join(WardRoom)
+            .filter(WardRoom.ward_id == new_ward_id, Bed.occupied.is_(True))
+            .count()
+        )
 
         # 5. History & ADT Log
         history = WardBedHistory(
@@ -297,9 +319,12 @@ class ADTEngine:
         # 2. Recalculate Ward Occupancy
         ward = db.session.get(Ward, admission.ward_id)
         if ward:
-            ward.occupied_beds = db.session.query(Bed).join(WardRoom).filter(
-                WardRoom.ward_id == ward.id, Bed.occupied.is_(True)
-            ).count()
+            ward.occupied_beds = (
+                db.session.query(Bed)
+                .join(WardRoom)
+                .filter(WardRoom.ward_id == ward.id, Bed.occupied.is_(True))
+                .count()
+            )
 
         # 3. History
         history = WardBedHistory(
@@ -367,7 +392,9 @@ class ADTEngine:
         """
         new_status_upper = new_status.upper()
         if new_status_upper not in VALID_BED_STATUSES:
-            raise ValueError(f"Invalid bed status '{new_status}'. Must be one of {VALID_BED_STATUSES}.")
+            raise ValueError(
+                f"Invalid bed status '{new_status}'. Must be one of {VALID_BED_STATUSES}."
+            )
 
         bed = db.session.get(Bed, bed_id)
         if not bed:
@@ -408,13 +435,19 @@ class ADTEngine:
 
         for ward in wards:
             rooms_data = []
-            ward_beds = Bed.query.join(WardRoom).filter(WardRoom.ward_id == ward.id).all()
+            ward_beds = (
+                Bed.query.join(WardRoom).filter(WardRoom.ward_id == ward.id).all()
+            )
 
             w_total = len(ward_beds)
-            w_occupied = sum(1 for b in ward_beds if b.status == "OCCUPIED" or b.occupied)
+            w_occupied = sum(
+                1 for b in ward_beds if b.status == "OCCUPIED" or b.occupied
+            )
             w_dirty = sum(1 for b in ward_beds if b.status == "DIRTY")
             w_cleaning = sum(1 for b in ward_beds if b.status == "CLEANING")
-            w_available = sum(1 for b in ward_beds if b.status == "AVAILABLE" and not b.occupied)
+            w_available = sum(
+                1 for b in ward_beds if b.status == "AVAILABLE" and not b.occupied
+            )
             w_maint = sum(1 for b in ward_beds if b.status == "MAINTENANCE")
 
             total_beds_all += w_total
@@ -435,42 +468,60 @@ class ADTEngine:
                         patient_info = {
                             "patient_id": active_adm.patient_id,
                             "patient_name": active_adm.patient.name,
-                            "admitted_on": active_adm.admitted_on.strftime("%Y-%m-%d %H:%M") if active_adm.admitted_on else "",
+                            "admitted_on": active_adm.admitted_on.strftime(
+                                "%Y-%m-%d %H:%M"
+                            )
+                            if active_adm.admitted_on
+                            else "",
                             "admission_id": active_adm.id,
                         }
 
-                    beds_in_room.append({
-                        "bed_id": b.id,
-                        "bed_number": b.bed_number,
-                        "status": b.status,
-                        "occupied": b.occupied,
-                        "patient": patient_info,
-                    })
+                    beds_in_room.append(
+                        {
+                            "bed_id": b.id,
+                            "bed_number": b.bed_number,
+                            "status": b.status,
+                            "occupied": b.occupied,
+                            "patient": patient_info,
+                        }
+                    )
 
-                rooms_data.append({
-                    "room_id": room.id,
-                    "room_number": room.room_number,
-                    "beds": beds_in_room,
-                })
+                rooms_data.append(
+                    {
+                        "room_id": room.id,
+                        "room_number": room.room_number,
+                        "beds": beds_in_room,
+                    }
+                )
 
-            occupancy_pct = round((w_occupied / w_total * 100), 1) if w_total > 0 else 0.0
+            occupancy_pct = (
+                round((w_occupied / w_total * 100), 1) if w_total > 0 else 0.0
+            )
 
-            ward_matrix.append({
-                "ward_id": ward.id,
-                "ward_name": ward.name,
-                "sex": ward.sex,
-                "daily_charge": float(ward.daily_charge) if ward.daily_charge else 0.0,
-                "total_beds": w_total,
-                "occupied_beds": w_occupied,
-                "dirty_beds": w_dirty,
-                "cleaning_beds": w_cleaning,
-                "available_beds": w_available,
-                "maintenance_beds": w_maint,
-                "occupancy_pct": occupancy_pct,
-                "rooms": rooms_data,
-            })
+            ward_matrix.append(
+                {
+                    "ward_id": ward.id,
+                    "ward_name": ward.name,
+                    "sex": ward.sex,
+                    "daily_charge": float(ward.daily_charge)
+                    if ward.daily_charge
+                    else 0.0,
+                    "total_beds": w_total,
+                    "occupied_beds": w_occupied,
+                    "dirty_beds": w_dirty,
+                    "cleaning_beds": w_cleaning,
+                    "available_beds": w_available,
+                    "maintenance_beds": w_maint,
+                    "occupancy_pct": occupancy_pct,
+                    "rooms": rooms_data,
+                }
+            )
 
-        overall_occupancy = round((occupied_beds_all / total_beds_all * 100), 1) if total_beds_all > 0 else 0.0
+        overall_occupancy = (
+            round((occupied_beds_all / total_beds_all * 100), 1)
+            if total_beds_all > 0
+            else 0.0
+        )
 
         return {
             "total_beds": total_beds_all,

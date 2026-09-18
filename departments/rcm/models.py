@@ -59,9 +59,13 @@ class ClaimSubmission(db.Model):
     status = db.Column(db.String(20), nullable=False, default="DRAFT")
 
     # Scrubbing & Risk Analysis
-    scrubbing_status = db.Column(db.String(20), nullable=False, default="UNSCRUBBED")  # UNSCRUBBED, CLEAN, HAS_ERRORS
+    scrubbing_status = db.Column(
+        db.String(20), nullable=False, default="UNSCRUBBED"
+    )  # UNSCRUBBED, CLEAN, HAS_ERRORS
     denial_risk_score = db.Column(db.Float, nullable=False, default=0.0)  # 0-100%
-    scrubbing_errors_json = db.Column(db.Text, nullable=True, default="[]")  # list of error dicts
+    scrubbing_errors_json = db.Column(
+        db.Text, nullable=True, default="[]"
+    )  # list of error dicts
     edi_837_content = db.Column(db.Text, nullable=True)  # X12 837 text
 
     # External reference from the payer (SHA, insurance company)
@@ -158,4 +162,3 @@ class Edi835RemittanceLog(db.Model):
     processed_at = db.Column(
         db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
-

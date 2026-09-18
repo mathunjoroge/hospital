@@ -25,7 +25,9 @@ DICOMWEB_BASE = os.getenv("DICOMWEB_BASE_URL", f"{ORTHANC_URL}/dicom-web").rstri
 class DICOMwebClient:
     """Client for Orthanc / PACS DICOMweb services and RESTful Store SCU."""
 
-    def __init__(self, base_url: str | None = None, auth: tuple[str, str] | None = None):
+    def __init__(
+        self, base_url: str | None = None, auth: tuple[str, str] | None = None
+    ):
         self.base_url = (base_url or DICOMWEB_BASE).rstrip("/")
         self.orthanc_url = ORTHANC_URL
         self.auth = auth or (ORTHANC_USER, ORTHANC_PASS) if ORTHANC_USER else None
@@ -57,12 +59,19 @@ class DICOMwebClient:
         headers = {"Accept": "application/dicom+json"}
 
         try:
-            resp = requests.get(url, params=params, headers=headers, auth=self.auth, timeout=5)
+            resp = requests.get(
+                url, params=params, headers=headers, auth=self.auth, timeout=5
+            )
             if resp.status_code == 200:
                 return resp.json()
-            logger.warning("QIDO-RS search returned status %d: %s", resp.status_code, resp.text)
+            logger.warning(
+                "QIDO-RS search returned status %d: %s", resp.status_code, resp.text
+            )
         except Exception as exc:  # noqa: BLE001
-            logger.warning("QIDO-RS connection to PACS failed (%s). Returning fallback studies.", exc)
+            logger.warning(
+                "QIDO-RS connection to PACS failed (%s). Returning fallback studies.",
+                exc,
+            )
 
         return []
 
@@ -83,7 +92,9 @@ class DICOMwebClient:
                 return resp.json()
             logger.warning("WADO-RS metadata returned status %d", resp.status_code)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("WADO-RS retrieval failed for study %s: %s", study_instance_uid, exc)
+            logger.warning(
+                "WADO-RS retrieval failed for study %s: %s", study_instance_uid, exc
+            )
 
         return []
 
@@ -106,13 +117,19 @@ class DICOMwebClient:
                 content = f.read()
 
             headers = {"Content-Type": "application/dicom"}
-            resp = requests.post(url, data=content, headers=headers, auth=self.auth, timeout=10)
+            resp = requests.post(
+                url, data=content, headers=headers, auth=self.auth, timeout=10
+            )
 
             if resp.status_code in (200, 201):
                 data = resp.json()
                 orthanc_id = data.get("ID")
                 parent_study = data.get("ParentStudy")
-                logger.info("STOW-RS push successful for %s: Orthanc ID=%s", file_path, orthanc_id)
+                logger.info(
+                    "STOW-RS push successful for %s: Orthanc ID=%s",
+                    file_path,
+                    orthanc_id,
+                )
                 return {
                     "status": "success",
                     "orthanc_id": orthanc_id,
@@ -120,12 +137,19 @@ class DICOMwebClient:
                     "file_path": file_path,
                 }
 
-            logger.warning("Orthanc /instances returned status %d: %s", resp.status_code, resp.text)
+            logger.warning(
+                "Orthanc /instances returned status %d: %s", resp.status_code, resp.text
+            )
         except Exception as exc:  # noqa: BLE001
-            logger.warning("PACS STOW-RS push offline/failed for %s (%s). Falling back to local storage.", file_path, exc)
+            logger.warning(
+                "PACS STOW-RS push offline/failed for %s (%s). Falling back to local storage.",
+                file_path,
+                exc,
+            )
 
         # Fallback simulation response when PACS server container is offline in dev/test
         import hashlib
+
         simulated_id = hashlib.sha256(file_path.encode()).hexdigest()[:16]
         return {
             "status": "simulated_local",
@@ -171,7 +195,9 @@ class DICOMwebClient:
                 }
             logger.warning("Orthanc /system returned status %d", resp.status_code)
         except Exception as exc:  # noqa: BLE001
-            logger.info("Orthanc PACS unreachable (%s). Returning simulated status.", exc)
+            logger.info(
+                "Orthanc PACS unreachable (%s). Returning simulated status.", exc
+            )
 
         # Simulated status for dev/test without a running Orthanc container
         return {

@@ -33,7 +33,13 @@ def _setup_wards_and_patient(app) -> tuple[str, int, int, int, int, int, int]:
 
         w1 = Ward.query.filter_by(name="Male Medical Ward").first()
         if not w1:
-            w1 = Ward(name="Male Medical Ward", sex="Male", number_of_beds=5, occupied_beds=0, daily_charge=3000.0)
+            w1 = Ward(
+                name="Male Medical Ward",
+                sex="Male",
+                number_of_beds=5,
+                occupied_beds=0,
+                daily_charge=3000.0,
+            )
             db.session.add(w1)
             db.session.commit()
 
@@ -41,13 +47,23 @@ def _setup_wards_and_patient(app) -> tuple[str, int, int, int, int, int, int]:
             db.session.add(r1)
             db.session.commit()
 
-            b1 = Bed(room_id=r1.id, bed_number="101-A", occupied=False, status="AVAILABLE")
-            b2 = Bed(room_id=r1.id, bed_number="101-B", occupied=False, status="AVAILABLE")
+            b1 = Bed(
+                room_id=r1.id, bed_number="101-A", occupied=False, status="AVAILABLE"
+            )
+            b2 = Bed(
+                room_id=r1.id, bed_number="101-B", occupied=False, status="AVAILABLE"
+            )
             db.session.add_all([b1, b2])
 
         w2 = Ward.query.filter_by(name="Surgical High Dependency Ward").first()
         if not w2:
-            w2 = Ward(name="Surgical High Dependency Ward", sex="Mixed", number_of_beds=3, occupied_beds=0, daily_charge=6000.0)
+            w2 = Ward(
+                name="Surgical High Dependency Ward",
+                sex="Mixed",
+                number_of_beds=3,
+                occupied_beds=0,
+                daily_charge=6000.0,
+            )
             db.session.add(w2)
             db.session.commit()
 
@@ -55,7 +71,9 @@ def _setup_wards_and_patient(app) -> tuple[str, int, int, int, int, int, int]:
             db.session.add(r2)
             db.session.commit()
 
-            b3 = Bed(room_id=r2.id, bed_number="HDU-1A", occupied=False, status="AVAILABLE")
+            b3 = Bed(
+                room_id=r2.id, bed_number="HDU-1A", occupied=False, status="AVAILABLE"
+            )
             db.session.add(b3)
 
         db.session.commit()
@@ -67,7 +85,15 @@ def _setup_wards_and_patient(app) -> tuple[str, int, int, int, int, int, int]:
         w1_obj = Ward.query.filter_by(name="Male Medical Ward").first()
         w2_obj = Ward.query.filter_by(name="Surgical High Dependency Ward").first()
 
-        return p.patient_id, w1_obj.id, r1_obj.id, b1_obj.id, w2_obj.id, r2_obj.id, b3_obj.id
+        return (
+            p.patient_id,
+            w1_obj.id,
+            r1_obj.id,
+            b1_obj.id,
+            w2_obj.id,
+            r2_obj.id,
+            b3_obj.id,
+        )
 
 
 def test_adt_a01_admit_patient(app):
@@ -194,9 +220,16 @@ def test_adt_api_endpoints(client, app, admin_user):
     pat_id, w1_id, r1_id, b1_id, w2_id, r2_id, b3_id = _setup_wards_and_patient(app)
 
     # 1. Admit API (A01)
-    res1 = client.post("/medicine/api/adt/admit", json={
-        "patient_id": pat_id, "ward_id": w1_id, "room_id": r1_id, "bed_id": b1_id, "admission_criteria": "Acute Fever"
-    })
+    res1 = client.post(
+        "/medicine/api/adt/admit",
+        json={
+            "patient_id": pat_id,
+            "ward_id": w1_id,
+            "room_id": r1_id,
+            "bed_id": b1_id,
+            "admission_criteria": "Acute Fever",
+        },
+    )
     assert res1.status_code == 201
     adm_id = res1.get_json()["admission_id"]
 
@@ -206,20 +239,29 @@ def test_adt_api_endpoints(client, app, admin_user):
     assert res2.get_json()["total_beds"] >= 3
 
     # 3. Transfer API (A02)
-    res3 = client.post("/medicine/api/adt/transfer", json={
-        "admission_id": adm_id, "new_ward_id": w2_id, "new_room_id": r2_id, "new_bed_id": b3_id
-    })
+    res3 = client.post(
+        "/medicine/api/adt/transfer",
+        json={
+            "admission_id": adm_id,
+            "new_ward_id": w2_id,
+            "new_room_id": r2_id,
+            "new_bed_id": b3_id,
+        },
+    )
     assert res3.status_code == 200
 
     # 4. Update Bed Status API (Housekeeping)
-    res4 = client.post(f"/medicine/api/beds/{b1_id}/status", json={"status": "CLEANING"})
+    res4 = client.post(
+        f"/medicine/api/beds/{b1_id}/status", json={"status": "CLEANING"}
+    )
     assert res4.status_code == 200
     assert res4.get_json()["new_status"] == "CLEANING"
 
     # 5. Discharge API (A03)
-    res5 = client.post("/medicine/api/adt/discharge", json={
-        "admission_id": adm_id, "discharge_summary": "Discharged home."
-    })
+    res5 = client.post(
+        "/medicine/api/adt/discharge",
+        json={"admission_id": adm_id, "discharge_summary": "Discharged home."},
+    )
     assert res5.status_code == 200
 
     # 6. ADT Events API
@@ -230,4 +272,7 @@ def test_adt_api_endpoints(client, app, admin_user):
     # 7. Ward Grid Console UI
     res7 = client.get("/medicine/inpatients/ward-grid")
     assert res7.status_code == 200
-    assert b"Inpatient Ward &amp; Bed Turnaround Console" in res7.data or b"Inpatient Ward & Bed Turnaround Console" in res7.data
+    assert (
+        b"Inpatient Ward &amp; Bed Turnaround Console" in res7.data
+        or b"Inpatient Ward & Bed Turnaround Console" in res7.data
+    )

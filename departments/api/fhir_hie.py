@@ -20,9 +20,21 @@ from departments.models.records import Patient
 _LOINC_CODES = {
     "temperature": {"code": "8310-5", "display": "Body temperature", "unit": "Cel"},
     "pulse": {"code": "8867-4", "display": "Heart rate", "unit": "/min"},
-    "blood_pressure_systolic": {"code": "8480-6", "display": "Systolic blood pressure", "unit": "mmHg"},
-    "blood_pressure_diastolic": {"code": "8462-4", "display": "Diastolic blood pressure", "unit": "mmHg"},
-    "oxygen_saturation": {"code": "59408-5", "display": "Oxygen saturation", "unit": "%"},
+    "blood_pressure_systolic": {
+        "code": "8480-6",
+        "display": "Systolic blood pressure",
+        "unit": "mmHg",
+    },
+    "blood_pressure_diastolic": {
+        "code": "8462-4",
+        "display": "Diastolic blood pressure",
+        "unit": "mmHg",
+    },
+    "oxygen_saturation": {
+        "code": "59408-5",
+        "display": "Oxygen saturation",
+        "unit": "%",
+    },
     "weight": {"code": "29463-7", "display": "Body weight", "unit": "kg"},
     "height": {"code": "8302-2", "display": "Body height", "unit": "cm"},
 }
@@ -40,10 +52,18 @@ def _vitals_to_observations(vitals: Vitals) -> list[dict[str, Any]]:
             "id": f"obs-{field}-{vitals.id}",
             "status": "final",
             "code": {
-                "coding": [{"system": "http://loinc.org", "code": loinc["code"], "display": loinc["display"]}]
+                "coding": [
+                    {
+                        "system": "http://loinc.org",
+                        "code": loinc["code"],
+                        "display": loinc["display"],
+                    }
+                ]
             },
             "subject": {"reference": f"Patient/{vitals.patient_id}"},
-            "effectiveDateTime": vitals.timestamp.isoformat() if getattr(vitals, "timestamp", None) else datetime.now(timezone.utc).isoformat(),
+            "effectiveDateTime": vitals.timestamp.isoformat()
+            if getattr(vitals, "timestamp", None)
+            else datetime.now(timezone.utc).isoformat(),
             "valueQuantity": {
                 "value": float(val),
                 "unit": loinc["unit"],
@@ -107,7 +127,9 @@ def export_patient_everything_bundle(patient_id: str) -> dict[str, Any]:
     pat_res = {
         "resourceType": "Patient",
         "id": patient_id,
-        "identifier": [{"system": "http://hims.hospital.go.ke/patient-id", "value": patient_id}],
+        "identifier": [
+            {"system": "http://hims.hospital.go.ke/patient-id", "value": patient_id}
+        ],
         "name": [{"text": patient.name}],
         "gender": gender_map.get(patient.sex, "unknown") if patient.sex else "unknown",
     }
@@ -126,10 +148,21 @@ def export_patient_everything_bundle(patient_id: str) -> dict[str, Any]:
                 "resourceType": "Condition",
                 "id": f"cond-soap-{note.id}",
                 "clinicalStatus": {
-                    "coding": [{"system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active"}]
+                    "coding": [
+                        {
+                            "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                            "code": "active",
+                        }
+                    ]
                 },
                 "code": {
-                    "coding": [{"system": "http://hl7.org/fhir/sid/icd-10", "code": "R69", "display": note.assessment}],
+                    "coding": [
+                        {
+                            "system": "http://hl7.org/fhir/sid/icd-10",
+                            "code": "R69",
+                            "display": note.assessment,
+                        }
+                    ],
                     "text": note.assessment,
                 },
                 "subject": {"reference": f"Patient/{patient_id}"},
@@ -148,8 +181,19 @@ def export_patient_everything_bundle(patient_id: str) -> dict[str, Any]:
         rep_res = {
             "resourceType": "DiagnosticReport",
             "id": f"lab-{lab.id}",
-            "status": "final" if getattr(lab, "status", "") == "Completed" else "registered",
-            "category": [{"coding": [{"system": "http://terminology.hl7.org/CodeSystem/v2-0074", "code": "LAB"}]}],
+            "status": "final"
+            if getattr(lab, "status", "") == "Completed"
+            else "registered",
+            "category": [
+                {
+                    "coding": [
+                        {
+                            "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
+                            "code": "LAB",
+                        }
+                    ]
+                }
+            ],
             "code": {"text": getattr(lab, "test_name", "Laboratory Test")},
             "subject": {"reference": f"Patient/{patient_id}"},
             "conclusion": getattr(lab, "result_notes", "") or "",
@@ -170,8 +214,14 @@ def export_patient_everything_bundle(patient_id: str) -> dict[str, Any]:
             "status": "active",
             "intent": "order",
             "subject": {"reference": f"Patient/{patient_id}"},
-            "medicationCodeableConcept": {"text": getattr(rx, "drug_name", "Prescribed Medication")},
-            "dosageInstruction": [{"text": f"{getattr(rx, 'dosage', '')} {getattr(rx, 'frequency', '')}".strip()}],
+            "medicationCodeableConcept": {
+                "text": getattr(rx, "drug_name", "Prescribed Medication")
+            },
+            "dosageInstruction": [
+                {
+                    "text": f"{getattr(rx, 'dosage', '')} {getattr(rx, 'frequency', '')}".strip()
+                }
+            ],
         }
         entries.append({"resource": med_res})
 

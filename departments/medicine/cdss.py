@@ -278,7 +278,9 @@ def check_patient_allergies(patient: Patient, drug_name: str) -> dict | None:
     return None
 
 
-def calculate_dosing_adjustment(drug_name: str, egfr: float | None = None) -> dict | None:
+def calculate_dosing_adjustment(
+    drug_name: str, egfr: float | None = None
+) -> dict | None:
     """
     Check if drug requires renal dose adjustment based on patient eGFR.
     """
@@ -430,9 +432,7 @@ def evaluate_prescription_safety(
         w.get("severity") in ("HIGH", "CRITICAL") for w in filtered_warnings
     )
 
-    is_degraded = any(
-        w.get("source") == "Local Fallback Matrix" for w in interactions
-    )
+    is_degraded = any(w.get("source") == "Local Fallback Matrix" for w in interactions)
 
     return {
         "has_warnings": len(filtered_warnings) > 0 or (dosing_alert is not None),
@@ -447,4 +447,3 @@ def evaluate_prescription_safety(
             else None
         ),
     }
-

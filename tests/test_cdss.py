@@ -97,7 +97,9 @@ def test_drugcentral_timeout_returns_empty_within_bound():
     with patch(
         "departments.shared.drugcentral.get_drugcentral_connection",
         side_effect=DrugCentralUnavailable(
-            psycopg2.OperationalError("could not connect to server: Connection timed out")
+            psycopg2.OperationalError(
+                "could not connect to server: Connection timed out"
+            )
         ),
     ):
         t0 = time.monotonic()
@@ -126,9 +128,9 @@ def test_drugcentral_circuit_breaker_open_returns_empty_immediately():
         elapsed = time.monotonic() - t0
 
     assert result == []
-    assert elapsed < 0.5, (
-        f"Circuit-breaker path took {elapsed:.3f}s — expected near-instant"
-    )
+    assert (
+        elapsed < 0.5
+    ), f"Circuit-breaker path took {elapsed:.3f}s — expected near-instant"
 
 
 def test_local_matrix_fires_when_drugcentral_down():
@@ -145,15 +147,15 @@ def test_local_matrix_fires_when_drugcentral_down():
         warnings = check_drug_interactions(["Warfarin 5mg", "Aspirin 75mg"])
         elapsed = time.monotonic() - t0
 
-    assert len(warnings) >= 1, (
-        "Local KNOWN_INTERACTIONS matrix did not fire when DrugCentral was down"
-    )
-    assert any(w["severity"] == "HIGH" for w in warnings), (
-        "Expected HIGH severity warning for Warfarin + Aspirin from local matrix"
-    )
-    assert any(w["source"] == "Local Fallback Matrix" for w in warnings), (
-        "Warning source should be 'Local Fallback Matrix' when DrugCentral is unavailable"
-    )
+    assert (
+        len(warnings) >= 1
+    ), "Local KNOWN_INTERACTIONS matrix did not fire when DrugCentral was down"
+    assert any(
+        w["severity"] == "HIGH" for w in warnings
+    ), "Expected HIGH severity warning for Warfarin + Aspirin from local matrix"
+    assert any(
+        w["source"] == "Local Fallback Matrix" for w in warnings
+    ), "Warning source should be 'Local Fallback Matrix' when DrugCentral is unavailable"
     assert elapsed < 1.0, (
         f"check_drug_interactions took {elapsed:.3f}s with unreachable DrugCentral "
         "— expected < 1.0s (local fallback should be near-instant)"
@@ -173,9 +175,9 @@ def test_connect_timeout_is_set():
     )
     assert isinstance(DRUGCENTRAL_DB_PARAMS["connect_timeout"], int)
     assert DRUGCENTRAL_DB_PARAMS["connect_timeout"] > 0
-    assert DRUGCENTRAL_DB_PARAMS["connect_timeout"] <= 10, (
-        "connect_timeout should be short (≤10s) for a clinical safety path"
-    )
+    assert (
+        DRUGCENTRAL_DB_PARAMS["connect_timeout"] <= 10
+    ), "connect_timeout should be short (≤10s) for a clinical safety path"
 
 
 def test_query_drugcentral_ddi_unexpected_exception_returns_empty():
@@ -238,5 +240,8 @@ def test_cdss_evaluate_endpoint_pregnancy_block(client):
     data = resp.get_json()
     assert data["has_warnings"] is True
     assert data["high_risk"] is True
-    assert any("Category X" in w.get("message", "") or "CONTRAINDICATION" in w.get("message", "") for w in data["warnings"])
-
+    assert any(
+        "Category X" in w.get("message", "")
+        or "CONTRAINDICATION" in w.get("message", "")
+        for w in data["warnings"]
+    )

@@ -74,7 +74,6 @@ class TestDICOMIntegration:
         assert mwl_item["AccessionNumber"] == f"ACC-{radiology_data['req_image'].id}"
         assert mwl_item["Modality"] == "DX"
 
-
     def test_viewer_attachment_no_files(self, radiology_client, radiology_data):
         # Create an imaging result with no files
         req = radiology_data["req_image"]

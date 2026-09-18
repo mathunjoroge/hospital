@@ -168,7 +168,9 @@ def test_issue_request_requires_expiry_date(
         drug = db.session.merge(drug)
 
         req_obj = DrugRequest(
-            request_date=datetime.now(timezone.utc).date(), status="Pending", requested_by=stores_user.id
+            request_date=datetime.now(timezone.utc).date(),
+            status="Pending",
+            requested_by=stores_user.id,
         )
         db.session.add(req_obj)
         db.session.flush()

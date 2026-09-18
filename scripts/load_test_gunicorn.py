@@ -25,7 +25,7 @@ import time
 import requests
 
 BASE_URL = "http://127.0.0.1:8765"
-ITERATIONS_PER_WORKER = 20   # requests each worker thread sends
+ITERATIONS_PER_WORKER = 20  # requests each worker thread sends
 CONCURRENCY_LEVELS = [5, 20]
 
 
@@ -44,11 +44,16 @@ def get_authenticated_session(base_url: str) -> requests.Session | None:
         # Try direct HTTP form login first with CSRF extraction
         r_get = s.get(f"{base_url}/login", timeout=5)
         import re
+
         match = re.search(r'name="csrf_token"\s+value="([^"]+)"', r_get.text)
         csrf = match.group(1) if match else ""
         resp = s.post(
             f"{base_url}/login",
-            data={"username": "bench_admin", "password": "password123", "csrf_token": csrf},
+            data={
+                "username": "bench_admin",
+                "password": "password123",
+                "csrf_token": csrf,
+            },
             timeout=10,
             allow_redirects=True,
         )
@@ -61,12 +66,16 @@ def get_authenticated_session(base_url: str) -> requests.Session | None:
     try:
         import os
         from pathlib import Path
+
         project_dir = str(Path(__file__).resolve().parent.parent)
         if project_dir not in sys.path:
             sys.path.insert(0, project_dir)
-        os.environ.setdefault("SQLALCHEMY_DATABASE_URI", "postgresql://mathu@localhost/hospital_db")
+        os.environ.setdefault(
+            "SQLALCHEMY_DATABASE_URI", "postgresql://mathu@localhost/hospital_db"
+        )
         from app import app
         from departments.models.user import User
+
         with app.app_context():  # noqa: SIM117
             with app.test_client() as c:
                 u = User.query.filter_by(username="bench_admin").first()
@@ -74,7 +83,14 @@ def get_authenticated_session(base_url: str) -> requests.Session | None:
                     from werkzeug.security import generate_password_hash
 
                     from extensions import db
-                    u = User(username="bench_admin", password=generate_password_hash("password123", method="pbkdf2:sha256"), role="admin")
+
+                    u = User(
+                        username="bench_admin",
+                        password=generate_password_hash(
+                            "password123", method="pbkdf2:sha256"
+                        ),
+                        role="admin",
+                    )
                     db.session.add(u)
                     db.session.commit()
                 with c.session_transaction() as sess:
@@ -166,20 +182,27 @@ def main():
         print("WARNING: Could not authenticate. Unauthenticated requests may 302.")
 
     endpoints = [
-        ("GET",  "/healthz",                          None),
-        ("GET",  "/records/search_patients?term=John", None),
-        ("GET",  "/admin/analytics",                  None),
-        ("GET",  "/medicine/",                        None),
-        ("POST", "/billing/pay_bills",                {"amount": "100"}),
+        ("GET", "/healthz", None),
+        ("GET", "/records/search_patients?term=John", None),
+        ("GET", "/admin/analytics", None),
+        ("GET", "/medicine/", None),
+        ("POST", "/billing/pay_bills", {"amount": "100"}),
     ]
 
     results = []
     for concurrency in CONCURRENCY_LEVELS:
-        print(f"=== Concurrency C={concurrency} ({ITERATIONS_PER_WORKER} req/worker) ===")
+        print(
+            f"=== Concurrency C={concurrency} ({ITERATIONS_PER_WORKER} req/worker) ==="
+        )
         for method, path, post_data in endpoints:
             r = benchmark_endpoint(
-                BASE_URL, method, path, concurrency,
-                ITERATIONS_PER_WORKER, session=session, post_data=post_data,
+                BASE_URL,
+                method,
+                path,
+                concurrency,
+                ITERATIONS_PER_WORKER,
+                session=session,
+                post_data=post_data,
             )
             results.append(r)
             print(
@@ -194,12 +217,36 @@ def main():
     # Check for the serialization pattern: throughput falling C5→C20
     print("=== Serialization Check (throughput C5 vs C20) ===")
     for method, path, _ in endpoints:
-        c5  = next((r for r in results if r["endpoint"] == f"{method} {path}" and r["concurrency"] == 5),  None)
-        c20 = next((r for r in results if r["endpoint"] == f"{method} {path}" and r["concurrency"] == 20), None)
+        c5 = next(
+            (
+                r
+                for r in results
+                if r["endpoint"] == f"{method} {path}" and r["concurrency"] == 5
+            ),
+            None,
+        )
+        c20 = next(
+            (
+                r
+                for r in results
+                if r["endpoint"] == f"{method} {path}" and r["concurrency"] == 20
+            ),
+            None,
+        )
         if c5 and c20:
-            ratio = c20["throughput_rps"] / c5["throughput_rps"] if c5["throughput_rps"] > 0 else 0
-            flag = " ⚠ DEGRADING" if ratio < 0.5 else (" ~ plateau" if ratio < 0.9 else " ✓ scaling")
-            print(f"  {method} {path}: C5={c5['throughput_rps']}rps C20={c20['throughput_rps']}rps ratio={ratio:.2f}{flag}")
+            ratio = (
+                c20["throughput_rps"] / c5["throughput_rps"]
+                if c5["throughput_rps"] > 0
+                else 0
+            )
+            flag = (
+                " ⚠ DEGRADING"
+                if ratio < 0.5
+                else (" ~ plateau" if ratio < 0.9 else " ✓ scaling")
+            )
+            print(
+                f"  {method} {path}: C5={c5['throughput_rps']}rps C20={c20['throughput_rps']}rps ratio={ratio:.2f}{flag}"
+            )
 
     return results
 

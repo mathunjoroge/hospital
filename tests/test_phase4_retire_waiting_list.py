@@ -10,7 +10,9 @@ from extensions import db
 
 def _patient(pid):
     p = Patient(
-        patient_id=pid, name=f"Test {pid}", sex="F",
+        patient_id=pid,
+        name=f"Test {pid}",
+        sex="F",
         date_of_birth=date(1990, 1, 1),
     )
     db.session.add(p)

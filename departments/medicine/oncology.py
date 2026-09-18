@@ -181,7 +181,9 @@ def delete_disease(disease_id):
     disease = Disease.query.get_or_404(disease_id)
     logger.info(
         "Disease deleted: disease_id=%s disease_name=%s actor_id=%s",
-        disease_id, disease.name, current_user.id,
+        disease_id,
+        disease.name,
+        current_user.id,
     )
     db.session.delete(disease)
     db.session.commit()
@@ -344,11 +346,11 @@ def oncology_ai_summary(patient_id):
         ), 500
 
     selected_patient = Patient.query.filter(
-                db.or_(
-                    Patient.patient_id.ilike(f"%{patient_id}%"),
-                    Patient.name.ilike(f"%{patient_id}%"),
-                )
-            ).first()
+        db.or_(
+            Patient.patient_id.ilike(f"%{patient_id}%"),
+            Patient.name.ilike(f"%{patient_id}%"),
+        )
+    ).first()
     if not selected_patient:
         return jsonify({"error": "Patient not found"}), 404
     notes = OncologyNote.query.filter_by(patient_id=selected_patient.patient_id).all()
@@ -432,7 +434,13 @@ def delete_note(note_id):
     note = OncologyNote.query.get_or_404(note_id)
     patient_id = note.patient_id
 
-    void_reason = (request.form.get("void_reason") or request.get_json(silent=True) or {}).get("void_reason") if not request.form.get("void_reason") else request.form.get("void_reason")
+    void_reason = (
+        (request.form.get("void_reason") or request.get_json(silent=True) or {}).get(
+            "void_reason"
+        )
+        if not request.form.get("void_reason")
+        else request.form.get("void_reason")
+    )
     if not void_reason:
         flash("A void reason is required to void a clinical note.", "error")
         return redirect(url_for("medicine.oncology_encounter", patient_id=patient_id))
@@ -445,15 +453,23 @@ def delete_note(note_id):
     note.is_voided = True
     note.voided_by = current_user.id
     note.voided_reason = void_reason
-    note.voided_at = __import__('datetime').datetime.now(__import__('datetime').timezone.utc)
+    note.voided_at = __import__("datetime").datetime.now(
+        __import__("datetime").timezone.utc
+    )
     db.session.commit()
 
     logger.info(
         "Oncology note VOIDED: note_id=%s patient_id=%s actor_id=%s reason=%s",
-        note_id, patient_id, current_user.id, void_reason,
+        note_id,
+        patient_id,
+        current_user.id,
+        void_reason,
     )
 
-    flash("Oncology note voided successfully. The original record is preserved.", "success")
+    flash(
+        "Oncology note voided successfully. The original record is preserved.",
+        "success",
+    )
     return redirect(url_for("medicine.oncology_encounter", patient_id=patient_id))
 
 
@@ -609,11 +625,11 @@ def new_booking():
 
         # Validate patient exists
         patient = Patient.query.filter(
-                db.or_(
-                    Patient.patient_id.ilike(f"%{patient_id}%"),
-                    Patient.name.ilike(f"%{patient_id}%"),
-                )
-            ).first()
+            db.or_(
+                Patient.patient_id.ilike(f"%{patient_id}%"),
+                Patient.name.ilike(f"%{patient_id}%"),
+            )
+        ).first()
         if not patient:
             flash("Selected patient does not exist.", "danger")
             return redirect(url_for("medicine.new_booking"))
@@ -748,7 +764,9 @@ def process_lab_result(lab_result, test_name):
 @roles_required("doctor", "medicine", "oncology", "admin")
 def chemo_builder(patient_id: str):
     """Render Oncology Chemotherapy Protocol Builder Workstation UI."""
-    return render_template("medicine/oncology/chemo_builder.html", patient_id=patient_id)
+    return render_template(
+        "medicine/oncology/chemo_builder.html", patient_id=patient_id
+    )
 
 
 @bp.route("/oncology/api/calculate-chemo", methods=["GET"])
@@ -822,18 +840,21 @@ def api_save_chemo_order():
         total_cycles=total_cycles,
         calculated_doses_json=json.dumps(calc_res["drugs"]),
         has_toxicity_warning=calc_res["has_toxicity_warning"],
-        toxicity_warning_details="\n".join(calc_res["toxicity_warnings"]) if calc_res["toxicity_warnings"] else None,
+        toxicity_warning_details="\n".join(calc_res["toxicity_warnings"])
+        if calc_res["toxicity_warnings"]
+        else None,
         status="ORDERED",
     )
 
     db.session.add(order)
     db.session.commit()
 
-    return jsonify({
-        "success": True,
-        "order_id": order.id,
-        "protocol_name": order.protocol_name,
-        "bsa_m2": order.bsa_m2,
-        "has_toxicity_warning": order.has_toxicity_warning,
-    }), 201
-
+    return jsonify(
+        {
+            "success": True,
+            "order_id": order.id,
+            "protocol_name": order.protocol_name,
+            "bsa_m2": order.bsa_m2,
+            "has_toxicity_warning": order.has_toxicity_warning,
+        }
+    ), 201

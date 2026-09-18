@@ -13,7 +13,9 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger("backfill_billing")
 
 
@@ -49,7 +51,11 @@ def run_backfill():
         labs = RequestedLab.query.all()
         for lab in labs:
             try:
-                lab_test = db.session.get(LabTest, lab.lab_test_id) if lab.lab_test_id else None
+                lab_test = (
+                    db.session.get(LabTest, lab.lab_test_id)
+                    if lab.lab_test_id
+                    else None
+                )
                 test_name = lab_test.test_name if lab_test else "Lab Test"
                 cost = float(lab_test.cost or 0) if lab_test else 0.0
                 res = sync_charge(
@@ -143,7 +149,9 @@ def run_backfill():
         billings = Billing.query.all()
         for bill in billings:
             try:
-                charge = db.session.get(Charge, bill.charge_id) if bill.charge_id else None
+                charge = (
+                    db.session.get(Charge, bill.charge_id) if bill.charge_id else None
+                )
                 charge_name = charge.name if charge else "Hospital Charge"
                 res = sync_charge(
                     patient_id=bill.patient_id,
@@ -188,7 +196,8 @@ def run_backfill():
                     p_res = sync_payment(
                         patient_id=dbill.patient_id,
                         amount=float(dbill.total_cost or 0),
-                        payment_method=getattr(dbill, "payment_method", "cash") or "cash",
+                        payment_method=getattr(dbill, "payment_method", "cash")
+                        or "cash",
                         reference_number=getattr(dbill, "payment_reference", None),
                         receipt_number=getattr(dbill, "receipt_number", None),
                     )
@@ -224,7 +233,8 @@ def run_backfill():
                         p_res = sync_payment(
                             patient_id=b.patient_id,
                             amount=amount_paid,
-                            payment_method=getattr(b, "payment_method", "cash") or "cash",
+                            payment_method=getattr(b, "payment_method", "cash")
+                            or "cash",
                             reference_number=getattr(b, "payment_reference", None),
                             receipt_number=getattr(b, "receipt_number", None),
                         )

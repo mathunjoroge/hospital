@@ -29,9 +29,7 @@ def test_secret_key_enforcement(monkeypatch):
     import importlib
 
     try:
-        with pytest.raises(
-            RuntimeError, match="Hardcoded or weak SECRET_KEY detected"
-        ):
+        with pytest.raises(RuntimeError, match="Hardcoded or weak SECRET_KEY detected"):
             if "app" in sys.modules:
                 importlib.reload(sys.modules["app"])
             else:

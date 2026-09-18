@@ -176,7 +176,10 @@ def handle_enter_result():
 
     logger.info(
         "Lab result entered: result_id=%s patient=%s tech_id=%s panic=%s",
-        res_uuid, patient_id, tech_id, panic_status,
+        res_uuid,
+        patient_id,
+        tech_id,
+        panic_status,
     )
 
     return jsonify(
@@ -218,11 +221,13 @@ def handle_verify_result():
 
     # P0-06: Guard against silent overwrite of an already-verified result.
     if lab_res.status == "VERIFIED":
-        return jsonify({
-            "error": "Result is already VERIFIED. Use the amendment workflow to make corrections.",
-            "result_id": result_id,
-            "status": "VERIFIED",
-        }), 409
+        return jsonify(
+            {
+                "error": "Result is already VERIFIED. Use the amendment workflow to make corrections.",
+                "result_id": result_id,
+                "status": "VERIFIED",
+            }
+        ), 409
 
     if action == "REJECT":
         lab_res.status = "REJECTED"
@@ -231,7 +236,8 @@ def handle_verify_result():
         db.session.commit()
         logger.info(
             "Lab result REJECTED: result_id=%s verifier_id=%s",
-            result_id, verifier_id,
+            result_id,
+            verifier_id,
         )
         return jsonify({"success": True, "status": "REJECTED"}), 200
 
@@ -254,7 +260,10 @@ def handle_verify_result():
 
     logger.info(
         "Lab result VERIFIED: result_id=%s verifier_id=%s panic=%s alert_sent=%s",
-        result_id, verifier_id, lab_res.panic_status, notification_sent,
+        result_id,
+        verifier_id,
+        lab_res.panic_status,
+        notification_sent,
     )
 
     return jsonify(

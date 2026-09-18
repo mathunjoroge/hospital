@@ -293,10 +293,16 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         self.assertEqual(estimate_weight_from_age(10), 30.0)
         self.assertEqual(estimate_weight_from_age(20), 45.0)
 
-        self.assertEqual(classify_drug_category("Artemether 20mg / Lumefantrine 120mg"), "al")
-        self.assertEqual(classify_drug_category("Artesunate 60mg Injectable"), "artesunate")
+        self.assertEqual(
+            classify_drug_category("Artemether 20mg / Lumefantrine 120mg"), "al"
+        )
+        self.assertEqual(
+            classify_drug_category("Artesunate 60mg Injectable"), "artesunate"
+        )
         self.assertEqual(classify_drug_category("Quinine Sulphate 300mg"), "quinine")
-        self.assertEqual(classify_drug_category("Sulfadoxine Pyrimethamine 500/25mg"), "sp")
+        self.assertEqual(
+            classify_drug_category("Sulfadoxine Pyrimethamine 500/25mg"), "sp"
+        )
 
     def test_moh645_743_dhis2_export_elements(self):
         """Test that MOH-645/743 data elements are present in DHIS2 export outputs."""
@@ -354,7 +360,9 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
         self.assertEqual(match1["regimen_line"], "Adult_1st")
         self.assertIn("TLD", match1["regimen_name"])
 
-        match2 = classify_nascop_regimen(arv_drugs_text="Tenofovir/Lamivudine/Dolutegravir")
+        match2 = classify_nascop_regimen(
+            arv_drugs_text="Tenofovir/Lamivudine/Dolutegravir"
+        )
         self.assertIsNotNone(match2)
         self.assertEqual(match2["regimen_code"], "AF1A")
 
@@ -375,4 +383,3 @@ class TestFHIRAndDHIS2Exporter(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

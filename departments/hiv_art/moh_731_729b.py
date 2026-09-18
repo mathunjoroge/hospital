@@ -4,6 +4,7 @@ Kenya MOH 731 HIV/AIDS Summary & MOH 729B ARV FCDRR Reporting Engine.
 MOH 731: HIV/AIDS Monthly Summary (ARV Regimen Section)
 MOH 729B: ARV FCDRR (Facility Consumption Data Report and Request)
 """
+
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -167,7 +168,9 @@ NASCOP_REGIMEN_CATALOG = [
 ]
 
 
-def classify_nascop_regimen(regimen_code: str = None, arv_drugs_text: str = None) -> dict | None:
+def classify_nascop_regimen(
+    regimen_code: str = None, arv_drugs_text: str = None
+) -> dict | None:
     """
     Classify a regimen code or drug description string into the standard NASCOP master catalog.
     """
@@ -218,27 +221,34 @@ def aggregate_moh731_arv_monthly(year: int = None, month: int = None) -> dict:
         .all()
     )
 
-    regimen_counts = {item["regimen_code"]: {
-        "regimen_code": item["regimen_code"],
-        "regimen_line": item["regimen_line"],
-        "regimen_name": item["regimen_name"],
-        "target_pop": item["target_pop"],
-        "active_patients_male": 0,
-        "active_patients_female": 0,
-        "total_active_patients": 0,
-        "new_patients_started": 0,
-    } for item in NASCOP_REGIMEN_CATALOG}
+    regimen_counts = {
+        item["regimen_code"]: {
+            "regimen_code": item["regimen_code"],
+            "regimen_line": item["regimen_line"],
+            "regimen_name": item["regimen_name"],
+            "target_pop": item["target_pop"],
+            "active_patients_male": 0,
+            "active_patients_female": 0,
+            "total_active_patients": 0,
+            "new_patients_started": 0,
+        }
+        for item in NASCOP_REGIMEN_CATALOG
+    }
 
     tx_curr_total = 0
     tx_new_total = 0
 
     for enr, patient, regimen in enrollments:
         reg_code = (regimen.regimen_code if regimen else None) or "AF1A"
-        nascop_match = classify_nascop_regimen(reg_code, regimen.arv_drugs if regimen else None)
+        nascop_match = classify_nascop_regimen(
+            reg_code, regimen.arv_drugs if regimen else None
+        )
         rcode = nascop_match["regimen_code"]
 
         is_male = (patient.sex in ["M", "Male"]) if patient else True
-        is_new = (enr.art_start_date and start_dt <= enr.art_start_date <= end_dt) or (start_dt <= enr.enrollment_date <= end_dt)
+        is_new = (enr.art_start_date and start_dt <= enr.art_start_date <= end_dt) or (
+            start_dt <= enr.enrollment_date <= end_dt
+        )
 
         reg_data = regimen_counts[rcode]
         if is_male:
@@ -285,7 +295,9 @@ def aggregate_moh731_arv_monthly(year: int = None, month: int = None) -> dict:
         "month": month,
         "tx_curr_total": tx_curr_total,
         "tx_new_total": tx_new_total,
-        "regimen_details": sorted(list(regimen_counts.values()), key=lambda x: x["regimen_code"]),
+        "regimen_details": sorted(
+            list(regimen_counts.values()), key=lambda x: x["regimen_code"]
+        ),
     }
 
 
@@ -312,7 +324,9 @@ def aggregate_moh729b_fcdrr_monthly(year: int = None, month: int = None) -> dict
 
     # Get MOH 731 patient load metrics
     moh731 = aggregate_moh731_arv_monthly(year, month)
-    patient_map = {r["regimen_code"]: r["total_active_patients"] for r in moh731["regimen_details"]}
+    patient_map = {
+        r["regimen_code"]: r["total_active_patients"] for r in moh731["regimen_details"]
+    }
 
     fcdrr_items = []
     total_requested = 0
@@ -332,7 +346,9 @@ def aggregate_moh729b_fcdrr_monthly(year: int = None, month: int = None) -> dict
 
         if drug:
             received = (
-                db.session.query(func.coalesce(func.sum(Purchase.quantity_purchased), 0))
+                db.session.query(
+                    func.coalesce(func.sum(Purchase.quantity_purchased), 0)
+                )
                 .filter(Purchase.drug_id == drug.id)
                 .filter(Purchase.purchase_date >= start_date)
                 .filter(Purchase.purchase_date <= end_date)
@@ -340,11 +356,20 @@ def aggregate_moh729b_fcdrr_monthly(year: int = None, month: int = None) -> dict
             )
 
             dispensed = (
-                db.session.query(func.coalesce(func.sum(DispensedDrug.quantity_dispensed), 0))
+                db.session.query(
+                    func.coalesce(func.sum(DispensedDrug.quantity_dispensed), 0)
+                )
                 .filter(DispensedDrug.drug_id == drug.id)
                 .filter(DispensedDrug.date_dispensed >= start_dt)
                 .filter(DispensedDrug.date_dispensed <= end_dt)
-                .filter(or_(DispensedDrug.status == "0", DispensedDrug.status == "COMPLETED", DispensedDrug.status == "DISPENSED", DispensedDrug.status.is_(None)))
+                .filter(
+                    or_(
+                        DispensedDrug.status == "0",
+                        DispensedDrug.status == "COMPLETED",
+                        DispensedDrug.status == "DISPENSED",
+                        DispensedDrug.status.is_(None),
+                    )
+                )
                 .scalar()
             )
 
@@ -366,7 +391,9 @@ def aggregate_moh729b_fcdrr_monthly(year: int = None, month: int = None) -> dict
             beginning_balance = 0
 
         days_out = 0 if ending_balance > 0 else 31
-        monthly_cons = max(dispensed, patients * 1)  # Estimate 1 bottle per patient per month minimum
+        monthly_cons = max(
+            dispensed, patients * 1
+        )  # Estimate 1 bottle per patient per month minimum
         mos = round(Decimal(ending_balance) / Decimal(max(monthly_cons, 1)), 2)
 
         # Quantity requested for 3-month supply target
@@ -456,7 +483,10 @@ def aggregate_pmtct_tx_pvls_monthly(year: int = None, month: int = None) -> dict
 
     # 1. PMTCT Metrics
     pmtct_art_count = ARTEnrollment.query.filter(
-        or_(ARTEnrollment.is_pregnant.is_(True), ARTEnrollment.is_breastfeeding.is_(True)),
+        or_(
+            ARTEnrollment.is_pregnant.is_(True),
+            ARTEnrollment.is_breastfeeding.is_(True),
+        ),
         ARTEnrollment.enrollment_date <= end_dt,
     ).count()
 
@@ -476,6 +506,7 @@ def aggregate_pmtct_tx_pvls_monthly(year: int = None, month: int = None) -> dict
     ).count()
 
     from departments.hiv_art.models import ViralLoad
+
     vl_records = (
         db.session.query(ViralLoad)
         .filter(ViralLoad.test_date <= end_dt)
@@ -490,10 +521,22 @@ def aggregate_pmtct_tx_pvls_monthly(year: int = None, month: int = None) -> dict
             latest_vl[vl.patient_id] = vl
 
     tx_pvls_tested = len(latest_vl)
-    tx_pvls_suppressed = sum(1 for vl in latest_vl.values() if vl.viral_load_copies is not None and vl.viral_load_copies < 50)
-    tx_pvls_unsuppressed = sum(1 for vl in latest_vl.values() if vl.viral_load_copies is not None and vl.viral_load_copies >= 1000)
+    tx_pvls_suppressed = sum(
+        1
+        for vl in latest_vl.values()
+        if vl.viral_load_copies is not None and vl.viral_load_copies < 50
+    )
+    tx_pvls_unsuppressed = sum(
+        1
+        for vl in latest_vl.values()
+        if vl.viral_load_copies is not None and vl.viral_load_copies >= 1000
+    )
 
-    suppression_rate = round((tx_pvls_suppressed / tx_pvls_tested * 100), 1) if tx_pvls_tested > 0 else 100.0
+    suppression_rate = (
+        round((tx_pvls_suppressed / tx_pvls_tested * 100), 1)
+        if tx_pvls_tested > 0
+        else 100.0
+    )
 
     return {
         "period": period_str,
@@ -508,4 +551,3 @@ def aggregate_pmtct_tx_pvls_monthly(year: int = None, month: int = None) -> dict
         "tx_pvls_unsuppressed": tx_pvls_unsuppressed,
         "suppression_rate_pct": suppression_rate,
     }
-

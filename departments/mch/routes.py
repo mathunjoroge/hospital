@@ -138,7 +138,9 @@ def close_anc_visit(visit_id: str):
     if not visit:
         return jsonify({"error": "ANC visit not found"}), 404
 
-    return jsonify({"status": "success", "visit_id": visit.id, "message": "ANC visit closed."}), 200
+    return jsonify(
+        {"status": "success", "visit_id": visit.id, "message": "ANC visit closed."}
+    ), 200
 
 
 # ── Cold-Chain Routes ──────────────────────────────────────────────────────
@@ -160,14 +162,22 @@ def receive_vaccine_batch():
     """
     data = request.get_json(silent=True) or {}
 
-    required = ["vaccine_name", "batch_number", "manufacturer",
-                "quantity", "doses_per_vial", "expiry_date", "storage_location"]
+    required = [
+        "vaccine_name",
+        "batch_number",
+        "manufacturer",
+        "quantity",
+        "doses_per_vial",
+        "expiry_date",
+        "storage_location",
+    ]
     missing = [f for f in required if not data.get(f)]
     if missing:
         return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
 
     try:
         from datetime import date
+
         expiry_date = date.fromisoformat(data["expiry_date"])
     except ValueError:
         return jsonify({"error": "expiry_date must be in YYYY-MM-DD format."}), 400
@@ -186,14 +196,16 @@ def receive_vaccine_batch():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
-    return jsonify({
-        "status": "success",
-        "batch_id": batch.id,
-        "vaccine_name": batch.vaccine_name,
-        "batch_number": batch.batch_number,
-        "quantity_vials": batch.quantity_vials,
-        "expiry_date": batch.expiry_date.isoformat(),
-    }), 201
+    return jsonify(
+        {
+            "status": "success",
+            "batch_id": batch.id,
+            "vaccine_name": batch.vaccine_name,
+            "batch_number": batch.batch_number,
+            "quantity_vials": batch.quantity_vials,
+            "expiry_date": batch.expiry_date.isoformat(),
+        }
+    ), 201
 
 
 @bp.route("/api/cold-chain/temperature-log", methods=["POST"])
@@ -215,7 +227,9 @@ def log_temperature():
     temperature_celsius = data.get("temperature_celsius")
 
     if not storage_location or temperature_celsius is None:
-        return jsonify({"error": "storage_location and temperature_celsius are required."}), 400
+        return jsonify(
+            {"error": "storage_location and temperature_celsius are required."}
+        ), 400
 
     try:
         log = _cc.log_temperature(
@@ -227,15 +241,17 @@ def log_temperature():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
-    return jsonify({
-        "status": "success",
-        "log_id": log.id,
-        "is_breach": log.is_breach,
-        "breach_type": log.breach_type,
-        "temperature_celsius": log.temperature_celsius,
-        "storage_location": log.storage_location,
-        "recorded_at": log.recorded_at.isoformat(),
-    }), 201
+    return jsonify(
+        {
+            "status": "success",
+            "log_id": log.id,
+            "is_breach": log.is_breach,
+            "breach_type": log.breach_type,
+            "temperature_celsius": log.temperature_celsius,
+            "storage_location": log.storage_location,
+            "recorded_at": log.recorded_at.isoformat(),
+        }
+    ), 201
 
 
 @bp.route("/api/cold-chain/stock", methods=["GET"])
@@ -278,7 +294,9 @@ def temperature_history(storage_location: str):
         limit=limit,
         breaches_only=breaches_only,
     )
-    return jsonify({"storage_location": storage_location, "count": len(logs), "logs": logs}), 200
+    return jsonify(
+        {"storage_location": storage_location, "count": len(logs), "logs": logs}
+    ), 200
 
 
 @bp.route("/api/cold-chain/alerts/near-expiry", methods=["GET"])
@@ -299,9 +317,9 @@ def near_expiry_alerts():
     if wants_html:
         return render_template("mch/cold_chain.html", stock=summary, alerts=alerts)
 
-    return jsonify({"threshold_days": days, "count": len(alerts), "alerts": alerts}), 200
-
-
+    return jsonify(
+        {"threshold_days": days, "count": len(alerts), "alerts": alerts}
+    ), 200
 
 
 # ── NICU & Pediatrics Workstation Routes ───────────────────────────────────────
@@ -315,6 +333,7 @@ def calculate_apgar_route():
     Record APGAR 1/5/10 min score.
     """
     from departments.mch.nicu_pediatrics_engine import NicuPediatricsEngine
+
     data = request.get_json(silent=True) or {}
 
     patient_id = data.get("patient_id")
@@ -335,12 +354,14 @@ def calculate_apgar_route():
             resuscitation_notes=data.get("resuscitation_notes"),
             encounter_id=data.get("encounter_id"),
         )
-        return jsonify({
-            "status": "success",
-            "apgar_id": record.id,
-            "total_score": record.total_score,
-            "risk_category": record.risk_category,
-        }), 201
+        return jsonify(
+            {
+                "status": "success",
+                "apgar_id": record.id,
+                "total_score": record.total_score,
+                "risk_category": record.risk_category,
+            }
+        ), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -350,7 +371,12 @@ def calculate_apgar_route():
 def get_apgar_route(patient_id: str):
     """GET /mch/api/apgar/<patient_id>"""
     from departments.mch.models import NeonatalApgarRecord
-    records = NeonatalApgarRecord.query.filter_by(patient_id=patient_id).order_by(NeonatalApgarRecord.recorded_at.desc()).all()
+
+    records = (
+        NeonatalApgarRecord.query.filter_by(patient_id=patient_id)
+        .order_by(NeonatalApgarRecord.recorded_at.desc())
+        .all()
+    )
     results = [
         {
             "id": r.id,
@@ -368,7 +394,9 @@ def get_apgar_route(patient_id: str):
         }
         for r in records
     ]
-    return jsonify({"patient_id": patient_id, "count": len(results), "apgar_records": results}), 200
+    return jsonify(
+        {"patient_id": patient_id, "count": len(results), "apgar_records": results}
+    ), 200
 
 
 @bp.route("/api/phototherapy", methods=["POST"])
@@ -379,6 +407,7 @@ def phototherapy_assessment_route():
     Evaluate Bhutani Phototherapy Risk Nomogram.
     """
     from departments.mch.nicu_pediatrics_engine import NicuPediatricsEngine
+
     data = request.get_json(silent=True) or {}
 
     patient_id = data.get("patient_id")
@@ -386,7 +415,9 @@ def phototherapy_assessment_route():
     serum_bili = data.get("serum_bilirubin_mg_dl")
 
     if not patient_id or age_hours is None or serum_bili is None:
-        return jsonify({"error": "patient_id, age_hours, and serum_bilirubin_mg_dl are required."}), 400
+        return jsonify(
+            {"error": "patient_id, age_hours, and serum_bilirubin_mg_dl are required."}
+        ), 400
 
     try:
         record = NicuPediatricsEngine.evaluate_phototherapy_risk(
@@ -394,16 +425,19 @@ def phototherapy_assessment_route():
             age_hours=int(age_hours),
             serum_bilirubin_mg_dl=float(serum_bili),
             gestational_weeks=int(data.get("gestational_weeks", 38)),
-            has_hemolysis_risk=str(data.get("has_hemolysis_risk", "false")).lower() in ("true", "1", "on"),
+            has_hemolysis_risk=str(data.get("has_hemolysis_risk", "false")).lower()
+            in ("true", "1", "on"),
         )
-        return jsonify({
-            "status": "success",
-            "assessment_id": record.id,
-            "risk_zone": record.risk_zone,
-            "phototherapy_indicated": record.phototherapy_indicated,
-            "exchange_transfusion_indicated": record.exchange_transfusion_indicated,
-            "recommendation": record.clinical_recommendation,
-        }), 201
+        return jsonify(
+            {
+                "status": "success",
+                "assessment_id": record.id,
+                "risk_zone": record.risk_zone,
+                "phototherapy_indicated": record.phototherapy_indicated,
+                "exchange_transfusion_indicated": record.exchange_transfusion_indicated,
+                "recommendation": record.clinical_recommendation,
+            }
+        ), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -416,6 +450,7 @@ def growth_chart_route():
     Record WHO/CDC pediatric growth measurements & Z-scores.
     """
     from departments.mch.nicu_pediatrics_engine import NicuPediatricsEngine
+
     data = request.get_json(silent=True) or {}
 
     patient_id = data.get("patient_id")
@@ -423,25 +458,33 @@ def growth_chart_route():
     weight_kg = data.get("weight_kg")
 
     if not patient_id or age_months is None or weight_kg is None:
-        return jsonify({"error": "patient_id, age_months, and weight_kg are required."}), 400
+        return jsonify(
+            {"error": "patient_id, age_months, and weight_kg are required."}
+        ), 400
 
     try:
         record = NicuPediatricsEngine.calculate_growth_percentiles(
             patient_id=patient_id,
             age_months=float(age_months),
             weight_kg=float(weight_kg),
-            height_cm=float(data["height_cm"]) if data.get("height_cm") is not None else None,
-            head_circumference_cm=float(data["head_circumference_cm"]) if data.get("head_circumference_cm") is not None else None,
+            height_cm=float(data["height_cm"])
+            if data.get("height_cm") is not None
+            else None,
+            head_circumference_cm=float(data["head_circumference_cm"])
+            if data.get("head_circumference_cm") is not None
+            else None,
             encounter_id=data.get("encounter_id"),
         )
-        return jsonify({
-            "status": "success",
-            "growth_id": record.id,
-            "weight_zscore": record.weight_for_age_zscore,
-            "height_zscore": record.height_for_age_zscore,
-            "head_circ_zscore": record.head_circ_zscore,
-            "nutritional_status": record.nutritional_status,
-        }), 201
+        return jsonify(
+            {
+                "status": "success",
+                "growth_id": record.id,
+                "weight_zscore": record.weight_for_age_zscore,
+                "height_zscore": record.height_for_age_zscore,
+                "head_circ_zscore": record.head_circ_zscore,
+                "nutritional_status": record.nutritional_status,
+            }
+        ), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -456,7 +499,9 @@ def nicu_workstation_ui(patient_id: str = None):
     from departments.mch.nicu_pediatrics_engine import NicuPediatricsEngine
     from departments.models.records import Patient
 
-    patient = Patient.query.filter_by(patient_id=patient_id).first() if patient_id else None
+    patient = (
+        Patient.query.filter_by(patient_id=patient_id).first() if patient_id else None
+    )
     if not patient:
         # P0-10: Never substitute an unrelated patient. Fail explicitly.
         abort(404)
@@ -464,5 +509,6 @@ def nicu_workstation_ui(patient_id: str = None):
     pid = patient.patient_id if patient else "P001"
     summary = NicuPediatricsEngine.get_nicu_workstation_summary(pid)
 
-    return render_template("mch/nicu_workstation.html", patient=patient, summary=summary)
-
+    return render_template(
+        "mch/nicu_workstation.html", patient=patient, summary=summary
+    )

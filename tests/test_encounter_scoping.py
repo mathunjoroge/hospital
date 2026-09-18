@@ -12,10 +12,14 @@ from extensions import db
 
 
 def _setup_patient_with_active_encounter(pid="P_TEST_SCOPING"):
-    p = Patient(patient_id=pid, name=f"Test {pid}", sex="M", date_of_birth=date(1995, 5, 15))
+    p = Patient(
+        patient_id=pid, name=f"Test {pid}", sex="M", date_of_birth=date(1995, 5, 15)
+    )
     db.session.add(p)
     db.session.add(PatientWaitingList(patient_id=pid, seen=QueueStatus.WAITING_TRIAGE))
-    enc = Encounter(patient_id=pid, encounter_type="OPD", status="ACTIVE", stage="IN_CONSULTATION")
+    enc = Encounter(
+        patient_id=pid, encounter_type="OPD", status="ACTIVE", stage="IN_CONSULTATION"
+    )
     db.session.add(enc)
     db.session.commit()
     return p, enc
@@ -39,7 +43,12 @@ def test_request_lab_tests_populates_encounter_id(app, client):
         # Setup admin user
         user = User.query.filter_by(username="admin_scoping").first()
         if not user:
-            user = User(id=9988, username="admin_scoping", role="admin", password=generate_password_hash("pass123"))
+            user = User(
+                id=9988,
+                username="admin_scoping",
+                role="admin",
+                password=generate_password_hash("pass123"),
+            )
             db.session.add(user)
             db.session.commit()
 
@@ -52,7 +61,11 @@ def test_request_lab_tests_populates_encounter_id(app, client):
         enc_id = enc.id
 
     # Authenticate client
-    client.post("/login", data={"username": "admin_scoping", "password": "pass123"}, follow_redirects=True)
+    client.post(
+        "/login",
+        data={"username": "admin_scoping", "password": "pass123"},
+        follow_redirects=True,
+    )
 
     resp = client.post(
         "/medicine/request_lab_tests/P_LAB_SCOPING",
@@ -71,7 +84,12 @@ def test_request_imaging_populates_encounter_id(app, client):
     with app.app_context():
         user = User.query.filter_by(username="admin_scoping").first()
         if not user:
-            user = User(id=9988, username="admin_scoping", role="admin", password=generate_password_hash("pass123"))
+            user = User(
+                id=9988,
+                username="admin_scoping",
+                role="admin",
+                password=generate_password_hash("pass123"),
+            )
             db.session.add(user)
             db.session.commit()
 
@@ -83,11 +101,18 @@ def test_request_imaging_populates_encounter_id(app, client):
         p, enc = _setup_patient_with_active_encounter("P_IMG_SCOPING")
         enc_id = enc.id
 
-    client.post("/login", data={"username": "admin_scoping", "password": "pass123"}, follow_redirects=True)
+    client.post(
+        "/login",
+        data={"username": "admin_scoping", "password": "pass123"},
+        follow_redirects=True,
+    )
 
     resp = client.post(
         "/medicine/request_imaging/P_IMG_SCOPING",
-        data={"imaging_types[]": [str(img_id)], f"descriptions[{img_id}]": "Cough assessment"},
+        data={
+            "imaging_types[]": [str(img_id)],
+            f"descriptions[{img_id}]": "Cough assessment",
+        },
         follow_redirects=True,
     )
     assert resp.status_code == 200

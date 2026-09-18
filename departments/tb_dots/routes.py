@@ -75,16 +75,29 @@ def enroll_patient():
 
     # Validate hiv_status if provided
     hiv_status = data.get("hiv_status")
-    if hiv_status and hiv_status not in ['positive', 'negative', 'unknown', 'refused_test']:
-        return jsonify({"error": "Invalid hiv_status. Must be one of: positive, negative, unknown, refused_test"}), 400
+    if hiv_status and hiv_status not in [
+        "positive",
+        "negative",
+        "unknown",
+        "refused_test",
+    ]:
+        return jsonify(
+            {
+                "error": "Invalid hiv_status. Must be one of: positive, negative, unknown, refused_test"
+            }
+        ), 400
 
     # Parse optional dates
     treatment_start_date = None
     if data.get("treatment_start_date"):
         try:
-            treatment_start_date = datetime.fromisoformat(data["treatment_start_date"].replace('Z', '+00:00'))
+            treatment_start_date = datetime.fromisoformat(
+                data["treatment_start_date"].replace("Z", "+00:00")
+            )
         except ValueError:
-            return jsonify({"error": "Invalid treatment_start_date format. Use ISO format."}), 400
+            return jsonify(
+                {"error": "Invalid treatment_start_date format. Use ISO format."}
+            ), 400
 
     success, message, enrollment = create_tb_enrollment(
         patient_id=patient_id,
@@ -97,15 +110,17 @@ def enroll_patient():
         treatment_start_date=treatment_start_date,
         facility_enrolled_at=data.get("facility_enrolled_at"),
         encounter_id=data.get("encounter_id"),
-        current_regimen_id=data.get("current_regimen_id")
+        current_regimen_id=data.get("current_regimen_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "enrollment_id": enrollment.id,
-            "tb_number": enrollment.tb_number
-        }), 201
+        return jsonify(
+            {
+                "message": message,
+                "enrollment_id": enrollment.id,
+                "tb_number": enrollment.tb_number,
+            }
+        ), 201
     else:
         return jsonify({"error": message}), 400
 
@@ -142,18 +157,28 @@ def change_regimen(enrollment_id):
         new_regimen_id=new_regimen_id,
         change_reason=change_reason,
         approved_by=approved_by,
-        encounter_id=data.get("encounter_id")
+        encounter_id=data.get("encounter_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "current_regimen": {
-                "id": enrollment.current_regimen.id if enrollment.current_regimen else None,
-                "code": enrollment.current_regimen.regimen_code if enrollment.current_regimen else None,
-                "name": enrollment.current_regimen.regimen_name if enrollment.current_regimen else None
-            } if enrollment.current_regimen else None
-        }), 200
+        return jsonify(
+            {
+                "message": message,
+                "current_regimen": {
+                    "id": enrollment.current_regimen.id
+                    if enrollment.current_regimen
+                    else None,
+                    "code": enrollment.current_regimen.regimen_code
+                    if enrollment.current_regimen
+                    else None,
+                    "name": enrollment.current_regimen.regimen_name
+                    if enrollment.current_regimen
+                    else None,
+                }
+                if enrollment.current_regimen
+                else None,
+            }
+        ), 200
     else:
         return jsonify({"error": message}), 400
 
@@ -176,7 +201,9 @@ def record_dose(enrollment_id):
     date_taken = None
     if data.get("date_taken"):
         try:
-            date_taken = datetime.fromisoformat(data["date_taken"].replace('Z', '+00:00'))
+            date_taken = datetime.fromisoformat(
+                data["date_taken"].replace("Z", "+00:00")
+            )
         except ValueError:
             return jsonify({"error": "Invalid date_taken format. Use ISO format."}), 400
 
@@ -184,17 +211,19 @@ def record_dose(enrollment_id):
         enrollment_id=enrollment_id,
         taken_as_directly_observed=data.get("taken_as_directly_observed", False),
         date_taken=date_taken,
-        encounter_id=data.get("encounter_id")
+        encounter_id=data.get("encounter_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "dose_id": dose.id,
-            "dose_number": dose.dose_number,
-            "date_taken": dose.date_taken.isoformat() if dose.date_taken else None,
-            "taken_as_directly_observed": dose.taken_as_directly_observed
-        }), 201
+        return jsonify(
+            {
+                "message": message,
+                "dose_id": dose.id,
+                "dose_number": dose.dose_number,
+                "date_taken": dose.date_taken.isoformat() if dose.date_taken else None,
+                "taken_as_directly_observed": dose.taken_as_directly_observed,
+            }
+        ), 201
     else:
         return jsonify({"error": message}), 400
 
@@ -237,7 +266,7 @@ def record_sputum(enrollment_id):
     test_date = None
     if data.get("test_date"):
         try:
-            test_date = datetime.fromisoformat(data["test_date"].replace('Z', '+00:00'))
+            test_date = datetime.fromisoformat(data["test_date"].replace("Z", "+00:00"))
         except ValueError:
             return jsonify({"error": "Invalid test_date format. Use ISO format."}), 400
 
@@ -250,19 +279,21 @@ def record_sputum(enrollment_id):
         culture_species=data.get("culture_species"),
         drug_susceptibility=data.get("drug_susceptibility"),
         test_date=test_date,
-        encounter_id=data.get("encounter_id")
+        encounter_id=data.get("encounter_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "sputum_id": sputum.id,
-            "specimen_type": sputum.specimen_type,
-            "specimen_number": sputum.specimen_number,
-            "smear_result": sputum.smear_result,
-            "culture_result": sputum.culture_result,
-            "test_date": sputum.test_date.isoformat() if sputum.test_date else None
-        }), 201
+        return jsonify(
+            {
+                "message": message,
+                "sputum_id": sputum.id,
+                "specimen_type": sputum.specimen_type,
+                "specimen_number": sputum.specimen_number,
+                "smear_result": sputum.smear_result,
+                "culture_result": sputum.culture_result,
+                "test_date": sputum.test_date.isoformat() if sputum.test_date else None,
+            }
+        ), 201
     else:
         return jsonify({"error": message}), 400
 
@@ -287,7 +318,7 @@ def record_xray(enrollment_id):
     test_date = None
     if data.get("test_date"):
         try:
-            test_date = datetime.fromisoformat(data["test_date"].replace('Z', '+00:00'))
+            test_date = datetime.fromisoformat(data["test_date"].replace("Z", "+00:00"))
         except ValueError:
             return jsonify({"error": "Invalid test_date format. Use ISO format."}), 400
 
@@ -297,18 +328,20 @@ def record_xray(enrollment_id):
         severity=data.get("severity"),
         progression=data.get("progression"),
         test_date=test_date,
-        encounter_id=data.get("encounter_id")
+        encounter_id=data.get("encounter_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "xray_id": xray.id,
-            "finding": xray.finding,
-            "severity": xray.severity,
-            "progression": xray.progression,
-            "test_date": xray.test_date.isoformat() if xray.test_date else None
-        }), 201
+        return jsonify(
+            {
+                "message": message,
+                "xray_id": xray.id,
+                "finding": xray.finding,
+                "severity": xray.severity,
+                "progression": xray.progression,
+                "test_date": xray.test_date.isoformat() if xray.test_date else None,
+            }
+        ), 201
     else:
         return jsonify({"error": message}), 400
 
@@ -337,14 +370,16 @@ def record_hiv_status_endpoint(enrollment_id):
         return jsonify({"error": "test_type is required"}), 400
     if not result:
         return jsonify({"error": "result is required"}), 400
-    if result not in ['positive', 'negative', 'indeterminate']:
-        return jsonify({"error": "result must be one of: positive, negative, indeterminate"}), 400
+    if result not in ["positive", "negative", "indeterminate"]:
+        return jsonify(
+            {"error": "result must be one of: positive, negative, indeterminate"}
+        ), 400
 
     # Parse optional date
     test_date = None
     if data.get("test_date"):
         try:
-            test_date = datetime.fromisoformat(data["test_date"].replace('Z', '+00:00'))
+            test_date = datetime.fromisoformat(data["test_date"].replace("Z", "+00:00"))
         except ValueError:
             return jsonify({"error": "Invalid test_date format. Use ISO format."}), 400
 
@@ -354,18 +389,22 @@ def record_hiv_status_endpoint(enrollment_id):
         result=result,
         cd4_count=data.get("cd4_count"),
         test_date=test_date,
-        encounter_id=data.get("encounter_id")
+        encounter_id=data.get("encounter_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "hiv_status_id": hiv_status.id,
-            "test_type": hiv_status.test_type,
-            "result": hiv_status.result,
-            "cd4_count": hiv_status.cd4_count,
-            "test_date": hiv_status.test_date.isoformat() if hiv_status.test_date else None
-        }), 201
+        return jsonify(
+            {
+                "message": message,
+                "hiv_status_id": hiv_status.id,
+                "test_type": hiv_status.test_type,
+                "result": hiv_status.result,
+                "cd4_count": hiv_status.cd4_count,
+                "test_date": hiv_status.test_date.isoformat()
+                if hiv_status.test_date
+                else None,
+            }
+        ), 201
     else:
         return jsonify({"error": message}), 400
 
@@ -401,69 +440,116 @@ def get_patient_summary(enrollment_id):
         if current_regimen and enrollment.treatment_start_date:
             # Expected doses per day based on regimen (simplified: assume daily dosing)
             expected_doses_per_day = 1  # This would be more complex in reality
-            days_on_treatment_float = (datetime.now(timezone.utc) - enrollment.treatment_start_date).total_seconds() / (24*3600)
+            days_on_treatment_float = (
+                datetime.now(timezone.utc) - enrollment.treatment_start_date
+            ).total_seconds() / (24 * 3600)
             expected_doses = int(days_on_treatment_float * expected_doses_per_day)
-            actual_doses = len(recent_doses)  # This is only recent doses, not total - limitation
+            actual_doses = len(
+                recent_doses
+            )  # This is only recent doses, not total - limitation
             if expected_doses > 0:
                 adherence_percentage = min(100.0, (actual_doses / expected_doses) * 100)
 
-        return jsonify({
-            "enrollment": {
-                "id": enrollment.id,
-                "patient_id": enrollment.patient_id,
-                "tb_number": enrollment.tb_number,
-                "enrollment_date": enrollment.enrollment_date.isoformat() if enrollment.enrollment_date else None,
-                "treatment_start_date": enrollment.treatment_start_date.isoformat() if enrollment.treatment_start_date else None,
-                "hiv_status": enrollment.hiv_status,
-                "art_enrollment_id": enrollment.art_enrollment_id,
-                "tb_classification": enrollment.tb_classification,
-                "site_of_disease": enrollment.site_of_disease,
-                "bacteriological_status": enrollment.bacteriological_status,
-                "facility_enrolled_at": enrollment.facility_enrolled_at,
-                "days_on_treatment": days_on_treatment
-            },
-            "current_regimen": {
-                "id": current_regimen.id if current_regimen else None,
-                "code": current_regimen.regimen_code if current_regimen else None,
-                "name": current_regimen.regimen_name if current_regimen else None,
-                "line_of_therapy": current_regimen.line_of_therapy if current_regimen else None,
-                "drugs": current_regimen.drugs if current_regimen else None,
-                "duration_months": current_regimen.duration_months if current_regimen else None
-            } if current_regimen else None,
-            "latest_sputum": {
-                "id": latest_sputum.id if latest_sputum else None,
-                "specimen_type": latest_sputum.specimen_type if latest_sputum else None,
-                "specimen_number": latest_sputum.specimen_number if latest_sputum else None,
-                "smear_result": latest_sputum.smear_result if latest_sputum else None,
-                "culture_result": latest_sputum.culture_result if latest_sputum else None,
-                "culture_species": latest_sputum.culture_species if latest_sputum else None,
-                "drug_susceptibility": latest_sputum.drug_susceptibility if latest_sputum else None,
-                "test_date": latest_sputum.test_date.isoformat() if latest_sputum and latest_sputum.test_date else None
-            } if latest_sputum else None,
-            "latest_xray": {
-                "id": latest_xray.id if latest_xray else None,
-                "finding": latest_xray.finding if latest_xray else None,
-                "severity": latest_xray.severity if latest_xray else None,
-                "progression": latest_xray.progression if latest_xray else None,
-                "test_date": latest_xray.test_date.isoformat() if latest_xray and latest_xray.test_date else None
-            } if latest_xray else None,
-            "latest_hiv_status": {
-                "id": latest_hiv_status.id if latest_hiv_status else None,
-                "test_type": latest_hiv_status.test_type if latest_hiv_status else None,
-                "result": latest_hiv_status.result if latest_hiv_status else None,
-                "cd4_count": latest_hiv_status.cd4_count if latest_hiv_status else None,
-                "test_date": latest_hiv_status.test_date.isoformat() if latest_hiv_status and latest_hiv_status.test_date else None
-            } if latest_hiv_status else None,
-            "recent_doses": [
-                {
-                    "id": dose.id,
-                    "date_taken": dose.date_taken.isoformat() if dose.date_taken else None,
-                    "dose_number": dose.dose_number,
-                    "taken_as_directly_observed": dose.taken_as_directly_observed
-                } for dose in recent_doses
-            ],
-            "adherence_percentage": adherence_percentage
-        }), 200
+        return jsonify(
+            {
+                "enrollment": {
+                    "id": enrollment.id,
+                    "patient_id": enrollment.patient_id,
+                    "tb_number": enrollment.tb_number,
+                    "enrollment_date": enrollment.enrollment_date.isoformat()
+                    if enrollment.enrollment_date
+                    else None,
+                    "treatment_start_date": enrollment.treatment_start_date.isoformat()
+                    if enrollment.treatment_start_date
+                    else None,
+                    "hiv_status": enrollment.hiv_status,
+                    "art_enrollment_id": enrollment.art_enrollment_id,
+                    "tb_classification": enrollment.tb_classification,
+                    "site_of_disease": enrollment.site_of_disease,
+                    "bacteriological_status": enrollment.bacteriological_status,
+                    "facility_enrolled_at": enrollment.facility_enrolled_at,
+                    "days_on_treatment": days_on_treatment,
+                },
+                "current_regimen": {
+                    "id": current_regimen.id if current_regimen else None,
+                    "code": current_regimen.regimen_code if current_regimen else None,
+                    "name": current_regimen.regimen_name if current_regimen else None,
+                    "line_of_therapy": current_regimen.line_of_therapy
+                    if current_regimen
+                    else None,
+                    "drugs": current_regimen.drugs if current_regimen else None,
+                    "duration_months": current_regimen.duration_months
+                    if current_regimen
+                    else None,
+                }
+                if current_regimen
+                else None,
+                "latest_sputum": {
+                    "id": latest_sputum.id if latest_sputum else None,
+                    "specimen_type": latest_sputum.specimen_type
+                    if latest_sputum
+                    else None,
+                    "specimen_number": latest_sputum.specimen_number
+                    if latest_sputum
+                    else None,
+                    "smear_result": latest_sputum.smear_result
+                    if latest_sputum
+                    else None,
+                    "culture_result": latest_sputum.culture_result
+                    if latest_sputum
+                    else None,
+                    "culture_species": latest_sputum.culture_species
+                    if latest_sputum
+                    else None,
+                    "drug_susceptibility": latest_sputum.drug_susceptibility
+                    if latest_sputum
+                    else None,
+                    "test_date": latest_sputum.test_date.isoformat()
+                    if latest_sputum and latest_sputum.test_date
+                    else None,
+                }
+                if latest_sputum
+                else None,
+                "latest_xray": {
+                    "id": latest_xray.id if latest_xray else None,
+                    "finding": latest_xray.finding if latest_xray else None,
+                    "severity": latest_xray.severity if latest_xray else None,
+                    "progression": latest_xray.progression if latest_xray else None,
+                    "test_date": latest_xray.test_date.isoformat()
+                    if latest_xray and latest_xray.test_date
+                    else None,
+                }
+                if latest_xray
+                else None,
+                "latest_hiv_status": {
+                    "id": latest_hiv_status.id if latest_hiv_status else None,
+                    "test_type": latest_hiv_status.test_type
+                    if latest_hiv_status
+                    else None,
+                    "result": latest_hiv_status.result if latest_hiv_status else None,
+                    "cd4_count": latest_hiv_status.cd4_count
+                    if latest_hiv_status
+                    else None,
+                    "test_date": latest_hiv_status.test_date.isoformat()
+                    if latest_hiv_status and latest_hiv_status.test_date
+                    else None,
+                }
+                if latest_hiv_status
+                else None,
+                "recent_doses": [
+                    {
+                        "id": dose.id,
+                        "date_taken": dose.date_taken.isoformat()
+                        if dose.date_taken
+                        else None,
+                        "dose_number": dose.dose_number,
+                        "taken_as_directly_observed": dose.taken_as_directly_observed,
+                    }
+                    for dose in recent_doses
+                ],
+                "adherence_percentage": adherence_percentage,
+            }
+        ), 200
 
     except Exception as e:
         logger.error(f"Error getting patient summary: {e}")
@@ -479,23 +565,30 @@ def get_formulary():
     """
     try:
         regimens = get_tb_formulary()
-        return jsonify({
-            "regimens": [
-                {
-                    "id": regimen.id,
-                    "code": regimen.regimen_code,
-                    "name": regimen.regimen_name,
-                    "line_of_therapy": regimen.line_of_therapy,
-                    "drugs": regimen.drugs,
-                    "is_preferred": regimen.is_preferred,
-                    "is_alternative": regimen.is_alternative,
-                    "restriction_notes": regimen.restriction_notes,
-                    "effective_from": regimen.effective_from.isoformat() if regimen.effective_from else None,
-                    "effective_to": regimen.effective_to.isoformat() if regimen.effective_to else None,
-                    "duration_months": regimen.duration_months
-                } for regimen in regimens
-            ]
-        }), 200
+        return jsonify(
+            {
+                "regimens": [
+                    {
+                        "id": regimen.id,
+                        "code": regimen.regimen_code,
+                        "name": regimen.regimen_name,
+                        "line_of_therapy": regimen.line_of_therapy,
+                        "drugs": regimen.drugs,
+                        "is_preferred": regimen.is_preferred,
+                        "is_alternative": regimen.is_alternative,
+                        "restriction_notes": regimen.restriction_notes,
+                        "effective_from": regimen.effective_from.isoformat()
+                        if regimen.effective_from
+                        else None,
+                        "effective_to": regimen.effective_to.isoformat()
+                        if regimen.effective_to
+                        else None,
+                        "duration_months": regimen.duration_months,
+                    }
+                    for regimen in regimens
+                ]
+            }
+        ), 200
     except Exception as e:
         logger.error(f"Error getting formulary: {e}")
         return jsonify({"error": "Internal server error"}), 500
@@ -510,10 +603,7 @@ def validate_regimen(regimen_id):
     """
     try:
         valid = is_tb_regimen_valid(regimen_id)
-        return jsonify({
-            "regimen_id": regimen_id,
-            "is_valid": valid
-        }), 200
+        return jsonify({"regimen_id": regimen_id, "is_valid": valid}), 200
     except Exception as e:
         logger.error(f"Error validating regimen: {e}")
         return jsonify({"error": "Internal server error"}), 500
@@ -531,10 +621,12 @@ def trigger_missed_dose_check():
     try:
         # For simplicity, we'll just return a placeholder message
         # In a real implementation, we would check for doses not taken within expected windows
-        return jsonify({
-            "message": "Missed dose check triggered. (Implementation pending)",
-            "checked": True
-        }), 200
+        return jsonify(
+            {
+                "message": "Missed dose check triggered. (Implementation pending)",
+                "checked": True,
+            }
+        ), 200
     except Exception as e:
         logger.error(f"Error in missed dose check: {e}")
         return jsonify({"error": "Internal server error"}), 500
@@ -569,11 +661,13 @@ def dashboard_ui():
     critical_count = 0  # Would need logic to determine critical cases
     doses_due = 0  # Would need logic to determine doses due
 
-    return render_template("tb_dots/dashboard.html",
-                          enrollments=enrollments,
-                          active_count=active_count,
-                          critical_count=critical_count,
-                          doses_due=doses_due)
+    return render_template(
+        "tb_dots/dashboard.html",
+        enrollments=enrollments,
+        active_count=active_count,
+        critical_count=critical_count,
+        doses_due=doses_due,
+    )
 
 
 @bp.route("/ui/enroll", methods=["GET", "POST"])
@@ -603,7 +697,9 @@ def enroll_ui():
                 site_of_disease=site_of_disease,
                 hiv_status=hiv_status,
                 tb_classification=tb_classification,
-                current_regimen_id=int(current_regimen_id) if current_regimen_id else None,
+                current_regimen_id=int(current_regimen_id)
+                if current_regimen_id
+                else None,
             )
             flash("Patient enrolled successfully!", "success")
             return redirect(url_for("tb_dots.dashboard_ui"))
@@ -627,10 +723,20 @@ def patient_detail_ui(enrollment_id):
         flash("Enrollment not found", "error")
         return redirect(url_for("tb_dots.dashboard_ui"))
 
-    doses_taken = DoseTaken.query.filter_by(tb_enrollment_id=enrollment_id).order_by(DoseTaken.date_taken.desc()).all()
-    sputum_results = SputumResult.query.filter_by(tb_enrollment_id=enrollment_id).order_by(SputumResult.test_date.desc()).all()
+    doses_taken = (
+        DoseTaken.query.filter_by(tb_enrollment_id=enrollment_id)
+        .order_by(DoseTaken.date_taken.desc())
+        .all()
+    )
+    sputum_results = (
+        SputumResult.query.filter_by(tb_enrollment_id=enrollment_id)
+        .order_by(SputumResult.test_date.desc())
+        .all()
+    )
 
-    return render_template("tb_dots/patient_detail.html",
-                          enrollment=enrollment,
-                          doses_taken=doses_taken,
-                          sputum_results=sputum_results)
+    return render_template(
+        "tb_dots/patient_detail.html",
+        enrollment=enrollment,
+        doses_taken=doses_taken,
+        sputum_results=sputum_results,
+    )

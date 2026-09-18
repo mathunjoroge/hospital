@@ -10,7 +10,6 @@ Tests:
   - Compliance API endpoints (/compliance/api/hipaa-status & /compliance/api/verify-audit-chain)
 """
 
-
 from departments.audit import (
     GENESIS_HASH,
     compute_log_hash,
@@ -26,12 +25,26 @@ class TestCryptographicAuditLogChain:
     """Test cryptographic SHA-256 hash chaining and tamper detection."""
 
     def test_compute_log_hash(self):
-        h1 = compute_log_hash("2026-09-13T22:00:00+00:00", "INFO", "Test log msg", "1", "audit", GENESIS_HASH)
+        h1 = compute_log_hash(
+            "2026-09-13T22:00:00+00:00",
+            "INFO",
+            "Test log msg",
+            "1",
+            "audit",
+            GENESIS_HASH,
+        )
         assert len(h1) == 64
         assert isinstance(h1, str)
 
         # Mutating any field changes hash
-        h2 = compute_log_hash("2026-09-13T22:00:00+00:00", "INFO", "Mutated log msg", "1", "audit", GENESIS_HASH)
+        h2 = compute_log_hash(
+            "2026-09-13T22:00:00+00:00",
+            "INFO",
+            "Mutated log msg",
+            "1",
+            "audit",
+            GENESIS_HASH,
+        )
         assert h1 != h2
 
     def test_log_audit_event_chaining(self, app):
@@ -41,10 +54,22 @@ class TestCryptographicAuditLogChain:
             db.session.commit()
 
             # Insert 2 chained log entries
-            log_audit_event(db.session, "INFO", "Action 1: Patient Created", user_id=1, source="test")
+            log_audit_event(
+                db.session,
+                "INFO",
+                "Action 1: Patient Created",
+                user_id=1,
+                source="test",
+            )
             db.session.commit()
 
-            log_audit_event(db.session, "INFO", "Action 2: Prescribed Meds", user_id=1, source="test")
+            log_audit_event(
+                db.session,
+                "INFO",
+                "Action 2: Prescribed Meds",
+                user_id=1,
+                source="test",
+            )
             db.session.commit()
 
             logs = Log.query.order_by(Log.id.asc()).all()
@@ -66,7 +91,13 @@ class TestCryptographicAuditLogChain:
             Log.query.delete()
             db.session.commit()
 
-            log_audit_event(db.session, "INFO", "Original Untampered Entry", user_id=1, source="test")
+            log_audit_event(
+                db.session,
+                "INFO",
+                "Original Untampered Entry",
+                user_id=1,
+                source="test",
+            )
             db.session.commit()
 
             # Tamper with the message in the database directly
@@ -99,11 +130,14 @@ class TestComplianceRoutes:
             from werkzeug.security import generate_password_hash
 
             from departments.models.user import User
+
             admin = User.query.filter_by(username="compliance_admin_test").first()
             if not admin:
                 admin = User(
                     username="compliance_admin_test",
-                    password=generate_password_hash("Password123!", method="pbkdf2:sha256"),
+                    password=generate_password_hash(
+                        "Password123!", method="pbkdf2:sha256"
+                    ),
                     role="admin",
                 )
                 db.session.add(admin)
@@ -118,7 +152,10 @@ class TestComplianceRoutes:
         self._login_admin(app, client)
         resp = client.get("/compliance/hipaa-dashboard")
         assert resp.status_code == 200
-        assert b"HIPAA &amp; HITRUST CSF Certification Console" in resp.data or b"HIPAA & HITRUST CSF Certification Console" in resp.data
+        assert (
+            b"HIPAA &amp; HITRUST CSF Certification Console" in resp.data
+            or b"HIPAA & HITRUST CSF Certification Console" in resp.data
+        )
 
     def test_api_hipaa_status(self, client, app):
         self._login_admin(app, client)
@@ -135,4 +172,3 @@ class TestComplianceRoutes:
         data = resp.get_json()
         assert data["status"] == "success"
         assert "verification" in data
-

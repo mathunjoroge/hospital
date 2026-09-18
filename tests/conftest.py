@@ -12,9 +12,7 @@ os.environ.setdefault("SECURITY_PASSWORD_SALT", "testing_salt_1234567890")
 # Without this, get_fernet_key() generates a NEW ephemeral key on every call
 # in test mode, so encrypt() and decrypt() use different keys and roundtrips
 # fail. Derived from a fixed seed; valid only for testing.
-os.environ.setdefault(
-    "ENCRYPTION_KEY", "thInEUT_C4EOAyIAvI7aHWq0gmhf29_LfWzD7G6sAwo="
-)
+os.environ.setdefault("ENCRYPTION_KEY", "thInEUT_C4EOAyIAvI7aHWq0gmhf29_LfWzD7G6sAwo=")
 
 from app import app as flask_app
 from extensions import db, limiter
@@ -66,6 +64,7 @@ def admin_user(client, app):
             db.session.add(user)
             db.session.commit()
 
-    client.post("/login", data={"username": "admin_test_fixture", "password": "admin123"})
+    client.post(
+        "/login", data={"username": "admin_test_fixture", "password": "admin123"}
+    )
     yield user
-

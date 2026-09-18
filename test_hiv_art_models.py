@@ -39,7 +39,7 @@ def test_model_creation():
                 line_of_therapy=1,
                 arv_drugs="Tenofovir, Lamivudine, Efavirenz",
                 is_preferred=True,
-                effective_from=datetime.now(timezone.utc).date()
+                effective_from=datetime.now(timezone.utc).date(),
             )
             db.session.add(regimen)
             db.session.commit()
@@ -58,7 +58,7 @@ def test_model_creation():
                 baseline_who_stage=2,
                 art_start_date=datetime.now(timezone.utc),
                 facility_enrolled_at="Test Clinic",
-                current_regimen_id=regimen.id
+                current_regimen_id=regimen.id,
             )
             db.session.add(enrollment)
             db.session.commit()
@@ -78,7 +78,7 @@ def test_model_creation():
                 pills_returned=3,
                 adherence_percentage=90.0,
                 adherence_category="good",
-                visit_date=datetime.now(timezone.utc)
+                visit_date=datetime.now(timezone.utc),
             )
             db.session.add(visit)
             db.session.commit()
@@ -95,7 +95,7 @@ def test_model_creation():
                 enrollment_id=enrollment.id,
                 viral_load_copies=250,
                 test_type="routine",
-                test_date=datetime.now(timezone.utc)
+                test_date=datetime.now(timezone.utc),
             )
             db.session.add(viral_load)
             db.session.commit()
@@ -110,7 +110,7 @@ def test_model_creation():
                 enrollment_id=enrollment.id,
                 cd4_count=450,
                 cd4_percent=28.0,
-                test_date=datetime.now(timezone.utc)
+                test_date=datetime.now(timezone.utc),
             )
             db.session.add(cd4)
             db.session.commit()
@@ -125,7 +125,7 @@ def test_model_creation():
                 enrollment_id=enrollment.id,
                 who_stage=1,
                 defining_conditions="Asymptomatic",
-                assessment_date=datetime.now(timezone.utc)
+                assessment_date=datetime.now(timezone.utc),
             )
             db.session.add(who_stage)
             db.session.commit()
@@ -157,7 +157,7 @@ def test_model_creation():
                 pills_returned=10,  # Took 10 out of 20 = 50%
                 adherence_percentage=50.0,
                 adherence_category="poor",
-                visit_date=datetime.now(timezone.utc) + timedelta(days=30)
+                visit_date=datetime.now(timezone.utc) + timedelta(days=30),
             )
             db.session.add(visit2)
             db.session.commit()
@@ -172,12 +172,14 @@ def test_model_creation():
         except Exception as e:
             print(f"❌ Error during testing: {e}")
             import traceback
+
             traceback.print_exc()
             db.session.rollback()
             return False
         finally:
             db.session.remove()
             db.drop_all()
+
 
 if __name__ == "__main__":
     success = test_model_creation()

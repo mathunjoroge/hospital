@@ -57,13 +57,21 @@ def test_unified_patient_flow(app, client):
 
         # Phase 4: PatientWaitingList is retired. Check Encounter instead.
         from departments.models.encounter import Encounter
+
         enc = Encounter.query.filter_by(patient_id=patient_id).first()
         assert enc is not None, "Encounter should be created on registration"
-        assert enc.stage in ("REGISTERED", "REGISTERED_UNPAID"), "New encounter should start at REGISTERED or REGISTERED_UNPAID stage"
+        assert enc.stage in (
+            "REGISTERED",
+            "REGISTERED_UNPAID",
+        ), "New encounter should start at REGISTERED or REGISTERED_UNPAID stage"
 
         # Legacy table should no longer be written to
-        waiting_entry = PatientWaitingList.query.filter_by(patient_id=patient_id).first()
-        assert waiting_entry is None, "PatientWaitingList should not be created in Phase 4"
+        waiting_entry = PatientWaitingList.query.filter_by(
+            patient_id=patient_id
+        ).first()
+        assert (
+            waiting_entry is None
+        ), "PatientWaitingList should not be created in Phase 4"
 
         # Check Appointment record (Bridging working!)
         appt = Appointment.query.filter_by(patient_id=patient_id).first()
@@ -101,7 +109,9 @@ def test_unified_patient_flow(app, client):
         assert enc.status == "ACTIVE"
 
         # 4. Doctor opens SOAP Notes
-        soap_get_resp = client.get(f"/medicine/soap_notes/{patient_id}", follow_redirects=True)
+        soap_get_resp = client.get(
+            f"/medicine/soap_notes/{patient_id}", follow_redirects=True
+        )
         assert soap_get_resp.status_code == 200
         # Phase 4: Check Encounter instead of retired PatientWaitingList
         enc = Encounter.query.filter_by(patient_id=patient_id).first()

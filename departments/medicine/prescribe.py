@@ -34,8 +34,6 @@ logger = logging.getLogger(__name__)
 prescribe_bp = Blueprint("eprescribe", __name__, url_prefix="/medicine/prescribe")
 
 
-
-
 # ---------------------------------------------------------------------------
 # Terminology helpers
 # ---------------------------------------------------------------------------
@@ -49,17 +47,37 @@ def _get_icd10_database():
     """Fetch ICD-10 codes from DB, falling back to minimal hardcoded list for tests."""
     try:
         from departments.models.terminology import ICD10Code
+
         codes = ICD10Code.query.limit(100).all()
         if codes:
-            return [{"code": c.code, "description": c.description, "category": c.chapter or "General"} for c in codes]
+            return [
+                {
+                    "code": c.code,
+                    "description": c.description,
+                    "category": c.chapter or "General",
+                }
+                for c in codes
+            ]
     except Exception as e:  # noqa: BLE001
         logger.warning("Failed to fetch ICD-10 codes from database: %s", e)
     # Minimal fallback for tests/empty DB (preserves existing test behaviour)
     return [
-        {"code": "J00", "description": "Acute nasopharyngitis [common cold]", "category": "Respiratory"},
+        {
+            "code": "J00",
+            "description": "Acute nasopharyngitis [common cold]",
+            "category": "Respiratory",
+        },
         {"code": "R50.9", "description": "Fever, unspecified", "category": "General"},
-        {"code": "I10", "description": "Essential (primary) hypertension", "category": "Cardiovascular"},
-        {"code": "J06.9", "description": "Acute upper respiratory infection, unspecified", "category": "Respiratory"},
+        {
+            "code": "I10",
+            "description": "Essential (primary) hypertension",
+            "category": "Cardiovascular",
+        },
+        {
+            "code": "J06.9",
+            "description": "Acute upper respiratory infection, unspecified",
+            "category": "Respiratory",
+        },
     ]
 
 
@@ -67,6 +85,7 @@ def _icd10_db_count() -> int:
     """Return the number of ICD-10 codes currently in the local DB (0 on error)."""
     try:
         from departments.models.terminology import ICD10Code
+
         return ICD10Code.query.count()
     except Exception:  # noqa: BLE001
         return 0
@@ -76,6 +95,7 @@ def _get_snomed_database():
     """Fetch SNOMED codes from DB, falling back to minimal hardcoded list for tests."""
     try:
         from departments.models.terminology import SnomedCode
+
         codes = SnomedCode.query.limit(100).all()
         if codes:
             return [{"code": c.code, "description": c.description} for c in codes]
@@ -93,6 +113,7 @@ def _get_loinc_database():
     """Fetch LOINC codes from DB, falling back to minimal hardcoded list for tests."""
     try:
         from departments.models.terminology import LoincCode
+
         codes = LoincCode.query.limit(100).all()
         if codes:
             return [{"code": c.code, "description": c.description} for c in codes]
@@ -125,12 +146,12 @@ def search_icd10(query: str) -> list[dict]:
     if db_count >= _ICD10_POPULATED_THRESHOLD:
         try:
             from departments.models.terminology import ICD10Code
+
             if not q:
                 rows = ICD10Code.query.limit(20).all()
             else:
                 rows = (
-                    ICD10Code.query
-                    .filter(
+                    ICD10Code.query.filter(
                         db.or_(
                             ICD10Code.code.ilike(f"%{q}%"),
                             ICD10Code.description.ilike(f"%{q}%"),
@@ -140,7 +161,11 @@ def search_icd10(query: str) -> list[dict]:
                     .all()
                 )
             return [
-                {"code": r.code, "description": r.description, "category": r.chapter or "General"}
+                {
+                    "code": r.code,
+                    "description": r.description,
+                    "category": r.chapter or "General",
+                }
                 for r in rows
             ]
         except Exception as e:  # noqa: BLE001
@@ -150,6 +175,7 @@ def search_icd10(query: str) -> list[dict]:
     if q:
         try:
             from departments.medicine.who_icd_client import search_icd10_live
+
             live_results = search_icd10_live(q)
             if live_results:
                 return live_results
@@ -182,12 +208,12 @@ def search_snomed(query: str) -> list[dict]:
     # -- Path 1: Local DB search --
     try:
         from departments.models.terminology import SnomedCode
+
         if not q:
             rows = SnomedCode.query.limit(20).all()
         else:
             rows = (
-                SnomedCode.query
-                .filter(
+                SnomedCode.query.filter(
                     db.or_(
                         SnomedCode.code.ilike(f"%{q}%"),
                         SnomedCode.description.ilike(f"%{q}%"),
@@ -205,6 +231,7 @@ def search_snomed(query: str) -> list[dict]:
     if q:
         try:
             from departments.medicine.umls_client import search_snomed_live
+
             live_results = search_snomed_live(q, max_results=20)
             if live_results:
                 return live_results
@@ -217,8 +244,7 @@ def search_snomed(query: str) -> list[dict]:
     return [
         item
         for item in _get_snomed_database()
-        if q in item["code"].lower()
-        or q in item["description"].lower()
+        if q in item["code"].lower() or q in item["description"].lower()
     ]
 
 
@@ -236,12 +262,12 @@ def search_loinc(query: str) -> list[dict]:
     # -- Path 1: Local DB search --
     try:
         from departments.models.terminology import LoincCode
+
         if not q:
             rows = LoincCode.query.limit(20).all()
         else:
             rows = (
-                LoincCode.query
-                .filter(
+                LoincCode.query.filter(
                     db.or_(
                         LoincCode.code.ilike(f"%{q}%"),
                         LoincCode.description.ilike(f"%{q}%"),
@@ -259,6 +285,7 @@ def search_loinc(query: str) -> list[dict]:
     if q:
         try:
             from departments.medicine.umls_client import search_loinc_live
+
             live_results = search_loinc_live(q, max_results=20)
             if live_results:
                 return live_results
@@ -271,10 +298,8 @@ def search_loinc(query: str) -> list[dict]:
     return [
         item
         for item in _get_loinc_database()
-        if q in item["code"].lower()
-        or q in item["description"].lower()
+        if q in item["code"].lower() or q in item["description"].lower()
     ]
-
 
 
 def check_drug_safety(patient_id: str, new_medications: list[str], **kwargs) -> dict:
@@ -288,7 +313,6 @@ def check_drug_safety(patient_id: str, new_medications: list[str], **kwargs) -> 
 
     engine = ClinicalSafetyEngine()
     return engine.check_by_names(patient_id, new_medications, **kwargs)
-
 
 
 @prescribe_bp.route("/icd10", methods=["GET"])

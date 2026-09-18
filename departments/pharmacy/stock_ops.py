@@ -36,8 +36,10 @@ def remove_dispensed(dispense_id):
     if not void_reason:
         flash("A void reason is required to reverse a dispensing record.", "error")
         return redirect(
-            url_for("pharmacy.dispense_prescription",
-                    prescription_id=request.form.get("prescription_id"))
+            url_for(
+                "pharmacy.dispense_prescription",
+                prescription_id=request.form.get("prescription_id"),
+            )
         )
 
     try:
@@ -45,26 +47,35 @@ def remove_dispensed(dispense_id):
         if not dispensed_drug:
             flash(f"Dispensed drug with ID {dispense_id} does not exist!", "error")
             return redirect(
-                url_for("pharmacy.dispense_prescription",
-                        prescription_id=request.form.get("prescription_id"))
+                url_for(
+                    "pharmacy.dispense_prescription",
+                    prescription_id=request.form.get("prescription_id"),
+                )
             )
 
         # Guard against double-void
         if dispensed_drug.status == "VOIDED":
             flash("This dispensing record has already been voided.", "warning")
             return redirect(
-                url_for("pharmacy.dispense_prescription",
-                        prescription_id=dispensed_drug.prescription_id)
+                url_for(
+                    "pharmacy.dispense_prescription",
+                    prescription_id=dispensed_drug.prescription_id,
+                )
             )
 
         # Reverse stock in same transaction
-        batch = db.session.get(Batch, dispensed_drug.batch_id) if dispensed_drug.batch_id else None
+        batch = (
+            db.session.get(Batch, dispensed_drug.batch_id)
+            if dispensed_drug.batch_id
+            else None
+        )
         if batch:
             batch.quantity_in_stock += dispensed_drug.quantity_dispensed
             db.session.add(batch)
 
         # Void — preserve clinical record
         from datetime import datetime, timezone
+
         dispensed_drug.status = "VOIDED"
         dispensed_drug.voided_by = current_user.id
         dispensed_drug.voided_at = datetime.now(timezone.utc)
@@ -74,15 +85,20 @@ def remove_dispensed(dispense_id):
 
         logger.info(
             "Dispensed drug VOIDED via remove_dispensed: id=%s patient=%s actor=%s reason=%s",
-            dispense_id, dispensed_drug.patient_id, current_user.id, void_reason,
+            dispense_id,
+            dispensed_drug.patient_id,
+            current_user.id,
+            void_reason,
         )
         flash(
             f"{dispensed_drug.drug.generic_name} voided — stock restored.",
             "success",
         )
         return redirect(
-            url_for("pharmacy.dispense_prescription",
-                    prescription_id=dispensed_drug.prescription_id)
+            url_for(
+                "pharmacy.dispense_prescription",
+                prescription_id=dispensed_drug.prescription_id,
+            )
         )
 
     except Exception as e:  # noqa: BLE001
@@ -90,8 +106,10 @@ def remove_dispensed(dispense_id):
         logger.error(f"Error in pharmacy.remove_dispensed: {e}")
         db.session.rollback()
         return redirect(
-            url_for("pharmacy.dispense_prescription",
-                    prescription_id=request.form.get("prescription_id"))
+            url_for(
+                "pharmacy.dispense_prescription",
+                prescription_id=request.form.get("prescription_id"),
+            )
         )
 
 

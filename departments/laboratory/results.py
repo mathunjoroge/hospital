@@ -97,6 +97,7 @@ def process_lab_request(request_id):
 
             # FIX 4: Advance encounter stage after lab completion
             from departments.shared.visit_closure import advance_after_completion
+
             advance_after_completion(lab_request.patient_id)
 
             # Trigger notification to patient that lab result is ready

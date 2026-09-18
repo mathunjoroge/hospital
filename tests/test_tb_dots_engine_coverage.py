@@ -323,7 +323,9 @@ def test_getters_and_formulary(app, sample_tb_regimens):
         )
 
         record_dose_taken(enrollment.id, taken_as_directly_observed=True)
-        record_sputum_result(enrollment.id, specimen_type="sputum", specimen_number=1, smear_result="2+")
+        record_sputum_result(
+            enrollment.id, specimen_type="sputum", specimen_number=1, smear_result="2+"
+        )
         record_chest_xray(enrollment.id, finding="Infiltrates")
         record_hiv_status(enrollment.id, test_type="rapid", result="negative")
 
@@ -337,4 +339,7 @@ def test_getters_and_formulary(app, sample_tb_regimens):
         assert len(formulary) >= 2
         assert is_tb_regimen_valid(reg1.id) is True
         assert is_tb_regimen_valid("NON_EXISTENT") is False
-        assert log_tb_formulary_change(reg1.id, "update", "ADMIN_USER", "Updated notes") is True
+        assert (
+            log_tb_formulary_change(reg1.id, "update", "ADMIN_USER", "Updated notes")
+            is True
+        )

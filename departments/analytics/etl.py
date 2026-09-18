@@ -34,7 +34,6 @@ def run_daily_kpi_etl(target_date: date | None = None) -> DailyKpiSnapshot:
     if target_date is None:
         target_date = date.today()
 
-
     # 1. Outpatient visits (OPD encounters started today)
     total_opd = Encounter.query.filter(
         Encounter.encounter_type == "OPD",
@@ -80,11 +79,18 @@ def run_daily_kpi_etl(target_date: date | None = None) -> DailyKpiSnapshot:
     total_rev = Decimal("0.00")
     try:
         from departments.models.billing import Invoice
+
         invoices = Invoice.query.filter(
             db.func.date(Invoice.created_at) == target_date,
         ).all()
         for inv in invoices:
-            total_rev += Decimal(str(getattr(inv, "amount_paid", 0) or getattr(inv, "total_amount", 0) or 0))
+            total_rev += Decimal(
+                str(
+                    getattr(inv, "amount_paid", 0)
+                    or getattr(inv, "total_amount", 0)
+                    or 0
+                )
+            )
     except Exception as e:
         logger.warning(f"Could not compute revenue for ETL snapshot: {e}")
 
@@ -108,7 +114,9 @@ def run_daily_kpi_etl(target_date: date | None = None) -> DailyKpiSnapshot:
     active_ipd = Encounter.query.filter(
         Encounter.encounter_type == "IPD",
         db.func.date(Encounter.started_at) <= target_date,
-        db.or_(Encounter.ended_at.is_(None), db.func.date(Encounter.ended_at) > target_date),
+        db.or_(
+            Encounter.ended_at.is_(None), db.func.date(Encounter.ended_at) > target_date
+        ),
     ).count()
     total_capacity = 100
     occupancy_rate = min(100.0, round((active_ipd / total_capacity) * 100.0, 1))
@@ -121,6 +129,7 @@ def run_daily_kpi_etl(target_date: date | None = None) -> DailyKpiSnapshot:
 
     readmission_count = 0
     from datetime import timedelta
+
     for enc in admitted_today:
         thirty_days_prior = target_date - timedelta(days=30)
         prior_discharge = Encounter.query.filter(
@@ -175,7 +184,9 @@ def run_daily_kpi_etl(target_date: date | None = None) -> DailyKpiSnapshot:
             surveillance_counter["Malaria"], structured_malaria_count
         )
     except Exception as e:
-        logger.warning(f"Could not compute structured malaria count for ETL snapshot: {e}")
+        logger.warning(
+            f"Could not compute structured malaria count for ETL snapshot: {e}"
+        )
 
     top_diagnoses = dict(diag_counter.most_common(10))
 
@@ -215,23 +226,27 @@ def trigger_etl():
         try:
             target_date = date.fromisoformat(date_str)
         except ValueError:
-            return jsonify({"status": "error", "message": "Invalid date format. Use YYYY-MM-DD."}), 400
+            return jsonify(
+                {"status": "error", "message": "Invalid date format. Use YYYY-MM-DD."}
+            ), 400
     else:
         target_date = date.today()
 
     snapshot = run_daily_kpi_etl(target_date)
-    return jsonify({
-        "status": "success",
-        "message": f"ETL snapshot created for {target_date.isoformat()}",
-        "snapshot": {
-            "snapshot_date": snapshot.snapshot_date.isoformat(),
-            "outpatient_visits": snapshot.total_outpatient_visits,
-            "admissions": snapshot.total_admissions,
-            "discharges": snapshot.total_discharges,
-            "emergency_cases": snapshot.total_emergency_cases,
-            "anc_visits": snapshot.total_anc_visits,
-            "immunizations": snapshot.total_immunizations,
-            "lab_tests": snapshot.total_lab_tests_ordered,
-            "revenue": float(snapshot.total_revenue_collected or 0.0),
+    return jsonify(
+        {
+            "status": "success",
+            "message": f"ETL snapshot created for {target_date.isoformat()}",
+            "snapshot": {
+                "snapshot_date": snapshot.snapshot_date.isoformat(),
+                "outpatient_visits": snapshot.total_outpatient_visits,
+                "admissions": snapshot.total_admissions,
+                "discharges": snapshot.total_discharges,
+                "emergency_cases": snapshot.total_emergency_cases,
+                "anc_visits": snapshot.total_anc_visits,
+                "immunizations": snapshot.total_immunizations,
+                "lab_tests": snapshot.total_lab_tests_ordered,
+                "revenue": float(snapshot.total_revenue_collected or 0.0),
+            },
         }
-    })
+    )

@@ -20,6 +20,7 @@ The walk takes 25–40 minutes on first run due to WHO rate limiting (~2 req/s).
 Subsequent Celery-triggered nightly re-syncs only upsert changes and complete
 in the same time window, but with minimal DB churn when codes are unchanged.
 """
+
 import csv
 import logging
 import os
@@ -48,7 +49,9 @@ def import_from_who_api(release: str | None = None) -> int:
         release = os.getenv("WHO_ICD_API_RELEASE", "2019")
 
     logger.info("Starting WHO ICD-10 bulk import (release %s) …", release)
-    print(f"[ICD-10 Import] Walking WHO ICD-10 {release} tree — this takes 25–40 minutes.")
+    print(
+        f"[ICD-10 Import] Walking WHO ICD-10 {release} tree — this takes 25–40 minutes."
+    )
     print("[ICD-10 Import] Progress reported every 500 codes.\n")
 
     total = 0
@@ -76,24 +79,28 @@ def import_from_who_api(release: str | None = None) -> int:
                 row.block = bl_val
                 updated += 1
             else:
-                db.session.add(ICD10Code(
-                    code=code_val,
-                    description=record["description"],
-                    chapter=ch_val,
-                    block=bl_val,
-                ))
+                db.session.add(
+                    ICD10Code(
+                        code=code_val,
+                        description=record["description"],
+                        chapter=ch_val,
+                        block=bl_val,
+                    )
+                )
                 inserted += 1
         db.session.commit()
         return inserted + updated
 
     try:
         for code, title, chapter, block in walk_icd10_tree(release):
-            batch.append({
-                "code": code,
-                "description": title,
-                "chapter": chapter,
-                "block": block,
-            })
+            batch.append(
+                {
+                    "code": code,
+                    "description": title,
+                    "chapter": chapter,
+                    "block": block,
+                }
+            )
             total += 1
 
             if len(batch) >= BATCH_SIZE:
@@ -127,15 +134,17 @@ def load_icd10_from_csv(filepath: str) -> list[dict]:
     Expected columns: CODE, DESCRIPTION, CHAPTER, BLOCK
     """
     codes = []
-    with open(filepath, newline='', encoding='utf-8') as csvfile:
+    with open(filepath, newline="", encoding="utf-8") as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            codes.append({
-                'code': row['CODE'].strip(),
-                'description': row['DESCRIPTION'].strip(),
-                'chapter': row.get('CHAPTER', '').strip(),
-                'block': row.get('BLOCK', '').strip(),
-            })
+            codes.append(
+                {
+                    "code": row["CODE"].strip(),
+                    "description": row["DESCRIPTION"].strip(),
+                    "chapter": row.get("CHAPTER", "").strip(),
+                    "block": row.get("BLOCK", "").strip(),
+                }
+            )
     return codes
 
 
@@ -154,7 +163,7 @@ def import_icd10_codes(filepath: str | None = None) -> int:
     from extensions import db
 
     if filepath is None:
-        filepath = os.getenv('ICD10_CSV_PATH', '/app/data/icd10_codes.csv')
+        filepath = os.getenv("ICD10_CSV_PATH", "/app/data/icd10_codes.csv")
 
     if not os.path.exists(filepath):
         current_app.logger.warning("ICD-10 CSV file not found at %s", filepath)
@@ -189,7 +198,7 @@ def import_icd10_codes(filepath: str | None = None) -> int:
 # ---------------------------------------------------------------------------
 # CLI entry-point
 # ---------------------------------------------------------------------------
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
 
     from app import app

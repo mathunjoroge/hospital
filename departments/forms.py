@@ -141,11 +141,18 @@ class OncologyNoteForm(FlaskForm):
     )
     submit_note = SubmitField("Add Note")
 
+
 class PerformanceReviewForm(FlaskForm):
-    review_period = StringField("Review Period (e.g. 2026-Annual)", validators=[DataRequired()])
+    review_period = StringField(
+        "Review Period (e.g. 2026-Annual)", validators=[DataRequired()]
+    )
     review_type = SelectField(
         "Review Type",
-        choices=[("annual", "Annual"), ("mid-year", "Mid-Year"), ("probation", "Probation")],
+        choices=[
+            ("annual", "Annual"),
+            ("mid-year", "Mid-Year"),
+            ("probation", "Probation"),
+        ],
     )
     score = SelectField(
         "Overall Score",

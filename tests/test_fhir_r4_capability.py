@@ -45,7 +45,9 @@ def auth_headers(client):
     return {"Authorization": f"Bearer {token}"}
 
 
-def _make_patient(patient_id: str, name: str = "Test Patient", sex: str = "Female") -> Patient:
+def _make_patient(
+    patient_id: str, name: str = "Test Patient", sex: str = "Female"
+) -> Patient:
     """Insert a minimal patient into DB context."""
     p = Patient.query.filter_by(patient_id=patient_id).first()
     if not p:
@@ -71,7 +73,15 @@ def test_fhir_metadata_capability_statement(client):
     assert data["status"] == "active"
 
     resource_types = [r["type"] for r in data["rest"][0]["resource"]]
-    expected = ["Patient", "Observation", "Condition", "DiagnosticReport", "MedicationRequest", "Encounter", "ImagingStudy"]
+    expected = [
+        "Patient",
+        "Observation",
+        "Condition",
+        "DiagnosticReport",
+        "MedicationRequest",
+        "Encounter",
+        "ImagingStudy",
+    ]
     for exp in expected:
         assert exp in resource_types
 
@@ -121,7 +131,9 @@ def test_fhir_batch_bundle_processing(client, auth_headers):
     with app.app_context():
         _make_patient("PAT-BATCH-1", name="Charlie Batch", sex="Male")
         v = Vitals(patient_id="PAT-BATCH-1", nurse_id=1, temperature=37.2, pulse=78)
-        enc = Encounter(encounter_id="ENC-BATCH-1", patient_id="PAT-BATCH-1", status="ACTIVE")
+        enc = Encounter(
+            encounter_id="ENC-BATCH-1", patient_id="PAT-BATCH-1", status="ACTIVE"
+        )
         db.session.add_all([v, enc])
         db.session.commit()
 
@@ -129,25 +141,10 @@ def test_fhir_batch_bundle_processing(client, auth_headers):
         "resourceType": "Bundle",
         "type": "batch",
         "entry": [
-            {
-                "request": {
-                    "method": "GET",
-                    "url": "Patient/PAT-BATCH-1"
-                }
-            },
-            {
-                "request": {
-                    "method": "GET",
-                    "url": "Observation?patient=PAT-BATCH-1"
-                }
-            },
-            {
-                "request": {
-                    "method": "GET",
-                    "url": "Encounter?patient=PAT-BATCH-1"
-                }
-            }
-        ]
+            {"request": {"method": "GET", "url": "Patient/PAT-BATCH-1"}},
+            {"request": {"method": "GET", "url": "Observation?patient=PAT-BATCH-1"}},
+            {"request": {"method": "GET", "url": "Encounter?patient=PAT-BATCH-1"}},
+        ],
     }
 
     res = client.post("/api/fhir/R4/", json=batch_bundle, headers=auth_headers)

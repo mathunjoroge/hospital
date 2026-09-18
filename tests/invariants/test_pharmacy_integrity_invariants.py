@@ -16,6 +16,7 @@ import pytest
 
 # ─── fixtures ────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def pharmacy_seed(app):
     """Seed one drug category, one drug and two batches for tests."""
@@ -62,6 +63,7 @@ def pharmacy_seed(app):
 
 # ─── invariant tests ────────────────────────────────────────────────────────
 
+
 class TestStockNeverNegative:
     """
     INVARIANT: drug.quantity_in_stock and batch.quantity_in_stock must
@@ -79,9 +81,9 @@ class TestStockNeverNegative:
             assert len(records) > 0
 
             drug = db.session.get(Drug, drug_id)
-            assert drug.quantity_in_stock == 0, (
-                "After dispensing all stock, quantity_in_stock must be exactly 0, not negative."
-            )
+            assert (
+                drug.quantity_in_stock == 0
+            ), "After dispensing all stock, quantity_in_stock must be exactly 0, not negative."
 
     def test_overdispensing_raises_error(self, app, pharmacy_seed):
         """Attempting to dispense more than available must raise ValueError."""
@@ -137,9 +139,9 @@ class TestFEFOAllocationIntegrity:
             allocations = allocate_drug_fefo(pharmacy_seed["drug_id"], 5)
             assert len(allocations) >= 1
             # First allocation must come from batch_a (earliest expiry)
-            assert allocations[0]["batch_id"] == pharmacy_seed["batch_a_id"], (
-                "FEFO violation: allocation did not start with the earliest-expiring batch."
-            )
+            assert (
+                allocations[0]["batch_id"] == pharmacy_seed["batch_a_id"]
+            ), "FEFO violation: allocation did not start with the earliest-expiring batch."
 
     def test_fefo_total_allocated_equals_requested(self, app, pharmacy_seed):
         """Total allocated quantity must exactly equal the requested quantity."""
@@ -160,9 +162,10 @@ class TestFEFOAllocationIntegrity:
         from departments.pharmacy.fefo import allocate_drug_fefo
 
         with app.app_context():
-            batches = {b.id: b.quantity_in_stock for b in Batch.query.filter_by(
-                drug_id=pharmacy_seed["drug_id"]
-            ).all()}
+            batches = {
+                b.id: b.quantity_in_stock
+                for b in Batch.query.filter_by(drug_id=pharmacy_seed["drug_id"]).all()
+            }
 
             allocations = allocate_drug_fefo(pharmacy_seed["drug_id"], 18)
             for alloc in allocations:
@@ -192,9 +195,9 @@ class TestFinancialFieldPrecision:
                 "Drug.buying_price must be Numeric, not Float. "
                 "Float arithmetic produces rounding errors in financial calculations."
             )
-            assert isinstance(selling_col.type, NumericType), (
-                "Drug.selling_price must be Numeric, not Float."
-            )
+            assert isinstance(
+                selling_col.type, NumericType
+            ), "Drug.selling_price must be Numeric, not Float."
 
     def test_decimal_price_roundtrip_exact(self, app, pharmacy_seed):
         """A price like 1.15 must be stored and retrieved exactly, not as 1.1499999..."""

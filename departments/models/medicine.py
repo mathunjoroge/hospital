@@ -292,7 +292,9 @@ class AdmittedPatient(db.Model):
     patient_id = db.Column(
         db.String(20), db.ForeignKey("patients.patient_id"), nullable=False
     )
-    room_id = db.Column(db.Integer, db.ForeignKey("ward_rooms.id"), nullable=True)   # NEW
+    room_id = db.Column(
+        db.Integer, db.ForeignKey("ward_rooms.id"), nullable=True
+    )  # NEW
     bed_id = db.Column(db.Integer, db.ForeignKey("beds.id"), nullable=True)
 
     ward_id = db.Column(db.Integer, db.ForeignKey("wards.id"), nullable=False)
@@ -311,7 +313,9 @@ class AdmittedPatient(db.Model):
 
     # Relationships
     ward = db.relationship("Ward", backref="admitted_patients")
-    patient = db.relationship("Patient", backref=db.backref("admitted_records", lazy=True))
+    patient = db.relationship(
+        "Patient", backref=db.backref("admitted_records", lazy=True)
+    )
     room = db.relationship("WardRoom", foreign_keys=[room_id])
     bed = db.relationship("Bed", foreign_keys=[bed_id])
 
@@ -388,8 +392,12 @@ class ADTLog(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     event_type = db.Column(db.String(10), nullable=False)  # 'A01', 'A02', 'A03', 'A08'
-    patient_id = db.Column(db.String(20), db.ForeignKey("patients.patient_id"), nullable=False)
-    admission_id = db.Column(db.Integer, db.ForeignKey("admitted_patients.id"), nullable=True)
+    patient_id = db.Column(
+        db.String(20), db.ForeignKey("patients.patient_id"), nullable=False
+    )
+    admission_id = db.Column(
+        db.Integer, db.ForeignKey("admitted_patients.id"), nullable=True
+    )
     from_ward_id = db.Column(db.Integer, db.ForeignKey("wards.id"), nullable=True)
     from_bed_id = db.Column(db.Integer, db.ForeignKey("beds.id"), nullable=True)
     to_ward_id = db.Column(db.Integer, db.ForeignKey("wards.id"), nullable=True)
@@ -403,7 +411,6 @@ class ADTLog(db.Model):
 
     def __repr__(self):
         return f"<ADTLog {self.event_type} - Patient: {self.patient_id} - Time: {self.created_at}>"
-
 
 
 class WardRound(db.Model):

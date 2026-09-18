@@ -200,7 +200,9 @@ def forgot_password():
             if user and user.is_active:
                 token = secrets.token_urlsafe(32)
                 user.reset_token = token
-                user.reset_token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+                user.reset_token_expiry = datetime.now(timezone.utc) + timedelta(
+                    hours=1
+                )
                 db.session.commit()
 
                 reset_link = url_for(

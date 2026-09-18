@@ -45,6 +45,7 @@ SAFE_DOSE_INTERVAL_MINUTES = 60
 # Bedside BCMA Scanner Console UI
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @bcma_bp.route("/scanner", methods=["GET"])
 @jwt_or_session_required
 @roles_required("admin", "nursing", "medicine", "clinical")
@@ -57,7 +58,6 @@ def bcma_scanner_console():
     )
 
 
-
 def _find_patient_by_barcode(barcode: str):
     """Resolve a wristband barcode to a patient_id string.
 
@@ -66,6 +66,7 @@ def _find_patient_by_barcode(barcode: str):
     Patient model which lives in records).
     """
     from departments.models.records import Patient  # local import — avoids circular
+
     return Patient.query.filter_by(patient_id=barcode).first()
 
 
@@ -85,8 +86,9 @@ def _find_medicine_by_barcode(barcode: str):
 def _get_active_prescription(patient_id: str, medicine_id: int):
     """Return the most recent active PrescribedMedicine order (status=0)."""
     return (
-        PrescribedMedicine.query
-        .filter_by(patient_id=patient_id, medicine_id=medicine_id, status=0)
+        PrescribedMedicine.query.filter_by(
+            patient_id=patient_id, medicine_id=medicine_id, status=0
+        )
         .order_by(PrescribedMedicine.id.desc())
         .first()
     )
@@ -97,15 +99,11 @@ def _check_duplicate_dose(patient_id: str, medicine_id: int) -> bool:
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=SAFE_DOSE_INTERVAL_MINUTES)
     # MedicationAdmin.time_administered may be tz-naive — compare naively
     cutoff_naive = cutoff.replace(tzinfo=None)
-    recent = (
-        MedicationAdmin.query
-        .filter(
-            MedicationAdmin.patient_id == patient_id,
-            MedicationAdmin.medication == str(medicine_id),
-            MedicationAdmin.time_administered >= cutoff_naive,
-        )
-        .first()
-    )
+    recent = MedicationAdmin.query.filter(
+        MedicationAdmin.patient_id == patient_id,
+        MedicationAdmin.medication == str(medicine_id),
+        MedicationAdmin.time_administered >= cutoff_naive,
+    ).first()
     return recent is not None
 
 
@@ -113,14 +111,18 @@ def _log_audit(event_type: str, detail: str, patient_id: str):
     """Append a BCMA safety event to AuditLog (best-effort; never raises)."""
     try:
         from departments.api.audit import log_audit_event
+
         log_audit_event(event_type, detail, patient_id=patient_id)
     except Exception:  # noqa: BLE001
-        logger.warning("BCMA audit log failed for event %s / patient %s", event_type, patient_id)
+        logger.warning(
+            "BCMA audit log failed for event %s / patient %s", event_type, patient_id
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Verify endpoint — does NOT write any record
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @bcma_bp.route("/verify", methods=["POST"])
 @jwt_or_session_required
@@ -144,14 +146,26 @@ def bcma_verify():
     # 1. Resolve patient
     patient = _find_patient_by_barcode(patient_barcode)
     if not patient:
-        _log_audit("BCMA_PATIENT_MISMATCH", f"Unknown wristband: {patient_barcode}", patient_barcode)
-        return jsonify({"match": False, "error": "Patient not found for this wristband barcode"}), 409
+        _log_audit(
+            "BCMA_PATIENT_MISMATCH",
+            f"Unknown wristband: {patient_barcode}",
+            patient_barcode,
+        )
+        return jsonify(
+            {"match": False, "error": "Patient not found for this wristband barcode"}
+        ), 409
 
     # 2. Resolve drug
     medicine = _find_medicine_by_barcode(drug_barcode)
     if not medicine:
-        _log_audit("BCMA_DRUG_MISMATCH", f"Unknown drug barcode: {drug_barcode}", patient.patient_id)
-        return jsonify({"match": False, "error": "Drug not found for this barcode"}), 409
+        _log_audit(
+            "BCMA_DRUG_MISMATCH",
+            f"Unknown drug barcode: {drug_barcode}",
+            patient.patient_id,
+        )
+        return jsonify(
+            {"match": False, "error": "Drug not found for this barcode"}
+        ), 409
 
     # 3. Cross-check against active MAR
     prescription = _get_active_prescription(patient.patient_id, medicine.id)
@@ -161,10 +175,12 @@ def bcma_verify():
             f"Drug {medicine.generic_name} not on active MAR for patient {patient.patient_id}",
             patient.patient_id,
         )
-        return jsonify({
-            "match": False,
-            "error": f"{medicine.generic_name} is not on the active medication order for this patient",
-        }), 409
+        return jsonify(
+            {
+                "match": False,
+                "error": f"{medicine.generic_name} is not on the active medication order for this patient",
+            }
+        ), 409
 
     # 4. Duplicate-dose check
     is_duplicate = _check_duplicate_dose(patient.patient_id, medicine.id)
@@ -176,24 +192,27 @@ def bcma_verify():
             f"{SAFE_DOSE_INTERVAL_MINUTES} minutes."
         )
 
-    return jsonify({
-        "match": True,
-        "patient_id": patient.patient_id,
-        "patient_name": patient.name,
-        "medicine_id": medicine.id,
-        "drug_name": f"{medicine.generic_name} ({medicine.brand_name})",
-        "dosage": prescription.dosage,
-        "strength": prescription.strength,
-        "frequency": prescription.frequency,
-        "prescribed_medicine_id": prescription.id,
-        "duplicate_dose_warning": is_duplicate,
-        "warnings": warnings,
-    }), 200
+    return jsonify(
+        {
+            "match": True,
+            "patient_id": patient.patient_id,
+            "patient_name": patient.name,
+            "medicine_id": medicine.id,
+            "drug_name": f"{medicine.generic_name} ({medicine.brand_name})",
+            "dosage": prescription.dosage,
+            "strength": prescription.strength,
+            "frequency": prescription.frequency,
+            "prescribed_medicine_id": prescription.id,
+            "duplicate_dose_warning": is_duplicate,
+            "warnings": warnings,
+        }
+    ), 200
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Administer endpoint — records the dose
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @bcma_bp.route("/administer", methods=["POST"])
 @jwt_or_session_required
@@ -215,28 +234,40 @@ def bcma_administer():
     override_reason = (data.get("override_reason") or "").strip()
 
     if not patient_barcode or not drug_barcode or not nurse_id:
-        return jsonify({"error": "patient_barcode, drug_barcode and nurse_id are required"}), 400
+        return jsonify(
+            {"error": "patient_barcode, drug_barcode and nurse_id are required"}
+        ), 400
 
     # ── Re-run the full verification ──────────────────────────────────────────
     patient = _find_patient_by_barcode(patient_barcode)
     if not patient:
-        _log_audit("BCMA_PATIENT_MISMATCH", f"Administer: unknown wristband {patient_barcode}", patient_barcode)
+        _log_audit(
+            "BCMA_PATIENT_MISMATCH",
+            f"Administer: unknown wristband {patient_barcode}",
+            patient_barcode,
+        )
         return jsonify({"error": "Patient not found for this wristband barcode"}), 409
 
     medicine = _find_medicine_by_barcode(drug_barcode)
     if not medicine:
-        _log_audit("BCMA_DRUG_MISMATCH", f"Administer: unknown drug barcode {drug_barcode}", patient.patient_id)
+        _log_audit(
+            "BCMA_DRUG_MISMATCH",
+            f"Administer: unknown drug barcode {drug_barcode}",
+            patient.patient_id,
+        )
         return jsonify({"error": "Drug not found for this barcode"}), 409
 
     prescription = _get_active_prescription(patient.patient_id, medicine.id)
     if not prescription:
         if not override_reason or len(override_reason) < 20:
-            return jsonify({
-                "error": (
-                    f"{medicine.generic_name} is not on the active MAR. "
-                    "Supply override_reason (≥ 20 characters) to proceed."
-                )
-            }), 409
+            return jsonify(
+                {
+                    "error": (
+                        f"{medicine.generic_name} is not on the active MAR. "
+                        "Supply override_reason (≥ 20 characters) to proceed."
+                    )
+                }
+            ), 409
         # Override allowed — log it
         _log_audit(
             "BCMA_DRUG_MISMATCH_OVERRIDE",
@@ -250,19 +281,25 @@ def bcma_administer():
     # ── Duplicate-dose check ──────────────────────────────────────────────────
     if _check_duplicate_dose(patient.patient_id, medicine.id):
         if not override_reason or len(override_reason) < 20:
-            return jsonify({
-                "error": (
-                    f"Duplicate dose: {medicine.generic_name} was already given within "
-                    f"the last {SAFE_DOSE_INTERVAL_MINUTES} minutes. "
-                    "Supply override_reason (≥ 20 characters) to proceed."
-                )
-            }), 409
-        _log_audit("BCMA_DUPLICATE_DOSE_OVERRIDE", f"Override: {override_reason}", patient.patient_id)
+            return jsonify(
+                {
+                    "error": (
+                        f"Duplicate dose: {medicine.generic_name} was already given within "
+                        f"the last {SAFE_DOSE_INTERVAL_MINUTES} minutes. "
+                        "Supply override_reason (≥ 20 characters) to proceed."
+                    )
+                }
+            ), 409
+        _log_audit(
+            "BCMA_DUPLICATE_DOSE_OVERRIDE",
+            f"Override: {override_reason}",
+            patient.patient_id,
+        )
 
     # ── Record administration ─────────────────────────────────────────────────
     admin_record = MedicationAdmin(
         patient_id=patient.patient_id,
-        medication=str(medicine.id),          # stored as medicine_id string
+        medication=str(medicine.id),  # stored as medicine_id string
         dosage=prescription.dosage if prescription else data.get("dosage", ""),
         recorded_by=nurse_id,
         time_administered=datetime.now(timezone.utc).replace(tzinfo=None),
@@ -282,19 +319,22 @@ def bcma_administer():
         patient.patient_id,
     )
 
-    return jsonify({
-        "success": True,
-        "record_id": admin_record.id,
-        "patient_id": patient.patient_id,
-        "drug_name": f"{medicine.generic_name} ({medicine.brand_name})",
-        "scan_verified": True,
-        "override_applied": bool(override_reason),
-    }), 201
+    return jsonify(
+        {
+            "success": True,
+            "record_id": admin_record.id,
+            "patient_id": patient.patient_id,
+            "drug_name": f"{medicine.generic_name} ({medicine.brand_name})",
+            "scan_verified": True,
+            "override_applied": bool(override_reason),
+        }
+    ), 201
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # MAR view — active medication orders for a patient
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @bcma_bp.route("/mar/<string:patient_id>", methods=["GET"])
 @jwt_or_session_required
@@ -302,8 +342,7 @@ def bcma_administer():
 def get_patient_mar(patient_id: str):
     """Return the active Medication Administration Record for a patient."""
     orders = (
-        PrescribedMedicine.query
-        .filter_by(patient_id=patient_id, status=0)
+        PrescribedMedicine.query.filter_by(patient_id=patient_id, status=0)
         .order_by(PrescribedMedicine.id.desc())
         .all()
     )
@@ -312,33 +351,37 @@ def get_patient_mar(patient_id: str):
     for order in orders:
         # Last administration
         last_admin = (
-            MedicationAdmin.query
-            .filter(
+            MedicationAdmin.query.filter(
                 MedicationAdmin.patient_id == patient_id,
                 MedicationAdmin.medication == str(order.medicine_id),
             )
             .order_by(MedicationAdmin.time_administered.desc())
             .first()
         )
-        mar_entries.append({
-            "prescribed_medicine_id": order.id,
-            "medicine_id": order.medicine_id,
-            "drug_name": (
-                f"{order.medicine.generic_name} ({order.medicine.brand_name})"
-                if order.medicine else str(order.medicine_id)
-            ),
-            "dosage": order.dosage,
-            "strength": order.strength,
-            "frequency": order.frequency,
-            "num_days": order.num_days,
-            "last_administered": (
-                last_admin.time_administered.isoformat() if last_admin else None
-            ),
-            "next_due_after_minutes": SAFE_DOSE_INTERVAL_MINUTES,
-        })
+        mar_entries.append(
+            {
+                "prescribed_medicine_id": order.id,
+                "medicine_id": order.medicine_id,
+                "drug_name": (
+                    f"{order.medicine.generic_name} ({order.medicine.brand_name})"
+                    if order.medicine
+                    else str(order.medicine_id)
+                ),
+                "dosage": order.dosage,
+                "strength": order.strength,
+                "frequency": order.frequency,
+                "num_days": order.num_days,
+                "last_administered": (
+                    last_admin.time_administered.isoformat() if last_admin else None
+                ),
+                "next_due_after_minutes": SAFE_DOSE_INTERVAL_MINUTES,
+            }
+        )
 
-    return jsonify({
-        "patient_id": patient_id,
-        "active_orders": len(mar_entries),
-        "mar": mar_entries,
-    }), 200
+    return jsonify(
+        {
+            "patient_id": patient_id,
+            "active_orders": len(mar_entries),
+            "mar": mar_entries,
+        }
+    ), 200

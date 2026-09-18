@@ -4,6 +4,7 @@ Replaces direct PatientWaitingList.seen queries in department index routes.
 PatientWaitingList writes continue (dual-write) for one release as a
 rollback safety net; Phase 4 removes them.
 """
+
 from sqlalchemy import case
 
 from departments.models.encounter import Encounter
@@ -45,7 +46,7 @@ def queue_for(department: str, provider_id: str = None):
         case(
             (Encounter.esi_level.in_([1, 2]), 0),  # Emergent first
             (Encounter.esi_level.isnot(None), 1),  # Triaged (3-5) next
-            else_=2,                               # Untriaged last
+            else_=2,  # Untriaged last
         ).asc(),
         Encounter.started_at.asc(),
     ).all()

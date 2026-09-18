@@ -8,6 +8,7 @@ Provides:
   - eTIMS VSCU connection ping / health check.
   - Automated fiscal receipt & KRA QR code generator for settled invoices.
 """
+
 import hashlib
 import logging
 from datetime import datetime, timezone
@@ -63,7 +64,11 @@ def update_etims_config(
         config.exemptions_note = exemptions_note.strip()
 
     db.session.commit()
-    logger.info("Updated KRA eTIMS configuration for PIN %s (Sandbox=%s)", config.kra_pin, config.is_sandbox)
+    logger.info(
+        "Updated KRA eTIMS configuration for PIN %s (Sandbox=%s)",
+        config.kra_pin,
+        config.is_sandbox,
+    )
     return config
 
 
@@ -77,9 +82,15 @@ def ping_etims_vscu_connection() -> tuple[bool, str]:
 
     # Simulate connection health ping to KRA VSCU
     if config.is_sandbox:
-        return True, f"Successfully connected to KRA eTIMS Sandbox VSCU ({config.vscu_server_url}) for PIN {config.kra_pin}"
+        return (
+            True,
+            f"Successfully connected to KRA eTIMS Sandbox VSCU ({config.vscu_server_url}) for PIN {config.kra_pin}",
+        )
 
-    return True, f"Connected to Live Production KRA eTIMS VSCU Server ({config.vscu_server_url})"
+    return (
+        True,
+        f"Connected to Live Production KRA eTIMS VSCU Server ({config.vscu_server_url})",
+    )
 
 
 def fiscalize_invoice(invoice_id: int) -> EtimsFiscalReceipt:
@@ -106,7 +117,9 @@ def fiscalize_invoice(invoice_id: int) -> EtimsFiscalReceipt:
 
     # Build SHA-256 KRA Fiscal Signature Hash
     raw_signature_str = f"{config.kra_pin}|{config.device_serial}|{cu_num}|{total_val:.2f}|{now.isoformat()}|{config.cmc_key}"
-    fiscal_signature = hashlib.sha256(raw_signature_str.encode("utf-8")).hexdigest().upper()
+    fiscal_signature = (
+        hashlib.sha256(raw_signature_str.encode("utf-8")).hexdigest().upper()
+    )
 
     # KRA official QR code URL payload format
     qr_payload = f"https://itax.kra.go.ke/KRA-Portal/verifyInvoice.htm?tin={config.kra_pin}&cu={config.device_serial}&inv={cu_num}&sign={fiscal_signature[:16]}"
@@ -125,5 +138,7 @@ def fiscalize_invoice(invoice_id: int) -> EtimsFiscalReceipt:
 
     db.session.add(receipt)
     db.session.commit()
-    logger.info("Fiscalized invoice %s -> KRA CU Invoice #%s", invoice.invoice_number, cu_num)
+    logger.info(
+        "Fiscalized invoice %s -> KRA CU Invoice #%s", invoice.invoice_number, cu_num
+    )
     return receipt

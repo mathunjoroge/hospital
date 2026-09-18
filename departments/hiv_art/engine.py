@@ -31,7 +31,7 @@ def create_art_enrollment(
     art_start_date: datetime | None = None,
     facility_enrolled_at: str | None = None,
     encounter_id: int | None = None,
-    current_regimen_id: str | None = None
+    current_regimen_id: str | None = None,
 ) -> tuple[bool, str, ARTEnrollment | None]:
     """
     Create a new ART enrollment for a patient.
@@ -56,17 +56,29 @@ def create_art_enrollment(
         ).first()
 
         if existing_enrollment:
-            return False, f"Patient {patient_id} already has an active ART enrollment", None
+            return (
+                False,
+                f"Patient {patient_id} already has an active ART enrollment",
+                None,
+            )
 
         # Validate ART number uniqueness
         if ARTEnrollment.query.filter_by(art_number=art_number).first():
-            return False, f"ART number {art_number} is already assigned to another patient", None
+            return (
+                False,
+                f"ART number {art_number} is already assigned to another patient",
+                None,
+            )
 
         # Validate regimen if provided
         if current_regimen_id:
             regimen = db.session.get(ARTRegimen, current_regimen_id)
             if not regimen:
-                return False, f"ART regimen with ID {current_regimen_id} not found", None
+                return (
+                    False,
+                    f"ART regimen with ID {current_regimen_id} not found",
+                    None,
+                )
 
         # Set defaults
         if art_start_date is None:
@@ -81,13 +93,15 @@ def create_art_enrollment(
             art_start_date=art_start_date,
             facility_enrolled_at=facility_enrolled_at,
             encounter_id=encounter_id,
-            current_regimen_id=current_regimen_id
+            current_regimen_id=current_regimen_id,
         )
 
         db.session.add(enrollment)
         db.session.commit()
 
-        logger.info(f"Created ART enrollment for patient {patient_id} with ART number {art_number}")
+        logger.info(
+            f"Created ART enrollment for patient {patient_id} with ART number {art_number}"
+        )
         return True, "ART enrollment created successfully", enrollment
 
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
@@ -101,7 +115,7 @@ def update_art_regimen(
     new_regimen_id: str,
     change_reason: str,
     approved_by: str,
-    encounter_id: int | None = None
+    encounter_id: int | None = None,
 ) -> tuple[bool, str, ARTEnrollment | None]:
     """
     Update a patient's ART regimen with validation for line changes.
@@ -131,7 +145,9 @@ def update_art_regimen(
             # First regimen assignment - no line change validation needed
             enrollment.current_regimen_id = new_regimen_id
             db.session.commit()
-            logger.info(f"Set initial regimen {new_regimen.regimen_code} for enrollment {enrollment_id}")
+            logger.info(
+                f"Set initial regimen {new_regimen.regimen_code} for enrollment {enrollment_id}"
+            )
             return True, "Initial regimen assigned successfully", enrollment
 
         # Check if this is a line change
@@ -143,21 +159,31 @@ def update_art_regimen(
             if not change_reason or len(change_reason.strip()) < 10:
                 return False, "Clinical reason required for line advancement", None
 
-            logger.warning(f"Advancing patient {enrollment.patient_id} from line {current_line} to {new_line}")
+            logger.warning(
+                f"Advancing patient {enrollment.patient_id} from line {current_line} to {new_line}"
+            )
             # In a real system, this might trigger additional review or notification
 
         elif new_line < current_line:
             # Moving to lower line - requires strong justification
             if not change_reason or len(change_reason.strip()) < 20:
-                return False, "Strong clinical justification required for line reduction", None
+                return (
+                    False,
+                    "Strong clinical justification required for line reduction",
+                    None,
+                )
 
-            logger.warning(f"Reducing patient {enrollment.patient_id} from line {current_line} to {new_line}")
+            logger.warning(
+                f"Reducing patient {enrollment.patient_id} from line {current_line} to {new_line}"
+            )
 
         # Same line or downward move - update regimen
         enrollment.current_regimen_id = new_regimen_id
         db.session.commit()
 
-        logger.info(f"Updated regimen for enrollment {enrollment_id} to {new_regimen.regimen_code}")
+        logger.info(
+            f"Updated regimen for enrollment {enrollment_id} to {new_regimen.regimen_code}"
+        )
         return True, "ART regimen updated successfully", enrollment
 
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
@@ -173,7 +199,7 @@ def record_adherence_visit(
     visit_date: datetime | None = None,
     viral_load_ordered: bool = False,
     cd4_ordered: bool = False,
-    encounter_id: int | None = None
+    encounter_id: int | None = None,
 ) -> tuple[bool, str, AdherenceVisit | None]:
     """
     Record an adherence visit and calculate adherence percentage.
@@ -216,7 +242,7 @@ def record_adherence_visit(
         # Create adherence visit record
         visit = AdherenceVisit(
             patient_id=enrollment.patient_id,
-                        art_enrollment_id=enrollment_id,
+            art_enrollment_id=enrollment_id,
             pills_dispensed=pills_dispensed,
             pills_returned=pills_returned,
             adherence_percentage=adherence_percentage,
@@ -224,13 +250,15 @@ def record_adherence_visit(
             viral_load_ordered=viral_load_ordered,
             cd4_ordered=cd4_ordered,
             visit_date=visit_date,
-            encounter_id=encounter_id
+            encounter_id=encounter_id,
         )
 
         db.session.add(visit)
         db.session.commit()
 
-        logger.info(f"Recorded adherence visit for enrollment {enrollment_id}: {adherence_percentage:.1f}% ({adherence_category})")
+        logger.info(
+            f"Recorded adherence visit for enrollment {enrollment_id}: {adherence_percentage:.1f}% ({adherence_category})"
+        )
         return True, "Adherence visit recorded successfully", visit
 
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
@@ -252,20 +280,27 @@ def check_missed_visits() -> list[AdherenceVisit]:
 
         # Find enrollments without visits in the last 7 days
         # Get the most recent visit for each enrollment
-        subquery = db.session.query(
-            AdherenceVisit.art_enrollment_id,
-            db.func.max(AdherenceVisit.visit_date).label('last_visit')
-        ).group_by(AdherenceVisit.art_enrollment_id).subquery()
-
-        missed_visits = db.session.query(AdherenceVisit).join(
-            subquery,
-            db.and_(
-                AdherenceVisit.art_enrollment_id == subquery.c.art_enrollment_id,
-                AdherenceVisit.visit_date == subquery.c.last_visit
+        subquery = (
+            db.session.query(
+                AdherenceVisit.art_enrollment_id,
+                db.func.max(AdherenceVisit.visit_date).label("last_visit"),
             )
-        ).filter(
-            subquery.c.last_visit < cutoff_date
-        ).all()
+            .group_by(AdherenceVisit.art_enrollment_id)
+            .subquery()
+        )
+
+        missed_visits = (
+            db.session.query(AdherenceVisit)
+            .join(
+                subquery,
+                db.and_(
+                    AdherenceVisit.art_enrollment_id == subquery.c.art_enrollment_id,
+                    AdherenceVisit.visit_date == subquery.c.last_visit,
+                ),
+            )
+            .filter(subquery.c.last_visit < cutoff_date)
+            .all()
+        )
 
         logger.info(f"Found {len(missed_visits)} patients with missed adherence visits")
         return missed_visits
@@ -280,7 +315,7 @@ def record_viral_load(
     viral_load_copies: int | None,
     test_type: str = "routine",
     test_date: datetime | None = None,
-    encounter_id: int | None = None
+    encounter_id: int | None = None,
 ) -> tuple[bool, str, ViralLoad | None]:
     """
     Record a viral load test result.
@@ -305,17 +340,21 @@ def record_viral_load(
 
         viral_load = ViralLoad(
             patient_id=enrollment.patient_id,
-                        art_enrollment_id=enrollment_id,
+            art_enrollment_id=enrollment_id,
             viral_load_copies=viral_load_copies,
             test_type=test_type,
             test_date=test_date,
-            encounter_id=encounter_id
+            encounter_id=encounter_id,
         )
 
         db.session.add(viral_load)
         db.session.commit()
 
-        result_str = f"{viral_load_copies} copies/mL" if viral_load_copies is not None else "undetectable"
+        result_str = (
+            f"{viral_load_copies} copies/mL"
+            if viral_load_copies is not None
+            else "undetectable"
+        )
         logger.info(f"Recorded viral load for enrollment {enrollment_id}: {result_str}")
         return True, "Viral load recorded successfully", viral_load
 
@@ -330,7 +369,7 @@ def record_cd4_count(
     cd4_count: int | None,
     cd4_percent: float | None = None,
     test_date: datetime | None = None,
-    encounter_id: int | None = None
+    encounter_id: int | None = None,
 ) -> tuple[bool, str, CD4Count | None]:
     """
     Record a CD4 count test result.
@@ -355,17 +394,19 @@ def record_cd4_count(
 
         cd4 = CD4Count(
             patient_id=enrollment.patient_id,
-                        art_enrollment_id=enrollment_id,
+            art_enrollment_id=enrollment_id,
             cd4_count=cd4_count,
             cd4_percent=cd4_percent,
             test_date=test_date,
-            encounter_id=encounter_id
+            encounter_id=encounter_id,
         )
 
         db.session.add(cd4)
         db.session.commit()
 
-        logger.info(f"Recorded CD4 count for enrollment {enrollment_id}: {cd4_count} cells/µL")
+        logger.info(
+            f"Recorded CD4 count for enrollment {enrollment_id}: {cd4_count} cells/µL"
+        )
         return True, "CD4 count recorded successfully", cd4
 
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
@@ -379,7 +420,7 @@ def record_who_stage(
     who_stage: int,
     defining_conditions: str | None = None,
     assessment_date: datetime | None = None,
-    encounter_id: int | None = None
+    encounter_id: int | None = None,
 ) -> tuple[bool, str, WHOStage | None]:
     """
     Record a WHO clinical staging assessment.
@@ -407,11 +448,11 @@ def record_who_stage(
 
         who_stage_record = WHOStage(
             patient_id=enrollment.patient_id,
-                        art_enrollment_id=enrollment_id,
+            art_enrollment_id=enrollment_id,
             who_stage=who_stage,
             defining_conditions=defining_conditions,
             assessment_date=assessment_date,
-            encounter_id=encounter_id
+            encounter_id=encounter_id,
         )
 
         db.session.add(who_stage_record)
@@ -457,9 +498,11 @@ def get_latest_viral_load(enrollment_id: str) -> ViralLoad | None:
         Most recent viral load or None if not found
     """
     try:
-        return ViralLoad.query.filter_by(art_enrollment_id=enrollment_id)\
-            .order_by(ViralLoad.test_date.desc())\
+        return (
+            ViralLoad.query.filter_by(art_enrollment_id=enrollment_id)
+            .order_by(ViralLoad.test_date.desc())
             .first()
+        )
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         logger.error(f"Error getting latest viral load: {e}")
         return None
@@ -476,9 +519,11 @@ def get_latest_cd4_count(enrollment_id: str) -> CD4Count | None:
         Most recent CD4 count or None if not found
     """
     try:
-        return CD4Count.query.filter_by(art_enrollment_id=enrollment_id)\
-            .order_by(CD4Count.test_date.desc())\
+        return (
+            CD4Count.query.filter_by(art_enrollment_id=enrollment_id)
+            .order_by(CD4Count.test_date.desc())
             .first()
+        )
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         logger.error(f"Error getting latest CD4 count: {e}")
         return None
@@ -495,9 +540,11 @@ def get_latest_who_stage(enrollment_id: str) -> WHOStage | None:
         Most recent WHO stage or None if not found
     """
     try:
-        return WHOStage.query.filter_by(art_enrollment_id=enrollment_id)\
-            .order_by(WHOStage.assessment_date.desc())\
+        return (
+            WHOStage.query.filter_by(art_enrollment_id=enrollment_id)
+            .order_by(WHOStage.assessment_date.desc())
             .first()
+        )
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         logger.error(f"Error getting latest WHO stage: {e}")
         return None
@@ -515,10 +562,12 @@ def get_adherence_summary(enrollment_id: str, limit: int = 12) -> list[Adherence
         List of adherence visits ordered by date (most recent first)
     """
     try:
-        return AdherenceVisit.query.filter_by(art_enrollment_id=enrollment_id)\
-            .order_by(AdherenceVisit.visit_date.desc())\
-            .limit(limit)\
+        return (
+            AdherenceVisit.query.filter_by(art_enrollment_id=enrollment_id)
+            .order_by(AdherenceVisit.visit_date.desc())
+            .limit(limit)
             .all()
+        )
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         logger.error(f"Error getting adherence summary: {e}")
         return []
@@ -534,10 +583,16 @@ def get_art_formulary() -> list[ARTRegimen]:
     """
     try:
         now = datetime.now(timezone.utc).date()
-        return ARTRegimen.query.filter(
-            db.or_(ARTRegimen.effective_to.is_(None), ARTRegimen.effective_to >= now),
-            ARTRegimen.effective_from <= now
-        ).order_by(ARTRegimen.line_of_therapy, ARTRegimen.regimen_code).all()
+        return (
+            ARTRegimen.query.filter(
+                db.or_(
+                    ARTRegimen.effective_to.is_(None), ARTRegimen.effective_to >= now
+                ),
+                ARTRegimen.effective_from <= now,
+            )
+            .order_by(ARTRegimen.line_of_therapy, ARTRegimen.regimen_code)
+            .all()
+        )
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         logger.error(f"Error getting ART formulary: {e}")
         return []
@@ -573,7 +628,7 @@ def log_formulary_change(
     regimen_id: str,
     change_type: str,  # 'create', 'update', 'retire'
     changed_by: str,
-    change_notes: str | None = None
+    change_notes: str | None = None,
 ) -> bool:
     """
     Log a change to the ART formulary for audit purposes.

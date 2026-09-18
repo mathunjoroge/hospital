@@ -30,7 +30,9 @@ from urllib.parse import urlparse
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, BASE_DIR)
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger("HMIS.Backup")
 
 BACKUP_DIR = os.path.join(BASE_DIR, "backups")
@@ -41,7 +43,9 @@ def _configured_database_uri() -> str:
     """Resolve the live database URI the same way config.py does."""
     return os.getenv(
         "SQLALCHEMY_DATABASE_URI",
-        os.getenv("DATABASE_URL", "sqlite:///" + os.path.join(BASE_DIR, "instance", "dev.db")),
+        os.getenv(
+            "DATABASE_URL", "sqlite:///" + os.path.join(BASE_DIR, "instance", "dev.db")
+        ),
     )
 
 
@@ -81,11 +85,15 @@ def perform_postgres_backup(db_uri: str) -> str:
 
     cmd = [
         "pg_dump",
-        "-h", parsed.hostname or "localhost",
-        "-p", str(parsed.port or 5432),
-        "-U", parsed.username or "hospital",
+        "-h",
+        parsed.hostname or "localhost",
+        "-p",
+        str(parsed.port or 5432),
+        "-U",
+        parsed.username or "hospital",
         "-Fc",  # custom format: compressed, supports pg_restore -j parallel restore
-        "-f", backup_path,
+        "-f",
+        backup_path,
         (parsed.path or "/hospital_core").lstrip("/"),
     ]
 
@@ -95,7 +103,9 @@ def perform_postgres_backup(db_uri: str) -> str:
             cmd, env=pg_env, capture_output=True, text=True, timeout=1800
         )
         if result.returncode != 0:
-            logger.error(f"pg_dump failed (exit {result.returncode}): {result.stderr.strip()}")
+            logger.error(
+                f"pg_dump failed (exit {result.returncode}): {result.stderr.strip()}"
+            )
             if os.path.exists(backup_path):
                 os.remove(backup_path)
             return None
@@ -123,7 +133,7 @@ def perform_sqlite_backup(db_path: str | None = None) -> str:
             os.path.join(BASE_DIR, "instance", "hospital.db"),
             os.path.join(BASE_DIR, "dev.db"),
             os.path.join(BASE_DIR, "hims.db"),
-            os.path.join(BASE_DIR, "hospital.db")
+            os.path.join(BASE_DIR, "hospital.db"),
         ]
         for c in candidates:
             if os.path.exists(c):
@@ -137,7 +147,6 @@ def perform_sqlite_backup(db_path: str | None = None) -> str:
         conn = sqlite3.connect(db_path)
         conn.execute("CREATE TABLE IF NOT EXISTS system_init (id INTEGER PRIMARY KEY);")
         conn.close()
-
 
     os.makedirs(BACKUP_DIR, exist_ok=True)
 

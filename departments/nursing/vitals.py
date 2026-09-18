@@ -81,18 +81,23 @@ def vitals(patient_id):
             ScheduleEngine().mark_triage_complete(patient_id)
             # Phase 5.5: auto-stamp ESI from triage vitals (drives queue priority + EMERGENT badge)
             try:
-
                 from departments.models.encounter import Encounter
                 from departments.nursing.triage import calculate_esi_level
+
                 _enc = (
-                    Encounter.query.filter_by(patient_id=str(patient_id), status="ACTIVE")
+                    Encounter.query.filter_by(
+                        patient_id=str(patient_id), status="ACTIVE"
+                    )
                     .order_by(Encounter.started_at.desc())
                     .first()
                 )
                 if _enc is not None:
                     _age = 30.0
                     if _enc.patient is not None and _enc.patient.date_of_birth:
-                        _age = (datetime.now(timezone.utc).date() - _enc.patient.date_of_birth).days / 365.25
+                        _age = (
+                            datetime.now(timezone.utc).date()
+                            - _enc.patient.date_of_birth
+                        ).days / 365.25
                     _esi, _ = calculate_esi_level(
                         vitals_dict={
                             "temperature": vitals_data.temperature,
@@ -110,7 +115,9 @@ def vitals(patient_id):
                     # Advance stage: vitals done → patient ready for doctor
                     _enc.stage = "WAITING_DOCTOR"
                     db.session.commit()
-            except Exception as _e:  # never block vitals capture on ESI math  # noqa: BLE001
+            except (
+                Exception
+            ) as _e:  # never block vitals capture on ESI math  # noqa: BLE001
                 db.session.rollback()
                 logger.warning(f"ESI auto-stamp skipped for {patient_id}: {_e}")
             logger.info(
@@ -395,9 +402,7 @@ def submit_partogram():
 
     except ValueError as ve:
         db.session.rollback()
-        return render_template(
-            "nursing/error.html", errors=[f"Invalid input: {ve!s}"]
-        )
+        return render_template("nursing/error.html", errors=[f"Invalid input: {ve!s}"])
     except Exception as e:  # noqa: BLE001
         db.session.rollback()
         return render_template(

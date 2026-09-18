@@ -397,6 +397,7 @@ def test_reset_password_fails_with_expired_or_invalid_token(client, app):
 # PATIENT PORTAL EXPANSION TESTS (CANCELLATION & BILLING)
 # ==============================================================================
 
+
 def test_patient_can_cancel_future_appointment(client, app):
     with app.app_context():
         from datetime import date, timedelta
@@ -406,10 +407,18 @@ def test_patient_can_cancel_future_appointment(client, app):
 
         p = Patient.query.filter_by(patient_id="PAT-CANCEL").first()
         if not p:
-            p = Patient(patient_id="PAT-CANCEL", name="Cancel Test", sex="M",
-                        date_of_birth=date(1990,1,1), place_of_residence="Test",
-                        marital_status="Single", contact="123", next_of_kin="X",
-                        relationship_with_next_of_kin="X", next_of_kin_contact="123")
+            p = Patient(
+                patient_id="PAT-CANCEL",
+                name="Cancel Test",
+                sex="M",
+                date_of_birth=date(1990, 1, 1),
+                place_of_residence="Test",
+                marital_status="Single",
+                contact="123",
+                next_of_kin="X",
+                relationship_with_next_of_kin="X",
+                next_of_kin_contact="123",
+            )
             db.session.add(p)
             db.session.flush()
 
@@ -420,7 +429,9 @@ def test_patient_can_cancel_future_appointment(client, app):
             db.session.flush()
 
         future_date = datetime.now(timezone.utc).date() + timedelta(days=5)
-        booking = ClinicBooking(patient_id=p.patient_id, clinic_id=clinic.clinic_id, clinic_date=future_date)
+        booking = ClinicBooking(
+            patient_id=p.patient_id, clinic_id=clinic.clinic_id, clinic_date=future_date
+        )
         db.session.add(booking)
 
         u = PatientUser.query.filter_by(username="cancel_user").first()
@@ -433,14 +444,19 @@ def test_patient_can_cancel_future_appointment(client, app):
         booking_id = booking.id
 
     # Login
-    client.post("/portal/login", data={"username": "cancel_user", "password": "Pass1234!"})
+    client.post(
+        "/portal/login", data={"username": "cancel_user", "password": "Pass1234!"}
+    )
 
     # Cancel
-    resp = client.post(f"/portal/appointments/{booking_id}/cancel", follow_redirects=True)
+    resp = client.post(
+        f"/portal/appointments/{booking_id}/cancel", follow_redirects=True
+    )
     assert resp.status_code == 200
 
     with app.app_context():
         from departments.models.records import ClinicBooking
+
         assert db.session.get(ClinicBooking, booking_id) is None
 
 
@@ -453,10 +469,18 @@ def test_patient_cannot_cancel_past_appointment(client, app):
 
         p = Patient.query.filter_by(patient_id="PAT-PAST").first()
         if not p:
-            p = Patient(patient_id="PAT-PAST", name="Past Test", sex="M",
-                        date_of_birth=date(1990,1,1), place_of_residence="Test",
-                        marital_status="Single", contact="123", next_of_kin="X",
-                        relationship_with_next_of_kin="X", next_of_kin_contact="123")
+            p = Patient(
+                patient_id="PAT-PAST",
+                name="Past Test",
+                sex="M",
+                date_of_birth=date(1990, 1, 1),
+                place_of_residence="Test",
+                marital_status="Single",
+                contact="123",
+                next_of_kin="X",
+                relationship_with_next_of_kin="X",
+                next_of_kin_contact="123",
+            )
             db.session.add(p)
             db.session.flush()
 
@@ -466,7 +490,9 @@ def test_patient_cannot_cancel_past_appointment(client, app):
             db.session.add(clinic)
             db.session.flush()
         past_date = datetime.now(timezone.utc).date() - timedelta(days=5)
-        booking = ClinicBooking(patient_id=p.patient_id, clinic_id=clinic.clinic_id, clinic_date=past_date)
+        booking = ClinicBooking(
+            patient_id=p.patient_id, clinic_id=clinic.clinic_id, clinic_date=past_date
+        )
         db.session.add(booking)
 
         u = PatientUser.query.filter_by(username="past_user").first()
@@ -478,11 +504,14 @@ def test_patient_cannot_cancel_past_appointment(client, app):
         db.session.commit()
         booking_id = booking.id
 
-    client.post("/portal/login", data={"username": "past_user", "password": "Pass1234!"})
+    client.post(
+        "/portal/login", data={"username": "past_user", "password": "Pass1234!"}
+    )
     client.post(f"/portal/appointments/{booking_id}/cancel", follow_redirects=True)
 
     with app.app_context():
         from departments.models.records import ClinicBooking
+
         assert db.session.get(ClinicBooking, booking_id) is not None
 
 
@@ -496,10 +525,18 @@ def test_patient_can_view_invoice_details(client, app):
 
         p = Patient.query.filter_by(patient_id="PAT-BILL").first()
         if not p:
-            p = Patient(patient_id="PAT-BILL", name="Bill Test", sex="M",
-                        date_of_birth=date(1990,1,1), place_of_residence="Test",
-                        marital_status="Single", contact="123", next_of_kin="X",
-                        relationship_with_next_of_kin="X", next_of_kin_contact="123")
+            p = Patient(
+                patient_id="PAT-BILL",
+                name="Bill Test",
+                sex="M",
+                date_of_birth=date(1990, 1, 1),
+                place_of_residence="Test",
+                marital_status="Single",
+                contact="123",
+                next_of_kin="X",
+                relationship_with_next_of_kin="X",
+                next_of_kin_contact="123",
+            )
             db.session.add(p)
             db.session.flush()
 
@@ -517,7 +554,9 @@ def test_patient_can_view_invoice_details(client, app):
         db.session.commit()
         inv_id = inv.id
 
-    client.post("/portal/login", data={"username": "bill_user", "password": "Pass1234!"})
+    client.post(
+        "/portal/login", data={"username": "bill_user", "password": "Pass1234!"}
+    )
     resp = client.get(f"/portal/billing/invoice/{inv_id}")
     assert resp.status_code == 200
     assert b"Grand Total" in resp.data or b"1000" in resp.data

@@ -30,7 +30,12 @@ class TestAnalyticsETL:
 
             p = Patient.query.filter_by(patient_id="PTETL01").first()
             if not p:
-                p = Patient(patient_id="PTETL01", name="ETL Patient", sex="Male", date_of_birth=date(1990, 1, 1))
+                p = Patient(
+                    patient_id="PTETL01",
+                    name="ETL Patient",
+                    sex="Male",
+                    date_of_birth=date(1990, 1, 1),
+                )
                 db.session.add(p)
                 db.session.commit()
 
@@ -112,7 +117,9 @@ class TestAnalyticsRoutes:
         assert b"MOH_OPD_TOTAL" in resp.data
 
     def test_trigger_etl_endpoint(self, client, app, admin_user):
-        resp = client.post("/api/analytics/etl/trigger", json={"date": date.today().isoformat()})
+        resp = client.post(
+            "/api/analytics/etl/trigger", json={"date": date.today().isoformat()}
+        )
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["status"] == "success"

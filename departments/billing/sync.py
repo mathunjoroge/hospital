@@ -42,17 +42,22 @@ def get_or_create_open_invoice(patient_id: str, _session=None) -> Invoice:
     sess = _session if _session is not None else db.session
 
     # Find the most recent active encounter for this patient
-    active_encounter = sess.query(Encounter).filter_by(
-        patient_id=patient_id, status="ACTIVE"
-    ).order_by(Encounter.started_at.desc()).first()
+    active_encounter = (
+        sess.query(Encounter)
+        .filter_by(patient_id=patient_id, status="ACTIVE")
+        .order_by(Encounter.started_at.desc())
+        .first()
+    )
     enc_id = active_encounter.id if active_encounter else None
 
     # Check for existing open invoice scoped to this encounter (or unscoped if no encounter)
-    invoice = sess.query(Invoice).filter_by(
-        patient_id=patient_id,
-        status=InvoiceStatus.DRAFT,
-        encounter_id=enc_id
-    ).first()
+    invoice = (
+        sess.query(Invoice)
+        .filter_by(
+            patient_id=patient_id, status=InvoiceStatus.DRAFT, encounter_id=enc_id
+        )
+        .first()
+    )
 
     if not invoice:
         # Create new invoice scoped to the encounter
@@ -66,7 +71,9 @@ def get_or_create_open_invoice(patient_id: str, _session=None) -> Invoice:
         )
         sess.add(invoice)
         sess.flush()  # Get the ID without committing
-        logger.info(f"Created new invoice {invoice.id} for patient {patient_id} (Encounter: {enc_id})")
+        logger.info(
+            f"Created new invoice {invoice.id} for patient {patient_id} (Encounter: {enc_id})"
+        )
 
     return invoice
 
@@ -192,13 +199,21 @@ def sync_payment(
             return existing
 
     # Get or create the patient's open invoice
-    invoice = sess.query(Invoice).filter_by(patient_id=patient_id, status=InvoiceStatus.DRAFT).first()
+    invoice = (
+        sess.query(Invoice)
+        .filter_by(patient_id=patient_id, status=InvoiceStatus.DRAFT)
+        .first()
+    )
     if not invoice:
         invoice = get_or_create_open_invoice(patient_id, _session=sess)
 
     # Resolve Enum safely
     try:
-        method_enum = PaymentMethod(payment_method) if isinstance(payment_method, str) else payment_method
+        method_enum = (
+            PaymentMethod(payment_method)
+            if isinstance(payment_method, str)
+            else payment_method
+        )
     except ValueError:
         method_enum = PaymentMethod.OTHER
 
@@ -244,8 +259,14 @@ def sync_invoice_status(invoice: Invoice) -> InvoiceStatus:
     """
     Recalculate and update the status of an Invoice based on total, paid amount, and balance.
     """
-    grand_total = float(getattr(invoice, "grand_total", None) or getattr(invoice, "total_amount", 0) or 0)
-    amount_paid = float(getattr(invoice, "amount_paid", None) or getattr(invoice, "paid_amount", 0) or 0)
+    grand_total = float(
+        getattr(invoice, "grand_total", None)
+        or getattr(invoice, "total_amount", 0)
+        or 0
+    )
+    amount_paid = float(
+        getattr(invoice, "amount_paid", None) or getattr(invoice, "paid_amount", 0) or 0
+    )
     invoice.balance = grand_total - amount_paid
 
     if amount_paid >= grand_total > 0:
@@ -256,4 +277,3 @@ def sync_invoice_status(invoice: Invoice) -> InvoiceStatus:
         invoice.status = InvoiceStatus.DRAFT
     db.session.commit()
     return invoice.status
-

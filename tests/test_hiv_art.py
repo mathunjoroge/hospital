@@ -30,7 +30,7 @@ def sample_regimen():
         line_of_therapy=1,
         arv_drugs="Tenofovir, Lamivudine, Efavirenz",
         is_preferred=True,
-        effective_from=datetime.now(timezone.utc).date()
+        effective_from=datetime.now(timezone.utc).date(),
     )
     db.session.add(regimen)
     db.session.commit()
@@ -61,7 +61,7 @@ def test_art_enrollment_creation(client, sample_regimen):
         baseline_who_stage=2,
         art_start_date=datetime.now(timezone.utc),
         facility_enrolled_at="Test Clinic",
-        current_regimen_id=sample_regimen.id
+        current_regimen_id=sample_regimen.id,
     )
 
     assert success is True
@@ -76,7 +76,7 @@ def test_art_enrollment_creation(client, sample_regimen):
     success2, message2, _ = create_art_enrollment(
         patient_id="PAT001",  # Same patient
         art_number="ART0002",
-        baseline_cd4=400
+        baseline_cd4=400,
     )
 
     assert success2 is False
@@ -92,7 +92,7 @@ def test_art_enrollment_duplicate_art_number(client, sample_regimen):
         patient_id="PAT001",
         art_number="ART0001",
         baseline_cd4=350,
-        current_regimen_id=sample_regimen.id
+        current_regimen_id=sample_regimen.id,
     )
 
     assert success1 is True
@@ -102,7 +102,7 @@ def test_art_enrollment_duplicate_art_number(client, sample_regimen):
         patient_id="PAT002",  # Different patient
         art_number="ART0001",  # Same ART number
         baseline_cd4=400,
-        current_regimen_id=sample_regimen.id
+        current_regimen_id=sample_regimen.id,
     )
 
     assert success2 is False
@@ -118,7 +118,7 @@ def test_adherence_visit_recording(client, sample_regimen):
         patient_id="PAT001",
         art_number="ART0001",
         baseline_cd4=350,
-        current_regimen_id=sample_regimen.id
+        current_regimen_id=sample_regimen.id,
     )
 
     assert success is True
@@ -128,7 +128,7 @@ def test_adherence_visit_recording(client, sample_regimen):
         enrollment_id=enrollment.id,
         pills_dispensed=30,
         pills_returned=5,  # Took 25 out of 30
-        visit_date=datetime.now(timezone.utc)
+        visit_date=datetime.now(timezone.utc),
     )
 
     assert success2 is True
@@ -149,16 +149,14 @@ def test_viral_load_recording(client, sample_regimen):
         patient_id="PAT001",
         art_number="ART0001",
         baseline_cd4=350,
-        current_regimen_id=sample_regimen.id
+        current_regimen_id=sample_regimen.id,
     )
 
     assert success is True
 
     # Record detectable viral load
     success2, message2, vl = record_viral_load(
-        enrollment_id=enrollment.id,
-        viral_load_copies=12500,
-        test_type="routine"
+        enrollment_id=enrollment.id, viral_load_copies=12500, test_type="routine"
     )
 
     assert success2 is True
@@ -170,7 +168,7 @@ def test_viral_load_recording(client, sample_regimen):
     success3, message3, vl2 = record_viral_load(
         enrollment_id=enrollment.id,
         viral_load_copies=None,  # Undetectable
-        test_type="routine"
+        test_type="routine",
     )
 
     assert success3 is True
@@ -187,16 +185,14 @@ def test_cd4_recording(client, sample_regimen):
         patient_id="PAT001",
         art_number="ART0001",
         baseline_cd4=350,
-        current_regimen_id=sample_regimen.id
+        current_regimen_id=sample_regimen.id,
     )
 
     assert success is True
 
     # Record CD4 count
     success2, message2, cd4 = record_cd4_count(
-        enrollment_id=enrollment.id,
-        cd4_count=420,
-        cd4_percent=25.0
+        enrollment_id=enrollment.id, cd4_count=420, cd4_percent=25.0
     )
 
     assert success2 is True
@@ -214,7 +210,7 @@ def test_who_stage_recording(client, sample_regimen):
         patient_id="PAT001",
         art_number="ART0001",
         baseline_cd4=350,
-        current_regimen_id=sample_regimen.id
+        current_regimen_id=sample_regimen.id,
     )
 
     assert success is True
@@ -223,7 +219,7 @@ def test_who_stage_recording(client, sample_regimen):
     success2, message2, who = record_who_stage(
         enrollment_id=enrollment.id,
         who_stage=3,
-        defining_conditions="Weight loss, chronic diarrhea"
+        defining_conditions="Weight loss, chronic diarrhea",
     )
 
     assert success2 is True
@@ -244,7 +240,7 @@ def test_regimen_change(client, sample_regimen):
         arv_drugs="Zidovudine, Lamivudine, Lopinavir/ritonavir",
         is_preferred=False,
         is_alternative=True,
-        effective_from=datetime.now(timezone.utc).date()
+        effective_from=datetime.now(timezone.utc).date(),
     )
     db.session.add(regimen2)
     db.session.commit()
@@ -254,7 +250,7 @@ def test_regimen_change(client, sample_regimen):
         patient_id="PAT001",
         art_number="ART0001",
         baseline_cd4=350,
-        current_regimen_id=sample_regimen.id  # First line regimen
+        current_regimen_id=sample_regimen.id,  # First line regimen
     )
 
     assert success is True
@@ -266,7 +262,7 @@ def test_regimen_change(client, sample_regimen):
         new_regimen_id=regimen2.id,
         change_reason="Treatment failure after 6 months on first line regimen",
         approved_by="DR001",
-        encounter_id=1
+        encounter_id=1,
     )
 
     assert success2 is True
@@ -288,24 +284,21 @@ def test_model_relationships(client, sample_regimen):
         patient_id="PAT001",
         art_number="ART0001",
         baseline_cd4=350,
-        current_regimen_id=sample_regimen.id
+        current_regimen_id=sample_regimen.id,
     )
 
     assert success is True
 
     # Add adherence visit
     success2, message2, visit = record_adherence_visit(
-        enrollment_id=enrollment.id,
-        pills_dispensed=20,
-        pills_returned=2
+        enrollment_id=enrollment.id, pills_dispensed=20, pills_returned=2
     )
 
     assert success2 is True
 
     # Add viral load
     success3, message3, vl = record_viral_load(
-        enrollment_id=enrollment.id,
-        viral_load_copies=5000
+        enrollment_id=enrollment.id, viral_load_copies=5000
     )
 
     assert success3 is True
@@ -346,7 +339,7 @@ def test_art_regimen_formulary_functions(client, sample_regimen):
         regimen_id=sample_regimen.id,
         change_type="test",
         changed_by="TEST_USER",
-        change_notes="This is a test log entry"
+        change_notes="This is a test log entry",
     )
     assert result is True
 

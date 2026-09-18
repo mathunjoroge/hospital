@@ -633,7 +633,9 @@ def record_direct_receipt():
                 user_id=current_uid,
             )
         elif item_type == "NON_PHARM":
-            non_pharm = db.session.get(NonPharmItem, non_pharm_id) if non_pharm_id else None
+            non_pharm = (
+                db.session.get(NonPharmItem, non_pharm_id) if non_pharm_id else None
+            )
             if not non_pharm:
                 return jsonify(
                     {"error": f"Non-pharm item ID {non_pharm_id} not found"}

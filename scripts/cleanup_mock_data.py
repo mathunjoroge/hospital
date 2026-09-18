@@ -29,7 +29,9 @@ def cleanup_mock_data(dry_run=False):
         if dry_run:
             print("DRY RUN — no changes made")
             for enc in mock_encounters[:10]:  # Show first 10
-                print(f"  - Encounter #{enc.id}: {enc.encounter_type} - {enc.chief_complaint}")
+                print(
+                    f"  - Encounter #{enc.id}: {enc.encounter_type} - {enc.chief_complaint}"
+                )
             if count > 10:
                 print(f"  ... and {count - 10} more")
             return count

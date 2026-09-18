@@ -39,7 +39,9 @@ def _patient(pid: str) -> Patient:
     return p
 
 
-def _encounter(patient_id: str, enc_type: str = "OPD", stage: str = "IN_CONSULTATION") -> Encounter:
+def _encounter(
+    patient_id: str, enc_type: str = "OPD", stage: str = "IN_CONSULTATION"
+) -> Encounter:
     enc = Encounter(
         patient_id=patient_id,
         encounter_type=enc_type,
@@ -83,9 +85,9 @@ class TestSyncChargeEncounterTagging:
                 source_encounter_id=enc_b.id,
             )
             assert line is not None
-            assert line.encounter_id == enc_b.id, (
-                f"Expected enc_b ({enc_b.id}), got {line.encounter_id}"
-            )
+            assert (
+                line.encounter_id == enc_b.id
+            ), f"Expected enc_b ({enc_b.id}), got {line.encounter_id}"
 
     def test_no_source_encounter_id_falls_back_to_invoice(self, app):
         """When source_encounter_id is None, line item inherits invoice.encounter_id."""
@@ -128,7 +130,9 @@ class TestSyncChargeEncounterTagging:
                 amount=400.0,
                 source_encounter_id=enc.id,
             )
-            assert line1.id == line2.id, "Idempotency broken — duplicate line item created"
+            assert (
+                line1.id == line2.id
+            ), "Idempotency broken — duplicate line item created"
 
 
 # ── T3.8: Event listener integration tests ────────────────────────
@@ -152,9 +156,9 @@ class TestEventListenerEncounterTagging:
                 source_id=lab_req.id,
             ).first()
             assert line is not None, "No InvoiceLineItem created for RequestedLab"
-            assert line.encounter_id == enc.id, (
-                f"Expected {enc.id}, got {line.encounter_id}"
-            )
+            assert (
+                line.encounter_id == enc.id
+            ), f"Expected {enc.id}, got {line.encounter_id}"
             assert line.category == "lab"
             assert float(line.unit_price) == 500.0
 
@@ -177,9 +181,9 @@ class TestEventListenerEncounterTagging:
                 source_id=img_req.id,
             ).first()
             assert line is not None, "No InvoiceLineItem created for RequestedImage"
-            assert line.encounter_id == enc.id, (
-                f"Expected {enc.id}, got {line.encounter_id}"
-            )
+            assert (
+                line.encounter_id == enc.id
+            ), f"Expected {enc.id}, got {line.encounter_id}"
             assert line.category == "imaging"
 
     def test_lab_without_encounter_id_still_creates_line_item(self, app):
@@ -265,9 +269,7 @@ class TestRestoredEventListenerCoverage:
             _patient("P-THEATRE-01")
             enc = _encounter("P-THEATRE-01", enc_type="SURGICAL")
 
-            proc = TheatreProcedure(
-                name="Appendectomy", type="General", cost=15000.0
-            )
+            proc = TheatreProcedure(name="Appendectomy", type="General", cost=15000.0)
             db.session.add(proc)
             db.session.commit()
 
@@ -294,7 +296,9 @@ class TestRestoredEventListenerCoverage:
             enc = _encounter("P-CLINIC-01", enc_type="OPD")
 
             booking = ClinicBooking(
-                patient_id="P-CLINIC-01", clinic_id=1, clinic_date=datetime.now(timezone.utc).date()
+                patient_id="P-CLINIC-01",
+                clinic_id=1,
+                clinic_date=datetime.now(timezone.utc).date(),
             )
             booking.consultation_fee = 500.0
             booking.encounter_id = enc.id

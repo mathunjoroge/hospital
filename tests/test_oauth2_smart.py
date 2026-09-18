@@ -1,4 +1,5 @@
 """Tests for OAuth2 provider and SMART on FHIR launch."""
+
 from werkzeug.security import generate_password_hash
 
 from departments.models.oauth2 import OAuth2Client, OAuth2Token
@@ -27,20 +28,25 @@ def test_oauth2_token_endpoint(app, client):
             client_secret="test-client-secret",
         )
         # Authlib's Mixin requires set_client_metadata() for the metadata dict
-        oauth_client.set_client_metadata({
-            "client_name": "Test App",
-            "redirect_uris": ["http://localhost/callback"],
-            "scope": "patient/Patient.read",
-        })
+        oauth_client.set_client_metadata(
+            {
+                "client_name": "Test App",
+                "redirect_uris": ["http://localhost/callback"],
+                "scope": "patient/Patient.read",
+            }
+        )
         db.session.add(oauth_client)
         db.session.commit()
 
         # Request a token
-        resp = client.post("/oauth/token", data={
-            "client_id": "test-client-id",
-            "client_secret": "test-client-secret",
-            "scope": "patient/Patient.read",
-        })
+        resp = client.post(
+            "/oauth/token",
+            data={
+                "client_id": "test-client-id",
+                "client_secret": "test-client-secret",
+                "scope": "patient/Patient.read",
+            },
+        )
 
         assert resp.status_code == 200
         data = resp.get_json()

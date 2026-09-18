@@ -6,6 +6,7 @@ Covers:
 - Drug-Resistant TB (DR-TB): All-Oral BPaLM, BPaL, and Individualized 18-20 month regimens
 - TB Preventive Therapy (TPT): 3HP, 1HP, 3RH, 6H (+ Vit B6), 6LFX
 """
+
 from datetime import date, datetime, timedelta
 
 from departments.hiv_art.moh_731_729b import NASCOP_REGIMEN_CATALOG
@@ -34,7 +35,6 @@ NTLDP_TB_TPT_CATALOG = [
         "drug_components": "Intensive: 2RHZ Dispersible (R75/H50/Z150) x 2 Months -> Continuation: 4RH Dispersible (R75/H50) x 4 Months",
         "keywords": ["2rhz", "dispersible rhz", "pediatric tb", "ped tb"],
     },
-
     # 2. Drug-Resistant TB (DR-TB) All-Oral Short Regimens
     {
         "nascop_ntldp_code": "DR-BPaLM",
@@ -63,7 +63,6 @@ NTLDP_TB_TPT_CATALOG = [
         "drug_components": "Group A (BDQ, LFX/MFX, LZD) + Group B (CFZ, CS/TRD) + Group C (DLM, Z, E) x 18-20 Months",
         "keywords": ["individualized dr-tb", "longer dr-tb", "group a group b"],
     },
-
     # 3. TB Preventive Therapy (TPT)
     {
         "nascop_ntldp_code": "TPT-3HP",
@@ -169,7 +168,10 @@ def classify_ntldp_regimen(regimen_code: str = None, drugs_text: str = None) -> 
     if regimen_code:
         code_upper = regimen_code.strip().upper()
         for item in NTLDP_TB_TPT_CATALOG:
-            if item["nascop_ntldp_code"].upper() == code_upper or item["regimen_acronym"].upper() == code_upper:
+            if (
+                item["nascop_ntldp_code"].upper() == code_upper
+                or item["regimen_acronym"].upper() == code_upper
+            ):
                 return item
 
     if drugs_text:
@@ -215,18 +217,21 @@ def aggregate_ntldp_tb_tpt_monthly(year: int = None, month: int = None) -> dict:
         .all()
     )
 
-    regimen_counts = {item["nascop_ntldp_code"]: {
-        "nascop_ntldp_code": item["nascop_ntldp_code"],
-        "program_domain": item["program_domain"],
-        "regimen_acronym": item["regimen_acronym"],
-        "line_tier": item["line_tier"],
-        "target_population": item["target_population"],
-        "drug_components": item["drug_components"],
-        "active_patients_male": 0,
-        "active_patients_female": 0,
-        "total_active_patients": 0,
-        "new_patients_started": 0,
-    } for item in NTLDP_TB_TPT_CATALOG}
+    regimen_counts = {
+        item["nascop_ntldp_code"]: {
+            "nascop_ntldp_code": item["nascop_ntldp_code"],
+            "program_domain": item["program_domain"],
+            "regimen_acronym": item["regimen_acronym"],
+            "line_tier": item["line_tier"],
+            "target_population": item["target_population"],
+            "drug_components": item["drug_components"],
+            "active_patients_male": 0,
+            "active_patients_female": 0,
+            "total_active_patients": 0,
+            "new_patients_started": 0,
+        }
+        for item in NTLDP_TB_TPT_CATALOG
+    }
 
     total_tb_active = 0
     total_tpt_active = 0
@@ -237,7 +242,9 @@ def aggregate_ntldp_tb_tpt_monthly(year: int = None, month: int = None) -> dict:
         mcode = matched["nascop_ntldp_code"]
 
         is_male = (patient.sex in ["M", "Male"]) if patient else True
-        is_new = (enr.treatment_start_date and start_dt <= enr.treatment_start_date <= end_dt) or (start_dt <= enr.enrollment_date <= end_dt)
+        is_new = (
+            enr.treatment_start_date and start_dt <= enr.treatment_start_date <= end_dt
+        ) or (start_dt <= enr.enrollment_date <= end_dt)
 
         reg_data = regimen_counts[mcode]
         if is_male:
@@ -261,7 +268,9 @@ def aggregate_ntldp_tb_tpt_monthly(year: int = None, month: int = None) -> dict:
         "month": month,
         "total_tb_active_patients": total_tb_active,
         "total_tpt_active_patients": total_tpt_active,
-        "regimen_details": sorted(list(regimen_counts.values()), key=lambda x: x["nascop_ntldp_code"]),
+        "regimen_details": sorted(
+            list(regimen_counts.values()), key=lambda x: x["nascop_ntldp_code"]
+        ),
     }
 
 
@@ -322,4 +331,3 @@ def classify_dr_tb_regimen_from_genexpert(
         "regimen_acronym": matched["regimen_acronym"],
         "rationale": "Primary Preferred 1st-line DR-TB: 6-month all-oral BPaLM (Bedaquiline + Pretomanid + Linezolid + Moxifloxacin).",
     }
-

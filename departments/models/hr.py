@@ -70,14 +70,22 @@ class Employee(db.Model):
     contract_type = db.Column(
         db.String(30), nullable=True, default="permanent"
     )  # permanent | contract | locum | intern
-    probation_end_date = db.Column(db.Date, nullable=True)  # NULL means confirmed/not on probation
-    national_id = db.Column(db.String(30), nullable=True)   # National ID / Passport number
-    kra_pin = db.Column(db.String(20), nullable=True)       # KRA PIN for payroll statutory purposes
+    probation_end_date = db.Column(
+        db.Date, nullable=True
+    )  # NULL means confirmed/not on probation
+    national_id = db.Column(
+        db.String(30), nullable=True
+    )  # National ID / Passport number
+    kra_pin = db.Column(
+        db.String(20), nullable=True
+    )  # KRA PIN for payroll statutory purposes
 
     # ── Next of kin / emergency contact ──────────────────────────────────
     nok_name = db.Column(db.String(100), nullable=True)
     nok_phone = db.Column(db.String(20), nullable=True)
-    nok_relationship = db.Column(db.String(50), nullable=True)  # e.g. spouse, parent, sibling
+    nok_relationship = db.Column(
+        db.String(50), nullable=True
+    )  # e.g. spouse, parent, sibling
 
     # Links this HR record to the login account the employee actually uses.
     user_id = db.Column(
@@ -184,7 +192,9 @@ class Deduction(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)  # Deduction name (e.g., "PAYE")
-    value = db.Column(db.Numeric(12, 4), nullable=False)  # Deduction value (fixed or percentage; 4dp for PAYE/NHIF rates)
+    value = db.Column(
+        db.Numeric(12, 4), nullable=False
+    )  # Deduction value (fixed or percentage; 4dp for PAYE/NHIF rates)
     is_percentage = db.Column(
         db.Boolean, default=False
     )  # Whether the value is a percentage
@@ -203,7 +213,7 @@ class Leave(db.Model):
     status = db.Column(
         db.String(20), default="Pending"
     )  # e.g., Pending, Approved, Rejected
-    reason = db.Column(db.Text, nullable=True)          # Optional reason/notes from employee
+    reason = db.Column(db.Text, nullable=True)  # Optional reason/notes from employee
     approved_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     approved_at = db.Column(db.DateTime, nullable=True)
 
@@ -279,20 +289,27 @@ class LeaveBalance(db.Model):
     leave per year minimum. Sick leave and other statutory types are
     tracked here so HR can see remaining balances at a glance.
     """
+
     __tablename__ = "leave_balances"
 
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False)
-    year = db.Column(db.Integer, nullable=False)                   # e.g. 2026
-    leave_type = db.Column(db.String(50), nullable=False)          # annual | sick | maternity | …
+    year = db.Column(db.Integer, nullable=False)  # e.g. 2026
+    leave_type = db.Column(
+        db.String(50), nullable=False
+    )  # annual | sick | maternity | …
     entitled_days = db.Column(db.Integer, nullable=False, default=21)
     used_days = db.Column(db.Integer, nullable=False, default=0)
-    carried_over = db.Column(db.Integer, nullable=False, default=0)  # days carried from prior year
+    carried_over = db.Column(
+        db.Integer, nullable=False, default=0
+    )  # days carried from prior year
 
     employee = db.relationship("Employee", backref="leave_balances")
 
     __table_args__ = (
-        db.UniqueConstraint("employee_id", "year", "leave_type", name="uq_leave_balance"),
+        db.UniqueConstraint(
+            "employee_id", "year", "leave_type", name="uq_leave_balance"
+        ),
     )
 
     @property
@@ -310,14 +327,19 @@ class PerformanceReview(db.Model):
     Supports annual / mid-year / probation-review cycles.
     Score is 1–5 (1=Unsatisfactory, 3=Meets Expectations, 5=Outstanding).
     """
+
     __tablename__ = "performance_reviews"
 
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False)
     reviewer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    review_period = db.Column(db.String(50), nullable=False)  # e.g. "2026-H1", "2026-Annual"
-    review_type = db.Column(db.String(30), nullable=False, default="annual")  # annual | probation | mid-year
-    score = db.Column(db.Integer, nullable=False)             # 1–5
+    review_period = db.Column(
+        db.String(50), nullable=False
+    )  # e.g. "2026-H1", "2026-Annual"
+    review_type = db.Column(
+        db.String(30), nullable=False, default="annual"
+    )  # annual | probation | mid-year
+    score = db.Column(db.Integer, nullable=False)  # 1–5
     strengths = db.Column(db.Text, nullable=True)
     areas_for_improvement = db.Column(db.Text, nullable=True)
     goals_next_period = db.Column(db.Text, nullable=True)
@@ -339,17 +361,18 @@ class TrainingRecord(db.Model):
     Regulatory bodies (KMPDC, NCK, PPB) require CPD points — this table
     provides an auditable log per employee.
     """
+
     __tablename__ = "training_records"
 
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False)
-    title = db.Column(db.String(200), nullable=False)         # Course / workshop title
-    provider = db.Column(db.String(200), nullable=True)       # Training institution
+    title = db.Column(db.String(200), nullable=False)  # Course / workshop title
+    provider = db.Column(db.String(200), nullable=True)  # Training institution
     training_type = db.Column(db.String(50), nullable=False, default="cpd")
     # cpd | mandatory | skills | leadership | induction | conference
     date_completed = db.Column(db.Date, nullable=False)
-    expiry_date = db.Column(db.Date, nullable=True)           # If certification expires
-    cpd_points = db.Column(db.Integer, nullable=True)         # CPD points earned
+    expiry_date = db.Column(db.Date, nullable=True)  # If certification expires
+    cpd_points = db.Column(db.Integer, nullable=True)  # CPD points earned
     certificate_number = db.Column(db.String(100), nullable=True)
     notes = db.Column(db.Text, nullable=True)
     recorded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
@@ -370,6 +393,7 @@ class DisciplinaryRecord(db.Model):
     before any summary dismissal. This table provides the auditable trail
     HR needs.
     """
+
     __tablename__ = "disciplinary_records"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -377,9 +401,11 @@ class DisciplinaryRecord(db.Model):
     incident_date = db.Column(db.Date, nullable=False)
     incident_type = db.Column(db.String(50), nullable=False)
     # verbal_warning | written_warning | final_warning | suspension | dismissal | other
-    description = db.Column(db.Text, nullable=False)          # What happened
-    action_taken = db.Column(db.Text, nullable=False)         # What HR/management did
-    outcome = db.Column(db.String(50), nullable=True)         # resolved | appeal_pending | dismissed
+    description = db.Column(db.Text, nullable=False)  # What happened
+    action_taken = db.Column(db.Text, nullable=False)  # What HR/management did
+    outcome = db.Column(
+        db.String(50), nullable=True
+    )  # resolved | appeal_pending | dismissed
     reviewed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)  # False = expunged
@@ -389,4 +415,3 @@ class DisciplinaryRecord(db.Model):
 
     def __repr__(self):
         return f"<DisciplinaryRecord emp={self.employee_id} type={self.incident_type} date={self.incident_date}>"
-

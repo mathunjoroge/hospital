@@ -13,7 +13,9 @@ class TestTbDotsUIRoutes:
         """GET /tb_dots/ui/dashboard returns 200 for admin."""
         resp = client.get("/tb_dots/ui/dashboard", follow_redirects=True)
         assert resp.status_code == 200
-        assert b"TB/DOTS Program Dashboard" in resp.data or b"Total Enrolled" in resp.data
+        assert (
+            b"TB/DOTS Program Dashboard" in resp.data or b"Total Enrolled" in resp.data
+        )
 
     def test_enroll_requires_auth(self, client):
         """GET /tb_dots/ui/enroll requires authentication."""

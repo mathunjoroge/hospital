@@ -13,6 +13,7 @@ The invariants below are therefore written negatively where it matters: the
 blueprint must be unreachable unless explicitly enabled, and no code path may
 produce an authenticated session without a real IdP saying so.
 """
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -30,6 +31,7 @@ def sso_on(app):
 
 
 # ── Feature flag quarantine ───────────────────────────────────────────────
+
 
 @pytest.mark.parametrize(
     ("method", "path"),
@@ -64,6 +66,7 @@ def test_no_default_credentials():
 
 # ── The bypass itself, asserted as a regression guard ─────────────────────
 
+
 def test_ldap_arbitrary_password_is_rejected(client, sso_on):
     """
     Regression: POST /auth/sso/ldap with an arbitrary password previously
@@ -77,6 +80,7 @@ def test_ldap_arbitrary_password_is_rejected(client, sso_on):
     assert response.status_code == 401
 
     from departments.models.user import User
+
     assert User.query.filter_by(username="attacker_admin").first() is None
 
 
@@ -95,7 +99,11 @@ def test_oidc_callback_with_forged_code_is_rejected(client, sso_on):
         headers={"Accept": "application/json"},
     )
     assert response.status_code == 401
-    assert response.get_json()["status"] != "success" if response.get_json().get("status") else True
+    assert (
+        response.get_json()["status"] != "success"
+        if response.get_json().get("status")
+        else True
+    )
 
 
 def test_oidc_requires_configured_client_secret():
@@ -110,6 +118,7 @@ def test_oidc_rejects_empty_code():
 
 
 # ── Happy path, with the IdP transport mocked ─────────────────────────────
+
 
 def _idp_responses(claims):
     token = MagicMock(status_code=200)
@@ -129,7 +138,9 @@ def test_oidc_happy_path_returns_idp_claims(monkeypatch):
         "groups": ["CN=HIMS-Doctors,OU=Groups,DC=hospital,DC=org"],
     }
     token, userinfo = _idp_responses(claims)
-    with patch("requests.post", return_value=token), patch("requests.get", return_value=userinfo):
+    with patch("requests.post", return_value=token), patch(
+        "requests.get", return_value=userinfo
+    ):
         assert engine.process_oidc_callback("real_code", "https://h/cb") == claims
 
 
@@ -145,7 +156,9 @@ def test_oidc_rejects_claims_without_username():
     engine = SSOEngine()
     engine.oidc_client_secret = "configured-secret"
     token, userinfo = _idp_responses({"sub": "no-username-here"})
-    with patch("requests.post", return_value=token), patch("requests.get", return_value=userinfo):
+    with patch("requests.post", return_value=token), patch(
+        "requests.get", return_value=userinfo
+    ):
         with pytest.raises(SSOError, match="no username claim"):
             engine.process_oidc_callback("real_code", "https://h/cb")
 
@@ -155,8 +168,9 @@ def test_oidc_calls_are_timeout_bounded():
     engine = SSOEngine()
     engine.oidc_client_secret = "configured-secret"
     token, userinfo = _idp_responses({"preferred_username": "dr.johnson", "groups": []})
-    with patch("requests.post", return_value=token) as post, \
-         patch("requests.get", return_value=userinfo) as get:
+    with patch("requests.post", return_value=token) as post, patch(
+        "requests.get", return_value=userinfo
+    ) as get:
         try:
             engine.process_oidc_callback("real_code", "https://h/cb")
         except SSOError:
@@ -167,18 +181,35 @@ def test_oidc_calls_are_timeout_bounded():
 
 # ── Role mapping & provisioning ───────────────────────────────────────────
 
+
 def test_ad_group_mapping_logic():
     engine = SSOEngine()
-    assert engine.map_ad_groups_to_role(["CN=HIMS-Admins,OU=Groups,DC=hospital,DC=org"]) == "admin"
-    assert engine.map_ad_groups_to_role(["CN=HIMS-Doctors,OU=Groups,DC=hospital,DC=org"]) == "doctor"
-    assert engine.map_ad_groups_to_role(["CN=HIMS-Nurses,OU=Groups,DC=hospital,DC=org"]) == "nursing"
-    assert engine.map_ad_groups_to_role(["CN=HIMS-Pharmacists,OU=Groups,DC=hospital,DC=org"]) == "pharmacy"
+    assert (
+        engine.map_ad_groups_to_role(["CN=HIMS-Admins,OU=Groups,DC=hospital,DC=org"])
+        == "admin"
+    )
+    assert (
+        engine.map_ad_groups_to_role(["CN=HIMS-Doctors,OU=Groups,DC=hospital,DC=org"])
+        == "doctor"
+    )
+    assert (
+        engine.map_ad_groups_to_role(["CN=HIMS-Nurses,OU=Groups,DC=hospital,DC=org"])
+        == "nursing"
+    )
+    assert (
+        engine.map_ad_groups_to_role(
+            ["CN=HIMS-Pharmacists,OU=Groups,DC=hospital,DC=org"]
+        )
+        == "pharmacy"
+    )
 
 
 def test_unmapped_groups_do_not_fall_back_to_a_privileged_role():
     """Regression: unmapped groups previously returned 'doctor'."""
     with pytest.raises(SSOError, match="No HIMS role is mapped"):
-        SSOEngine().map_ad_groups_to_role(["CN=Building-Cleaners,OU=Groups,DC=hospital,DC=org"])
+        SSOEngine().map_ad_groups_to_role(
+            ["CN=Building-Cleaners,OU=Groups,DC=hospital,DC=org"]
+        )
 
 
 def test_no_groups_at_all_is_rejected():
@@ -190,19 +221,23 @@ def test_auto_provisioning_is_off_by_default(app):
     engine = SSOEngine()
     assert engine.auto_provision is False
     with pytest.raises(SSOError, match="auto-provisioning is disabled"):
-        engine.provision_or_sync_user({
-            "preferred_username": "brand.new.user",
-            "groups": ["CN=HIMS-Doctors,OU=Groups,DC=hospital,DC=org"],
-        })
+        engine.provision_or_sync_user(
+            {
+                "preferred_username": "brand.new.user",
+                "groups": ["CN=HIMS-Doctors,OU=Groups,DC=hospital,DC=org"],
+            }
+        )
 
 
 def test_auto_provisioning_when_explicitly_enabled(app):
     engine = SSOEngine()
     engine.auto_provision = True
-    user = engine.provision_or_sync_user({
-        "preferred_username": "new.doctor",
-        "groups": ["CN=HIMS-Doctors,OU=Groups,DC=hospital,DC=org"],
-    })
+    user = engine.provision_or_sync_user(
+        {
+            "preferred_username": "new.doctor",
+            "groups": ["CN=HIMS-Doctors,OU=Groups,DC=hospital,DC=org"],
+        }
+    )
     assert user.username == "new.doctor"
     assert user.role == "doctor"
 
@@ -211,12 +246,15 @@ def test_provisioned_account_has_no_usable_password(app):
     """SSO accounts must not be loggable-into via the local password form."""
     engine = SSOEngine()
     engine.auto_provision = True
-    user = engine.provision_or_sync_user({
-        "preferred_username": "sso.only",
-        "groups": ["CN=HIMS-Doctors,OU=Groups,DC=hospital,DC=org"],
-    })
+    user = engine.provision_or_sync_user(
+        {
+            "preferred_username": "sso.only",
+            "groups": ["CN=HIMS-Doctors,OU=Groups,DC=hospital,DC=org"],
+        }
+    )
     assert user.password
     from werkzeug.security import check_password_hash
+
     assert not check_password_hash(user.password, "")
 
 

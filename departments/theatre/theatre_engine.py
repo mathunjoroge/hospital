@@ -260,7 +260,14 @@ class TheatreOperationsEngine:
         completed_cases = TheatreList.query.filter_by(status=1).count()
         scheduled_cases = TheatreList.query.filter_by(status=0).count()
 
-        asa_counts = {"ASA I": 0, "ASA II": 0, "ASA III": 0, "ASA IV": 0, "ASA V": 0, "ASA VI": 0}
+        asa_counts = {
+            "ASA I": 0,
+            "ASA II": 0,
+            "ASA III": 0,
+            "ASA IV": 0,
+            "ASA V": 0,
+            "ASA VI": 0,
+        }
 
         records = AnaestheticRecord.query.all()
         for r in records:
@@ -280,7 +287,9 @@ class TheatreOperationsEngine:
             }
 
         # Overall OR Occupancy Percentage
-        active_rooms = sum(1 for r in room_stats.values() if r["occupancy_status"] == "OCCUPIED")
+        active_rooms = sum(
+            1 for r in room_stats.values() if r["occupancy_status"] == "OCCUPIED"
+        )
         or_utilization_pct = round((active_rooms / len(rooms)) * 100, 1)
 
         return {
@@ -372,24 +381,39 @@ class TheatreOperationsEngine:
         }
 
     @staticmethod
-    def evaluate_who_checklist_gate(entry_id: int, target_stage: str) -> tuple[bool, str]:
+    def evaluate_who_checklist_gate(
+        entry_id: int, target_stage: str
+    ) -> tuple[bool, str]:
         """Verify whether WHO Surgical Safety Checklist gate is passed for target stage transition."""
-        checklist = WhoSurgicalChecklist.query.filter_by(theatre_entry_id=entry_id).first()
+        checklist = WhoSurgicalChecklist.query.filter_by(
+            theatre_entry_id=entry_id
+        ).first()
         stage_clean = (target_stage or "").upper()
 
         if stage_clean == "INTRA_OP":
             if not checklist or not checklist.sign_in_completed:
-                return False, "WHO Checklist Sign In must be completed before entering INTRA_OP stage."
+                return (
+                    False,
+                    "WHO Checklist Sign In must be completed before entering INTRA_OP stage.",
+                )
             return True, "WHO Sign In gate passed."
 
         elif stage_clean == "POST_OP":
             if not checklist or not checklist.sign_out_completed:
-                return False, "WHO Checklist Sign Out must be completed before entering POST_OP stage."
+                return (
+                    False,
+                    "WHO Checklist Sign Out must be completed before entering POST_OP stage.",
+                )
 
             # Verify surgical instrument count reconciliation
-            counts = SurgicalInstrumentCount.query.filter_by(theatre_entry_id=entry_id).first()
+            counts = SurgicalInstrumentCount.query.filter_by(
+                theatre_entry_id=entry_id
+            ).first()
             if not counts or not counts.count_reconciled:
-                return False, "Surgical instrument and sponge count must be reconciled cleanly before POST_OP transfer."
+                return (
+                    False,
+                    "Surgical instrument and sponge count must be reconciled cleanly before POST_OP transfer.",
+                )
 
             return True, "WHO Sign Out and Instrument Reconciliation gate passed."
 
@@ -404,7 +428,13 @@ class TheatreOperationsEngine:
                 "score": 0,
                 "is_fit_for_discharge": False,
                 "discharge_to": "PACU",
-                "breakdown": {"activity": 0, "respiration": 0, "circulation": 0, "consciousness": 0, "spo2": 0},
+                "breakdown": {
+                    "activity": 0,
+                    "respiration": 0,
+                    "circulation": 0,
+                    "consciousness": 0,
+                    "spo2": 0,
+                },
             }
 
         score = note.total_aldrete_score
@@ -426,7 +456,9 @@ class TheatreOperationsEngine:
     @staticmethod
     def get_or_dashboard_metrics() -> dict:
         """Compute real-time Operating Theatre utilization, active cases, and safety metrics."""
-        entries = TheatreList.query.order_by(TheatreList.created_at.desc()).limit(50).all()
+        entries = (
+            TheatreList.query.order_by(TheatreList.created_at.desc()).limit(50).all()
+        )
 
         active_cases = []
         who_completed_count = 0
@@ -456,29 +488,41 @@ class TheatreOperationsEngine:
                 ana.is_emergency if ana else False,
             )
 
-            active_cases.append({
-                "entry_id": e.id,
-                "patient_id": e.patient_id,
-                "patient_name": e.patient.name if e.patient else "Unknown",
-                "procedure_name": e.procedure.name if e.procedure else "Surgical Procedure",
-                "or_room": e.or_room or "OR 1",
-                "scheduled_time": e.scheduled_start_time.isoformat() if e.scheduled_start_time else (e.created_at.isoformat() if e.created_at else None),
-                "duration_min": e.estimated_duration_minutes or 120,
-                "status": "Completed" if e.status == 1 else "Scheduled/In-Progress",
-                "who_completed": is_chk_complete,
-                "sign_in": chk.sign_in_completed if chk else False,
-                "time_out": chk.time_out_completed if chk else False,
-                "sign_out": chk.sign_out_completed if chk else False,
-                "count_discrepancy": is_discrepancy,
-                "aldrete_score": post.total_aldrete_score if post else None,
-                "fit_for_pacu_discharge": post.is_fit_for_pacu_discharge() if post else False,
-                "asa_status": asa_eval["asa_code"],
-                "asa_risk": asa_eval["risk_level"],
-                "asa_mortality_pct": asa_eval["estimated_mortality_pct"],
-            })
+            active_cases.append(
+                {
+                    "entry_id": e.id,
+                    "patient_id": e.patient_id,
+                    "patient_name": e.patient.name if e.patient else "Unknown",
+                    "procedure_name": e.procedure.name
+                    if e.procedure
+                    else "Surgical Procedure",
+                    "or_room": e.or_room or "OR 1",
+                    "scheduled_time": e.scheduled_start_time.isoformat()
+                    if e.scheduled_start_time
+                    else (e.created_at.isoformat() if e.created_at else None),
+                    "duration_min": e.estimated_duration_minutes or 120,
+                    "status": "Completed" if e.status == 1 else "Scheduled/In-Progress",
+                    "who_completed": is_chk_complete,
+                    "sign_in": chk.sign_in_completed if chk else False,
+                    "time_out": chk.time_out_completed if chk else False,
+                    "sign_out": chk.sign_out_completed if chk else False,
+                    "count_discrepancy": is_discrepancy,
+                    "aldrete_score": post.total_aldrete_score if post else None,
+                    "fit_for_pacu_discharge": post.is_fit_for_pacu_discharge()
+                    if post
+                    else False,
+                    "asa_status": asa_eval["asa_code"],
+                    "asa_risk": asa_eval["risk_level"],
+                    "asa_mortality_pct": asa_eval["estimated_mortality_pct"],
+                }
+            )
 
         total_entries = len(entries)
-        who_compliance_pct = round((who_completed_count / total_entries * 100), 1) if total_entries > 0 else 100.0
+        who_compliance_pct = (
+            round((who_completed_count / total_entries * 100), 1)
+            if total_entries > 0
+            else 100.0
+        )
         util_metrics = TheatreOperationsEngine.calculate_or_utilization_metrics()
 
         return {

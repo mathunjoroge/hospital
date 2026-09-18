@@ -15,4 +15,3 @@ class Log(db.Model):
     # Cryptographic Tamper-Evident SHA-256 Hash Chaining (HIPAA § 164.312(b))
     previous_hash = db.Column(db.String(64), nullable=True)
     entry_hash = db.Column(db.String(64), nullable=True, index=True)
-

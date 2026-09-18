@@ -8,6 +8,7 @@ Verification suite for patient flow audit fixes across:
 5. Ward / Admitted queue mapping
 6. Stale / abandoned encounter automated cleanup
 """
+
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -70,11 +71,18 @@ def test_imaging_type(app):
 
 def test_hl7_ingest_advances_stage(app, test_patient):
     with app.app_context():
-        enc = Encounter(patient_id=test_patient.patient_id, stage="AWAITING_LAB", status="ACTIVE")
+        enc = Encounter(
+            patient_id=test_patient.patient_id, stage="AWAITING_LAB", status="ACTIVE"
+        )
         db.session.add(enc)
         db.session.commit()
 
-        req_lab = RequestedLab(patient_id=test_patient.patient_id, encounter_id=enc.id, lab_test_id=1, status=0)
+        req_lab = RequestedLab(
+            patient_id=test_patient.patient_id,
+            encounter_id=enc.id,
+            lab_test_id=1,
+            status=0,
+        )
         db.session.add(req_lab)
         db.session.commit()
 
@@ -96,12 +104,24 @@ def test_hl7_ingest_advances_stage(app, test_patient):
 
 def test_interleaved_completion_orderings(app, test_patient, test_imaging_type):
     with app.app_context():
-        enc = Encounter(patient_id=test_patient.patient_id, stage="AWAITING_LAB", status="ACTIVE")
+        enc = Encounter(
+            patient_id=test_patient.patient_id, stage="AWAITING_LAB", status="ACTIVE"
+        )
         db.session.add(enc)
         db.session.commit()
 
-        lab = RequestedLab(patient_id=test_patient.patient_id, encounter_id=enc.id, lab_test_id=2, status=0)
-        img = RequestedImage(patient_id=test_patient.patient_id, encounter_id=enc.id, imaging_id=test_imaging_type.id, status=0)
+        lab = RequestedLab(
+            patient_id=test_patient.patient_id,
+            encounter_id=enc.id,
+            lab_test_id=2,
+            status=0,
+        )
+        img = RequestedImage(
+            patient_id=test_patient.patient_id,
+            encounter_id=enc.id,
+            imaging_id=test_imaging_type.id,
+            status=0,
+        )
         db.session.add_all([lab, img])
         db.session.commit()
 
@@ -109,6 +129,7 @@ def test_interleaved_completion_orderings(app, test_patient, test_imaging_type):
         lab.status = 1
         db.session.commit()
         from departments.shared.visit_closure import advance_after_completion
+
         advance_after_completion(test_patient.patient_id)
 
         db.session.refresh(enc)
@@ -123,13 +144,25 @@ def test_interleaved_completion_orderings(app, test_patient, test_imaging_type):
         assert enc.stage == "WAITING_DOCTOR_RESULTS"
 
 
-def test_mpesa_callback_settles_bills_and_advances_stage(app, test_patient, test_charge):
+def test_mpesa_callback_settles_bills_and_advances_stage(
+    app, test_patient, test_charge
+):
     with app.app_context():
-        enc = Encounter(patient_id=test_patient.patient_id, stage="AWAITING_FINAL_BILLING", status="ACTIVE")
+        enc = Encounter(
+            patient_id=test_patient.patient_id,
+            stage="AWAITING_FINAL_BILLING",
+            status="ACTIVE",
+        )
         db.session.add(enc)
         db.session.commit()
 
-        bill = Billing(patient_id=test_patient.patient_id, charge_id=test_charge.id, quantity=1, total_cost=500.0, status=0)
+        bill = Billing(
+            patient_id=test_patient.patient_id,
+            charge_id=test_charge.id,
+            quantity=1,
+            total_cost=500.0,
+            status=0,
+        )
         tx = MpesaTransaction(
             phone_number="254712345678",
             amount=500.0,
@@ -148,7 +181,9 @@ def test_mpesa_callback_settles_bills_and_advances_stage(app, test_patient, test
                     "ResultCode": 0,
                     "ResultDesc": "The service request has been processed successfully.",
                     "CallbackMetadata": {
-                        "Item": [{"Name": "Mpesa Receipt Number", "Value": "NL12345678"}]
+                        "Item": [
+                            {"Name": "Mpesa Receipt Number", "Value": "NL12345678"}
+                        ]
                     },
                 }
             }
@@ -163,13 +198,25 @@ def test_mpesa_callback_settles_bills_and_advances_stage(app, test_patient, test
         assert enc.stage in ("DISCHARGED", None) or enc.status == "DISCHARGED"
 
 
-def test_rcm_claim_approval_settles_bills_and_advances_stage(app, test_patient, test_charge):
+def test_rcm_claim_approval_settles_bills_and_advances_stage(
+    app, test_patient, test_charge
+):
     with app.app_context():
-        enc = Encounter(patient_id=test_patient.patient_id, stage="AWAITING_FINAL_BILLING", status="ACTIVE")
+        enc = Encounter(
+            patient_id=test_patient.patient_id,
+            stage="AWAITING_FINAL_BILLING",
+            status="ACTIVE",
+        )
         db.session.add(enc)
         db.session.commit()
 
-        bill = Billing(patient_id=test_patient.patient_id, charge_id=test_charge.id, quantity=1, total_cost=1200.0, status=0)
+        bill = Billing(
+            patient_id=test_patient.patient_id,
+            charge_id=test_charge.id,
+            quantity=1,
+            total_cost=1200.0,
+            status=0,
+        )
         today = datetime.now(timezone.utc).date()
         claim = ClaimSubmission(
             id="CLM_AUDIT_835",
@@ -201,7 +248,9 @@ def test_rcm_claim_approval_settles_bills_and_advances_stage(app, test_patient, 
 
 def test_ward_queue_surfaces_admitted_encounters(app, test_patient):
     with app.app_context():
-        enc = Encounter(patient_id=test_patient.patient_id, stage="ADMITTED", status="ACTIVE")
+        enc = Encounter(
+            patient_id=test_patient.patient_id, stage="ADMITTED", status="ACTIVE"
+        )
         db.session.add(enc)
         db.session.commit()
 
@@ -213,7 +262,12 @@ def test_ward_queue_surfaces_admitted_encounters(app, test_patient):
 def test_stale_encounter_cleanup(app, test_patient):
     with app.app_context():
         stale_time = datetime.now(timezone.utc) - timedelta(hours=30)
-        enc = Encounter(patient_id=test_patient.patient_id, stage="REGISTERED_UNPAID", status="ACTIVE", started_at=stale_time)
+        enc = Encounter(
+            patient_id=test_patient.patient_id,
+            stage="REGISTERED_UNPAID",
+            status="ACTIVE",
+            started_at=stale_time,
+        )
         db.session.add(enc)
         db.session.commit()
 

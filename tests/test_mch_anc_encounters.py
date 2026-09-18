@@ -6,6 +6,7 @@ T3.4 — MCH ANC Encounter Lifecycle:
   - Immunizations recorded during the visit attach to the encounter
   - Closing the visit discharges the encounter
 """
+
 from datetime import datetime
 
 import pytest
@@ -43,7 +44,9 @@ def _patient(patient_id: str):
         date_of_birth=datetime(1995, 4, 20),  # noqa: DTZ001
     )
     db.session.add(p)
-    db.session.add(PatientWaitingList(patient_id=patient_id, seen=QueueStatus.WAITING_TRIAGE))
+    db.session.add(
+        PatientWaitingList(patient_id=patient_id, seen=QueueStatus.WAITING_TRIAGE)
+    )
     db.session.commit()
     return p
 
@@ -103,9 +106,9 @@ def test_immunization_attaches_to_active_anc_encounter(app):
             vaccine_name="BCG",
             dose_number=1,
         )
-        assert record.encounter_id == visit.encounter_id, (
-            "Immunization must be scoped to the open ANC encounter"
-        )
+        assert (
+            record.encounter_id == visit.encounter_id
+        ), "Immunization must be scoped to the open ANC encounter"
 
 
 def test_close_anc_visit_discharges_encounter(app):
@@ -151,9 +154,9 @@ def test_multiple_anc_visits_get_separate_encounters(app):
 
         v2 = engine.log_anc_visit("P-ANC-06", visit_number=2, gestation_weeks=22)
 
-        assert v1.encounter_id != v2.encounter_id, (
-            "Each ANC visit must have a distinct encounter"
-        )
+        assert (
+            v1.encounter_id != v2.encounter_id
+        ), "Each ANC visit must have a distinct encounter"
         enc1 = db.session.get(Encounter, v1.encounter_id)
         enc2 = db.session.get(Encounter, v2.encounter_id)
         assert enc1.stage == "DISCHARGED"
@@ -165,7 +168,9 @@ def test_multiple_anc_visits_get_separate_encounters(app):
 
 def test_anc_visit_api_creates_encounter(client, app, nursing_user):
     """POST /mch/api/anc-visit creates an ANC visit with a linked encounter."""
-    client.post("/login", data={"username": nursing_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": nursing_user.username, "password": "Password123!"}
+    )
 
     with app.app_context():
         _patient("P-ANC-API-01")
@@ -188,7 +193,9 @@ def test_anc_visit_api_creates_encounter(client, app, nursing_user):
 
 def test_close_anc_visit_api(client, app, nursing_user):
     """POST /mch/api/anc-visit/<id>/close discharges the encounter."""
-    client.post("/login", data={"username": nursing_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": nursing_user.username, "password": "Password123!"}
+    )
 
     with app.app_context():
         _patient("P-ANC-API-02")

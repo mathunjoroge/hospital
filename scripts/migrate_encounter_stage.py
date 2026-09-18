@@ -1,4 +1,5 @@
 """Idempotent migration: add encounters.stage and backfill legacy rows."""
+
 import os
 import sys
 
@@ -17,18 +18,24 @@ def migrate():
         cols = [c["name"] for c in insp.get_columns("encounters")]
         with db.engine.begin() as conn:
             if "stage" not in cols:
-                conn.execute(text("ALTER TABLE encounters ADD COLUMN stage VARCHAR(30)"))
+                conn.execute(
+                    text("ALTER TABLE encounters ADD COLUMN stage VARCHAR(30)")
+                )
                 print("added encounters.stage")
             else:
                 print("encounters.stage already present")
-            conn.execute(text(
-                "UPDATE encounters SET stage = 'AWAITING_BILLING' "
-                "WHERE stage IS NULL AND status = 'ACTIVE'"
-            ))
-            conn.execute(text(
-                "UPDATE encounters SET stage = 'DISCHARGED' "
-                "WHERE stage IS NULL AND status <> 'ACTIVE'"
-            ))
+            conn.execute(
+                text(
+                    "UPDATE encounters SET stage = 'AWAITING_BILLING' "
+                    "WHERE stage IS NULL AND status = 'ACTIVE'"
+                )
+            )
+            conn.execute(
+                text(
+                    "UPDATE encounters SET stage = 'DISCHARGED' "
+                    "WHERE stage IS NULL AND status <> 'ACTIVE'"
+                )
+            )
         print("migration complete")
 
 

@@ -95,7 +95,9 @@ def get_modality_and_body_part(dicom):
         "patient_name": str(getattr(dicom, "PatientName", "Unknown")),
         "patient_sex": getattr(dicom, "PatientSex", "Unknown"),
         "patient_birth_date": getattr(dicom, "PatientBirthDate", "Unknown"),
-        "study_date": getattr(dicom, "StudyDate", datetime.now(timezone.utc).strftime("%Y%m%d")),
+        "study_date": getattr(
+            dicom, "StudyDate", datetime.now(timezone.utc).strftime("%Y%m%d")
+        ),
     }
     logger.debug(f"Extracted: modality={modality}, body_part={body_part}")
     return modality, body_part, patient_info
@@ -595,6 +597,7 @@ def process_imaging_request(request_id):
 
             # FIX 4: Advance encounter stage after imaging completion
             from departments.shared.visit_closure import advance_after_completion
+
             advance_after_completion(imaging_request.patient_id)
             logger.debug(
                 f"Saved result: request_id={request_id}, result_id={result_id}"
@@ -659,9 +662,7 @@ def view_result(result_id):
             result_id=result_id
         ).first_or_404()
         imaging = Imaging.query.get_or_404(imaging_result.imaging_id)
-        imaging_request = RequestedImage.query.filter_by(
-            result_id=result_id
-        ).first()
+        imaging_request = RequestedImage.query.filter_by(result_id=result_id).first()
 
         logger.debug(f"Rendering view.html for result_id={result_id}")
         return render_template(
@@ -886,14 +887,16 @@ def upload_dicom():
         imaging_request_id = request.form.get("imaging_request_id", type=int)
         result = DICOMService.store_dicom(str(temp_path), imaging_request_id)
 
-        return jsonify({
-            "success": True,
-            "message": "DICOM file stored successfully",
-            "sop_instance_uid": result.sop_instance_uid,
-            "study_instance_uid": result.study_instance_uid,
-            "modality": result.modality,
-            "file_path": result.file_path,
-        }), 201
+        return jsonify(
+            {
+                "success": True,
+                "message": "DICOM file stored successfully",
+                "sop_instance_uid": result.sop_instance_uid,
+                "study_instance_uid": result.study_instance_uid,
+                "modality": result.modality,
+                "file_path": result.file_path,
+            }
+        ), 201
 
     except ValueError as e:
         if temp_path.exists():
@@ -915,11 +918,13 @@ def list_patient_studies(patient_id: str):
 
     studies = DICOMService.list_studies(patient_id)
 
-    return jsonify({
-        "patient_id": patient_id,
-        "study_count": len(studies),
-        "studies": studies,
-    }), 200
+    return jsonify(
+        {
+            "patient_id": patient_id,
+            "study_count": len(studies),
+            "studies": studies,
+        }
+    ), 200
 
 
 @imaging_bp.route("/dicom/download/<sop_instance_uid>", methods=["GET"])
@@ -940,7 +945,7 @@ def download_dicom(sop_instance_uid: str):
         file_path,
         mimetype="application/dicom",
         as_attachment=True,
-        download_name=f"{sop_instance_uid}.dcm"
+        download_name=f"{sop_instance_uid}.dcm",
     )
 
 
@@ -968,7 +973,7 @@ def dicom_studies_ui(patient_id: str):
         "imaging/dicom_studies.html",
         studies=studies,
         patient=patient,
-        patient_id=patient_id
+        patient_id=patient_id,
     )
 
 
@@ -983,9 +988,11 @@ def dicom_studies_search_ui():
         patient_id = request.form.get("patient_id", "").strip()
         if patient_id:
             # Redirect to the studies gallery
-            return redirect(url_for('imaging.dicom_studies_ui', patient_id=patient_id))
+            return redirect(url_for("imaging.dicom_studies_ui", patient_id=patient_id))
         else:
-            flash("Please enter a Patient ID", "warning")    # Get recent patients with imaging results for quick selection
+            flash(
+                "Please enter a Patient ID", "warning"
+            )  # Get recent patients with imaging results for quick selection
     recent_patients = (
         db.session.query(Patient.patient_id, Patient.name)
         .join(ImagingResult)
@@ -996,8 +1003,7 @@ def dicom_studies_search_ui():
     )
 
     return render_template(
-        "imaging/dicom_studies_search.html",
-        recent_patients=recent_patients
+        "imaging/dicom_studies_search.html", recent_patients=recent_patients
     )
 
 
@@ -1015,4 +1021,3 @@ def inventory():
 def reports():
     """Radiology reports dashboard endpoint."""
     return redirect(url_for("imaging.imaging_results"))
-

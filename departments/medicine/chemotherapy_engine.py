@@ -12,9 +12,21 @@ from departments.models.oncology_models import ChemotherapyRegimenOrder
 
 # Cumulative Lifetime Toxicity Limits per standard Oncology Guidelines (NCCN/ASCO)
 LIFETIME_TOXICITY_CAPS = {
-    "Doxorubicin": {"limit_per_m2": 450.0, "unit": "mg/m2", "organ": "Cardiotoxicity (Heart Failure)"},
-    "Bleomycin": {"limit_total": 300.0, "unit": "units", "organ": "Pulmonary Toxicity (Pulmonary Fibrosis)"},
-    "Vincristine": {"single_dose_cap": 2.0, "unit": "mg", "organ": "Peripheral Neuropathy Cap"},
+    "Doxorubicin": {
+        "limit_per_m2": 450.0,
+        "unit": "mg/m2",
+        "organ": "Cardiotoxicity (Heart Failure)",
+    },
+    "Bleomycin": {
+        "limit_total": 300.0,
+        "unit": "units",
+        "organ": "Pulmonary Toxicity (Pulmonary Fibrosis)",
+    },
+    "Vincristine": {
+        "single_dose_cap": 2.0,
+        "unit": "mg",
+        "organ": "Peripheral Neuropathy Cap",
+    },
 }
 
 # Standard Chemotherapy Protocols
@@ -23,45 +35,123 @@ CHEMO_PROTOCOLS: dict[str, dict[str, Any]] = {
         "description": "Oxaliplatin, Leucovorin, and 5-Fluorouracil (Colorectal Cancer)",
         "cancer_type": "Colorectal Cancer",
         "drugs": [
-            {"drug_name": "Oxaliplatin", "dose_per_m2": 85.0, "unit": "mg/m2", "route": "IV Infusion over 2h"},
-            {"drug_name": "Leucovorin", "dose_per_m2": 400.0, "unit": "mg/m2", "route": "IV Infusion over 2h"},
-            {"drug_name": "5-Fluorouracil (Bolus)", "dose_per_m2": 400.0, "unit": "mg/m2", "route": "IV Push"},
-            {"drug_name": "5-Fluorouracil (Infusion)", "dose_per_m2": 2400.0, "unit": "mg/m2", "route": "IV Continuous over 46h"},
+            {
+                "drug_name": "Oxaliplatin",
+                "dose_per_m2": 85.0,
+                "unit": "mg/m2",
+                "route": "IV Infusion over 2h",
+            },
+            {
+                "drug_name": "Leucovorin",
+                "dose_per_m2": 400.0,
+                "unit": "mg/m2",
+                "route": "IV Infusion over 2h",
+            },
+            {
+                "drug_name": "5-Fluorouracil (Bolus)",
+                "dose_per_m2": 400.0,
+                "unit": "mg/m2",
+                "route": "IV Push",
+            },
+            {
+                "drug_name": "5-Fluorouracil (Infusion)",
+                "dose_per_m2": 2400.0,
+                "unit": "mg/m2",
+                "route": "IV Continuous over 46h",
+            },
         ],
     },
     "AC-T": {
         "description": "Doxorubicin & Cyclophosphamide followed by Paclitaxel (Breast Cancer)",
         "cancer_type": "Breast Cancer",
         "drugs": [
-            {"drug_name": "Doxorubicin", "dose_per_m2": 60.0, "unit": "mg/m2", "route": "IV Push"},
-            {"drug_name": "Cyclophosphamide", "dose_per_m2": 600.0, "unit": "mg/m2", "route": "IV Infusion over 1h"},
-            {"drug_name": "Paclitaxel", "dose_per_m2": 175.0, "unit": "mg/m2", "route": "IV Infusion over 3h"},
+            {
+                "drug_name": "Doxorubicin",
+                "dose_per_m2": 60.0,
+                "unit": "mg/m2",
+                "route": "IV Push",
+            },
+            {
+                "drug_name": "Cyclophosphamide",
+                "dose_per_m2": 600.0,
+                "unit": "mg/m2",
+                "route": "IV Infusion over 1h",
+            },
+            {
+                "drug_name": "Paclitaxel",
+                "dose_per_m2": 175.0,
+                "unit": "mg/m2",
+                "route": "IV Infusion over 3h",
+            },
         ],
     },
     "ABVD": {
         "description": "Doxorubicin, Bleomycin, Vinblastine, Dacarbazine (Hodgkin Lymphoma)",
         "cancer_type": "Hodgkin Lymphoma",
         "drugs": [
-            {"drug_name": "Doxorubicin", "dose_per_m2": 25.0, "unit": "mg/m2", "route": "IV Push"},
-            {"drug_name": "Bleomycin", "dose_per_m2": 10.0, "unit": "units/m2", "route": "IV Push"},
-            {"drug_name": "Vinblastine", "dose_per_m2": 6.0, "unit": "mg/m2", "route": "IV Push"},
-            {"drug_name": "Dacarbazine", "dose_per_m2": 375.0, "unit": "mg/m2", "route": "IV Infusion over 1h"},
+            {
+                "drug_name": "Doxorubicin",
+                "dose_per_m2": 25.0,
+                "unit": "mg/m2",
+                "route": "IV Push",
+            },
+            {
+                "drug_name": "Bleomycin",
+                "dose_per_m2": 10.0,
+                "unit": "units/m2",
+                "route": "IV Push",
+            },
+            {
+                "drug_name": "Vinblastine",
+                "dose_per_m2": 6.0,
+                "unit": "mg/m2",
+                "route": "IV Push",
+            },
+            {
+                "drug_name": "Dacarbazine",
+                "dose_per_m2": 375.0,
+                "unit": "mg/m2",
+                "route": "IV Infusion over 1h",
+            },
         ],
     },
     "CHOP": {
         "description": "Cyclophosphamide, Doxorubicin, Vincristine, Prednisone (Non-Hodgkin Lymphoma)",
         "cancer_type": "Non-Hodgkin Lymphoma",
         "drugs": [
-            {"drug_name": "Cyclophosphamide", "dose_per_m2": 750.0, "unit": "mg/m2", "route": "IV Infusion over 1h"},
-            {"drug_name": "Doxorubicin", "dose_per_m2": 50.0, "unit": "mg/m2", "route": "IV Push"},
-            {"drug_name": "Vincristine", "dose_per_m2": 1.4, "unit": "mg/m2", "route": "IV Push", "cap_max_mg": 2.0},
-            {"drug_name": "Prednisone", "fixed_dose": 100.0, "unit": "mg", "route": "PO Daily for 5 days"},
+            {
+                "drug_name": "Cyclophosphamide",
+                "dose_per_m2": 750.0,
+                "unit": "mg/m2",
+                "route": "IV Infusion over 1h",
+            },
+            {
+                "drug_name": "Doxorubicin",
+                "dose_per_m2": 50.0,
+                "unit": "mg/m2",
+                "route": "IV Push",
+            },
+            {
+                "drug_name": "Vincristine",
+                "dose_per_m2": 1.4,
+                "unit": "mg/m2",
+                "route": "IV Push",
+                "cap_max_mg": 2.0,
+            },
+            {
+                "drug_name": "Prednisone",
+                "fixed_dose": 100.0,
+                "unit": "mg",
+                "route": "PO Daily for 5 days",
+            },
         ],
     },
 }
 
 
-def calculate_bsa(height_cm: float, weight_kg: float, formula: str = "mosteller") -> float:
+def calculate_bsa(
+    height_cm: float, weight_kg: float, formula: str = "mosteller"
+) -> float:
     """
     Calculate Body Surface Area (BSA) in m².
 
@@ -76,7 +166,7 @@ def calculate_bsa(height_cm: float, weight_kg: float, formula: str = "mosteller"
             return 1.73  # Standard adult default fallback
 
         if formula.lower() == "dubois":
-            bsa = 0.007184 * (h ** 0.725) * (w ** 0.425)
+            bsa = 0.007184 * (h**0.725) * (w**0.425)
         else:  # mosteller default
             bsa = math.sqrt((h * w) / 3600.0)
 
@@ -94,6 +184,7 @@ def get_patient_cumulative_doses(patient_id: str) -> dict[str, float]:
     try:
         orders = ChemotherapyRegimenOrder.query.filter_by(patient_id=patient_id).all()
         import json
+
         for order in orders:
             if not order.calculated_doses_json:
                 continue
@@ -184,18 +275,20 @@ def calculate_regimen_doses(
                     )
                     toxicity_warnings.append(cap_warning)
 
-        calculated_drugs.append({
-            "drug_name": drug_name,
-            "dose_per_m2": dose_per_m2,
-            "calculated_dose": calc_dose,
-            "dose_display": dose_str,
-            "unit": unit,
-            "route": route,
-            "prev_cumulative_dose": prev_tot,
-            "new_cumulative_dose": new_cum_tot,
-            "cap_exceeded": cap_exceeded,
-            "cap_warning": cap_warning,
-        })
+        calculated_drugs.append(
+            {
+                "drug_name": drug_name,
+                "dose_per_m2": dose_per_m2,
+                "calculated_dose": calc_dose,
+                "dose_display": dose_str,
+                "unit": unit,
+                "route": route,
+                "prev_cumulative_dose": prev_tot,
+                "new_cumulative_dose": new_cum_tot,
+                "cap_exceeded": cap_exceeded,
+                "cap_warning": cap_warning,
+            }
+        )
 
     return {
         "patient_id": patient_id,

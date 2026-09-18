@@ -19,6 +19,7 @@ and a full-tree guard test makes sure no others slip back in.
     via a `{{ x if false else y }}` Jinja trick, silently substituting a
     no-op link for the real dispense_prescription page.
 """
+
 from datetime import date, datetime
 
 import pytest
@@ -46,18 +47,29 @@ def test_no_template_in_the_whole_app_references_a_missing_endpoint(app):
             if endpoint not in endpoints:
                 broken.append(f"{template}: {endpoint}")
 
-    assert not broken, "templates reference endpoints that do not exist:\n" + "\n".join(broken)
+    assert not broken, "templates reference endpoints that do not exist:\n" + "\n".join(
+        broken
+    )
 
 
 # ── imaging ────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def imaging_client(client, app):
-    db.session.add(User(username="imaging_tech", role="imaging",
-                        password=generate_password_hash("Imaging!234")))
+    db.session.add(
+        User(
+            username="imaging_tech",
+            role="imaging",
+            password=generate_password_hash("Imaging!234"),
+        )
+    )
     db.session.commit()
-    client.post("/login", data={"username": "imaging_tech", "password": "Imaging!234"},
-                follow_redirects=True)
+    client.post(
+        "/login",
+        data={"username": "imaging_tech", "password": "Imaging!234"},
+        follow_redirects=True,
+    )
     return client
 
 
@@ -85,18 +97,32 @@ def test_imaging_radiology_actions_card_points_somewhere_real(imaging_client):
 
 # ── medicine: ward rounds ───────────────────────────────────────────────────
 
+
 @pytest.fixture
 def admitted(app):
-    doctor = User(username="ward_doc", role="medicine",
-                 password=generate_password_hash("Doc!23456"))
-    ward = Ward(name="Ward Fix", sex="M", number_of_beds=10, occupied_beds=0, daily_charge=1000)
-    patient = Patient(patient_id="P-WARDFIX", name="Ward Fix Patient", sex="M",
-                      date_of_birth=date(1980, 1, 1))
+    doctor = User(
+        username="ward_doc",
+        role="medicine",
+        password=generate_password_hash("Doc!23456"),
+    )
+    ward = Ward(
+        name="Ward Fix", sex="M", number_of_beds=10, occupied_beds=0, daily_charge=1000
+    )
+    patient = Patient(
+        patient_id="P-WARDFIX",
+        name="Ward Fix Patient",
+        sex="M",
+        date_of_birth=date(1980, 1, 1),
+    )
     db.session.add_all([doctor, ward, patient])
     db.session.commit()
-    admission = AdmittedPatient(patient_id="P-WARDFIX", ward_id=ward.id,
-                                admission_criteria="test", admitted_by=doctor.id,
-                                admitted_on=datetime.utcnow())
+    admission = AdmittedPatient(
+        patient_id="P-WARDFIX",
+        ward_id=ward.id,
+        admission_criteria="test",
+        admitted_by=doctor.id,
+        admitted_on=datetime.utcnow(),
+    )
     db.session.add(admission)
     db.session.commit()
     return doctor, admission
@@ -105,33 +131,58 @@ def admitted(app):
 def test_ward_round_submission_no_longer_crashes(client, app, admitted):
     """Regression: this always saved the note, then 500'd on the redirect."""
     doctor, admission = admitted
-    client.post("/login", data={"username": "ward_doc", "password": "Doc!23456"},
-                follow_redirects=True)
-    response = client.post("/medicine/ward-rounds/add", data={
-        "admission_id": admission.id, "notes": "Patient stable", "status": "Stable",
-    }, follow_redirects=True)
+    client.post(
+        "/login",
+        data={"username": "ward_doc", "password": "Doc!23456"},
+        follow_redirects=True,
+    )
+    response = client.post(
+        "/medicine/ward-rounds/add",
+        data={
+            "admission_id": admission.id,
+            "notes": "Patient stable",
+            "status": "Stable",
+        },
+        follow_redirects=True,
+    )
     assert response.status_code == 200
     assert WardRound.query.filter_by(admission_id=admission.id).count() == 1
 
 
 def test_view_ward_rounds_shows_submitted_notes(client, app, admitted):
     doctor, admission = admitted
-    client.post("/login", data={"username": "ward_doc", "password": "Doc!23456"},
-                follow_redirects=True)
-    client.post("/medicine/ward-rounds/add", data={
-        "admission_id": admission.id, "notes": "Improving steadily", "status": "Stable",
-    })
+    client.post(
+        "/login",
+        data={"username": "ward_doc", "password": "Doc!23456"},
+        follow_redirects=True,
+    )
+    client.post(
+        "/medicine/ward-rounds/add",
+        data={
+            "admission_id": admission.id,
+            "notes": "Improving steadily",
+            "status": "Stable",
+        },
+    )
     response = client.get(f"/medicine/ward-rounds/{admission.id}")
     assert response.status_code == 200
     assert b"Improving steadily" in response.data
 
 
 def test_view_ward_rounds_handles_unknown_admission(client, app):
-    db.session.add(User(username="ward_doc2", role="medicine",
-                        password=generate_password_hash("Doc!23456")))
+    db.session.add(
+        User(
+            username="ward_doc2",
+            role="medicine",
+            password=generate_password_hash("Doc!23456"),
+        )
+    )
     db.session.commit()
-    client.post("/login", data={"username": "ward_doc2", "password": "Doc!23456"},
-                follow_redirects=True)
+    client.post(
+        "/login",
+        data={"username": "ward_doc2", "password": "Doc!23456"},
+        follow_redirects=True,
+    )
     response = client.get("/medicine/ward-rounds/999999", follow_redirects=True)
     assert response.status_code == 200
 
@@ -139,15 +190,25 @@ def test_view_ward_rounds_handles_unknown_admission(client, app):
 def test_ward_round_validation_failure_also_redirects_cleanly(client, app, admitted):
     """Even the error branch used to hit the same undefined-endpoint crash."""
     doctor, admission = admitted
-    client.post("/login", data={"username": "ward_doc", "password": "Doc!23456"},
-                follow_redirects=True)
-    response = client.post("/medicine/ward-rounds/add", data={
-        "admission_id": admission.id, "notes": "", "status": "",
-    }, follow_redirects=True)
+    client.post(
+        "/login",
+        data={"username": "ward_doc", "password": "Doc!23456"},
+        follow_redirects=True,
+    )
+    response = client.post(
+        "/medicine/ward-rounds/add",
+        data={
+            "admission_id": admission.id,
+            "notes": "",
+            "status": "",
+        },
+        follow_redirects=True,
+    )
     assert response.status_code == 200
 
 
 # ── pharmacy ─────────────────────────────────────────────────────────────
+
 
 def test_dispense_button_is_no_longer_disabled(client, app):
     """
@@ -159,17 +220,37 @@ def test_dispense_button_is_no_longer_disabled(client, app):
     from departments.models.encounter import Encounter
     from departments.models.records import Patient
 
-    db.session.add(User(username="pharm_tech", role="pharmacy",
-                        password=generate_password_hash("Pharm!234")))
-    db.session.add(Patient(patient_id="P-DISPENSE", name="Dispense Patient", sex="F",
-                           date_of_birth=date(1990, 1, 1)))
+    db.session.add(
+        User(
+            username="pharm_tech",
+            role="pharmacy",
+            password=generate_password_hash("Pharm!234"),
+        )
+    )
+    db.session.add(
+        Patient(
+            patient_id="P-DISPENSE",
+            name="Dispense Patient",
+            sex="F",
+            date_of_birth=date(1990, 1, 1),
+        )
+    )
     db.session.commit()
-    db.session.add(Encounter(patient_id="P-DISPENSE", encounter_type="OPD",
-                             status="ACTIVE", stage="AWAITING_PHARMACY"))
+    db.session.add(
+        Encounter(
+            patient_id="P-DISPENSE",
+            encounter_type="OPD",
+            status="ACTIVE",
+            stage="AWAITING_PHARMACY",
+        )
+    )
     db.session.commit()
 
-    client.post("/login", data={"username": "pharm_tech", "password": "Pharm!234"},
-                follow_redirects=True)
+    client.post(
+        "/login",
+        data={"username": "pharm_tech", "password": "Pharm!234"},
+        follow_redirects=True,
+    )
     response = client.get("/pharmacy/prescriptions")
     body = response.get_data(as_text=True)
     assert "Dispense Patient" in body
@@ -185,17 +266,37 @@ def test_pharmacy_queue_is_not_permanently_empty(client, app):
     from departments.models.encounter import Encounter
     from departments.models.records import Patient
 
-    db.session.add(User(username="pharm_tech2", role="pharmacy",
-                        password=generate_password_hash("Pharm!234")))
-    db.session.add(Patient(patient_id="P-Q2", name="Second Queue Patient", sex="M",
-                           date_of_birth=date(1985, 1, 1)))
+    db.session.add(
+        User(
+            username="pharm_tech2",
+            role="pharmacy",
+            password=generate_password_hash("Pharm!234"),
+        )
+    )
+    db.session.add(
+        Patient(
+            patient_id="P-Q2",
+            name="Second Queue Patient",
+            sex="M",
+            date_of_birth=date(1985, 1, 1),
+        )
+    )
     db.session.commit()
-    db.session.add(Encounter(patient_id="P-Q2", encounter_type="OPD",
-                             status="ACTIVE", stage="AWAITING_PHARMACY"))
+    db.session.add(
+        Encounter(
+            patient_id="P-Q2",
+            encounter_type="OPD",
+            status="ACTIVE",
+            stage="AWAITING_PHARMACY",
+        )
+    )
     db.session.commit()
 
-    client.post("/login", data={"username": "pharm_tech2", "password": "Pharm!234"},
-                follow_redirects=True)
+    client.post(
+        "/login",
+        data={"username": "pharm_tech2", "password": "Pharm!234"},
+        follow_redirects=True,
+    )
     response = client.get("/pharmacy/prescriptions")
     body = response.get_data(as_text=True)
     assert "No active prescriptions currently waiting" not in body

@@ -69,15 +69,19 @@ def delete_subscription(subscription_id: str) -> bool:
     return True
 
 
-def dispatch_subscription_event(resource_type: str, resource_data: dict[str, Any]) -> int:
+def dispatch_subscription_event(
+    resource_type: str, resource_data: dict[str, Any]
+) -> int:
     """
     Dispatch real-time FHIR notification webhooks for `resource_type` to registered subscribers.
     Returns the number of webhooks successfully notified.
     """
     active_subs = FHIRSubscription.query.filter_by(status="active").all()
     matching_subs = [
-        s for s in active_subs
-        if s.criteria.lower() in (resource_type.lower(), "*") or resource_type.lower() in s.criteria.lower()
+        s
+        for s in active_subs
+        if s.criteria.lower() in (resource_type.lower(), "*")
+        or resource_type.lower() in s.criteria.lower()
     ]
 
     if not matching_subs:
@@ -99,11 +103,15 @@ def dispatch_subscription_event(resource_type: str, resource_data: dict[str, Any
             "User-Agent": "HIMS-FHIR-Subscription-Engine/1.0",
         }
         if sub.secret_token:
-            headers["X-FHIR-Signature"] = generate_hmac_signature(sub.secret_token, payload_bytes)
+            headers["X-FHIR-Signature"] = generate_hmac_signature(
+                sub.secret_token, payload_bytes
+            )
             headers["X-FHIR-Token"] = sub.secret_token
 
         try:
-            resp = requests.post(sub.endpoint_url, data=payload_bytes, headers=headers, timeout=3.0)
+            resp = requests.post(
+                sub.endpoint_url, data=payload_bytes, headers=headers, timeout=3.0
+            )
             if resp.status_code in (200, 201, 202, 204):
                 success_count += 1
                 sub.last_triggered_at = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -113,7 +121,9 @@ def dispatch_subscription_event(resource_type: str, resource_data: dict[str, Any
                 if sub.failure_count >= 5:
                     sub.status = "error"
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Subscription webhook dispatch failed for %s: %s", sub.endpoint_url, exc)
+            logger.warning(
+                "Subscription webhook dispatch failed for %s: %s", sub.endpoint_url, exc
+            )
             sub.failure_count += 1
             if sub.failure_count >= 5:
                 sub.status = "error"

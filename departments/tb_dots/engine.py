@@ -34,7 +34,7 @@ def create_tb_enrollment(
     treatment_start_date: datetime | None = None,
     facility_enrolled_at: str | None = None,
     encounter_id: int | None = None,
-    current_regimen_id: str | None = None
+    current_regimen_id: str | None = None,
 ) -> tuple[bool, str, TBEnrollment | None]:
     """
     Create a new TB enrollment for a patient.
@@ -62,11 +62,19 @@ def create_tb_enrollment(
         ).first()
 
         if existing_enrollment:
-            return False, f"Patient {patient_id} already has an active TB enrollment", None
+            return (
+                False,
+                f"Patient {patient_id} already has an active TB enrollment",
+                None,
+            )
 
         # Validate TB number uniqueness
         if TBEnrollment.query.filter_by(tb_number=tb_number).first():
-            return False, f"TB number {tb_number} is already assigned to another patient", None
+            return (
+                False,
+                f"TB number {tb_number} is already assigned to another patient",
+                None,
+            )
 
         # Validate regimen if provided
         if current_regimen_id:
@@ -75,8 +83,17 @@ def create_tb_enrollment(
                 return False, f"TB regimen with ID {current_regimen_id} not found", None
 
         # Validate HIV status if provided
-        if hiv_status and hiv_status not in ['positive', 'negative', 'unknown', 'refused_test']:
-            return False, "Invalid HIV status. Must be one of: positive, negative, unknown, refused_test", None
+        if hiv_status and hiv_status not in [
+            "positive",
+            "negative",
+            "unknown",
+            "refused_test",
+        ]:
+            return (
+                False,
+                "Invalid HIV status. Must be one of: positive, negative, unknown, refused_test",
+                None,
+            )
 
         # Set defaults
         if treatment_start_date is None:
@@ -94,13 +111,15 @@ def create_tb_enrollment(
             treatment_start_date=treatment_start_date,
             facility_enrolled_at=facility_enrolled_at,
             encounter_id=encounter_id,
-            current_regimen_id=current_regimen_id
+            current_regimen_id=current_regimen_id,
         )
 
         db.session.add(enrollment)
         db.session.commit()
 
-        logger.info(f"Created TB enrollment for patient {patient_id} with TB number {tb_number}")
+        logger.info(
+            f"Created TB enrollment for patient {patient_id} with TB number {tb_number}"
+        )
         return True, "TB enrollment created successfully", enrollment
 
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
@@ -114,7 +133,7 @@ def update_tb_regimen(
     new_regimen_id: str,
     change_reason: str,
     approved_by: str,
-    encounter_id: int | None = None
+    encounter_id: int | None = None,
 ) -> tuple[bool, str, TBEnrollment | None]:
     """
     Update a patient's TB regimen with validation for line changes.
@@ -144,7 +163,9 @@ def update_tb_regimen(
             # First regimen assignment - no line change validation needed
             enrollment.current_regimen_id = new_regimen_id
             db.session.commit()
-            logger.info(f"Set initial regimen {new_regimen.regimen_code} for enrollment {enrollment_id}")
+            logger.info(
+                f"Set initial regimen {new_regimen.regimen_code} for enrollment {enrollment_id}"
+            )
             return True, "Initial regimen assigned successfully", enrollment
 
         # Check if this is a line change
@@ -156,21 +177,31 @@ def update_tb_regimen(
             if not change_reason or len(change_reason.strip()) < 10:
                 return False, "Clinical reason required for line advancement", None
 
-            logger.warning(f"Advancing patient {enrollment.patient_id} from line {current_line} to {new_line}")
+            logger.warning(
+                f"Advancing patient {enrollment.patient_id} from line {current_line} to {new_line}"
+            )
             # In a real system, this might trigger additional review or notification
 
         elif new_line < current_line:
             # Moving to lower line - requires strong justification
             if not change_reason or len(change_reason.strip()) < 20:
-                return False, "Strong clinical justification required for line reduction", None
+                return (
+                    False,
+                    "Strong clinical justification required for line reduction",
+                    None,
+                )
 
-            logger.warning(f"Reducing patient {enrollment.patient_id} from line {current_line} to {new_line}")
+            logger.warning(
+                f"Reducing patient {enrollment.patient_id} from line {current_line} to {new_line}"
+            )
 
         # Same line or downward move - update regimen
         enrollment.current_regimen_id = new_regimen_id
         db.session.commit()
 
-        logger.info(f"Updated regimen for enrollment {enrollment_id} to {new_regimen.regimen_code}")
+        logger.info(
+            f"Updated regimen for enrollment {enrollment_id} to {new_regimen.regimen_code}"
+        )
         return True, "TB regimen updated successfully", enrollment
 
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
@@ -183,7 +214,7 @@ def record_dose_taken(
     enrollment_id: str,
     taken_as_directly_observed: bool = False,
     date_taken: datetime | None = None,
-    encounter_id: int | None = None
+    encounter_id: int | None = None,
 ) -> tuple[bool, str, DoseTaken | None]:
     """
     Record a TB dose taken (either self-administered or directly observed).
@@ -206,10 +237,14 @@ def record_dose_taken(
             date_taken = datetime.now(timezone.utc)
 
         # Determine the next dose number for this enrollment
-        last_dose = DoseTaken.query.filter_by(tb_enrollment_id=enrollment_id)\
-            .order_by(DoseTaken.date_taken.desc())\
+        last_dose = (
+            DoseTaken.query.filter_by(tb_enrollment_id=enrollment_id)
+            .order_by(DoseTaken.date_taken.desc())
             .first()
-        dose_number = (last_dose.dose_number + 1) if last_dose and last_dose.dose_number else 1
+        )
+        dose_number = (
+            (last_dose.dose_number + 1) if last_dose and last_dose.dose_number else 1
+        )
 
         # Create dose taken record
         dose = DoseTaken(
@@ -218,13 +253,15 @@ def record_dose_taken(
             dose_number=dose_number,
             taken_as_directly_observed=taken_as_directly_observed,
             date_taken=date_taken,
-            encounter_id=encounter_id
+            encounter_id=encounter_id,
         )
 
         db.session.add(dose)
         db.session.commit()
 
-        logger.info(f"Recorded dose {dose_number} for enrollment {enrollment_id} (DOT: {taken_as_directly_observed})")
+        logger.info(
+            f"Recorded dose {dose_number} for enrollment {enrollment_id} (DOT: {taken_as_directly_observed})"
+        )
         return True, "Dose taken recorded successfully", dose
 
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
@@ -242,7 +279,7 @@ def record_sputum_result(
     culture_species: str | None = None,
     drug_susceptibility: str | None = None,
     test_date: datetime | None = None,
-    encounter_id: int | None = None
+    encounter_id: int | None = None,
 ) -> tuple[bool, str, SputumResult | None]:
     """
     Record a TB sputum test result.
@@ -279,13 +316,15 @@ def record_sputum_result(
             culture_species=culture_species,
             drug_susceptibility=drug_susceptibility,
             test_date=test_date,
-            encounter_id=encounter_id
+            encounter_id=encounter_id,
         )
 
         db.session.add(sputum_result)
         db.session.commit()
 
-        logger.info(f"Recorded sputum result for enrollment {enrollment_id}: smear {smear_result}, culture {culture_result}")
+        logger.info(
+            f"Recorded sputum result for enrollment {enrollment_id}: smear {smear_result}, culture {culture_result}"
+        )
         return True, "Sputum result recorded successfully", sputum_result
 
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
@@ -300,7 +339,7 @@ def record_chest_xray(
     severity: str | None = None,
     progression: str | None = None,
     test_date: datetime | None = None,
-    encounter_id: int | None = None
+    encounter_id: int | None = None,
 ) -> tuple[bool, str, ChestXRay | None]:
     """
     Record a TB chest X-ray result.
@@ -331,7 +370,7 @@ def record_chest_xray(
             severity=severity,
             progression=progression,
             test_date=test_date,
-            encounter_id=encounter_id
+            encounter_id=encounter_id,
         )
 
         db.session.add(chest_xray)
@@ -352,7 +391,7 @@ def record_hiv_status(
     result: str,
     cd4_count: int | None = None,
     test_date: datetime | None = None,
-    encounter_id: int | None = None
+    encounter_id: int | None = None,
 ) -> tuple[bool, str, HIVStatus | None]:
     """
     Record an HIV status test result for a TB patient.
@@ -369,8 +408,12 @@ def record_hiv_status(
         Tuple of (success, message, hiv_status_object)
     """
     try:
-        if result not in ['positive', 'negative', 'indeterminate']:
-            return False, "HIV test result must be one of: positive, negative, indeterminate", None
+        if result not in ["positive", "negative", "indeterminate"]:
+            return (
+                False,
+                "HIV test result must be one of: positive, negative, indeterminate",
+                None,
+            )
 
         enrollment = db.session.get(TBEnrollment, enrollment_id)
         if not enrollment:
@@ -386,7 +429,7 @@ def record_hiv_status(
             result=result,
             cd4_count=cd4_count,
             test_date=test_date,
-            encounter_id=encounter_id
+            encounter_id=encounter_id,
         )
 
         db.session.add(hiv_status)
@@ -432,9 +475,11 @@ def get_latest_sputum_result(enrollment_id: str) -> SputumResult | None:
         Most recent sputum result or None if not found
     """
     try:
-        return SputumResult.query.filter_by(tb_enrollment_id=enrollment_id)\
-            .order_by(SputumResult.test_date.desc())\
+        return (
+            SputumResult.query.filter_by(tb_enrollment_id=enrollment_id)
+            .order_by(SputumResult.test_date.desc())
             .first()
+        )
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         logger.error(f"Error getting latest sputum result: {e}")
         return None
@@ -451,9 +496,11 @@ def get_latest_chest_xray(enrollment_id: str) -> ChestXRay | None:
         Most recent chest X-ray or None if not found
     """
     try:
-        return ChestXRay.query.filter_by(tb_enrollment_id=enrollment_id)\
-            .order_by(ChestXRay.test_date.desc())\
+        return (
+            ChestXRay.query.filter_by(tb_enrollment_id=enrollment_id)
+            .order_by(ChestXRay.test_date.desc())
             .first()
+        )
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         logger.error(f"Error getting latest chest X-ray: {e}")
         return None
@@ -470,9 +517,11 @@ def get_latest_hiv_status(enrollment_id: str) -> HIVStatus | None:
         Most recent HIV status or None if not found
     """
     try:
-        return HIVStatus.query.filter_by(tb_enrollment_id=enrollment_id)\
-            .order_by(HIVStatus.test_date.desc())\
+        return (
+            HIVStatus.query.filter_by(tb_enrollment_id=enrollment_id)
+            .order_by(HIVStatus.test_date.desc())
             .first()
+        )
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         logger.error(f"Error getting latest HIV status: {e}")
         return None
@@ -490,10 +539,12 @@ def get_dose_summary(enrollment_id: str, limit: int = 30) -> list[DoseTaken]:
         List of doses taken ordered by date (most recent first)
     """
     try:
-        return DoseTaken.query.filter_by(tb_enrollment_id=enrollment_id)\
-            .order_by(DoseTaken.date_taken.desc())\
-            .limit(limit)\
+        return (
+            DoseTaken.query.filter_by(tb_enrollment_id=enrollment_id)
+            .order_by(DoseTaken.date_taken.desc())
+            .limit(limit)
             .all()
+        )
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         logger.error(f"Error getting dose summary: {e}")
         return []
@@ -509,10 +560,14 @@ def get_tb_formulary() -> list[TBRegimen]:
     """
     try:
         now = datetime.now(timezone.utc).date()
-        return TBRegimen.query.filter(
-            db.or_(TBRegimen.effective_to.is_(None), TBRegimen.effective_to >= now),
-            TBRegimen.effective_from <= now
-        ).order_by(TBRegimen.line_of_therapy, TBRegimen.regimen_code).all()
+        return (
+            TBRegimen.query.filter(
+                db.or_(TBRegimen.effective_to.is_(None), TBRegimen.effective_to >= now),
+                TBRegimen.effective_from <= now,
+            )
+            .order_by(TBRegimen.line_of_therapy, TBRegimen.regimen_code)
+            .all()
+        )
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         logger.error(f"Error getting TB formulary: {e}")
         return []
@@ -548,7 +603,7 @@ def log_tb_formulary_change(
     regimen_id: str,
     change_type: str,  # 'create', 'update', 'retire'
     changed_by: str,
-    change_notes: str | None = None
+    change_notes: str | None = None,
 ) -> bool:
     """
     Log a change to the TB formulary for audit purposes.

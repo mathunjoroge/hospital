@@ -83,9 +83,7 @@ class Specimen(db.Model):
     specimen_type = db.Column(db.String(50), nullable=False, default="WHOLE_BLOOD")
     container_type = db.Column(db.String(50), nullable=False, default="EDTA_PURPLE")
     status = db.Column(db.String(30), nullable=False, default="ORDERED")
-    collected_by_id = db.Column(
-        db.Integer, db.ForeignKey("users.id"), nullable=True
-    )
+    collected_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     collected_at = db.Column(db.DateTime, nullable=True)
     received_at = db.Column(db.DateTime, nullable=True)
     rejection_reason = db.Column(db.String(100), nullable=True)
@@ -147,4 +145,3 @@ class LabQCResult(db.Model):
 
     def __repr__(self):
         return f"<LabQCResult ID={self.id} Z={self.z_score:.2f} Status={self.status}>"
-

@@ -49,7 +49,9 @@ class TestDICOMwebClient:
         client = DICOMwebClient()
         with patch("requests.get") as mock_get:
             mock_get.return_value.status_code = 200
-            mock_get.return_value.json.return_value = [{"0020000D": {"Value": ["1.2.3.4"]}}]
+            mock_get.return_value.json.return_value = [
+                {"0020000D": {"Value": ["1.2.3.4"]}}
+            ]
             res = client.qido_search_studies(patient_id="PT001", modality="CT")
             assert len(res) == 1
             assert res[0]["0020000D"]["Value"][0] == "1.2.3.4"
@@ -164,14 +166,18 @@ class TestOHIFAndDICOMwebRoutes:
         assert b"orthanc_mri_001" in resp.data
 
     def test_qido_search_proxy(self, client, admin_user):
-        with patch.object(dicomweb_client, "qido_search_studies", return_value=[{"study": "1"}]):
+        with patch.object(
+            dicomweb_client, "qido_search_studies", return_value=[{"study": "1"}]
+        ):
             resp = client.get("/imaging/dicom/qido?PatientID=PT001")
             assert resp.status_code == 200
             data = resp.get_json()
             assert data["count"] == 1
 
     def test_wado_metadata_proxy(self, client, admin_user):
-        with patch.object(dicomweb_client, "wado_retrieve_metadata", return_value=[{"meta": "1"}]):
+        with patch.object(
+            dicomweb_client, "wado_retrieve_metadata", return_value=[{"meta": "1"}]
+        ):
             resp = client.get("/imaging/dicom/wado/1.2.3.4")
             assert resp.status_code == 200
             data = resp.get_json()

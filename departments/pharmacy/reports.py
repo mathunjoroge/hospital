@@ -202,7 +202,8 @@ def analytics():
 def export_analytics():
     sales_data = session.get("sales_data", {})
     start_date = session.get(
-        "start_date", (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
+        "start_date",
+        (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d"),
     )
     end_date = session.get("end_date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 

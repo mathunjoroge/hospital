@@ -24,6 +24,7 @@ class HIPAAComplianceEngine:
     def evaluate_access_controls() -> dict[str, Any]:
         """§ 164.312(a) Access Control Evaluation."""
         from departments.rbac import ROLE_PERMISSIONS
+
         has_roles = len(ROLE_PERMISSIONS) >= 5
         session_timeout_set = bool(os.getenv("PERMANENT_SESSION_LIFETIME", "1800"))
 
@@ -64,7 +65,7 @@ class HIPAAComplianceEngine:
         try:
             encrypted = encrypt_value(test_payload)
             decrypted = decrypt_value(encrypted)
-            crypto_working = (decrypted == test_payload)
+            crypto_working = decrypted == test_payload
         except Exception:
             crypto_working = False
 
@@ -122,8 +123,12 @@ class HIPAAComplianceEngine:
         all_passed = all(d["status"] == "PASS" for d in domains)
 
         return {
-            "overall_status": "HITRUST_CERTIFIED_READY" if all_passed else "COMPLIANCE_WARNING",
+            "overall_status": "HITRUST_CERTIFIED_READY"
+            if all_passed
+            else "COMPLIANCE_WARNING",
             "compliance_score_pct": round(total_score, 1),
-            "hitrust_readiness_level": "Level 3 High Confidence" if total_score >= 95 else "Level 1 Needs Remediation",
+            "hitrust_readiness_level": "Level 3 High Confidence"
+            if total_score >= 95
+            else "Level 1 Needs Remediation",
             "domains": domains,
         }

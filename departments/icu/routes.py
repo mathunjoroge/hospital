@@ -50,7 +50,9 @@ def icu_flowsheet(patient_id: str = "P001"):
     """
     hours = request.args.get("hours", 24, type=int)
     matrix = generate_flowsheet_matrix(patient_id, hours=hours)
-    return render_template("nursing/icu_flowsheet.html", patient_id=patient_id, matrix=matrix)
+    return render_template(
+        "nursing/icu_flowsheet.html", patient_id=patient_id, matrix=matrix
+    )
 
 
 @icu_bp.route("/api/flowsheet/<string:patient_id>", methods=["GET"])
@@ -127,16 +129,20 @@ def log_icu_vitals(patient_id: str):
 
     logger.info(
         "ICU vitals logged: patient=%s entry_id=%s nurse_id=%s",
-        patient_id, entry.id, nurse_id,
+        patient_id,
+        entry.id,
+        nurse_id,
     )
 
-    return jsonify({
-        "success": True,
-        "entry_id": entry.id,
-        "map": map_val,
-        "gcs": gcs_tot,
-        "gcs_severity": gcs_calc.get("severity"),
-    }), 201
+    return jsonify(
+        {
+            "success": True,
+            "entry_id": entry.id,
+            "map": map_val,
+            "gcs": gcs_tot,
+            "gcs_severity": gcs_calc.get("severity"),
+        }
+    ), 201
 
 
 @icu_bp.route("/flowsheet/<string:patient_id>/fluid", methods=["POST"])
@@ -206,16 +212,20 @@ def log_icu_fluid(patient_id: str):
 
     logger.info(
         "ICU fluid balance logged: patient=%s entry_id=%s nurse_id=%s",
-        patient_id, entry.id, nurse_id,
+        patient_id,
+        entry.id,
+        nurse_id,
     )
 
-    return jsonify({
-        "success": True,
-        "entry_id": entry.id,
-        "total_input_ml": eval_io["total_input_ml"],
-        "total_output_ml": eval_io["total_output_ml"],
-        "net_balance_ml": eval_io["net_balance_ml"],
-        "urine_rate": eval_io["urine_rate_ml_kg_hr"],
-        "is_oliguria": eval_io["is_oliguria"],
-        "oliguria_warning": eval_io["oliguria_warning"],
-    }), 201
+    return jsonify(
+        {
+            "success": True,
+            "entry_id": entry.id,
+            "total_input_ml": eval_io["total_input_ml"],
+            "total_output_ml": eval_io["total_output_ml"],
+            "net_balance_ml": eval_io["net_balance_ml"],
+            "urine_rate": eval_io["urine_rate_ml_kg_hr"],
+            "is_oliguria": eval_io["is_oliguria"],
+            "oliguria_warning": eval_io["oliguria_warning"],
+        }
+    ), 201

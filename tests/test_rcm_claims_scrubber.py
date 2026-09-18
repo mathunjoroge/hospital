@@ -15,7 +15,12 @@ from extensions import db
 def test_pre_claim_scrubbing_rules(app):
     """Test pre-submission scrubbing rules and denial risk scoring."""
     with app.app_context():
-        pat = Patient(patient_id="PAT_RCM_01", name="RCM Patient One", sex="Male", date_of_birth=date(1990, 5, 10))
+        pat = Patient(
+            patient_id="PAT_RCM_01",
+            name="RCM Patient One",
+            sex="Male",
+            date_of_birth=date(1990, 5, 10),
+        )
         db.session.add(pat)
         db.session.commit()
 
@@ -56,7 +61,12 @@ def test_pre_claim_scrubbing_rules(app):
 def test_edi_837_generator(app):
     """Test X12 EDI 837P Professional Claim text stream generation."""
     with app.app_context():
-        pat = Patient(patient_id="PAT_RCM_837", name="EDI Test Patient", sex="Female", date_of_birth=date(1985, 3, 15))
+        pat = Patient(
+            patient_id="PAT_RCM_837",
+            name="EDI Test Patient",
+            sex="Female",
+            date_of_birth=date(1985, 3, 15),
+        )
         db.session.add(pat)
         db.session.commit()
 
@@ -86,7 +96,12 @@ def test_edi_837_generator(app):
 def test_edi_835_remittance_parser(app):
     """Test X12 EDI 835 Remittance Advice (ERA) parsing & payment auto-reconciliation."""
     with app.app_context():
-        pat = Patient(patient_id="PAT_RCM_835", name="Remittance Patient", sex="Male", date_of_birth=date(1992, 11, 20))
+        pat = Patient(
+            patient_id="PAT_RCM_835",
+            name="Remittance Patient",
+            sex="Male",
+            date_of_birth=date(1992, 11, 20),
+        )
         db.session.add(pat)
         db.session.commit()
 
@@ -142,7 +157,12 @@ def test_edi_835_remittance_parser(app):
 def test_rcm_claims_api_endpoints(client, app, admin_user):
     """Test HTTP API endpoints for RCM Scrubber, EDI 837, EDI 835, and Claims Console."""
     with app.app_context():
-        pat = Patient(patient_id="PAT_RCM_API", name="API RCM Patient", sex="Female", date_of_birth=date(1989, 7, 25))
+        pat = Patient(
+            patient_id="PAT_RCM_API",
+            name="API RCM Patient",
+            sex="Female",
+            date_of_birth=date(1989, 7, 25),
+        )
         db.session.add(pat)
         db.session.commit()
 

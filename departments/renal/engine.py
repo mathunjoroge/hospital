@@ -34,6 +34,7 @@ VALID_ACCESS_TYPES = {"AVF", "AVG", "Tunnelled Catheter", "Temporary Catheter"}
 
 # ── Session helpers ───────────────────────────────────────────────────────────
 
+
 def create_session(
     patient_id: str,
     nurse_id: int,
@@ -49,7 +50,9 @@ def create_session(
     """
     modality = modality.upper()
     if modality not in VALID_MODALITIES:
-        raise ValueError(f"Invalid modality '{modality}'. Must be one of {VALID_MODALITIES}.")
+        raise ValueError(
+            f"Invalid modality '{modality}'. Must be one of {VALID_MODALITIES}."
+        )
 
     session = DialysisSession(
         patient_id=patient_id,
@@ -68,11 +71,18 @@ def create_session(
     )
     db.session.add(session)
     db.session.commit()
-    logger.info("DialysisSession created: id=%s patient=%s modality=%s", session.id, patient_id, modality)
+    logger.info(
+        "DialysisSession created: id=%s patient=%s modality=%s",
+        session.id,
+        patient_id,
+        modality,
+    )
     return session
 
 
-def update_session_status(session_id: int, new_status: str, end_time: datetime | None = None) -> DialysisSession:
+def update_session_status(
+    session_id: int, new_status: str, end_time: datetime | None = None
+) -> DialysisSession:
     """
     Transition a DialysisSession to a new status.
 
@@ -80,7 +90,9 @@ def update_session_status(session_id: int, new_status: str, end_time: datetime |
     """
     new_status = new_status.upper()
     if new_status not in VALID_STATUSES:
-        raise ValueError(f"Invalid status '{new_status}'. Must be one of {VALID_STATUSES}.")
+        raise ValueError(
+            f"Invalid status '{new_status}'. Must be one of {VALID_STATUSES}."
+        )
 
     session = db.session.get(DialysisSession, session_id)
     if session is None:
@@ -97,14 +109,16 @@ def update_session_status(session_id: int, new_status: str, end_time: datetime |
 def get_patient_sessions(patient_id: str) -> list[DialysisSession]:
     """Return all dialysis sessions for a patient, newest first."""
     return (
-        DialysisSession.query
-        .filter_by(patient_id=patient_id)
-        .order_by(DialysisSession.session_date.desc(), DialysisSession.created_at.desc())
+        DialysisSession.query.filter_by(patient_id=patient_id)
+        .order_by(
+            DialysisSession.session_date.desc(), DialysisSession.created_at.desc()
+        )
         .all()
     )
 
 
 # ── Vascular access helpers ───────────────────────────────────────────────────
+
 
 def log_access_record(
     patient_id: str,
@@ -118,7 +132,9 @@ def log_access_record(
     Decision #4: track AVF/AVG/tunnelled catheter/temporary catheter.
     """
     if access_type not in VALID_ACCESS_TYPES:
-        raise ValueError(f"Invalid access_type '{access_type}'. Must be one of {VALID_ACCESS_TYPES}.")
+        raise ValueError(
+            f"Invalid access_type '{access_type}'. Must be one of {VALID_ACCESS_TYPES}."
+        )
 
     record = VascularAccessRecord(
         patient_id=patient_id,
@@ -132,7 +148,9 @@ def log_access_record(
     db.session.commit()
     logger.info(
         "VascularAccessRecord created: id=%s patient=%s type=%s",
-        record.id, patient_id, access_type,
+        record.id,
+        patient_id,
+        access_type,
     )
     return record
 
@@ -140,14 +158,14 @@ def log_access_record(
 def get_patient_access_records(patient_id: str) -> list[VascularAccessRecord]:
     """Return all vascular access records for a patient, newest first."""
     return (
-        VascularAccessRecord.query
-        .filter_by(patient_id=patient_id)
+        VascularAccessRecord.query.filter_by(patient_id=patient_id)
         .order_by(VascularAccessRecord.created_at.desc())
         .all()
     )
 
 
 # ── Summary helper ────────────────────────────────────────────────────────────
+
 
 def session_summary(session: DialysisSession) -> dict[str, Any]:
     """
@@ -162,7 +180,9 @@ def session_summary(session: DialysisSession) -> dict[str, Any]:
         "id": session.id,
         "patient_id": session.patient_id,
         "modality": session.modality,
-        "session_date": session.session_date.isoformat() if session.session_date else None,
+        "session_date": session.session_date.isoformat()
+        if session.session_date
+        else None,
         "status": session.status,
         "start_time": session.start_time.isoformat() if session.start_time else None,
         "end_time": session.end_time.isoformat() if session.end_time else None,

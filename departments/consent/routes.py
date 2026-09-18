@@ -135,7 +135,8 @@ def check_consent():
         return jsonify({"error": "Patient not found"}), 404
 
     consents = [
-        c for c in list_patient_consents(patient.patient_id)
+        c
+        for c in list_patient_consents(patient.patient_id)
         if c.consent_type == consent_type
     ]
 
@@ -226,7 +227,9 @@ def revoke_consent():
         notes=(data.get("reason") or "").strip() or None,
     )
     if consent is None:
-        return jsonify({"error": "No consent record of that type for this patient"}), 404
+        return jsonify(
+            {"error": "No consent record of that type for this patient"}
+        ), 404
 
     user = get_effective_user()
     log_audit_event(

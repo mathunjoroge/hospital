@@ -22,24 +22,36 @@ class ClinicalTrialProtocol(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     protocol_number = db.Column(db.String(50), unique=True, nullable=False, index=True)
     title = db.Column(db.String(255), nullable=False)
-    phase = db.Column(db.String(20), nullable=False, default="Phase III")  # Phase I, Phase II, Phase III, Phase IV
+    phase = db.Column(
+        db.String(20), nullable=False, default="Phase III"
+    )  # Phase I, Phase II, Phase III, Phase IV
     sponsor = db.Column(db.String(150), nullable=False)
     principal_investigator = db.Column(db.String(150), nullable=False)
 
     target_enrollment = db.Column(db.Integer, nullable=False, default=100)
     current_enrollment = db.Column(db.Integer, nullable=False, default=0)
-    status = db.Column(db.String(30), nullable=False, default="RECRUITING")  # DRAFT, RECRUITING, ACTIVE, SUSPENDED, COMPLETED
+    status = db.Column(
+        db.String(30), nullable=False, default="RECRUITING"
+    )  # DRAFT, RECRUITING, ACTIVE, SUSPENDED, COMPLETED
 
     # Criteria stored as JSON string
     inclusion_criteria_json = db.Column(db.Text, nullable=True, default="[]")
     exclusion_criteria_json = db.Column(db.Text, nullable=True, default="[]")
-    treatment_arms_json = db.Column(db.Text, nullable=True, default='["Arm A: Investigational", "Arm B: Control"]')
+    treatment_arms_json = db.Column(
+        db.Text, nullable=True, default='["Arm A: Investigational", "Arm B: Control"]'
+    )
 
     irb_approval_number = db.Column(db.String(100), nullable=True)
-    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(
+        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
 
-    participants = db.relationship("TrialParticipant", backref="protocol", lazy="dynamic")
-    adverse_events = db.relationship("TrialAdverseEvent", backref="protocol", lazy="dynamic")
+    participants = db.relationship(
+        "TrialParticipant", backref="protocol", lazy="dynamic"
+    )
+    adverse_events = db.relationship(
+        "TrialAdverseEvent", backref="protocol", lazy="dynamic"
+    )
 
     @property
     def inclusion_criteria(self) -> list:
@@ -66,7 +78,10 @@ class ClinicalTrialProtocol(db.Model):
     @property
     def treatment_arms(self) -> list:
         try:
-            return json.loads(self.treatment_arms_json or '["Arm A: Investigational", "Arm B: Control"]')
+            return json.loads(
+                self.treatment_arms_json
+                or '["Arm A: Investigational", "Arm B: Control"]'
+            )
         except Exception:
             return ["Arm A: Investigational", "Arm B: Control"]
 
@@ -84,8 +99,15 @@ class TrialParticipant(db.Model):
     __tablename__ = "trial_participants"
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    protocol_id = db.Column(db.String(36), db.ForeignKey("clinical_trial_protocols.id"), nullable=False, index=True)
-    patient_id = db.Column(db.String(20), db.ForeignKey("patients.patient_id"), nullable=False, index=True)
+    protocol_id = db.Column(
+        db.String(36),
+        db.ForeignKey("clinical_trial_protocols.id"),
+        nullable=False,
+        index=True,
+    )
+    patient_id = db.Column(
+        db.String(20), db.ForeignKey("patients.patient_id"), nullable=False, index=True
+    )
 
     # SCREENING, ELIGIBLE, INELIGIBLE, CONSENTED, RANDOMIZED, COMPLETED, WITHDRAWN
     enrollment_status = db.Column(db.String(30), nullable=False, default="SCREENING")
@@ -93,13 +115,19 @@ class TrialParticipant(db.Model):
     consent_status = db.Column(db.String(30), nullable=False, default="PENDING")
 
     consent_signed_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    digital_signature_hash = db.Column(db.String(64), nullable=True)  # SHA-256 digital signature hash
+    digital_signature_hash = db.Column(
+        db.String(64), nullable=True
+    )  # SHA-256 digital signature hash
     randomized_arm = db.Column(db.String(100), nullable=True)
 
     screening_notes = db.Column(db.Text, nullable=True)
-    enrolled_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    enrolled_at = db.Column(
+        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
 
-    adverse_events = db.relationship("TrialAdverseEvent", backref="participant", lazy="dynamic")
+    adverse_events = db.relationship(
+        "TrialAdverseEvent", backref="participant", lazy="dynamic"
+    )
     patient = db.relationship("Patient", foreign_keys=[patient_id])
 
 
@@ -112,8 +140,18 @@ class TrialAdverseEvent(db.Model):
     __tablename__ = "trial_adverse_events"
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    protocol_id = db.Column(db.String(36), db.ForeignKey("clinical_trial_protocols.id"), nullable=False, index=True)
-    participant_id = db.Column(db.String(36), db.ForeignKey("trial_participants.id"), nullable=False, index=True)
+    protocol_id = db.Column(
+        db.String(36),
+        db.ForeignKey("clinical_trial_protocols.id"),
+        nullable=False,
+        index=True,
+    )
+    participant_id = db.Column(
+        db.String(36),
+        db.ForeignKey("trial_participants.id"),
+        nullable=False,
+        index=True,
+    )
 
     event_term = db.Column(db.String(255), nullable=False)
     # Grade 1 (Mild), Grade 2 (Moderate), Grade 3 (Severe), Grade 4 (Life-Threatening), Grade 5 (Death)
@@ -123,7 +161,11 @@ class TrialAdverseEvent(db.Model):
     # UNRELATED, UNLIKELY, POSSIBLE, PROBABLE, DEFINITE
     causality_assessment = db.Column(db.String(30), nullable=False, default="POSSIBLE")
     sae_reported_to_irb = db.Column(db.Boolean, nullable=False, default=False)
-    resolution_status = db.Column(db.String(30), nullable=False, default="ONGOING")  # ONGOING, RESOLVED, RECOVERED_WITH_SEQUELAE, FATAL
+    resolution_status = db.Column(
+        db.String(30), nullable=False, default="ONGOING"
+    )  # ONGOING, RESOLVED, RECOVERED_WITH_SEQUELAE, FATAL
 
     reported_by = db.Column(db.String(100), nullable=True)
-    reported_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    reported_at = db.Column(
+        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )

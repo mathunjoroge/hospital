@@ -5,11 +5,27 @@ from datetime import datetime, timedelta, timezone
 
 import pyotp
 import qrcode
-from flask import abort, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import (
+    abort,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from werkzeug.security import generate_password_hash
-from wtforms import BooleanField, EmailField, PasswordField, SelectField, StringField, SubmitField
+from wtforms import (
+    BooleanField,
+    EmailField,
+    PasswordField,
+    SelectField,
+    StringField,
+    SubmitField,
+)
 from wtforms.validators import DataRequired, Email, Length, Optional
 
 from departments.api.audit import log_audit_event
@@ -52,7 +68,9 @@ class AddUserForm(FlaskForm):
         "Username", validators=[DataRequired(), Length(min=4, max=80)]
     )
     full_name = StringField("Full Name", validators=[Optional(), Length(max=120)])
-    email = EmailField("Email Address", validators=[Optional(), Email(), Length(max=120)])
+    email = EmailField(
+        "Email Address", validators=[Optional(), Email(), Length(max=120)]
+    )
     password = PasswordField(
         "Password", validators=[DataRequired(), Length(min=6, max=120)]
     )
@@ -65,7 +83,9 @@ class EditUserForm(FlaskForm):
         "Username", validators=[DataRequired(), Length(min=4, max=80)]
     )
     full_name = StringField("Full Name", validators=[Optional(), Length(max=120)])
-    email = EmailField("Email Address", validators=[Optional(), Email(), Length(max=120)])
+    email = EmailField(
+        "Email Address", validators=[Optional(), Email(), Length(max=120)]
+    )
     role = SelectField("Role", choices=ROLES, validators=[DataRequired()])
     is_active = BooleanField("Account Active", default=True)
     submit = SubmitField("Update User")
@@ -182,9 +202,7 @@ def index():
         now = datetime.now(timezone.utc)
 
         # Quick stats for the dashboard
-        locked_count = sum(
-            1 for u in users if u.locked_until and u.locked_until > now
-        )
+        locked_count = sum(1 for u in users if u.locked_until and u.locked_until > now)
         mfa_count = sum(1 for u in users if u.mfa_enabled)
         inactive_count = sum(1 for u in users if not getattr(u, "is_active", True))
 
@@ -192,6 +210,7 @@ def index():
         expiring_creds_count = 0
         try:
             from departments.models.hr import StaffCredential
+
             cutoff = now.date() + timedelta(days=30)
             expiring_creds_count = StaffCredential.query.filter(
                 StaffCredential.expiry_date <= cutoff
@@ -310,7 +329,11 @@ def add_user():
                 action="USER_CREATED",
                 resource_type="User",
                 resource_id=str(new_user.id),
-                details={"username": new_user.username, "role": new_user.role, "email": new_user.email},
+                details={
+                    "username": new_user.username,
+                    "role": new_user.role,
+                    "email": new_user.email,
+                },
             )
             db.session.commit()
             flash(f"User {form.username.data} added successfully.", "success")
@@ -446,7 +469,9 @@ def edit_user(user_id):
             old_role = user.role
             old_active = getattr(user, "is_active", True)
             user.username = form.username.data
-            user.full_name = form.full_name.data.strip() if form.full_name.data else user.full_name
+            user.full_name = (
+                form.full_name.data.strip() if form.full_name.data else user.full_name
+            )
             user.email = email_val
             user.role = form.role.data
             user.is_active = form.is_active.data
@@ -569,7 +594,9 @@ def reset_password(user_id):
             valid_pwd, pwd_msg = validate_password_complexity(form.new_password.data)
             if not valid_pwd:
                 flash(pwd_msg, "error")
-                return render_template("admin/reset_password.html", form=form, user=user)
+                return render_template(
+                    "admin/reset_password.html", form=form, user=user
+                )
 
             user.password = generate_password_hash(
                 form.new_password.data, method="pbkdf2:sha256"
@@ -594,7 +621,9 @@ def reset_password(user_id):
                 details={"target_username": user.username, "lockout_cleared": True},
             )
             db.session.commit()
-            flash(f"Password for {user.username} has been reset successfully.", "success")
+            flash(
+                f"Password for {user.username} has been reset successfully.", "success"
+            )
             return redirect(url_for("admin.manage_users"))
         except Exception:
             db.session.rollback()
@@ -705,7 +734,10 @@ def disable_mfa(user_id):
             details={"username": user.username, "disabled_by": current_user.username},
         )
         db.session.commit()
-        flash(f"MFA disabled for {user.username}. They must re-enroll on next login.", "warning")
+        flash(
+            f"MFA disabled for {user.username}. They must re-enroll on next login.",
+            "warning",
+        )
     except Exception:
         db.session.rollback()
         flash("Failed to disable MFA. Please try again.", "error")
@@ -766,7 +798,9 @@ def bulk_user_action():
         )
         db.session.add(
             Log(
-                level="WARNING" if action in ("lock", "delete", "deactivate") else "INFO",
+                level="WARNING"
+                if action in ("lock", "delete", "deactivate")
+                else "INFO",
                 message=f"Admin {current_user.username} performed bulk {action} on {affected} user(s)",
                 user_id=current_user.id,
                 source="admin",
@@ -795,13 +829,13 @@ def system_overview():
 
         user_count = User.query.count()
         role_breakdown = db.session.execute(
-            text("SELECT role, COUNT(*) as cnt FROM users GROUP BY role ORDER BY cnt DESC")
+            text(
+                "SELECT role, COUNT(*) as cnt FROM users GROUP BY role ORDER BY cnt DESC"
+            )
         ).fetchall()
 
         now = datetime.now(timezone.utc)
-        locked_count = User.query.filter(
-            User.locked_until > now
-        ).count()
+        locked_count = User.query.filter(User.locked_until > now).count()
         mfa_enabled_count = User.query.filter(User.mfa_enabled == True).count()  # noqa: E712
         inactive_count = User.query.filter(User.is_active == False).count()  # noqa: E712
 
@@ -815,6 +849,7 @@ def system_overview():
         disk_percent = None
         try:
             import psutil
+
             cpu_percent = psutil.cpu_percent(interval=0.5)
             memory_percent = psutil.virtual_memory().percent
             disk_percent = psutil.disk_usage("/").percent
@@ -847,7 +882,9 @@ def system_overview():
             )
         )
         db.session.commit()
-        return render_template("admin/system_overview.html", stats=stats, user_count=user_count)
+        return render_template(
+            "admin/system_overview.html", stats=stats, user_count=user_count
+        )
     except Exception as e:
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in admin.system_overview: ")
@@ -1180,7 +1217,9 @@ def staff_credentials():
     ):
         return jsonify(items)
 
-    return render_template("admin/credentials.html", credentials=credentials, items=items)
+    return render_template(
+        "admin/credentials.html", credentials=credentials, items=items
+    )
 
 
 @bp.route("/admin/credentials/alerts", methods=["GET"])

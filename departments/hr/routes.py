@@ -67,6 +67,7 @@ logger = logging.getLogger(__name__)
 
 # ── Internal helpers ───────────────────────────────────────────────────────
 
+
 def _current_employee():
     """
     Resolve the Employee record linked to the logged-in User, or None.
@@ -297,10 +298,19 @@ def new_employee():
         )
 
     except (SQLAlchemyError, ValueError) as e:
-        flash(str(e) if isinstance(e, ValueError) else "Something went wrong. Please try again.", "error")
+        flash(
+            str(e)
+            if isinstance(e, ValueError)
+            else "Something went wrong. Please try again.",
+            "error",
+        )
         logger.error("hr.new_employee failed: %s", e, exc_info=True)
         db.session.rollback()
-        return redirect(url_for("hr.index") if request.method == "GET" else url_for("hr.new_employee"))
+        return redirect(
+            url_for("hr.index")
+            if request.method == "GET"
+            else url_for("hr.new_employee")
+        )
 
 
 @bp.route("/update_employee/<int:employee_id>", methods=["GET", "POST"])
@@ -335,7 +345,9 @@ def update_employee(employee_id):
             if linked_username:
                 linked_user = User.query.filter_by(username=linked_username).first()
                 if not linked_user:
-                    raise ValueError(f"No login account found for username '{linked_username}'.")
+                    raise ValueError(
+                        f"No login account found for username '{linked_username}'."
+                    )
                 existing_link = Employee.query.filter(
                     Employee.user_id == linked_user.id, Employee.id != employee.id
                 ).first()
@@ -366,7 +378,12 @@ def update_employee(employee_id):
         return render_template("hr/update_employee.html", employee=employee)
 
     except (SQLAlchemyError, ValueError) as e:
-        flash(str(e) if isinstance(e, ValueError) else "Something went wrong. Please try again.", "error")
+        flash(
+            str(e)
+            if isinstance(e, ValueError)
+            else "Something went wrong. Please try again.",
+            "error",
+        )
         logger.error("hr.update_employee failed: %s", e, exc_info=True)
         db.session.rollback()
         return redirect(
@@ -425,6 +442,7 @@ def delete_employee(employee_id):
 
 
 # ── Rota ───────────────────────────────────────────────────────────────────
+
 
 @bp.route("/rota_management", methods=["GET", "POST"])
 @login_required
@@ -529,6 +547,7 @@ def rota_management():
 
 # ── Reports & Exports ──────────────────────────────────────────────────────
 
+
 @bp.route("/department_reports", methods=["GET"])
 @login_required
 @roles_required("hr", "admin")
@@ -580,18 +599,34 @@ def export_department_reports():
 
         csv_data = [
             [
-                "Department", "Total", "Records", "Nursing", "Pharmacy", "Medicine",
-                "Laboratory", "Imaging", "Mortuary", "HR", "Stores", "Admin",
+                "Department",
+                "Total",
+                "Records",
+                "Nursing",
+                "Pharmacy",
+                "Medicine",
+                "Laboratory",
+                "Imaging",
+                "Mortuary",
+                "HR",
+                "Stores",
+                "Admin",
             ]
         ]
         for dept, counts in department_data.items():
             row = [
-                dept, counts["total"],
-                counts.get("records", 0), counts.get("nursing", 0),
-                counts.get("pharmacy", 0), counts.get("medicine", 0),
-                counts.get("laboratory", 0), counts.get("imaging", 0),
-                counts.get("mortuary", 0), counts.get("hr", 0),
-                counts.get("stores", 0), counts.get("admin", 0),
+                dept,
+                counts["total"],
+                counts.get("records", 0),
+                counts.get("nursing", 0),
+                counts.get("pharmacy", 0),
+                counts.get("medicine", 0),
+                counts.get("laboratory", 0),
+                counts.get("imaging", 0),
+                counts.get("mortuary", 0),
+                counts.get("hr", 0),
+                counts.get("stores", 0),
+                counts.get("admin", 0),
             ]
             csv_data.append(row)
 
@@ -612,6 +647,7 @@ def export_department_reports():
 
 
 # ── Payroll ────────────────────────────────────────────────────────────────
+
 
 @bp.route("/payroll")
 @login_required
@@ -746,7 +782,11 @@ def add_deduction():
         _log_hr_action(
             "Deduction Added",
             f"{deduction.name}: "
-            + (f"{deduction.value}%" if deduction.is_percentage else str(deduction.value))
+            + (
+                f"{deduction.value}%"
+                if deduction.is_percentage
+                else str(deduction.value)
+            )
             + " (applies to all employees).",
         )
         flash("Deduction added successfully!", "success")
@@ -821,7 +861,9 @@ def leave_request():
                 "that overlaps these dates.",
                 "error",
             )
-            return render_template("hr/leave_request.html", form=form, employee=employee)
+            return render_template(
+                "hr/leave_request.html", form=form, employee=employee
+            )
 
         # Only vacation is capped against the annual entitlement; sick leave
         # (and any other future leave type) is uncapped here by design —
@@ -943,7 +985,12 @@ def update_profile(employee_id):
         return redirect(url_for("hr.employee_profile", employee_id=employee.id))
 
     except (SQLAlchemyError, ValueError) as e:
-        flash(str(e) if isinstance(e, ValueError) else "Something went wrong. Please try again.", "error")
+        flash(
+            str(e)
+            if isinstance(e, ValueError)
+            else "Something went wrong. Please try again.",
+            "error",
+        )
         logger.error("hr.update_profile failed: %s", e, exc_info=True)
         db.session.rollback()
         return redirect(url_for("hr.employee_profile", employee_id=employee_id))
@@ -1019,7 +1066,9 @@ def employee_payslips():
     """Display payslips for the logged-in employee."""
     # Allow all authenticated employees to view their own payslips
     employee = _current_employee()
-    payrolls = Payroll.query.filter_by(employee_id=employee.id).all() if employee else []
+    payrolls = (
+        Payroll.query.filter_by(employee_id=employee.id).all() if employee else []
+    )
     return render_template("hr/employee_payslips.html", payrolls=payrolls)
 
 
@@ -1037,7 +1086,9 @@ def export_payroll_pdf():
     y = 730
     for payroll in payrolls:
         p.drawString(
-            100, y, f"{payroll.employee.name} - {payroll.month}: KES {payroll.net_pay:,.2f}"
+            100,
+            y,
+            f"{payroll.employee.name} - {payroll.month}: KES {payroll.net_pay:,.2f}",
         )
         y -= 20
     p.showPage()
@@ -1272,6 +1323,7 @@ def download_payslip(payroll_id):
 
 # ── Leave Balance ──────────────────────────────────────────────────────────
 
+
 @bp.route("/leave_balance")
 @login_required
 @roles_required("hr", "admin")
@@ -1332,10 +1384,15 @@ def set_leave_balance():
             )
             db.session.add(balance)
 
-        _write_audit("Set Leave Balance", {
-            "employee_id": employee_id, "year": year,
-            "leave_type": leave_type, "entitled_days": entitled_days,
-        })
+        _write_audit(
+            "Set Leave Balance",
+            {
+                "employee_id": employee_id,
+                "year": year,
+                "leave_type": leave_type,
+                "entitled_days": entitled_days,
+            },
+        )
         db.session.commit()
         flash("Leave balance updated.", "success")
 
@@ -1347,6 +1404,7 @@ def set_leave_balance():
 
 
 # ── Staff Credentials (HR view) ────────────────────────────────────────────
+
 
 @bp.route("/staff_credentials", methods=["GET", "POST"])
 @login_required
@@ -1368,10 +1426,18 @@ def staff_credentials():
             issue_date_raw = request.form.get("issue_date") or None
             expiry_date_raw = request.form.get("expiry_date") or None
 
-            if not all([staff_name, credential_type, credential_number, expiry_date_raw]):
-                raise ValueError("Staff name, credential type, number, and expiry date are required.")
+            if not all(
+                [staff_name, credential_type, credential_number, expiry_date_raw]
+            ):
+                raise ValueError(
+                    "Staff name, credential type, number, and expiry date are required."
+                )
 
-            issue_date = datetime.strptime(issue_date_raw, "%Y-%m-%d").date() if issue_date_raw else None
+            issue_date = (
+                datetime.strptime(issue_date_raw, "%Y-%m-%d").date()
+                if issue_date_raw
+                else None
+            )
             expiry_date = datetime.strptime(expiry_date_raw, "%Y-%m-%d").date()
             employee_id = int(employee_id_raw) if employee_id_raw else None
 
@@ -1384,14 +1450,25 @@ def staff_credentials():
                 expiry_date=expiry_date,
             )
             db.session.add(cred)
-            _write_audit("Add Credential", {"staff": staff_name, "type": credential_type, "number": credential_number})
+            _write_audit(
+                "Add Credential",
+                {
+                    "staff": staff_name,
+                    "type": credential_type,
+                    "number": credential_number,
+                },
+            )
             db.session.commit()
             flash(f"Credential for {staff_name} added successfully.", "success")
             return redirect(url_for("hr.staff_credentials"))
 
         today = datetime.now(timezone.utc).date()
-        credentials = StaffCredential.query.order_by(StaffCredential.expiry_date.asc()).all()
-        employees = Employee.query.filter_by(is_active=True).order_by(Employee.name).all()
+        credentials = StaffCredential.query.order_by(
+            StaffCredential.expiry_date.asc()
+        ).all()
+        employees = (
+            Employee.query.filter_by(is_active=True).order_by(Employee.name).all()
+        )
 
         return render_template(
             "hr/staff_credentials.html",
@@ -1409,6 +1486,7 @@ def staff_credentials():
 
 # ── Performance Reviews ────────────────────────────────────────────────────
 
+
 @bp.route("/performance_reviews")
 @login_required
 @roles_required("hr", "admin")
@@ -1416,8 +1494,7 @@ def performance_reviews():
     """List all performance reviews."""
 
     reviews = (
-        PerformanceReview.query
-        .join(Employee)
+        PerformanceReview.query.join(Employee)
         .order_by(PerformanceReview.created_at.desc())
         .all()
     )
@@ -1447,11 +1524,14 @@ def new_performance_review(employee_id):
                 comments=form.comments.data,
             )
             db.session.add(review)
-            _write_audit("Performance Review", {
-                "employee_id": employee.employee_id,
-                "period": form.review_period.data,
-                "score": form.score.data,
-            })
+            _write_audit(
+                "Performance Review",
+                {
+                    "employee_id": employee.employee_id,
+                    "period": form.review_period.data,
+                    "score": form.score.data,
+                },
+            )
             db.session.commit()
             flash(f"Performance review for {employee.name} saved.", "success")
             return redirect(url_for("hr.employee_profile", employee_id=employee.id))
@@ -1460,10 +1540,13 @@ def new_performance_review(employee_id):
             logger.error("hr.new_performance_review failed: %s", e, exc_info=True)
             db.session.rollback()
 
-    return render_template("hr/new_performance_review.html", employee=employee, form=form)
+    return render_template(
+        "hr/new_performance_review.html", employee=employee, form=form
+    )
 
 
 # ── Training Records ───────────────────────────────────────────────────────
+
 
 @bp.route("/training_records")
 @login_required
@@ -1472,8 +1555,7 @@ def training_records():
     """List all training records."""
 
     records = (
-        TrainingRecord.query
-        .join(Employee)
+        TrainingRecord.query.join(Employee)
         .order_by(TrainingRecord.date_completed.desc())
         .all()
     )
@@ -1504,10 +1586,13 @@ def new_training_record(employee_id):
                 recorded_by=current_user.id,
             )
             db.session.add(record)
-            _write_audit("Add Training Record", {
-                "employee_id": employee.employee_id,
-                "title": form.title.data,
-            })
+            _write_audit(
+                "Add Training Record",
+                {
+                    "employee_id": employee.employee_id,
+                    "title": form.title.data,
+                },
+            )
             db.session.commit()
             flash(f"Training record for {employee.name} saved.", "success")
             return redirect(url_for("hr.employee_profile", employee_id=employee.id))
@@ -1521,6 +1606,7 @@ def new_training_record(employee_id):
 
 # ── Disciplinary Records ───────────────────────────────────────────────────
 
+
 @bp.route("/disciplinary_records")
 @login_required
 @roles_required("hr", "admin")
@@ -1528,8 +1614,7 @@ def disciplinary_records():
     """List all disciplinary records."""
 
     records = (
-        DisciplinaryRecord.query
-        .filter_by(is_active=True)
+        DisciplinaryRecord.query.filter_by(is_active=True)
         .join(Employee)
         .order_by(DisciplinaryRecord.incident_date.desc())
         .all()
@@ -1558,10 +1643,13 @@ def new_disciplinary_record(employee_id):
                 reviewed_by=current_user.id,
             )
             db.session.add(record)
-            _write_audit("Disciplinary Record", {
-                "employee_id": employee.employee_id,
-                "type": form.incident_type.data,
-            })
+            _write_audit(
+                "Disciplinary Record",
+                {
+                    "employee_id": employee.employee_id,
+                    "type": form.incident_type.data,
+                },
+            )
             db.session.commit()
             flash(f"Disciplinary record for {employee.name} saved.", "success")
             return redirect(url_for("hr.employee_profile", employee_id=employee.id))
@@ -1570,4 +1658,6 @@ def new_disciplinary_record(employee_id):
             logger.error("hr.new_disciplinary_record failed: %s", e, exc_info=True)
             db.session.rollback()
 
-    return render_template("hr/new_disciplinary_record.html", employee=employee, form=form)
+    return render_template(
+        "hr/new_disciplinary_record.html", employee=employee, form=form
+    )

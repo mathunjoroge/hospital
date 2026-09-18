@@ -180,7 +180,9 @@ def view_billing(billing_id):
 @login_required
 @roles_required("billing", "admin")
 def update_status(billing_id):
-    billing = db.session.get(Billing, billing_id) or db.session.get(DrugsBill, billing_id)
+    billing = db.session.get(Billing, billing_id) or db.session.get(
+        DrugsBill, billing_id
+    )
 
     if not billing:
         flash(f"Billing with ID {billing_id} does not exist!", "error")
@@ -1082,7 +1084,9 @@ def daily_revenue_report():
             else datetime.now(timezone.utc).date() - timedelta(days=29)
         )
         end_date = (
-            datetime.strptime(end_str, "%Y-%m-%d").date() if end_str else datetime.now(timezone.utc).date()  # noqa: DTZ007
+            datetime.strptime(end_str, "%Y-%m-%d").date()
+            if end_str
+            else datetime.now(timezone.utc).date()  # noqa: DTZ007
         )
     except ValueError:
         start_date = datetime.now(timezone.utc).date() - timedelta(days=29)
@@ -1101,9 +1105,7 @@ def daily_revenue_report():
     total_revenue = (
         sum(r.amount_paid for r in paid_records) if paid_records else Decimal(0)
     )
-    total_balance = (
-        sum(r.balance for r in paid_records) if paid_records else Decimal(0)
-    )
+    total_balance = sum(r.balance for r in paid_records) if paid_records else Decimal(0)
 
     # Group revenue by payment method
     by_method = {}
@@ -1172,24 +1174,28 @@ def revenue_by_encounter_type():
     from departments.models.encounter import Encounter
     from extensions import db
 
-    results = db.session.query(
-        Encounter.encounter_type,
-        func.count(InvoiceLineItem.id).label("line_items"),
-        func.sum(InvoiceLineItem.total).label("total_revenue"),
-    ).join(
-        Encounter, InvoiceLineItem.encounter_id == Encounter.id
-    ).group_by(
-        Encounter.encounter_type
-    ).order_by(func.sum(InvoiceLineItem.total).desc()).all()
+    results = (
+        db.session.query(
+            Encounter.encounter_type,
+            func.count(InvoiceLineItem.id).label("line_items"),
+            func.sum(InvoiceLineItem.total).label("total_revenue"),
+        )
+        .join(Encounter, InvoiceLineItem.encounter_id == Encounter.id)
+        .group_by(Encounter.encounter_type)
+        .order_by(func.sum(InvoiceLineItem.total).desc())
+        .all()
+    )
 
-    return jsonify({
-        "report": "Revenue per Encounter Type",
-        "data": [
-            {
-                "encounter_type": r.encounter_type,
-                "line_items": r.line_items,
-                "total_revenue": float(r.total_revenue or 0),
-            }
-            for r in results
-        ]
-    })
+    return jsonify(
+        {
+            "report": "Revenue per Encounter Type",
+            "data": [
+                {
+                    "encounter_type": r.encounter_type,
+                    "line_items": r.line_items,
+                    "total_revenue": float(r.total_revenue or 0),
+                }
+                for r in results
+            ],
+        }
+    )

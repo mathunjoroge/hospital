@@ -14,6 +14,7 @@ from werkzeug.security import generate_password_hash
 
 # ─── fixtures ─────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def nurse_user(app, client):
     """Create a nurse user and log in."""
@@ -32,7 +33,9 @@ def nurse_user(app, client):
             db.session.commit()
         nurse_id = nurse.id
 
-    client.post("/login", data={"username": "nurse_invariant_test", "password": "nursepass123"})
+    client.post(
+        "/login", data={"username": "nurse_invariant_test", "password": "nursepass123"}
+    )
     yield nurse_id
 
 
@@ -66,13 +69,16 @@ def admitted_patient(app):
 
 # ─── identity invariants ──────────────────────────────────────────────────────
 
+
 class TestMARNurseIdentityFromSession:
     """
     INVARIANT: recorded_by in MedicationAdmin must always equal the
     authenticated user's ID, regardless of what nurse_id the caller sends.
     """
 
-    def test_nurse_id_from_session_not_request(self, app, client, nurse_user, admitted_patient):
+    def test_nurse_id_from_session_not_request(
+        self, app, client, nurse_user, admitted_patient
+    ):
         """
         Posting a different nurse_id in the body must NOT override the
         session identity in the stored record.
@@ -113,9 +119,9 @@ class TestMARNurseIdentityFromSession:
             "/nursing/mar/chart",
             json={"patient_id": "P-MAR-TEST"},  # missing medication and dosage
         )
-        assert resp.status_code == 400, (
-            "Incomplete MAR submission must return 400, not silently succeed."
-        )
+        assert (
+            resp.status_code == 400
+        ), "Incomplete MAR submission must return 400, not silently succeed."
 
 
 class TestMARAccessControl:
@@ -134,13 +140,17 @@ class TestMARAccessControl:
             if not doc:
                 doc = User(
                     username="doctor_mar_test",
-                    password=generate_password_hash("docpass123", method="pbkdf2:sha256"),
+                    password=generate_password_hash(
+                        "docpass123", method="pbkdf2:sha256"
+                    ),
                     role="doctor",
                 )
                 db.session.add(doc)
                 db.session.commit()
 
-        client.post("/login", data={"username": "doctor_mar_test", "password": "docpass123"})
+        client.post(
+            "/login", data={"username": "doctor_mar_test", "password": "docpass123"}
+        )
 
         resp = client.post(
             "/nursing/mar/chart",
@@ -151,6 +161,6 @@ class TestMARAccessControl:
             },
         )
         # admin role also allowed by decorator — only non-nursing non-admin should fail
-        assert resp.status_code in (403, 302), (
-            f"Doctor role should not be able to write MAR records. Got {resp.status_code}."
-        )
+        assert (
+            resp.status_code in (403, 302)
+        ), f"Doctor role should not be able to write MAR records. Got {resp.status_code}."

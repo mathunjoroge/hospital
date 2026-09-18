@@ -34,6 +34,7 @@ def _require_authenticated_user_id() -> int:
         return current_user.id
     abort(401)
 
+
 triage_bp = Blueprint("triage", __name__, url_prefix="/nursing/triage")
 
 
@@ -298,13 +299,13 @@ def assess_patient_triage():
     from departments.models.encounter import Encounter
 
     enc = (
-        Encounter.query.filter_by(patient_id=str(patient_id), status='ACTIVE')
+        Encounter.query.filter_by(patient_id=str(patient_id), status="ACTIVE")
         .order_by(Encounter.started_at.desc())
         .first()
     )
     if enc:
         enc.esi_level = esi_level
-        enc.set_stage('WAITING_DOCTOR')
+        enc.set_stage("WAITING_DOCTOR")
 
     # Trigger alert notification if critical ESI 1 or 2
     if esi_level in (1, 2):

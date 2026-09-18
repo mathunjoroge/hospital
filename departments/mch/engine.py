@@ -80,6 +80,7 @@ class MchEngine:
 
         # Open an ANC encounter for this visit
         from departments.models.encounter import Encounter
+
         enc = Encounter(
             patient_id=patient_id,
             encounter_type="ANC",
@@ -130,6 +131,7 @@ class MchEngine:
 
         if visit.encounter_id:
             from departments.models.encounter import Encounter
+
             enc = db.session.get(Encounter, visit.encounter_id)
             if enc and enc.stage != "DISCHARGED":
                 enc.close()
@@ -203,6 +205,7 @@ class MchEngine:
 
         # Link to the active ANC encounter for this child (if one is open)
         from departments.shared.encounter_utils import active_encounter
+
         enc = active_encounter(str(child_patient_id))
         enc_id = enc.id if enc else None
 

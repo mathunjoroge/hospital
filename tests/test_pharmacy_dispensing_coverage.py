@@ -105,13 +105,19 @@ def test_prescriptions_route(client, admin_user, pharmacy_setup):
     """Test /pharmacy/prescriptions endpoint."""
     resp = client.get("/pharmacy/prescriptions", follow_redirects=True)
     assert resp.status_code == 200
-    assert b"RX-TEST-001" in resp.data or b"Paracetamol" in resp.data or b"Prescriptions" in resp.data
+    assert (
+        b"RX-TEST-001" in resp.data
+        or b"Paracetamol" in resp.data
+        or b"Prescriptions" in resp.data
+    )
 
 
 def test_view_prescriptions_route(client, admin_user, pharmacy_setup):
     """Test /pharmacy/view_prescriptions/<patient_id> endpoint."""
     patient = pharmacy_setup["patient"]
-    resp = client.get(f"/pharmacy/view_prescriptions/{patient.patient_id}", follow_redirects=True)
+    resp = client.get(
+        f"/pharmacy/view_prescriptions/{patient.patient_id}", follow_redirects=True
+    )
     assert resp.status_code == 200
     assert b"John Pharmacy Test" in resp.data or b"RX-TEST-001" in resp.data
 
@@ -122,7 +128,9 @@ def test_dispense_prescription_route(client, admin_user, pharmacy_setup):
     assert resp.status_code == 200
 
     # Non-existent prescription redirects
-    resp_invalid = client.get("/pharmacy/dispense/RX-NONEXISTENT", follow_redirects=True)
+    resp_invalid = client.get(
+        "/pharmacy/dispense/RX-NONEXISTENT", follow_redirects=True
+    )
     assert resp_invalid.status_code == 200
 
 
@@ -187,7 +195,9 @@ def test_save_dispensed_drugs_route(client, admin_user, pharmacy_setup, app):
         "prescription_id": "RX-TEST-001",
         f"updatedDrugs[{dispensed_id}]": "10",
     }
-    resp = client.post("/pharmacy/save_dispensed_drugs", data=data, follow_redirects=True)
+    resp = client.post(
+        "/pharmacy/save_dispensed_drugs", data=data, follow_redirects=True
+    )
     assert resp.status_code == 200
 
     with app.app_context():
@@ -207,7 +217,9 @@ def test_save_prescription_route(client, admin_user, pharmacy_setup, app):
         "batch_number[]": [batch1.batch_number],
         "patient_id": patient.patient_id,
     }
-    resp = client.post("/pharmacy/save_prescription/RX-TEST-001", data=data, follow_redirects=True)
+    resp = client.post(
+        "/pharmacy/save_prescription/RX-TEST-001", data=data, follow_redirects=True
+    )
     assert resp.status_code == 200
 
     with app.app_context():
@@ -258,7 +270,9 @@ def test_stock_ops_process_dispense(client, admin_user, pharmacy_setup):
         "batch_id": str(batch1.id),
         "quantity_dispensed": "3",
     }
-    resp = client.post("/pharmacy/dispense/process/RX-TEST-001", data=data, follow_redirects=True)
+    resp = client.post(
+        "/pharmacy/dispense/process/RX-TEST-001", data=data, follow_redirects=True
+    )
     assert resp.status_code == 200
     assert b"dispensed successfully" in resp.data or b"Panadol" in resp.data
 

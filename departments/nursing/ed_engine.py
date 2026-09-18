@@ -26,7 +26,9 @@ class EDOperationsEngine:
     """Core logic engine for ED operations, flow tracking, and metrics."""
 
     @staticmethod
-    def record_arrival(patient_id: str, nurse_id: int = 1, chief_complaint: str = "ED Arrival") -> TriageAssessment:
+    def record_arrival(
+        patient_id: str, nurse_id: int = 1, chief_complaint: str = "ED Arrival"
+    ) -> TriageAssessment:
         """Record a patient's physical arrival at the Emergency Department."""
         now = datetime.now(timezone.utc)
 
@@ -62,7 +64,9 @@ class EDOperationsEngine:
         return assessment
 
     @staticmethod
-    def complete_triage(assessment_id: int, esi_level: int = 3, vitals_warning: str = None) -> TriageAssessment:
+    def complete_triage(
+        assessment_id: int, esi_level: int = 3, vitals_warning: str = None
+    ) -> TriageAssessment:
         """Mark triage completed and set ESI level & re-eval schedule."""
         now = datetime.now(timezone.utc)
         assessment = db.session.get(TriageAssessment, assessment_id)
@@ -113,7 +117,9 @@ class EDOperationsEngine:
         return assessment
 
     @staticmethod
-    def record_re_evaluation(assessment_id: int, notes: str, new_esi_level: int = None) -> TriageAssessment:
+    def record_re_evaluation(
+        assessment_id: int, notes: str, new_esi_level: int = None
+    ) -> TriageAssessment:
         """Record an ESI re-evaluation note and optional acuity update."""
         now = datetime.now(timezone.utc)
         assessment = db.session.get(TriageAssessment, assessment_id)
@@ -124,7 +130,9 @@ class EDOperationsEngine:
         if notes:
             existing_notes = assessment.re_evaluation_notes or ""
             timestamp_str = now.strftime("%Y-%m-%d %H:%M UTC")
-            assessment.re_evaluation_notes = f"{existing_notes}\n[{timestamp_str}] {notes}".strip()
+            assessment.re_evaluation_notes = (
+                f"{existing_notes}\n[{timestamp_str}] {notes}".strip()
+            )
 
         if new_esi_level is not None:
             assessment.esi_level = new_esi_level
@@ -139,7 +147,9 @@ class EDOperationsEngine:
         return assessment
 
     @staticmethod
-    def discharge_patient(assessment_id: int, disposition: str = "DISCHARGED") -> TriageAssessment:
+    def discharge_patient(
+        assessment_id: int, disposition: str = "DISCHARGED"
+    ) -> TriageAssessment:
         """Record patient ED disposition (DISCHARGED, ADMITTED, TRANSFERRED, AMA, LEFT_WITHOUT_BEING_SEEN)."""
         now = datetime.now(timezone.utc)
         assessment = db.session.get(TriageAssessment, assessment_id)
@@ -162,7 +172,9 @@ class EDOperationsEngine:
         # Active ED patients (not yet dispositioned)
         active_assessments = (
             TriageAssessment.query.filter(TriageAssessment.disposition.is_(None))
-            .order_by(TriageAssessment.esi_level.asc(), TriageAssessment.created_at.asc())
+            .order_by(
+                TriageAssessment.esi_level.asc(), TriageAssessment.created_at.asc()
+            )
             .all()
         )
 
@@ -205,47 +217,55 @@ class EDOperationsEngine:
                     due = due.replace(tzinfo=timezone.utc)
                 if now > due:
                     is_overdue = True
-                    re_eval_overdue.append({
-                        "id": a.id,
-                        "patient_id": a.patient_id,
-                        "patient_name": a.patient.name if a.patient else "Unknown",
-                        "due_at": due.isoformat(),
-                        "overdue_mins": round((now - due).total_seconds() / 60.0, 1),
-                    })
+                    re_eval_overdue.append(
+                        {
+                            "id": a.id,
+                            "patient_id": a.patient_id,
+                            "patient_name": a.patient.name if a.patient else "Unknown",
+                            "due_at": due.isoformat(),
+                            "overdue_mins": round(
+                                (now - due).total_seconds() / 60.0, 1
+                            ),
+                        }
+                    )
 
             # ED Boarding alert: LOS > 4 hours (240 minutes)
             is_boarding = elapsed_minutes > 240
             if is_boarding:
-                boarding_alerts.append({
+                boarding_alerts.append(
+                    {
+                        "id": a.id,
+                        "patient_id": a.patient_id,
+                        "patient_name": a.patient.name if a.patient else "Unknown",
+                        "esi_level": a.esi_level,
+                        "bed_label": a.bed_label or "Unassigned",
+                        "los_hours": round(elapsed_minutes / 60.0, 1),
+                    }
+                )
+
+            active_list.append(
+                {
                     "id": a.id,
                     "patient_id": a.patient_id,
                     "patient_name": a.patient.name if a.patient else "Unknown",
                     "esi_level": a.esi_level,
+                    "chief_complaint": a.chief_complaint,
+                    "priority_status": a.priority_status,
                     "bed_label": a.bed_label or "Unassigned",
-                    "los_hours": round(elapsed_minutes / 60.0, 1),
-                })
-
-            active_list.append({
-                "id": a.id,
-                "patient_id": a.patient_id,
-                "patient_name": a.patient.name if a.patient else "Unknown",
-                "esi_level": a.esi_level,
-                "chief_complaint": a.chief_complaint,
-                "priority_status": a.priority_status,
-                "bed_label": a.bed_label or "Unassigned",
-                "arrival_at": arrival.isoformat(),
-                "elapsed_minutes": elapsed_minutes,
-                "door_to_triage_mins": d2t_mins,
-                "door_to_doctor_mins": d2d_mins,
-                "is_re_eval_overdue": is_overdue,
-                "is_boarding": is_boarding,
-            })
+                    "arrival_at": arrival.isoformat(),
+                    "elapsed_minutes": elapsed_minutes,
+                    "door_to_triage_mins": d2t_mins,
+                    "door_to_doctor_mins": d2d_mins,
+                    "is_re_eval_overdue": is_overdue,
+                    "is_boarding": is_boarding,
+                }
+            )
 
         # Past 24 hours stats for completed metrics
         since_24h = now - timedelta(hours=24)
-        recent_assessments = (
-            TriageAssessment.query.filter(TriageAssessment.created_at >= since_24h).all()
-        )
+        recent_assessments = TriageAssessment.query.filter(
+            TriageAssessment.created_at >= since_24h
+        ).all()
 
         d2t_values = []
         d2d_values = []

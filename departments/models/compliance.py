@@ -58,7 +58,10 @@ class PatientConsent(db.Model):
 
 
 def grant_patient_consent(
-    patient_id: str, consent_type: str, ip_address: str | None = None, notes: str | None = None
+    patient_id: str,
+    consent_type: str,
+    ip_address: str | None = None,
+    notes: str | None = None,
 ) -> PatientConsent:
     """Grant or update explicit consent for a patient."""
     consent = PatientConsent.query.filter_by(

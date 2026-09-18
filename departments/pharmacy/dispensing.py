@@ -196,7 +196,11 @@ def delete_dispensed_drug(dispensed_drug_id):
             return redirect(request.referrer or url_for("pharmacy.index"))
 
         # Restore stock to batch transactionally
-        batch = db.session.get(Batch, dispensed_drug.batch_id) if dispensed_drug.batch_id else None
+        batch = (
+            db.session.get(Batch, dispensed_drug.batch_id)
+            if dispensed_drug.batch_id
+            else None
+        )
         if batch:
             batch.quantity_in_stock += dispensed_drug.quantity_dispensed
             db.session.add(batch)
@@ -431,9 +435,14 @@ def save_dispensed_drugs():
         )
 
         # --- T3.7: Encounter Scoping Check ---
-        if prescribed_meds and not is_encounter_open_for_dispensing(prescribed_meds[0].encounter_id):
-            flash('Cannot dispense: The associated encounter is closed or the patient has been discharged.', 'danger')
-            return redirect(request.referrer or url_for('pharmacy.index'))
+        if prescribed_meds and not is_encounter_open_for_dispensing(
+            prescribed_meds[0].encounter_id
+        ):
+            flash(
+                "Cannot dispense: The associated encounter is closed or the patient has been discharged.",
+                "danger",
+            )
+            return redirect(request.referrer or url_for("pharmacy.index"))
         # -------------------------------------
         logger.debug(f"Found {len(prescribed_meds)} prescribed medicines")
         for med in prescribed_meds:
@@ -460,10 +469,10 @@ def save_dispensed_drugs():
         # Advance encounter stage: prescription fully dispensed → let visit_closure
         # determine the correct next stage (AWAITING_FINAL_BILLING or DISCHARGED)
         from departments.shared.visit_closure import advance_after_completion
+
         patient_id = prescribed_meds[0].patient_id if prescribed_meds else None
         if patient_id:
             advance_after_completion(patient_id)
-
 
         # Verify before commit
         pre_commit_meds = (
@@ -556,7 +565,9 @@ def save_prescription(prescription_id):
                 "Complete billing first (or disable PHARMACY_REQUIRE_PAID).",
                 "error",
             )
-            return redirect(url_for("pharmacy.view_prescriptions", patient_id=patient_id))
+            return redirect(
+                url_for("pharmacy.view_prescriptions", patient_id=patient_id)
+            )
         if unpaid:
             db.session.add(
                 Log(
@@ -633,4 +644,3 @@ def save_prescription(prescription_id):
                 "pharmacy.view_prescriptions", patient_id=request.form.get("patient_id")
             )
         )
-

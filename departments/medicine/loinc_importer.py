@@ -23,10 +23,29 @@ logger = logging.getLogger(__name__)
 
 # Common laboratory search terms to query UMLS API for rich LOINC coverage
 _LOINC_SEARCH_TERMS = [
-    "glucose", "hemoglobin", "creatinine", "temperature", "blood pressure",
-    "heart rate", "leukocytes", "platelets", "bilirubin", "cholesterol",
-    "sodium", "potassium", "chloride", "malaria", "hiv", "urinalysis",
-    "troponin", "viral load", "cd4", "urea", "alt", "ast", "tb"
+    "glucose",
+    "hemoglobin",
+    "creatinine",
+    "temperature",
+    "blood pressure",
+    "heart rate",
+    "leukocytes",
+    "platelets",
+    "bilirubin",
+    "cholesterol",
+    "sodium",
+    "potassium",
+    "chloride",
+    "malaria",
+    "hiv",
+    "urinalysis",
+    "troponin",
+    "viral load",
+    "cd4",
+    "urea",
+    "alt",
+    "ast",
+    "tb",
 ]
 
 
@@ -104,10 +123,12 @@ def load_loinc_from_csv(filepath: str) -> list[dict]:
     with open(filepath, newline="", encoding="utf-8") as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            codes.append({
-                "code": row["LOINC_NUM"].strip(),
-                "description": row["LONG_COMMON_NAME"].strip(),
-            })
+            codes.append(
+                {
+                    "code": row["LOINC_NUM"].strip(),
+                    "description": row["LONG_COMMON_NAME"].strip(),
+                }
+            )
     return codes
 
 
@@ -117,7 +138,9 @@ def import_loinc_codes(filepath: str | None = None) -> int:
         filepath = os.getenv("LOINC_CSV_PATH", "/app/data/loinc_codes.csv")
 
     if not os.path.exists(filepath):
-        logger.info("LOINC CSV file not found at %s. Falling back to UMLS API import.", filepath)
+        logger.info(
+            "LOINC CSV file not found at %s. Falling back to UMLS API import.", filepath
+        )
         return import_from_umls_api(fetch_live_api=True)
 
     codes = load_loinc_from_csv(filepath)

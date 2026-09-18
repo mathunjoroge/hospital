@@ -57,6 +57,7 @@ def _require_authenticated_user_id() -> int:
 
 # ── Utility ───────────────────────────────────────────────────────────────────
 
+
 def _parse_date(val: str | None) -> date | None:
     if not val:
         return None
@@ -87,6 +88,7 @@ def _float(data: dict, key: str) -> float | None:
 
 # ── Session routes ────────────────────────────────────────────────────────────
 
+
 @renal_bp.route("/", methods=["GET"])
 @renal_bp.route("/sessions", methods=["GET"])
 @renal_bp.route("/sessions/<string:patient_id>", methods=["GET"])
@@ -110,7 +112,9 @@ def list_sessions(patient_id: str = "P001"):
             {
                 "id": r.id,
                 "access_type": r.access_type,
-                "insertion_date": r.insertion_date.isoformat() if r.insertion_date else None,
+                "insertion_date": r.insertion_date.isoformat()
+                if r.insertion_date
+                else None,
                 "site_description": r.site_description,
                 "complication_notes": r.complication_notes,
                 "dialysis_session_id": r.dialysis_session_id,
@@ -124,11 +128,13 @@ def list_sessions(patient_id: str = "P001"):
             access_records=formatted_access,
         )
 
-    return jsonify({
-        "patient_id": patient_id,
-        "count": len(sessions),
-        "sessions": [session_summary(s) for s in sessions],
-    }), 200
+    return jsonify(
+        {
+            "patient_id": patient_id,
+            "count": len(sessions),
+            "sessions": [session_summary(s) for s in sessions],
+        }
+    ), 200
 
 
 @renal_bp.route("/sessions/<string:patient_id>", methods=["POST"])
@@ -155,7 +161,9 @@ def log_session(patient_id: str):
     raw_date = data.get("session_date")
     session_date = _parse_date(raw_date)
     if session_date is None:
-        return jsonify({"error": "session_date is required (ISO format: YYYY-MM-DD)"}), 400
+        return jsonify(
+            {"error": "session_date is required (ISO format: YYYY-MM-DD)"}
+        ), 400
 
     # P0-11: Derive nurse_id from authenticated user only — never from request body.
     nurse_id = _require_authenticated_user_id()
@@ -180,7 +188,10 @@ def log_session(patient_id: str):
 
     logger.info(
         "Renal session created: patient=%s session_id=%s nurse_id=%s modality=%s",
-        patient_id, sess.id, nurse_id, modality,
+        patient_id,
+        sess.id,
+        nurse_id,
+        modality,
     )
 
     return jsonify({"success": True, "session": session_summary(sess)}), 201
@@ -215,13 +226,16 @@ def update_status(session_id: int):
 
     logger.info(
         "Renal session status updated: session_id=%s new_status=%s actor=%s",
-        session_id, new_status, current_user.id,
+        session_id,
+        new_status,
+        current_user.id,
     )
 
     return jsonify({"success": True, "session": session_summary(sess)}), 200
 
 
 # ── Vascular access routes ────────────────────────────────────────────────────
+
 
 @renal_bp.route("/access/<string:patient_id>", methods=["GET"])
 @login_required
@@ -239,7 +253,9 @@ def list_access_records(patient_id: str):
             {
                 "id": r.id,
                 "access_type": r.access_type,
-                "insertion_date": r.insertion_date.isoformat() if r.insertion_date else None,
+                "insertion_date": r.insertion_date.isoformat()
+                if r.insertion_date
+                else None,
                 "site_description": r.site_description,
                 "complication_notes": r.complication_notes,
                 "dialysis_session_id": r.dialysis_session_id,
@@ -253,22 +269,26 @@ def list_access_records(patient_id: str):
             access_records=formatted_access,
         )
 
-    return jsonify({
-        "patient_id": patient_id,
-        "count": len(records),
-        "records": [
-            {
-                "id": r.id,
-                "access_type": r.access_type,
-                "insertion_date": r.insertion_date.isoformat() if r.insertion_date else None,
-                "site_description": r.site_description,
-                "complication_notes": r.complication_notes,
-                "dialysis_session_id": r.dialysis_session_id,
-                "created_at": r.created_at.isoformat(),
-            }
-            for r in records
-        ],
-    }), 200
+    return jsonify(
+        {
+            "patient_id": patient_id,
+            "count": len(records),
+            "records": [
+                {
+                    "id": r.id,
+                    "access_type": r.access_type,
+                    "insertion_date": r.insertion_date.isoformat()
+                    if r.insertion_date
+                    else None,
+                    "site_description": r.site_description,
+                    "complication_notes": r.complication_notes,
+                    "dialysis_session_id": r.dialysis_session_id,
+                    "created_at": r.created_at.isoformat(),
+                }
+                for r in records
+            ],
+        }
+    ), 200
 
 
 @renal_bp.route("/access/<string:patient_id>", methods=["POST"])
@@ -299,14 +319,18 @@ def add_access_record(patient_id: str):
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 422
 
-    return jsonify({
-        "success": True,
-        "record": {
-            "id": record.id,
-            "access_type": record.access_type,
-            "insertion_date": record.insertion_date.isoformat() if record.insertion_date else None,
-            "site_description": record.site_description,
-            "complication_notes": record.complication_notes,
-            "dialysis_session_id": record.dialysis_session_id,
-        },
-    }), 201
+    return jsonify(
+        {
+            "success": True,
+            "record": {
+                "id": record.id,
+                "access_type": record.access_type,
+                "insertion_date": record.insertion_date.isoformat()
+                if record.insertion_date
+                else None,
+                "site_description": record.site_description,
+                "complication_notes": record.complication_notes,
+                "dialysis_session_id": record.dialysis_session_id,
+            },
+        }
+    ), 201

@@ -17,7 +17,6 @@ def active_encounter(patient_id: str):
     return None
 
 
-
 def is_encounter_open_for_dispensing(encounter_id: int) -> bool:
     """Checks if an encounter is still open for dispensing. Returns False if DISCHARGED/CLOSED."""
     if not encounter_id:
@@ -25,5 +24,5 @@ def is_encounter_open_for_dispensing(encounter_id: int) -> bool:
     enc = db.session.get(Encounter, encounter_id)
     if not enc:
         return True
-    terminal_stages = ['DISCHARGED', 'CLOSED']
-    return getattr(enc, 'stage', None) not in terminal_stages
+    terminal_stages = ["DISCHARGED", "CLOSED"]
+    return getattr(enc, "stage", None) not in terminal_stages

@@ -68,8 +68,8 @@ def get_fernet_key() -> bytes:
         raise RuntimeError(
             "CRITICAL SECURITY ERROR: ENCRYPTION_KEY environment variable is not set. "
             "Patient data cannot be encrypted safely. "
-            "Generate a key with: python3 -c \"from cryptography.fernet import Fernet; "
-            "print(Fernet.generate_key().decode())\" "
+            'Generate a key with: python3 -c "from cryptography.fernet import Fernet; '
+            'print(Fernet.generate_key().decode())" '
             "and set it in your .env file."
         )
 

@@ -7,7 +7,6 @@ Clinical Engine for NICU & Pediatrics Workstation:
 3. WHO / CDC Pediatric Growth Percentiles & Z-Score Calculator
 """
 
-
 from departments.mch.models import (
     NeonatalApgarRecord,
     PediatricGrowthRecord,
@@ -98,19 +97,27 @@ class NicuPediatricsEngine:
         # Approximate Bhutani Nomogram 95th, 75th, 40th percentile threshold curves for TSB (mg/dL)
         if hrs <= 24:
             p95, p75, p40 = 8.0, 6.0, 4.5
-            photo_cutoff = 8.0 if (gestational_weeks < 38 or has_hemolysis_risk) else 10.0
+            photo_cutoff = (
+                8.0 if (gestational_weeks < 38 or has_hemolysis_risk) else 10.0
+            )
             exchange_cutoff = 15.0
         elif hrs <= 48:
             p95, p75, p40 = 13.0, 10.0, 7.5
-            photo_cutoff = 11.0 if (gestational_weeks < 38 or has_hemolysis_risk) else 13.0
+            photo_cutoff = (
+                11.0 if (gestational_weeks < 38 or has_hemolysis_risk) else 13.0
+            )
             exchange_cutoff = 19.0
         elif hrs <= 72:
             p95, p75, p40 = 16.0, 13.0, 10.0
-            photo_cutoff = 13.0 if (gestational_weeks < 38 or has_hemolysis_risk) else 15.0
+            photo_cutoff = (
+                13.0 if (gestational_weeks < 38 or has_hemolysis_risk) else 15.0
+            )
             exchange_cutoff = 22.0
         else:  # > 72h
             p95, p75, p40 = 17.5, 15.0, 12.0
-            photo_cutoff = 15.0 if (gestational_weeks < 38 or has_hemolysis_risk) else 18.0
+            photo_cutoff = (
+                15.0 if (gestational_weeks < 38 or has_hemolysis_risk) else 18.0
+            )
             exchange_cutoff = 25.0
 
         if tsb >= p95:

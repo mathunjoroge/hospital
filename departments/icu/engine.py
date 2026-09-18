@@ -29,7 +29,9 @@ def calculate_map(systolic: float | None, diastolic: float | None) -> float | No
         return None
 
 
-def calculate_gcs(eye: int | None, verbal: int | None, motor: int | None) -> dict[str, Any]:
+def calculate_gcs(
+    eye: int | None, verbal: int | None, motor: int | None
+) -> dict[str, Any]:
     """
     Calculate Glasgow Coma Scale (GCS) score and severity classification.
     Eye: 1-4, Verbal: 1-5, Motor: 1-6. Total: 3-15.
@@ -79,15 +81,22 @@ def calculate_fluid_balance(
     Calculate Input/Output fluid balance and urine output rate (mL/kg/hr).
     Generates oliguria alert if urine output rate < 0.5 mL/kg/hr.
     """
-    total_input = round(float(iv_fluids) + float(blood_products) + float(enteral) + float(medications), 1)
-    total_output = round(float(urine) + float(drains) + float(ng_emesis) + float(stool), 1)
+    total_input = round(
+        float(iv_fluids) + float(blood_products) + float(enteral) + float(medications),
+        1,
+    )
+    total_output = round(
+        float(urine) + float(drains) + float(ng_emesis) + float(stool), 1
+    )
     net_balance = round(total_input - total_output, 1)
 
     w = float(weight_kg) if weight_kg and float(weight_kg) > 0 else 70.0
     hrs = float(period_hours) if period_hours and float(period_hours) > 0 else 1.0
 
     urine_rate = round(float(urine) / (w * hrs), 2)
-    is_oliguria = urine_rate < 0.5 and float(urine) > 0  # Alert if urine recorded and low
+    is_oliguria = (
+        urine_rate < 0.5 and float(urine) > 0
+    )  # Alert if urine recorded and low
 
     return {
         "total_input_ml": total_input,
@@ -95,7 +104,9 @@ def calculate_fluid_balance(
         "net_balance_ml": net_balance,
         "urine_rate_ml_kg_hr": urine_rate,
         "is_oliguria": is_oliguria,
-        "oliguria_warning": "CRITICAL: Urine output < 0.5 mL/kg/hr (Oliguria / AKI Risk)" if is_oliguria else None,
+        "oliguria_warning": "CRITICAL: Urine output < 0.5 mL/kg/hr (Oliguria / AKI Risk)"
+        if is_oliguria
+        else None,
     }
 
 
@@ -149,7 +160,9 @@ def generate_flowsheet_matrix(patient_id: str, hours: int = 24) -> dict[str, Any
         lv = vitals_entries[-1]
         latest_vitals = {
             "heart_rate": lv.heart_rate,
-            "bp": f"{lv.bp_systolic}/{lv.bp_diastolic}" if lv.bp_systolic and lv.bp_diastolic else None,
+            "bp": f"{lv.bp_systolic}/{lv.bp_diastolic}"
+            if lv.bp_systolic and lv.bp_diastolic
+            else None,
             "map": lv.mean_arterial_pressure,
             "spo2": lv.spo2,
             "temp": lv.temperature,
@@ -173,7 +186,8 @@ def generate_flowsheet_matrix(patient_id: str, hours: int = 24) -> dict[str, Any
                 "heart_rate": v.heart_rate,
                 "bp_systolic": v.bp_systolic,
                 "bp_diastolic": v.bp_diastolic,
-                "map": v.mean_arterial_pressure or calculate_map(v.bp_systolic, v.bp_diastolic),
+                "map": v.mean_arterial_pressure
+                or calculate_map(v.bp_systolic, v.bp_diastolic),
                 "spo2": v.spo2,
                 "temperature": v.temperature,
                 "cvp": v.central_venous_pressure,

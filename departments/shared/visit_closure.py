@@ -1,4 +1,5 @@
 """Phase 2: single authority for closing a visit (Encounter + legacy queue)."""
+
 import logging
 
 from sqlalchemy import or_
@@ -10,11 +11,13 @@ from extensions import db
 
 logger = logging.getLogger(__name__)
 
+
 def _pending_count(model, patient_id: str, enc) -> int:
     q = model.query.filter(model.patient_id == patient_id, model.status == 0)
     if enc is not None:
         q = q.filter(or_(model.encounter_id == enc.id, model.encounter_id.is_(None)))
     return q.count()
+
 
 def has_pending_work(patient_id: str) -> bool:
     enc = active_encounter(patient_id)
@@ -65,7 +68,11 @@ def determine_next_stage(patient_id: str, enc) -> str:
     # Priority 1: Tests still running → keep them in the lab/imaging queue
     if pending_labs and pending_imaging:
         # Multiple types pending, pick the most prominent
-        return current_stage if current_stage in ("AWAITING_LAB", "AWAITING_IMAGING") else "AWAITING_LAB"
+        return (
+            current_stage
+            if current_stage in ("AWAITING_LAB", "AWAITING_IMAGING")
+            else "AWAITING_LAB"
+        )
     if pending_labs:
         return "AWAITING_LAB"
     if pending_imaging:
@@ -85,6 +92,7 @@ def determine_next_stage(patient_id: str, enc) -> str:
         return "AWAITING_FINAL_BILLING"
     # No pending work → discharge
     return "DISCHARGED"
+
 
 def advance_after_completion(patient_id: str) -> str | None:
     enc = active_encounter(patient_id)

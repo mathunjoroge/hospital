@@ -39,29 +39,46 @@ def test_asa_physical_status_scoring():
 def test_anesthesia_timeline_events(app):
     """Test timestamped anesthesia timeline event matrix creation & retrieval."""
     with app.app_context():
-        pat = Patient(patient_id="PAT_OR_01", name="Sarah OR Doe", sex="Female", date_of_birth=datetime(1992, 4, 10).date())
+        pat = Patient(
+            patient_id="PAT_OR_01",
+            name="Sarah OR Doe",
+            sex="Female",
+            date_of_birth=datetime(1992, 4, 10).date(),
+        )
         proc = TheatreProcedure(name="Appendectomy", cost=35000.0)
         db.session.add_all([pat, proc])
         db.session.commit()
 
-        entry = TheatreList(patient_id="PAT_OR_01", procedure_id=proc.id, or_room="OR 1")
+        entry = TheatreList(
+            patient_id="PAT_OR_01", procedure_id=proc.id, or_room="OR 1"
+        )
         db.session.add(entry)
         db.session.commit()
 
         # Record timeline events
-        ev1 = TheatreOperationsEngine.record_timeline_event(entry.id, "PRE_INDUCTION", notes="Patient premedicated.")
+        ev1 = TheatreOperationsEngine.record_timeline_event(
+            entry.id, "PRE_INDUCTION", notes="Patient premedicated."
+        )
         assert ev1["event_type"] == "PRE_INDUCTION"
 
-        ev2 = TheatreOperationsEngine.record_timeline_event(entry.id, "INDUCTION", notes="Propofol 150mg + Fentanyl 100mcg.")
+        ev2 = TheatreOperationsEngine.record_timeline_event(
+            entry.id, "INDUCTION", notes="Propofol 150mg + Fentanyl 100mcg."
+        )
         assert ev2["event_type"] == "INDUCTION"
 
-        ev3 = TheatreOperationsEngine.record_timeline_event(entry.id, "INTUBATION", notes="ETT 7.5 cuffed placed smoothly.")
+        ev3 = TheatreOperationsEngine.record_timeline_event(
+            entry.id, "INTUBATION", notes="ETT 7.5 cuffed placed smoothly."
+        )
         assert ev3["event_type"] == "INTUBATION"
 
-        ev4 = TheatreOperationsEngine.record_timeline_event(entry.id, "INCISION", notes="Skin incision right lower quadrant.")
+        ev4 = TheatreOperationsEngine.record_timeline_event(
+            entry.id, "INCISION", notes="Skin incision right lower quadrant."
+        )
         assert ev4["event_type"] == "INCISION"
 
-        ev5 = TheatreOperationsEngine.record_timeline_event(entry.id, "PACU_TRANSFER", notes="Transferred to PACU in stable condition.")
+        ev5 = TheatreOperationsEngine.record_timeline_event(
+            entry.id, "PACU_TRANSFER", notes="Transferred to PACU in stable condition."
+        )
         assert ev5["event_type"] == "PACU_TRANSFER"
 
         # Fetch matrix
@@ -80,7 +97,12 @@ def test_anesthesia_timeline_events(app):
 def test_or_room_schedule_conflict_detection(app):
     """Test OR room scheduling & time collision detection."""
     with app.app_context():
-        pat = Patient(patient_id="PAT_OR_SCH", name="Schedule Patient", sex="Male", date_of_birth=datetime(1988, 1, 1).date())
+        pat = Patient(
+            patient_id="PAT_OR_SCH",
+            name="Schedule Patient",
+            sex="Male",
+            date_of_birth=datetime(1988, 1, 1).date(),
+        )
         proc = TheatreProcedure(name="Laparoscopy", cost=45000.0)
         db.session.add_all([pat, proc])
         db.session.commit()
@@ -141,12 +163,19 @@ def test_or_utilization_metrics(app):
 def test_theatre_api_endpoints(client, app, admin_user):
     """Test HTTP API endpoints for Anesthesia Timeline, ASA Assessment, and OR Scheduling."""
     with app.app_context():
-        pat = Patient(patient_id="PAT_OR_API", name="API Patient", sex="Female", date_of_birth=datetime(1995, 2, 2).date())
+        pat = Patient(
+            patient_id="PAT_OR_API",
+            name="API Patient",
+            sex="Female",
+            date_of_birth=datetime(1995, 2, 2).date(),
+        )
         proc = TheatreProcedure(name="Cholecystectomy", cost=50000.0)
         db.session.add_all([pat, proc])
         db.session.commit()
 
-        entry = TheatreList(patient_id="PAT_OR_API", procedure_id=proc.id, or_room="OR 1")
+        entry = TheatreList(
+            patient_id="PAT_OR_API", procedure_id=proc.id, or_room="OR 1"
+        )
         db.session.add(entry)
         db.session.commit()
         entry_id = entry.id

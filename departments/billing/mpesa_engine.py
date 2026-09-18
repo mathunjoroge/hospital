@@ -184,17 +184,25 @@ class MpesaService:
             from departments.models.billing import Billing, DrugsBill, Invoice
 
             # Reference can be patient_id or invoice reference
-            unpaid_bills = Billing.query.filter((Billing.patient_id == ref) | (Billing.id == ref), Billing.status == 0).all()
+            unpaid_bills = Billing.query.filter(
+                (Billing.patient_id == ref) | (Billing.id == ref), Billing.status == 0
+            ).all()
             for b in unpaid_bills:
                 b.status = 1
                 patient_id = b.patient_id
 
-            unpaid_drugs = DrugsBill.query.filter((DrugsBill.patient_id == ref) | (DrugsBill.id == ref), DrugsBill.status == 0).all()
+            unpaid_drugs = DrugsBill.query.filter(
+                (DrugsBill.patient_id == ref) | (DrugsBill.id == ref),
+                DrugsBill.status == 0,
+            ).all()
             for d in unpaid_drugs:
                 d.status = 1
                 patient_id = patient_id or d.patient_id
 
-            unpaid_inv = Invoice.query.filter((Invoice.patient_id == ref) | (Invoice.invoice_number == ref), Invoice.status == 0).all()
+            unpaid_inv = Invoice.query.filter(
+                (Invoice.patient_id == ref) | (Invoice.invoice_number == ref),
+                Invoice.status == 0,
+            ).all()
             for inv in unpaid_inv:
                 inv.status = 1
                 patient_id = patient_id or inv.patient_id
@@ -210,6 +218,7 @@ class MpesaService:
                     advance_after_completion,
                     maybe_close_encounter,
                 )
+
                 advance_after_completion(patient_id)
                 maybe_close_encounter(patient_id)
 

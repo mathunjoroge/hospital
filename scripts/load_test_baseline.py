@@ -33,15 +33,15 @@ def setup_test_data():
     """Ensure database has seeded admin user and test patients for real application queries."""
     with app.app_context():
         db.create_all()
-        if not User.query.filter_by(username='bench_admin').first():
+        if not User.query.filter_by(username="bench_admin").first():
             user = User(
-                username='bench_admin',
-                password=generate_password_hash('password123', method='pbkdf2:sha256'),
-                role='admin'
+                username="bench_admin",
+                password=generate_password_hash("password123", method="pbkdf2:sha256"),
+                role="admin",
             )
             db.session.add(user)
 
-        if not Patient.query.filter_by(patient_id='P-BENCH-01').first():
+        if not Patient.query.filter_by(patient_id="P-BENCH-01").first():
             p = Patient(
                 patient_id="P-BENCH-01",
                 name="John Benchmark Patient",
@@ -53,13 +53,15 @@ def setup_test_data():
                 next_of_kin="Jane Benchmark",
                 relationship_with_next_of_kin="Spouse",
                 next_of_kin_contact="0722334455",
-                emergency_contact="0733445566"
+                emergency_contact="0733445566",
             )
             db.session.add(p)
         db.session.commit()
 
 
-def benchmark_endpoint(endpoint_func, num_requests: int, concurrency: int, authenticate: bool = True) -> dict:
+def benchmark_endpoint(
+    endpoint_func, num_requests: int, concurrency: int, authenticate: bool = True
+) -> dict:
     latencies: list[float] = []
     failures: int = 0
     successes: int = 0
@@ -71,7 +73,10 @@ def benchmark_endpoint(endpoint_func, num_requests: int, concurrency: int, authe
         thread_latencies = []
         with app.test_client() as client:
             if authenticate:
-                res_login = client.post('/login', data={'username': 'bench_admin', 'password': 'password123'})
+                res_login = client.post(
+                    "/login",
+                    data={"username": "bench_admin", "password": "password123"},
+                )
                 if res_login.status_code >= 400:
                     failures += req_count
                     return []
@@ -92,7 +97,9 @@ def benchmark_endpoint(endpoint_func, num_requests: int, concurrency: int, authe
 
     reqs_per_worker = num_requests // concurrency
     with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as executor:
-        futures = [executor.submit(worker_session, reqs_per_worker) for _ in range(concurrency)]
+        futures = [
+            executor.submit(worker_session, reqs_per_worker) for _ in range(concurrency)
+        ]
         for f in concurrent.futures.as_completed(futures):
             res = f.result()
             if res:
@@ -103,29 +110,29 @@ def benchmark_endpoint(endpoint_func, num_requests: int, concurrency: int, authe
     rps = total_processed / total_time if total_time > 0 else 0
 
     return {
-        'total_requests': num_requests,
-        'concurrency': concurrency,
-        'duration_sec': round(total_time, 3),
-        'rps': round(rps, 2),
-        'successes': successes,
-        'failures': failures,
-        'error_rate_pct': round((failures / num_requests) * 100, 2),
-        'p50_ms': round(float(np.percentile(latencies, 50)), 2) if latencies else 0.0,
-        'p95_ms': round(float(np.percentile(latencies, 95)), 2) if latencies else 0.0,
-        'p99_ms': round(float(np.percentile(latencies, 99)), 2) if latencies else 0.0,
-        'min_ms': round(float(np.min(latencies)), 2) if latencies else 0.0,
-        'max_ms': round(float(np.max(latencies)), 2) if latencies else 0.0,
+        "total_requests": num_requests,
+        "concurrency": concurrency,
+        "duration_sec": round(total_time, 3),
+        "rps": round(rps, 2),
+        "successes": successes,
+        "failures": failures,
+        "error_rate_pct": round((failures / num_requests) * 100, 2),
+        "p50_ms": round(float(np.percentile(latencies, 50)), 2) if latencies else 0.0,
+        "p95_ms": round(float(np.percentile(latencies, 95)), 2) if latencies else 0.0,
+        "p99_ms": round(float(np.percentile(latencies, 99)), 2) if latencies else 0.0,
+        "min_ms": round(float(np.min(latencies)), 2) if latencies else 0.0,
+        "max_ms": round(float(np.max(latencies)), 2) if latencies else 0.0,
     }
 
 
 def run_all_benchmarks(concurrency_levels=None):
     if concurrency_levels is None:
         concurrency_levels = [5, 20]
-    app.config['TESTING'] = True
-    app.config['WTF_CSRF_ENABLED'] = False
-    app.config['RATELIMIT_ENABLED'] = False
+    app.config["TESTING"] = True
+    app.config["WTF_CSRF_ENABLED"] = False
+    app.config["RATELIMIT_ENABLED"] = False
     limiter.enabled = False
-    if hasattr(limiter, '_storage') and hasattr(limiter._storage, 'reset'):
+    if hasattr(limiter, "_storage") and hasattr(limiter._storage, "reset"):
         limiter._storage.reset()
 
     setup_test_data()
@@ -135,45 +142,61 @@ def run_all_benchmarks(concurrency_levels=None):
     print("=========================================================")
 
     auth_endpoints = {
-        'GET /healthz': lambda c: c.get('/healthz'),
-        'GET /records/search_patients?term=John (DB Search)': lambda c: c.get('/records/search_patients?term=John'),
-        'GET /admin/analytics (Dashboard)': lambda c: c.get('/admin/analytics'),
-        'GET /medicine/ (Clinical List)': lambda c: c.get('/medicine/'),
-        'POST /records/register_patient (Patient Reg)': lambda c: c.post('/records/register_patient', data={
-            'name': 'Bench Patient',
-            'place_of_residence': 'Nairobi',
-            'sex': 'Male',
-            'date_of_birth': '1992-04-10',
-            'marital_status': 'Single',
-            'blood_group': 'B+',
-            'contact': '0700000000',
-            'next_of_kin': 'Kin',
-            'relationship_with_next_of_kin': 'Parent',
-            'next_of_kin_contact': '0711111111',
-            'emergency_contact': '0722222222'
-        }),
-        'POST /medicine/prescribe/signoff (Rx Signoff)': lambda c: c.post('/medicine/prescribe/signoff', json={
-            'patient_id': 'P-BENCH-01',
-            'prescriptions': [{'name': 'Paracetamol', 'dosage': '500mg', 'cost': 100.0}]
-        }),
-        'POST /billing/pay_bills/P-BENCH-01 (Billing Pay)': lambda c: c.post('/billing/pay_bills/P-BENCH-01', data={
-            'action': 'pay_all',
-            'amount_paid': '100.00',
-            'payment_method': 'Cash'
-        }),
+        "GET /healthz": lambda c: c.get("/healthz"),
+        "GET /records/search_patients?term=John (DB Search)": lambda c: c.get(
+            "/records/search_patients?term=John"
+        ),
+        "GET /admin/analytics (Dashboard)": lambda c: c.get("/admin/analytics"),
+        "GET /medicine/ (Clinical List)": lambda c: c.get("/medicine/"),
+        "POST /records/register_patient (Patient Reg)": lambda c: c.post(
+            "/records/register_patient",
+            data={
+                "name": "Bench Patient",
+                "place_of_residence": "Nairobi",
+                "sex": "Male",
+                "date_of_birth": "1992-04-10",
+                "marital_status": "Single",
+                "blood_group": "B+",
+                "contact": "0700000000",
+                "next_of_kin": "Kin",
+                "relationship_with_next_of_kin": "Parent",
+                "next_of_kin_contact": "0711111111",
+                "emergency_contact": "0722222222",
+            },
+        ),
+        "POST /medicine/prescribe/signoff (Rx Signoff)": lambda c: c.post(
+            "/medicine/prescribe/signoff",
+            json={
+                "patient_id": "P-BENCH-01",
+                "prescriptions": [
+                    {"name": "Paracetamol", "dosage": "500mg", "cost": 100.0}
+                ],
+            },
+        ),
+        "POST /billing/pay_bills/P-BENCH-01 (Billing Pay)": lambda c: c.post(
+            "/billing/pay_bills/P-BENCH-01",
+            data={
+                "action": "pay_all",
+                "amount_paid": "100.00",
+                "payment_method": "Cash",
+            },
+        ),
     }
 
     results = {}
     for name, func in auth_endpoints.items():
         results[name] = {}
         for c in concurrency_levels:
-            metrics = benchmark_endpoint(func, num_requests=100, concurrency=c, authenticate=True)
-            results[name][f'c={c}'] = metrics
-            print(f"[{name}] Concurrency {c}: {metrics['rps']} req/sec, p95={metrics['p95_ms']}ms, errors={metrics['error_rate_pct']}%")
+            metrics = benchmark_endpoint(
+                func, num_requests=100, concurrency=c, authenticate=True
+            )
+            results[name][f"c={c}"] = metrics
+            print(
+                f"[{name}] Concurrency {c}: {metrics['rps']} req/sec, p95={metrics['p95_ms']}ms, errors={metrics['error_rate_pct']}%"
+            )
 
     return results
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run_all_benchmarks()
-

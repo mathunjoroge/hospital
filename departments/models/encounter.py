@@ -17,11 +17,17 @@ class Encounter(db.Model):
     """
 
     __tablename__ = "encounters"
-    facility_id = db.Column(db.Integer, db.ForeignKey("facilities.id"), nullable=True, index=True)
+    facility_id = db.Column(
+        db.Integer, db.ForeignKey("facilities.id"), nullable=True, index=True
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     encounter_id = db.Column(
-        db.String(36), unique=True, nullable=False, index=True, default=lambda: str(uuid.uuid4())
+        db.String(36),
+        unique=True,
+        nullable=False,
+        index=True,
+        default=lambda: str(uuid.uuid4()),
     )
 
     # The patient involved in this visit
@@ -47,23 +53,36 @@ class Encounter(db.Model):
     chief_complaint = db.Column(db.Text, nullable=True)
 
     started_at = db.Column(
-        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
     ended_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    patient = db.relationship("Patient", foreign_keys="Encounter.patient_id",
-                              primaryjoin="Encounter.patient_id == Patient.patient_id",
-                              lazy="joined", viewonly=True)
-
+    patient = db.relationship(
+        "Patient",
+        foreign_keys="Encounter.patient_id",
+        primaryjoin="Encounter.patient_id == Patient.patient_id",
+        lazy="joined",
+        viewonly=True,
+    )
 
     # Clinical work relationships (for visit scoping)
-    requested_labs = db.relationship("RequestedLab", backref="encounter", lazy="dynamic")
-    requested_images = db.relationship("RequestedImage", backref="encounter", lazy="dynamic")
-    prescribed_medicines = db.relationship("PrescribedMedicine", backref="encounter", lazy="dynamic")
+    requested_labs = db.relationship(
+        "RequestedLab", backref="encounter", lazy="dynamic"
+    )
+    requested_images = db.relationship(
+        "RequestedImage", backref="encounter", lazy="dynamic"
+    )
+    prescribed_medicines = db.relationship(
+        "PrescribedMedicine", backref="encounter", lazy="dynamic"
+    )
+
     @property
     def seen(self):
         """Backward compat: maps stage to legacy QueueStatus integer for templates."""
         from departments.shared.queue_constants import QueueStatus
+
         stage_map = {
             "REGISTERED": QueueStatus.WAITING_TRIAGE,
             "REGISTERED_UNPAID": QueueStatus.WAITING_TRIAGE,
@@ -88,7 +107,9 @@ class Encounter(db.Model):
         return self.started_at
 
     created_at = db.Column(
-        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
     updated_at = db.Column(
         db.DateTime(timezone=True),
@@ -97,15 +118,28 @@ class Encounter(db.Model):
         nullable=False,
     )
 
-
     # Visit lifecycle stage (Phase 2). Independent of `status`, which
     # billing/sync.py relies on to scope invoices to a visit.
     stage = db.Column(db.String(30), nullable=True, index=True)
     esi_level = db.Column(db.Integer, nullable=True)  # 1-5 ESI acuity
 
     ALLOWED_STAGE_TRANSITIONS = {  # noqa: RUF012
-        None: {"REGISTERED", "REGISTERED_UNPAID", "WAITING_TRIAGE", "WAITING_DOCTOR", "IN_CONSULTATION", "ADMITTED", "PRE_OP"},
-        "REGISTERED": {"REGISTERED_UNPAID", "WAITING_TRIAGE", "WAITING_DOCTOR", "IN_CONSULTATION", "CANCELLED"},
+        None: {
+            "REGISTERED",
+            "REGISTERED_UNPAID",
+            "WAITING_TRIAGE",
+            "WAITING_DOCTOR",
+            "IN_CONSULTATION",
+            "ADMITTED",
+            "PRE_OP",
+        },
+        "REGISTERED": {
+            "REGISTERED_UNPAID",
+            "WAITING_TRIAGE",
+            "WAITING_DOCTOR",
+            "IN_CONSULTATION",
+            "CANCELLED",
+        },
         "REGISTERED_UNPAID": {"WAITING_TRIAGE", "WAITING_DOCTOR", "CANCELLED"},
         "WAITING_TRIAGE": {"WAITING_DOCTOR", "IN_CONSULTATION", "CANCELLED"},
         "WAITING_DOCTOR": {"IN_CONSULTATION", "CANCELLED"},
@@ -157,7 +191,12 @@ class Encounter(db.Model):
             "AWAITING_BILLING",
             "DISCHARGED",
         },
-        "AWAITING_PHARMACY": {"IN_CONSULTATION", "AWAITING_FINAL_BILLING", "AWAITING_BILLING", "DISCHARGED"},
+        "AWAITING_PHARMACY": {
+            "IN_CONSULTATION",
+            "AWAITING_FINAL_BILLING",
+            "AWAITING_BILLING",
+            "DISCHARGED",
+        },
         "AWAITING_FINAL_BILLING": {"DISCHARGED"},
         "AWAITING_BILLING": {"AWAITING_FINAL_BILLING", "DISCHARGED"},
         "ADMITTED": {"DISCHARGED", "REFERRED_OUT"},

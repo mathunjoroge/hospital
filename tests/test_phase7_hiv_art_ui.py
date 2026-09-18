@@ -13,7 +13,9 @@ class TestHivArtUIRoutes:
         """GET /hiv_art/ui/dashboard returns 200 for admin."""
         resp = client.get("/hiv_art/ui/dashboard", follow_redirects=True)
         assert resp.status_code == 200
-        assert b"HIV/ART Program Dashboard" in resp.data or b"Total Enrolled" in resp.data
+        assert (
+            b"HIV/ART Program Dashboard" in resp.data or b"Total Enrolled" in resp.data
+        )
 
     def test_enroll_requires_auth(self, client):
         """GET /hiv_art/ui/enroll requires authentication."""

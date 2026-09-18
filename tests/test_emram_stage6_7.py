@@ -113,7 +113,9 @@ def test_closed_loop_audit_timeline(app):
         db.session.add(adm)
         db.session.commit()
 
-        timeline_res = ClosedLoopAuditEngine.get_patient_closed_loop_timeline("PAT-EMRAM-999")
+        timeline_res = ClosedLoopAuditEngine.get_patient_closed_loop_timeline(
+            "PAT-EMRAM-999"
+        )
         assert timeline_res["found"] is True
         assert timeline_res["patient_id"] == "PAT-EMRAM-999"
         assert len(timeline_res["timeline"]) >= 3
@@ -144,5 +146,3 @@ def test_closed_loop_trail_api_route(client, admin_user):
     data = resp.get_json()
     assert data["status"] == "success"
     assert "audit_trail" in data
-
-

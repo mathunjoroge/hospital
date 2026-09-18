@@ -51,7 +51,11 @@ _IMAGING_ROLES = ("radiology", "admin", "doctor", "icu", "nursing")
 def _resolve_modality(order: RequestedImage) -> str:
     """Infer standard DICOM Modality code (DX, CT, MR, US, MG, etc.) from order and imaging type."""
     text = ""
-    if hasattr(order, "imaging") and order.imaging and getattr(order.imaging, "imaging_type", None):
+    if (
+        hasattr(order, "imaging")
+        and order.imaging
+        and getattr(order.imaging, "imaging_type", None)
+    ):
         text += f" {order.imaging.imaging_type}"
     if order.description:
         text += f" {order.description}"
@@ -166,7 +170,9 @@ def download_dicom(result_id, file_index):
 
             logger.info(
                 "DICOM download: result_id=%s file_index=%s actor_id=%s",
-                result_id, file_index, current_user.id,
+                result_id,
+                file_index,
+                current_user.id,
             )
 
             return send_from_directory(directory, filename, as_attachment=False)
@@ -215,7 +221,8 @@ def save_structured_report():
 
     logger.info(
         "DICOM report saved: result_id=%s radiologist_id=%s",
-        result_id, radiologist_id,
+        result_id,
+        radiologist_id,
     )
 
     return jsonify(
@@ -318,6 +325,7 @@ def pacs_sync():
         return jsonify({"error": "Only .dcm DICOM files accepted"}), 400
 
     import tempfile
+
     with tempfile.NamedTemporaryFile(suffix=".dcm", delete=False) as tmp:
         uploaded.save(tmp.name)
         tmp_path = tmp.name
@@ -334,7 +342,9 @@ def pacs_sync():
 
     logger.info(
         "PACS sync performed: actor_id=%s file=%s status=%s",
-        current_user.id, safe_name, result.get("status"),
+        current_user.id,
+        safe_name,
+        result.get("status"),
     )
 
     return jsonify(result), 200 if result.get("status") == "success" else 202

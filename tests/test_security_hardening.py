@@ -28,6 +28,7 @@ import pytest
 
 # ── ENCRYPTION_KEY guard ──────────────────────────────────────────────────────
 
+
 class TestEncryptionKeyGuard:
     def test_get_fernet_key_raises_in_non_testing_without_key(self):
         """get_fernet_key() must refuse to return the old static fallback key.
@@ -43,6 +44,7 @@ class TestEncryptionKeyGuard:
             env_backup = os.environ.pop("ENCRYPTION_KEY", None)
             try:
                 import departments.crypto as crypto_mod
+
                 # Call directly with no app context and no env var
                 orig_env = os.environ.get("FLASK_ENV")
                 os.environ["FLASK_ENV"] = "development"
@@ -56,7 +58,9 @@ class TestEncryptionKeyGuard:
                     except RuntimeError as e:
                         raised = True
                         assert "ENCRYPTION_KEY" in str(e)
-                    assert raised, "Expected RuntimeError when ENCRYPTION_KEY absent in non-testing"
+                    assert (
+                        raised
+                    ), "Expected RuntimeError when ENCRYPTION_KEY absent in non-testing"
                 finally:
                     if orig_env is not None:
                         os.environ["FLASK_ENV"] = orig_env
@@ -84,9 +88,7 @@ class TestEncryptionKeyGuard:
         non-encryption-focused tests)."""
         from departments.crypto import get_fernet_key
 
-        with patch.dict(
-            os.environ, {"FLASK_ENV": "testing"}, clear=False
-        ):
+        with patch.dict(os.environ, {"FLASK_ENV": "testing"}, clear=False):
             # Remove key from env so the fallback path runs
             env_backup = os.environ.pop("ENCRYPTION_KEY", None)
             try:
@@ -113,6 +115,7 @@ class TestEncryptionKeyGuard:
 
 # ── Security response headers ─────────────────────────────────────────────────
 
+
 class TestSecurityHeaders:
     def test_referrer_policy_header(self, client):
         resp = client.get("/healthz")
@@ -129,9 +132,9 @@ class TestSecurityHeaders:
     def test_csp_no_unsafe_eval(self, client):
         resp = client.get("/healthz")
         csp = resp.headers.get("Content-Security-Policy", "")
-        assert "unsafe-eval" not in csp, (
-            "CSP must not contain 'unsafe-eval' — it was removed in this hardening pass"
-        )
+        assert (
+            "unsafe-eval" not in csp
+        ), "CSP must not contain 'unsafe-eval' — it was removed in this hardening pass"
 
     def test_csp_has_frame_ancestors(self, client):
         """frame-ancestors is a clickjacking defence in CSP (supplements X-Frame-Options)."""
@@ -150,9 +153,9 @@ class TestSecurityHeaders:
     def test_hsts_absent_in_test_env(self, client):
         """HSTS must NOT be set in testing (would break HTTP-only local dev)."""
         resp = client.get("/healthz")
-        assert "Strict-Transport-Security" not in resp.headers, (
-            "HSTS should only be set in FLASK_ENV=production"
-        )
+        assert (
+            "Strict-Transport-Security" not in resp.headers
+        ), "HSTS should only be set in FLASK_ENV=production"
 
     def test_x_request_id_present(self, client):
         resp = client.get("/healthz")
@@ -161,6 +164,7 @@ class TestSecurityHeaders:
 
 
 # ── /metrics endpoint ─────────────────────────────────────────────────────────
+
 
 class TestMetricsEndpoint:
     def test_metrics_returns_200(self, client):

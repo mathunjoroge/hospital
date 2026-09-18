@@ -64,7 +64,9 @@ def test_renal_unauthenticated_blocked(client):
 # ── 4. LIS Result Verification ──
 def test_lis_enter_unauthenticated_blocked(client):
     """Unauthenticated LIS enter must fail."""
-    res = client.post("/laboratory/lis/enter", json={"lab_order_id": 1, "result_val": "10"})
+    res = client.post(
+        "/laboratory/lis/enter", json={"lab_order_id": 1, "result_val": "10"}
+    )
     assert res.status_code in [302, 401, 403]
 
 

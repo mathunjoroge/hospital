@@ -35,10 +35,18 @@ def test_export_patient_everything_bundle(app):
     with app.app_context():
         # Setup patient and clinical records
         from datetime import date
-        pat = Patient(patient_id="PAT_HIE_01", name="Jane HIE Doe", sex="Female", date_of_birth=date(1990, 1, 1))
+
+        pat = Patient(
+            patient_id="PAT_HIE_01",
+            name="Jane HIE Doe",
+            sex="Female",
+            date_of_birth=date(1990, 1, 1),
+        )
         db.session.add(pat)
 
-        enc = Encounter(patient_id="PAT_HIE_01", encounter_type="Inpatient", status="active")
+        enc = Encounter(
+            patient_id="PAT_HIE_01", encounter_type="Inpatient", status="active"
+        )
         soap = SOAPNote(
             patient_id="PAT_HIE_01",
             situation="Fever and sore throat",
@@ -113,7 +121,6 @@ def test_dispatch_subscription_event(mock_post, app):
             secret_token="hmac_secret_99",
         )
 
-
         obs_data = {"resourceType": "Encounter", "id": "enc-101", "status": "finished"}
         count = dispatch_subscription_event("Encounter", obs_data)
         assert count == 1
@@ -130,7 +137,13 @@ def test_fhir_hie_routes(client, app):
     """Test FHIR $everything and Subscription HTTP API endpoints."""
     with app.app_context():
         from datetime import date
-        pat = Patient(patient_id="PAT_API_HIE", name="John API Doe", sex="Male", date_of_birth=date(1985, 6, 15))
+
+        pat = Patient(
+            patient_id="PAT_API_HIE",
+            name="John API Doe",
+            sex="Male",
+            date_of_birth=date(1985, 6, 15),
+        )
         db.session.add(pat)
         db.session.commit()
 

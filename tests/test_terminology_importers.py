@@ -135,7 +135,10 @@ class TestWhoIcdClient:
         monkeypatch.setenv("WHO_ICD_CLIENT_SECRET", "test_secret")
 
         token_resp = MagicMock()
-        token_resp.json.return_value = {"access_token": "bearer_xyz", "expires_in": 3600}
+        token_resp.json.return_value = {
+            "access_token": "bearer_xyz",
+            "expires_in": 3600,
+        }
         token_resp.raise_for_status.return_value = None
 
         api_resp = MagicMock()
@@ -169,9 +172,7 @@ class TestWhoIcdClient:
         ), patch(
             "departments.medicine.who_icd_client.requests.get",
             side_effect=requests.RequestException("timeout"),
-        ), patch(
-            "departments.medicine.who_icd_client.time.sleep"
-        ):
+        ), patch("departments.medicine.who_icd_client.time.sleep"):
             from departments.medicine.who_icd_client import _api_get
 
             with pytest.raises(RuntimeError, match="WHO API request failed after"):
@@ -200,9 +201,9 @@ class TestWhoIcdClient:
         ), patch(
             "departments.medicine.who_icd_client.requests.post",
             return_value=token_resp,
-        ), patch(
-            "departments.medicine.who_icd_client.time.sleep"
-        ), pytest.raises(RuntimeError):
+        ), patch("departments.medicine.who_icd_client.time.sleep"), pytest.raises(
+            RuntimeError
+        ):
             wic._api_get("https://id.who.int/icd/release/10/2019", retries=2)
 
         # Cache must have been cleared by the 401 handler
@@ -252,9 +253,28 @@ class TestWhoIcdClient:
         monkeypatch.setenv("WHO_ICD_CLIENT_ID", "test_id")
         monkeypatch.setenv("WHO_ICD_CLIENT_SECRET", "test_secret")
         roman = [
-            "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
-            "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX",
-            "XX", "XXI", "XXII",
+            "I",
+            "II",
+            "III",
+            "IV",
+            "V",
+            "VI",
+            "VII",
+            "VIII",
+            "IX",
+            "X",
+            "XI",
+            "XII",
+            "XIII",
+            "XIV",
+            "XV",
+            "XVI",
+            "XVII",
+            "XVIII",
+            "XIX",
+            "XX",
+            "XXI",
+            "XXII",
         ]
         responses = [{"child": [f"https://x/{c}" for c in roman]}]
         for r in roman:
@@ -281,9 +301,7 @@ class TestWhoIcdClient:
                 {"theCode": "A01.1", "title": "Paratyphoid fever A", "chapter": "I"},
             ]
         }
-        with patch(
-            "departments.medicine.who_icd_client._api_get", return_value=data
-        ):
+        with patch("departments.medicine.who_icd_client._api_get", return_value=data):
             from departments.medicine.who_icd_client import search_icd10_live
 
             results = search_icd10_live("typhoid")
@@ -316,9 +334,7 @@ class TestWhoIcdClient:
                 {"theCode": "Z99", "title": ["Primary", "Secondary"], "chapter": "XXII"}
             ]
         }
-        with patch(
-            "departments.medicine.who_icd_client._api_get", return_value=data
-        ):
+        with patch("departments.medicine.who_icd_client._api_get", return_value=data):
             from departments.medicine.who_icd_client import search_icd10_live
 
             results = search_icd10_live("test")
@@ -378,9 +394,7 @@ class TestUmlsClient:
     def test_search_umls_returns_normalised_results(self, monkeypatch):
         monkeypatch.setenv("UMLS_API_KEY", "test_key")
 
-        search_payload = {
-            "result": {"results": [{"name": "Fever", "ui": "C0015967"}]}
-        }
+        search_payload = {"result": {"results": [{"name": "Fever", "ui": "C0015967"}]}}
         search_resp = MagicMock()
         search_resp.json.return_value = search_payload
         search_resp.raise_for_status.return_value = None
@@ -437,7 +451,9 @@ class TestUmlsClient:
         ):
             from departments.medicine.umls_client import _extract_code_for_cui
 
-            assert _extract_code_for_cui("C0015967", "SNOMEDCT_US", "key") == "424754009"
+            assert (
+                _extract_code_for_cui("C0015967", "SNOMEDCT_US", "key") == "424754009"
+            )
 
     def test_extract_code_for_cui_non_c_id_returns_as_is(self):
         from departments.medicine.umls_client import _extract_code_for_cui
@@ -486,9 +502,9 @@ class TestUmlsClient:
         codes = {s["code"] for s in seeds}
         assert len(seeds) >= 40
         assert "424754009" in codes  # Fever
-        assert "61462000" in codes   # Malaria
-        assert "56717001" in codes   # Tuberculosis
-        assert "86406008" in codes   # HIV
+        assert "61462000" in codes  # Malaria
+        assert "56717001" in codes  # Tuberculosis
+        assert "86406008" in codes  # HIV
         for s in seeds:
             assert s.get("code") and s.get("description")
 
@@ -498,10 +514,10 @@ class TestUmlsClient:
         seeds = get_core_loinc_seed_dataset()
         codes = {s["code"] for s in seeds}
         assert len(seeds) >= 38
-        assert "8302-2" in codes    # Body height
-        assert "8480-6" in codes    # Systolic BP
-        assert "1558-6" in codes    # Fasting glucose
-        assert "43012-4" in codes   # HIV rapid test
+        assert "8302-2" in codes  # Body height
+        assert "8480-6" in codes  # Systolic BP
+        assert "1558-6" in codes  # Fasting glucose
+        assert "43012-4" in codes  # HIV rapid test
         for s in seeds:
             assert s.get("code") and s.get("description")
 
@@ -717,7 +733,9 @@ class TestSnomedImporter:
 
     def test_load_snomed_from_csv_parses_rows(self, tmp_path):
         csv_file = tmp_path / "snomed.csv"
-        csv_file.write_text("CODE,DESCRIPTION\n424754009,Fever\n38341003,Hypertension\n")
+        csv_file.write_text(
+            "CODE,DESCRIPTION\n424754009,Fever\n38341003,Hypertension\n"
+        )
         from departments.medicine.snomed_importer import load_snomed_from_csv
 
         codes = load_snomed_from_csv(str(csv_file))

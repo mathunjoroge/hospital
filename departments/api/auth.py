@@ -60,8 +60,11 @@ def jwt_or_session_required(fn):
             # Try OAuth2 access token
             try:
                 from departments.models.oauth2 import OAuth2Token
+
                 token_str = auth_header.split(" ")[1]
-                token = OAuth2Token.query.filter_by(access_token=token_str, revoked=False).first()
+                token = OAuth2Token.query.filter_by(
+                    access_token=token_str, revoked=False
+                ).first()
                 if token and token.expires_at > datetime.now(timezone.utc).timestamp():
                     g.api_user = token.user
                     return fn(*args, **kwargs)

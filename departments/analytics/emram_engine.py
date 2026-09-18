@@ -45,15 +45,25 @@ class EMRAMStage6Metrics:
 
         # 1. BCMA Closed-Loop Med Admin Coverage
         total_admins = MedicationAdmin.query.count()
-        scan_verified_admins = MedicationAdmin.query.filter_by(scan_verified=True).count()
-        bcma_rate = round((scan_verified_admins / total_admins * 100), 1) if total_admins > 0 else 100.0
+        scan_verified_admins = MedicationAdmin.query.filter_by(
+            scan_verified=True
+        ).count()
+        bcma_rate = (
+            round((scan_verified_admins / total_admins * 100), 1)
+            if total_admins > 0
+            else 100.0
+        )
 
         # 2. LIMS Closed-Loop Specimen & Results Coverage
         total_specimens = Specimen.query.count()
         closed_loop_specimens = Specimen.query.filter(
             Specimen.status.in_(["RECEIVED", "COMPLETED", "DISPOSED"])
         ).count()
-        lims_rate = round((closed_loop_specimens / total_specimens * 100), 1) if total_specimens > 0 else 100.0
+        lims_rate = (
+            round((closed_loop_specimens / total_specimens * 100), 1)
+            if total_specimens > 0
+            else 100.0
+        )
 
         # 3. CPOE e-Prescribing with CDSS Safety Coverage
         total_prescriptions = PrescribedMedicine.query.count()
@@ -61,7 +71,9 @@ class EMRAMStage6Metrics:
         cpoe_rate = 100.0 if total_prescriptions >= 0 else 0.0
 
         # 4. Closed-Loop Vitals Documentation Rate (active IPD patients with vitals < 12h)
-        active_ipd_encounters = Encounter.query.filter_by(encounter_type="IPD", status="ACTIVE").all()
+        active_ipd_encounters = Encounter.query.filter_by(
+            encounter_type="IPD", status="ACTIVE"
+        ).all()
         ipd_patient_ids = [e.patient_id for e in active_ipd_encounters if e.patient_id]
 
         if ipd_patient_ids:
@@ -74,7 +86,9 @@ class EMRAMStage6Metrics:
                 .scalar()
                 or 0
             )
-            vitals_rate = round((vitals_documented_patients / len(ipd_patient_ids) * 100), 1)
+            vitals_rate = round(
+                (vitals_documented_patients / len(ipd_patient_ids) * 100), 1
+            )
         else:
             vitals_rate = 100.0
 
@@ -141,7 +155,11 @@ class EMRAMStage7Metrics:
     def evaluate(cls) -> dict:
         # 1. Data Warehouse Snapshot Coverage
         total_snapshots = DailyKpiSnapshot.query.count()
-        snapshot_score = min(100.0, round((total_snapshots / 7.0 * 100), 1)) if total_snapshots > 0 else 0.0
+        snapshot_score = (
+            min(100.0, round((total_snapshots / 7.0 * 100), 1))
+            if total_snapshots > 0
+            else 0.0
+        )
 
         # 2. Population Health Risk Profiling Coverage
         total_patients = Patient.query.count()
@@ -199,7 +217,8 @@ class ClosedLoopAuditEngine:
     @classmethod
     def get_patient_closed_loop_timeline(cls, patient_id: str) -> dict:
         patient = Patient.query.filter(
-            (Patient.patient_id == patient_id) | (Patient.patient_id.ilike(f"%{patient_id}%"))
+            (Patient.patient_id == patient_id)
+            | (Patient.patient_id.ilike(f"%{patient_id}%"))
         ).first()
 
         if not patient:
@@ -211,79 +230,124 @@ class ClosedLoopAuditEngine:
         # 1. Encounters (Admissions / OPD)
         encounters = Encounter.query.filter_by(patient_id=pid).all()
         for enc in encounters:
-            ts = getattr(enc, "started_at", None) or getattr(enc, "created_at", None) or datetime.now(timezone.utc)
-            timeline.append({
-                "category": "ENCOUNTER",
-                "timestamp": ts.isoformat() if hasattr(ts, "isoformat") else str(ts),
-                "event": f"ADT Encounter ({enc.encounter_type}) Started",
-                "status": enc.status,
-                "verified": True,
-                "details": f"Type: {enc.encounter_type}, Location/Status: {enc.status}",
-            })
+            ts = (
+                getattr(enc, "started_at", None)
+                or getattr(enc, "created_at", None)
+                or datetime.now(timezone.utc)
+            )
+            timeline.append(
+                {
+                    "category": "ENCOUNTER",
+                    "timestamp": ts.isoformat()
+                    if hasattr(ts, "isoformat")
+                    else str(ts),
+                    "event": f"ADT Encounter ({enc.encounter_type}) Started",
+                    "status": enc.status,
+                    "verified": True,
+                    "details": f"Type: {enc.encounter_type}, Location/Status: {enc.status}",
+                }
+            )
 
         # 2. Prescriptions (CPOE)
         prescriptions = PrescribedMedicine.query.filter_by(patient_id=pid).all()
         for rx in prescriptions:
-            ts = getattr(rx, "created_at", None) or getattr(rx, "prescribed_at", None) or datetime.now(timezone.utc)
-            timeline.append({
-                "category": "CPOE_PRESCRIPTION",
-                "timestamp": ts.isoformat() if hasattr(ts, "isoformat") else str(ts),
-                "event": f"CPOE Prescription Issued: Med #{rx.medicine_id}",
-                "status": "SAFETY_CHECKED",
-                "verified": True,
-                "details": f"Dosage: {rx.dosage}, Frequency: {rx.frequency}",
-            })
+            ts = (
+                getattr(rx, "created_at", None)
+                or getattr(rx, "prescribed_at", None)
+                or datetime.now(timezone.utc)
+            )
+            timeline.append(
+                {
+                    "category": "CPOE_PRESCRIPTION",
+                    "timestamp": ts.isoformat()
+                    if hasattr(ts, "isoformat")
+                    else str(ts),
+                    "event": f"CPOE Prescription Issued: Med #{rx.medicine_id}",
+                    "status": "SAFETY_CHECKED",
+                    "verified": True,
+                    "details": f"Dosage: {rx.dosage}, Frequency: {rx.frequency}",
+                }
+            )
 
         # 3. BCMA Medication Administrations
         admins = MedicationAdmin.query.filter_by(patient_id=pid).all()
         for adm in admins:
-            ts = getattr(adm, "time_administered", None) or getattr(adm, "admin_time", None) or getattr(adm, "timestamp", None) or datetime.now(timezone.utc)
-            timeline.append({
-                "category": "BCMA_ADMINISTRATION",
-                "timestamp": ts.isoformat() if hasattr(ts, "isoformat") else str(ts),
-                "event": f"BCMA Bedside Scan Verified Admin ({getattr(adm, 'medication', 'Medication')})",
-                "status": "ADMINISTERED",
-                "verified": getattr(adm, "scan_verified", True),
-                "details": f"Recorded By: {getattr(adm, 'recorded_by', 'N/A')}, Scan Verified: {getattr(adm, 'scan_verified', True)}",
-            })
+            ts = (
+                getattr(adm, "time_administered", None)
+                or getattr(adm, "admin_time", None)
+                or getattr(adm, "timestamp", None)
+                or datetime.now(timezone.utc)
+            )
+            timeline.append(
+                {
+                    "category": "BCMA_ADMINISTRATION",
+                    "timestamp": ts.isoformat()
+                    if hasattr(ts, "isoformat")
+                    else str(ts),
+                    "event": f"BCMA Bedside Scan Verified Admin ({getattr(adm, 'medication', 'Medication')})",
+                    "status": "ADMINISTERED",
+                    "verified": getattr(adm, "scan_verified", True),
+                    "details": f"Recorded By: {getattr(adm, 'recorded_by', 'N/A')}, Scan Verified: {getattr(adm, 'scan_verified', True)}",
+                }
+            )
 
         # 4. Lab Specimens & Results
         specimens = Specimen.query.filter_by(patient_id=pid).all()
         for spec in specimens:
-            ts = getattr(spec, "created_at", None) or getattr(spec, "collected_at", None) or datetime.now(timezone.utc)
-            timeline.append({
-                "category": "LIMS_SPECIMEN",
-                "timestamp": ts.isoformat() if hasattr(ts, "isoformat") else str(ts),
-                "event": f"LIMS Specimen Sampled: {spec.barcode}",
-                "status": spec.status,
-                "verified": spec.status in ["RECEIVED", "COMPLETED"],
-                "details": f"Type: {spec.specimen_type}, Barcode: {spec.barcode}",
-            })
+            ts = (
+                getattr(spec, "created_at", None)
+                or getattr(spec, "collected_at", None)
+                or datetime.now(timezone.utc)
+            )
+            timeline.append(
+                {
+                    "category": "LIMS_SPECIMEN",
+                    "timestamp": ts.isoformat()
+                    if hasattr(ts, "isoformat")
+                    else str(ts),
+                    "event": f"LIMS Specimen Sampled: {spec.barcode}",
+                    "status": spec.status,
+                    "verified": spec.status in ["RECEIVED", "COMPLETED"],
+                    "details": f"Type: {spec.specimen_type}, Barcode: {spec.barcode}",
+                }
+            )
 
         results = LabResult.query.filter_by(patient_id=pid).all()
         for res in results:
-            ts = getattr(res, "test_date", None) or getattr(res, "created_at", None) or datetime.now(timezone.utc)
-            timeline.append({
-                "category": "LIMS_RESULT",
-                "timestamp": ts.isoformat() if hasattr(ts, "isoformat") else str(ts),
-                "event": f"LIMS Verified Result #{res.result_id}",
-                "status": "VERIFIED",
-                "verified": True,
-                "details": f"Result: {res.result}",
-            })
+            ts = (
+                getattr(res, "test_date", None)
+                or getattr(res, "created_at", None)
+                or datetime.now(timezone.utc)
+            )
+            timeline.append(
+                {
+                    "category": "LIMS_RESULT",
+                    "timestamp": ts.isoformat()
+                    if hasattr(ts, "isoformat")
+                    else str(ts),
+                    "event": f"LIMS Verified Result #{res.result_id}",
+                    "status": "VERIFIED",
+                    "verified": True,
+                    "details": f"Result: {res.result}",
+                }
+            )
 
         # 5. Nursing Vitals
         vitals_list = Vitals.query.filter_by(patient_id=pid).all()
         for v in vitals_list:
             ts = getattr(v, "timestamp", None) or datetime.now(timezone.utc)
-            timeline.append({
-                "category": "NURSING_VITALS",
-                "timestamp": ts.isoformat() if hasattr(ts, "isoformat") else str(ts),
-                "event": f"Closed-Loop Vitals Recorded (BP {v.blood_pressure_systolic}/{v.blood_pressure_diastolic}, Temp {v.temperature}°C)",
-                "status": "RECORDED",
-                "verified": True,
-                "details": f"Nurse ID: {v.nurse_id}, SpO2: {v.oxygen_saturation}%",
-            })
+            timeline.append(
+                {
+                    "category": "NURSING_VITALS",
+                    "timestamp": ts.isoformat()
+                    if hasattr(ts, "isoformat")
+                    else str(ts),
+                    "event": f"Closed-Loop Vitals Recorded (BP {v.blood_pressure_systolic}/{v.blood_pressure_diastolic}, Temp {v.temperature}°C)",
+                    "status": "RECORDED",
+                    "verified": True,
+                    "details": f"Nurse ID: {v.nurse_id}, SpO2: {v.oxygen_saturation}%",
+                }
+            )
 
         # Sort timeline chronologically
         timeline.sort(key=lambda x: x["timestamp"], reverse=True)
@@ -305,7 +369,11 @@ class EMRAMEngine:
         stage6 = EMRAMStage6Metrics.evaluate()
         stage7 = EMRAMStage7Metrics.evaluate()
 
-        overall_emram_level = 7 if stage7["status"] == "STAGE_7_CERTIFIED" else (6 if stage6["status"] == "STAGE_6_CERTIFIED" else 5)
+        overall_emram_level = (
+            7
+            if stage7["status"] == "STAGE_7_CERTIFIED"
+            else (6 if stage6["status"] == "STAGE_6_CERTIFIED" else 5)
+        )
 
         return {
             "emram_level": overall_emram_level,

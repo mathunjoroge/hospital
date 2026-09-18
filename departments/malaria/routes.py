@@ -72,38 +72,71 @@ def register_case():
     # Validate malaria_species if provided
     malaria_species = data.get("malaria_species")
     if malaria_species:
-        valid_species = ['falciparum', 'vivax', 'ovale', 'malariae', 'knowlesi', 'mixed']
+        valid_species = [
+            "falciparum",
+            "vivax",
+            "ovale",
+            "malariae",
+            "knowlesi",
+            "mixed",
+        ]
         if malaria_species not in valid_species:
-            return jsonify({"error": f"Invalid malaria_species. Must be one of: {', '.join(valid_species)}"}), 400
+            return jsonify(
+                {
+                    "error": f"Invalid malaria_species. Must be one of: {', '.join(valid_species)}"
+                }
+            ), 400
 
     # Validate diagnosis_method if provided
     diagnosis_method = data.get("diagnosis_method")
     if diagnosis_method:
-        valid_methods = ['microscopy', 'RDT', 'PCR']
+        valid_methods = ["microscopy", "RDT", "PCR"]
         if diagnosis_method not in valid_methods:
-            return jsonify({"error": f"Invalid diagnosis_method. Must be one of: {', '.join(valid_methods)}"}), 400
+            return jsonify(
+                {
+                    "error": f"Invalid diagnosis_method. Must be one of: {', '.join(valid_methods)}"
+                }
+            ), 400
 
     # Validate severity if provided
     severity = data.get("severity")
     if severity:
-        valid_severity = ['uncomplicated', 'severe']
+        valid_severity = ["uncomplicated", "severe"]
         if severity not in valid_severity:
-            return jsonify({"error": f"Invalid severity. Must be one of: {', '.join(valid_severity)}"}), 400
+            return jsonify(
+                {
+                    "error": f"Invalid severity. Must be one of: {', '.join(valid_severity)}"
+                }
+            ), 400
 
     # Validate pregnancy_status if provided
     pregnancy_status = data.get("pregnancy_status")
     if pregnancy_status:
-        valid_pregnancy = ['not_pregnant', 'pregnant_first_trimester', 'pregnant_second_trimester', 'pregnant_third_trimester', 'postpartum']
+        valid_pregnancy = [
+            "not_pregnant",
+            "pregnant_first_trimester",
+            "pregnant_second_trimester",
+            "pregnant_third_trimester",
+            "postpartum",
+        ]
         if pregnancy_status not in valid_pregnancy:
-            return jsonify({"error": f"Invalid pregnancy_status. Must be one of: {', '.join(valid_pregnancy)}"}), 400
+            return jsonify(
+                {
+                    "error": f"Invalid pregnancy_status. Must be one of: {', '.join(valid_pregnancy)}"
+                }
+            ), 400
 
     # Parse optional dates
     treatment_start_date = None
     if data.get("treatment_start_date"):
         try:
-            treatment_start_date = datetime.fromisoformat(data["treatment_start_date"].replace('Z', '+00:00'))
+            treatment_start_date = datetime.fromisoformat(
+                data["treatment_start_date"].replace("Z", "+00:00")
+            )
         except ValueError:
-            return jsonify({"error": "Invalid treatment_start_date format. Use ISO format."}), 400
+            return jsonify(
+                {"error": "Invalid treatment_start_date format. Use ISO format."}
+            ), 400
 
     success, message, case = create_malaria_case(
         patient_id=patient_id,
@@ -117,15 +150,13 @@ def register_case():
         treatment_start_date=treatment_start_date,
         facility_diagnosed_at=data.get("facility_diagnosed_at"),
         encounter_id=data.get("encounter_id"),
-        current_regimen_id=data.get("current_regimen_id")
+        current_regimen_id=data.get("current_regimen_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "case_id": case.id,
-            "case_number": case.case_number
-        }), 201
+        return jsonify(
+            {"message": message, "case_id": case.id, "case_number": case.case_number}
+        ), 201
     else:
         return jsonify({"error": message}), 400
 
@@ -162,18 +193,26 @@ def change_regimen(case_id):
         new_regimen_id=new_regimen_id,
         change_reason=change_reason,
         approved_by=approved_by,
-        encounter_id=data.get("encounter_id")
+        encounter_id=data.get("encounter_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "current_regimen": {
-                "id": case.current_regimen.id if case.current_regimen else None,
-                "code": case.current_regimen.regimen_code if case.current_regimen else None,
-                "name": case.current_regimen.regimen_name if case.current_regimen else None
-            } if case.current_regimen else None
-        }), 200
+        return jsonify(
+            {
+                "message": message,
+                "current_regimen": {
+                    "id": case.current_regimen.id if case.current_regimen else None,
+                    "code": case.current_regimen.regimen_code
+                    if case.current_regimen
+                    else None,
+                    "name": case.current_regimen.regimen_name
+                    if case.current_regimen
+                    else None,
+                }
+                if case.current_regimen
+                else None,
+            }
+        ), 200
     else:
         return jsonify({"error": message}), 400
 
@@ -196,25 +235,35 @@ def record_treatment(case_id):
     date_administered = None
     if data.get("date_administered"):
         try:
-            date_administered = datetime.fromisoformat(data["date_administered"].replace('Z', '+00:00'))
+            date_administered = datetime.fromisoformat(
+                data["date_administered"].replace("Z", "+00:00")
+            )
         except ValueError:
-            return jsonify({"error": "Invalid date_administered format. Use ISO format."}), 400
+            return jsonify(
+                {"error": "Invalid date_administered format. Use ISO format."}
+            ), 400
 
     success, message, treatment = record_treatment_administered(
         case_id=case_id,
-        administered_as_directly_observed=data.get("administered_as_directly_observed", False),
+        administered_as_directly_observed=data.get(
+            "administered_as_directly_observed", False
+        ),
         date_administered=date_administered,
-        encounter_id=data.get("encounter_id")
+        encounter_id=data.get("encounter_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "treatment_id": treatment.id,
-            "dose_number": treatment.dose_number,
-            "date_administered": treatment.date_administered.isoformat() if treatment.date_administered else None,
-            "administered_as_directly_observed": treatment.administered_as_directly_observed
-        }), 201
+        return jsonify(
+            {
+                "message": message,
+                "treatment_id": treatment.id,
+                "dose_number": treatment.dose_number,
+                "date_administered": treatment.date_administered.isoformat()
+                if treatment.date_administered
+                else None,
+                "administered_as_directly_observed": treatment.administered_as_directly_observed,
+            }
+        ), 201
     else:
         return jsonify({"error": message}), 400
 
@@ -244,7 +293,7 @@ def record_lab(case_id):
     test_date = None
     if data.get("test_date"):
         try:
-            test_date = datetime.fromisoformat(data["test_date"].replace('Z', '+00:00'))
+            test_date = datetime.fromisoformat(data["test_date"].replace("Z", "+00:00"))
         except ValueError:
             return jsonify({"error": "Invalid test_date format. Use ISO format."}), 400
 
@@ -254,18 +303,22 @@ def record_lab(case_id):
         result_value=data.get("result_value"),
         result_interpretation=data.get("result_interpretation"),
         test_date=test_date,
-        encounter_id=data.get("encounter_id")
+        encounter_id=data.get("encounter_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "lab_result_id": lab_result.id,
-            "test_type": lab_result.test_type,
-            "result_value": lab_result.result_value,
-            "result_interpretation": lab_result.result_interpretation,
-            "test_date": lab_result.test_date.isoformat() if lab_result.test_date else None
-        }), 201
+        return jsonify(
+            {
+                "message": message,
+                "lab_result_id": lab_result.id,
+                "test_type": lab_result.test_type,
+                "result_value": lab_result.result_value,
+                "result_interpretation": lab_result.result_interpretation,
+                "test_date": lab_result.test_date.isoformat()
+                if lab_result.test_date
+                else None,
+            }
+        ), 201
     else:
         return jsonify({"error": message}), 400
 
@@ -298,51 +351,74 @@ def get_case_summary(case_id):
         if current_regimen and case.treatment_start_date:
             # Expected doses based on regimen (simplified: assume daily dosing)
             expected_doses_per_day = 1  # This would be more complex in reality
-            days_on_treatment_float = (datetime.now(timezone.utc) - case.treatment_start_date).total_seconds() / (24*3600)
+            days_on_treatment_float = (
+                datetime.now(timezone.utc) - case.treatment_start_date
+            ).total_seconds() / (24 * 3600)
             expected_doses = int(days_on_treatment_float * expected_doses_per_day)
-            actual_doses = len(recent_treatments)  # This is only recent treatments, not total - limitation
+            actual_doses = len(
+                recent_treatments
+            )  # This is only recent treatments, not total - limitation
             if expected_doses > 0:
                 treatment_completion = min(100.0, (actual_doses / expected_doses) * 100)
 
-        return jsonify({
-            "case": {
-                "id": case.id,
-                "patient_id": case.patient_id,
-                "case_number": case.case_number,
-                "diagnosis_date": case.diagnosis_date.isoformat() if case.diagnosis_date else None,
-                "malaria_species": case.malaria_species,
-                "parasite_density": case.parasite_density,
-                "diagnosis_method": case.diagnosis_method,
-                "severity": case.severity,
-                "pregnancy_status": case.pregnancy_status,
-                "facility_diagnosed_at": case.facility_diagnosed_at,
-                "days_since_diagnosis": days_since_diagnosis
-            },
-            "current_regimen": {
-                "id": current_regimen.id if current_regimen else None,
-                "code": current_regimen.regimen_code if current_regimen else None,
-                "name": current_regimen.regimen_name if current_regimen else None,
-                "line_of_therapy": current_regimen.line_of_therapy if current_regimen else None,
-                "drugs": current_regimen.drugs if current_regimen else None,
-                "duration_days": current_regimen.duration_days if current_regimen else None
-            } if current_regimen else None,
-            "latest_lab": {
-                "id": latest_lab.id if latest_lab else None,
-                "test_type": latest_lab.test_type if latest_lab else None,
-                "result_value": latest_lab.result_value if latest_lab else None,
-                "result_interpretation": latest_lab.result_interpretation if latest_lab else None,
-                "test_date": latest_lab.test_date.isoformat() if latest_lab and latest_lab.test_date else None
-            } if latest_lab else None,
-            "recent_treatments": [
-                {
-                    "id": treatment.id,
-                    "date_administered": treatment.date_administered.isoformat() if treatment.date_administered else None,
-                    "dose_number": treatment.dose_number,
-                    "administered_as_directly_observed": treatment.administered_as_directly_observed
-                } for treatment in recent_treatments
-            ],
-            "treatment_completion": treatment_completion
-        }), 200
+        return jsonify(
+            {
+                "case": {
+                    "id": case.id,
+                    "patient_id": case.patient_id,
+                    "case_number": case.case_number,
+                    "diagnosis_date": case.diagnosis_date.isoformat()
+                    if case.diagnosis_date
+                    else None,
+                    "malaria_species": case.malaria_species,
+                    "parasite_density": case.parasite_density,
+                    "diagnosis_method": case.diagnosis_method,
+                    "severity": case.severity,
+                    "pregnancy_status": case.pregnancy_status,
+                    "facility_diagnosed_at": case.facility_diagnosed_at,
+                    "days_since_diagnosis": days_since_diagnosis,
+                },
+                "current_regimen": {
+                    "id": current_regimen.id if current_regimen else None,
+                    "code": current_regimen.regimen_code if current_regimen else None,
+                    "name": current_regimen.regimen_name if current_regimen else None,
+                    "line_of_therapy": current_regimen.line_of_therapy
+                    if current_regimen
+                    else None,
+                    "drugs": current_regimen.drugs if current_regimen else None,
+                    "duration_days": current_regimen.duration_days
+                    if current_regimen
+                    else None,
+                }
+                if current_regimen
+                else None,
+                "latest_lab": {
+                    "id": latest_lab.id if latest_lab else None,
+                    "test_type": latest_lab.test_type if latest_lab else None,
+                    "result_value": latest_lab.result_value if latest_lab else None,
+                    "result_interpretation": latest_lab.result_interpretation
+                    if latest_lab
+                    else None,
+                    "test_date": latest_lab.test_date.isoformat()
+                    if latest_lab and latest_lab.test_date
+                    else None,
+                }
+                if latest_lab
+                else None,
+                "recent_treatments": [
+                    {
+                        "id": treatment.id,
+                        "date_administered": treatment.date_administered.isoformat()
+                        if treatment.date_administered
+                        else None,
+                        "dose_number": treatment.dose_number,
+                        "administered_as_directly_observed": treatment.administered_as_directly_observed,
+                    }
+                    for treatment in recent_treatments
+                ],
+                "treatment_completion": treatment_completion,
+            }
+        ), 200
 
     except Exception as e:
         logger.error(f"Error getting case summary: {e}")
@@ -358,23 +434,30 @@ def get_formulary():
     """
     try:
         regimens = get_malaria_formulary()
-        return jsonify({
-            "regimens": [
-                {
-                    "id": regimen.id,
-                    "code": regimen.regimen_code,
-                    "name": regimen.regimen_name,
-                    "line_of_therapy": regimen.line_of_therapy,
-                    "drugs": regimen.drugs,
-                    "is_preferred": regimen.is_preferred,
-                    "is_alternative": regimen.is_alternative,
-                    "restriction_notes": regimen.restriction_notes,
-                    "effective_from": regimen.effective_from.isoformat() if regimen.effective_from else None,
-                    "effective_to": regimen.effective_to.isoformat() if regimen.effective_to else None,
-                    "duration_days": regimen.duration_days
-                } for regimen in regimens
-            ]
-        }), 200
+        return jsonify(
+            {
+                "regimens": [
+                    {
+                        "id": regimen.id,
+                        "code": regimen.regimen_code,
+                        "name": regimen.regimen_name,
+                        "line_of_therapy": regimen.line_of_therapy,
+                        "drugs": regimen.drugs,
+                        "is_preferred": regimen.is_preferred,
+                        "is_alternative": regimen.is_alternative,
+                        "restriction_notes": regimen.restriction_notes,
+                        "effective_from": regimen.effective_from.isoformat()
+                        if regimen.effective_from
+                        else None,
+                        "effective_to": regimen.effective_to.isoformat()
+                        if regimen.effective_to
+                        else None,
+                        "duration_days": regimen.duration_days,
+                    }
+                    for regimen in regimens
+                ]
+            }
+        ), 200
     except Exception as e:
         logger.error(f"Error getting formulary: {e}")
         return jsonify({"error": "Internal server error"}), 500
@@ -389,10 +472,7 @@ def validate_regimen(regimen_id):
     """
     try:
         valid = is_malaria_regimen_valid(regimen_id)
-        return jsonify({
-            "regimen_id": regimen_id,
-            "is_valid": valid
-        }), 200
+        return jsonify({"regimen_id": regimen_id, "is_valid": valid}), 200
     except Exception as e:
         logger.error(f"Error validating regimen: {e}")
         return jsonify({"error": "Internal server error"}), 500
@@ -410,10 +490,12 @@ def trigger_missed_treatment_check():
     try:
         # For simplicity, we'll just return a placeholder message
         # In a real implementation, we would check for treatments not taken within expected windows
-        return jsonify({
-            "message": "Missed treatment check triggered. (Implementation pending)",
-            "checked": True
-        }), 200
+        return jsonify(
+            {
+                "message": "Missed treatment check triggered. (Implementation pending)",
+                "checked": True,
+            }
+        ), 200
     except Exception as e:
         logger.error(f"Error in missed treatment check: {e}")
         return jsonify({"error": "Internal server error"}), 500
@@ -445,14 +527,16 @@ def dashboard_ui():
 
     cases = MalariaCase.query.order_by(MalariaCase.diagnosis_date.desc()).all()
     active_count = len([c for c in cases if c.treatment_start_date])
-    severe_count = len([c for c in cases if c.severity == 'severe'])
+    severe_count = len([c for c in cases if c.severity == "severe"])
     treated_count = 0  # Would need date logic
 
-    return render_template("malaria/dashboard.html",
-                          cases=cases,
-                          active_count=active_count,
-                          severe_count=severe_count,
-                          treated_count=treated_count)
+    return render_template(
+        "malaria/dashboard.html",
+        cases=cases,
+        active_count=active_count,
+        severe_count=severe_count,
+        treated_count=treated_count,
+    )
 
 
 @bp.route("/ui/new-case", methods=["GET", "POST"])
@@ -482,7 +566,9 @@ def new_case_ui():
                 severity=severity,
                 diagnosis_method=diagnosis_method,
                 treatment_start_date=treatment_start_date,
-                current_regimen_id=int(current_regimen_id) if current_regimen_id else None,
+                current_regimen_id=int(current_regimen_id)
+                if current_regimen_id
+                else None,
             )
             flash("Malaria case registered successfully!", "success")
             return redirect(url_for("malaria.dashboard_ui"))
@@ -511,9 +597,15 @@ def case_detail_ui(case_id):
         return redirect(url_for("malaria.dashboard_ui"))
 
     treatments = MalariaTreatment.query.filter_by(malaria_case_id=case_id).all()
-    lab_results = MalariaLabResult.query.filter_by(malaria_case_id=case_id).order_by(MalariaLabResult.test_date.desc()).all()
+    lab_results = (
+        MalariaLabResult.query.filter_by(malaria_case_id=case_id)
+        .order_by(MalariaLabResult.test_date.desc())
+        .all()
+    )
 
-    return render_template("malaria/case_detail.html",
-                          case=case,
-                          treatments=treatments,
-                          lab_results=lab_results)
+    return render_template(
+        "malaria/case_detail.html",
+        case=case,
+        treatments=treatments,
+        lab_results=lab_results,
+    )

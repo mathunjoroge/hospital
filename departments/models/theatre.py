@@ -7,6 +7,7 @@ Database models for Johns Hopkins–Grade Theatre & Surgical Module:
 3. PostOpNote          — Operative note, surgical team, findings, pathology specimens, PACU Aldrete score
 4. SurgicalInstrumentCount — Instrument/sponge/needle reconciliation before cavity & skin closure
 """
+
 import json
 from datetime import datetime
 
@@ -20,6 +21,7 @@ class WhoSurgicalChecklist(db.Model):
     - Time Out: Before skin incision
     - Sign Out: Before patient leaves operating room
     """
+
     __tablename__ = "who_surgical_checklists"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -45,7 +47,9 @@ class WhoSurgicalChecklist(db.Model):
     airway_equipment_available = db.Column(db.Boolean, default=False)
     blood_loss_risk_over_500ml = db.Column(db.Boolean, default=False)
     iv_access_and_fluids_planned = db.Column(db.Boolean, default=False)
-    sign_in_completed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    sign_in_completed_by = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=True
+    )
     sign_in_completed_at = db.Column(db.DateTime, nullable=True)
 
     # --- Stage 2: Time Out (Pre-incision) ---
@@ -58,7 +62,9 @@ class WhoSurgicalChecklist(db.Model):
     antibiotic_prophylaxis_given = db.Column(db.Boolean, default=False)
     antibiotic_given_within_60min = db.Column(db.Boolean, default=False)
     essential_imaging_displayed = db.Column(db.Boolean, default=False)
-    time_out_completed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    time_out_completed_by = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=True
+    )
     time_out_completed_at = db.Column(db.DateTime, nullable=True)
 
     # --- Stage 3: Sign Out (Pre-transfer out of OR) ---
@@ -68,7 +74,9 @@ class WhoSurgicalChecklist(db.Model):
     specimens_labelled = db.Column(db.Boolean, default=False)
     equipment_problems_addressed = db.Column(db.Boolean, default=False)
     key_recovery_concerns_reviewed = db.Column(db.Text, nullable=True)
-    sign_out_completed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    sign_out_completed_by = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=True
+    )
     sign_out_completed_at = db.Column(db.DateTime, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -77,12 +85,18 @@ class WhoSurgicalChecklist(db.Model):
     )
 
     # Relationships
-    theatre_entry = db.relationship("TheatreList", backref=db.backref("who_checklist", uselist=False))
+    theatre_entry = db.relationship(
+        "TheatreList", backref=db.backref("who_checklist", uselist=False)
+    )
     patient = db.relationship("Patient", backref="who_checklists")
     encounter = db.relationship("Encounter", foreign_keys=[encounter_id])
 
     def is_fully_completed(self) -> bool:
-        return self.sign_in_completed and self.time_out_completed and self.sign_out_completed
+        return (
+            self.sign_in_completed
+            and self.time_out_completed
+            and self.sign_out_completed
+        )
 
     def __repr__(self):
         return f"<WhoSurgicalChecklist entry={self.theatre_entry_id} in={self.sign_in_completed} out={self.time_out_completed} final={self.sign_out_completed}>"
@@ -94,6 +108,7 @@ class AnaestheticRecord(db.Model):
     Tracks ASA classification, airway grade, anaesthetic techniques, agents,
     vital sign time series (JSON), fluid/blood product balance, and recovery status.
     """
+
     __tablename__ = "anaesthetic_records"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -114,16 +129,24 @@ class AnaestheticRecord(db.Model):
 
     # Airway Assessment: Mallampati I, II, III, IV
     mallampati_class = db.Column(db.String(10), nullable=True)
-    airway_management = db.Column(db.String(100), nullable=True)  # ETT, LMA, Mask, Tracheostomy
+    airway_management = db.Column(
+        db.String(100), nullable=True
+    )  # ETT, LMA, Mask, Tracheostomy
     ett_size = db.Column(db.String(20), nullable=True)  # e.g., "7.5 cuffed"
 
     # Technique: General, Spinal, Epidural, Regional, Local, Sedation
     technique = db.Column(db.String(100), nullable=False, default="General")
 
     # JSON stored fields
-    agents_administered_json = db.Column(db.Text, nullable=True, default="[]")  # list of dicts
-    vitals_series_json = db.Column(db.Text, nullable=True, default="[]")       # list of dicts (time, hr, bp_sys, bp_dia, spo2, etco2)
-    timeline_events_json = db.Column(db.Text, nullable=True, default="[]")     # list of dicts (timestamp, event_type, notes, recorded_by)
+    agents_administered_json = db.Column(
+        db.Text, nullable=True, default="[]"
+    )  # list of dicts
+    vitals_series_json = db.Column(
+        db.Text, nullable=True, default="[]"
+    )  # list of dicts (time, hr, bp_sys, bp_dia, spo2, etco2)
+    timeline_events_json = db.Column(
+        db.Text, nullable=True, default="[]"
+    )  # list of dicts (timestamp, event_type, notes, recorded_by)
 
     # Fluid & Blood balance
     estimated_blood_loss_ml = db.Column(db.Integer, default=0, nullable=False)
@@ -141,7 +164,9 @@ class AnaestheticRecord(db.Model):
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
 
-    theatre_entry = db.relationship("TheatreList", backref=db.backref("anaesthetic_record", uselist=False))
+    theatre_entry = db.relationship(
+        "TheatreList", backref=db.backref("anaesthetic_record", uselist=False)
+    )
     patient = db.relationship("Patient", backref="anaesthetic_records")
     anaesthetist = db.relationship("User", foreign_keys=[anaesthetist_id])
 
@@ -188,6 +213,7 @@ class PostOpNote(db.Model):
     Captures surgical team, pre & post-operative diagnoses, procedure description,
     specimens collected, implants, drains, PACU Aldrete recovery score (0-10), and orders.
     """
+
     __tablename__ = "post_op_notes"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -223,14 +249,18 @@ class PostOpNote(db.Model):
     aldrete_spo2 = db.Column(db.Integer, default=2, nullable=False)
 
     postop_instructions = db.Column(db.Text, nullable=True)
-    discharge_to = db.Column(db.String(100), default="PACU", nullable=False)  # PACU, ICU, Ward, Home
+    discharge_to = db.Column(
+        db.String(100), default="PACU", nullable=False
+    )  # PACU, ICU, Ward, Home
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
 
-    theatre_entry = db.relationship("TheatreList", backref=db.backref("post_op_note", uselist=False))
+    theatre_entry = db.relationship(
+        "TheatreList", backref=db.backref("post_op_note", uselist=False)
+    )
     patient = db.relationship("Patient", backref="post_op_notes")
     surgeon = db.relationship("User", foreign_keys=[surgeon_id])
 
@@ -257,6 +287,7 @@ class SurgicalInstrumentCount(db.Model):
     Surgical Instrument, Sponge, and Needle Reconciliation Record.
     Blocks OR exit and flags discrepancy if counts do not reconcile.
     """
+
     __tablename__ = "surgical_instrument_counts"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -267,9 +298,13 @@ class SurgicalInstrumentCount(db.Model):
         db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
     )
     scrub_nurse_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
-    circulating_nurse_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    circulating_nurse_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=True
+    )
 
-    tray_name_or_barcode = db.Column(db.String(100), nullable=False, default="Standard Surgical Tray")
+    tray_name_or_barcode = db.Column(
+        db.String(100), nullable=False, default="Standard Surgical Tray"
+    )
 
     # Counts
     sponges_initial = db.Column(db.Integer, default=0, nullable=False)
@@ -296,7 +331,9 @@ class SurgicalInstrumentCount(db.Model):
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
 
-    theatre_entry = db.relationship("TheatreList", backref=db.backref("instrument_count", uselist=False))
+    theatre_entry = db.relationship(
+        "TheatreList", backref=db.backref("instrument_count", uselist=False)
+    )
     scrub_nurse = db.relationship("User", foreign_keys=[scrub_nurse_id])
     circulating_nurse = db.relationship("User", foreign_keys=[circulating_nurse_id])
 
@@ -309,9 +346,9 @@ class SurgicalInstrumentCount(db.Model):
         needles_skin = self.needles_closing_skin or 0
         inst_skin = self.instruments_closing_skin or 0
 
-        sponge_ok = (sponges_skin == total_sponges_in)
-        needle_ok = (needles_skin == total_needles_in)
-        inst_ok = (inst_skin == total_inst_in)
+        sponge_ok = sponges_skin == total_sponges_in
+        needle_ok = needles_skin == total_needles_in
+        inst_ok = inst_skin == total_inst_in
 
         reconciled = sponge_ok and needle_ok and inst_ok
         self.count_reconciled = reconciled

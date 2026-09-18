@@ -145,7 +145,6 @@ class DischargeEngine:
         referred_to: str | None = None,
         secondary_diagnoses: str | None = None,
     ) -> DischargeSummary:
-
         discharge_date = datetime.now(timezone.utc)
 
         if admission_date > discharge_date:

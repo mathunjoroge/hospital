@@ -229,7 +229,9 @@ class ScheduleEngine:
 
         enc = (
             Encounter.query.filter_by(appointment_id=appt.id).first()
-            or Encounter.query.filter_by(patient_id=appt.patient_id, status="ACTIVE").first()
+            or Encounter.query.filter_by(
+                patient_id=appt.patient_id, status="ACTIVE"
+            ).first()
         )
         if enc:
             enc.set_stage("IN_CONSULTATION")
@@ -247,9 +249,13 @@ class ScheduleEngine:
 
         appt.mark_no_show()
         from departments.models.encounter import Encounter
+
         enc = Encounter.query.filter(
             (Encounter.appointment_id == appt.id)
-            | ((Encounter.patient_id == appt.patient_id) & (Encounter.status == "ACTIVE"))
+            | (
+                (Encounter.patient_id == appt.patient_id)
+                & (Encounter.status == "ACTIVE")
+            )
         ).first()
         if enc:
             enc.status = "CANCELLED"
@@ -294,7 +300,9 @@ class ScheduleEngine:
             nursing_queue = queue_service.queue_for("nursing", str(provider_id))
             # Combine and sort by start time
             all_queue = medicine_queue + nursing_queue
-            all_queue.sort(key=lambda e: e.started_at or datetime.min.replace(tzinfo=None))
+            all_queue.sort(
+                key=lambda e: e.started_at or datetime.min.replace(tzinfo=None)
+            )
         else:
             # Get all queues across the pipeline
             billing_registration = queue_service.queue_for("billing_registration")
@@ -309,13 +317,24 @@ class ScheduleEngine:
             # Combine all queues, deduplicating by patient_id
             seen_patients = set()
             all_queue = []
-            for q in [billing_registration, nursing, medicine, medicine_results, laboratory, imaging, pharmacy, billing_settlement]:
+            for q in [
+                billing_registration,
+                nursing,
+                medicine,
+                medicine_results,
+                laboratory,
+                imaging,
+                pharmacy,
+                billing_settlement,
+            ]:
                 for entry in q:
                     if entry.patient_id not in seen_patients:
                         seen_patients.add(entry.patient_id)
                         all_queue.append(entry)
 
-            all_queue.sort(key=lambda e: e.started_at or datetime.min.replace(tzinfo=None))
+            all_queue.sort(
+                key=lambda e: e.started_at or datetime.min.replace(tzinfo=None)
+            )
 
         # Format the queue for dashboard display
         from departments.models.records import Patient
@@ -324,7 +343,9 @@ class ScheduleEngine:
         patient_ids = [a.patient_id for a in all_queue]
         patients = {}
         if patient_ids:
-            patient_records = Patient.query.filter(Patient.patient_id.in_(patient_ids)).all()
+            patient_records = Patient.query.filter(
+                Patient.patient_id.in_(patient_ids)
+            ).all()
             patients = {p.patient_id: p.name for p in patient_records}
 
         formatted_queue = []
@@ -361,15 +382,18 @@ class ScheduleEngine:
                     "appointment_id": getattr(entry, "appointment_id", None),
                     "idx": idx,
                     "patient_id": entry.patient_id,
-                    "patient_name": patients.get(entry.patient_id, f"Patient {entry.patient_id}"),
+                    "patient_name": patients.get(
+                        entry.patient_id, f"Patient {entry.patient_id}"
+                    ),
                     "stage": stage,
                     "stage_display": stage_info["text"],
                     "stage_color": f"bg-{stage_info['color']}-100 text-{stage_info['color']}-800",
-                    "started_at": entry.started_at.strftime("%H:%M") if entry.started_at else "--:--",
+                    "started_at": entry.started_at.strftime("%H:%M")
+                    if entry.started_at
+                    else "--:--",
                     "wait_time_mins": wait_mins,
                     "type": entry.encounter_type or "OPD",
                 }
             )
 
         return formatted_queue
-

@@ -14,8 +14,8 @@ failure.  These tests must NEVER be removed or weakened.
 """
 
 
-
 # ─── helpers ────────────────────────────────────────────────────────────────
+
 
 def _assert_auth_required(client, method: str, url: str, payload=None):
     """Assert that a route returns 401 or 302 (login redirect) when not logged in."""
@@ -32,6 +32,7 @@ def _assert_auth_required(client, method: str, url: str, payload=None):
 
 
 # ─── MAR charting ────────────────────────────────────────────────────────────
+
 
 class TestMARAuthRequired:
     """
@@ -70,6 +71,7 @@ class TestMARAuthRequired:
 
 # ─── FEFO pharmacy ───────────────────────────────────────────────────────────
 
+
 class TestFEFOAuthRequired:
     """
     FEFO endpoints perform actual stock deductions and create DispensedDrug
@@ -91,7 +93,9 @@ class TestFEFOAuthRequired:
 
     def test_allocate_preview_rejects_anonymous(self, client):
         """Unauthenticated GET to /pharmacy/fefo/allocate must be rejected."""
-        _assert_auth_required(client, "get", "/pharmacy/fefo/allocate?drug_id=1&quantity=1")
+        _assert_auth_required(
+            client, "get", "/pharmacy/fefo/allocate?drug_id=1&quantity=1"
+        )
 
     def test_alerts_rejects_anonymous(self, client):
         """Unauthenticated GET to /pharmacy/fefo/alerts must be rejected."""
@@ -99,6 +103,7 @@ class TestFEFOAuthRequired:
 
 
 # ─── Oncology chemo ──────────────────────────────────────────────────────────
+
 
 class TestOncologyAuthRequired:
     """
@@ -124,6 +129,7 @@ class TestOncologyAuthRequired:
 
 
 # ─── Lab results ─────────────────────────────────────────────────────────────
+
 
 class TestLabResultsAuthRequired:
     """

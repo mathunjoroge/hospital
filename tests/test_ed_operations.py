@@ -49,7 +49,9 @@ def auth_headers(client):
     return {"Authorization": f"Bearer {token}"}
 
 
-def _make_patient(patient_id: str, name: str = "Test ED Patient", sex: str = "Female") -> Patient:
+def _make_patient(
+    patient_id: str, name: str = "Test ED Patient", sex: str = "Female"
+) -> Patient:
     """Insert a minimal patient into DB context."""
     p = Patient.query.filter_by(patient_id=patient_id).first()
     if not p:
@@ -72,7 +74,9 @@ def test_ed_patient_lifecycle_flow(client):
         _make_patient("ED-PAT-100", name="Emergency Patient 1", sex="Male")
 
         # 2. Record Arrival
-        assessment = EDOperationsEngine.record_arrival(patient_id="ED-PAT-100", chief_complaint="Chest Pain")
+        assessment = EDOperationsEngine.record_arrival(
+            patient_id="ED-PAT-100", chief_complaint="Chest Pain"
+        )
         assert assessment.id is not None
         assert assessment.arrival_at is not None
         assert assessment.priority_status == "WAITING"
@@ -87,24 +91,31 @@ def test_ed_patient_lifecycle_flow(client):
         assert triage_assessment.priority_status == "ESCALATED"
 
         # 4. Assign Bed
-        bed_assessment = EDOperationsEngine.assign_bed(assessment_id=assessment.id, bed_label="RESUS-2")
+        bed_assessment = EDOperationsEngine.assign_bed(
+            assessment_id=assessment.id, bed_label="RESUS-2"
+        )
         assert bed_assessment.bed_label == "RESUS-2"
         assert bed_assessment.bed_assigned_at is not None
 
         # 5. Seen by Doctor
-        doc_assessment = EDOperationsEngine.mark_seen_by_doctor(assessment_id=assessment.id)
+        doc_assessment = EDOperationsEngine.mark_seen_by_doctor(
+            assessment_id=assessment.id
+        )
         assert doc_assessment.seen_by_doctor_at is not None
         assert doc_assessment.priority_status == "SEEN"
 
         # 6. ESI Re-evaluation
         reeval_assessment = EDOperationsEngine.record_re_evaluation(
-            assessment_id=assessment.id, notes="Patient stable following sublingual nitroglycerin."
+            assessment_id=assessment.id,
+            notes="Patient stable following sublingual nitroglycerin.",
         )
         assert reeval_assessment.last_re_evaluation_at is not None
         assert "sublingual nitroglycerin" in reeval_assessment.re_evaluation_notes
 
         # 7. Discharge / Disposition
-        disp_assessment = EDOperationsEngine.discharge_patient(assessment_id=assessment.id, disposition="ADMITTED")
+        disp_assessment = EDOperationsEngine.discharge_patient(
+            assessment_id=assessment.id, disposition="ADMITTED"
+        )
         assert disp_assessment.disposition == "ADMITTED"
         assert disp_assessment.disposition_at is not None
         assert disp_assessment.priority_status == "DISPOSITIONED"
@@ -168,24 +179,28 @@ def test_ed_routes_api(client, auth_headers):
         _make_patient("ED-API-99", name="API Test Patient", sex="Female")
 
     # 1. Post Arrival
-    res1 = client.post("/nursing/ed/arrive", json={
-        "patient_id": "ED-API-99",
-        "chief_complaint": "Acute Headache"
-    }, headers=auth_headers)
+    res1 = client.post(
+        "/nursing/ed/arrive",
+        json={"patient_id": "ED-API-99", "chief_complaint": "Acute Headache"},
+        headers=auth_headers,
+    )
     assert res1.status_code == 201
     ass_id = res1.get_json()["assessment_id"]
 
     # 2. Post Triage Complete
-    res2 = client.post(f"/nursing/ed/triage-complete/{ass_id}", json={
-        "esi_level": 2,
-        "vitals_warning": "Elevated BP"
-    }, headers=auth_headers)
+    res2 = client.post(
+        f"/nursing/ed/triage-complete/{ass_id}",
+        json={"esi_level": 2, "vitals_warning": "Elevated BP"},
+        headers=auth_headers,
+    )
     assert res2.status_code == 200
 
     # 3. Post Assign Bed
-    res3 = client.post(f"/nursing/ed/assign-bed/{ass_id}", json={
-        "bed_label": "BAY-9"
-    }, headers=auth_headers)
+    res3 = client.post(
+        f"/nursing/ed/assign-bed/{ass_id}",
+        json={"bed_label": "BAY-9"},
+        headers=auth_headers,
+    )
     assert res3.status_code == 200
     assert res3.get_json()["bed_label"] == "BAY-9"
 
@@ -194,9 +209,11 @@ def test_ed_routes_api(client, auth_headers):
     assert res4.status_code == 200
 
     # 5. Post Re-evaluation
-    res5 = client.post(f"/nursing/ed/re-evaluate/{ass_id}", json={
-        "notes": "Patient headache improving after analgesia."
-    }, headers=auth_headers)
+    res5 = client.post(
+        f"/nursing/ed/re-evaluate/{ass_id}",
+        json={"notes": "Patient headache improving after analgesia."},
+        headers=auth_headers,
+    )
     assert res5.status_code == 200
 
     # 6. GET ED Metrics API

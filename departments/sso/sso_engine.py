@@ -8,6 +8,7 @@ Supports:
   2. Active Directory / LDAP Direct Bind Authentication & Group-to-Role Mapping
   3. Automatic User Provisioning & Group Synchronization
 """
+
 import logging
 import os
 import re
@@ -43,7 +44,9 @@ class SSOEngine:
         self.enabled = os.environ.get(
             "ENABLE_SSO", os.environ.get("SSO_ENABLED", "false")
         ).lower() in ("true", "1", "yes")
-        self.provider = os.environ.get("SSO_PROVIDER", "oidc").lower()  # oidc | ldap | saml
+        self.provider = os.environ.get(
+            "SSO_PROVIDER", "oidc"
+        ).lower()  # oidc | ldap | saml
 
         # Outbound timeout for IdP/directory calls — an unbounded auth call
         # hangs a worker thread and is a trivial DoS surface.
@@ -52,34 +55,45 @@ class SSOEngine:
         # Auto-provisioning creates a local account for any identity the IdP
         # vouches for. Off by default: operators should pre-create accounts
         # unless they intend every directory user to have a HIMS account.
-        self.auto_provision = os.environ.get(
-            "SSO_AUTO_PROVISION", "false"
-        ).lower() in ("true", "1", "yes")
+        self.auto_provision = os.environ.get("SSO_AUTO_PROVISION", "false").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
 
         # OIDC Configuration — no credential defaults; unset means unconfigured.
         self.oidc_client_id = os.environ.get("OIDC_CLIENT_ID", "hims-enterprise-client")
         self.oidc_client_secret = os.environ.get("OIDC_CLIENT_SECRET", "")
-        self.oidc_issuer = os.environ.get("OIDC_ISSUER", "https://login.microsoftonline.com/common/v2.0")
+        self.oidc_issuer = os.environ.get(
+            "OIDC_ISSUER", "https://login.microsoftonline.com/common/v2.0"
+        )
         self.oidc_authorize_url = os.environ.get(
             "OIDC_AUTHORIZE_URL",
-            "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+            "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
         )
         self.oidc_token_url = os.environ.get(
             "OIDC_TOKEN_URL",
-            "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+            "https://login.microsoftonline.com/common/oauth2/v2.0/token",
         )
         self.oidc_userinfo_url = os.environ.get(
-            "OIDC_USERINFO_URL",
-            "https://graph.microsoft.com/oidc/userinfo"
+            "OIDC_USERINFO_URL", "https://graph.microsoft.com/oidc/userinfo"
         )
 
         # LDAP / Active Directory Configuration
-        self.ldap_server = os.environ.get("LDAP_SERVER_URI", "ldap://ad.hospital.org:389")
-        self.ldap_bind_dn = os.environ.get("LDAP_BIND_DN", "cn=read-only-admin,dc=hospital,dc=org")
+        self.ldap_server = os.environ.get(
+            "LDAP_SERVER_URI", "ldap://ad.hospital.org:389"
+        )
+        self.ldap_bind_dn = os.environ.get(
+            "LDAP_BIND_DN", "cn=read-only-admin,dc=hospital,dc=org"
+        )
         self.ldap_bind_password = os.environ.get("LDAP_BIND_PASSWORD", "")
-        self.ldap_search_base = os.environ.get("LDAP_USER_SEARCH_BASE", "ou=users,dc=hospital,dc=org")
+        self.ldap_search_base = os.environ.get(
+            "LDAP_USER_SEARCH_BASE", "ou=users,dc=hospital,dc=org"
+        )
 
-    def get_oidc_authorization_url(self, redirect_uri: str, state: str = "random_state") -> str:
+    def get_oidc_authorization_url(
+        self, redirect_uri: str, state: str = "random_state"
+    ) -> str:
         """
         Build OIDC Authorization URL for Azure AD / Keycloak / Shibboleth.
         """
@@ -199,8 +213,14 @@ class SSOEngine:
 
             entry = svc_conn.entries[0]
             user_dn = entry.entry_dn
-            ad_groups = [str(g) for g in (entry.memberOf.values if "memberOf" in entry else [])]
-            email = str(entry.mail) if "mail" in entry and entry.mail else f"{username}@hospital.org"
+            ad_groups = [
+                str(g) for g in (entry.memberOf.values if "memberOf" in entry else [])
+            ]
+            email = (
+                str(entry.mail)
+                if "mail" in entry and entry.mail
+                else f"{username}@hospital.org"
+            )
             display_name = (
                 str(entry.displayName)
                 if "displayName" in entry and entry.displayName
@@ -241,9 +261,7 @@ class SSOEngine:
                     return role
         # No mapped group => no role. Falling back to a privileged default
         # ("doctor") granted read/write/prescribe to any directory identity.
-        raise SSOError(
-            "No HIMS role is mapped to this account's directory groups."
-        )
+        raise SSOError("No HIMS role is mapped to this account's directory groups.")
 
     def provision_or_sync_user(self, user_info: dict) -> User:
         """
@@ -274,6 +292,7 @@ class SSOEngine:
             import secrets
 
             from werkzeug.security import generate_password_hash
+
             user.password = generate_password_hash(secrets.token_urlsafe(24))
             db.session.add(user)
         else:

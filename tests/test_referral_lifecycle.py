@@ -4,6 +4,7 @@ tests/test_referral_lifecycle.py
 T3.3 — Referral Lifecycle: source encounter transitions to REFERRED_OUT
 and a new REFERRAL encounter is opened for the receiving facility.
 """
+
 from datetime import datetime
 
 import pytest
@@ -19,10 +20,16 @@ from extensions import db
 
 def _patient_with_encounter(patient_id: str, stage: str = "IN_CONSULTATION"):
     """Create a patient with an active OPD encounter at the given stage."""
-    p = Patient(patient_id=patient_id, name=f"Test {patient_id}", sex="M",
-                date_of_birth=datetime(1985, 6, 15))  # noqa: DTZ001
+    p = Patient(
+        patient_id=patient_id,
+        name=f"Test {patient_id}",
+        sex="M",
+        date_of_birth=datetime(1985, 6, 15),
+    )  # noqa: DTZ001
     db.session.add(p)
-    db.session.add(PatientWaitingList(patient_id=patient_id, seen=QueueStatus.WAITING_TRIAGE))
+    db.session.add(
+        PatientWaitingList(patient_id=patient_id, seen=QueueStatus.WAITING_TRIAGE)
+    )
     enc = Encounter(
         patient_id=patient_id,
         encounter_type="OPD",
@@ -55,9 +62,9 @@ def test_referral_acceptance_marks_source_as_referred_out(app):
         engine.update_status(referral.id, ReferralStatus.ACCEPTED)
 
         updated_src = db.session.get(Encounter, src_id)
-        assert updated_src.stage == "REFERRED_OUT", (
-            f"Expected REFERRED_OUT, got {updated_src.stage}"
-        )
+        assert (
+            updated_src.stage == "REFERRED_OUT"
+        ), f"Expected REFERRED_OUT, got {updated_src.stage}"
         # status is DISCHARGED because we used close()
         assert updated_src.status == "DISCHARGED"
 
@@ -107,9 +114,9 @@ def test_referral_rejection_does_not_change_encounter(app):
         engine.update_status(referral.id, ReferralStatus.REJECTED)
 
         src_after = db.session.get(Encounter, src_id)
-        assert src_after.stage == original_stage, (
-            "Rejection must not alter the source encounter stage"
-        )
+        assert (
+            src_after.stage == original_stage
+        ), "Rejection must not alter the source encounter stage"
         # No REFERRAL encounter should be created
         ref_enc = Encounter.query.filter_by(
             patient_id="P-REF-03", encounter_type="REFERRAL"
@@ -121,8 +128,12 @@ def test_referral_acceptance_no_active_encounter_is_safe(app):
     """Accepting a referral when no active source encounter exists must not crash."""
     with app.app_context():
         # Patient exists but has no encounter
-        p = Patient(patient_id="P-REF-04", name="No Enc", sex="F",
-                    date_of_birth=datetime(1992, 3, 1))  # noqa: DTZ001
+        p = Patient(
+            patient_id="P-REF-04",
+            name="No Enc",
+            sex="F",
+            date_of_birth=datetime(1992, 3, 1),
+        )  # noqa: DTZ001
         db.session.add(p)
         db.session.commit()
 
@@ -153,8 +164,10 @@ def test_invalid_referral_status_raises(app):
         engine = ReferralEngine()
         referral = engine.initiate(
             patient_id="P-REF-05",
-            referring_facility="A", receiving_facility="B",
-            reason="Test", clinical_summary="Test",
+            referring_facility="A",
+            receiving_facility="B",
+            reason="Test",
+            clinical_summary="Test",
         )
         with pytest.raises(ValueError, match="Invalid referral status"):
             engine.update_status(referral.id, "NONSENSE")

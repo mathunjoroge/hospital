@@ -47,6 +47,7 @@ hl7_bp = Blueprint("hl7", __name__, url_prefix="/api/hl7")
 # Auth helper
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def _require_api_key():
     """Return (True, None) if authorised, else (False, error_response)."""
     expected = os.environ.get("HL7_INGEST_API_KEY", "changeme")
@@ -62,6 +63,7 @@ def _require_api_key():
 # ──────────────────────────────────────────────────────────────────────────────
 # ORU^R01 raw HL7 parser helpers
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def _parse_oru_r01(raw: str) -> dict:
     """
@@ -93,7 +95,7 @@ def _parse_oru_r01(raw: str) -> dict:
     try:
         obx = msg["OBX"][0]
         parameter_name = str(obx[3][0][0])  # OBX-3.1 Identifier
-        raw_value = str(obx[5][0])          # OBX-5
+        raw_value = str(obx[5][0])  # OBX-5
         result_value = float(raw_value)
         unit_str = str(obx[6][0]) if obx[6][0] else ""
     except (IndexError, ValueError, TypeError) as exc:
@@ -127,10 +129,7 @@ def _parse_fhir_diagnostic_report(data: dict) -> dict:
     if not patient_id:
         raise ValueError("Cannot extract patient ID from DiagnosticReport.subject")
 
-    source_system = (
-        data.get("performer", [{}])[0]
-        .get("display", "FHIR_SOURCE")
-    )
+    source_system = data.get("performer", [{}])[0].get("display", "FHIR_SOURCE")
 
     # Walk contained resources for the first Observation
     parameter_name = "UnknownParameter"
@@ -161,6 +160,7 @@ def _parse_fhir_diagnostic_report(data: dict) -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 # Core ingest logic (shared by HTTP and daemon-over-HTTP paths)
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def ingest_lab_result(
     patient_id: str,
@@ -204,6 +204,7 @@ def ingest_lab_result(
     db.session.add(lab_res)
     # Update matching pending lab request status if present
     from departments.models.medicine import RequestedLab
+
     req_labs = RequestedLab.query.filter_by(patient_id=patient_id, status=0).all()
     for req in req_labs:
         if req.lab_test_id == lab_test_id or len(req_labs) == 1:
@@ -214,11 +215,16 @@ def ingest_lab_result(
 
     # Advance encounter stage (e.g. AWAITING_LAB -> WAITING_DOCTOR_RESULTS)
     from departments.shared.visit_closure import advance_after_completion
+
     advance_after_completion(patient_id)
 
     logger.info(
         "HL7 ingest OK result_id=%s patient=%s param=%s panic=%s source=%s",
-        res_uuid, patient_id, parameter_name, panic_status, source_system,
+        res_uuid,
+        patient_id,
+        parameter_name,
+        panic_status,
+        source_system,
     )
 
     return {
@@ -235,6 +241,7 @@ def ingest_lab_result(
 # ──────────────────────────────────────────────────────────────────────────────
 # POST /api/hl7/oru  — main ingest route
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @hl7_bp.route("/oru", methods=["POST"])
 def receive_oru():
@@ -304,6 +311,7 @@ def receive_oru():
 # ──────────────────────────────────────────────────────────────────────────────
 # GET /api/hl7/status  — health probe used by Mirth Connect channel monitor
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @hl7_bp.route("/status", methods=["GET"])
 def hl7_status():

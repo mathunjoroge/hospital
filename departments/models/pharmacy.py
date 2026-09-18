@@ -42,8 +42,12 @@ class Drug(db.Model):
 
     __table_args__ = (
         db.CheckConstraint("quantity_in_stock >= 0", name="ck_drug_stock_non_negative"),
-        db.CheckConstraint("buying_price >= 0", name="ck_drug_buying_price_non_negative"),
-        db.CheckConstraint("selling_price >= 0", name="ck_drug_selling_price_non_negative"),
+        db.CheckConstraint(
+            "buying_price >= 0", name="ck_drug_buying_price_non_negative"
+        ),
+        db.CheckConstraint(
+            "selling_price >= 0", name="ck_drug_selling_price_non_negative"
+        ),
     )
 
 
@@ -60,7 +64,9 @@ class Batch(db.Model):
     drug = db.relationship("Drug", backref=db.backref("batches", lazy=True))
 
     __table_args__ = (
-        db.CheckConstraint("quantity_in_stock >= 0", name="ck_batch_stock_non_negative"),
+        db.CheckConstraint(
+            "quantity_in_stock >= 0", name="ck_batch_stock_non_negative"
+        ),
     )
 
     def __repr__(self):

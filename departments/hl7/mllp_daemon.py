@@ -34,9 +34,9 @@ from datetime import datetime, timezone
 import aiohttp
 
 # ── MLLP framing constants ────────────────────────────────────────────────────
-MLLP_SB = b"\x0b"   # Start Block
-MLLP_EB = b"\x1c"   # End Block
-MLLP_CR = b"\x0d"   # Carriage Return
+MLLP_SB = b"\x0b"  # Start Block
+MLLP_EB = b"\x1c"  # End Block
+MLLP_CR = b"\x0d"  # Carriage Return
 
 # ── Config from environment ───────────────────────────────────────────────────
 MLLP_HOST = os.environ.get("MLLP_HOST", "0.0.0.0")  # nosec: B104
@@ -56,6 +56,7 @@ logger = logging.getLogger("mllp_daemon")
 # ─────────────────────────────────────────────────────────────────────────────
 # HL7 ACK builder
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _build_ack(raw_msg: str, ack_code: str = "AA", error_msg: str = "") -> bytes:
     """
@@ -102,6 +103,7 @@ def _build_ack(raw_msg: str, ack_code: str = "AA", error_msg: str = "") -> bytes
 # HTTP forwarder → Flask /api/hl7/oru
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 async def _forward_to_flask(session: aiohttp.ClientSession, raw_hl7: str) -> bool:
     """
     POST raw HL7 text to Flask ingest endpoint.
@@ -133,6 +135,7 @@ async def _forward_to_flask(session: aiohttp.ClientSession, raw_hl7: str) -> boo
 # MLLP connection handler
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 async def _handle_connection(
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
@@ -158,7 +161,7 @@ async def _handle_connection(
 
                 eb_idx = buffer.index(eb_seq, sb_idx)
                 raw_bytes = buffer[sb_idx + 1 : eb_idx]
-                buffer = buffer[eb_idx + len(eb_seq):]
+                buffer = buffer[eb_idx + len(eb_seq) :]
 
                 raw_msg = raw_bytes.decode("utf-8", errors="replace")
                 msg_type = "UNKNOWN"
@@ -169,7 +172,9 @@ async def _handle_connection(
                             msg_type = parts[8].replace("^", "_")
                         break
 
-                logger.info("Received %s (%d bytes) from %s", msg_type, len(raw_bytes), peer)
+                logger.info(
+                    "Received %s (%d bytes) from %s", msg_type, len(raw_bytes), peer
+                )
 
                 if "ORU" in msg_type or "ADT" in msg_type:
                     success = await _forward_to_flask(http_session, raw_msg)
@@ -202,6 +207,7 @@ async def _handle_connection(
 # Main server loop
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 async def _main() -> None:
     connector = aiohttp.TCPConnector(limit=50)
     async with aiohttp.ClientSession(connector=connector) as http_session:
@@ -211,7 +217,9 @@ async def _main() -> None:
 
         server = await asyncio.start_server(handle, MLLP_HOST, MLLP_PORT)
         addr = server.sockets[0].getsockname()
-        logger.info("MLLP daemon listening on %s:%s  →  %s", addr[0], addr[1], HL7_INGEST_URL)
+        logger.info(
+            "MLLP daemon listening on %s:%s  →  %s", addr[0], addr[1], HL7_INGEST_URL
+        )
 
         async with server:
             await server.serve_forever()

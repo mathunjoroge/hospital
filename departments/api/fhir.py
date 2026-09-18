@@ -117,7 +117,9 @@ def patient_to_fhir(patient: Patient) -> dict:
         "meta": {
             "versionId": "1",
             "lastUpdated": (
-                patient.updated_at or patient.date_registered or datetime.now(timezone.utc)
+                patient.updated_at
+                or patient.date_registered
+                or datetime.now(timezone.utc)
             ).isoformat()
             if hasattr(patient, "updated_at")
             else datetime.now(timezone.utc).isoformat(),
@@ -384,12 +386,16 @@ def search_fhir_diagnostic_reports():
                     {
                         "system": "http://loinc.org",
                         "code": getattr(lab, "loinc_code", ""),
-                        "display": lab.test_name if hasattr(lab, "test_name") else "Laboratory Test"
+                        "display": lab.test_name
+                        if hasattr(lab, "test_name")
+                        else "Laboratory Test",
                     }
-                ] if getattr(lab, "loinc_code", None) else [],
+                ]
+                if getattr(lab, "loinc_code", None)
+                else [],
                 "text": lab.test_name
                 if hasattr(lab, "test_name")
-                else "Laboratory Test"
+                else "Laboratory Test",
             },
             "subject": {"reference": f"Patient/{patient_id}"},
             "issued": lab.timestamp.isoformat()
@@ -546,11 +552,7 @@ def encounter_to_fhir(encounter: Encounter) -> dict:
             if getattr(encounter, "ended_at", None)
             else None,
         },
-        "reasonCode": [
-            {
-                "text": encounter.chief_complaint
-            }
-        ]
+        "reasonCode": [{"text": encounter.chief_complaint}]
         if encounter.chief_complaint
         else [],
     }
@@ -1198,14 +1200,18 @@ def fhir_codesystem_lookup():
         code = request.args.get("code")
 
     if not system or not code:
-        return jsonify({
-            "resourceType": "OperationOutcome",
-            "issue": [{
-                "severity": "error",
-                "code": "invalid",
-                "diagnostics": "Parameters 'system' and 'code' are required for $lookup operation.",
-            }],
-        }), 400
+        return jsonify(
+            {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "invalid",
+                        "diagnostics": "Parameters 'system' and 'code' are required for $lookup operation.",
+                    }
+                ],
+            }
+        ), 400
 
     result = FHIRTerminologyServer.lookup_code(system, code)
     if result.get("error"):
@@ -1242,14 +1248,18 @@ def fhir_codesystem_validate_code():
         display = request.args.get("display")
 
     if not system or not code:
-        return jsonify({
-            "resourceType": "OperationOutcome",
-            "issue": [{
-                "severity": "error",
-                "code": "invalid",
-                "diagnostics": "Parameters 'system' and 'code' are required for $validate-code operation.",
-            }],
-        }), 400
+        return jsonify(
+            {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "invalid",
+                        "diagnostics": "Parameters 'system' and 'code' are required for $validate-code operation.",
+                    }
+                ],
+            }
+        ), 400
 
     result = FHIRTerminologyServer.validate_code(system, code, display)
     return jsonify(result), 200
@@ -1286,14 +1296,18 @@ def fhir_create_subscription():
     reason = data.get("reason")
 
     if not criteria or not endpoint_url:
-        return jsonify({
-            "resourceType": "OperationOutcome",
-            "issue": [{
-                "severity": "error",
-                "code": "invalid",
-                "diagnostics": "Fields 'criteria' and 'channel.endpoint' are required for Subscription creation.",
-            }],
-        }), 400
+        return jsonify(
+            {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "invalid",
+                        "diagnostics": "Fields 'criteria' and 'channel.endpoint' are required for Subscription creation.",
+                    }
+                ],
+            }
+        ), 400
 
     sub = create_subscription(
         criteria=criteria,
@@ -1310,12 +1324,14 @@ def fhir_list_subscriptions():
     FHIR R4 GET /Subscription endpoint to list active webhooks.
     """
     subs = list_subscriptions()
-    return jsonify({
-        "resourceType": "Bundle",
-        "type": "searchset",
-        "total": len(subs),
-        "entry": [{"resource": s} for s in subs],
-    }), 200
+    return jsonify(
+        {
+            "resourceType": "Bundle",
+            "type": "searchset",
+            "total": len(subs),
+            "entry": [{"resource": s} for s in subs],
+        }
+    ), 200
 
 
 @fhir_bp.route("/Subscription/<string:subscription_id>", methods=["DELETE"])
@@ -1325,18 +1341,28 @@ def fhir_delete_subscription(subscription_id: str):
     """
     success = delete_subscription(subscription_id)
     if not success:
-        return jsonify({
+        return jsonify(
+            {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "not-found",
+                        "diagnostics": f"Subscription '{subscription_id}' not found.",
+                    }
+                ],
+            }
+        ), 404
+
+    return jsonify(
+        {
             "resourceType": "OperationOutcome",
-            "issue": [{
-                "severity": "error",
-                "code": "not-found",
-                "diagnostics": f"Subscription '{subscription_id}' not found.",
-            }],
-        }), 404
-
-    return jsonify({"resourceType": "OperationOutcome", "issue": [{"severity": "information", "code": "informational", "diagnostics": "Subscription deactivated."}]}), 200
-
-
-
-
-
+            "issue": [
+                {
+                    "severity": "information",
+                    "code": "informational",
+                    "diagnostics": "Subscription deactivated.",
+                }
+            ],
+        }
+    ), 200

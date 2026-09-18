@@ -59,6 +59,7 @@ def nursing_user(app):
 
 def _patient(patient_id: str):
     from datetime import datetime
+
     p = Patient(
         patient_id=patient_id,
         name=f"Test {patient_id}",
@@ -203,7 +204,9 @@ def test_fefo_dispense_draws_earliest_expiry_first(app):
             storage_location="FRIDGE_C",
         )
         drawn = cc_engine.dispense_vaccine("PCV", vials_needed=1)
-        assert drawn[0].batch_number == "PCV-SOON", "FEFO must draw the soonest-expiring batch"
+        assert (
+            drawn[0].batch_number == "PCV-SOON"
+        ), "FEFO must draw the soonest-expiring batch"
 
 
 def test_dispense_reduces_stock(app):
@@ -277,7 +280,9 @@ def test_temperature_too_cold_flags_breach(app):
 def test_temperature_log_persisted(app):
     """Temperature logs must be persisted to the database."""
     with app.app_context():
-        log = cc_engine.log_temperature("FRIDGE_B", 6.5, sensor_id="SENSOR-01", notes="routine")
+        log = cc_engine.log_temperature(
+            "FRIDGE_B", 6.5, sensor_id="SENSOR-01", notes="routine"
+        )
         saved = db.session.get(VaccineTemperatureLog, log.id)
         assert saved is not None
         assert saved.temperature_celsius == 6.5
@@ -320,9 +325,9 @@ def test_heat_breach_escalates_vvm_stage(app):
             expiry_date=FUTURE_DATE,
             storage_location="FRIDGE_HEAT_TEST",
         )
-        original_stage = VaccineBatch.query.filter_by(
-            batch_number="MR-HEAT-01"
-        ).first().vvm_stage
+        original_stage = (
+            VaccineBatch.query.filter_by(batch_number="MR-HEAT-01").first().vvm_stage
+        )
 
         cc_engine.log_temperature("FRIDGE_HEAT_TEST", 25.0)
 
@@ -403,9 +408,11 @@ def test_immunization_links_cold_chain_batch(app):
             expiry_date=FUTURE_DATE,
             storage_location="FRIDGE_A",
         )
-        before_qty = VaccineBatch.query.filter_by(
-            batch_number="BCG-LINK-01"
-        ).first().quantity_remaining_vials
+        before_qty = (
+            VaccineBatch.query.filter_by(batch_number="BCG-LINK-01")
+            .first()
+            .quantity_remaining_vials
+        )
 
         record = mch_engine.record_immunization(
             child_patient_id="CC-CHILD-01",
@@ -414,11 +421,15 @@ def test_immunization_links_cold_chain_batch(app):
             deduct_from_cold_chain=True,
         )
 
-        after_qty = VaccineBatch.query.filter_by(
-            batch_number="BCG-LINK-01"
-        ).first().quantity_remaining_vials
+        after_qty = (
+            VaccineBatch.query.filter_by(batch_number="BCG-LINK-01")
+            .first()
+            .quantity_remaining_vials
+        )
 
-        assert record.vaccine_batch_id is not None, "ImmunizationRecord must link to VaccineBatch"
+        assert (
+            record.vaccine_batch_id is not None
+        ), "ImmunizationRecord must link to VaccineBatch"
         assert after_qty == before_qty - 1, "Dispensing must deduct 1 vial"
 
 
@@ -472,9 +483,11 @@ def test_immunization_skips_dispensing_when_disabled(app):
             expiry_date=FUTURE_DATE,
             storage_location="FRIDGE_A",
         )
-        before = VaccineBatch.query.filter_by(
-            batch_number="ROT-OPTOUT"
-        ).first().quantity_remaining_vials
+        before = (
+            VaccineBatch.query.filter_by(batch_number="ROT-OPTOUT")
+            .first()
+            .quantity_remaining_vials
+        )
 
         mch_engine.record_immunization(
             child_patient_id="CC-CHILD-04",
@@ -483,9 +496,11 @@ def test_immunization_skips_dispensing_when_disabled(app):
             deduct_from_cold_chain=False,
         )
 
-        after = VaccineBatch.query.filter_by(
-            batch_number="ROT-OPTOUT"
-        ).first().quantity_remaining_vials
+        after = (
+            VaccineBatch.query.filter_by(batch_number="ROT-OPTOUT")
+            .first()
+            .quantity_remaining_vials
+        )
         assert after == before, "No vial deducted when deduct_from_cold_chain=False"
 
 
@@ -538,9 +553,9 @@ def test_anc_visit_without_vitals_still_works(app):
 
 def test_api_receive_batch(client, app, nursing_user):
     """POST /mch/api/cold-chain/receive-batch should return 201."""
-    client.post("/login", data={
-        "username": nursing_user.username, "password": "Password123!"
-    })
+    client.post(
+        "/login", data={"username": nursing_user.username, "password": "Password123!"}
+    )
     resp = client.post(
         "/mch/api/cold-chain/receive-batch",
         json={
@@ -562,9 +577,9 @@ def test_api_receive_batch(client, app, nursing_user):
 
 def test_api_receive_batch_missing_fields(client, app, nursing_user):
     """POST /mch/api/cold-chain/receive-batch with missing fields returns 400."""
-    client.post("/login", data={
-        "username": nursing_user.username, "password": "Password123!"
-    })
+    client.post(
+        "/login", data={"username": nursing_user.username, "password": "Password123!"}
+    )
     resp = client.post(
         "/mch/api/cold-chain/receive-batch",
         json={"vaccine_name": "BCG"},  # missing required fields
@@ -574,9 +589,9 @@ def test_api_receive_batch_missing_fields(client, app, nursing_user):
 
 def test_api_log_temperature(client, app, nursing_user):
     """POST /mch/api/cold-chain/temperature-log should return 201."""
-    client.post("/login", data={
-        "username": nursing_user.username, "password": "Password123!"
-    })
+    client.post(
+        "/login", data={"username": nursing_user.username, "password": "Password123!"}
+    )
     resp = client.post(
         "/mch/api/cold-chain/temperature-log",
         json={"storage_location": "FRIDGE_API", "temperature_celsius": 4.5},
@@ -588,9 +603,9 @@ def test_api_log_temperature(client, app, nursing_user):
 
 def test_api_log_temperature_breach(client, app, nursing_user):
     """POST temperature-log with a TOO_HOT temperature should return 201 and flag breach."""
-    client.post("/login", data={
-        "username": nursing_user.username, "password": "Password123!"
-    })
+    client.post(
+        "/login", data={"username": nursing_user.username, "password": "Password123!"}
+    )
     resp = client.post(
         "/mch/api/cold-chain/temperature-log",
         json={"storage_location": "FRIDGE_API_HOT", "temperature_celsius": 30.0},
@@ -603,9 +618,9 @@ def test_api_log_temperature_breach(client, app, nursing_user):
 
 def test_api_stock_summary(client, app, nursing_user):
     """GET /mch/api/cold-chain/stock should return 200."""
-    client.post("/login", data={
-        "username": nursing_user.username, "password": "Password123!"
-    })
+    client.post(
+        "/login", data={"username": nursing_user.username, "password": "Password123!"}
+    )
     resp = client.get("/mch/api/cold-chain/stock")
     assert resp.status_code == 200
     data = resp.get_json()
@@ -614,9 +629,9 @@ def test_api_stock_summary(client, app, nursing_user):
 
 def test_api_temperature_history(client, app, nursing_user):
     """GET /mch/api/cold-chain/temperature-history/<location> should return 200."""
-    client.post("/login", data={
-        "username": nursing_user.username, "password": "Password123!"
-    })
+    client.post(
+        "/login", data={"username": nursing_user.username, "password": "Password123!"}
+    )
     resp = client.get("/mch/api/cold-chain/temperature-history/FRIDGE_A")
     assert resp.status_code == 200
     data = resp.get_json()
@@ -625,9 +640,9 @@ def test_api_temperature_history(client, app, nursing_user):
 
 def test_api_near_expiry_alerts(client, app, nursing_user):
     """GET /mch/api/cold-chain/alerts/near-expiry should return 200."""
-    client.post("/login", data={
-        "username": nursing_user.username, "password": "Password123!"
-    })
+    client.post(
+        "/login", data={"username": nursing_user.username, "password": "Password123!"}
+    )
     resp = client.get("/mch/api/cold-chain/alerts/near-expiry?days=60")
     assert resp.status_code == 200
     data = resp.get_json()
@@ -637,9 +652,9 @@ def test_api_near_expiry_alerts(client, app, nursing_user):
 
 def test_api_missing_temperature_fields(client, app, nursing_user):
     """POST temperature-log missing required fields returns 400."""
-    client.post("/login", data={
-        "username": nursing_user.username, "password": "Password123!"
-    })
+    client.post(
+        "/login", data={"username": nursing_user.username, "password": "Password123!"}
+    )
     resp = client.post(
         "/mch/api/cold-chain/temperature-log",
         json={"storage_location": "FRIDGE_A"},  # missing temperature_celsius

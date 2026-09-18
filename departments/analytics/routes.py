@@ -68,7 +68,9 @@ def get_executive_dashboard():
                 "total_anc_visits": snapshot.total_anc_visits,
                 "total_immunizations": snapshot.total_immunizations,
                 "total_lab_tests_ordered": snapshot.total_lab_tests_ordered,
-                "total_revenue_collected": float(snapshot.total_revenue_collected or 0.0),
+                "total_revenue_collected": float(
+                    snapshot.total_revenue_collected or 0.0
+                ),
                 "avg_length_of_stay": snapshot.avg_length_of_stay,
                 "bed_occupancy_rate": snapshot.bed_occupancy_rate,
                 "thirty_day_readmissions": snapshot.thirty_day_readmission_count,
@@ -96,7 +98,8 @@ def get_population_health_analytics():
         {
             "status": "success",
             "total_registered_patients": total_patients,
-            "disease_surveillance": snapshot.disease_surveillance_json or {
+            "disease_surveillance": snapshot.disease_surveillance_json
+            or {
                 "Malaria": 0,
                 "Tuberculosis": 0,
                 "HIV/ART": 0,
@@ -132,11 +135,20 @@ def export_moh_dhis2():
             {"dataElement": "MOH_OPD_TOTAL", "value": snapshot.total_outpatient_visits},
             {"dataElement": "MOH_IPD_ADMISSIONS", "value": snapshot.total_admissions},
             {"dataElement": "MOH_IPD_DISCHARGES", "value": snapshot.total_discharges},
-            {"dataElement": "MOH_EMERGENCY_CASES", "value": snapshot.total_emergency_cases},
+            {
+                "dataElement": "MOH_EMERGENCY_CASES",
+                "value": snapshot.total_emergency_cases,
+            },
             {"dataElement": "MOH_ANC_FIRST_VISIT", "value": snapshot.total_anc_visits},
-            {"dataElement": "MOH_IMMUNIZATION_DOSES", "value": snapshot.total_immunizations},
+            {
+                "dataElement": "MOH_IMMUNIZATION_DOSES",
+                "value": snapshot.total_immunizations,
+            },
             {"dataElement": "MOH_LAB_TESTS", "value": snapshot.total_lab_tests_ordered},
-            {"dataElement": "MOH_BED_OCCUPANCY_PCT", "value": snapshot.bed_occupancy_rate},
+            {
+                "dataElement": "MOH_BED_OCCUPANCY_PCT",
+                "value": snapshot.bed_occupancy_rate,
+            },
             {"dataElement": "MOH_ALOS_DAYS", "value": snapshot.avg_length_of_stay},
             {
                 "dataElement": "MOH_MALARIA_CONFIRMED_CASES",
@@ -150,16 +162,20 @@ def export_moh_dhis2():
         writer = csv.writer(output)
         writer.writerow(["orgUnit", "period", "dataElement", "value"])
         for item in dhis2_payload["dataValues"]:
-            writer.writerow([
-                dhis2_payload["orgUnit"],
-                dhis2_payload["period"],
-                item["dataElement"],
-                item["value"],
-            ])
+            writer.writerow(
+                [
+                    dhis2_payload["orgUnit"],
+                    dhis2_payload["period"],
+                    item["dataElement"],
+                    item["value"],
+                ]
+            )
         return Response(
             output.getvalue(),
             mimetype="text/csv",
-            headers={"Content-Disposition": f"attachment; filename=dhis2_export_{today.isoformat()}.csv"},
+            headers={
+                "Content-Disposition": f"attachment; filename=dhis2_export_{today.isoformat()}.csv"
+            },
         )
 
     return jsonify(dhis2_payload)
@@ -171,6 +187,7 @@ def export_moh_dhis2():
 def emram_dashboard_view():
     """Render HIMSS EMRAM Stage 6-7 Enterprise Analytics & Closed-Loop Console."""
     from departments.analytics.emram_engine import EMRAMEngine
+
     scorecard = EMRAMEngine.get_full_emram_scorecard()
     return render_template("analytics/emram_dashboard.html", scorecard=scorecard)
 
@@ -181,6 +198,7 @@ def emram_dashboard_view():
 def get_emram_status():
     """API endpoint returning live HIMSS EMRAM Stage 6-7 readiness metrics."""
     from departments.analytics.emram_engine import EMRAMEngine
+
     scorecard = EMRAMEngine.get_full_emram_scorecard()
     return jsonify({"status": "success", "scorecard": scorecard})
 
@@ -191,7 +209,6 @@ def get_emram_status():
 def get_closed_loop_trail(patient_id):
     """API endpoint returning chronological closed-loop clinical event trail for a patient."""
     from departments.analytics.emram_engine import ClosedLoopAuditEngine
+
     trail = ClosedLoopAuditEngine.get_patient_closed_loop_timeline(patient_id)
     return jsonify({"status": "success", "audit_trail": trail})
-
-

@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-COLD_CHAIN_MIN_C: float = 2.0   # °C  — lower safe limit
-COLD_CHAIN_MAX_C: float = 8.0   # °C  — upper safe limit
+COLD_CHAIN_MIN_C: float = 2.0  # °C  — lower safe limit
+COLD_CHAIN_MAX_C: float = 8.0  # °C  — upper safe limit
 FREEZE_SENSITIVE_MIN_C: float = 0.0  # °C  — absolute lower for freeze-sensitive
 
 FREEZE_SENSITIVE_VACCINES = {
@@ -64,7 +64,7 @@ class ColdChainEngine:
         manufacturer: str,
         quantity: int,
         doses_per_vial: int,
-        expiry_date,        # datetime.date
+        expiry_date,  # datetime.date
         storage_location: str,
         supplied_by: str | None = None,
     ) -> "VaccineBatch":
@@ -102,7 +102,7 @@ class ColdChainEngine:
             expiry_date=expiry_date,
             storage_location=storage_location,
             supplied_by=supplied_by,
-            vvm_stage=1,          # VVM stage 1 = unused / OK
+            vvm_stage=1,  # VVM stage 1 = unused / OK
             is_cold_chain_breach=False,
         )
         db.session.add(batch)
@@ -198,7 +198,9 @@ class ColdChainEngine:
         breach_type = None
 
         if temperature_celsius < COLD_CHAIN_MIN_C:
-            breach_type = "FREEZE" if temperature_celsius < FREEZE_SENSITIVE_MIN_C else "TOO_COLD"
+            breach_type = (
+                "FREEZE" if temperature_celsius < FREEZE_SENSITIVE_MIN_C else "TOO_COLD"
+            )
         elif temperature_celsius > COLD_CHAIN_MAX_C:
             breach_type = "TOO_HOT"
 
@@ -215,10 +217,14 @@ class ColdChainEngine:
 
         # Automatically escalate VVM and mark freeze-sensitive batches at-risk
         if breach_type == "FREEZE":
-            affected = VaccineBatch.query.filter_by(
-                storage_location=storage_location,
-                is_cold_chain_breach=False,
-            ).filter(VaccineBatch.vaccine_name.in_(FREEZE_SENSITIVE_VACCINES)).all()
+            affected = (
+                VaccineBatch.query.filter_by(
+                    storage_location=storage_location,
+                    is_cold_chain_breach=False,
+                )
+                .filter(VaccineBatch.vaccine_name.in_(FREEZE_SENSITIVE_VACCINES))
+                .all()
+            )
 
             for batch in affected:
                 batch.is_cold_chain_breach = True
@@ -232,10 +238,14 @@ class ColdChainEngine:
                 )
 
         elif breach_type == "TOO_HOT":
-            affected = VaccineBatch.query.filter_by(
-                storage_location=storage_location,
-                is_cold_chain_breach=False,
-            ).filter(VaccineBatch.quantity_remaining_vials > 0).all()
+            affected = (
+                VaccineBatch.query.filter_by(
+                    storage_location=storage_location,
+                    is_cold_chain_breach=False,
+                )
+                .filter(VaccineBatch.quantity_remaining_vials > 0)
+                .all()
+            )
 
             for batch in affected:
                 # Escalate VVM stage — heat exposure degrades the monitor
@@ -290,21 +300,24 @@ class ColdChainEngine:
         result = []
         for b in batches:
             days_to_expiry = (b.expiry_date - today).days
-            result.append({
-                "id": b.id,
-                "vaccine_name": b.vaccine_name,
-                "batch_number": b.batch_number,
-                "manufacturer": b.manufacturer,
-                "quantity_vials": b.quantity_vials,
-                "quantity_remaining_vials": b.quantity_remaining_vials,
-                "total_doses_remaining": b.quantity_remaining_vials * b.doses_per_vial,
-                "expiry_date": b.expiry_date.isoformat(),
-                "days_to_expiry": days_to_expiry,
-                "storage_location": b.storage_location,
-                "vvm_stage": b.vvm_stage,
-                "is_cold_chain_breach": b.is_cold_chain_breach,
-                "status": self._batch_status(b, days_to_expiry),
-            })
+            result.append(
+                {
+                    "id": b.id,
+                    "vaccine_name": b.vaccine_name,
+                    "batch_number": b.batch_number,
+                    "manufacturer": b.manufacturer,
+                    "quantity_vials": b.quantity_vials,
+                    "quantity_remaining_vials": b.quantity_remaining_vials,
+                    "total_doses_remaining": b.quantity_remaining_vials
+                    * b.doses_per_vial,
+                    "expiry_date": b.expiry_date.isoformat(),
+                    "days_to_expiry": days_to_expiry,
+                    "storage_location": b.storage_location,
+                    "vvm_stage": b.vvm_stage,
+                    "is_cold_chain_breach": b.is_cold_chain_breach,
+                    "status": self._batch_status(b, days_to_expiry),
+                }
+            )
         return result
 
     def get_temperature_history(
@@ -318,7 +331,9 @@ class ColdChainEngine:
         if breaches_only:
             query = query.filter_by(is_breach=True)
 
-        logs = query.order_by(VaccineTemperatureLog.recorded_at.desc()).limit(limit).all()
+        logs = (
+            query.order_by(VaccineTemperatureLog.recorded_at.desc()).limit(limit).all()
+        )
         return [
             {
                 "id": log.id,
@@ -349,14 +364,16 @@ class ColdChainEngine:
         for b in batches:
             days = (b.expiry_date - today).days
             if days <= days_threshold:
-                alerts.append({
-                    "vaccine_name": b.vaccine_name,
-                    "batch_number": b.batch_number,
-                    "expiry_date": b.expiry_date.isoformat(),
-                    "days_to_expiry": days,
-                    "quantity_remaining_vials": b.quantity_remaining_vials,
-                    "storage_location": b.storage_location,
-                })
+                alerts.append(
+                    {
+                        "vaccine_name": b.vaccine_name,
+                        "batch_number": b.batch_number,
+                        "expiry_date": b.expiry_date.isoformat(),
+                        "days_to_expiry": days,
+                        "quantity_remaining_vials": b.quantity_remaining_vials,
+                        "storage_location": b.storage_location,
+                    }
+                )
         return alerts
 
     # ── Helpers ───────────────────────────────────────────────────────────────

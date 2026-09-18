@@ -216,11 +216,11 @@ def new_patient():
 @roles_required("records", "admin")
 def patient_profile(patient_id):
     patient = Patient.query.filter(
-                db.or_(
-                    Patient.patient_id.ilike(f"%{patient_id}%"),
-                    Patient.name.ilike(f"%{patient_id}%"),
-                )
-            ).first_or_404()
+        db.or_(
+            Patient.patient_id.ilike(f"%{patient_id}%"),
+            Patient.name.ilike(f"%{patient_id}%"),
+        )
+    ).first_or_404()
     log_audit_event("PATIENT_VIEW", resource_type="Patient", resource_id=patient_id)
     return render_template("records/patient_profile.html", patient=patient)
 
@@ -233,11 +233,11 @@ def patient_profile(patient_id):
 @roles_required("records", "admin")
 def edit_patient(patient_id):
     patient = Patient.query.filter(
-                db.or_(
-                    Patient.patient_id.ilike(f"%{patient_id}%"),
-                    Patient.name.ilike(f"%{patient_id}%"),
-                )
-            ).first_or_404()
+        db.or_(
+            Patient.patient_id.ilike(f"%{patient_id}%"),
+            Patient.name.ilike(f"%{patient_id}%"),
+        )
+    ).first_or_404()
 
     if request.method == "POST":
         patient.name = request.form["name"]
@@ -282,11 +282,11 @@ def edit_patient(patient_id):
 @roles_required("records", "admin")
 def patient_history(patient_id):
     patient = Patient.query.filter(
-                db.or_(
-                    Patient.patient_id.ilike(f"%{patient_id}%"),
-                    Patient.name.ilike(f"%{patient_id}%"),
-                )
-            ).first_or_404()
+        db.or_(
+            Patient.patient_id.ilike(f"%{patient_id}%"),
+            Patient.name.ilike(f"%{patient_id}%"),
+        )
+    ).first_or_404()
 
     soap_notes = (
         SOAPNote.query.filter_by(patient_id=patient_id)
@@ -332,11 +332,11 @@ def patient_history(patient_id):
 
     admissions = (
         AdmittedPatient.query.filter(
-                db.or_(
-                    Patient.patient_id.ilike(f"%{patient_id}%"),
-                    Patient.name.ilike(f"%{patient_id}%"),
-                )
+            db.or_(
+                Patient.patient_id.ilike(f"%{patient_id}%"),
+                Patient.name.ilike(f"%{patient_id}%"),
             )
+        )
         .order_by(AdmittedPatient.admitted_on.desc())
         .all()
     )
@@ -383,11 +383,11 @@ def patient_history(patient_id):
 @login_required
 def manage_patient_allergies(patient_id):
     Patient.query.filter(
-                db.or_(
-                    Patient.patient_id.ilike(f"%{patient_id}%"),
-                    Patient.name.ilike(f"%{patient_id}%"),
-                )
-            ).first_or_404()
+        db.or_(
+            Patient.patient_id.ilike(f"%{patient_id}%"),
+            Patient.name.ilike(f"%{patient_id}%"),
+        )
+    ).first_or_404()
     if request.method == "POST":
         data = request.get_json() or request.form
         allergen = data.get("allergen")
@@ -447,11 +447,11 @@ def manage_patient_allergies(patient_id):
 @login_required
 def manage_patient_problems(patient_id):
     Patient.query.filter(
-                db.or_(
-                    Patient.patient_id.ilike(f"%{patient_id}%"),
-                    Patient.name.ilike(f"%{patient_id}%"),
-                )
-            ).first_or_404()
+        db.or_(
+            Patient.patient_id.ilike(f"%{patient_id}%"),
+            Patient.name.ilike(f"%{patient_id}%"),
+        )
+    ).first_or_404()
     if request.method == "POST":
         data = request.get_json() or request.form
         description = data.get("description")
@@ -623,11 +623,11 @@ def book_clinic():
         ), 400
 
     patient = Patient.query.filter(
-                db.or_(
-                    Patient.patient_id.ilike(f"%{patient_id}%"),
-                    Patient.name.ilike(f"%{patient_id}%"),
-                )
-            ).first()
+        db.or_(
+            Patient.patient_id.ilike(f"%{patient_id}%"),
+            Patient.name.ilike(f"%{patient_id}%"),
+        )
+    ).first()
     if not patient:
         return jsonify(
             {
@@ -711,6 +711,7 @@ def waiting_list():
 
 # --- UI Wiring: Active Encounters Summary ---
 
+
 @bp.route("/api/active_encounters_summary")
 @login_required
 def active_encounters_summary():
@@ -731,12 +732,16 @@ def active_encounters_summary():
 
     # Convert defaultdict to regular dict for clean JSON serialization
     from flask import jsonify
-    return jsonify({
-        "total_active": total_active,
-        "by_type": {k: dict(v) for k, v in summary.items()}
-    })
-# ---------------------------------------------
 
+    return jsonify(
+        {
+            "total_active": total_active,
+            "by_type": {k: dict(v) for k, v in summary.items()},
+        }
+    )
+
+
+# ---------------------------------------------
 
 
 # ─────────────────────────────────────────────
@@ -757,7 +762,9 @@ def daily_opd_report():
             else datetime.now(timezone.utc).date() - timedelta(days=29)
         )
         end_date = (
-            datetime.strptime(end_str, "%Y-%m-%d").date() if end_str else datetime.now(timezone.utc).date()  # noqa: DTZ007
+            datetime.strptime(end_str, "%Y-%m-%d").date()
+            if end_str
+            else datetime.now(timezone.utc).date()  # noqa: DTZ007
         )
     except ValueError:
         start_date = datetime.now(timezone.utc).date() - timedelta(days=29)
@@ -821,7 +828,9 @@ def clinic_attendance_report():
             else datetime.now(timezone.utc).date().replace(day=1)
         )
         end_date = (
-            datetime.strptime(end_str, "%Y-%m-%d").date() if end_str else datetime.now(timezone.utc).date()  # noqa: DTZ007
+            datetime.strptime(end_str, "%Y-%m-%d").date()
+            if end_str
+            else datetime.now(timezone.utc).date()  # noqa: DTZ007
         )
     except ValueError:
         start_date = datetime.now(timezone.utc).date().replace(day=1)
@@ -1041,4 +1050,3 @@ def khis_exporter_ui():
         available_years=available_years,
         available_months=available_months,
     )
-

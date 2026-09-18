@@ -1,6 +1,7 @@
 """
 Unit tests for NASCOP ARV and NTLD-P TB/TPT Master Clinical Regimens.
 """
+
 from datetime import datetime, timezone
 
 from departments.api.dhis2_exporter import aggregate_monthly_khis_data
@@ -81,7 +82,9 @@ def test_seed_master_clinical_regimens_catalog(app):
         assert rec.program_domain == "HIV"
         assert "TAFLD" in rec.drug_components
 
-        tb_rec = MasterClinicalRegimen.query.filter_by(nascop_ntldp_code="DR-BPaLM").first()
+        tb_rec = MasterClinicalRegimen.query.filter_by(
+            nascop_ntldp_code="DR-BPaLM"
+        ).first()
         assert tb_rec is not None
         assert tb_rec.program_domain == "TB"
         assert tb_rec.regimen_acronym == "BPaLM"

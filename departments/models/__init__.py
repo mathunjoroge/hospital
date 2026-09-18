@@ -2,7 +2,6 @@
 Central model exports for departments.models
 """
 
-
 from .admin import Log
 from .billing import (
     Billing,

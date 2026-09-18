@@ -41,11 +41,23 @@ SYSTEM_ALIASES = {
 # Common fallback dictionary for development/testing when DB is unpopulated
 FALLBACK_CODES: dict[str, dict[str, dict[str, Any]]] = {
     "icd10": {
-        "J00": {"description": "Acute nasopharyngitis [common cold]", "chapter": "Respiratory"},
-        "I10": {"description": "Essential (primary) hypertension", "chapter": "Cardiovascular"},
+        "J00": {
+            "description": "Acute nasopharyngitis [common cold]",
+            "chapter": "Respiratory",
+        },
+        "I10": {
+            "description": "Essential (primary) hypertension",
+            "chapter": "Cardiovascular",
+        },
         "R50.9": {"description": "Fever, unspecified", "chapter": "General"},
-        "J06.9": {"description": "Acute upper respiratory infection, unspecified", "chapter": "Respiratory"},
-        "E11.9": {"description": "Type 2 diabetes mellitus without complications", "chapter": "Endocrine"},
+        "J06.9": {
+            "description": "Acute upper respiratory infection, unspecified",
+            "chapter": "Respiratory",
+        },
+        "E11.9": {
+            "description": "Type 2 diabetes mellitus without complications",
+            "chapter": "Endocrine",
+        },
     },
     "snomed": {
         "404684003": {"description": "Clinical finding"},
@@ -60,7 +72,9 @@ FALLBACK_CODES: dict[str, dict[str, dict[str, Any]]] = {
         "8480-6": {"description": "Systolic blood pressure"},
         "8462-4": {"description": "Diastolic blood pressure"},
         "8310-5": {"description": "Body temperature"},
-        "59408-5": {"description": "Oxygen saturation in Arterial blood by Pulse oximetry"},
+        "59408-5": {
+            "description": "Oxygen saturation in Arterial blood by Pulse oximetry"
+        },
     },
 }
 
@@ -125,11 +139,16 @@ class FHIRTerminologyServer:
                 "status": 404,
                 "parameter": [
                     {"name": "result", "valueBoolean": False},
-                    {"name": "message", "valueString": f"Code '{code_clean}' not found in system '{canonical_uri}'"},
+                    {
+                        "name": "message",
+                        "valueString": f"Code '{code_clean}' not found in system '{canonical_uri}'",
+                    },
                 ],
             }
 
-        name_display = {"icd10": "ICD-10", "snomed": "SNOMED CT", "loinc": "LOINC"}.get(sys_key, "Terminology")
+        name_display = {"icd10": "ICD-10", "snomed": "SNOMED CT", "loinc": "LOINC"}.get(
+            sys_key, "Terminology"
+        )
         parameters = [
             {"name": "name", "valueString": name_display},
             {"name": "system", "valueUri": canonical_uri},
@@ -138,7 +157,9 @@ class FHIRTerminologyServer:
             {"name": "abstract", "valueBoolean": False},
         ]
         if chapter:
-            parameters.append({"name": "property", "valueString": f"chapter: {chapter}"})
+            parameters.append(
+                {"name": "property", "valueString": f"chapter: {chapter}"}
+            )
 
         return {
             "resourceType": "Parameters",
@@ -206,7 +227,11 @@ class FHIRTerminologyServer:
         Autocomplete multi-dictionary lookup across ICD-10, SNOMED, and LOINC.
         """
         q = (query or "").strip().lower()
-        sys_key = cls.normalize_system(system) if system and system.lower() != "all" else "all"
+        sys_key = (
+            cls.normalize_system(system)
+            if system and system.lower() != "all"
+            else "all"
+        )
 
         results: list[dict[str, Any]] = []
 
@@ -227,13 +252,15 @@ class FHIRTerminologyServer:
                         .all()
                     )
                 for r in rows:
-                    results.append({
-                        "code": r.code,
-                        "description": r.description,
-                        "system": SYSTEM_URIS["icd10"],
-                        "system_name": "ICD-10",
-                        "category": r.chapter or "General",
-                    })
+                    results.append(
+                        {
+                            "code": r.code,
+                            "description": r.description,
+                            "system": SYSTEM_URIS["icd10"],
+                            "system_name": "ICD-10",
+                            "category": r.chapter or "General",
+                        }
+                    )
             except Exception as e:  # noqa: BLE001
                 logger.warning("ICD-10 DB search error: %s", e)
 
@@ -254,13 +281,15 @@ class FHIRTerminologyServer:
                         .all()
                     )
                 for r in rows:
-                    results.append({
-                        "code": r.code,
-                        "description": r.description,
-                        "system": SYSTEM_URIS["snomed"],
-                        "system_name": "SNOMED CT",
-                        "category": "Clinical Finding",
-                    })
+                    results.append(
+                        {
+                            "code": r.code,
+                            "description": r.description,
+                            "system": SYSTEM_URIS["snomed"],
+                            "system_name": "SNOMED CT",
+                            "category": "Clinical Finding",
+                        }
+                    )
             except Exception as e:  # noqa: BLE001
                 logger.warning("SNOMED DB search error: %s", e)
 
@@ -281,13 +310,15 @@ class FHIRTerminologyServer:
                         .all()
                     )
                 for r in rows:
-                    results.append({
-                        "code": r.code,
-                        "description": r.description,
-                        "system": SYSTEM_URIS["loinc"],
-                        "system_name": "LOINC",
-                        "category": "Laboratory/Observation",
-                    })
+                    results.append(
+                        {
+                            "code": r.code,
+                            "description": r.description,
+                            "system": SYSTEM_URIS["loinc"],
+                            "system_name": "LOINC",
+                            "category": "Laboratory/Observation",
+                        }
+                    )
             except Exception as e:  # noqa: BLE001
                 logger.warning("LOINC DB search error: %s", e)
 
@@ -304,19 +335,27 @@ class FHIRTerminologyServer:
 
         # If DB search returned no results, fallback to common dictionary
         if not results:
-            systems_to_check = [sys_key] if sys_key != "all" else ["icd10", "snomed", "loinc"]
+            systems_to_check = (
+                [sys_key] if sys_key != "all" else ["icd10", "snomed", "loinc"]
+            )
             for skey in systems_to_check:
                 fb_dict = FALLBACK_CODES.get(skey, {})
                 for code_str, info in fb_dict.items():
                     desc = info["description"]
                     cat = info.get("chapter", "General")
                     if not q or q in code_str.lower() or q in desc.lower():
-                        results.append({
-                            "code": code_str,
-                            "description": desc,
-                            "system": SYSTEM_URIS[skey],
-                            "system_name": {"icd10": "ICD-10", "snomed": "SNOMED CT", "loinc": "LOINC"}[skey],
-                            "category": cat,
-                        })
+                        results.append(
+                            {
+                                "code": code_str,
+                                "description": desc,
+                                "system": SYSTEM_URIS[skey],
+                                "system_name": {
+                                    "icd10": "ICD-10",
+                                    "snomed": "SNOMED CT",
+                                    "loinc": "LOINC",
+                                }[skey],
+                                "category": cat,
+                            }
+                        )
 
         return results[:limit]

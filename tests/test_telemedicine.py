@@ -172,19 +172,25 @@ def test_list_sessions_endpoint(client, app, doctor_user):
 
 # ── T3.1 Encounter lifecycle tests ───────────────────────────────
 
+
 def test_start_session_creates_telehealth_encounter(client, app, doctor_user):
     """Starting a telemedicine session must create a TELEHEALTH encounter in IN_CONSULTATION."""
     app.config["ENABLE_TELEMEDICINE"] = True
-    client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": doctor_user.username, "password": "Password123!"}
+    )
 
     # Create + start
-    c_resp = client.post("/telemedicine/session/create", json={"patient_id": "P-ENC-01"})
+    c_resp = client.post(
+        "/telemedicine/session/create", json={"patient_id": "P-ENC-01"}
+    )
     session_uuid = c_resp.get_json()["session"]["session_uuid"]
     client.post(f"/telemedicine/session/{session_uuid}/start")
 
     with app.app_context():
         from departments.models.encounter import Encounter
         from departments.models.telemedicine import TelemedicineSession
+
         sess = TelemedicineSession.query.filter_by(session_uuid=session_uuid).first()
         assert sess.encounter_id is not None, "encounter_id must be set after start"
         enc = db.session.get(Encounter, sess.encounter_id)
@@ -198,16 +204,23 @@ def test_start_session_creates_telehealth_encounter(client, app, doctor_user):
 def test_complete_session_discharges_encounter(client, app, doctor_user):
     """Completing a telemedicine session must close the linked encounter."""
     app.config["ENABLE_TELEMEDICINE"] = True
-    client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": doctor_user.username, "password": "Password123!"}
+    )
 
-    c_resp = client.post("/telemedicine/session/create", json={"patient_id": "P-ENC-02"})
+    c_resp = client.post(
+        "/telemedicine/session/create", json={"patient_id": "P-ENC-02"}
+    )
     session_uuid = c_resp.get_json()["session"]["session_uuid"]
     client.post(f"/telemedicine/session/{session_uuid}/start")
-    client.post(f"/telemedicine/session/{session_uuid}/complete", json={"notes": "All good."})
+    client.post(
+        f"/telemedicine/session/{session_uuid}/complete", json={"notes": "All good."}
+    )
 
     with app.app_context():
         from departments.models.encounter import Encounter
         from departments.models.telemedicine import TelemedicineSession
+
         sess = TelemedicineSession.query.filter_by(session_uuid=session_uuid).first()
         enc = db.session.get(Encounter, sess.encounter_id)
         assert enc.stage == "DISCHARGED"
@@ -218,12 +231,19 @@ def test_complete_session_discharges_encounter(client, app, doctor_user):
 def test_create_session_does_not_open_encounter(client, app, doctor_user):
     """Creating a session (SCHEDULED) must NOT create an encounter — only starting does."""
     app.config["ENABLE_TELEMEDICINE"] = True
-    client.post("/login", data={"username": doctor_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": doctor_user.username, "password": "Password123!"}
+    )
 
-    c_resp = client.post("/telemedicine/session/create", json={"patient_id": "P-ENC-03"})
+    c_resp = client.post(
+        "/telemedicine/session/create", json={"patient_id": "P-ENC-03"}
+    )
     session_uuid = c_resp.get_json()["session"]["session_uuid"]
 
     with app.app_context():
         from departments.models.telemedicine import TelemedicineSession
+
         sess = TelemedicineSession.query.filter_by(session_uuid=session_uuid).first()
-        assert sess.encounter_id is None, "Encounter must not exist until session starts"
+        assert (
+            sess.encounter_id is None
+        ), "Encounter must not exist until session starts"

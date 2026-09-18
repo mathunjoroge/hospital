@@ -65,7 +65,6 @@ class AIInputValidationError(ValueError):
     """Raised when AI input fails validation checks."""
 
 
-
 def validate_ai_input(text: str, feature: str = "unspecified") -> str:
     """
     Validate and sanitize user input before passing to any AI model.

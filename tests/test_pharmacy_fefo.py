@@ -169,13 +169,23 @@ class TestFEFOEndpoints:
     def test_unauthenticated_requests_rejected(self, app):
         """All three FEFO endpoints must reject anonymous requests (P0 regression)."""
         anon = app.test_client()
-        assert anon.get("/pharmacy/fefo/allocate?drug_id=1&quantity=1").status_code in (302, 401, 403)
-        assert anon.post("/pharmacy/fefo/dispense", json={}).status_code in (302, 401, 403)
+        assert anon.get("/pharmacy/fefo/allocate?drug_id=1&quantity=1").status_code in (
+            302,
+            401,
+            403,
+        )
+        assert anon.post("/pharmacy/fefo/dispense", json={}).status_code in (
+            302,
+            401,
+            403,
+        )
         assert anon.get("/pharmacy/fefo/alerts").status_code in (302, 401, 403)
 
     def test_preview_allocation_api(self, pharmacist_client, sample_inventory):
         drug = sample_inventory["drug"]
-        resp = pharmacist_client.get(f"/pharmacy/fefo/allocate?drug_id={drug.id}&quantity=25")
+        resp = pharmacist_client.get(
+            f"/pharmacy/fefo/allocate?drug_id={drug.id}&quantity=25"
+        )
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["success"] is True

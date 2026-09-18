@@ -195,7 +195,9 @@ class TestPostOpNote:
             assert note.total_aldrete_score == 10
             assert note.is_fit_for_pacu_discharge() is True
 
-    def test_aldrete_score_below_threshold_fails_pacu_discharge(self, app, sample_theatre_entry_id):
+    def test_aldrete_score_below_threshold_fails_pacu_discharge(
+        self, app, sample_theatre_entry_id
+    ):
         with app.app_context():
             entry = db.session.get(TheatreList, sample_theatre_entry_id)
             note = PostOpNote(
@@ -244,7 +246,9 @@ class TestSurgicalInstrumentCount:
             assert result["reconciled"] is True
             assert counts.count_reconciled is True
 
-    def test_count_reconciliation_discrepancy_detection(self, app, sample_theatre_entry_id):
+    def test_count_reconciliation_discrepancy_detection(
+        self, app, sample_theatre_entry_id
+    ):
         with app.app_context():
             entry = db.session.get(TheatreList, sample_theatre_entry_id)
             counts = SurgicalInstrumentCount(
@@ -272,7 +276,9 @@ class TestTheatreModuleRoutes:
         resp = client.get("/theatre/workbench/1")
         assert resp.status_code in (302, 401)
 
-    def test_who_checklist_api_endpoint(self, client, app, admin_user, sample_theatre_entry_id):
+    def test_who_checklist_api_endpoint(
+        self, client, app, admin_user, sample_theatre_entry_id
+    ):
         with client:
             resp = client.post(
                 f"/theatre/checklist/{sample_theatre_entry_id}",
@@ -288,7 +294,9 @@ class TestTheatreModuleRoutes:
             data = resp.get_json()
             assert data["status"] == "success"
 
-    def test_anaesthetic_record_api_endpoint(self, client, app, admin_user, sample_theatre_entry_id):
+    def test_anaesthetic_record_api_endpoint(
+        self, client, app, admin_user, sample_theatre_entry_id
+    ):
         with client:
             resp = client.post(
                 f"/theatre/anaesthetic/{sample_theatre_entry_id}",
@@ -302,7 +310,9 @@ class TestTheatreModuleRoutes:
             data = resp.get_json()
             assert data["asa_status"] == "ASA III"
 
-    def test_postop_note_api_endpoint(self, client, app, admin_user, sample_theatre_entry_id):
+    def test_postop_note_api_endpoint(
+        self, client, app, admin_user, sample_theatre_entry_id
+    ):
         with client:
             resp = client.post(
                 f"/theatre/postop/{sample_theatre_entry_id}",
@@ -322,7 +332,9 @@ class TestTheatreModuleRoutes:
             assert data["total_aldrete_score"] == 10
             assert data["fit_for_pacu_discharge"] is True
 
-    def test_instrument_count_api_endpoint(self, client, app, admin_user, sample_theatre_entry_id):
+    def test_instrument_count_api_endpoint(
+        self, client, app, admin_user, sample_theatre_entry_id
+    ):
         with client:
             resp = client.post(
                 f"/theatre/instruments/{sample_theatre_entry_id}",

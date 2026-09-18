@@ -1,4 +1,5 @@
 """T3.2 — SURGICAL encounter creation and stage transition tests."""
+
 from departments.medicine.inpatients import (
     create_surgical_encounter,
     transition_surgical_stage,

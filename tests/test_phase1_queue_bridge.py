@@ -41,11 +41,15 @@ def test_live_queue_includes_ready_excludes_in_progress(app):
     ScheduleEngine().mark_triage_complete("P0002")
     ScheduleEngine().call_in(a1.id)
     queue = ScheduleEngine().get_live_queue()
-    patient_ids = {item["patient_id"] if isinstance(item, dict) else item.patient_id for item in queue}
+    patient_ids = {
+        item["patient_id"] if isinstance(item, dict) else item.patient_id
+        for item in queue
+    }
     # a2 (WAITING_DOCTOR) must be in the queue
     assert "P0002" in patient_ids
     # a1's encounter should have moved to IN_CONSULTATION
     from departments.models.encounter import Encounter
+
     enc_a1 = Encounter.query.filter_by(patient_id="P0001", status="ACTIVE").first()
     assert enc_a1 is not None
     assert enc_a1.stage == "IN_CONSULTATION"
@@ -59,8 +63,12 @@ def test_vitals_template_has_no_broken_url(app, client):
     from extensions import db
 
     with app.app_context():
-        u = User(id=99, username="nursetpl",
-                 password=generate_password_hash("p"), role="admin")
+        u = User(
+            id=99,
+            username="nursetpl",
+            password=generate_password_hash("p"),
+            role="admin",
+        )
         db.session.add(u)
         db.session.commit()
     client.post("/login", data={"username": "nursetpl", "password": "p"})

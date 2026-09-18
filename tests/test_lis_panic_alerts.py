@@ -94,7 +94,9 @@ class TestLISAPI:
         assert db_res is not None
         assert db_res.panic_status == "NORMAL"
 
-    def test_enter_lab_result_panic_critical(self, client, sample_lab_setup, admin_user):
+    def test_enter_lab_result_panic_critical(
+        self, client, sample_lab_setup, admin_user
+    ):
         patient = sample_lab_setup["patient"]
         lab_test = sample_lab_setup["lab_test"]
 
@@ -113,7 +115,9 @@ class TestLISAPI:
         data = resp.get_json()
         assert data["panic_status"] == "PANIC_CRITICAL"
 
-    def test_verify_result_dispatches_alert(self, client, sample_lab_setup, admin_user, app):
+    def test_verify_result_dispatches_alert(
+        self, client, sample_lab_setup, admin_user, app
+    ):
         with app.app_context():
             admin = User.query.filter_by(username="admin_test_fixture").first()
             admin_id = admin.id if admin else 1

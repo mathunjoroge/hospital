@@ -33,7 +33,9 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 _TOKEN_URL = "https://icdaccessmanagement.who.int/connect/token"
-_API_BASE = "https://id.who.int/icd"  # Always HTTPS — avoids HTTP→HTTPS redirect overhead
+_API_BASE = (
+    "https://id.who.int/icd"  # Always HTTPS — avoids HTTP→HTTPS redirect overhead
+)
 _DEFAULT_RELEASE = os.getenv("WHO_ICD_API_RELEASE", "2019")
 
 # Shared headers required by every WHO ICD API call
@@ -88,7 +90,10 @@ def _get_bearer_token() -> str:
         payload = resp.json()
         _cached_token = payload["access_token"]
         _token_expires_at = time.time() + payload.get("expires_in", 3600)
-        logger.info("WHO ICD API token acquired (expires in %ds).", payload.get("expires_in", 3600))
+        logger.info(
+            "WHO ICD API token acquired (expires in %ds).",
+            payload.get("expires_in", 3600),
+        )
         return _cached_token
 
 
@@ -125,12 +130,19 @@ def _api_get(url: str, params: dict | None = None, retries: int = 3) -> dict:
             last_exc = exc
 
         if attempt < retries - 1:
-            wait = delay * (2 ** attempt)
-            logger.warning("WHO API request failed (attempt %d/%d) — retrying in %.1fs: %s",
-                           attempt + 1, retries, wait, last_exc)
+            wait = delay * (2**attempt)
+            logger.warning(
+                "WHO API request failed (attempt %d/%d) — retrying in %.1fs: %s",
+                attempt + 1,
+                retries,
+                wait,
+                last_exc,
+            )
             time.sleep(wait)
 
-    raise RuntimeError(f"WHO API request failed after {retries} attempts: {url}") from last_exc
+    raise RuntimeError(
+        f"WHO API request failed after {retries} attempts: {url}"
+    ) from last_exc
 
 
 # ---------------------------------------------------------------------------
@@ -160,11 +172,30 @@ def walk_icd10_tree(release: str = _DEFAULT_RELEASE):
         chapter_code = ch_data.get("code", "")
 
         # Yield the chapter node itself if it has a usable code
-        if chapter_code and chapter_code not in ("I", "II", "III", "IV", "V",
-                                                   "VI", "VII", "VIII", "IX", "X",
-                                                   "XI", "XII", "XIII", "XIV", "XV",
-                                                   "XVI", "XVII", "XVIII", "XIX",
-                                                   "XX", "XXI", "XXII"):
+        if chapter_code and chapter_code not in (
+            "I",
+            "II",
+            "III",
+            "IV",
+            "V",
+            "VI",
+            "VII",
+            "VIII",
+            "IX",
+            "X",
+            "XI",
+            "XII",
+            "XIII",
+            "XIV",
+            "XV",
+            "XVI",
+            "XVII",
+            "XVIII",
+            "XIX",
+            "XX",
+            "XXI",
+            "XXII",
+        ):
             yield chapter_code, chapter_title, chapter_title, ""
 
         for block_url in ch_data.get("child", []):
@@ -199,9 +230,9 @@ def _walk_children(child_urls: list[str], chapter_title: str, block_title: str):
 
         grandchildren = child_data.get("child", [])
         if grandchildren:
-            yield from _walk_children(grandchildren,
-                                       chapter_title=chapter_title,
-                                       block_title=block_title)
+            yield from _walk_children(
+                grandchildren, chapter_title=chapter_title, block_title=block_title
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -220,11 +251,14 @@ def search_icd10_live(query: str, release: str = _DEFAULT_RELEASE) -> list[dict]
 
     search_url = f"{_API_BASE}/release/10/{release}/search"
     try:
-        data = _api_get(search_url, params={
-            "q": query,
-            "useFlexisearch": "false",
-            "flatResults": "true",
-        })
+        data = _api_get(
+            search_url,
+            params={
+                "q": query,
+                "useFlexisearch": "false",
+                "flatResults": "true",
+            },
+        )
         destination_entities = data.get("destinationEntities", [])
         results = []
         for entity in destination_entities[:20]:
@@ -234,11 +268,13 @@ def search_icd10_live(query: str, release: str = _DEFAULT_RELEASE) -> list[dict]
             if isinstance(desc, list):
                 desc = " | ".join(desc)
             if code:
-                results.append({
-                    "code": code,
-                    "description": desc,
-                    "category": entity.get("chapter", ""),
-                })
+                results.append(
+                    {
+                        "code": code,
+                        "description": desc,
+                        "category": entity.get("chapter", ""),
+                    }
+                )
         return results
     except Exception as exc:  # noqa: BLE001
         logger.warning("WHO live ICD-10 search failed for %r: %s", query, exc)

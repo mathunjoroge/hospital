@@ -7,4 +7,3 @@ from . import (  # noqa: F401
     patients,  # ✅ Import API routes
     terminology_routes,  # ✅ Terminology search routes
 )
-

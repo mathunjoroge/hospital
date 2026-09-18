@@ -34,17 +34,23 @@ def _format_ts_str(ts: datetime | None) -> str:
     return ts.isoformat()
 
 
-def log_audit_event(connection, level: str, message: str, user_id=None, source: str = "audit"):
+def log_audit_event(
+    connection, level: str, message: str, user_id=None, source: str = "audit"
+):
     """Helper to insert an audit log entry with SHA-256 hash chaining."""
     stmt = Log.__table__.select().order_by(Log.id.desc()).limit(1)
     row = connection.execute(stmt).first()
-    previous_hash = row.entry_hash if row and getattr(row, "entry_hash", None) else GENESIS_HASH
+    previous_hash = (
+        row.entry_hash if row and getattr(row, "entry_hash", None) else GENESIS_HASH
+    )
 
     ts = datetime.now(timezone.utc)
     ts_str = _format_ts_str(ts)
     uid_str = str(user_id) if user_id is not None else "SYSTEM"
 
-    entry_hash = compute_log_hash(ts_str, level, message, uid_str, source, previous_hash)
+    entry_hash = compute_log_hash(
+        ts_str, level, message, uid_str, source, previous_hash
+    )
 
     connection.execute(
         Log.__table__.insert().values(
@@ -78,29 +84,37 @@ def verify_audit_log_chain() -> dict:
 
     for log in logs:
         if log.previous_hash and log.previous_hash != expected_prev:
-            tampered.append({
-                "log_id": log.id,
-                "reason": "Previous hash mismatch (broken link in chain)",
-                "stored_prev_hash": log.previous_hash,
-                "expected_prev_hash": expected_prev,
-            })
+            tampered.append(
+                {
+                    "log_id": log.id,
+                    "reason": "Previous hash mismatch (broken link in chain)",
+                    "stored_prev_hash": log.previous_hash,
+                    "expected_prev_hash": expected_prev,
+                }
+            )
 
         if log.entry_hash:
             ts_str = _format_ts_str(log.timestamp)
             uid_str = str(log.user_id) if log.user_id is not None else "SYSTEM"
             calc_hash = compute_log_hash(
-                ts_str, log.level, log.message, uid_str, log.source or "", log.previous_hash or GENESIS_HASH
+                ts_str,
+                log.level,
+                log.message,
+                uid_str,
+                log.source or "",
+                log.previous_hash or GENESIS_HASH,
             )
             if log.entry_hash != calc_hash:
-                tampered.append({
-                    "log_id": log.id,
-                    "reason": "Entry hash mismatch (content modified)",
-                    "stored_hash": log.entry_hash,
-                    "recalculated_hash": calc_hash,
-                })
+                tampered.append(
+                    {
+                        "log_id": log.id,
+                        "reason": "Entry hash mismatch (content modified)",
+                        "stored_hash": log.entry_hash,
+                        "recalculated_hash": calc_hash,
+                    }
+                )
 
         expected_prev = log.entry_hash or expected_prev
-
 
     return {
         "valid": len(tampered) == 0,
@@ -182,4 +196,3 @@ def register_audit_listeners():
             rec_id = getattr(target, "id", getattr(target, "patient_id", "N/A"))
             msg = f"Audit [DELETE] {model_name} (ID: {rec_id})"
             log_audit_event(connection, "INFO", msg, user_id=user_id, source="audit")
-

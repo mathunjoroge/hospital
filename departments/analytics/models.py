@@ -37,4 +37,3 @@ class DailyKpiSnapshot(db.Model):
     total_revenue_collected = db.Column(db.Numeric(12, 2), default=0.0)
 
     created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
-

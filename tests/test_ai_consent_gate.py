@@ -179,10 +179,14 @@ class AIConsentGateTestCase(unittest.TestCase):
                 },
             )
             self.assertIn(response.status_code, (200, 302))
+
     def test_consent_check_exception_fails_closed(self):
         """When checking consent raises an unexpected DB/runtime exception, API fails closed (refuses AI call)."""
         self._login()
-        with patch("departments.medicine.chat_bot.has_ai_consent", side_effect=RuntimeError("DB query error")):
+        with patch(
+            "departments.medicine.chat_bot.has_ai_consent",
+            side_effect=RuntimeError("DB query error"),
+        ):
             # 1. Chatbot endpoint fails closed (403 response)
             response = self.app.post(
                 "/medicine/chatbot",
@@ -194,11 +198,17 @@ class AIConsentGateTestCase(unittest.TestCase):
             self.assertEqual(response.status_code, 403)
             self.assertIn(b"AI Consent Verification Error", response.data)
 
-        with patch("departments.models.compliance.has_ai_consent", side_effect=RuntimeError("DB query error")):
+        with patch(
+            "departments.models.compliance.has_ai_consent",
+            side_effect=RuntimeError("DB query error"),
+        ):
             # 2. NvidiaNIMClient direct call returns None (fails closed)
             from departments.nlp.src.nvidia_client import NvidiaNIMClient
+
             client = NvidiaNIMClient()
-            result = client._call_chat_completion("Test prompt", patient_id="P-TEST-CONSENT")
+            result = client._call_chat_completion(
+                "Test prompt", patient_id="P-TEST-CONSENT"
+            )
             self.assertIsNone(result)
 
 

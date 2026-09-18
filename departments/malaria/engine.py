@@ -28,7 +28,7 @@ def create_malaria_case(
     treatment_start_date: datetime | None = None,
     facility_diagnosed_at: str | None = None,
     encounter_id: int | None = None,
-    current_regimen_id: str | None = None
+    current_regimen_id: str | None = None,
 ) -> tuple[bool, str, MalariaCase | None]:
     """
     Create a new malaria case for a patient.
@@ -52,42 +52,81 @@ def create_malaria_case(
     """
     try:
         # Check for duplicate case (active case without end date)
-        existing_case = MalariaCase.query.filter_by(
-            patient_id=patient_id
-        ).first()
+        existing_case = MalariaCase.query.filter_by(patient_id=patient_id).first()
 
         if existing_case:
-            return False, f"Patient {patient_id} already has an active malaria case", None
+            return (
+                False,
+                f"Patient {patient_id} already has an active malaria case",
+                None,
+            )
 
         # Validate case number uniqueness
         if MalariaCase.query.filter_by(case_number=case_number).first():
-            return False, f"Malaria case number {case_number} is already assigned to another patient", None
+            return (
+                False,
+                f"Malaria case number {case_number} is already assigned to another patient",
+                None,
+            )
 
         # Validate regimen if provided
         if current_regimen_id:
             regimen = db.session.get(MalariaRegimen, current_regimen_id)
             if not regimen:
-                return False, f"Malaria regimen with ID {current_regimen_id} not found", None
+                return (
+                    False,
+                    f"Malaria regimen with ID {current_regimen_id} not found",
+                    None,
+                )
 
         # Validate malaria species if provided
-        valid_species = ['falciparum', 'vivax', 'ovale', 'malariae', 'knowlesi', 'mixed']
+        valid_species = [
+            "falciparum",
+            "vivax",
+            "ovale",
+            "malariae",
+            "knowlesi",
+            "mixed",
+        ]
         if malaria_species and malaria_species not in valid_species:
-            return False, f"Invalid malaria species. Must be one of: {', '.join(valid_species)}", None
+            return (
+                False,
+                f"Invalid malaria species. Must be one of: {', '.join(valid_species)}",
+                None,
+            )
 
         # Validate diagnosis method if provided
-        valid_methods = ['microscopy', 'RDT', 'PCR']
+        valid_methods = ["microscopy", "RDT", "PCR"]
         if diagnosis_method and diagnosis_method not in valid_methods:
-            return False, f"Invalid diagnosis method. Must be one of: {', '.join(valid_methods)}", None
+            return (
+                False,
+                f"Invalid diagnosis method. Must be one of: {', '.join(valid_methods)}",
+                None,
+            )
 
         # Validate severity if provided
-        valid_severity = ['uncomplicated', 'severe']
+        valid_severity = ["uncomplicated", "severe"]
         if severity and severity not in valid_severity:
-            return False, f"Invalid severity. Must be one of: {', '.join(valid_severity)}", None
+            return (
+                False,
+                f"Invalid severity. Must be one of: {', '.join(valid_severity)}",
+                None,
+            )
 
         # Validate pregnancy status if provided
-        valid_pregnancy = ['not_pregnant', 'pregnant_first_trimester', 'pregnant_second_trimester', 'pregnant_third_trimester', 'postpartum']
+        valid_pregnancy = [
+            "not_pregnant",
+            "pregnant_first_trimester",
+            "pregnant_second_trimester",
+            "pregnant_third_trimester",
+            "postpartum",
+        ]
         if pregnancy_status and pregnancy_status not in valid_pregnancy:
-            return False, f"Invalid pregnancy status. Must be one of: {', '.join(valid_pregnancy)}", None
+            return (
+                False,
+                f"Invalid pregnancy status. Must be one of: {', '.join(valid_pregnancy)}",
+                None,
+            )
 
         # Set defaults
         if treatment_start_date is None:
@@ -106,13 +145,15 @@ def create_malaria_case(
             treatment_start_date=treatment_start_date,
             facility_diagnosed_at=facility_diagnosed_at,
             encounter_id=encounter_id,
-            current_regimen_id=current_regimen_id
+            current_regimen_id=current_regimen_id,
         )
 
         db.session.add(case)
         db.session.commit()
 
-        logger.info(f"Created malaria case for patient {patient_id} with case number {case_number}")
+        logger.info(
+            f"Created malaria case for patient {patient_id} with case number {case_number}"
+        )
         return True, "Malaria case created successfully", case
 
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
@@ -126,7 +167,7 @@ def update_malaria_regimen(
     new_regimen_id: str,
     change_reason: str,
     approved_by: str,
-    encounter_id: int | None = None
+    encounter_id: int | None = None,
 ) -> tuple[bool, str, MalariaCase | None]:
     """
     Update a patient's malaria regimen with validation for line changes.
@@ -156,7 +197,9 @@ def update_malaria_regimen(
             # First regimen assignment - no line change validation needed
             case.current_regimen_id = new_regimen_id
             db.session.commit()
-            logger.info(f"Set initial regimen {new_regimen.regimen_code} for case {case_id}")
+            logger.info(
+                f"Set initial regimen {new_regimen.regimen_code} for case {case_id}"
+            )
             return True, "Initial regimen assigned successfully", case
 
         # Check if this is a line change
@@ -168,15 +211,23 @@ def update_malaria_regimen(
             if not change_reason or len(change_reason.strip()) < 10:
                 return False, "Clinical reason required for line advancement", None
 
-            logger.warning(f"Advancing patient {case.patient_id} from line {current_line} to {new_line}")
+            logger.warning(
+                f"Advancing patient {case.patient_id} from line {current_line} to {new_line}"
+            )
             # In a real system, this might trigger additional review or notification
 
         elif new_line < current_line:
             # Moving to lower line - requires strong justification
             if not change_reason or len(change_reason.strip()) < 20:
-                return False, "Strong clinical justification required for line reduction", None
+                return (
+                    False,
+                    "Strong clinical justification required for line reduction",
+                    None,
+                )
 
-            logger.warning(f"Reducing patient {case.patient_id} from line {current_line} to {new_line}")
+            logger.warning(
+                f"Reducing patient {case.patient_id} from line {current_line} to {new_line}"
+            )
 
         # Same line or downward move - update regimen
         case.current_regimen_id = new_regimen_id
@@ -195,7 +246,7 @@ def record_treatment_administered(
     case_id: str,
     administered_as_directly_observed: bool = False,
     date_administered: datetime | None = None,
-    encounter_id: int | None = None
+    encounter_id: int | None = None,
 ) -> tuple[bool, str, MalariaTreatment | None]:
     """
     Record a malaria treatment dose administered (either self-observed or directly observed).
@@ -218,10 +269,16 @@ def record_treatment_administered(
             date_administered = datetime.now(timezone.utc)
 
         # Determine the next treatment number for this case
-        last_treatment = MalariaTreatment.query.filter_by(malaria_case_id=case_id)\
-            .order_by(MalariaTreatment.date_administered.desc())\
+        last_treatment = (
+            MalariaTreatment.query.filter_by(malaria_case_id=case_id)
+            .order_by(MalariaTreatment.date_administered.desc())
             .first()
-        dose_number = (last_treatment.dose_number + 1) if last_treatment and last_treatment.dose_number else 1
+        )
+        dose_number = (
+            (last_treatment.dose_number + 1)
+            if last_treatment and last_treatment.dose_number
+            else 1
+        )
 
         # Create treatment administered record
         treatment = MalariaTreatment(
@@ -229,13 +286,15 @@ def record_treatment_administered(
             dose_number=dose_number,
             administered_as_directly_observed=administered_as_directly_observed,
             date_administered=date_administered,
-            encounter_id=encounter_id
+            encounter_id=encounter_id,
         )
 
         db.session.add(treatment)
         db.session.commit()
 
-        logger.info(f"Recorded treatment dose {dose_number} for case {case_id} (DOT: {administered_as_directly_observed})")
+        logger.info(
+            f"Recorded treatment dose {dose_number} for case {case_id} (DOT: {administered_as_directly_observed})"
+        )
         return True, "Treatment administered recorded successfully", treatment
 
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
@@ -250,7 +309,7 @@ def record_lab_result(
     result_value: str | None = None,
     result_interpretation: str | None = None,
     test_date: datetime | None = None,
-    encounter_id: int | None = None
+    encounter_id: int | None = None,
 ) -> tuple[bool, str, MalariaLabResult | None]:
     """
     Record a malaria laboratory test result.
@@ -280,13 +339,15 @@ def record_lab_result(
             result_value=result_value,
             result_interpretation=result_interpretation,
             test_date=test_date,
-            encounter_id=encounter_id
+            encounter_id=encounter_id,
         )
 
         db.session.add(lab_result)
         db.session.commit()
 
-        logger.info(f"Recorded lab result for case {case_id}: {test_type} {result_value} ({result_interpretation})")
+        logger.info(
+            f"Recorded lab result for case {case_id}: {test_type} {result_value} ({result_interpretation})"
+        )
         return True, "Lab result recorded successfully", lab_result
 
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
@@ -326,9 +387,11 @@ def get_latest_lab_result(case_id: str) -> MalariaLabResult | None:
         Most recent lab result or None if not found
     """
     try:
-        return MalariaLabResult.query.filter_by(malaria_case_id=case_id)\
-            .order_by(MalariaLabResult.test_date.desc())\
+        return (
+            MalariaLabResult.query.filter_by(malaria_case_id=case_id)
+            .order_by(MalariaLabResult.test_date.desc())
             .first()
+        )
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         logger.error(f"Error getting latest lab result: {e}")
         return None
@@ -346,10 +409,12 @@ def get_treatment_summary(case_id: str, limit: int = 10) -> list[MalariaTreatmen
         List of treatments ordered by date (most recent first)
     """
     try:
-        return MalariaTreatment.query.filter_by(malaria_case_id=case_id)\
-            .order_by(MalariaTreatment.date_administered.desc())\
-            .limit(limit)\
+        return (
+            MalariaTreatment.query.filter_by(malaria_case_id=case_id)
+            .order_by(MalariaTreatment.date_administered.desc())
+            .limit(limit)
             .all()
+        )
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         logger.error(f"Error getting treatment summary: {e}")
         return []
@@ -365,10 +430,17 @@ def get_malaria_formulary() -> list[MalariaRegimen]:
     """
     try:
         now = datetime.now(timezone.utc).date()
-        return MalariaRegimen.query.filter(
-            db.or_(MalariaRegimen.effective_to.is_(None), MalariaRegimen.effective_to >= now),
-            MalariaRegimen.effective_from <= now
-        ).order_by(MalariaRegimen.line_of_therapy, MalariaRegimen.regimen_code).all()
+        return (
+            MalariaRegimen.query.filter(
+                db.or_(
+                    MalariaRegimen.effective_to.is_(None),
+                    MalariaRegimen.effective_to >= now,
+                ),
+                MalariaRegimen.effective_from <= now,
+            )
+            .order_by(MalariaRegimen.line_of_therapy, MalariaRegimen.regimen_code)
+            .all()
+        )
     except Exception as e:  # noqa: BLE001  # Broad catch intentional: return error message to caller
         logger.error(f"Error getting malaria formulary: {e}")
         return []
@@ -404,7 +476,7 @@ def log_malaria_formulary_change(
     regimen_id: str,
     change_type: str,  # 'create', 'update', 'retire'
     changed_by: str,
-    change_notes: str | None = None
+    change_notes: str | None = None,
 ) -> bool:
     """
     Log a change to the malaria formulary for audit purposes.

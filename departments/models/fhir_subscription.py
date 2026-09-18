@@ -16,13 +16,24 @@ class FHIRSubscription(db.Model):
     FHIR R4 Subscription resource entity.
     Defines real-time event webhooks for HIE interoperability.
     """
+
     __tablename__ = "fhir_subscriptions"
 
     id = db.Column(db.Integer, primary_key=True)
-    subscription_id = db.Column(db.String(64), unique=True, nullable=False, default=lambda: str(uuid.uuid4()), index=True)
+    subscription_id = db.Column(
+        db.String(64),
+        unique=True,
+        nullable=False,
+        default=lambda: str(uuid.uuid4()),
+        index=True,
+    )
 
-    status = db.Column(db.String(20), nullable=False, default="active")  # active, off, error
-    reason = db.Column(db.String(255), nullable=True, default="HIE Real-time Clinical Synchronization")
+    status = db.Column(
+        db.String(20), nullable=False, default="active"
+    )  # active, off, error
+    reason = db.Column(
+        db.String(255), nullable=True, default="HIE Real-time Clinical Synchronization"
+    )
 
     # Criteria e.g. "Observation", "Encounter", "MedicationRequest", "Condition"
     criteria = db.Column(db.String(100), nullable=False, index=True)
@@ -32,8 +43,12 @@ class FHIRSubscription(db.Model):
     endpoint_url = db.Column(db.String(500), nullable=False)
 
     # Security & Verification
-    secret_token = db.Column(db.String(128), nullable=True)  # Secret key for HMAC-SHA256 signature
-    headers_json = db.Column(db.Text, nullable=True)  # JSON representation of custom headers
+    secret_token = db.Column(
+        db.String(128), nullable=True
+    )  # Secret key for HMAC-SHA256 signature
+    headers_json = db.Column(
+        db.Text, nullable=True
+    )  # JSON representation of custom headers
 
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     last_triggered_at = db.Column(db.DateTime, nullable=True)

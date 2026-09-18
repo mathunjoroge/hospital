@@ -11,6 +11,7 @@ Gracefully degrades when OTel packages are missing or no collector endpoint
 is configured. Disabled by default under TESTING unless OTEL_ENABLED is set,
 so the existing test suite is unaffected.
 """
+
 import logging
 import os
 import time
@@ -63,9 +64,7 @@ def setup_observability(app, celery=None, exporter=None):
         return None
 
     service_name = app.config.get("OTEL_SERVICE_NAME", "hospital-hmis")
-    provider = TracerProvider(
-        resource=Resource.create({"service.name": service_name})
-    )
+    provider = TracerProvider(resource=Resource.create({"service.name": service_name}))
 
     if exporter is not None:
         # Tests: synchronous processor so spans are captured immediately.

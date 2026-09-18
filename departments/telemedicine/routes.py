@@ -116,6 +116,7 @@ def start_session(session_uuid):
 
     # Create the clinical encounter for this telehealth session
     from departments.models.encounter import Encounter
+
     enc = Encounter(
         patient_id=session.patient_id,
         encounter_type="TELEHEALTH",
@@ -124,7 +125,7 @@ def start_session(session_uuid):
         provider_id=str(user.id),
     )
     db.session.add(enc)
-    db.session.flush()           # populate enc.id before linking
+    db.session.flush()  # populate enc.id before linking
     session.encounter_id = enc.id
 
     db.session.commit()
@@ -174,6 +175,7 @@ def complete_session(session_uuid):
     # Discharge the linked TELEHEALTH encounter
     if getattr(session, "encounter_id", None):
         from departments.models.encounter import Encounter
+
         enc = db.session.get(Encounter, session.encounter_id)
         if enc and enc.stage != "DISCHARGED":
             enc.close()

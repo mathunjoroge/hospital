@@ -5,6 +5,7 @@ MOH 647: Health Facility Tracer Health Products and Technologies Data Report For
 Tracks inventory levels, consumption (dispensed/issued), receipts, losses/expiries,
 ending physical counts, and stockout statuses for essential Kenya MOH tracer commodities.
 """
+
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import func, or_
@@ -208,11 +209,20 @@ def aggregate_moh647_monthly(year: int = None, month: int = None) -> dict:
 
         # 2. Dispensed / Issued in month
         issued = (
-            db.session.query(func.coalesce(func.sum(DispensedDrug.quantity_dispensed), 0))
+            db.session.query(
+                func.coalesce(func.sum(DispensedDrug.quantity_dispensed), 0)
+            )
             .filter(DispensedDrug.drug_id == drug.id)
             .filter(DispensedDrug.date_dispensed >= start_dt)
             .filter(DispensedDrug.date_dispensed <= end_dt)
-            .filter(or_(DispensedDrug.status == "0", DispensedDrug.status == "COMPLETED", DispensedDrug.status == "DISPENSED", DispensedDrug.status.is_(None)))
+            .filter(
+                or_(
+                    DispensedDrug.status == "0",
+                    DispensedDrug.status == "COMPLETED",
+                    DispensedDrug.status == "DISPENSED",
+                    DispensedDrug.status.is_(None),
+                )
+            )
             .scalar()
         )
 
@@ -244,7 +254,9 @@ def aggregate_moh647_monthly(year: int = None, month: int = None) -> dict:
         else:
             in_stock_count += 1
 
-        status_label = "STOCKOUT" if is_stockout else ("LOW STOCK" if is_low else "IN STOCK")
+        status_label = (
+            "STOCKOUT" if is_stockout else ("LOW STOCK" if is_low else "IN STOCK")
+        )
 
         tracer_reports.append(
             {

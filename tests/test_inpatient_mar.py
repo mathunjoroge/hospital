@@ -27,6 +27,7 @@ from departments.models.user import User
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
+
 def _make_user(app, username, role):
     """Idempotently create a user and return their id."""
     with app.app_context():
@@ -43,6 +44,7 @@ def _make_user(app, username, role):
 
 
 # ── fixtures ───────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def nurse_id(app):
@@ -115,17 +117,19 @@ def mar_data(app):
 
 # ── tests ──────────────────────────────────────────────────────────────────────
 
-class TestInpatientMAR:
 
+class TestInpatientMAR:
     # ── auth regression guards (must always pass) ─────────────────────────────
 
     def test_ward_occupancy_requires_auth(self, app):
         """Unauthenticated GET must be redirected to login (P0 regression guard)."""
         anon = app.test_client()
         resp = anon.get("/nursing/mar/occupancy")
-        assert resp.status_code in (302, 401, 403), (
-            "REGRESSION: ward occupancy must require auth"
-        )
+        assert resp.status_code in (
+            302,
+            401,
+            403,
+        ), "REGRESSION: ward occupancy must require auth"
 
     def test_chart_requires_auth(self, app):
         """Unauthenticated POST to chart must be rejected (P0 regression guard)."""
@@ -134,17 +138,21 @@ class TestInpatientMAR:
             "/nursing/mar/chart",
             json={"patient_id": "X", "medication": "X", "dosage": "1mg"},
         )
-        assert resp.status_code in (302, 401, 403), (
-            "REGRESSION: chart_medication must require auth"
-        )
+        assert resp.status_code in (
+            302,
+            401,
+            403,
+        ), "REGRESSION: chart_medication must require auth"
 
     def test_auto_bill_requires_auth(self, app):
         """Unauthenticated POST to auto_bill must be rejected (P0 regression guard)."""
         anon = app.test_client()
         resp = anon.post("/nursing/mar/auto_bill")
-        assert resp.status_code in (302, 401, 403), (
-            "REGRESSION: auto_bill must require auth"
-        )
+        assert resp.status_code in (
+            302,
+            401,
+            403,
+        ), "REGRESSION: auto_bill must require auth"
 
     # ── functional tests (with auth) ─────────────────────────────────────────
 
@@ -185,7 +193,9 @@ class TestInpatientMAR:
             # Must be the session user's id, not any forged value
             assert record.recorded_by == nurse_id
 
-    def test_nurse_id_from_session_not_body(self, nurse_client, nurse_id, app, mar_data):
+    def test_nurse_id_from_session_not_body(
+        self, nurse_client, nurse_id, app, mar_data
+    ):
         """Sending a forged nurse_id in the body must NOT override the session."""
         forged = nurse_id + 9999
         resp = nurse_client.post(
@@ -200,9 +210,9 @@ class TestInpatientMAR:
         assert resp.status_code == 201
         with app.app_context():
             record = db.session.get(MedicationAdmin, resp.get_json()["record_id"])
-            assert record.recorded_by == nurse_id, (
-                f"recorded_by should be session nurse {nurse_id}, not forged {forged}"
-            )
+            assert (
+                record.recorded_by == nurse_id
+            ), f"recorded_by should be session nurse {nurse_id}, not forged {forged}"
 
     def test_auto_billing(self, admin_client, app, mar_data):
         """Admin can trigger daily billing; invoices are created with Decimal amounts."""
@@ -213,9 +223,7 @@ class TestInpatientMAR:
         assert body["patients_billed"] >= 1
 
         with app.app_context():
-            invoice = Invoice.query.filter_by(
-                patient_id=mar_data["patient_id"]
-            ).first()
+            invoice = Invoice.query.filter_by(patient_id=mar_data["patient_id"]).first()
             assert invoice is not None
             assert Decimal(str(invoice.grand_total)) >= Decimal("1500.00")
 

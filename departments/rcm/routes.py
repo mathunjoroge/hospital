@@ -192,7 +192,9 @@ def generate_edi837_route(claim_id: str):
 
     try:
         edi_text = ClaimsScrubberEngine.generate_edi_837(claim_id)
-        return jsonify({"claim_id": claim_id, "format": "X12_837P", "edi_content": edi_text}), 200
+        return jsonify(
+            {"claim_id": claim_id, "format": "X12_837P", "edi_content": edi_text}
+        ), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
 
@@ -223,13 +225,15 @@ def get_denial_risk_route(claim_id: str):
     from departments.rcm.models import ClaimSubmission
 
     claim = ClaimSubmission.query.get_or_404(claim_id)
-    return jsonify({
-        "claim_id": claim.id,
-        "status": claim.status,
-        "scrubbing_status": claim.scrubbing_status,
-        "denial_risk_score": claim.denial_risk_score,
-        "errors": claim.scrubbing_errors_json,
-    }), 200
+    return jsonify(
+        {
+            "claim_id": claim.id,
+            "status": claim.status,
+            "scrubbing_status": claim.scrubbing_status,
+            "denial_risk_score": claim.denial_risk_score,
+            "errors": claim.scrubbing_errors_json,
+        }
+    ), 200
 
 
 @bp.route("/claims-console", methods=["GET"])
@@ -251,4 +255,3 @@ def claims_console_ui():
         error_count=error_count,
         total_claims=len(claims),
     )
-

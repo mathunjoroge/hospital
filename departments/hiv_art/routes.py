@@ -75,9 +75,13 @@ def enroll_patient():
     art_start_date = None
     if data.get("art_start_date"):
         try:
-            art_start_date = datetime.fromisoformat(data["art_start_date"].replace('Z', '+00:00'))
+            art_start_date = datetime.fromisoformat(
+                data["art_start_date"].replace("Z", "+00:00")
+            )
         except ValueError:
-            return jsonify({"error": "Invalid art_start_date format. Use ISO format."}), 400
+            return jsonify(
+                {"error": "Invalid art_start_date format. Use ISO format."}
+            ), 400
 
     success, message, enrollment = create_art_enrollment(
         patient_id=patient_id,
@@ -87,15 +91,17 @@ def enroll_patient():
         art_start_date=art_start_date,
         facility_enrolled_at=data.get("facility_enrolled_at"),
         encounter_id=data.get("encounter_id"),
-        current_regimen_id=data.get("current_regimen_id")
+        current_regimen_id=data.get("current_regimen_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "enrollment_id": enrollment.id,
-            "art_number": enrollment.art_number
-        }), 201
+        return jsonify(
+            {
+                "message": message,
+                "enrollment_id": enrollment.id,
+                "art_number": enrollment.art_number,
+            }
+        ), 201
     else:
         return jsonify({"error": message}), 400
 
@@ -132,18 +138,28 @@ def change_regimen(enrollment_id):
         new_regimen_id=new_regimen_id,
         change_reason=change_reason,
         approved_by=approved_by,
-        encounter_id=data.get("encounter_id")
+        encounter_id=data.get("encounter_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "current_regimen": {
-                "id": enrollment.current_regimen.id if enrollment.current_regimen else None,
-                "code": enrollment.current_regimen.regimen_code if enrollment.current_regimen else None,
-                "name": enrollment.current_regimen.regimen_name if enrollment.current_regimen else None
-            } if enrollment.current_regimen else None
-        }), 200
+        return jsonify(
+            {
+                "message": message,
+                "current_regimen": {
+                    "id": enrollment.current_regimen.id
+                    if enrollment.current_regimen
+                    else None,
+                    "code": enrollment.current_regimen.regimen_code
+                    if enrollment.current_regimen
+                    else None,
+                    "name": enrollment.current_regimen.regimen_name
+                    if enrollment.current_regimen
+                    else None,
+                }
+                if enrollment.current_regimen
+                else None,
+            }
+        ), 200
     else:
         return jsonify({"error": message}), 400
 
@@ -180,7 +196,9 @@ def record_adherence(enrollment_id):
     visit_date = None
     if data.get("visit_date"):
         try:
-            visit_date = datetime.fromisoformat(data["visit_date"].replace('Z', '+00:00'))
+            visit_date = datetime.fromisoformat(
+                data["visit_date"].replace("Z", "+00:00")
+            )
         except ValueError:
             return jsonify({"error": "Invalid visit_date format. Use ISO format."}), 400
 
@@ -191,16 +209,18 @@ def record_adherence(enrollment_id):
         visit_date=visit_date,
         viral_load_ordered=data.get("viral_load_ordered", False),
         cd4_ordered=data.get("cd4_ordered", False),
-        encounter_id=data.get("encounter_id")
+        encounter_id=data.get("encounter_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "visit_id": visit.id,
-            "adherence_percentage": visit.adherence_percentage,
-            "adherence_category": visit.adherence_category
-        }), 201
+        return jsonify(
+            {
+                "message": message,
+                "visit_id": visit.id,
+                "adherence_percentage": visit.adherence_percentage,
+                "adherence_category": visit.adherence_category,
+            }
+        ), 201
     else:
         return jsonify({"error": message}), 400
 
@@ -227,17 +247,23 @@ def record_viral_load_endpoint(enrollment_id):
         enrollment_id=enrollment_id,
         viral_load_copies=viral_load_copies,
         test_type=data.get("test_type", "routine"),
-        test_date=datetime.fromisoformat(data["test_date"].replace('Z', '+00:00')) if data.get("test_date") else None,
-        encounter_id=data.get("encounter_id")
+        test_date=datetime.fromisoformat(data["test_date"].replace("Z", "+00:00"))
+        if data.get("test_date")
+        else None,
+        encounter_id=data.get("encounter_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "viral_load_id": viral_load.id,
-            "viral_load_copies": viral_load.viral_load_copies,
-            "test_date": viral_load.test_date.isoformat() if viral_load.test_date else None
-        }), 201
+        return jsonify(
+            {
+                "message": message,
+                "viral_load_id": viral_load.id,
+                "viral_load_copies": viral_load.viral_load_copies,
+                "test_date": viral_load.test_date.isoformat()
+                if viral_load.test_date
+                else None,
+            }
+        ), 201
     else:
         return jsonify({"error": message}), 400
 
@@ -265,18 +291,22 @@ def record_cd4_endpoint(enrollment_id):
         enrollment_id=enrollment_id,
         cd4_count=cd4_count,
         cd4_percent=data.get("cd4_percent"),
-        test_date=datetime.fromisoformat(data["test_date"].replace('Z', '+00:00')) if data.get("test_date") else None,
-        encounter_id=data.get("encounter_id")
+        test_date=datetime.fromisoformat(data["test_date"].replace("Z", "+00:00"))
+        if data.get("test_date")
+        else None,
+        encounter_id=data.get("encounter_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "cd4_id": cd4.id,
-            "cd4_count": cd4.cd4_count,
-            "cd4_percent": cd4.cd4_percent,
-            "test_date": cd4.test_date.isoformat() if cd4.test_date else None
-        }), 201
+        return jsonify(
+            {
+                "message": message,
+                "cd4_id": cd4.id,
+                "cd4_count": cd4.cd4_count,
+                "cd4_percent": cd4.cd4_percent,
+                "test_date": cd4.test_date.isoformat() if cd4.test_date else None,
+            }
+        ), 201
     else:
         return jsonify({"error": message}), 400
 
@@ -310,17 +340,25 @@ def record_who_stage_endpoint(enrollment_id):
         enrollment_id=enrollment_id,
         who_stage=who_stage,
         defining_conditions=data.get("defining_conditions"),
-        assessment_date=datetime.fromisoformat(data["assessment_date"].replace('Z', '+00:00')) if data.get("assessment_date") else None,
-        encounter_id=data.get("encounter_id")
+        assessment_date=datetime.fromisoformat(
+            data["assessment_date"].replace("Z", "+00:00")
+        )
+        if data.get("assessment_date")
+        else None,
+        encounter_id=data.get("encounter_id"),
     )
 
     if success:
-        return jsonify({
-            "message": message,
-            "who_stage_id": who_stage_record.id,
-            "who_stage": who_stage_record.who_stage,
-            "assessment_date": who_stage_record.assessment_date.isoformat() if who_stage_record.assessment_date else None
-        }), 201
+        return jsonify(
+            {
+                "message": message,
+                "who_stage_id": who_stage_record.id,
+                "who_stage": who_stage_record.who_stage,
+                "assessment_date": who_stage_record.assessment_date.isoformat()
+                if who_stage_record.assessment_date
+                else None,
+            }
+        ), 201
     else:
         return jsonify({"error": message}), 400
 
@@ -350,54 +388,79 @@ def get_patient_summary(enrollment_id):
             delta = datetime.now(timezone.utc) - enrollment.art_start_date
             days_on_art = delta.days
 
-        return jsonify({
-            "enrollment": {
-                "id": enrollment.id,
-                "patient_id": enrollment.patient_id,
-                "art_number": enrollment.art_number,
-                "enrollment_date": enrollment.enrollment_date.isoformat() if enrollment.enrollment_date else None,
-                "art_start_date": enrollment.art_start_date.isoformat() if enrollment.art_start_date else None,
-                "baseline_cd4": enrollment.baseline_cd4,
-                "baseline_who_stage": enrollment.baseline_who_stage,
-                "facility_enrolled_at": enrollment.facility_enrolled_at,
-                "days_on_art": days_on_art
-            },
-            "current_regimen": {
-                "id": current_regimen.id if current_regimen else None,
-                "code": current_regimen.regimen_code if current_regimen else None,
-                "name": current_regimen.regimen_name if current_regimen else None,
-                "line_of_therapy": current_regimen.line_of_therapy if current_regimen else None,
-                "arv_drugs": current_regimen.arv_drugs if current_regimen else None
-            } if current_regimen else None,
-            "latest_viral_load": {
-                "id": latest_viral_load.id if latest_viral_load else None,
-                "copies": latest_viral_load.viral_load_copies,
-                "test_type": latest_viral_load.test_type,
-                "test_date": latest_viral_load.test_date.isoformat() if latest_viral_load.test_date else None
-            } if latest_viral_load else None,
-            "latest_cd4": {
-                "id": latest_cd4.id if latest_cd4 else None,
-                "count": latest_cd4.cd4_count,
-                "percent": latest_cd4.cd4_percent,
-                "test_date": latest_cd4.test_date.isoformat() if latest_cd4.test_date else None
-            } if latest_cd4 else None,
-            "latest_who_stage": {
-                "id": latest_who_stage.id if latest_who_stage else None,
-                "stage": latest_who_stage.who_stage,
-                "defining_conditions": latest_who_stage.defining_conditions,
-                "assessment_date": latest_who_stage.assessment_date.isoformat() if latest_who_stage.assessment_date else None
-            } if latest_who_stage else None,
-            "recent_adherence": [
-                {
-                    "id": visit.id,
-                    "visit_date": visit.visit_date.isoformat() if visit.visit_date else None,
-                    "adherence_percentage": visit.adherence_percentage,
-                    "adherence_category": visit.adherence_category,
-                    "pills_dispensed": visit.pills_dispensed,
-                    "pills_returned": visit.pills_returned
-                } for visit in recent_adherence
-            ]
-        }), 200
+        return jsonify(
+            {
+                "enrollment": {
+                    "id": enrollment.id,
+                    "patient_id": enrollment.patient_id,
+                    "art_number": enrollment.art_number,
+                    "enrollment_date": enrollment.enrollment_date.isoformat()
+                    if enrollment.enrollment_date
+                    else None,
+                    "art_start_date": enrollment.art_start_date.isoformat()
+                    if enrollment.art_start_date
+                    else None,
+                    "baseline_cd4": enrollment.baseline_cd4,
+                    "baseline_who_stage": enrollment.baseline_who_stage,
+                    "facility_enrolled_at": enrollment.facility_enrolled_at,
+                    "days_on_art": days_on_art,
+                },
+                "current_regimen": {
+                    "id": current_regimen.id if current_regimen else None,
+                    "code": current_regimen.regimen_code if current_regimen else None,
+                    "name": current_regimen.regimen_name if current_regimen else None,
+                    "line_of_therapy": current_regimen.line_of_therapy
+                    if current_regimen
+                    else None,
+                    "arv_drugs": current_regimen.arv_drugs if current_regimen else None,
+                }
+                if current_regimen
+                else None,
+                "latest_viral_load": {
+                    "id": latest_viral_load.id if latest_viral_load else None,
+                    "copies": latest_viral_load.viral_load_copies,
+                    "test_type": latest_viral_load.test_type,
+                    "test_date": latest_viral_load.test_date.isoformat()
+                    if latest_viral_load.test_date
+                    else None,
+                }
+                if latest_viral_load
+                else None,
+                "latest_cd4": {
+                    "id": latest_cd4.id if latest_cd4 else None,
+                    "count": latest_cd4.cd4_count,
+                    "percent": latest_cd4.cd4_percent,
+                    "test_date": latest_cd4.test_date.isoformat()
+                    if latest_cd4.test_date
+                    else None,
+                }
+                if latest_cd4
+                else None,
+                "latest_who_stage": {
+                    "id": latest_who_stage.id if latest_who_stage else None,
+                    "stage": latest_who_stage.who_stage,
+                    "defining_conditions": latest_who_stage.defining_conditions,
+                    "assessment_date": latest_who_stage.assessment_date.isoformat()
+                    if latest_who_stage.assessment_date
+                    else None,
+                }
+                if latest_who_stage
+                else None,
+                "recent_adherence": [
+                    {
+                        "id": visit.id,
+                        "visit_date": visit.visit_date.isoformat()
+                        if visit.visit_date
+                        else None,
+                        "adherence_percentage": visit.adherence_percentage,
+                        "adherence_category": visit.adherence_category,
+                        "pills_dispensed": visit.pills_dispensed,
+                        "pills_returned": visit.pills_returned,
+                    }
+                    for visit in recent_adherence
+                ],
+            }
+        ), 200
 
     except Exception as e:
         logger.error(f"Error getting patient summary: {e}")
@@ -413,22 +476,29 @@ def get_formulary():
     """
     try:
         regimens = get_art_formulary()
-        return jsonify({
-            "regimens": [
-                {
-                    "id": regimen.id,
-                    "code": regimen.regimen_code,
-                    "name": regimen.regimen_name,
-                    "line_of_therapy": regimen.line_of_therapy,
-                    "arv_drugs": regimen.arv_drugs,
-                    "is_preferred": regimen.is_preferred,
-                    "is_alternative": regimen.is_alternative,
-                    "restriction_notes": regimen.restriction_notes,
-                    "effective_from": regimen.effective_from.isoformat() if regimen.effective_from else None,
-                    "effective_to": regimen.effective_to.isoformat() if regimen.effective_to else None
-                } for regimen in regimens
-            ]
-        }), 200
+        return jsonify(
+            {
+                "regimens": [
+                    {
+                        "id": regimen.id,
+                        "code": regimen.regimen_code,
+                        "name": regimen.regimen_name,
+                        "line_of_therapy": regimen.line_of_therapy,
+                        "arv_drugs": regimen.arv_drugs,
+                        "is_preferred": regimen.is_preferred,
+                        "is_alternative": regimen.is_alternative,
+                        "restriction_notes": regimen.restriction_notes,
+                        "effective_from": regimen.effective_from.isoformat()
+                        if regimen.effective_from
+                        else None,
+                        "effective_to": regimen.effective_to.isoformat()
+                        if regimen.effective_to
+                        else None,
+                    }
+                    for regimen in regimens
+                ]
+            }
+        ), 200
     except Exception as e:
         logger.error(f"Error getting formulary: {e}")
         return jsonify({"error": "Internal server error"}), 500
@@ -443,10 +513,7 @@ def validate_regimen(regimen_id):
     """
     try:
         valid = is_regimen_valid(regimen_id)
-        return jsonify({
-            "regimen_id": regimen_id,
-            "is_valid": valid
-        }), 200
+        return jsonify({"regimen_id": regimen_id, "is_valid": valid}), 200
     except Exception as e:
         logger.error(f"Error validating regimen: {e}")
         return jsonify({"error": "Internal server error"}), 500
@@ -463,18 +530,27 @@ def trigger_missed_visit_check():
     """
     try:
         missed = check_missed_visits()
-        return jsonify({
-            "message": f"Checked for missed visits. Found {len(missed)} patients with missed visits.",
-            "missed_visit_count": len(missed),
-            "patients": [
-                {
-                    "enrollment_id": visit.enrollment_id,
-                    "patient_id": visit.enrollment.patient_id if visit.enrollment else None,
-                    "art_number": visit.enrollment.art_number if visit.enrollment else None,
-                    "last_visit_date": visit.visit_date.isoformat() if visit.visit_date else None
-                } for visit in missed[:10]  # Limit to first 10 for response size
-            ]
-        }), 200
+        return jsonify(
+            {
+                "message": f"Checked for missed visits. Found {len(missed)} patients with missed visits.",
+                "missed_visit_count": len(missed),
+                "patients": [
+                    {
+                        "enrollment_id": visit.enrollment_id,
+                        "patient_id": visit.enrollment.patient_id
+                        if visit.enrollment
+                        else None,
+                        "art_number": visit.enrollment.art_number
+                        if visit.enrollment
+                        else None,
+                        "last_visit_date": visit.visit_date.isoformat()
+                        if visit.visit_date
+                        else None,
+                    }
+                    for visit in missed[:10]  # Limit to first 10 for response size
+                ],
+            }
+        ), 200
     except Exception as e:
         logger.error(f"Error in missed visit check: {e}")
         return jsonify({"error": "Internal server error"}), 500
@@ -504,16 +580,20 @@ def dashboard_ui():
     """HIV/ART Dashboard."""
     from departments.hiv_art.models import ARTEnrollment
 
-    enrollments = ARTEnrollment.query.order_by(ARTEnrollment.enrollment_date.desc()).all()
+    enrollments = ARTEnrollment.query.order_by(
+        ARTEnrollment.enrollment_date.desc()
+    ).all()
     active_count = len([e for e in enrollments if e.art_start_date])
     pending_vl = 0  # Would need logic to determine pending VL
     adherence_due = 0  # Would need logic to determine due visits
 
-    return render_template("hiv_art/dashboard.html",
-                          enrollments=enrollments,
-                          active_count=active_count,
-                          pending_vl=pending_vl,
-                          adherence_due=adherence_due)
+    return render_template(
+        "hiv_art/dashboard.html",
+        enrollments=enrollments,
+        active_count=active_count,
+        pending_vl=pending_vl,
+        adherence_due=adherence_due,
+    )
 
 
 @bp.route("/ui/enroll", methods=["GET", "POST"])
@@ -539,9 +619,13 @@ def enroll_ui():
                 art_number=art_number,
                 enrollment_date=enrollment_date,
                 art_start_date=art_start_date,
-                baseline_who_stage=int(baseline_who_stage) if baseline_who_stage else None,
+                baseline_who_stage=int(baseline_who_stage)
+                if baseline_who_stage
+                else None,
                 baseline_cd4=float(baseline_cd4) if baseline_cd4 else None,
-                current_regimen_id=int(current_regimen_id) if current_regimen_id else None,
+                current_regimen_id=int(current_regimen_id)
+                if current_regimen_id
+                else None,
             )
             flash("Patient enrolled successfully!", "success")
             return redirect(url_for("hiv_art.dashboard_ui"))
@@ -565,10 +649,20 @@ def patient_detail_ui(enrollment_id):
         flash("Enrollment not found", "error")
         return redirect(url_for("hiv_art.dashboard_ui"))
 
-    viral_loads = ViralLoad.query.filter_by(art_enrollment_id=enrollment_id).order_by(ViralLoad.test_date.desc()).all()
-    adherence_visits = AdherenceVisit.query.filter_by(art_enrollment_id=enrollment_id).order_by(AdherenceVisit.visit_date.desc()).all()
+    viral_loads = (
+        ViralLoad.query.filter_by(art_enrollment_id=enrollment_id)
+        .order_by(ViralLoad.test_date.desc())
+        .all()
+    )
+    adherence_visits = (
+        AdherenceVisit.query.filter_by(art_enrollment_id=enrollment_id)
+        .order_by(AdherenceVisit.visit_date.desc())
+        .all()
+    )
 
-    return render_template("hiv_art/patient_detail.html",
-                          enrollment=enrollment,
-                          viral_loads=viral_loads,
-                          adherence_visits=adherence_visits)
+    return render_template(
+        "hiv_art/patient_detail.html",
+        enrollment=enrollment,
+        viral_loads=viral_loads,
+        adherence_visits=adherence_visits,
+    )

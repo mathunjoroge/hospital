@@ -6,6 +6,7 @@ Endpoints:
   POST /oauth/revoke — Revoke an access token
   GET  /oauth/metadata — SMART on FHIR discovery endpoint
 """
+
 from datetime import datetime, timezone
 
 from authlib.integrations.flask_oauth2 import AuthorizationServer
@@ -69,6 +70,7 @@ def issue_token():
 
     # Generate a simple access token
     import secrets
+
     access_token = secrets.token_urlsafe(32)
     expires_in = 3600  # 1 hour
 
@@ -83,12 +85,14 @@ def issue_token():
     db.session.add(token)
     db.session.commit()
 
-    return jsonify({
-        "access_token": access_token,
-        "token_type": "Bearer",
-        "expires_in": expires_in,
-        "scope": scope,
-    })
+    return jsonify(
+        {
+            "access_token": access_token,
+            "token_type": "Bearer",
+            "expires_in": expires_in,
+            "scope": scope,
+        }
+    )
 
 
 @oauth_bp.route("/revoke", methods=["POST"])
@@ -105,21 +109,27 @@ def revoke_token():
 @oauth_bp.route("/metadata", methods=["GET"])
 def smart_metadata():
     """SMART on FHIR discovery endpoint."""
-    return jsonify({
-        "authorization_endpoint": "/oauth/authorize",
-        "token_endpoint": "/oauth/token",
-        "token_endpoint_auth_methods_supported": ["client_secret_post"],
-        "scopes_supported": [
-            "patient/Patient.read",
-            "patient/Observation.read",
-            "patient/Condition.read",
-            "patient/MedicationRequest.read",
-            "user/Patient.read",
-            "user/Encounter.read",
-        ],
-        "response_types_supported": ["code"],
-        "capabilities": ["launch-ehr", "client-public", "client-confidential-symmetric"],
-    })
+    return jsonify(
+        {
+            "authorization_endpoint": "/oauth/authorize",
+            "token_endpoint": "/oauth/token",
+            "token_endpoint_auth_methods_supported": ["client_secret_post"],
+            "scopes_supported": [
+                "patient/Patient.read",
+                "patient/Observation.read",
+                "patient/Condition.read",
+                "patient/MedicationRequest.read",
+                "user/Patient.read",
+                "user/Encounter.read",
+            ],
+            "response_types_supported": ["code"],
+            "capabilities": [
+                "launch-ehr",
+                "client-public",
+                "client-confidential-symmetric",
+            ],
+        }
+    )
 
 
 # ── SMART on FHIR Launch Endpoints ─────────────────────────────────────────
@@ -146,7 +156,7 @@ def smart_launch():
     session["smart_launch_context"] = {
         "iss": iss,
         "launch": launch,
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
     # Redirect to the app's main page (or a specific SMART callback handler)
@@ -174,8 +184,6 @@ def smart_callback():
     # 3. Log the user in or create a session
 
     # For now, just acknowledge receipt
-    return jsonify({
-        "status": "callback_received",
-        "code": code[:10] + "...",
-        "state": state
-    })
+    return jsonify(
+        {"status": "callback_received", "code": code[:10] + "...", "state": state}
+    )

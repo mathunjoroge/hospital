@@ -75,7 +75,9 @@ def chart_medication():
     nurse_id = current_user.id
 
     if not all([patient_id, medication, dosage]):
-        return jsonify({"error": "Missing required fields: patient_id, medication, dosage"}), 400
+        return jsonify(
+            {"error": "Missing required fields: patient_id, medication, dosage"}
+        ), 400
 
     admin_record = MedicationAdmin(
         patient_id=patient_id,
@@ -89,7 +91,10 @@ def chart_medication():
 
     logger.info(
         "MAR chart: nurse=%s recorded %s %s for patient=%s",
-        nurse_id, medication, dosage, patient_id,
+        nurse_id,
+        medication,
+        dosage,
+        patient_id,
     )
 
     return jsonify(

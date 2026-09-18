@@ -13,23 +13,35 @@ def test_fhir_terminology_server_direct_lookup(app):
     """Test FHIRTerminologyServer.lookup_code directly."""
     with app.app_context():
         # Insert test records
-        icd = ICD10Code(code="J00", description="Acute nasopharyngitis [common cold]", chapter="Respiratory")
+        icd = ICD10Code(
+            code="J00",
+            description="Acute nasopharyngitis [common cold]",
+            chapter="Respiratory",
+        )
         snomed = SnomedCode(code="404684003", description="Clinical finding")
         loinc = LoincCode(code="8302-2", description="Body height")
         db.session.add_all([icd, snomed, loinc])
         db.session.commit()
 
         # Test ICD-10 lookup
-        res_icd = FHIRTerminologyServer.lookup_code("http://hl7.org/fhir/sid/icd-10", "J00")
+        res_icd = FHIRTerminologyServer.lookup_code(
+            "http://hl7.org/fhir/sid/icd-10", "J00"
+        )
         assert res_icd["resourceType"] == "Parameters"
-        params = {p["name"]: p.get("valueString") or p.get("valueCode") or p.get("valueUri") for p in res_icd["parameter"]}
+        params = {
+            p["name"]: p.get("valueString") or p.get("valueCode") or p.get("valueUri")
+            for p in res_icd["parameter"]
+        }
         assert params["code"] == "J00"
         assert "common cold" in params["display"]
 
         # Test SNOMED lookup
         res_snomed = FHIRTerminologyServer.lookup_code("SNOMED", "404684003")
         assert res_snomed["resourceType"] == "Parameters"
-        params_sn = {p["name"]: p.get("valueString") or p.get("valueCode") for p in res_snomed["parameter"]}
+        params_sn = {
+            p["name"]: p.get("valueString") or p.get("valueCode")
+            for p in res_snomed["parameter"]
+        }
         assert params_sn["code"] == "404684003"
         assert params_sn["display"] == "Clinical finding"
 
@@ -46,31 +58,55 @@ def test_fhir_terminology_server_direct_lookup(app):
 def test_fhir_terminology_server_validate_code(app):
     """Test FHIRTerminologyServer.validate_code directly."""
     with app.app_context():
-        icd = ICD10Code(code="I10", description="Essential (primary) hypertension", chapter="Cardiovascular")
+        icd = ICD10Code(
+            code="I10",
+            description="Essential (primary) hypertension",
+            chapter="Cardiovascular",
+        )
         db.session.add(icd)
         db.session.commit()
 
         # Valid code and display
-        v1 = FHIRTerminologyServer.validate_code("http://hl7.org/fhir/sid/icd-10", "I10", "hypertension")
-        params1 = {p["name"]: p["valueBoolean"] if "valueBoolean" in p else p.get("valueString") for p in v1["parameter"]}
+        v1 = FHIRTerminologyServer.validate_code(
+            "http://hl7.org/fhir/sid/icd-10", "I10", "hypertension"
+        )
+        params1 = {
+            p["name"]: p["valueBoolean"]
+            if "valueBoolean" in p
+            else p.get("valueString")
+            for p in v1["parameter"]
+        }
         assert params1["result"] is True
 
         # Invalid code
         v2 = FHIRTerminologyServer.validate_code("ICD10", "INVALID_CODE")
-        params2 = {p["name"]: p["valueBoolean"] if "valueBoolean" in p else p.get("valueString") for p in v2["parameter"]}
+        params2 = {
+            p["name"]: p["valueBoolean"]
+            if "valueBoolean" in p
+            else p.get("valueString")
+            for p in v2["parameter"]
+        }
         assert params2["result"] is False
 
         # Mismatched display
-        v3 = FHIRTerminologyServer.validate_code("ICD10", "I10", "completely wrong title")
-        params3 = {p["name"]: p["valueBoolean"] if "valueBoolean" in p else p.get("valueString") for p in v3["parameter"]}
+        v3 = FHIRTerminologyServer.validate_code(
+            "ICD10", "I10", "completely wrong title"
+        )
+        params3 = {
+            p["name"]: p["valueBoolean"]
+            if "valueBoolean" in p
+            else p.get("valueString")
+            for p in v3["parameter"]
+        }
         assert params3["result"] is False
-
 
 
 def test_fhir_terminology_server_search(app):
     """Test FHIRTerminologyServer.search_terms autocomplete functionality."""
     with app.app_context():
-        icd = ICD10Code(code="R50.9", description="Fever, unspecified", chapter="General")
+        icd = ICD10Code(
+            code="R50.9", description="Fever, unspecified", chapter="General"
+        )
         db.session.add(icd)
         db.session.commit()
 
@@ -83,7 +119,11 @@ def test_fhir_terminology_server_search(app):
 def test_fhir_lookup_endpoint(client, app):
     """Test GET and POST /api/fhir/R4/CodeSystem/$lookup API endpoint."""
     with app.app_context():
-        icd = ICD10Code(code="J00", description="Acute nasopharyngitis [common cold]", chapter="Respiratory")
+        icd = ICD10Code(
+            code="J00",
+            description="Acute nasopharyngitis [common cold]",
+            chapter="Respiratory",
+        )
         db.session.add(icd)
         db.session.commit()
 
@@ -108,11 +148,17 @@ def test_fhir_lookup_endpoint(client, app):
 def test_fhir_validate_code_endpoint(client, app):
     """Test GET and POST /api/fhir/R4/CodeSystem/$validate-code API endpoint."""
     with app.app_context():
-        icd = ICD10Code(code="I10", description="Essential (primary) hypertension", chapter="Cardiovascular")
+        icd = ICD10Code(
+            code="I10",
+            description="Essential (primary) hypertension",
+            chapter="Cardiovascular",
+        )
         db.session.add(icd)
         db.session.commit()
 
-    resp = client.get("/api/fhir/R4/CodeSystem/$validate-code?system=icd10&code=I10&display=hypertension")
+    resp = client.get(
+        "/api/fhir/R4/CodeSystem/$validate-code?system=icd10&code=I10&display=hypertension"
+    )
     assert resp.status_code == 200
     data = resp.get_json()
     assert data["resourceType"] == "Parameters"
@@ -123,7 +169,11 @@ def test_fhir_validate_code_endpoint(client, app):
 def test_api_terminology_search_endpoint(client, app):
     """Test GET /api/terminology/search API endpoint."""
     with app.app_context():
-        icd = ICD10Code(code="E11.9", description="Type 2 diabetes mellitus without complications", chapter="Endocrine")
+        icd = ICD10Code(
+            code="E11.9",
+            description="Type 2 diabetes mellitus without complications",
+            chapter="Endocrine",
+        )
         db.session.add(icd)
         db.session.commit()
 

@@ -13,7 +13,25 @@ from . import bp
 @bp.route("/dashboard/queue/<provider_id>")
 @bp.route("/dashboard/queue", defaults={"provider_id": "all"})
 @login_required
-@roles_required("doctor", "medicine", "nursing", "admin", "records", "laboratory", "imaging", "pharmacy", "pharmacist", "billing", "stores", "hr", "theatre", "oncology", "mch", "icu", "renal")
+@roles_required(
+    "doctor",
+    "medicine",
+    "nursing",
+    "admin",
+    "records",
+    "laboratory",
+    "imaging",
+    "pharmacy",
+    "pharmacist",
+    "billing",
+    "stores",
+    "hr",
+    "theatre",
+    "oncology",
+    "mch",
+    "icu",
+    "renal",
+)
 def live_queue_dashboard(provider_id: str):
     """
     Renders the real-time waiting room dashboard for a specific provider or all providers.

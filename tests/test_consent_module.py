@@ -10,6 +10,7 @@ Separately, two consent tables existed — `consents` (read by the prescribing
 gate, written by nothing) and `patient_consents` (everything else) — so a
 consent granted anywhere was invisible to the prescribing gate by construction.
 """
+
 from datetime import date, datetime
 
 import pytest
@@ -30,8 +31,12 @@ from extensions import db
 
 @pytest.fixture
 def patient(app):
-    p = Patient(patient_id="P0001", name="Consent Tester", sex="M",
-                date_of_birth=date(1985, 1, 1))
+    p = Patient(
+        patient_id="P0001",
+        name="Consent Tester",
+        sex="M",
+        date_of_birth=date(1985, 1, 1),
+    )
     db.session.add(p)
     db.session.commit()
     return p
@@ -39,32 +44,54 @@ def patient(app):
 
 @pytest.fixture
 def records_client(client, app):
-    db.session.add(User(username="consent_clerk", role="records",
-                        password=generate_password_hash("Clerk!2345")))
+    db.session.add(
+        User(
+            username="consent_clerk",
+            role="records",
+            password=generate_password_hash("Clerk!2345"),
+        )
+    )
     db.session.commit()
-    client.post("/login", data={"username": "consent_clerk",
-                                "password": "Clerk!2345"}, follow_redirects=True)
+    client.post(
+        "/login",
+        data={"username": "consent_clerk", "password": "Clerk!2345"},
+        follow_redirects=True,
+    )
     return client
 
 
 @pytest.fixture
 def lab_client(client, app):
     """A role with no consent-capture authority."""
-    db.session.add(User(username="consent_labtech", role="laboratory",
-                        password=generate_password_hash("Lab!2345")))
+    db.session.add(
+        User(
+            username="consent_labtech",
+            role="laboratory",
+            password=generate_password_hash("Lab!2345"),
+        )
+    )
     db.session.commit()
-    client.post("/login", data={"username": "consent_labtech",
-                                "password": "Lab!2345"}, follow_redirects=True)
+    client.post(
+        "/login",
+        data={"username": "consent_labtech", "password": "Lab!2345"},
+        follow_redirects=True,
+    )
     return client
 
 
 # ── Endpoints must do the work, not report that they would ────────────────
 
+
 def test_grant_persists_a_real_record(records_client, patient):
     """Regression: this endpoint used to return 201 and write nothing."""
-    response = records_client.post("/consent/api/grant", json={
-        "patient_id": "P0001", "consent_type": "TREATMENT", "notes": "signed in clinic",
-    })
+    response = records_client.post(
+        "/consent/api/grant",
+        json={
+            "patient_id": "P0001",
+            "consent_type": "TREATMENT",
+            "notes": "signed in clinic",
+        },
+    )
     assert response.status_code == 201
     assert response.get_json()["consent"]["status"] == "ACTIVE"
 
@@ -75,19 +102,26 @@ def test_grant_persists_a_real_record(records_client, patient):
 
 def test_no_endpoint_returns_a_stub_message(records_client, patient):
     """No consent endpoint may answer with placeholder prose."""
-    grant = records_client.post("/consent/api/grant", json={
-        "patient_id": "P0001", "consent_type": "TREATMENT"})
+    grant = records_client.post(
+        "/consent/api/grant", json={"patient_id": "P0001", "consent_type": "TREATMENT"}
+    )
     responses = [
         grant,
         records_client.get("/consent/api/patient/P0001"),
-        records_client.get("/consent/api/check?patient_id=P0001&consent_type=TREATMENT"),
-        records_client.post("/consent/api/revoke", json={
-            "patient_id": "P0001", "consent_type": "TREATMENT"}),
+        records_client.get(
+            "/consent/api/check?patient_id=P0001&consent_type=TREATMENT"
+        ),
+        records_client.post(
+            "/consent/api/revoke",
+            json={"patient_id": "P0001", "consent_type": "TREATMENT"},
+        ),
     ]
     for response in responses:
         body = response.get_data(as_text=True).lower()
         for marker in ("stub", "phase 1", "implementation pending", "full query logic"):
-            assert marker not in body, f"{response.request.path} still returns a placeholder"
+            assert (
+                marker not in body
+            ), f"{response.request.path} still returns a placeholder"
 
 
 def test_list_returns_actual_records(records_client, patient):
@@ -96,15 +130,24 @@ def test_list_returns_actual_records(records_client, patient):
 
     data = records_client.get("/consent/api/patient/P0001").get_json()
     assert data["count"] == 2
-    assert {c["consent_type"] for c in data["consents"]} == {"TREATMENT", "ai_diagnosis"}
+    assert {c["consent_type"] for c in data["consents"]} == {
+        "TREATMENT",
+        "ai_diagnosis",
+    }
 
 
 def test_revoke_persists_and_flips_the_gate(records_client, patient):
     grant_patient_consent("P0001", "ai_diagnosis")
     assert has_ai_consent("P0001") is True
 
-    response = records_client.post("/consent/api/revoke", json={
-        "patient_id": "P0001", "consent_type": "ai_diagnosis", "reason": "withdrawn"})
+    response = records_client.post(
+        "/consent/api/revoke",
+        json={
+            "patient_id": "P0001",
+            "consent_type": "ai_diagnosis",
+            "reason": "withdrawn",
+        },
+    )
     assert response.status_code == 200
     assert response.get_json()["consent"]["status"] == "REVOKED"
     assert has_ai_consent("P0001") is False
@@ -113,8 +156,9 @@ def test_revoke_persists_and_flips_the_gate(records_client, patient):
 def test_revoke_is_non_destructive(records_client, patient):
     """DPA 2019: the consent history must survive withdrawal."""
     grant_patient_consent("P0001", "TREATMENT")
-    records_client.post("/consent/api/revoke", json={
-        "patient_id": "P0001", "consent_type": "TREATMENT"})
+    records_client.post(
+        "/consent/api/revoke", json={"patient_id": "P0001", "consent_type": "TREATMENT"}
+    )
 
     records = list_patient_consents("P0001")
     assert len(records) == 1
@@ -122,30 +166,37 @@ def test_revoke_is_non_destructive(records_client, patient):
 
 
 def test_revoking_what_was_never_granted_is_404(records_client, patient):
-    response = records_client.post("/consent/api/revoke", json={
-        "patient_id": "P0001", "consent_type": "TREATMENT"})
+    response = records_client.post(
+        "/consent/api/revoke", json={"patient_id": "P0001", "consent_type": "TREATMENT"}
+    )
     assert response.status_code == 404
 
 
 # ── Identifier bridging ───────────────────────────────────────────────────
 
+
 def test_endpoints_accept_either_patient_identifier(records_client, patient):
     """Callers arrive with Patient.id or Patient.patient_id; both must resolve."""
-    records_client.post("/consent/api/grant", json={
-        "patient_id": "P0001", "consent_type": "TREATMENT"})
+    records_client.post(
+        "/consent/api/grant", json={"patient_id": "P0001", "consent_type": "TREATMENT"}
+    )
 
     by_business_id = records_client.get(
-        "/consent/api/check?patient_id=P0001&consent_type=TREATMENT").get_json()
+        "/consent/api/check?patient_id=P0001&consent_type=TREATMENT"
+    ).get_json()
     by_numeric_id = records_client.get(
-        f"/consent/api/check?patient_id={patient.id}&consent_type=TREATMENT").get_json()
+        f"/consent/api/check?patient_id={patient.id}&consent_type=TREATMENT"
+    ).get_json()
 
     assert by_business_id["status"] == "ACTIVE"
     assert by_numeric_id["status"] == "ACTIVE"
 
 
 def test_unknown_patient_is_404_not_a_silent_pass(records_client):
-    for path in ["/consent/api/patient/P9999",
-                 "/consent/api/check?patient_id=P9999&consent_type=TREATMENT"]:
+    for path in [
+        "/consent/api/patient/P9999",
+        "/consent/api/check?patient_id=P9999&consent_type=TREATMENT",
+    ]:
         assert records_client.get(path).status_code == 404
 
 
@@ -162,15 +213,21 @@ def test_check_distinguishes_never_granted_from_revoked(records_client, patient)
 
 def test_missing_parameters_are_rejected(records_client, patient):
     assert records_client.get("/consent/api/check?patient_id=P0001").status_code == 400
-    assert records_client.post("/consent/api/grant",
-                               json={"patient_id": "P0001"}).status_code == 400
+    assert (
+        records_client.post(
+            "/consent/api/grant", json={"patient_id": "P0001"}
+        ).status_code
+        == 400
+    )
 
 
 # ── Authorization ─────────────────────────────────────────────────────────
 
+
 def test_consent_capture_requires_an_authorized_role(lab_client, patient):
-    response = lab_client.post("/consent/api/grant", json={
-        "patient_id": "P0001", "consent_type": "TREATMENT"})
+    response = lab_client.post(
+        "/consent/api/grant", json={"patient_id": "P0001", "consent_type": "TREATMENT"}
+    )
     assert response.status_code in (302, 403)
     assert has_consent("P0001", "TREATMENT") is False
 
@@ -181,6 +238,7 @@ def test_consent_endpoints_require_login(client, patient):
 
 
 # ── The duplicate model must stay gone ────────────────────────────────────
+
 
 def test_duplicate_consent_model_is_removed():
     """Regression: two consent tables meant grants were invisible to the gates."""
@@ -196,18 +254,28 @@ def test_only_one_consent_table_is_mapped():
 
 # ── The prescribing gate now actually runs ────────────────────────────────
 
+
 @pytest.fixture
 def admitted_patient(app, patient):
-    doctor = User(username="consent_doc", role="medicine",
-                  password=generate_password_hash("Doc!2345"))
-    ward = Ward(name="Test Ward", sex="M", number_of_beds=10,
-                occupied_beds=0, daily_charge=1000)
+    doctor = User(
+        username="consent_doc",
+        role="medicine",
+        password=generate_password_hash("Doc!2345"),
+    )
+    ward = Ward(
+        name="Test Ward", sex="M", number_of_beds=10, occupied_beds=0, daily_charge=1000
+    )
     db.session.add_all([doctor, ward])
     db.session.commit()
-    db.session.add(AdmittedPatient(patient_id="P0001", ward_id=ward.id,
-                                   admission_criteria="test",
-                                   admitted_by=doctor.id,
-                                   admitted_on=datetime.utcnow()))
+    db.session.add(
+        AdmittedPatient(
+            patient_id="P0001",
+            ward_id=ward.id,
+            admission_criteria="test",
+            admitted_by=doctor.id,
+            admitted_on=datetime.utcnow(),
+        )
+    )
     db.session.commit()
     return doctor
 
@@ -229,8 +297,11 @@ def test_cds_engine_is_actually_invoked(client, app, admitted_patient, monkeypat
 
     monkeypatch.setattr(prescriptions.ClinicalSafetyEngine, "check_prescription", spy)
 
-    client.post("/login", data={"username": "consent_doc", "password": "Doc!2345"},
-                follow_redirects=True)
+    client.post(
+        "/login",
+        data={"username": "consent_doc", "password": "Doc!2345"},
+        follow_redirects=True,
+    )
     response = client.get("/medicine/prescribe_drugs/P0001")
 
     assert response.status_code == 200
@@ -238,8 +309,9 @@ def test_cds_engine_is_actually_invoked(client, app, admitted_patient, monkeypat
     assert calls[0] == Patient.query.filter_by(patient_id="P0001").first().id
 
 
-def test_prescribing_consent_gate_sees_granted_consent(client, app, admitted_patient,
-                                                       monkeypatch):
+def test_prescribing_consent_gate_sees_granted_consent(
+    client, app, admitted_patient, monkeypatch
+):
     """A TREATMENT grant must reach the prescribing gate — it never could before."""
     seen = {}
     import departments.medicine.prescriptions as prescriptions
@@ -250,8 +322,11 @@ def test_prescribing_consent_gate_sees_granted_consent(client, app, admitted_pat
 
     monkeypatch.setattr(prescriptions, "render_template", capture)
 
-    client.post("/login", data={"username": "consent_doc", "password": "Doc!2345"},
-                follow_redirects=True)
+    client.post(
+        "/login",
+        data={"username": "consent_doc", "password": "Doc!2345"},
+        follow_redirects=True,
+    )
 
     client.get("/medicine/prescribe_drugs/P0001")
     assert seen.get("consent_status") == "MISSING"
@@ -263,17 +338,26 @@ def test_prescribing_consent_gate_sees_granted_consent(client, app, admitted_pat
 
 # ── Laboratory landing page (found while wiring the RBAC fixture above) ────
 
+
 def test_laboratory_index_renders_for_lab_role(client, app):
     """
     Regression: the laboratory index linked url_for('laboratory.pending_lab_patients'),
     but that endpoint lives on the medicine blueprint. Every lab tech hitting
     their own department's landing page got a BuildError 500.
     """
-    db.session.add(User(username="lab_index_probe", role="laboratory",
-                        password=generate_password_hash("Lab!2345")))
+    db.session.add(
+        User(
+            username="lab_index_probe",
+            role="laboratory",
+            password=generate_password_hash("Lab!2345"),
+        )
+    )
     db.session.commit()
-    client.post("/login", data={"username": "lab_index_probe",
-                                "password": "Lab!2345"}, follow_redirects=True)
+    client.post(
+        "/login",
+        data={"username": "lab_index_probe", "password": "Lab!2345"},
+        follow_redirects=True,
+    )
     assert client.get("/laboratory/").status_code == 200
 
 
@@ -299,4 +383,6 @@ def test_laboratory_templates_reference_no_missing_endpoints(app):
             if endpoint not in endpoints:
                 broken.append(f"{template}: {endpoint}")
 
-    assert not broken, "templates reference endpoints that do not exist:\n" + "\n".join(broken)
+    assert not broken, "templates reference endpoints that do not exist:\n" + "\n".join(
+        broken
+    )

@@ -207,7 +207,7 @@ def submit_soap_notes(patient_id):
             if imaging_match:
                 requested_imaging = RequestedImage(
                     patient_id=patient_id,
-    encounter_id=encounter.id if encounter else None,
+                    encounter_id=encounter.id if encounter else None,
                     imaging_id=imaging_match.id,
                     description=recommendation,
                 )
@@ -228,9 +228,7 @@ def submit_soap_notes(patient_id):
                 message = f"Unmatched imaging requests for patient {patient_id}: {', '.join(unmatched_requests)}"
                 notify_admin(message)
             except Exception as e:  # noqa: BLE001
-                logger.error(
-                    f"Failed to notify admin about unmatched imaging: {e!s}"
-                )
+                logger.error(f"Failed to notify admin about unmatched imaging: {e!s}")
             flash(
                 f"The following imaging requests need manual review: {', '.join(unmatched_requests)}",
                 "warning",
@@ -273,7 +271,7 @@ def submit_soap_notes(patient_id):
 
         appts = Appointment.query.filter(
             Appointment.patient_id == str(patient_id),
-            Appointment.status.in_(["CHECKED_IN", "READY", "IN_PROGRESS"])
+            Appointment.status.in_(["CHECKED_IN", "READY", "IN_PROGRESS"]),
         ).all()
         for appt in appts:
             appt.status = "COMPLETED"
@@ -318,7 +316,9 @@ def notes(patient_id):
 @login_required
 def reprocess_note(note_id):
     return redirect(
-        url_for("medicine.notes", patient_id=db.session.get(SOAPNote, note_id).patient_id)
+        url_for(
+            "medicine.notes", patient_id=db.session.get(SOAPNote, note_id).patient_id
+        )
     )
 
 
@@ -359,7 +359,12 @@ def _results_ready_for_review(hours: int = 48):
             .order_by(SOAPNote.created_at.desc())
             .first()
         )
-        if last_note and last_note.created_at and completed_at and last_note.created_at >= completed_at:
+        if (
+            last_note
+            and last_note.created_at
+            and completed_at
+            and last_note.created_at >= completed_at
+        ):
             continue  # a later consult note already post-dates the results
         ready.append(
             {
@@ -433,11 +438,11 @@ def soap_notes(patient_id):
     try:
         # Fetch the patient
         patient = Patient.query.filter(
-                db.or_(
-                    Patient.patient_id.ilike(f"%{patient_id}%"),
-                    Patient.name.ilike(f"%{patient_id}%"),
-                )
-            ).first()
+            db.or_(
+                Patient.patient_id.ilike(f"%{patient_id}%"),
+                Patient.name.ilike(f"%{patient_id}%"),
+            )
+        ).first()
         if not patient:
             flash(f"Patient with ID {patient_id} not found!", "error")
             return redirect(url_for("medicine.index"))
@@ -519,6 +524,7 @@ def recall_to_consult(patient_id):
 
     flash(f"Patient {patient_id} recalled to consultation.", "success")
     return redirect(url_for("medicine.soap_notes", patient_id=patient_id))
+
 
 @bp.route("/visit-discharge/<patient_id>", methods=["POST"])
 @login_required

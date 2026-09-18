@@ -30,7 +30,9 @@ logger = logging.getLogger(__name__)
 
 @shared_task
 def process_clinical_chatbot_task(
-    combined_input: str, conversation_context: list | None = None, patient_id: str | None = None
+    combined_input: str,
+    conversation_context: list | None = None,
+    patient_id: str | None = None,
 ):
     """
     Celery task to run UniversalClinicalSummarizer asynchronously for the clinical chatbot.
@@ -96,18 +98,22 @@ def process_clinical_chatbot_task(
 
 # --- T3.5: Ward Daily Charges ---
 
+
 def scheduled_midnight_ward_charges():
     """Triggered by cron/celery at midnight."""
     try:
         post_daily_ward_charges()
     except Exception as e:  # noqa: BLE001
         print(f"❌ Error posting ward charges: {e}")
+
+
 # --------------------------------
 
 
 # ---------------------------------------------------------------------------
 # ICD-10 Nightly Re-Sync (DECISIONS_PENDING #4 resolved 2026-09-13)
 # ---------------------------------------------------------------------------
+
 
 @shared_task(name="departments.tasks.sync_icd10_codes")
 def sync_icd10_codes():
@@ -125,6 +131,7 @@ def sync_icd10_codes():
     try:
         with app.app_context():
             from departments.medicine.icd10_importer import import_from_who_api
+
             count = import_from_who_api()
             logger.info("[Celery] ICD-10 sync complete: %d codes upserted.", count)
             return {"status": "ok", "codes_upserted": count}
@@ -136,6 +143,7 @@ def sync_icd10_codes():
 # ---------------------------------------------------------------------------
 # SNOMED CT Nightly Sync (DECISIONS_PENDING #22 resolved 2026-09-13)
 # ---------------------------------------------------------------------------
+
 
 @shared_task(name="departments.tasks.sync_snomed_codes")
 def sync_snomed_codes():
@@ -149,6 +157,7 @@ def sync_snomed_codes():
     try:
         with app.app_context():
             from departments.medicine.snomed_importer import import_from_umls_api
+
             count = import_from_umls_api(fetch_live_api=True)
             logger.info("[Celery] SNOMED CT sync complete: %d codes upserted.", count)
             return {"status": "ok", "codes_upserted": count}
@@ -160,6 +169,7 @@ def sync_snomed_codes():
 # ---------------------------------------------------------------------------
 # LOINC Nightly Sync (DECISIONS_PENDING #25 resolved 2026-09-13)
 # ---------------------------------------------------------------------------
+
 
 @shared_task(name="departments.tasks.sync_loinc_codes")
 def sync_loinc_codes():
@@ -173,10 +183,10 @@ def sync_loinc_codes():
     try:
         with app.app_context():
             from departments.medicine.loinc_importer import import_from_umls_api
+
             count = import_from_umls_api(fetch_live_api=True)
             logger.info("[Celery] LOINC sync complete: %d codes upserted.", count)
             return {"status": "ok", "codes_upserted": count}
     except Exception as exc:
         logger.error("[Celery] LOINC sync failed: %s", exc)
         raise
-

@@ -47,7 +47,9 @@ def _make_theatre_setup(app) -> int:
             )
             db.session.add(p)
 
-        proc = TheatreProcedure.query.filter_by(name="Laparoscopic Appendectomy").first()
+        proc = TheatreProcedure.query.filter_by(
+            name="Laparoscopic Appendectomy"
+        ).first()
         if not proc:
             proc = TheatreProcedure(name="Laparoscopic Appendectomy", cost=45000.0)
             db.session.add(proc)
@@ -68,7 +70,13 @@ def test_intraop_vitals_streaming(app):
     entry_id = _make_theatre_setup(app)
     with app.app_context():
         record = TheatreOperationsEngine.record_intraop_vitals(
-            entry_id=entry_id, hr=75, bp_systolic=120, bp_diastolic=80, spo2=99, etco2=35, agent_concentration=1.8
+            entry_id=entry_id,
+            hr=75,
+            bp_systolic=120,
+            bp_diastolic=80,
+            spo2=99,
+            etco2=35,
+            agent_concentration=1.8,
         )
         assert record.id is not None
         assert len(record.vitals_series) == 1
@@ -105,35 +113,48 @@ def test_who_checklist_gate_enforcement(app):
     entry_id = _make_theatre_setup(app)
     with app.app_context():
         # Before Sign-In -> Gate fails
-        passed, msg = TheatreOperationsEngine.evaluate_who_checklist_gate(entry_id, "INTRA_OP")
+        passed, msg = TheatreOperationsEngine.evaluate_who_checklist_gate(
+            entry_id, "INTRA_OP"
+        )
         assert passed is False
         assert "Sign In" in msg
 
         # Complete Sign-In -> Gate passes
-        chk = WhoSurgicalChecklist(theatre_entry_id=entry_id, patient_id="OR-PAT-001", sign_in_completed=True)
+        chk = WhoSurgicalChecklist(
+            theatre_entry_id=entry_id, patient_id="OR-PAT-001", sign_in_completed=True
+        )
         db.session.add(chk)
         db.session.commit()
 
-        passed2, msg2 = TheatreOperationsEngine.evaluate_who_checklist_gate(entry_id, "INTRA_OP")
+        passed2, msg2 = TheatreOperationsEngine.evaluate_who_checklist_gate(
+            entry_id, "INTRA_OP"
+        )
         assert passed2 is True
 
         # Before Sign-Out / Instrument count -> POST_OP gate fails
-        passed3, msg3 = TheatreOperationsEngine.evaluate_who_checklist_gate(entry_id, "POST_OP")
+        passed3, msg3 = TheatreOperationsEngine.evaluate_who_checklist_gate(
+            entry_id, "POST_OP"
+        )
         assert passed3 is False
 
         # Complete Sign-Out and Instrument count reconciliation
         chk.sign_out_completed = True
         cnt = SurgicalInstrumentCount(
             theatre_entry_id=entry_id,
-            sponges_initial=10, sponges_closing_skin=10,
-            needles_initial=5, needles_closing_skin=5,
-            instruments_initial=20, instruments_closing_skin=20,
+            sponges_initial=10,
+            sponges_closing_skin=10,
+            needles_initial=5,
+            needles_closing_skin=5,
+            instruments_initial=20,
+            instruments_closing_skin=20,
         )
         cnt.calculate_reconciliation()
         db.session.add(cnt)
         db.session.commit()
 
-        passed4, msg4 = TheatreOperationsEngine.evaluate_who_checklist_gate(entry_id, "POST_OP")
+        passed4, msg4 = TheatreOperationsEngine.evaluate_who_checklist_gate(
+            entry_id, "POST_OP"
+        )
         assert passed4 is True
 
 
@@ -200,9 +221,17 @@ def test_theatre_routes_api_integration(client):
         sess["_fresh"] = True
 
     # 1. Post Vitals API
-    res1 = client.post(f"/theatre/api/vitals/{entry_id}", json={
-        "hr": 82, "bp_sys": 118, "bp_dia": 76, "spo2": 98, "etco2": 36, "agent_conc": 1.5
-    })
+    res1 = client.post(
+        f"/theatre/api/vitals/{entry_id}",
+        json={
+            "hr": 82,
+            "bp_sys": 118,
+            "bp_dia": 76,
+            "spo2": 98,
+            "etco2": 36,
+            "agent_conc": 1.5,
+        },
+    )
     assert res1.status_code == 200
     assert res1.get_json()["status"] == "success"
 
@@ -225,4 +254,3 @@ def test_theatre_routes_api_integration(client):
     res5 = client.get("/theatre/api/metrics")
     assert res5.status_code == 200
     assert res5.get_json()["total_cases"] >= 1
-

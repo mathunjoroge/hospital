@@ -46,8 +46,9 @@ def _make_patient(patient_id: str) -> None:
         db.session.commit()
 
 
-def _make_qc_sample(app, *, control_name="Bio-Rad Level 1", param="GLUCOSE",
-                    mean=5.0, sd=0.2) -> LabQCSample:
+def _make_qc_sample(
+    app, *, control_name="Bio-Rad Level 1", param="GLUCOSE", mean=5.0, sd=0.2
+) -> LabQCSample:
     """Create and persist a LabQCSample inside the app context."""
     with app.app_context():
         sample = LabQCSample(
@@ -67,11 +68,16 @@ def _make_qc_sample(app, *, control_name="Bio-Rad Level 1", param="GLUCOSE",
 def lab_user(app):
     """An authenticated lab staff user."""
     with app.app_context():
-        u = db.session.query(
-            __import__("departments.models.user", fromlist=["User"]).User
-        ).filter_by(username="lab_staff_001").first()
+        u = (
+            db.session.query(
+                __import__("departments.models.user", fromlist=["User"]).User
+            )
+            .filter_by(username="lab_staff_001")
+            .first()
+        )
         if not u:
             from departments.models.user import User
+
             u = User(
                 username="lab_staff_001",
                 password=generate_password_hash("Password123!", method="pbkdf2:sha256"),
@@ -242,8 +248,9 @@ def test_westgard_1_3s_rejection():
 def test_westgard_2_2s_rejection():
     """Two consecutive runs > +2.0 → REJECT, 2_2s triggered."""
     status, z, rules = WestgardEngine.evaluate_qc_run(
-        measured_value=5.42,   # Z = +2.1
-        mean=5.0, sd=0.2,
+        measured_value=5.42,  # Z = +2.1
+        mean=5.0,
+        sd=0.2,
         history_z_scores=[2.3],  # previous run Z = +2.3
     )
     assert status == "REJECT"
@@ -253,8 +260,9 @@ def test_westgard_2_2s_rejection():
 def test_westgard_r_4s_rejection():
     """Current Z = +2.1, previous Z = -2.1 → range = 4.2 SD → R_4s REJECT."""
     status, z, rules = WestgardEngine.evaluate_qc_run(
-        measured_value=5.42,   # Z = +2.1
-        mean=5.0, sd=0.2,
+        measured_value=5.42,  # Z = +2.1
+        mean=5.0,
+        sd=0.2,
         history_z_scores=[-2.1],
     )
     assert status == "REJECT"
@@ -263,10 +271,11 @@ def test_westgard_r_4s_rejection():
 
 def test_westgard_4_1s_rejection():
     """4 consecutive results all > +1.0 SD → 4_1s REJECT."""
-    history = [1.2, 1.3, 1.1]   # previous 3 runs all > +1.0
+    history = [1.2, 1.3, 1.1]  # previous 3 runs all > +1.0
     status, z, rules = WestgardEngine.evaluate_qc_run(
-        measured_value=5.24,   # Z = +1.2
-        mean=5.0, sd=0.2,
+        measured_value=5.24,  # Z = +1.2
+        mean=5.0,
+        sd=0.2,
         history_z_scores=history,
     )
     assert status == "REJECT"
@@ -275,10 +284,11 @@ def test_westgard_4_1s_rejection():
 
 def test_westgard_10_x_rejection():
     """10 consecutive results on same side of mean → 10_x REJECT."""
-    history = [0.2, 0.4, 0.1, 0.3, 0.5, 0.2, 0.4, 0.1, 0.3]   # 9 positive runs
+    history = [0.2, 0.4, 0.1, 0.3, 0.5, 0.2, 0.4, 0.1, 0.3]  # 9 positive runs
     status, z, rules = WestgardEngine.evaluate_qc_run(
-        measured_value=5.10,   # Z = +0.5 (10th positive run)
-        mean=5.0, sd=0.2,
+        measured_value=5.10,  # Z = +0.5 (10th positive run)
+        mean=5.0,
+        sd=0.2,
         history_z_scores=history,
     )
     assert status == "REJECT"
@@ -314,9 +324,7 @@ def test_lims_qc_logging_pass(app):
         db.session.add(sample)
         db.session.commit()
 
-        result = LIMSService.log_qc_result(
-            qc_sample_id=sample.id, measured_value=90.0
-        )
+        result = LIMSService.log_qc_result(qc_sample_id=sample.id, measured_value=90.0)
         assert result.id is not None
         assert result.z_score == pytest.approx(0.0)
         assert result.status == "PASS"
@@ -337,9 +345,7 @@ def test_lims_qc_logging_reject(app):
         db.session.commit()
 
         # Measured value far outside (Z ≈ +5.0)
-        result = LIMSService.log_qc_result(
-            qc_sample_id=sample.id, measured_value=55.0
-        )
+        result = LIMSService.log_qc_result(qc_sample_id=sample.id, measured_value=55.0)
         assert result.status == "REJECT"
         violated = json.loads(result.violated_rules)
         assert "1_3s" in violated
@@ -372,7 +378,9 @@ def test_api_create_specimen(client, app, lab_user):
     with app.app_context():
         _make_patient("LIMS-API-P001")
 
-    client.post("/login", data={"username": lab_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": lab_user.username, "password": "Password123!"}
+    )
     res = client.post(
         "/laboratory/api/lims/specimens/create",
         json={
@@ -390,7 +398,9 @@ def test_api_create_specimen(client, app, lab_user):
 
 def test_api_create_specimen_missing_patient_id(client, app, lab_user):
     """POST /laboratory/api/lims/specimens/create without patient_id → 400."""
-    client.post("/login", data={"username": lab_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": lab_user.username, "password": "Password123!"}
+    )
     res = client.post(
         "/laboratory/api/lims/specimens/create", json={"specimen_type": "SERUM"}
     )
@@ -404,7 +414,9 @@ def test_api_track_specimen(client, app, lab_user):
         specimen = LIMSService.create_specimen(patient_id="LIMS-API-P002")
         barcode = specimen.barcode
 
-    client.post("/login", data={"username": lab_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": lab_user.username, "password": "Password123!"}
+    )
     res = client.get(f"/laboratory/api/lims/specimens/track/{barcode}")
     assert res.status_code == 200
     data = res.get_json()
@@ -415,7 +427,9 @@ def test_api_track_specimen(client, app, lab_user):
 
 def test_api_track_specimen_not_found(client, app, lab_user):
     """GET /laboratory/api/lims/specimens/track/NONEXISTENT → 404."""
-    client.post("/login", data={"username": lab_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": lab_user.username, "password": "Password123!"}
+    )
     res = client.get("/laboratory/api/lims/specimens/track/SPEC-INVALID-XXXX")
     assert res.status_code == 404
 
@@ -427,7 +441,9 @@ def test_api_collect_specimen(client, app, lab_user):
         specimen = LIMSService.create_specimen(patient_id="LIMS-API-P003")
         barcode = specimen.barcode
 
-    client.post("/login", data={"username": lab_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": lab_user.username, "password": "Password123!"}
+    )
     res = client.post(
         "/laboratory/api/lims/specimens/collect", json={"barcode": barcode}
     )
@@ -442,7 +458,9 @@ def test_api_reject_specimen(client, app, lab_user):
         specimen = LIMSService.create_specimen(patient_id="LIMS-API-P004")
         barcode = specimen.barcode
 
-    client.post("/login", data={"username": lab_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": lab_user.username, "password": "Password123!"}
+    )
     res = client.post(
         "/laboratory/api/lims/specimens/reject",
         json={"barcode": barcode, "rejection_reason": "CLOTTED"},
@@ -455,7 +473,9 @@ def test_api_reject_specimen(client, app, lab_user):
 
 def test_api_dashboard_metrics(client, app, lab_user):
     """GET /laboratory/api/lims/dashboard-metrics → 200 with proper structure."""
-    client.post("/login", data={"username": lab_user.username, "password": "Password123!"})
+    client.post(
+        "/login", data={"username": lab_user.username, "password": "Password123!"}
+    )
     res = client.get("/laboratory/api/lims/dashboard-metrics")
     assert res.status_code == 200
     metrics = res.get_json()

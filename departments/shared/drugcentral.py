@@ -106,6 +106,7 @@ def _cb_record_failure(reason: str) -> None:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 class DrugCentralUnavailable(Exception):
     """Raised when the circuit breaker is open or connection cannot be made."""
 

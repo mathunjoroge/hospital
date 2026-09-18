@@ -33,9 +33,11 @@ from extensions import db
 
 # ── Fixtures / factory helpers ────────────────────────────────────────────────
 
+
 def _make_category(name: str = "Antibiotic"):
     """Create a DrugCategory row and return it flushed."""
     from departments.models.pharmacy import DrugCategory
+
     cat = DrugCategory(name=name)
     db.session.add(cat)
     db.session.flush()
@@ -45,6 +47,7 @@ def _make_category(name: str = "Antibiotic"):
 def _make_drug(generic_name: str, category_id: int):
     """Create a Drug row with all required columns."""
     from departments.models.pharmacy import Drug
+
     drug = Drug(
         generic_name=generic_name,
         brand_name=f"{generic_name} Brand",
@@ -63,6 +66,7 @@ def _make_drug(generic_name: str, category_id: int):
 def _make_patient(pid: str, name: str):
     """Create a Patient row with all required columns."""
     from departments.models.records import Patient
+
     p = Patient(
         patient_id=pid,
         name=name,
@@ -88,8 +92,9 @@ def _make_allergy(patient_pid: str, allergen: str, severity: str = "SEVERE"):
     not the integer pk — that is the FK the table uses.
     """
     from departments.models.records import PatientAllergy
+
     a = PatientAllergy(
-        patient_id=patient_pid,   # FK to patients.patient_id (string)
+        patient_id=patient_pid,  # FK to patients.patient_id (string)
         allergen=allergen,
         category="DRUG",
         severity=severity,
@@ -100,6 +105,7 @@ def _make_allergy(patient_pid: str, allergen: str, severity: str = "SEVERE"):
 
 
 # ── AlertSeverity / AlertType constants ──────────────────────────────────────
+
 
 class TestAlertConstants:
     def test_severity_values(self):
@@ -117,6 +123,7 @@ class TestAlertConstants:
 
 
 # ── SafetyAlert ───────────────────────────────────────────────────────────────
+
 
 class TestSafetyAlert:
     def test_critical_is_not_overridable(self):
@@ -181,6 +188,7 @@ class TestSafetyAlert:
 
 # ── SafetyCheckResult ─────────────────────────────────────────────────────────
 
+
 class TestSafetyCheckResult:
     def test_empty_result_can_proceed(self):
         result = SafetyCheckResult()
@@ -191,14 +199,18 @@ class TestSafetyCheckResult:
 
     def test_add_moderate_alert_does_not_block(self):
         result = SafetyCheckResult()
-        result.add_alert(SafetyAlert(AlertType.DUPLICATE_THERAPY, AlertSeverity.MODERATE, "dup", 1))
+        result.add_alert(
+            SafetyAlert(AlertType.DUPLICATE_THERAPY, AlertSeverity.MODERATE, "dup", 1)
+        )
         assert result.has_alerts is True
         assert result.has_critical is False
         assert result.can_proceed is True
 
     def test_add_critical_alert_blocks_proceed(self):
         result = SafetyCheckResult()
-        result.add_alert(SafetyAlert(AlertType.ALLERGY, AlertSeverity.CRITICAL, "allergy", 1))
+        result.add_alert(
+            SafetyAlert(AlertType.ALLERGY, AlertSeverity.CRITICAL, "allergy", 1)
+        )
         assert result.has_critical is True
         assert result.can_proceed is False
 
@@ -215,8 +227,12 @@ class TestSafetyCheckResult:
 
     def test_mixed_severities_critical_wins(self):
         result = SafetyCheckResult()
-        result.add_alert(SafetyAlert(AlertType.DUPLICATE_THERAPY, AlertSeverity.MODERATE, "dup", 1))
-        result.add_alert(SafetyAlert(AlertType.ALLERGY, AlertSeverity.CRITICAL, "allergy", 1))
+        result.add_alert(
+            SafetyAlert(AlertType.DUPLICATE_THERAPY, AlertSeverity.MODERATE, "dup", 1)
+        )
+        result.add_alert(
+            SafetyAlert(AlertType.ALLERGY, AlertSeverity.CRITICAL, "allergy", 1)
+        )
         assert result.has_critical is True
         assert result.can_proceed is False
         assert result.to_dict()["total_alerts"] == 2
@@ -224,12 +240,15 @@ class TestSafetyCheckResult:
 
 # ── ClinicalSafetyEngine.check_prescription() ────────────────────────────────
 
+
 class TestClinicalSafetyEngineCheckPrescription:
     def test_no_drugs_returns_empty(self, app):
         """Empty drug list → no alerts, no DB queries that could fail."""
         with app.app_context():
             db.create_all()
-            result = ClinicalSafetyEngine().check_prescription(patient_id=999, drug_ids=[])
+            result = ClinicalSafetyEngine().check_prescription(
+                patient_id=999, drug_ids=[]
+            )
             assert result.has_alerts is False
 
     def test_no_allergies_no_alert(self, app):
@@ -243,7 +262,9 @@ class TestClinicalSafetyEngineCheckPrescription:
             result = ClinicalSafetyEngine().check_prescription(
                 patient_id=9001, drug_ids=[drug.id]
             )
-            allergy_alerts = [a for a in result.alerts if a.alert_type == AlertType.ALLERGY]
+            allergy_alerts = [
+                a for a in result.alerts if a.alert_type == AlertType.ALLERGY
+            ]
             assert allergy_alerts == []
 
     def test_allergy_match_severe_is_critical(self, app):
@@ -265,7 +286,9 @@ class TestClinicalSafetyEngineCheckPrescription:
             assert result.has_alerts is True
             assert result.has_critical is True
             assert result.can_proceed is False
-            allergy_alerts = [a for a in result.alerts if a.alert_type == AlertType.ALLERGY]
+            allergy_alerts = [
+                a for a in result.alerts if a.alert_type == AlertType.ALLERGY
+            ]
             assert len(allergy_alerts) == 1
             assert "Penicillin" in allergy_alerts[0].message
             assert allergy_alerts[0].overridable is False
@@ -287,7 +310,9 @@ class TestClinicalSafetyEngineCheckPrescription:
             assert result.has_alerts is True
             assert result.has_critical is False
             assert result.can_proceed is True
-            allergy_alerts = [a for a in result.alerts if a.alert_type == AlertType.ALLERGY]
+            allergy_alerts = [
+                a for a in result.alerts if a.alert_type == AlertType.ALLERGY
+            ]
             assert allergy_alerts[0].severity == AlertSeverity.MODERATE
             assert allergy_alerts[0].overridable is True
 
@@ -304,7 +329,9 @@ class TestClinicalSafetyEngineCheckPrescription:
             result = ClinicalSafetyEngine().check_prescription(
                 patient_id=patient.id, drug_ids=[drug.id]
             )
-            allergy_alerts = [a for a in result.alerts if a.alert_type == AlertType.ALLERGY]
+            allergy_alerts = [
+                a for a in result.alerts if a.alert_type == AlertType.ALLERGY
+            ]
             assert allergy_alerts[0].severity == AlertSeverity.MODERATE
 
     def test_allergy_case_insensitive_match(self, app):
@@ -335,7 +362,9 @@ class TestClinicalSafetyEngineCheckPrescription:
             result = ClinicalSafetyEngine().check_prescription(
                 patient_id=patient.id, drug_ids=[safe_drug.id]
             )
-            allergy_alerts = [a for a in result.alerts if a.alert_type == AlertType.ALLERGY]
+            allergy_alerts = [
+                a for a in result.alerts if a.alert_type == AlertType.ALLERGY
+            ]
             assert allergy_alerts == []
 
     def test_multiple_drugs_only_allergenic_triggers_alert(self, app):
@@ -352,12 +381,15 @@ class TestClinicalSafetyEngineCheckPrescription:
             result = ClinicalSafetyEngine().check_prescription(
                 patient_id=patient.id, drug_ids=[safe_drug.id, allergenic_drug.id]
             )
-            allergy_alerts = [a for a in result.alerts if a.alert_type == AlertType.ALLERGY]
+            allergy_alerts = [
+                a for a in result.alerts if a.alert_type == AlertType.ALLERGY
+            ]
             assert len(allergy_alerts) == 1
             assert allergy_alerts[0].allergen.lower() == "sulfonamide"
 
 
 # ── ClinicalSafetyEngine.log_override() ──────────────────────────────────────
+
 
 class TestLogOverride:
     def test_log_override_creates_db_record(self, app):

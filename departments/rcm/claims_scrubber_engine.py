@@ -43,43 +43,53 @@ class ClaimsScrubberEngine:
 
         # 1. Primary ICD-10 Format Check
         if not claim.primary_diagnosis_icd10:
-            errors.append({
-                "code": "ERR_ICD10_MISSING",
-                "severity": "CRITICAL",
-                "message": "Primary ICD-10 diagnosis code is required for claim submission.",
-            })
+            errors.append(
+                {
+                    "code": "ERR_ICD10_MISSING",
+                    "severity": "CRITICAL",
+                    "message": "Primary ICD-10 diagnosis code is required for claim submission.",
+                }
+            )
         else:
             pattern = r"^[A-Z][0-9]{2}(\.[0-9]{1,2})?$"
             if not re.match(pattern, claim.primary_diagnosis_icd10.strip().upper()):
-                warnings.append({
-                    "code": "WARN_ICD10_FORMAT",
-                    "severity": "MEDIUM",
-                    "message": f"Primary diagnosis '{claim.primary_diagnosis_icd10}' may not conform to standard ICD-10 formatting.",
-                })
+                warnings.append(
+                    {
+                        "code": "WARN_ICD10_FORMAT",
+                        "severity": "MEDIUM",
+                        "message": f"Primary diagnosis '{claim.primary_diagnosis_icd10}' may not conform to standard ICD-10 formatting.",
+                    }
+                )
 
         # 2. Service Dates Check
         if claim.service_start_date and claim.service_end_date:
             if claim.service_start_date > claim.service_end_date:
-                errors.append({
-                    "code": "ERR_INVALID_DATES",
-                    "severity": "CRITICAL",
-                    "message": "Service start date cannot be after service end date.",
-                })
+                errors.append(
+                    {
+                        "code": "ERR_INVALID_DATES",
+                        "severity": "CRITICAL",
+                        "message": "Service start date cannot be after service end date.",
+                    }
+                )
             if claim.service_end_date > datetime.now(timezone.utc).date():
-                errors.append({
-                    "code": "ERR_FUTURE_DATES",
-                    "severity": "CRITICAL",
-                    "message": "Service end date cannot be in the future.",
-                })
+                errors.append(
+                    {
+                        "code": "ERR_FUTURE_DATES",
+                        "severity": "CRITICAL",
+                        "message": "Service end date cannot be in the future.",
+                    }
+                )
 
         # 3. Billed Amount Check
         billed = float(claim.billed_amount or 0)
         if billed <= 0:
-            errors.append({
-                "code": "ERR_BILLED_ZERO",
-                "severity": "CRITICAL",
-                "message": "Billed amount must be greater than zero.",
-            })
+            errors.append(
+                {
+                    "code": "ERR_BILLED_ZERO",
+                    "severity": "CRITICAL",
+                    "message": "Billed amount must be greater than zero.",
+                }
+            )
 
         # 4. Pre-Authorization Gate Check for High-Cost Claims (> 20,000 KES)
         if billed >= 20000.0:
@@ -88,11 +98,13 @@ class ClaimsScrubberEngine:
                 PreAuthorization.status == "APPROVED",
             ).first()
             if not pre_auth:
-                errors.append({
-                    "code": "ERR_PREAUTH_MISSING",
-                    "severity": "HIGH",
-                    "message": f"Approved Pre-Authorization required for high-cost claim (Billed: KES {billed:,.2f}).",
-                })
+                errors.append(
+                    {
+                        "code": "ERR_PREAUTH_MISSING",
+                        "severity": "HIGH",
+                        "message": f"Approved Pre-Authorization required for high-cost claim (Billed: KES {billed:,.2f}).",
+                    }
+                )
 
         # 5. Duplicate Claim Check
         dup = ClaimSubmission.query.filter(
@@ -103,11 +115,13 @@ class ClaimsScrubberEngine:
         ).first()
 
         if dup:
-            warnings.append({
-                "code": "WARN_POSSIBLE_DUPLICATE",
-                "severity": "HIGH",
-                "message": f"Existing active claim #{dup.id} found for patient on {claim.service_start_date}.",
-            })
+            warnings.append(
+                {
+                    "code": "WARN_POSSIBLE_DUPLICATE",
+                    "severity": "HIGH",
+                    "message": f"Existing active claim #{dup.id} found for patient on {claim.service_start_date}.",
+                }
+            )
 
         # Calculate Denial Risk Score (0-100%)
         critical_count = len(errors)
@@ -117,7 +131,9 @@ class ClaimsScrubberEngine:
         is_clean = len(errors) == 0
         claim.scrubbing_status = "CLEAN" if is_clean else "HAS_ERRORS"
         claim.denial_risk_score = risk_score
-        claim.scrubbing_errors_json = json.dumps({"errors": errors, "warnings": warnings})
+        claim.scrubbing_errors_json = json.dumps(
+            {"errors": errors, "warnings": warnings}
+        )
 
         if is_clean and claim.status in ("DRAFT", "UNSCRUBBED"):
             claim.status = "CLEAN"
@@ -147,13 +163,25 @@ class ClaimsScrubberEngine:
         if not claim:
             raise ValueError(f"Claim #{claim_id} not found.")
 
-        patient = db.session.get(Patient, claim.patient_id) if isinstance(claim.patient_id, str) else Patient.query.filter_by(id=claim.patient_id).first()
+        patient = (
+            db.session.get(Patient, claim.patient_id)
+            if isinstance(claim.patient_id, str)
+            else Patient.query.filter_by(id=claim.patient_id).first()
+        )
         pat_name = patient.name.upper() if patient else "DOE, JANE"
         pat_id = claim.patient_id
 
         now_str = datetime.now(timezone.utc).strftime("%Y%m%d*%H%M")
-        date_start_str = claim.service_start_date.strftime("%Y%m%d") if claim.service_start_date else "20260901"
-        date_end_str = claim.service_end_date.strftime("%Y%m%d") if claim.service_end_date else date_start_str
+        date_start_str = (
+            claim.service_start_date.strftime("%Y%m%d")
+            if claim.service_start_date
+            else "20260901"
+        )
+        date_end_str = (
+            claim.service_end_date.strftime("%Y%m%d")
+            if claim.service_end_date
+            else date_start_str
+        )
         icd10 = (claim.primary_diagnosis_icd10 or "R69").replace(".", "")
         billed_str = f"{float(claim.billed_amount or 0):.2f}"
 
@@ -203,7 +231,11 @@ class ClaimsScrubberEngine:
           CLP*CLAIM101*1*2000.00*1500.00*REF99*11~  (CLP02: 1=Paid, 2=Denied, 3=Pended)
           CAS*CO*45*500.00~ (Adjustment)
         """
-        lines = [line.strip() for line in edi_content.replace("\n", "").split("~") if line.strip()]
+        lines = [
+            line.strip()
+            for line in edi_content.replace("\n", "").split("~")
+            if line.strip()
+        ]
 
         total_paid_in_bpr = 0.0
         claims_processed = 0
@@ -252,33 +284,43 @@ class ClaimsScrubberEngine:
                                 maybe_close_encounter,
                             )
 
-                            for b in Billing.query.filter_by(patient_id=patient_id, status=0).all():
+                            for b in Billing.query.filter_by(
+                                patient_id=patient_id, status=0
+                            ).all():
                                 b.status = 1
-                            for d in DrugsBill.query.filter_by(patient_id=patient_id, status=0).all():
+                            for d in DrugsBill.query.filter_by(
+                                patient_id=patient_id, status=0
+                            ).all():
                                 d.status = 1
-                            for inv in Invoice.query.filter_by(patient_id=patient_id, status=0).all():
+                            for inv in Invoice.query.filter_by(
+                                patient_id=patient_id, status=0
+                            ).all():
                                 inv.status = 1
 
                             db.session.commit()
                             advance_after_completion(patient_id)
                             maybe_close_encounter(patient_id)
 
-                        claims_summary.append({
-                            "claim_id": claim_id,
-                            "status": "PAID",
-                            "billed": billed_amt,
-                            "paid": paid_amt,
-                        })
+                        claims_summary.append(
+                            {
+                                "claim_id": claim_id,
+                                "status": "PAID",
+                                "billed": billed_amt,
+                                "paid": paid_amt,
+                            }
+                        )
                     else:  # Denied or Pended
                         claim.status = "DENIED"
                         claim.paid_amount = 0.0
                         claim.approved_amount = 0.0
-                        claims_summary.append({
-                            "claim_id": claim_id,
-                            "status": "DENIED",
-                            "billed": billed_amt,
-                            "paid": 0.0,
-                        })
+                        claims_summary.append(
+                            {
+                                "claim_id": claim_id,
+                                "status": "DENIED",
+                                "billed": billed_amt,
+                                "paid": 0.0,
+                            }
+                        )
 
         log = Edi835RemittanceLog(
             payer_id="SHA_KENYA",

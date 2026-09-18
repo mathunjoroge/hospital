@@ -7,6 +7,7 @@ T3.2 — Theatre Booking Stages:
   - Stage machine enforces PRE_OP -> INTRA_OP (illegal skips are refused)
   - TheatreList.encounter_id is set at booking time
 """
+
 from datetime import date
 
 import pytest
@@ -33,8 +34,9 @@ def doctor(app):
 
 
 def _patient(pid: str) -> Patient:
-    p = Patient(patient_id=pid, name=f"Test {pid}", sex="M",
-                date_of_birth=date(1980, 5, 15))
+    p = Patient(
+        patient_id=pid, name=f"Test {pid}", sex="M", date_of_birth=date(1980, 5, 15)
+    )
     db.session.add(p)
     db.session.commit()
     return p
@@ -52,8 +54,12 @@ class TestSurgicalStageMachine:
         """PRE_OP -> INTRA_OP is a legal transition."""
         with app.app_context():
             _patient("P-TH-SM-01")
-            enc = Encounter(patient_id="P-TH-SM-01", encounter_type="SURGICAL",
-                            stage="PRE_OP", status="ACTIVE")
+            enc = Encounter(
+                patient_id="P-TH-SM-01",
+                encounter_type="SURGICAL",
+                stage="PRE_OP",
+                status="ACTIVE",
+            )
             db.session.add(enc)
             db.session.commit()
             assert enc.set_stage("INTRA_OP") is True
@@ -63,8 +69,12 @@ class TestSurgicalStageMachine:
         """INTRA_OP -> POST_OP is a legal transition."""
         with app.app_context():
             _patient("P-TH-SM-02")
-            enc = Encounter(patient_id="P-TH-SM-02", encounter_type="SURGICAL",
-                            stage="INTRA_OP", status="ACTIVE")
+            enc = Encounter(
+                patient_id="P-TH-SM-02",
+                encounter_type="SURGICAL",
+                stage="INTRA_OP",
+                status="ACTIVE",
+            )
             db.session.add(enc)
             db.session.commit()
             assert enc.set_stage("POST_OP") is True
@@ -74,8 +84,12 @@ class TestSurgicalStageMachine:
         """POST_OP -> DISCHARGED is legal (via close())."""
         with app.app_context():
             _patient("P-TH-SM-03")
-            enc = Encounter(patient_id="P-TH-SM-03", encounter_type="SURGICAL",
-                            stage="POST_OP", status="ACTIVE")
+            enc = Encounter(
+                patient_id="P-TH-SM-03",
+                encounter_type="SURGICAL",
+                stage="POST_OP",
+                status="ACTIVE",
+            )
             db.session.add(enc)
             db.session.commit()
             enc.close()
@@ -87,8 +101,12 @@ class TestSurgicalStageMachine:
         """Skipping INTRA_OP (PRE_OP -> POST_OP directly) is refused."""
         with app.app_context():
             _patient("P-TH-SM-04")
-            enc = Encounter(patient_id="P-TH-SM-04", encounter_type="SURGICAL",
-                            stage="PRE_OP", status="ACTIVE")
+            enc = Encounter(
+                patient_id="P-TH-SM-04",
+                encounter_type="SURGICAL",
+                stage="PRE_OP",
+                status="ACTIVE",
+            )
             db.session.add(enc)
             db.session.commit()
             assert enc.set_stage("POST_OP") is False
@@ -98,8 +116,12 @@ class TestSurgicalStageMachine:
         """Walk the full PRE_OP -> INTRA_OP -> POST_OP -> DISCHARGED chain."""
         with app.app_context():
             _patient("P-TH-SM-07")
-            enc = Encounter(patient_id="P-TH-SM-07", encounter_type="SURGICAL",
-                            stage="PRE_OP", status="ACTIVE")
+            enc = Encounter(
+                patient_id="P-TH-SM-07",
+                encounter_type="SURGICAL",
+                stage="PRE_OP",
+                status="ACTIVE",
+            )
             db.session.add(enc)
             db.session.commit()
             assert enc.set_stage("INTRA_OP") is True
@@ -112,16 +134,21 @@ class TestSurgicalStageMachine:
 class TestTheatreBookingRoute:
     def test_booking_creates_surgical_encounter_at_pre_op(self, client, app, doctor):
         """POST /medicine/add-to-theatre creates a SURGICAL encounter in PRE_OP."""
-        client.post("/login", data={"username": doctor.username, "password": "Password123!"})
+        client.post(
+            "/login", data={"username": doctor.username, "password": "Password123!"}
+        )
         with app.app_context():
             _patient("P-TH-R-01")
             proc_id = _procedure("Appendectomy")
-        resp = client.post("/medicine/add-to-theatre", data={
-            "patient_id": "P-TH-R-01",
-            "procedure_id": str(proc_id),
-            "created_by": str(doctor.id),
-            "notes_on_book": "Routine appendectomy",
-        })
+        resp = client.post(
+            "/medicine/add-to-theatre",
+            data={
+                "patient_id": "P-TH-R-01",
+                "procedure_id": str(proc_id),
+                "created_by": str(doctor.id),
+                "notes_on_book": "Routine appendectomy",
+            },
+        )
         assert resp.status_code in (200, 302)
         with app.app_context():
             entry = TheatreList.query.filter_by(patient_id="P-TH-R-01").first()
@@ -135,22 +162,30 @@ class TestTheatreBookingRoute:
 
     def test_post_op_notes_advances_to_discharged(self, client, app, doctor):
         """POST /medicine/update-post-op/<id> advances PRE_OP -> INTRA_OP -> POST_OP -> DISCHARGED."""
-        client.post("/login", data={"username": doctor.username, "password": "Password123!"})
+        client.post(
+            "/login", data={"username": doctor.username, "password": "Password123!"}
+        )
         with app.app_context():
             _patient("P-TH-R-02")
             proc_id = _procedure("Cholecystectomy")
-        client.post("/medicine/add-to-theatre", data={
-            "patient_id": "P-TH-R-02",
-            "procedure_id": str(proc_id),
-            "created_by": str(doctor.id),
-        })
+        client.post(
+            "/medicine/add-to-theatre",
+            data={
+                "patient_id": "P-TH-R-02",
+                "procedure_id": str(proc_id),
+                "created_by": str(doctor.id),
+            },
+        )
         with app.app_context():
             entry = TheatreList.query.filter_by(patient_id="P-TH-R-02").first()
             entry_id = entry.id
             enc_id = entry.encounter_id
-        resp = client.post(f"/medicine/update-post-op/{entry_id}", data={
-            "notes_on_post_op": "Procedure completed without complications.",
-        })
+        resp = client.post(
+            f"/medicine/update-post-op/{entry_id}",
+            data={
+                "notes_on_post_op": "Procedure completed without complications.",
+            },
+        )
         assert resp.status_code in (200, 302)
         with app.app_context():
             enc = db.session.get(Encounter, enc_id)
@@ -160,15 +195,20 @@ class TestTheatreBookingRoute:
 
     def test_transition_route_moves_pre_op_to_intra_op(self, client, app, doctor):
         """POST /medicine/theatre-transition/<id>/INTRA_OP advances PRE_OP -> INTRA_OP."""
-        client.post("/login", data={"username": doctor.username, "password": "Password123!"})
+        client.post(
+            "/login", data={"username": doctor.username, "password": "Password123!"}
+        )
         with app.app_context():
             _patient("P-TH-R-05")
             proc_id = _procedure("Hernia Repair")
-        client.post("/medicine/add-to-theatre", data={
-            "patient_id": "P-TH-R-05",
-            "procedure_id": str(proc_id),
-            "created_by": str(doctor.id),
-        })
+        client.post(
+            "/medicine/add-to-theatre",
+            data={
+                "patient_id": "P-TH-R-05",
+                "procedure_id": str(proc_id),
+                "created_by": str(doctor.id),
+            },
+        )
         with app.app_context():
             entry = TheatreList.query.filter_by(patient_id="P-TH-R-05").first()
             entry_id = entry.id

@@ -105,7 +105,12 @@ def test_pediatric_growth_zscore_calculation(app):
 def test_nicu_pediatrics_api_endpoints(client, app, admin_user):
     """Test HTTP API endpoints for APGAR, Phototherapy, and Growth Charts."""
     with app.app_context():
-        pat = Patient(patient_id="PAT_NICU_API", name="Baby API Doe", sex="Male", date_of_birth=date(2026, 9, 1))
+        pat = Patient(
+            patient_id="PAT_NICU_API",
+            name="Baby API Doe",
+            sex="Male",
+            date_of_birth=date(2026, 9, 1),
+        )
         db.session.add(pat)
         db.session.commit()
 

@@ -292,9 +292,8 @@ class ClinicalSafetyEngine:
         for rx in active_prescriptions:
             # PrescribedMedicine uses medicine_id as the FK to the drug/medicine table.
             # Fallback chain covers any future schema variants.
-            rx_drug_id = (
-                getattr(rx, "medicine_id", None)
-                or getattr(rx, "drug_id", None)
+            rx_drug_id = getattr(rx, "medicine_id", None) or getattr(
+                rx, "drug_id", None
             )
             if rx_drug_id:
                 active_drug_ids.add(rx_drug_id)
@@ -362,7 +361,9 @@ class ClinicalSafetyEngine:
 
         return override
 
-    def check_by_names(self, patient_id: str, medication_names: list[str], **kwargs) -> dict:
+    def check_by_names(
+        self, patient_id: str, medication_names: list[str], **kwargs
+    ) -> dict:
         """
         Check medication names against patient allergies and drug-drug interactions.
         This method mirrors the original check_drug_safety logic from prescribe.py
@@ -379,7 +380,9 @@ class ClinicalSafetyEngine:
         new_meds_lower = [m.lower().strip() for m in medication_names if m]
 
         # 1a. Fetch structured patient allergies from PatientAllergy model
-        structured_allergies = PatientAllergy.query.filter_by(patient_id=patient_id).all()
+        structured_allergies = PatientAllergy.query.filter_by(
+            patient_id=patient_id
+        ).all()
         structured_allergen_names = [
             a.allergen.lower().strip() for a in structured_allergies if a.allergen
         ]
@@ -412,7 +415,8 @@ class ClinicalSafetyEngine:
                 for group_name, drug_list in ALLERGY_GROUPS.items():
                     if any(d in drug for d in drug_list):  # noqa: SIM102
                         if any(
-                            group_name in allergy or any(d in allergy for d in drug_list)
+                            group_name in allergy
+                            or any(d in allergy for d in drug_list)
                             for allergy in documented_allergies
                         ):
                             alerts.append(
@@ -459,7 +463,11 @@ class ClinicalSafetyEngine:
         )
 
         patient = Patient.query.filter_by(patient_id=patient_id).first()
-        latest_vitals = Vitals.query.filter_by(patient_id=patient_id).order_by(Vitals.timestamp.desc()).first()
+        latest_vitals = (
+            Vitals.query.filter_by(patient_id=patient_id)
+            .order_by(Vitals.timestamp.desc())
+            .first()
+        )
 
         # Extract or resolve clinical parameters
         age_years = kwargs.get("age_years", 30)
@@ -467,10 +475,14 @@ class ClinicalSafetyEngine:
         if patient:
             _is_female = (patient.sex or "").lower() in ("female", "f")
             if patient.date_of_birth:
-
                 today = datetime.now(timezone.utc).date()
-                age_years = today.year - patient.date_of_birth.year - (
-                    (today.month, today.day) < (patient.date_of_birth.month, patient.date_of_birth.day)
+                age_years = (
+                    today.year
+                    - patient.date_of_birth.year
+                    - (
+                        (today.month, today.day)
+                        < (patient.date_of_birth.month, patient.date_of_birth.day)
+                    )
                 )
 
         weight_kg = getattr(latest_vitals, "weight", None) if latest_vitals else None
@@ -480,7 +492,6 @@ class ClinicalSafetyEngine:
         # Process clinical parameters override if passed via kwargs or patient records
         egfr = kwargs.get("egfr")
         is_pregnant = kwargs.get("is_pregnant", False)
-
 
         trimester = kwargs.get("trimester")
         is_lactating = kwargs.get("is_lactating", False)
@@ -497,7 +508,9 @@ class ClinicalSafetyEngine:
 
             # Hepatic Dosing Check
             if has_hepatic:
-                h_alerts = HepaticDosingEngine.evaluate(drug, has_hepatic_impairment=True)
+                h_alerts = HepaticDosingEngine.evaluate(
+                    drug, has_hepatic_impairment=True
+                )
                 alerts.extend(h_alerts)
 
             # Pediatric Dosing Check
@@ -524,9 +537,8 @@ class ClinicalSafetyEngine:
 
         return {
             "has_warnings": len(filtered_alerts) > 0,
-            "critical_block": any(a.get("severity") == "CRITICAL" for a in filtered_alerts),
+            "critical_block": any(
+                a.get("severity") == "CRITICAL" for a in filtered_alerts
+            ),
             "alerts": filtered_alerts,
         }
-
-
-

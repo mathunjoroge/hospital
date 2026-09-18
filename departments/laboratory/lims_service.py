@@ -30,7 +30,11 @@ class WestgardEngine:
 
     @classmethod
     def evaluate_qc_run(
-        cls, measured_value: float, mean: float, sd: float, history_z_scores: list[float]
+        cls,
+        measured_value: float,
+        mean: float,
+        sd: float,
+        history_z_scores: list[float],
     ) -> tuple[str, float, list[str]]:
         """Evaluates measured value against Westgard rules given historical Z-scores (most recent first).
 
@@ -233,7 +237,11 @@ class LIMSService:
         warning_qc_runs = LabQCResult.query.filter_by(status="WARNING").count()
         reject_qc_runs = LabQCResult.query.filter_by(status="REJECT").count()
 
-        pass_rate = round((pass_qc_runs / total_qc_runs * 100), 1) if total_qc_runs > 0 else 100.0
+        pass_rate = (
+            round((pass_qc_runs / total_qc_runs * 100), 1)
+            if total_qc_runs > 0
+            else 100.0
+        )
 
         return {
             "total_specimens": total_specimens,

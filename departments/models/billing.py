@@ -284,7 +284,9 @@ class Invoice(db.Model):
     """
 
     __tablename__ = "invoices"
-    facility_id = db.Column(db.Integer, db.ForeignKey("facilities.id"), nullable=True, index=True)
+    facility_id = db.Column(
+        db.Integer, db.ForeignKey("facilities.id"), nullable=True, index=True
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     invoice_number = db.Column(db.String(30), unique=True, nullable=False, index=True)
@@ -308,7 +310,9 @@ class Invoice(db.Model):
     # Insurance
     insurance_scheme_id = db.Column(db.Integer, nullable=True)  # FK added by 2.3
     insurance_claim_ref = db.Column(db.String(100), nullable=True)
-    encounter_id = db.Column(db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True)
+    encounter_id = db.Column(
+        db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
+    )
 
     # Audit
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
@@ -450,18 +454,23 @@ class InvoiceLineItem(db.Model):
 
     # Optional FK back to source domain tables
     charge_id = db.Column(db.Integer, db.ForeignKey("charges.id"), nullable=True)
-    encounter_id = db.Column(db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True)
+    encounter_id = db.Column(
+        db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
+    )
 
     invoice = db.relationship("Invoice", back_populates="line_items")
 
     # Source tracking for billing sync (Phase 1)
-    source_table = db.Column(db.String(50), nullable=True)  # e.g., 'requested_lab', 'dispensed_drug'
+    source_table = db.Column(
+        db.String(50), nullable=True
+    )  # e.g., 'requested_lab', 'dispensed_drug'
     source_id = db.Column(db.Integer, nullable=True)  # ID in the source table
 
     __table_args__ = (
-        db.UniqueConstraint('source_table', 'source_id', name='uq_invoice_line_item_source'),
+        db.UniqueConstraint(
+            "source_table", "source_id", name="uq_invoice_line_item_source"
+        ),
     )
-
 
     def __init__(self, **kwargs):
         if "total_price" in kwargs:
@@ -578,8 +587,12 @@ class EtimsConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     kra_pin = db.Column(db.String(20), nullable=False, default="P051234567A")
     branch_code = db.Column(db.String(10), nullable=False, default="00")
-    device_serial = db.Column(db.String(100), nullable=False, default="VSCU-KRA-2026-8891")
-    cmc_key = db.Column(db.String(255), nullable=True, default="KRA-OSCU-CMC-SECRET-KEY")
+    device_serial = db.Column(
+        db.String(100), nullable=False, default="VSCU-KRA-2026-8891"
+    )
+    cmc_key = db.Column(
+        db.String(255), nullable=True, default="KRA-OSCU-CMC-SECRET-KEY"
+    )
     vscu_server_url = db.Column(
         db.String(255),
         nullable=False,
@@ -595,7 +608,9 @@ class EtimsConfig(db.Model):
             "and Inpatient Ward Admissions are VAT Exempt under the Kenya Value Added Tax Act (2013) First Schedule."
         ),
     )
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
 
 
 class EtimsFiscalReceipt(db.Model):
@@ -606,7 +621,9 @@ class EtimsFiscalReceipt(db.Model):
     __tablename__ = "etims_fiscal_receipts"
 
     id = db.Column(db.Integer, primary_key=True)
-    invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), nullable=False, index=True)
+    invoice_id = db.Column(
+        db.Integer, db.ForeignKey("invoices.id"), nullable=False, index=True
+    )
     cu_invoice_number = db.Column(db.String(100), nullable=False, index=True)
     cu_serial_number = db.Column(db.String(100), nullable=False)
     qr_code_url = db.Column(db.Text, nullable=False)
@@ -617,5 +634,6 @@ class EtimsFiscalReceipt(db.Model):
     total_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     fiscalized_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    invoice = db.relationship("Invoice", backref=db.backref("etims_receipt", uselist=False))
-
+    invoice = db.relationship(
+        "Invoice", backref=db.backref("etims_receipt", uselist=False)
+    )
