@@ -22,7 +22,7 @@ from departments.models.controlled_drugs import (
     ControlledDrugDispense,
     ShiftReconciliation,
 )
-from departments.models.pharmacy import Drug
+from departments.models.pharmacy import Batch, Drug
 from departments.models.user import User
 from departments.pharmacy.controlled_drugs_service import (
     ControlledDrugError,
@@ -60,6 +60,16 @@ def controlled_drug_register():
 
         current_balance = last_balance.balance_after if last_balance else 0.0
 
+        # Finding D: include batch info for stock-sync dropdown
+        batches = (
+            Batch.query.filter(
+                Batch.drug_id == drug.id,
+                Batch.quantity_in_stock > 0,
+            )
+            .order_by(Batch.expiry_date.asc().nullslast())
+            .all()
+        )
+
         drug_summaries.append(
             {
                 "id": drug.id,
@@ -69,9 +79,23 @@ def controlled_drug_register():
                 "dosage_form": drug.dosage_form,
                 "strength": drug.strength,
                 "current_balance": current_balance,
-                "last_updated": last_balance.recorded_at.strftime("%Y-%m-%d %H:%M")
-                if last_balance
-                else "—",
+                "pack_stock": drug.quantity_in_stock,
+                "batches": [
+                    {
+                        "id": b.id,
+                        "batch_number": b.batch_number,
+                        "qty": b.quantity_in_stock,
+                        "expiry": b.expiry_date.isoformat()
+                        if b.expiry_date
+                        else None,
+                    }
+                    for b in batches
+                ],
+                "last_updated": (
+                    last_balance.recorded_at.strftime("%Y-%m-%d %H:%M")
+                    if last_balance
+                    else "—"
+                ),
             }
         )
 
@@ -154,6 +178,8 @@ def controlled_drug_dispense_api():
 
     Required JSON:
       patient_id, drug_id, dose_mg, second_signatory_id, second_signatory_role
+    Optional JSON (Finding D — general-inventory sync):
+      pack_units_qty, batch_id
     """
     data = request.get_json(silent=True) or {}
 
@@ -163,12 +189,40 @@ def controlled_drug_dispense_api():
     second_signatory_id = data.get("second_signatory_id")
     second_signatory_role = data.get("second_signatory_role", "pharmacist")
 
+    # Finding D: optional pack-unit stock sync fields
+    pack_units_qty = data.get("pack_units_qty")
+    batch_id = data.get("batch_id")
+
     if not all([patient_id, drug_id, dose_mg, second_signatory_id]):
         return jsonify(
             {
-                "error": "patient_id, drug_id, dose_mg, and second_signatory_id are required"
+                "error": (
+                    "patient_id, drug_id, dose_mg, "
+                    "and second_signatory_id are required"
+                )
             }
         ), 400
+
+    # Coerce pack_units_qty to int if provided
+    if pack_units_qty is not None:
+        try:
+            pack_units_qty = int(pack_units_qty)
+            if pack_units_qty <= 0:
+                return jsonify(
+                    {"error": "pack_units_qty must be a positive integer"}
+                ), 400
+        except (ValueError, TypeError):
+            return jsonify(
+                {"error": "pack_units_qty must be a valid integer"}
+            ), 400
+
+    if batch_id is not None:
+        try:
+            batch_id = int(batch_id)
+        except (ValueError, TypeError):
+            return jsonify(
+                {"error": "batch_id must be a valid integer"}
+            ), 400
 
     try:
         dispense = dispense_controlled_drug(
@@ -179,6 +233,8 @@ def controlled_drug_dispense_api():
             second_signatory_id=int(second_signatory_id),
             second_signatory_role=str(second_signatory_role),
             user_id=current_user.id,
+            pack_units_qty=pack_units_qty,
+            batch_id=batch_id,
         )
         from extensions import db
 
@@ -187,7 +243,10 @@ def controlled_drug_dispense_api():
         return jsonify(
             {
                 "status": "success",
-                "message": f"Controlled drug dispensed and ledger updated. Balance after: {dispense.balance_after} mg",
+                "message": (
+                    f"Controlled drug dispensed and ledger updated. "
+                    f"Balance after: {dispense.balance_after} mg"
+                ),
                 "dispense_id": dispense.id,
                 "balance_after": dispense.balance_after,
             }
@@ -197,8 +256,12 @@ def controlled_drug_dispense_api():
         return jsonify({"error": str(exc)}), 422
 
     except Exception:
-        logger.exception("Unexpected error during controlled drug dispense")
-        return jsonify({"error": "Internal server error during dispense"}), 500
+        logger.exception(
+            "Unexpected error during controlled drug dispense"
+        )
+        return jsonify(
+            {"error": "Internal server error during dispense"}
+        ), 500
 
 
 @bp.route("/controlled-drugs/api/reconcile", methods=["POST"])

@@ -118,3 +118,96 @@ def test_successful_dispense_updates_ledger(app, controlled_drug):
         )
         assert last_balance.balance_after == 90.0
         assert last_balance.transaction_type == "DISPENSE"
+
+
+def test_dispense_with_pack_units_syncs_general_stock_and_ledger(app, controlled_drug):
+    """Finding D: Dispensing with pack_units_qty & batch_id must deduct Batch/Drug stock and create StockMovement."""
+    from datetime import date, timedelta
+
+    from departments.models.pharmacy import Batch
+    from departments.models.stock_movement import StockMovement
+
+    with app.app_context():
+        # Create a batch for the controlled drug
+        batch = Batch(
+            drug_id=controlled_drug.id,
+            batch_number="BATCH-CD-001",
+            expiry_date=date.today() + timedelta(days=365),
+            quantity_in_stock=50,
+        )
+        db.session.add(batch)
+        db.session.commit()
+
+        initial_drug_stock = controlled_drug.quantity_in_stock  # 100
+
+        dispense = dispense_controlled_drug(
+            patient_id="P-001",
+            drug_id=controlled_drug.id,
+            dose_mg=20.0,
+            primary_pharmacist_id=1,
+            second_signatory_id=2,
+            second_signatory_role="NurseInCharge",
+            user_id=1,
+            pack_units_qty=2,
+            batch_id=batch.id,
+        )
+        db.session.commit()
+
+        # Check controlled drug dispense record
+        assert dispense.pack_units_qty == 2
+        assert dispense.batch_id == batch.id
+
+        # Check general inventory Batch stock deduction
+        reloaded_batch = db.session.get(Batch, batch.id)
+        assert reloaded_batch.quantity_in_stock == 48
+
+        # Check general inventory Drug stock deduction
+        reloaded_drug = db.session.get(Drug, controlled_drug.id)
+        assert reloaded_drug.quantity_in_stock == initial_drug_stock - 2
+
+        # Check StockMovement bin card entry
+        movement = (
+            StockMovement.query.filter_by(
+                item_type="DRUG",
+                item_id=controlled_drug.id,
+                movement_type="DISPENSED",
+            )
+            .order_by(StockMovement.created_at.desc())
+            .first()
+        )
+        assert movement is not None
+        assert movement.quantity_delta == -2
+        assert movement.batch_id == batch.id
+        assert movement.balance_after == reloaded_drug.quantity_in_stock
+
+
+def test_dispense_insufficient_batch_stock_fails(app, controlled_drug):
+    """Dispensing more pack units than available in the selected batch must fail."""
+    from datetime import date, timedelta
+
+    from departments.models.pharmacy import Batch
+
+    with app.app_context():
+        batch = Batch(
+            drug_id=controlled_drug.id,
+            batch_number="BATCH-CD-002",
+            expiry_date=date.today() + timedelta(days=365),
+            quantity_in_stock=1,
+        )
+        db.session.add(batch)
+        db.session.commit()
+
+        with pytest.raises(ControlledDrugError, match="Insufficient batch stock"):
+            dispense_controlled_drug(
+                patient_id="P-001",
+                drug_id=controlled_drug.id,
+                dose_mg=10.0,
+                primary_pharmacist_id=1,
+                second_signatory_id=2,
+                second_signatory_role="NurseInCharge",
+                user_id=1,
+                pack_units_qty=5,
+                batch_id=batch.id,
+            )
+
+

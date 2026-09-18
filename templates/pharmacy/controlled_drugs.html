@@ -150,11 +150,13 @@
 
           <div class="mb-3">
             <label class="form-label text-muted small fw-semibold">Controlled Substance *</label>
-            <select id="dispenseDrugId" class="form-select bg-dark text-white border-secondary" required>
+            <select id="dispenseDrugId" class="form-select bg-dark text-white border-secondary" required onchange="updateBatchDropdown()">
               <option value="">-- Select Controlled Drug --</option>
               {% for drug in drug_summaries %}
-              <option value="{{ drug.id }}">
-                {{ drug.generic_name }} ({{ drug.strength }}) — Available: {{ "%.1f"|format(drug.current_balance) }} mg
+              <option value="{{ drug.id }}"
+                      data-batches='{{ drug.batches | tojson }}'
+                      data-pack-stock="{{ drug.pack_stock }}">
+                {{ drug.generic_name }} ({{ drug.strength }}) — Balance: {{ "%.1f"|format(drug.current_balance) }} mg | Pack Stock: {{ drug.pack_stock }} units
               </option>
               {% endfor %}
             </select>
@@ -163,6 +165,28 @@
           <div class="mb-3">
             <label class="form-label text-muted small fw-semibold">Dose (mg) *</label>
             <input type="number" step="0.1" min="0.1" id="dispenseDose" class="form-control bg-dark text-white border-secondary" placeholder="e.g. 10.0" required />
+          </div>
+
+          <!-- Finding D: Pack-unit stock sync fields -->
+          <div class="glass-card mb-3" style="background: rgba(6,182,212,0.05); border: 1px dashed var(--accent-cyan); padding: 0.85rem;">
+            <div class="text-white small fw-bold mb-2">
+              <i class="bi bi-box-seam me-1 text-info"></i> General Inventory Sync <span class="badge bg-info text-dark ms-1">Finding D</span>
+            </div>
+            <div class="row g-2">
+              <div class="col-7">
+                <label class="form-label text-muted small">Batch *</label>
+                <select id="dispenseBatchId" class="form-select form-select-sm bg-dark text-white border-secondary" required>
+                  <option value="">-- Select drug first --</option>
+                </select>
+              </div>
+              <div class="col-5">
+                <label class="form-label text-muted small">Pack Units Qty *</label>
+                <input type="number" min="1" step="1" id="dispensePackUnits" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="e.g. 2" required />
+              </div>
+            </div>
+            <small class="text-muted d-block mt-1">
+              <i class="bi bi-info-circle me-1"></i>Enter the physical pack units removed from the batch (e.g. tablets, ampoules, vials).
+            </small>
           </div>
 
           <!-- Dual Signature Section -->
@@ -385,6 +409,36 @@
 </div>
 
 <script>
+  /* Finding D: populate batch dropdown when drug selection changes */
+  function updateBatchDropdown() {
+    const drugSelect = document.getElementById('dispenseDrugId');
+    const batchSelect = document.getElementById('dispenseBatchId');
+    batchSelect.innerHTML = '';
+
+    const selected = drugSelect.options[drugSelect.selectedIndex];
+    if (!selected || !selected.value) {
+      batchSelect.innerHTML = '<option value="">-- Select drug first --</option>';
+      return;
+    }
+
+    let batches = [];
+    try { batches = JSON.parse(selected.getAttribute('data-batches') || '[]'); } catch(e) {}
+
+    if (batches.length === 0) {
+      batchSelect.innerHTML = '<option value="">No batches with stock</option>';
+      return;
+    }
+
+    batchSelect.innerHTML = '<option value="">-- Select Batch --</option>';
+    batches.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.id;
+      const exp = b.expiry ? ` exp ${b.expiry}` : '';
+      opt.textContent = `${b.batch_number} — ${b.qty} units${exp}`;
+      batchSelect.appendChild(opt);
+    });
+  }
+
   async function handleDispenseSubmit(event) {
     event.preventDefault();
     const alertBox = document.getElementById('dispenseAlert');
@@ -398,6 +452,9 @@
       dose_mg: parseFloat(document.getElementById('dispenseDose').value),
       second_signatory_id: parseInt(document.getElementById('secondSignatoryId').value),
       second_signatory_role: document.getElementById('secondSignatoryRole').value,
+      // Finding D: pack-unit stock sync fields
+      pack_units_qty: parseInt(document.getElementById('dispensePackUnits').value),
+      batch_id: parseInt(document.getElementById('dispenseBatchId').value),
     };
 
     try {

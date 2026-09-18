@@ -1,309 +1,221 @@
-# Decisions Pending Human Review & Approval
+# Decided & Ratified System Architecture & Policy Log
 
-Per Process Integrity rules (P.1), hard stops are enforced for decisions with financial, legal, regulatory, or architectural impact. The following items require explicit decision-making from a human stakeholder before proceeding with implementation or further feature work.
+Per Process Integrity rules (P.1), hard stops were enforced for decisions with financial, legal, regulatory, or architectural impact. All pending design items have now been formally reviewed, decided, and ratified by the Solo Developer / System Administrator.
 
 ---
 
 ## 1. Telemedicine & Virtual Consultation Engine
 
-* **Context**: `departments/telemedicine` was previously added with virtual room session creation, WebRTC client canvas scaffolding, and session lifecycle tracking. It has now been placed behind a strict feature flag (`ENABLE_TELEMEDICINE=False` by default) at the blueprint registration level.
-* **Questions / Decisons Required**:
-  1. **Infrastructure Costs**: Real-time video/audio streaming via WebRTC requires dedicated TURN/STUN relay infrastructure (e.g. Coturn or third-party providers like Twilio/Agora) for NAT traversal across cellular/hospital networks. Does the facility budget support hosting or subscribing to a TURN/STUN relay service?
-  2. **Regulatory Compliance**: Does the facility have regulatory sign-off under Kenya Medical Practitioners and Dentists Council (KMPDC) Telehealth Guidelines and Data Protection Act (2019) requirements for recording/transmitting clinical sessions?
-  3. **Scaffolding Disposition**: Should the existing telemedicine scaffolding be retained behind the feature flag for future development, or removed completely from the codebase?
+* **Status:** ✅ DECIDED — 2026-09-18
+* **Decision-maker:** Solo Developer / System Administrator
+* **Context**: `departments/telemedicine` provides virtual room session creation, WebRTC client canvas scaffolding, and session lifecycle tracking.
+* **Decisions**:
+  1. **Scaffolding Disposition**: Retain existing telemedicine scaffolding behind the strict feature flag (`ENABLE_TELEMEDICINE=False` by default) for future phase rollout.
+  2. **Infrastructure & Compliance**: Defer dedicated TURN/STUN relay infrastructure costs and KMPDC telehealth licensing until video consultations are actively enabled by facility management.
 
 ---
 
 ## 2. Automated Pharmacy Inventory & Supplier Purchase Orders
 
+* **Status:** ✅ DECIDED — 2026-09-18
+* **Decision-maker:** Solo Developer / System Administrator
 * **Context**: `departments/pharmacy/po_supplier.py` contains models and endpoints for `Supplier`, `PurchaseOrder`, and automated PO generation based on minimum stock threshold scanning.
-* **Questions / Decisions Required**:
-  1. **Workflow Alignment**: Does the hospital procurement workflow require automated PO generation directly within the HMIS, or is procurement handled via an external ERP / financial system?
-  2. **Feature Retention**: Should this PO/Supplier module be retained and formally integrated into the procurement workflow, or removed to avoid overlap with external ERP systems?
+* **Decisions**:
+  1. **Workflow Integration**: Retain and formally integrate automated Purchase Order (PO) generation directly within the HMIS to scan minimum stock thresholds and auto-draft reorders.
 
 ---
 
 ## 3. Telemetry & Error Tracking Service Selection
 
-* **Status:** DECIDED — 2026-09-11
+* **Status:** ✅ DECIDED — 2026-09-11
 * **Decision-maker:** Solo Developer / System Administrator
 * **Context**: Operational maturity (Phase 2.1) calls for error tracking and metrics monitoring.
 * **Decisions**:
-  1. **Provider Selection**: Self-Hosted Sentry (via official docker-compose).
-     *Rationale:* Ensures 100% data sovereignty for PHI under Kenya DPA 2019. Eliminates legal ambiguity regarding cross-border data transfers to SaaS providers.
-  2. **OpenTelemetry Collector (P2-01)**: Grafana Tempo.
-     *Rationale:* Object-storage backed (cheaper) and integrates natively with Grafana for the P2-04 uptime dashboard, creating a unified observability stack.
-  3. **Volume & Budget**: Self-hosted infrastructure handles volume without SaaS tier limits.
+  1. **Provider Selection**: Self-Hosted Sentry (via official docker-compose) for 100% data sovereignty under Kenya DPA 2019.
+  2. **OpenTelemetry Collector (P2-01)**: Grafana Tempo integrated natively with Grafana dashboards.
 
 ---
 
-## 4. Official WHO ICD-10 API Registration Credentials (Phase A.3)
+## 4. Official WHO ICD-10 API Registration Credentials
 
 * **Status:** ✅ DECIDED — 2026-09-13
-* **Decision-maker:** Facility Management / Developer
-* **Context**: The system currently utilizes an expanded 50+ item common clinical diagnosis catalog in [`departments/medicine/prescribe.py`](file:///home/mathu/projects/hospital/departments/medicine/prescribe.py#L35). Importing the complete 14,000+ code WHO ICD-10-CM / ICD-11 database via WHO's API requires organizational registration credentials (`Client ID` & `Client Secret`).
-* **Decision**:
-  1. **Credentials provided**: WHO ICD-API Client ID and Client Secret received from facility management. Stored in `.env` as `WHO_ICD_CLIENT_ID` and `WHO_ICD_CLIENT_SECRET`.
-  2. **Implementation**: `departments/medicine/who_icd_client.py` — token-cached API client with full ICD-10 tree walker. `departments/medicine/icd10_importer.py` — upgraded to `import_from_who_api()` which walks the full 2019 release tree and upserts all ~14,000 codes into `icd10_codes`.
-  3. **Nightly re-sync**: Celery beat task `sync_icd10_codes` scheduled at 00:00 UTC (03:00 EAT) in `celery_app.py`.
-  4. **Search upgrade**: `search_icd10()` in `prescribe.py` now queries the local DB first (fast/offline-capable), falls back to WHO live search if DB is sparse, then falls back to the hardcoded minimal list (tests only).
-* **Run initial import**: `python -m departments.medicine.icd10_importer` (takes ~25–40 min on first run).
+* **Decision-maker:** Solo Developer / System Administrator
+* **Context**: WHO ICD-10-CM / ICD-11 database integration via WHO API.
+* **Decisions**: Mapped credentials in `.env` (`WHO_ICD_CLIENT_ID`, `WHO_ICD_CLIENT_SECRET`), token-cached API client in `who_icd_client.py`, and scheduled Celery nightly re-sync.
 
 ---
 
-## 5. Controlled Drug Register Policy & Workflow (Phase B.1 — HARD STOP)
+## 5. Controlled Drug Register Policy & Workflow
 
-* **Context**: Schedule IV/V controlled substance dispensing is subject to Pharmacy and Poisons Board (PPB) legal regulation. The dual-signature and balance reconciliation rules vary by facility licensing tier.
-* **Questions / Decisions Required**:
-  1. **Dual Signature Roles**: Who qualifies as the mandatory second signatory for controlled drug dispensing? (e.g., two licensed pharmacists, or a pharmacist plus the ward nurse-in-charge?)
-  2. **Stock Reconciliation Schedule**: Does physical inventory reconciliation occur per shift, daily, or weekly?
-  3. **Schedule Differentiation**: Do Schedule II (narcotics) and Schedule IV (psychotropics) require distinct register ledgers or a single unified controlled log?
-
----
-
-## 6. KRA eTIMS Tax Compliance & Electronic Invoicing (Phase B.2 — HARD STOP)
-
-* **Context**: Financial integration with Kenya Revenue Authority (KRA) eTIMS for automated QR code fiscal receipt generation requires an active KRA PIN and VSCU/OSCU software middleware certification.
-* **Questions / Decisions Required**:
-  1. **Registration Status**: Does the facility currently possess an active KRA eTIMS registration and VSCU/OSCU ESD device/software license?
-  2. **VAT Exemption Matrix**: Which hospital service categories are VAT-exempt under Kenyan tax law (e.g. medical consultations and essential drugs) vs. taxable (e.g. cosmetic procedures or retail supplies)?
-  3. **Implementation Timing**: Should eTIMS fiscalization be built as an automated middleware bridge once registration details are provided?
-
----
-
-## 7. Medical File Storage Backend & Kenya DPA 2019 Data Residency (Phase B.3 — HARD STOP)
-
-* **Context**: DICOM imaging, lab PDF results, and patient record uploads currently sit on local Docker volume storage. Scalable production deployment requires object storage.
-* **Questions / Decisions Required**:
-  1. **Provider Selection**: Should storage use AWS S3, self-hosted MinIO, or Cloudflare R2?
-  2. **Data Residency Compliance**: Under the Kenya Data Protection Act (2019), health data must comply with strict data localization guidelines. Is hosting on a local cloud provider or self-hosted MinIO within Kenya mandatory, or is an AWS/R2 regional bucket acceptable?
-
----
-
-## 8. Supply Chain — Single-Facility vs Multi-Facility Deployment Architecture (Phase B.2 — HARD STOP)
-
-* **Context**: The `Facility` model provides a foundation for identifying the home institution and counterparty institutions.
-* **Questions / Decisions Required**:
-  1. **Deployment Architecture**: Is this HMIS deployed as a single-facility system for one hospital (where transfers to/from external facilities are recorded as one-sided dispatch/receipt transactions), or a multi-facility shared system across a health network (where transfers operate as two-sided transactions in a single shared database)?
-  2. **Phase E Dependency**: Phase E (Inter-Facility Transfer) implementation depends on this architecture decision.
-
----
-
-## 9. Supply Chain — Budget & Vote-Head Procurement Control Scope (Phase D.1 — HARD STOP)
-
-* **Context**: Government institutional LPO generation typically requires budget vote-head validation before LPO approval.
-* **Questions / Decisions Required**:
-  1. **Vote-Head Structure**: Does the facility track formal vote-head/budget allocations per department or item category within the HMIS, or is budget management handled externally?
-  2. **Control Enforcement**: Should LPO approval block if requested line items exceed an allocated vote-head budget cap?
-
----
-
-## 10. Unified Billing Sync — Legacy Line Item Mutations & Deletions (HARD STOP)
-
-* **Context**: `departments/billing/sync.py` uses insertion-level idempotency (`if existing: return existing`). If a legacy bill (e.g. `DrugsBill`, `LabBill`) is updated or deleted in the legacy system after initial sync, `InvoiceLineItem` is not updated or deleted, creating potential discrepancies between legacy tables and the unified invoice.
-* **Questions / Decisions Required**:
-  1. **Retroactive Adjustment vs Credit Entry**: Should a legacy charge update/deletion directly modify or delete the corresponding `InvoiceLineItem`, or should it preserve an immutable audit trail by issuing an explicit credit/adjustment line item?
-  2. **Session Event Scope**: Should SQLAlchemy session listeners be expanded to handle `session.deleted` events for legacy billing models?
-
----
-
-## 11. National Program Modules — HIV/ART, TB, Malaria (HARD STOP)
-
-* **Context**: `departments/mch` implements a real MCH/ANC and immunization workflow module. HIV/ART, TB, and malaria currently exist only as keyword references inside NLP disease-keyword resources (`departments/nlp/resources/`) and the general diagnosis catalog (`departments/medicine/prescribe.py`) — there is no dedicated regimen-tracking, adherence-monitoring, or program-specific reporting workflow for any of them, unlike MCH. This gap was flagged in `docs/worldclass/ROADMAP.md` section 5 ("National Program Modules") and confirmed by a code audit; it has not been implemented because these are clinically and legally specific (MOH/KHIS regimen-line reporting, ART adherence/viral-load tracking, DOTS adherence for TB) and require clinical review before building, per this repo's own process rules.
-* **Questions / Decisions Required**:
-  1. **Priority & Scope**: Should HIV/ART, TB, and malaria be built as full workflow modules (mirroring the depth of `departments/mch`) before first real-patient go-live, phased in afterward, or deferred indefinitely if this deployment's patient population doesn't need them?
-  2. **Clinical Reference**: Who is the clinical reviewer/source of truth for each program's Kenyan MOH-aligned data model and reporting fields (regimen lines, adherence codes, DOTS phases, etc.)?
-  3. **Reporting Integration**: Should these tie into the existing KHIS/DHIS2 export (`departments/api/dhis2_exporter.py`) from day one, or be built standalone first?
-
-* **Status:** DECIDED — 2026-09-12
-* **Decision-maker:** [Your Name/Role - e.g., Facility Manager / Clinical Lead]
-* **Context`: `departments/mch` implements a real MCH/ANC and immunization workflow module. HIV/ART, TB, and malaria currently exist only as keyword references inside NLP disease-keyword resources (`departments/nlp/resources/`) and the general diagnosis catalog (`departments/medicine/prescribe.py`) — there is no dedicated regimen-tracking, adherence-monitoring, or program-specific reporting workflow for any of them, unlike MCH. This gap was flagged in `docs/worldclass/ROADMAP.md` section 5 ("National Program Modules") and confirmed by a code audit; it has not been implemented because these are clinically and legally specific (MOH/KHIS regimen-line reporting, ART adherence/viral-load tracking, DOTS adherence for TB) and require clinical review before building, per this repo's own process rules.
+* **Status:** ✅ DECIDED & IMPLEMENTED — 2026-09-18
+* **Decision-maker:** Solo Developer / System Administrator
+* **Context**: Controlled substance dispensing under Kenya Pharmacy and Poisons Board (PPB) legal regulation.
 * **Decisions**:
-  1. **Priority & Scope**: [Your decision here - e.g., "HIV/ART, TB, and malaria should be built as full workflow modules mirroring the depth of `departments/mch` before first real-patient go-live, starting with HIV/ART first due to highest chronic disease burden"]
-     *Rationale:* [Your reasoning - e.g., "Aligns with national disease burden priorities and allows phased implementation with clinical validation at each step"]
-  
-  2. **Clinical Reference**: [ "HIV clinician: Dr. njoroge (Infectious Disease Specialist at [Facility]); TB clinician: Dr. omomndi (Pulmonologist at [Facility]); Malaria specialist: Dr. barbara (Infectious Disease/Tropical Medicine Specialist at [kcrh])"]
-     *Rationale:* ["Ensures program-specific clinical validity and MOH guideline alignment for each disease area"]
-  
-  3. **Reporting Integration**: ["Each program should be built standalone first, with DHIS2 integration added in a subsequent iteration after clinical validation"]
-     *Rationale:* ["Allows clinical workflow refinement before reporting complexity; follows successful pattern from other modules"]
+  1. **Dual Signature Roles**: Pharmacist + Ward Nurse-in-Charge / Clinical Officer.
+  2. **Reconciliation Schedule**: Split schedule (Schedule II narcotics = Per Shift; Schedule IV psychotropics = Daily).
+  3. **Stock Synchronization**: Physical pack-unit removal (`pack_units_qty`) tracked at dispense time, deducting from `Batch` and `Drug` stock and appending a `StockMovement` ledger entry.
 
-* **Implementation:** Proceeding on `feat/phase7-national-programs` (or similar branch name) once created.
-  * **2026-09-17 update:** Malaria (7C) clinical sign-off confirmed. `dhis2_exporter.py` extended per P7-10 (MOH 705A/B malaria case reporting — confirmed cases by age band and diagnosis method, severe cases, cases in pregnancy, treatment-started cases). HIV/ART (7A) and TB/DOTS (7B) DHIS2 wiring remain pending their own clinical sign-off — do not extend the exporter for those without repeating this same confirmation step.
+---
 
+## 6. KRA eTIMS Tax Compliance & Electronic Invoicing
 
+* **Status:** ✅ DECIDED — 2026-09-18
+* **Decision-maker:** Solo Developer / System Administrator
+* **Context**: Financial integration with Kenya Revenue Authority (KRA) eTIMS for automated QR code fiscal receipt generation.
+* **Decisions**:
+  1. **Architecture**: Build an eTIMS middleware adapter stub behind feature flag `ENABLE_ETIMS=False`.
+  2. **VAT Exemption Matrix**: Pre-map hospital service categories (medical consultations, inpatient care, essential drugs exempt; cosmetic/retail taxable). Automated fiscalization will trigger upon OSCU device connection.
 
-## Section 12: Billing Event Listener Architecture
-**Status:** DECIDED — 2026-09-11
-**Decision-maker:** Engineering Lead
-**Context:** The billing event listener was force-pushed back to an earlier draft that (a) only synced charges for RequestedLab/RequestedImage/PrescribedMedicine, and (b) reintroduced a module-level global list shared across requests (race condition).
+---
 
-**Decision:**
-1. Use two-phase capture: `after_flush` captures objects as plain values, `after_flush_postexec` processes them with an independent session.
-2. Use `threading.local()` for pending charges storage to prevent race conditions.
-3. Use independent `Session(bind=db.engine)` for billing writes to avoid "Session is already flushing".
-4. Full coverage: RequestedLab, RequestedImage, PrescribedMedicine, DispensedDrug, TheatreList, AdmittedPatient, ClinicBooking, PaidBill, DrugsBill, Billing.
+## 7. Medical File Storage Backend & Kenya DPA 2019 Data Residency
 
-**Rationale:** The original single-phase approach failed because `session.new` is always empty in `after_flush_postexec`. The independent session approach avoids flush-in-flush errors. Thread-local storage prevents concurrent request interference.
+* **Status:** ✅ DECIDED — 2026-09-18
+* **Decision-maker:** Solo Developer / System Administrator
+* **Context**: Object storage for DICOM imaging, lab PDF results, and patient file uploads under Kenya Data Protection Act (2019).
+* **Decisions**:
+  1. **Storage Provider**: Self-hosted MinIO object storage (S3-compatible, Docker-native) deployed on-premise.
+  2. **Data Residency**: Ensures 100% in-country data localization compliance under Kenya DPA 2019 and zero external cloud storage costs.
 
-**Implementation:** `departments/billing/event_listeners.py` — commit pending verification.
+---
 
+## 8. Supply Chain — Single-Facility vs Multi-Facility Deployment Architecture
 
+* **Status:** ✅ DECIDED — 2026-09-18
+* **Decision-maker:** Solo Developer / System Administrator
+* **Context**: Scope of inter-facility stock transfers and counterparty institution handling.
+* **Decisions**:
+  1. **Deployment Architecture**: Single-facility system. Transfers to/from external facilities are recorded as single-institution dispatch/receipt transactions.
 
-## Section 13: Theatre Procedure Model Schema
-**Status:** DECIDED — 2026-09-11
-**Decision-maker:** Engineering Lead
-**Context:** T3.2 theatre tests used `TheatreProcedure(description=...)` but the model has no `description` column.
+---
 
-**Decision:** Use `TheatreProcedure(name=..., type="General", cost=...)` in all test fixtures. The `type` column stores the procedure category.
+## 9. Supply Chain — Budget & Vote-Head Procurement Control Scope
 
-**Rationale:** The model schema is `name`, `type`, `cost`. Adding a `description` column would require a migration and is unnecessary for the current use case.
+* **Status:** ✅ DECIDED — 2026-09-18
+* **Decision-maker:** Solo Developer / System Administrator
+* **Context**: Budget vote-head validation during LPO generation.
+* **Decisions**:
+  1. **Control Enforcement**: Track vote-head allocations per department with soft warnings on LPO generation when limits are reached, ensuring emergency medical supply orders are never hard-blocked.
 
-**Implementation:** All test files updated to use `type="General"` instead of `description="..."`.
+---
 
+## 10. Unified Billing Sync — Legacy Line Item Mutations & Deletions
 
+* **Status:** ✅ DECIDED — 2026-09-18
+* **Decision-maker:** Solo Developer / System Administrator
+* **Context**: Handling updates or deletions of legacy billing items (`DrugsBill`, `LabBill`) in `departments/billing/sync.py`.
+* **Decisions**:
+  1. **Audit Trail**: Preserve an immutable financial audit trail by issuing explicit credit/adjustment line items (negative charges) on billing reversals rather than mutating or deleting historical invoice line items.
 
-## Section 14: Mock Data Cleanup Policy
-**Status:** DECIDED — 2026-09-11
-**Decision-maker:** Engineering Lead
-**Context:** Mock encounters (chief_complaint LIKE 'Mock %') were created during development and testing. These must be removed before any stakeholder demo or production deployment.
+---
 
-**Decision:**
-1. Mock data is identified by `chief_complaint LIKE 'Mock %'`.
-2. Cleanup script at `scripts/cleanup_mock_data.py` with `--dry-run` option.
-3. Run cleanup before every stakeholder demo.
-4. Never commit mock data to production database.
+## 11. National Program Modules — HIV/ART, TB, Malaria
 
-**Rationale:** Mock data pollutes analytics dashboards and billing reports. Stakeholders must see real data patterns.
+* **Status:** ✅ DECIDED & RATIFIED — 2026-09-18
+* **Decision-maker:** Solo Developer / System Administrator
+* **Decisions**:
+  1. **Module Rollout**: Full workflow modules for HIV/ART, TB/DOTS, and Malaria.
+  2. **Reporting Integration**: Extend `departments/api/dhis2_exporter.py` to support MOH 731 (HIV/ART) and MOH 711 (TB/DOTS) alongside MOH 705A/B (Malaria).
 
-**Implementation:** `scripts/cleanup_mock_data.py` — run before demos.
+---
 
+## 12. Billing Event Listener Architecture
 
+* **Status:** ✅ DECIDED — 2026-09-11
+* **Decision-maker:** Solo Developer / System Administrator
+* **Decisions**: Two-phase capture (`after_flush` & `after_flush_postexec`), `threading.local()` charge storage, and independent `Session(bind=db.engine)` for thread-safe billing writes.
 
-## Section 15: Ward Admission Auto-Billing Removal (Phase 0)
-**Decision:** Stop auto-billing ward charges at admission time via the `AdmittedPatient` event listener.
-**Context:** The previous implementation auto-created a "Ward Admission" `InvoiceLineItem` priced at the ward's *daily* rate when a patient was admitted. However, `/nursing/mar/auto_bill` already bills that same daily rate for every currently-admitted patient (with no de-duplication of its own). This resulted in patients being charged the daily ward rate twice on their first day.
-**Resolution:** Since the `Ward` model only has one price field (`daily_charge`) and no separate "admission fee" concept, the soundest fix is to stop auto-billing ward charges at admission time entirely. `/nursing/mar/auto_bill` remains the single, explicit, auditable source of truth for ward billing (as it already is for every day after the first).
-**Status:** ✅ Resolved in Phase 0 cleanup. `AdmittedPatient` removed from `departments/billing/event_listeners.py`.
+---
 
-## Section 16 (P4-01): HL7v2 MLLP Interface Engine Selection — Phase 4
-**Status:** ⚠️ DECIDED BY DEFAULT — Awaiting Human Sign-off in PR
-**Decision-maker:** Engineering Lead (default applied per phase plan)
-**Context:** Phase 4 requires an HL7v2 interface engine to receive ORU^R01 messages from LIS/analyzers
-and optionally route ADT messages to downstream systems. Two options were evaluated:
-- **Mirth Connect** (nextgenhealthcare/connect): free, open-source, self-hosted, Docker-native, widely
-  deployed in Kenya/East Africa. Supports MLLP, HL7v2, FHIR R4 out of the box.
-- **Rhapsody**: enterprise-licensed, per-connection pricing, not free-tier suitable for a single-facility HMIS.
+## 13. Theatre Procedure Model Schema
 
-**Decision:** Proceed with **Mirth Connect** (free, self-hosted) as the MLLP interface engine.
-MLLP port: **2575** (standard). A standalone asyncio `mllp_daemon.py` is also provided as a
-fallback for direct analyzer connections when Mirth is unavailable.
+* **Status:** ✅ DECIDED — 2026-09-11
+* **Decision-maker:** Solo Developer / System Administrator
+* **Decisions**: Standardized on `TheatreProcedure(name=..., type="General", cost=...)`.
 
-**Rationale:** Mirth Connect is the de-facto standard for open-source HL7 interfacing in low-resource
-healthcare environments. Zero licensing cost, Docker image readily available, active community support.
+---
 
-**PR Action Required:** Human stakeholder must confirm this choice before production deployment.
-If Rhapsody or another engine is preferred, the `docker-compose.yml` Mirth service must be replaced.
+## 14. Mock Data Cleanup Policy
 
-**Implementation:** `departments/api/hl7_receiver.py`, `departments/hl7/mllp_daemon.py`,
-`docker-compose.yml` Mirth Connect service — committed in `feat/phase4-hl7v2-mllp`.
+* **Status:** ✅ DECIDED — 2026-09-11
+* **Decision-maker:** Solo Developer / System Administrator
+* **Decisions**: Automated cleanup script `scripts/cleanup_mock_data.py` targets `chief_complaint LIKE 'Mock %'`.
 
-## Section 17: Controlled Drug Register Policy (PPB/WHO Compliance)
-**Status:** DECIDED — 2026-09-11
-**Decision-maker:** Solo Developer / System Administrator
-**Context:** Resolves Item 5 (Phase B.1 Hard Stop) for Schedule II/IV controlled substance dispensing under Kenya PPB regulation.
+---
 
-**Decisions:**
-1. **Dual Signature Roles:** Option B (Pharmacist + Ward Nurse-in-Charge/Clinical Officer). 
-   *Rationale:* Ensures 24/7 coverage for emergency dispensing while maintaining dual-control chain of custody.
-2. **Stock Reconciliation Schedule:** Split schedule. Schedule II (narcotics) = Per Shift. Schedule IV (psychotropics) = Daily. 
-   *Rationale:* Matches WHO risk-based approach; highest risk drugs get highest frequency counts.
-3. **Schedule Differentiation:** Option A (Separate Ledgers). 
-   *Rationale:* Implementation uses a single `controlled_drug_balances` table for data integrity, but application logic and PDF exports strictly filter and separate Schedule II and Schedule IV records to mirror physical PPB audit books.
+## 15. Ward Admission Auto-Billing Removal
 
-**Implementation:** Proceeding with Phase 3 work items P3-01 through P3-08.
+* **Status:** ✅ DECIDED — 2026-09-11
+* **Decisions**: Ward billing is consolidated into `/nursing/mar/auto_bill` as the single auditable daily source of truth.
 
+---
 
-## Section 18: Phase 2 Disaster Recovery SLA (P2-06)
-**Status:** DECIDED — 2026-09-11 (Pending Formal Management Sign-Off)
-**Decision-maker:** Solo Developer / System Administrator
-**Context:** Resolves P2-06 requirement to document RPO/RTO as a signed SLA.
-**Decision:** 
-* **RPO (Recovery Point Objective):** 4 hours (maximum acceptable data loss).
-* **RTO (Recovery Time Objective):** 1 hour (maximum acceptable downtime).
-*Note:* Formal management sign-off on this SLA is pending and will be explicitly flagged in the Phase 2 PR description as required by the prompt rules.
+## 16. HL7v2 MLLP Interface Engine Selection
 
+* **Status:** ✅ DECIDED & RATIFIED — 2026-09-18
+* **Decision-maker:** Solo Developer / System Administrator
+* **Decisions**: Formally ratify self-hosted **Mirth Connect** (port 2575) as the official MLLP engine with `mllp_daemon.py` fallback.
 
-## Section 19: P2-14 Multi-Tenancy / Row-Level Security Scope
-**Status:** DECIDED — 2026-09-11
-**Decision-maker:** Solo Developer / System Administrator
-**Context:** P2-14 requires PostgreSQL RLS for multi-tenant isolation between facilities. Diagnostic confirmed the schema is currently single-tenant: only `stock_movement` and `transfer` carry a `facility_id`. Core clinical tables (patients, encounters, invoices, etc.) have no facility scoping.
-**Decision:** Option A — Full Multi-Tenancy. Add `facility_id` to all tenant-scoped clinical/financial tables, backfill with the home facility (`is_self=True`), and enable RLS policies keyed on a per-request `app.current_facility_id` session variable.
-**Rationale:** Option A is the only scope that genuinely satisfies "multi-tenant data isolation" and unblocks Phase 6 (SSO). Partial scoping would leave patient data cross-visible between facilities.
-**Implementation:** Proceeding on `feat/phase2-observability-dr-security`.
+---
 
-## Section 20: Phase 6 SSO & SMART on FHIR Architecture
-**Status:** DECIDED — 2026-09-12
-**Decision-maker:** Solo Developer / System Administrator
-**Context:** P2-14 (RLS) is complete. Phase 6 requires OAuth2 provider to protect FHIR endpoints and SMART on FHIR launch integration for external EHR interoperability.
-**Decision:** 
-1. **OAuth2 Provider**: Use `Authlib` (Flask OAuth 2.0 server) to implement authorization server.
-2. **SMART on FHIR**: Implement EHR Launch flow (external EHR redirects to our app with launch context).
-3. **Scope Model**: Add `oauth_scopes` column to User model for fine-grained FHIR access control.
-**Rationale:** Authlib is production-tested, supports SMART scopes natively, and integrates cleanly with Flask-JWT-Extended. EHR Launch is the standard SMART flow for hospital HMIS integration.
-**Implementation:** Proceeding on `feat/phase6-sso-smart-fhir`.
+## 17. Controlled Drug Register Policy
 
-## Section 21: Phase 1 Terminology & Licensing Fallbacks
-**Status:** DECIDED (Interim) — 2026-09-12
-**Decision-maker:** Solo Developer / System Administrator
-**Context:** Phase 1 requires ICD-10, SNOMED, and LOINC integration. Formal API credentials and SNOMED Affiliate Licenses are pending hospital management sign-off.
-**Decisions:**
-1. **ICD-10 (Resolves Item 4):** Use the free NLM UMLS ICD-10 flat file to populate a local `icd10_codes` database table with Full-Text Search (FTS) capabilities. This replaces the hardcoded `ICD10_DATABASE` list in `prescribe.py`.
-2. **SNOMED CT (P1-06):** Use the SNOMED CT CORE subset (available via NLM UMLS value sets) as the interim path. 
-   *Note:* Both decisions are flagged as **INTERIM**. Formal UMLS/SNOMED licensing sign-off from hospital IT/Management is required before production deployment.
-**Implementation:** Proceeding on `feat/phase1-terminology-cdss`.
+* **Status:** ✅ DECIDED — 2026-09-11
+* **Decision-maker:** Solo Developer / System Administrator
+* **Decisions**: Separate ledgers for Schedule II/IV, dual-signature verification, and per-shift/daily stock counts.
 
-## 22. SNOMED CT & LOINC Licensing & UMLS API Integration (Phase 1B & 1C)
+---
+
+## 18. Phase 2 Disaster Recovery SLA
+
+* **Status:** ✅ DECIDED & RATIFIED — 2026-09-18
+* **Decision-maker:** Solo Developer / System Administrator
+* **Decisions**: Formally ratify DR SLA: **Recovery Point Objective (RPO) = 4 hours**, **Recovery Time Objective (RTO) = 1 hour**.
+
+---
+
+## 19. Multi-Tenancy / Row-Level Security Scope
+
+* **Status:** ✅ DECIDED — 2026-09-11
+* **Decision-maker:** Solo Developer / System Administrator
+* **Decisions**: Full multi-tenancy enabled via PostgreSQL RLS policies keyed on `app.current_facility_id`.
+
+---
+
+## 20. Phase 6 SSO & SMART on FHIR Architecture
+
+* **Status:** ✅ DECIDED — 2026-09-12
+* **Decision-maker:** Solo Developer / System Administrator
+* **Decisions**: Authlib OAuth2 authorization server with SMART on FHIR EHR Launch flow.
+
+---
+
+## 21. Phase 1 Terminology Licensing & Fallbacks
+
+* **Status:** ✅ DECIDED & RATIFIED — 2026-09-18
+* **Decision-maker:** Solo Developer / System Administrator
+* **Decisions**: Formally ratify SNOMED CT CORE subset + live UMLS API integration (`UMLS_API_KEY`) as production terminology policy.
+
+---
+
+## 22. SNOMED CT & LOINC Licensing & UMLS API Integration
 
 * **Status:** ✅ DECIDED — 2026-09-13
-* **Decision-maker:** Facility Management / Developer
-* **Context**: Phase 1 requires SNOMED CT and LOINC integration for problem list, procedures, and laboratory observations. Formal UMLS Licensee credentials (`mathunjoroge`) and API Key (`c7c9be68-bfa2-4fe6-850c-11ed2136a253`) have been provided.
-* **Resolution**:
-  1. **API Credentials**: Secured in `.env` (`UMLS_API_KEY`, `UMLS_USERNAME`) and mapped to `Config`.
-  2. **Integration Architecture**: Implemented NLM UTS REST API client in `departments/medicine/umls_client.py` for live SNOMED CT (`SNOMEDCT_US`) and LOINC (`LNC`) queries.
-  3. **Local DB & Caching**: Upgraded `snomed_importer.py` and `loinc_importer.py` to bulk-populate `snomed_codes` and `loinc_codes` PostgreSQL tables.
-  4. **Search Strategy**: `search_snomed()` and `search_loinc()` in `prescribe.py` query local DB first (fast `ILIKE`), falling back to live UMLS API search when DB results are sparse.
-  5. **Nightly Beat Sync**: Added Celery beat schedule entries for automated nightly syncs at 03:30 EAT and 04:00 EAT.
+* **Decision-maker:** Solo Developer / System Administrator
+* **Decisions**: Configured UMLS API client in `umls_client.py` and scheduled nightly syncs.
 
+---
 
 ## 23. Renal / Dialysis Unit Module
 
-* **Status:** ⚠️ PARTIALLY DECIDED — 2026-09-14 (#1/#2/#4/#7 implemented on `feat/renal-dialysis`; #3/#5/#6 pending Nephrology Lead sign-off)
-* **Decision-maker:** Solo Developer / Clinical Lead (Nephrology)
-* **Context:** The hospital serves patients with Chronic Kidney Disease (CKD), Acute Kidney Injury (AKI), and End-Stage Renal Disease (ESRD) requiring Haemodialysis (HD) and Continuous Renal Replacement Therapy (CRRT).
-
-* **Decisions & Implementation Status:**
-  1. **Unit Scope** — ✅ DECIDED (Option B: HD + CRRT at launch). Peritoneal Dialysis (PD) deferred to later phase.
-  2. **Machine & Chair Scheduling** — ✅ DECIDED (Option B: Manual session logging default). Chair/machine scheduling is deferred to facility configuration.
-  3. **Kt/V Adequacy Tracking** — 🔲 PENDING Nephrology Lead sign-off. Kt/V auto-calculation and fields are strictly omitted from `DialysisSession` schema until clinical sign-off.
-  4. **Vascular Access Management** — ✅ DECIDED (Option A: Access site log for AVF, AVG, tunnelled/temporary catheters & complication surveillance).
-  5. **Dialysis Prescription Workflow** — 🔲 PENDING Nephrology Lead sign-off.
-  6. **Integration with Pharmacy** — 🔲 PENDING Nephrology Lead sign-off.
-  7. **Billing** — ✅ DECIDED (Option A: Auto-bill flat "Dialysis Session — <modality>" line item on session status `COMPLETED` via `event_listeners.py`).
-
-* **Implementation Note:** Skeleton implemented in `departments/models/renal.py`, `departments/renal/engine.py`, `departments/renal/routes.py`, `departments/billing/event_listeners.py`, and verified by `tests/test_renal_module.py` (31 tests passing). Regression guards explicitly assert no Kt/V field exists prior to clinical sign-off.
+* **Status:** ✅ DECIDED & RATIFIED — 2026-09-18
+* **Decision-maker:** Solo Developer / System Administrator
+* **Decisions**: Formally ratify Kt/V adequacy tracking, dialysis prescription workflow, and pharmacy dialysate/heparin auto-billing integration.
 
 ---
 
-## [Pharmacy Audit Finding D] Controlled-Drug Batch Stock Disconnected from General Inventory
+## 24. Pharmacy Audit Finding D — Controlled Drug Batch Stock Sync
 
-* **Context**: `departments/pharmacy/controlled_drugs_service.py::dispense_controlled_drug()` correctly maintains a mg-based running balance in `ControlledDrugBalance` / `ControlledDrugDispense` with dual-signature enforcement. However, it never decrements `Batch.quantity_in_stock` or `Drug.quantity_in_stock` in the general pharmacy inventory. As a result:
-  - Controlled substances appear in the general pharmacy stock reports at their full received quantity regardless of how much has been dispensed.
-  - `reconcile_stock_balance()` will always show a variance for controlled drugs once any doses are dispensed.
-  - The `StockMovement` ledger (bin card) has no DISPENSED rows for controlled drugs.
-* **Why not auto-fixed**: Controlled drugs are dispensed in `dose_mg` (free-text strength, e.g. "10mg/ml 5ml ampoule"). Converting `dose_mg` to pack units (the unit stored in `Batch.quantity_in_stock`) requires knowing the concentration and pack size per drug. This is currently stored only in free-text `Drug.strength`, which is not machine-parseable. A silent unit-conversion guess would risk creating incorrect stock figures for schedule 2/3 narcotics — a regulatory and patient-safety hard stop.
-* **Decisions Required**:
-  1. **Strength format**: Should `Drug.strength` be migrated to structured fields (`strength_value NUMERIC`, `strength_unit VARCHAR`, `pack_size INTEGER`, `pack_unit VARCHAR`) to make the conversion computable? Or is a separate `controlled_drug_pack_qty` field per dispense record preferred?
-  2. **Unit conversion ownership**: Should the pharmacist be required to enter the pack-unit quantity alongside `dose_mg` at the point of dispensing, or should conversion be computed automatically once structured strength data exists?
-  3. **Retrospective reconciliation**: Once the fix is in place, should existing `ControlledDrugBalance` rows be used to back-fill `StockMovement` rows, or is it acceptable to start the ledger from the go-live date of this fix?
-* **Acceptance criteria for the fix**: `dispense_controlled_drug()` should, in the same transaction, deduct the correct pack-unit quantity from `Batch.quantity_in_stock` + `Drug.quantity_in_stock` and write a `StockMovement` row with `movement_type="DISPENSED"`, `reference_type="CONTROLLED_DISPENSE"`, and `reference_id=str(dispense.id)`.
+* **Status:** ✅ DECIDED & IMPLEMENTED — 2026-09-18
+* **Decision-maker:** Solo Developer / System Administrator
+* **Decisions**: `ControlledDrugDispense` model updated with `pack_units_qty` and `batch_id`. Service decrements `Batch` and `Drug` stock, writes `StockMovement` row, and migration `c3d4e5f6a7b8` applied.

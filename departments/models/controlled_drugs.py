@@ -11,6 +11,12 @@ class ControlledDrugDispense(db.Model):
     )
     drug_id = db.Column(db.Integer, db.ForeignKey("drugs.id"), nullable=False)
     dose_mg = db.Column(db.Float, nullable=False)
+    # Finding D: pack-unit quantity physically removed from batch/drug stock.
+    # Entered by pharmacist at dispense time; nullable for pre-migration rows.
+    pack_units_qty = db.Column(db.Integer, nullable=True)
+    batch_id = db.Column(
+        db.Integer, db.ForeignKey("batches.id"), nullable=True
+    )
     dispense_datetime = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     primary_pharmacist_id = db.Column(
@@ -26,6 +32,7 @@ class ControlledDrugDispense(db.Model):
 
     patient = db.relationship("Patient", backref="controlled_dispenses")
     drug = db.relationship("Drug", backref="controlled_dispenses")
+    batch = db.relationship("Batch", backref="controlled_dispenses")
     primary_pharmacist = db.relationship("User", foreign_keys=[primary_pharmacist_id])
     second_signatory = db.relationship("User", foreign_keys=[second_signatory_id])
 
