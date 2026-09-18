@@ -1,98 +1,182 @@
 {% extends "base.html" %}
+{% block title %}Staff Directory — HR{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">Employee List</h2>
+<div class="container-fluid px-4 py-4">
 
-    <!-- Search & Filter -->
-    <form method="GET" class="row g-2 align-items-end mb-4">
-        <div class="col-sm-4">
-            <label class="form-label" for="search">Search</label>
-            <input type="text" id="search" name="search" class="form-control"
+  <!-- Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+    <div>
+      <h1 class="h3 mb-0 fw-bold text-dark">
+        <i class="bi bi-people-fill text-primary me-2"></i>Staff Directory
+      </h1>
+      <p class="text-muted mt-1 mb-0">Browse, filter and manage all employee records</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('hr.new_employee') }}" class="btn btn-primary fw-semibold shadow-sm">
+        <i class="bi bi-person-plus-fill me-1"></i> Add Employee
+      </a>
+      <a href="{{ url_for('hr.index') }}" class="btn btn-outline-secondary fw-semibold">
+        <i class="bi bi-arrow-left me-1"></i> HR Home
+      </a>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm rounded-3 mb-3" role="alert">
+          {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <!-- Search & Filter -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3">
+      <form method="GET" class="row g-2 align-items-end" id="filterForm">
+        <div class="col-12 col-md-4">
+          <label class="form-label small fw-semibold text-muted text-uppercase" for="search">Search</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" id="search" name="search" class="form-control border-start-0"
                    placeholder="Name or Employee ID" value="{{ search or '' }}">
+          </div>
         </div>
-        <div class="col-sm-3">
-            <label class="form-label" for="department">Department</label>
-            <select id="department" name="department" class="form-select">
-                <option value="">All departments</option>
-                {% for dept in departments %}
-                <option value="{{ dept }}" {% if dept == department_filter %}selected{% endif %}>{{ dept }}</option>
-                {% endfor %}
-            </select>
+        <div class="col-6 col-md-3">
+          <label class="form-label small fw-semibold text-muted text-uppercase" for="department">Department</label>
+          <select id="department" name="department" class="form-select">
+            <option value="">All Departments</option>
+            {% for dept in departments %}
+            <option value="{{ dept }}" {% if dept == department_filter %}selected{% endif %}>{{ dept }}</option>
+            {% endfor %}
+          </select>
         </div>
-        <div class="col-sm-3">
-            <label class="form-label" for="status">Status</label>
-            <select id="status" name="status" class="form-select">
-                <option value="" {% if not status %}selected{% endif %}>All</option>
-                <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
-                <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
-            </select>
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-semibold text-muted text-uppercase" for="status">Status</label>
+          <select id="status" name="status" class="form-select">
+            <option value="" {% if not status %}selected{% endif %}>All</option>
+            <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+          </select>
         </div>
-        <div class="col-sm-2 d-grid">
-            <button type="submit" class="btn btn-primary">
-                <i class="bi bi-search"></i> Filter
-            </button>
+        <div class="col-12 col-md-3 d-flex gap-2">
+          <button type="submit" class="btn btn-primary fw-semibold flex-grow-1">
+            <i class="bi bi-funnel-fill me-1"></i> Filter
+          </button>
+          <a href="{{ url_for('hr.employee_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-lg"></i>
+          </a>
         </div>
-    </form>
+      </form>
+    </div>
+  </div>
 
-    <table class="table table-hover align-middle">
-        <thead class="table-dark">
+  <!-- Employee Table -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+      <h5 class="mb-0 fw-bold text-dark">
+        <i class="bi bi-table text-primary me-2"></i>Employees
+      </h5>
+      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary rounded-pill px-3 py-2 fw-semibold">
+        {{ employees|length }} record{{ 's' if employees|length != 1 else '' }}
+      </span>
+    </div>
+    <div class="card-body p-0">
+      {% if employees %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
             <tr>
-                <th>Employee ID</th>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Department</th>
-                <th>Date Hired</th>
-                <th>Status</th>
-                <th>Actions</th>
+              <th style="width:52px;">&nbsp;</th>
+              <th>Name / Role</th>
+              <th>Employee ID</th>
+              <th>Department</th>
+              <th>Job Group</th>
+              <th>Date Hired</th>
+              <th>Status</th>
+              <th class="text-end">Actions</th>
             </tr>
-        </thead>
-        <tbody>
+          </thead>
+          <tbody>
             {% for emp in employees %}
+            {% set initials = (emp.name.split()[0][0] + emp.name.split()[-1][0]) | upper if emp.name.split()|length > 1 else emp.name[:2] | upper %}
+            {% set hue = (loop.index0 * 47) % 360 %}
             <tr>
-                <td>{{ emp.employee_id }}</td>
-                <td>{{ emp.name }}</td>
-                <td>{{ emp.role }}</td>
-                <td>{{ emp.department }}</td>
-                <td>{{ emp.date_hired.strftime('%d/%m/%Y') }}</td>
-                <td>
-                    <span class="badge {% if emp.is_active %}bg-success{% else %}bg-danger{% endif %}">
-                        {{ 'Active' if emp.is_active else 'Inactive' }}
-                    </span>
-                </td>
-                <td>
-                    <a href="{{ url_for('hr.update_employee', employee_id=emp.id) }}" class="btn btn-primary btn-sm me-2">
-                        <i class="bi bi-pencil"></i> Edit
-                    </a>
-                    <a href="{{ url_for('hr.employee_payroll', employee_id=emp.id) }}" class="btn btn-outline-info btn-sm me-2">
-                        <i class="bi bi-cash-stack"></i> Payroll
-                    </a>
-                    <form method="POST" action="{{ url_for('hr.delete_employee', employee_id=emp.id) }}" style="display:inline;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this employee?');">
-                            <i class="bi bi-trash"></i> Delete
-                        </button>
-                    </form>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="7" class="text-center text-muted">
-                    {% if search or status or department_filter %}
-                    No employees match this filter.
-                    {% else %}
-                    No employees available.
-                    {% endif %}
-                </td>
+              <td>
+                <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white small"
+                     style="width:40px;height:40px;background:hsl({{ hue }},60%,52%);flex-shrink:0;">
+                  {{ initials }}
+                </div>
+              </td>
+              <td>
+                <div class="fw-semibold text-dark">{{ emp.name }}</div>
+                <small class="text-muted">{{ emp.role }}</small>
+              </td>
+              <td><span class="font-monospace text-dark fw-bold">{{ emp.employee_id }}</span></td>
+              <td>{{ emp.department }}</td>
+              <td>
+                <span class="badge bg-info bg-opacity-10 text-info border border-info px-2 rounded-pill">
+                  {{ emp.job_group }}
+                </span>
+              </td>
+              <td>
+                <span class="text-muted small">
+                  <i class="bi bi-calendar3 me-1"></i>{{ emp.date_hired.strftime('%d %b %Y') }}
+                </span>
+              </td>
+              <td>
+                <span class="badge rounded-pill fw-semibold {{ 'bg-success' if emp.is_active else 'bg-danger' }}">
+                  {{ 'Active' if emp.is_active else 'Inactive' }}
+                </span>
+              </td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm" role="group">
+                  <a href="{{ url_for('hr.employee_profile', employee_id=emp.id) }}"
+                     class="btn btn-outline-primary" title="View Profile">
+                    <i class="bi bi-person-lines-fill"></i>
+                  </a>
+                  <a href="{{ url_for('hr.update_employee', employee_id=emp.id) }}"
+                     class="btn btn-outline-secondary" title="Edit">
+                    <i class="bi bi-pencil-fill"></i>
+                  </a>
+                  <a href="{{ url_for('hr.employee_payroll', employee_id=emp.id) }}"
+                     class="btn btn-outline-info" title="Payroll">
+                    <i class="bi bi-cash-stack"></i>
+                  </a>
+                  <form method="POST" action="{{ url_for('hr.delete_employee', employee_id=emp.id) }}"
+                        style="display:inline;"
+                        onsubmit="return confirm('Deactivate or delete {{ emp.name }}?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="btn btn-outline-danger" title="Deactivate / Delete">
+                      <i class="bi bi-person-slash"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
             </tr>
             {% endfor %}
-        </tbody>
-    </table>
-
-    <!-- Add New Employee Button -->
-    <div class="text-center mt-4">
-        <a href="{{ url_for('hr.new_employee') }}" class="btn btn-success btn-lg px-4">
-            <i class="bi bi-person-plus me-2"></i> Add New Employee
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5">
+        <i class="bi bi-people fs-1 text-muted d-block mb-3"></i>
+        <h5 class="text-dark fw-bold">
+          {% if search or status or department_filter %}No Employees Match This Filter{% else %}No Employees Yet{% endif %}
+        </h5>
+        <p class="text-muted mb-3">
+          {% if search or status or department_filter %}Try adjusting your filters.{% else %}Start by adding your first employee.{% endif %}
+        </p>
+        {% if not (search or status or department_filter) %}
+        <a href="{{ url_for('hr.new_employee') }}" class="btn btn-primary fw-semibold">
+          <i class="bi bi-person-plus-fill me-1"></i> Add First Employee
         </a>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
+  </div>
 </div>
 {% endblock %}

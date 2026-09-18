@@ -1,153 +1,195 @@
 {% extends "base.html" %}
+{% block title %}New Employee — HR{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">Add New Employee</h2>
+<div class="container-fluid px-4 py-4">
 
-    <form method="POST" action="{{ url_for('hr.new_employee') }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <!-- Name -->
-        <div class="mb-3">
-            <label for="name" class="form-label fw-bold">Name:</label>
-            <input type="text" id="name" name="name" class="form-control" placeholder="Enter employee name" required>
-        </div>
-
-        <!-- Role -->
-        <div class="mb-3">
-            <label for="role" class="form-label fw-bold">Role:</label>
-            <select id="role" name="role" class="form-select" required>
-                <option value="" disabled selected>Select role</option>
-                <option value="records">Records</option>
-                <option value="nursing">Nursing</option>
-                <option value="pharmacy">Pharmacy</option>
-                <option value="medicine">Medicine</option>
-                <option value="laboratory">Laboratory</option>
-                <option value="imaging">Imaging</option>
-                <option value="mortuary">Mortuary</option>
-                <option value="hr">HR</option>
-                <option value="stores">Stores</option>
-                <option value="admin">Admin</option>
-            </select>
-        </div>
-
-        <!-- Department -->
-        <div class="mb-3">
-            <label for="department" class="form-label fw-bold">Department:</label>
-            <select id="department" name="department" class="form-select" required>
-                <option value="" disabled selected>Select department</option>
-                <option value="records">Records</option>
-                <option value="nursing">Nursing</option>
-                <option value="pharmacy">Pharmacy</option>
-                <option value="medicine">Medicine</option>
-                <option value="laboratory">Laboratory</option>
-                <option value="imaging">Imaging</option>
-                <option value="mortuary">Mortuary</option>
-                <option value="hr">HR</option>
-                <option value="stores">Stores</option>
-                <option value="admin">Admin</option>
-            </select>
-        </div>
-
-        <!-- Job Group -->
-        <div class="mb-3">
-            <label for="job_group" class="form-label fw-bold">Job Group:</label>
-            <select id="job_group" name="job_group" class="form-select" required>
-                <option value="" disabled selected>Select job group</option>
-                <option value="Group A">Group A</option>
-                <option value="Group B">Group B</option>
-                <option value="Group C">Group C</option>
-            </select>
-        </div>
-
-        <!-- Basic Salary -->
-        <div class="mb-3">
-            <label for="basic_salary" class="form-label fw-bold">Basic Salary (optional):</label>
-            <input type="number" step="0.01" min="0" id="basic_salary" name="basic_salary"
-                   class="form-control" placeholder="Leave blank if not yet set">
-            <small class="form-text text-muted">
-                Required before this employee can be included in a payroll run.
-                Can be added later from the employee list.
-            </small>
-        </div>
-
-        <!-- Allowances (informational — assigned automatically by job group) -->
-        <div class="mb-3">
-            <label class="form-label fw-bold">Allowances for this job group:</label>
-            <p class="text-muted small">
-                Allowances are applied automatically at payroll time based on the
-                employee's job group — there is nothing to select here.
-            </p>
-            <table class="table table-hover align-middle">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Job Group</th>
-                        <th>Allowance Name</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for allowance in allowances %}
-                    <tr>
-                        <td>{{ allowance.job_group }}</td>
-                        <td>{{ allowance.name }}</td>
-                        <td>${{ allowance.value }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="3" class="text-center text-muted">No allowances configured yet.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Deductions (informational — applied to every employee at payroll time) -->
-        <div class="mb-3">
-            <label class="form-label fw-bold">Standard deductions:</label>
-            <p class="text-muted small">
-                These apply to every employee automatically at payroll time —
-                there is nothing to select here.
-            </p>
-            <table class="table table-hover align-middle">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Deduction Name</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for deduction in deductions %}
-                    <tr>
-                        <td>{{ deduction.name }}</td>
-                        <td>
-                            {% if deduction.is_percentage %}
-                                {{ deduction.value }}%
-                            {% else %}
-                                ${{ deduction.value }}
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="2" class="text-center text-muted">No deductions configured yet.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Submit Button -->
-        <div class="text-center">
-            <button type="submit" class="btn btn-primary btn-lg px-4">
-                <i class="bi bi-person-plus-fill me-2"></i> Save Employee
-            </button>
-        </div>
-    </form>
-
-    <!-- Back Button -->
-    <div class="text-center mt-4">
-        <a href="{{ url_for('hr.employee_list') }}" class="btn btn-secondary btn-lg px-4">
-            <i class="bi bi-arrow-left-circle me-2"></i> Back to Employee List
-        </a>
+  <!-- Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+    <div>
+      <h1 class="h3 mb-0 fw-bold text-dark">
+        <i class="bi bi-person-plus-fill text-primary me-2"></i>Onboard New Employee
+      </h1>
+      <p class="text-muted mt-1 mb-0">Fill in the details below to register a new team member</p>
     </div>
+    <a href="{{ url_for('hr.employee_list') }}" class="btn btn-outline-secondary fw-semibold">
+      <i class="bi bi-arrow-left me-1"></i> Back to Directory
+    </a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm rounded-3 mb-3" role="alert">
+          {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="row g-4">
+
+    <!-- ── Main Form ─────────────────────────────────────────────────── -->
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3">
+          <h5 class="mb-0 fw-bold text-dark">
+            <i class="bi bi-person-badge text-primary me-2"></i>Employee Details
+          </h5>
+        </div>
+        <div class="card-body p-4">
+          <form method="POST" action="{{ url_for('hr.new_employee') }}" id="newEmployeeForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <!-- Name -->
+            <div class="mb-4">
+              <label for="name" class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text bg-light"><i class="bi bi-person text-muted"></i></span>
+                <input type="text" id="name" name="name" class="form-control"
+                       placeholder="e.g. Jane Wanjiku Muthoni" required>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+              <!-- Role -->
+              <div class="col-md-6">
+                <label for="role" class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
+                <select id="role" name="role" class="form-select" required>
+                  <option value="" disabled selected>Select role</option>
+                  {% for r in ['records','nursing','pharmacy','medicine','laboratory','imaging','mortuary','hr','stores','admin','theatre','mch','renal','icu'] %}
+                  <option value="{{ r }}">{{ r | capitalize }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <!-- Department -->
+              <div class="col-md-6">
+                <label for="department" class="form-label fw-semibold">Department <span class="text-danger">*</span></label>
+                <select id="department" name="department" class="form-select" required>
+                  <option value="" disabled selected>Select department</option>
+                  {% for d in ['Records','Nursing','Pharmacy','Medicine','Laboratory','Imaging','Mortuary','HR','Stores','Admin','Theatre','MCH','Renal','ICU'] %}
+                  <option value="{{ d }}">{{ d }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+              <!-- Job Group -->
+              <div class="col-md-6">
+                <label for="job_group" class="form-label fw-semibold">Job Group <span class="text-danger">*</span></label>
+                <select id="job_group" name="job_group" class="form-select" required>
+                  <option value="" disabled selected>Select job group</option>
+                  <option value="Group A">Group A — Senior Management</option>
+                  <option value="Group B">Group B — Mid-Level</option>
+                  <option value="Group C">Group C — Support Staff</option>
+                </select>
+              </div>
+              <!-- Basic Salary -->
+              <div class="col-md-6">
+                <label for="basic_salary" class="form-label fw-semibold">Basic Salary (KES)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light text-muted fw-semibold">KES</span>
+                  <input type="number" step="0.01" min="0" id="basic_salary" name="basic_salary"
+                         class="form-control" placeholder="0.00">
+                </div>
+                <div class="form-text">Required before payroll can be generated for this employee.</div>
+              </div>
+            </div>
+
+            <div class="d-flex gap-3">
+              <button type="submit" class="btn btn-primary fw-semibold px-4">
+                <i class="bi bi-person-check-fill me-2"></i> Save Employee
+              </button>
+              <a href="{{ url_for('hr.employee_list') }}" class="btn btn-outline-secondary fw-semibold">
+                Cancel
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Payroll Reference Sidebar ─────────────────────────────────── -->
+    <div class="col-lg-5">
+
+      <!-- Allowances by Job Group -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom py-3">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="bi bi-plus-circle text-success me-2"></i>Allowances (auto-applied by job group)
+          </h6>
+        </div>
+        <div class="card-body p-0">
+          {% if allowances %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+              <thead class="table-light">
+                <tr>
+                  <th>Job Group</th>
+                  <th>Allowance</th>
+                  <th class="text-end">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for a in allowances %}
+                <tr>
+                  <td><span class="badge bg-info bg-opacity-10 text-info border border-info">{{ a.job_group }}</span></td>
+                  <td>{{ a.name }}</td>
+                  <td class="text-end fw-semibold text-success">KES {{ "{:,.2f}".format(a.value) }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="p-3 text-center text-muted small">
+            <i class="bi bi-info-circle me-1"></i> No allowances configured yet.
+            <a href="{{ url_for('hr.add_allowance') }}">Add one</a>.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Standard Deductions -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="bi bi-dash-circle text-danger me-2"></i>Standard Deductions (all employees)
+          </h6>
+        </div>
+        <div class="card-body p-0">
+          {% if deductions %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+              <thead class="table-light">
+                <tr>
+                  <th>Deduction</th>
+                  <th class="text-end">Rate / Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for d in deductions %}
+                <tr>
+                  <td>{{ d.name }}</td>
+                  <td class="text-end fw-semibold text-danger">
+                    {% if d.is_percentage %}{{ d.value }}%{% else %}KES {{ "{:,.2f}".format(d.value) }}{% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="p-3 text-center text-muted small">
+            <i class="bi bi-info-circle me-1"></i> No deductions configured yet.
+            <a href="{{ url_for('hr.add_deduction') }}">Add one</a>.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
 </div>
 {% endblock %}

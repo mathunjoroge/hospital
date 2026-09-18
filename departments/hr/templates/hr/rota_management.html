@@ -1,83 +1,134 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">Manage Employee Rota</h2>
+<div class="container-fluid py-4 px-4">
+    <!-- Header Banner -->
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-calendar3-range text-info"></i> Clinical Shift Rota Management
+            </h2>
+            <p class="text-muted mb-0">Automated shift duty assignment across Morning, Evening, and Night hospital rotations.</p>
+        </div>
+    </div>
 
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
+                <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3 border-0 shadow-sm mb-4" role="alert">
+                    <i class="bi bi-info-circle me-2"></i>{{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             {% endfor %}
         {% endif %}
     {% endwith %}
 
-    <!-- Rota Form -->
-    <form method="POST" action="{{ url_for('hr.rota_management') }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <!-- Select Week Range -->
-        <div class="mb-3">
-            <label for="week_range" class="form-label fw-bold">Select Week Range:</label>
-            <input type="text" id="week_range" name="week_range" class="form-control" placeholder="e.g., 01/03/2023 - 07/03/2023" required>
+    <!-- Generate Rota Card -->
+    <div class="card border-0 bg-dark text-white rounded-4 shadow-lg mb-4" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(255, 255, 255, 0.1) !important;">
+        <div class="card-body p-4">
+            <h5 class="fw-bold text-white mb-3 d-flex align-items-center gap-2">
+                <i class="bi bi-magic text-primary"></i> Generate New Weekly Rota
+            </h5>
+            <form method="POST" action="{{ url_for('hr.rota_management') }}" class="row g-3 align-items-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="col-md-8 col-lg-6">
+                    <label for="week_range" class="form-label text-muted small fw-semibold text-uppercase">TARGET WEEK RANGE</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-calendar-week"></i></span>
+                        <input type="text" id="week_range" name="week_range" class="form-control bg-dark text-white border-secondary rounded-end-3 py-2" placeholder="e.g., 01/03/2026 - 07/03/2026" required>
+                    </div>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-calendar-check-fill"></i> Generate Shift Schedule
+                    </button>
+                </div>
+            </form>
         </div>
+    </div>
 
-        <!-- Submit Button -->
-        <div class="text-center">
-            <button type="submit" class="btn btn-primary btn-lg px-4">
-                <i class="bi bi-calendar-check me-2"></i> Generate Rota
-            </button>
+    <!-- Existing Rotas Section -->
+    <div class="card border-0 bg-dark text-white rounded-4 shadow-sm" style="border: 1px solid rgba(255,255,255,0.08) !important;">
+        <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 py-3">
+            <h5 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
+                <i class="bi bi-clock-history text-success"></i> Active Shift Rotas
+            </h5>
         </div>
-    </form>
-
-    <!-- View Existing Rotas -->
-    <h4 class="mt-5 text-center">Existing Rotas</h4>
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <table class="table table-striped align-middle">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Week Range</th>
-                        <th>Morning Shift</th>
-                        <th>Evening Shift</th>
-                        <th>Night Shift</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for rota in rotas %}
-                    <tr>
-                        <td>{{ rota.week_range }}</td>
-                        <td>
-                            <ul>
-                                {% for name in rota_data.get(rota.week_range, {}).get('morning', []) %}
-                                <li>{{ name }}</li>
-                                {% endfor %}
-                            </ul>
-                        </td>
-                        <td>
-                            <ul>
-                                {% if rota_data.get(rota.week_range, {}).get('evening') %}
-                                <li>{{ rota_data.get(rota.week_range, {}).get('evening', '') }}</li>
-                                {% endif %}
-                            </ul>
-                        </td>
-                        <td>
-                            <ul>
-                                {% if rota_data.get(rota.week_range, {}).get('night') %}
-                                <li>{{ rota_data.get(rota.week_range, {}).get('night', '') }}</li>
-                                {% endif %}
-                            </ul>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="4" class="text-center text-muted">No rotas available.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle">
+                    <thead class="bg-dark-subtle text-muted small text-uppercase">
+                        <tr>
+                            <th class="ps-4" style="width: 200px;">Week Range</th>
+                            <th style="width: 30%;">
+                                <div class="d-flex align-items-center text-warning"><i class="bi bi-sun-fill me-1"></i> Morning Shift (07:00 - 15:00)</div>
+                            </th>
+                            <th style="width: 25%;">
+                                <div class="d-flex align-items-center text-info"><i class="bi bi-sunset-fill me-1"></i> Evening Shift (15:00 - 23:00)</div>
+                            </th>
+                            <th style="width: 25%;">
+                                <div class="d-flex align-items-center text-purple" style="color: #a855f7;"><i class="bi bi-moon-stars-fill me-1"></i> Night Shift (23:00 - 07:00)</div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rota in rotas %}
+                        <tr>
+                            <td class="ps-4">
+                                <span class="badge bg-secondary-subtle text-light border border-secondary border-opacity-25 font-monospace px-3 py-2 fw-bold">
+                                    <i class="bi bi-calendar3 me-1 text-primary"></i>{{ rota.week_range }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-wrap gap-1 py-1">
+                                    {% set morning_list = rota_data.get(rota.week_range, {}).get('morning', []) %}
+                                    {% if morning_list %}
+                                        {% for name in morning_list %}
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-1 small">
+                                                <i class="bi bi-person-fill me-1"></i>{{ name }}
+                                            </span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted small italic">Unassigned</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-wrap gap-1 py-1">
+                                    {% set evening_name = rota_data.get(rota.week_range, {}).get('evening', '') %}
+                                    {% if evening_name %}
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-2 py-1 small">
+                                            <i class="bi bi-person-fill me-1"></i>{{ evening_name }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted small italic">Unassigned</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-wrap gap-1 py-1">
+                                    {% set night_name = rota_data.get(rota.week_range, {}).get('night', '') %}
+                                    {% if night_name %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1 small">
+                                            <i class="bi bi-moon-fill me-1"></i>{{ night_name }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted small italic">Unassigned</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center py-5 text-muted">
+                                <i class="bi bi-calendar-event fs-1 d-block mb-2"></i>
+                                No shift rotas generated yet. Enter a week range above to generate duty assignments.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

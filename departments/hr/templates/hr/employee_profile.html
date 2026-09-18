@@ -1,114 +1,239 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
-    <h1>Employee Profile</h1>
-    <div class="row">
-        <!-- Personal Information -->
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Personal Information</h5>
+<div class="container-fluid py-4 px-4">
+    <!-- Hero Profile Banner -->
+    <div class="card border-0 shadow-lg mb-4 bg-dark text-white rounded-4 overflow-hidden" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(255, 255, 255, 0.1) !important;">
+        <div class="card-body p-4">
+            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="avatar-circle rounded-circle d-flex align-items-center justify-content-center fw-bold fs-2 text-white shadow-sm" style="width: 72px; height: 72px; background: linear-gradient(135deg, #6366f1, #3b82f6); border: 2px solid rgba(255,255,255,0.2);">
+                        {{ employee.name[:2].upper() if employee.name else 'EM' }}
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <h2 class="mb-0 fw-bold">{{ employee.name }}</h2>
+                            <span class="badge rounded-pill bg-{{ 'success' if employee.is_active else 'secondary' }}-subtle text-{{ 'success' if employee.is_active else 'secondary' }} border border-{{ 'success' if employee.is_active else 'secondary' }}-subtle px-3 py-1">
+                                <i class="bi bi-circle-fill me-1 small"></i>{{ "Active Staff" if employee.is_active else "Inactive" }}
+                            </span>
+                        </div>
+                        <div class="text-muted small mt-1 d-flex align-items-center gap-3 flex-wrap">
+                            <span><i class="bi bi-card-heading text-primary me-1"></i> ID: <strong>{{ employee.employee_id }}</strong></span>
+                            <span><i class="bi bi-building text-info me-1"></i> {{ employee.department }}</span>
+                            <span><i class="bi bi-award text-warning me-1"></i> Group {{ employee.job_group }}</span>
+                            <span><i class="bi bi-calendar-event text-secondary me-1"></i> Hired {{ employee.date_hired.strftime('%d %b %Y') if employee.date_hired else 'N/A' }}</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('hr.update_profile', employee_id=employee.id) }}">
-                        {# employee_profile renders from both the HR route (which passes no
-                           WTForms object) and the self-service route (which does), so use an
-                           explicit CSRF field instead of form.hidden_tag() — that raised
-                           UndefinedError on every HR visit. #}
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <div class="form-group mb-3">
-                            <label for="name" class="form-label">Full Name</label>
-                            <input type="text" class="form-control" id="name" name="name" value="{{ employee.name }}" required>
-                        </div>
-                        <div class="form-group mb-3">
-                            <label for="employee_id" class="form-label">Employee ID</label>
-                            <input type="text" class="form-control" id="employee_id" name="employee_id" value="{{ employee.employee_id }}" readonly>
-                        </div>
-                        <div class="form-group mb-3">
-                            <label for="department" class="form-label">Department</label>
-                            <input type="text" class="form-control" id="department" name="department" value="{{ employee.department }}" required>
-                        </div>
-                        <div class="form-group mb-3">
-                            <label for="job_group" class="form-label">Job Group</label>
-                            <input type="text" class="form-control" id="job_group" name="job_group" value="{{ employee.job_group }}" required>
-                        </div>
-                        <div class="form-group mb-3">
-                            <label for="date_hired" class="form-label">Date Hired</label>
-                            <input type="text" class="form-control" id="date_hired" name="date_hired" value="{{ employee.date_hired.strftime('%Y-%m-%d') }}" readonly>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Update Profile</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Payroll Information -->
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Payroll Information</h5>
-                </div>
-                <div class="card-body">
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Month</th>
-                                <th>Gross Pay</th>
-                                <th>Deductions</th>
-                                <th>Net Pay</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for payroll in employee.payrolls %}
-                            <tr>
-                                <td>{{ payroll.month }}</td>
-                                <td>{{ payroll.gross_pay }}</td>
-                                <td>{{ payroll.total_deductions }}</td>
-                                <td>{{ payroll.net_pay }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <a href="{{ url_for('hr.leave_request') }}" class="btn btn-outline-info btn-sm rounded-3 px-3">
+                        <i class="bi bi-calendar-plus me-1"></i> Request Leave
+                    </a>
+                    <a href="{{ url_for('hr.employee_list') }}" class="btn btn-outline-secondary btn-sm rounded-3 px-3">
+                        <i class="bi bi-arrow-left me-1"></i> Directory
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Leave Requests -->
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Leave Requests</h5>
+    <!-- Quick Stats Ribbon -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 bg-dark text-white rounded-4 p-3 shadow-sm h-100" style="border: 1px solid rgba(255,255,255,0.08) !important;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small fw-semibold text-uppercase">Leave Balance</div>
+                        <div class="fs-4 fw-bold text-info">{{ employee.leave_days_remaining() }} <span class="fs-6 text-muted font-normal">/ {{ employee.annual_leave_days }} days</span></div>
+                    </div>
+                    <div class="rounded-3 p-2 bg-info bg-opacity-10 text-info">
+                        <i class="bi bi-brightness-high fs-4"></i>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <p class="text-muted">
-                        Vacation days remaining this year:
-                        <strong>{{ employee.leave_days_remaining() }}</strong> of {{ employee.annual_leave_days }}.
-                    </p>
-                    <a href="{{ url_for('hr.leave_request') }}" class="btn btn-success mb-3">
-                        <i class="bi bi-plus-circle"></i> Request Leave
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 bg-dark text-white rounded-4 p-3 shadow-sm h-100" style="border: 1px solid rgba(255,255,255,0.08) !important;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small fw-semibold text-uppercase">Payroll Records</div>
+                        <div class="fs-4 fw-bold text-success">{{ employee.payrolls|length }}</div>
+                    </div>
+                    <div class="rounded-3 p-2 bg-success bg-opacity-10 text-success">
+                        <i class="bi bi-cash-stack fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 bg-dark text-white rounded-4 p-3 shadow-sm h-100" style="border: 1px solid rgba(255,255,255,0.08) !important;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small fw-semibold text-uppercase">Leave Requests</div>
+                        <div class="fs-4 fw-bold text-warning">{{ employee.leaves|length }}</div>
+                    </div>
+                    <div class="rounded-3 p-2 bg-warning bg-opacity-10 text-warning">
+                        <i class="bi bi-clock-history fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card border-0 bg-dark text-white rounded-4 p-3 shadow-sm h-100" style="border: 1px solid rgba(255,255,255,0.08) !important;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small fw-semibold text-uppercase">Department</div>
+                        <div class="fs-6 fw-bold text-white text-truncate" style="max-width: 140px;">{{ employee.department }}</div>
+                    </div>
+                    <div class="rounded-3 p-2 bg-primary bg-opacity-10 text-primary">
+                        <i class="bi bi-building fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main 2-Column Content -->
+    <div class="row g-4">
+        <!-- Personal Information & Edit Form -->
+        <div class="col-lg-5">
+            <div class="card border-0 bg-dark text-white rounded-4 shadow-sm" style="border: 1px solid rgba(255,255,255,0.08) !important;">
+                <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 py-3">
+                    <h5 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
+                        <i class="bi bi-person-lines-fill text-primary"></i> Personal Details
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('hr.update_profile', employee_id=employee.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="mb-3">
+                            <label for="name" class="form-label text-muted small fw-semibold">FULL NAME</label>
+                            <input type="text" class="form-control bg-dark text-white border-secondary border-opacity-50 rounded-3" id="name" name="name" value="{{ employee.name }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="employee_id" class="form-label text-muted small fw-semibold">EMPLOYEE ID</label>
+                            <input type="text" class="form-control bg-dark-subtle text-muted border-secondary border-opacity-25 rounded-3" id="employee_id" name="employee_id" value="{{ employee.employee_id }}" readonly>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label for="department" class="form-label text-muted small fw-semibold">DEPARTMENT</label>
+                                <input type="text" class="form-control bg-dark text-white border-secondary border-opacity-50 rounded-3" id="department" name="department" value="{{ employee.department }}" required>
+                            </div>
+                            <div class="col-6">
+                                <label for="job_group" class="form-label text-muted small fw-semibold">JOB GROUP</label>
+                                <input type="text" class="form-control bg-dark text-white border-secondary border-opacity-50 rounded-3" id="job_group" name="job_group" value="{{ employee.job_group }}" required>
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label for="date_hired" class="form-label text-muted small fw-semibold">DATE HIRED</label>
+                            <input type="text" class="form-control bg-dark-subtle text-muted border-secondary border-opacity-25 rounded-3" id="date_hired" name="date_hired" value="{{ employee.date_hired.strftime('%Y-%m-%d') if employee.date_hired else '' }}" readonly>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold">
+                            <i class="bi bi-save me-1"></i> Update Profile Details
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Payroll & Leave Tabs -->
+        <div class="col-lg-7">
+            <!-- Payroll History Card -->
+            <div class="card border-0 bg-dark text-white rounded-4 shadow-sm mb-4" style="border: 1px solid rgba(255,255,255,0.08) !important;">
+                <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 py-3 d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
+                        <i class="bi bi-receipt text-success"></i> Payroll History
+                    </h5>
+                    <a href="{{ url_for('hr.payroll_dashboard') }}" class="btn btn-sm btn-outline-secondary rounded-3">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> All Payrolls
                     </a>
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Start Date</th>
-                                <th>End Date</th>
-                                <th>Type</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for leave in employee.leaves %}
-                            <tr>
-                                <td>{{ leave.start_date.strftime('%Y-%m-%d') }}</td>
-                                <td>{{ leave.end_date.strftime('%Y-%m-%d') }}</td>
-                                <td>{{ leave.type }}</td>
-                                <td>{{ leave.status }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0 align-middle">
+                            <thead class="bg-dark-subtle text-muted small text-uppercase">
+                                <tr>
+                                    <th class="ps-4">Month</th>
+                                    <th>Gross Pay</th>
+                                    <th>Deductions</th>
+                                    <th>Net Pay</th>
+                                    <th class="pe-4 text-end">Payslip</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payroll in employee.payrolls %}
+                                <tr>
+                                    <td class="ps-4 font-monospace text-info fw-semibold">{{ payroll.month }}</td>
+                                    <td class="text-white">${{ "{:,.2f}".format(payroll.gross_pay) if payroll.gross_pay else '0.00' }}</td>
+                                    <td class="text-danger-subtle">${{ "{:,.2f}".format(payroll.total_deductions) if payroll.total_deductions else '0.00' }}</td>
+                                    <td class="fw-bold text-success">${{ "{:,.2f}".format(payroll.net_pay) if payroll.net_pay else '0.00' }}</td>
+                                    <td class="pe-4 text-end">
+                                        <a href="{{ url_for('hr.view_payslip', payroll_id=payroll.id) }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                            <i class="bi bi-file-text"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">No payroll records found for this employee.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leave Requests Card -->
+            <div class="card border-0 bg-dark text-white rounded-4 shadow-sm" style="border: 1px solid rgba(255,255,255,0.08) !important;">
+                <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 py-3 d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
+                        <i class="bi bi-calendar2-check text-warning"></i> Leave Request History
+                    </h5>
+                    <a href="{{ url_for('hr.leave_request') }}" class="btn btn-sm btn-warning rounded-3 fw-semibold">
+                        <i class="bi bi-plus-lg me-1"></i> New Request
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0 align-middle">
+                            <thead class="bg-dark-subtle text-muted small text-uppercase">
+                                <tr>
+                                    <th class="ps-4">Dates</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for leave in employee.leaves %}
+                                <tr>
+                                    <td class="ps-4 text-white">
+                                        <span title="{{ leave.start_date.strftime('%Y-%m-%d') if leave.start_date else '' }}" data-iso-date="{{ leave.start_date.strftime('%Y-%m-%d') if leave.start_date else '' }}">
+                                            {{ leave.start_date.strftime('%d %b %Y') if leave.start_date else '' }} ({{ leave.start_date.strftime('%Y-%m-%d') if leave.start_date else '' }})
+                                        </span>
+                                        <i class="bi bi-arrow-right mx-1 text-muted small"></i>
+                                        <span title="{{ leave.end_date.strftime('%Y-%m-%d') if leave.end_date else '' }}">
+                                            {{ leave.end_date.strftime('%d %b %Y') if leave.end_date else '' }}
+                                        </span>
+                                    </td>
+                                    <td><span class="badge bg-secondary-subtle text-light border border-secondary border-opacity-25 px-2 py-1">{{ leave.type }}</span></td>
+                                    <td>
+                                        {% if leave.status == 'Approved' %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle me-1"></i>Approved</span>
+                                        {% elif leave.status == 'Pending' %}
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"><i class="bi bi-hourglass-split me-1"></i>Pending</span>
+                                        {% else %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="bi bi-x-circle me-1"></i>{{ leave.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-center py-4 text-muted">No leave requests submitted yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

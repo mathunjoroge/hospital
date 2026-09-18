@@ -1,49 +1,202 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
-    <h1>Leave Management</h1>
-    <div class="table-responsive">
-        <table class="table table-dark table-striped table-hover">
-            <thead>
-                <tr>
-                    <th>Employee</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for leave, employee in leaves %}
-                <tr>
-                    <td>{{ employee.name }}</td>
-                    <td>{{ leave.start_date.strftime('%Y-%m-%d') }}</td>
-                    <td>{{ leave.end_date.strftime('%Y-%m-%d') }}</td>
-                    <td>{{ leave.type }}</td>
-                    <td>
-                        {% if leave.status == 'Pending' %}
-                            <span class="badge bg-warning">Pending</span>
-                        {% elif leave.status == 'Approved' %}
-                            <span class="badge bg-success">Approved</span>
+<div class="container-fluid py-4 px-4">
+    <!-- Header Banner -->
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-calendar2-check text-warning"></i> Leave Approval Pipeline
+            </h2>
+            <p class="text-muted mb-0">Review, approve, and track staff leave requests across hospital departments.</p>
+        </div>
+        <div>
+            <a href="{{ url_for('hr.leave_request') }}" class="btn btn-primary rounded-3">
+                <i class="bi bi-plus-lg me-1"></i> Submit Leave Request
+            </a>
+        </div>
+    </div>
+
+    <!-- Status Metric Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 bg-dark text-white rounded-4 p-3 shadow-sm" style="border: 1px solid rgba(245, 158, 11, 0.3) !important; background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(15, 23, 42, 0.95));">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-warning-subtle small fw-semibold text-uppercase">Pending Approval</div>
+                        <div class="fs-2 fw-bold text-warning">
+                            {% set pending_count = leaves | selectattr('0.status', 'equalto', 'Pending') | list | length %}
+                            {{ pending_count }}
+                        </div>
+                    </div>
+                    <div class="rounded-circle p-3 bg-warning bg-opacity-10 text-warning">
+                        <i class="bi bi-hourglass-split fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 bg-dark text-white rounded-4 p-3 shadow-sm" style="border: 1px solid rgba(16, 185, 129, 0.3) !important; background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(15, 23, 42, 0.95));">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-success-subtle small fw-semibold text-uppercase">Approved Leaves</div>
+                        <div class="fs-2 fw-bold text-success">
+                            {% set approved_count = leaves | selectattr('0.status', 'equalto', 'Approved') | list | length %}
+                            {{ approved_count }}
+                        </div>
+                    </div>
+                    <div class="rounded-circle p-3 bg-success bg-opacity-10 text-success">
+                        <i class="bi bi-check-circle-fill fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 bg-dark text-white rounded-4 p-3 shadow-sm" style="border: 1px solid rgba(239, 68, 68, 0.3) !important; background: linear-gradient(135deg, rgba(239, 68, 68, 0.05), rgba(15, 23, 42, 0.95));">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-danger-subtle small fw-semibold text-uppercase">Rejected / Cancelled</div>
+                        <div class="fs-2 fw-bold text-danger">
+                            {% set rejected_count = leaves | selectattr('0.status', 'equalto', 'Rejected') | list | length %}
+                            {{ rejected_count }}
+                        </div>
+                    </div>
+                    <div class="rounded-circle p-3 bg-danger bg-opacity-10 text-danger">
+                        <i class="bi bi-x-circle-fill fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Control Bar -->
+    <div class="card border-0 bg-dark text-white rounded-4 shadow-sm mb-4" style="border: 1px solid rgba(255,255,255,0.08) !important;">
+        <div class="card-body p-3">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="btn-group" role="group" id="leaveStatusFilters">
+                    <button type="button" class="btn btn-outline-secondary active rounded-start-3 px-3" onclick="filterLeaves('ALL', this)">All ({% if leaves %}{{ leaves|length }}{% else %}0{% endif %})</button>
+                    <button type="button" class="btn btn-outline-warning px-3" onclick="filterLeaves('Pending', this)">Pending ({{ pending_count }})</button>
+                    <button type="button" class="btn btn-outline-success px-3" onclick="filterLeaves('Approved', this)">Approved ({{ approved_count }})</button>
+                    <button type="button" class="btn btn-outline-danger rounded-end-3 px-3" onclick="filterLeaves('Rejected', this)">Rejected ({{ rejected_count }})</button>
+                </div>
+                <div style="max-width: 250px;" class="w-100">
+                    <input type="text" id="searchLeaves" class="form-control bg-dark text-white border-secondary rounded-3 form-control-sm" placeholder="Search staff name..." onkeyup="searchLeaveTable()">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Requests Table Card -->
+    <div class="card border-0 bg-dark text-white rounded-4 shadow-sm" style="border: 1px solid rgba(255,255,255,0.08) !important;">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle" id="leaveTable">
+                    <thead class="bg-dark-subtle text-muted small text-uppercase">
+                        <tr>
+                            <th class="ps-4">Employee</th>
+                            <th>Leave Type</th>
+                            <th>Requested Period</th>
+                            <th>Status</th>
+                            <th class="pe-4 text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for leave, employee in leaves %}
+                        <tr class="leave-row" data-status="{{ leave.status }}">
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="avatar-circle rounded-circle bg-warning bg-opacity-25 text-warning fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 0.85rem;">
+                                        {{ employee.name[:2].upper() if employee and employee.name else 'EM' }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold text-white">{{ employee.name if employee else 'Unknown' }}</div>
+                                        <div class="text-muted small"><i class="bi bi-building me-1"></i>{{ employee.department if employee else 'N/A' }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary-subtle text-light border border-secondary border-opacity-25 px-3 py-1 fw-semibold">
+                                    {{ leave.type }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="text-white fw-semibold small">
+                                    {{ leave.start_date.strftime('%d %b %Y') if leave.start_date else '' }}
+                                    <i class="bi bi-arrow-right mx-1 text-muted"></i>
+                                    {{ leave.end_date.strftime('%d %b %Y') if leave.end_date else '' }}
+                                </div>
+                            </td>
+                            <td>
+                                {% if leave.status == 'Pending' %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-1 rounded-pill">
+                                        <i class="bi bi-hourglass-split me-1"></i>Pending Review
+                                    </span>
+                                {% elif leave.status == 'Approved' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Approved
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1 rounded-pill">
+                                        <i class="bi bi-x-circle-fill me-1"></i>{{ leave.status }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4 text-end">
+                                {% if leave.status == 'Pending' %}
+                                    <div class="d-inline-flex gap-2">
+                                        <a href="{{ url_for('hr.approve_leave', leave_id=leave.id) }}" class="btn btn-success btn-sm rounded-3 px-3 fw-semibold">
+                                            <i class="bi bi-check-lg me-1"></i> Approve
+                                        </a>
+                                        <a href="{{ url_for('hr.reject_leave', leave_id=leave.id) }}" class="btn btn-outline-danger btn-sm rounded-3 px-3">
+                                            <i class="bi bi-x-lg me-1"></i> Reject
+                                        </a>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted small">No actions required</span>
+                                {% endif %}
+                            </td>
+                        </tr>
                         {% else %}
-                            <span class="badge bg-danger">Rejected</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if leave.status == 'Pending' %}
-<a href="{{ url_for('hr.approve_leave', leave_id=leave.id) }}" class="btn btn-success btn-sm">
-    <i class="bi bi-check-circle"></i> Approve
-</a>
-<a href="{{ url_for('hr.reject_leave', leave_id=leave.id) }}" class="btn btn-danger btn-sm">
-    <i class="bi bi-x-circle"></i> Reject
-</a>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
+                                No leave requests matching criteria.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+function filterLeaves(status, btn) {
+    var buttons = document.querySelectorAll('#leaveStatusFilters button');
+    buttons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    var rows = document.querySelectorAll('.leave-row');
+    rows.forEach(r => {
+        if (status === 'ALL' || r.getAttribute('data-status') === status) {
+            r.style.display = '';
+        } else {
+            r.style.display = 'none';
+        }
+    });
+}
+
+function searchLeaveTable() {
+    var query = document.getElementById('searchLeaves').value.toLowerCase();
+    var rows = document.querySelectorAll('.leave-row');
+    rows.forEach(r => {
+        var text = r.textContent.toLowerCase();
+        if (text.includes(query)) {
+            r.style.display = '';
+        } else {
+            r.style.display = 'none';
+        }
+    });
+}
+</script>
 {% endblock %}
