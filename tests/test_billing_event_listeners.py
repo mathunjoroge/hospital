@@ -335,3 +335,84 @@ class TestRestoredEventListenerCoverage:
             ).first()
             assert payment is not None
             assert payment.method.value == "cash"
+
+
+# ── Section 10: Charge Reversal & Credit Line Item Tests ────────────
+class TestChargeReversalCreditSync:
+    def test_sync_reversal_creates_credit_line_item(self, app):
+        """Section 10: sync_reversal must create a credit line item with negative total."""
+        from departments.billing.sync import sync_reversal
+        from departments.models.billing import Invoice
+
+        with app.app_context():
+            _patient("P-REV-01")
+            line = sync_charge(
+                patient_id="P-REV-01",
+                source_table="requested_lab",
+                source_id=8801,
+                description="Lab Test: Liver Function Test",
+                category="lab",
+                amount=1200.0,
+            )
+            invoice_before = db.session.get(Invoice, line.invoice_id)
+            initial_gt = float(invoice_before.grand_total)  # 1200.0
+
+            # Execute reversal
+            reversal = sync_reversal(
+                patient_id="P-REV-01",
+                source_table="requested_lab",
+                source_id=8801,
+                reason="Order cancelled by doctor",
+            )
+            assert reversal is not None
+            assert reversal.source_table == "reversal:requested_lab"
+            assert reversal.source_id == 8801
+            assert float(reversal.total) == -1200.0
+            assert "Credit / Reversal:" in reversal.description
+            assert "Order cancelled by doctor" in reversal.description
+
+            # Verify invoice grand_total reduced back to 0
+            invoice_after = db.session.get(Invoice, line.invoice_id)
+            assert float(invoice_after.grand_total) == initial_gt - 1200.0
+
+    def test_voided_dispensed_drug_triggers_reversal_event(self, app):
+        """Updating status to VOIDED on a DispensedDrug triggers automatic credit line item generation."""
+        with app.app_context():
+            _patient("P-REV-02")
+            enc = _encounter("P-REV-02", enc_type="OPD")
+
+            drug = DispensedDrug(
+                patient_id="P-REV-02",
+                drug_id=2,
+                batch_id=1,
+                prescription_id="RX-999",
+                quantity_dispensed=1,
+                status="DISPENSED",
+            )
+            drug.drug_name = "Amoxicillin 500mg"
+            drug.unit_price = 300.0
+            drug.quantity = 1
+            drug.encounter_id = enc.id
+
+            db.session.add(drug)
+            db.session.commit()
+
+            # Original line item exists
+            orig_line = InvoiceLineItem.query.filter_by(
+                source_table="dispensed_drug", source_id=drug.id
+            ).first()
+            assert orig_line is not None
+
+            # Mark voided
+            drug.status = "VOIDED"
+            drug.void_reason = "Expired stock returned"
+            db.session.commit()
+
+            # Reversal line item created
+            reversal_line = InvoiceLineItem.query.filter_by(
+                source_table="reversal:dispensed_drug", source_id=drug.id
+            ).first()
+            assert reversal_line is not None
+            assert float(reversal_line.total) == -300.0
+            assert "Expired stock returned" in reversal_line.description
+

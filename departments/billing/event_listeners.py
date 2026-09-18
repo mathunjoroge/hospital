@@ -70,6 +70,7 @@ def capture_pending_charges(session, flush_context):
 
     pending = _get_pending_charges()
 
+    # Phase 1a: Capture new objects
     for instance in list(session.new):
         try:
             if isinstance(instance, RequestedLab):
@@ -213,6 +214,62 @@ def capture_pending_charges(session, flush_context):
             logger.exception("Error capturing charge data: ")
             continue
 
+    # Phase 1b: Capture updated objects (e.g. status changed to VOIDED or CANCELLED)
+    for instance in list(session.dirty):
+        try:
+            status = str(getattr(instance, "status", "") or "").upper()
+            if status in ("VOIDED", "CANCELLED"):
+                table_map = {
+                    DispensedDrug: "dispensed_drug",
+                    RequestedLab: "requested_lab",
+                    RequestedImage: "requested_image",
+                    PrescribedMedicine: "prescribed_medicine",
+                    TheatreList: "theatre_list",
+                }
+                for model_cls, tbl_name in table_map.items():
+                    if isinstance(instance, model_cls) and hasattr(instance, "id"):
+                        pending.append(
+                            {
+                                "type": "Reversal",
+                                "patient_id": getattr(instance, "patient_id", None),
+                                "source_table": tbl_name,
+                                "source_id": instance.id,
+                                "reason": getattr(instance, "void_reason", None)
+                                or f"Status changed to {status}",
+                            }
+                        )
+                        break
+        except Exception:
+            logger.exception("Error capturing dirty reversal data: ")
+            continue
+
+    # Phase 1c: Capture deleted objects
+    for instance in list(session.deleted):
+        try:
+            table_map = {
+                DispensedDrug: "dispensed_drug",
+                RequestedLab: "requested_lab",
+                RequestedImage: "requested_image",
+                PrescribedMedicine: "prescribed_medicine",
+                TheatreList: "theatre_list",
+                ClinicBooking: "clinic_booking",
+            }
+            for model_cls, tbl_name in table_map.items():
+                if isinstance(instance, model_cls) and hasattr(instance, "id"):
+                    pending.append(
+                        {
+                            "type": "Reversal",
+                            "patient_id": getattr(instance, "patient_id", None),
+                            "source_table": tbl_name,
+                            "source_id": instance.id,
+                            "reason": "Source record deleted",
+                        }
+                    )
+                    break
+        except Exception:
+            logger.exception("Error capturing deleted reversal data: ")
+            continue
+
     if pending:
         logger.debug(f"Captured {len(pending)} pending billing charges")
 
@@ -235,7 +292,7 @@ def sync_billing_events(session, flush_context):
         TheatreProcedure,
     )
 
-    from .sync import sync_charge, sync_payment
+    from .sync import sync_charge, sync_payment, sync_reversal
 
     pending = _get_pending_charges()
 
@@ -394,6 +451,19 @@ def sync_billing_events(session, flush_context):
                     )
                     logger.info(
                         f"Synced dialysis charge for DialysisSession #{charge_data['source_id']} ({modality})"
+                    )
+
+                # ── Charge reversal sync (Section 10 Decision) ─────────
+                elif charge_type == "Reversal":
+                    sync_reversal(
+                        patient_id=charge_data["patient_id"],
+                        source_table=charge_data["source_table"],
+                        source_id=charge_data["source_id"],
+                        reason=charge_data.get("reason"),
+                        _session=sync_session,
+                    )
+                    logger.info(
+                        f"Synced charge reversal for {charge_data['source_table']} #{charge_data['source_id']}"
                     )
 
             except Exception:

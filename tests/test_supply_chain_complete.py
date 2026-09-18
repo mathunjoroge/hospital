@@ -189,7 +189,8 @@ def test_direct_receipt_optional_vote_head_budget_check(
     )
 
     # Direct receipt exceeding available budget (300 units @ 20.0 = KES 6,000 > KES 5,000 budget)
-    res_fail = client.post(
+    # Succeeds under emergency soft warning mode (never hard blocked)
+    res_exceed = client.post(
         "/pharmacy/receipt/direct",
         json={
             "supplier_id": supplier_id,
@@ -206,8 +207,9 @@ def test_direct_receipt_optional_vote_head_budget_check(
             ],
         },
     )
-    assert res_fail.status_code == 400
-    assert "cap exceeded" in res_fail.get_json()["error"].lower()
+    assert res_exceed.status_code in (200, 201)
+    po_exceed_data = res_exceed.get_json()["purchase_order"]
+    assert "[BUDGET_WARNING]" in (po_exceed_data.get("notes") or "")
 
     # Valid direct receipt within budget (50 units @ 20.0 = KES 1,000 <= KES 5,000)
     res_ok = client.post(
@@ -230,7 +232,7 @@ def test_direct_receipt_optional_vote_head_budget_check(
     assert res_ok.status_code in (200, 201)
     with app.app_context():
         vh = db.session.get(VoteHead, vh_id)
-        assert float(vh.encumbered_amount) == 1000.0
+        assert float(vh.encumbered_amount) == 7000.0
 
 
 def test_commodity_requisition_creation_api(

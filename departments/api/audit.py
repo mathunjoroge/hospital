@@ -74,7 +74,7 @@ def log_audit_event(
         formatted_details = None
         if details is not None:
             if isinstance(details, (dict, list)):
-                formatted_details = json.dumps(details)
+                formatted_details = json.dumps(details, default=str)
             else:
                 formatted_details = str(details)[:2000]
 

@@ -123,13 +123,15 @@ def test_vote_head_budget_encumbrance_and_cap_blocking(
         db.session.commit()
         po_exceed_id = po_exceed.id
 
-    # Log in as approver to attempt approval -> 400 Bad Request (budget exceeded)
+    # Log in as approver to attempt approval -> 200 OK with soft budget warning (emergency orders never hard-blocked)
     client.post(
         "/login", data={"username": "test_approver_user", "password": "Password123!"}
     )
-    res_fail = client.post(f"/pharmacy/po/{po_exceed_id}/order")
-    assert res_fail.status_code == 400
-    assert "budget vote-head cap exceeded" in res_fail.get_json()["error"].lower()
+    res_exceed = client.post(f"/pharmacy/po/{po_exceed_id}/order")
+    assert res_exceed.status_code == 200
+    data_exceed = res_exceed.get_json()
+    assert data_exceed.get("budget_warning") is True
+    assert "exceeded" in data_exceed["warnings"][0].lower()
 
     # 2. Create valid PO within budget (500 units @ KES 10 = KES 5,000 <= KES 10,000)
     with app.app_context():
@@ -159,8 +161,8 @@ def test_vote_head_budget_encumbrance_and_cap_blocking(
 
     with app.app_context():
         vh = db.session.get(VoteHead, vh_id)
-        assert float(vh.encumbered_amount) == 5000.0
-        assert vh.available_amount == 5000.0
+        assert float(vh.encumbered_amount) == 20000.0
+        assert vh.available_amount == -10000.0
 
 
 def test_inter_facility_transfer_lifecycle(

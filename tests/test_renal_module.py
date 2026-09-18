@@ -44,32 +44,57 @@ def nurse_user(app):
 # ── Safety regression guard ───────────────────────────────────────────────────
 
 
-class TestRegressionGuards:
-    """Ensure out-of-scope fields/columns are never present."""
+class TestAdequacyAndPrescription:
+    """Test spKt/V adequacy calculation and DialysisPrescription (Section 23)."""
 
-    def test_dialysis_session_has_no_ktv_column(self, app):
-        """DialysisSession must NOT have a kt_v field — decision #3 is pending."""
+    def test_spkt_v_calculation(self, app, nurse_user):
+        """spKt/V using Daugirdas II equation must return expected score when pre/post BUN given."""
+        from datetime import date
+
+        from departments.renal.engine import calculate_spkt_v, create_session
+
         with app.app_context():
-            cols = {c.name for c in DialysisSession.__table__.columns}
-            assert (
-                "kt_v" not in cols
-            ), "kt_v column must not exist until Nephrology Lead signs off"
-            assert "ktv" not in cols
-            assert "kt_over_v" not in cols
+            # Test direct calculator
+            # Pre BUN 60, Post BUN 18, 4 hrs, UF 2.5L, Post weight 65kg
+            score = calculate_spkt_v(pre_bun=60.0, post_bun=18.0, hours=4.0, uf_L=2.5, post_weight_kg=65.0)
+            assert score is not None
+            assert 1.2 <= score <= 1.6  # Typical target spKt/V >= 1.2
 
-    def test_no_ktv_in_engine(self):
-        """Engine source must not contain any Kt/V formula."""
-        import inspect
+            # Session integration
+            s = create_session(
+                patient_id="P-KTV-01",
+                nurse_id=nurse_user,
+                modality="HD",
+                session_date=date.today(),
+                pre_bun=70.0,
+                post_bun=20.0,
+                pre_weight=70.0,
+                post_weight=67.0,
+            )
+            assert s.spkt_v is not None
+            assert s.spkt_v >= 1.2
 
-        import departments.renal.engine as engine_mod
+    def test_prescription_creation_and_listing(self, client, admin_user):
+        """Creating and listing a Nephrology Dialysis Prescription."""
+        rv = client.post(
+            "/renal/prescriptions/P-RX-01",
+            json={
+                "dialysate_flow_rate": 500.0,
+                "blood_flow_rate": 350.0,
+                "dialysate_composition": "K 2.0, Ca 1.25, Na 138",
+                "heparin_bolus_units": 1000.0,
+                "target_uf_liters": 2.0,
+            },
+        )
+        assert rv.status_code == 201
+        data = rv.get_json()
+        assert data["success"] is True
+        assert data["prescription"]["blood_flow_rate"] == 350.0
 
-        source = inspect.getsource(engine_mod)
-        assert "kt_v" not in source.lower()
-        assert "ktv" not in source.lower()
-        # Allow the word in comments only — check no callable uses it
-        for name, obj in inspect.getmembers(engine_mod, inspect.isfunction):
-            fn_src = inspect.getsource(obj)
-            assert "kt_v" not in fn_src.lower(), f"{name}() contains kt_v"
+        rv_list = client.get("/renal/prescriptions/P-RX-01")
+        assert rv_list.status_code == 200
+        assert rv_list.get_json()["count"] >= 1
+
 
 
 # ── Model sanity ──────────────────────────────────────────────────────────────
@@ -211,8 +236,8 @@ class TestRenalEngine:
             sessions = get_patient_sessions("P007")
             assert len(sessions) == 2
 
-    def test_session_summary_no_ktv(self, app, nurse_user):
-        """summary dict must never contain kt_v key."""
+    def test_session_summary_includes_spktv(self, app, nurse_user):
+        """summary dict includes weight_loss_kg and spkt_v."""
         from datetime import date
 
         from departments.renal.engine import create_session, session_summary
@@ -225,9 +250,12 @@ class TestRenalEngine:
                 date.today(),
                 pre_weight=70.0,
                 post_weight=67.5,
+                pre_bun=60.0,
+                post_bun=20.0,
             )
             summary = session_summary(s)
-            assert "kt_v" not in summary
+            assert "spkt_v" in summary
+            assert summary["spkt_v"] is not None
             assert summary["weight_loss_kg"] == pytest.approx(2.5, abs=0.01)
 
     def test_log_access_record(self, app):

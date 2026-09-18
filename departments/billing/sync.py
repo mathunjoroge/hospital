@@ -163,6 +163,105 @@ def sync_charge(
     return line_item
 
 
+def sync_reversal(
+    patient_id: str,
+    source_table: str,
+    source_id: int,
+    reason: str | None = None,
+    _session=None,
+) -> InvoiceLineItem | None:
+    """
+    Sync a reversal / void of a legacy charge to the unified Invoice system.
+
+    Section 10 Decision: Instead of mutating or deleting original InvoiceLineItem
+    rows (which destroys financial audit history), this creates an explicit
+    credit adjustment line item with a negative total and updates the invoice balance.
+
+    Args:
+        patient_id: Patient's business key
+        source_table: Name of original source table (e.g., 'dispensed_drug', 'requested_lab')
+        source_id: ID in the source table
+        reason: Optional human-readable void reason
+
+    Returns:
+        InvoiceLineItem | None: The credit adjustment line item created, or None
+    """
+    if not current_app.config.get("BILLING_SYNC_ENABLED", True):
+        logger.debug(
+            f"Billing sync disabled, skipping reversal sync for {source_table}:{source_id}"
+        )
+        return None
+
+    sess = _session if _session is not None else db.session
+
+    # Find the original line item
+    original_item = (
+        sess.query(InvoiceLineItem)
+        .filter_by(source_table=source_table, source_id=source_id)
+        .first()
+    )
+
+    if not original_item:
+        logger.warning(
+            f"Cannot sync reversal: no original line item found for {source_table}:{source_id}"
+        )
+        return None
+
+    # Check for existing reversal line item (idempotency)
+    reversal_table = f"reversal:{source_table}"
+    existing_reversal = (
+        sess.query(InvoiceLineItem)
+        .filter_by(source_table=reversal_table, source_id=source_id)
+        .first()
+    )
+
+    if existing_reversal:
+        logger.debug(
+            f"Reversal line item already exists for {source_table}:{source_id}"
+        )
+        return existing_reversal
+
+    # Look up the invoice
+    invoice = sess.get(Invoice, original_item.invoice_id)
+    if not invoice:
+        logger.warning(
+            f"Cannot sync reversal: invoice {original_item.invoice_id} not found"
+        )
+        return None
+
+    # Build description & credit amount
+    reason_suffix = f" ({reason})" if reason else ""
+    description = f"Credit / Reversal: {original_item.description}{reason_suffix}"
+    credit_unit_price = -abs(float(original_item.unit_price or 0))
+    credit_total = -abs(float(original_item.total or 0))
+
+    reversal_item = InvoiceLineItem(
+        invoice_id=invoice.id,
+        encounter_id=original_item.encounter_id,
+        description=description,
+        category=original_item.category,
+        quantity=original_item.quantity,
+        unit_price=credit_unit_price,
+        total=credit_total,
+        source_table=reversal_table,
+        source_id=source_id,
+    )
+
+    sess.add(reversal_item)
+
+    # Recalculate invoice totals with negative credit
+    current_gt = float(invoice.grand_total or 0)
+    invoice.grand_total = current_gt + credit_total
+    invoice.balance = invoice.grand_total - float(invoice.amount_paid or 0)
+
+    logger.info(
+        f"Synced reversal credit: {description} (${credit_total}) to invoice {invoice.id}"
+    )
+
+    return reversal_item
+
+
+
 def sync_payment(
     patient_id: str,
     amount: float,

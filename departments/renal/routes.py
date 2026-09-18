@@ -175,11 +175,14 @@ def log_session(patient_id: str):
             modality=modality,
             session_date=session_date,
             start_time=_parse_datetime(data.get("start_time")),
+            end_time=_parse_datetime(data.get("end_time")),
             blood_flow_rate=_float(data, "blood_flow_rate"),
             dialysate_flow_rate=_float(data, "dialysate_flow_rate"),
             ultrafiltration_volume=_float(data, "ultrafiltration_volume"),
             pre_weight=_float(data, "pre_weight"),
             post_weight=_float(data, "post_weight"),
+            pre_bun=_float(data, "pre_bun"),
+            post_bun=_float(data, "post_bun"),
             status=data.get("status", "SCHEDULED"),
             notes=data.get("notes"),
         )
@@ -204,11 +207,6 @@ def update_status(session_id: int):
     """
     PATCH /renal/sessions/<session_id>/status
     Transition a session to a new status.
-
-    Required JSON: { "status": "COMPLETED" | "IN_PROGRESS" | "TERMINATED_EARLY" }
-    Optional:      { "end_time": "<ISO datetime>" }
-
-    When status → COMPLETED, event_listeners.py fires a flat billing charge.
     """
     data = request.get_json(silent=True) or {}
     new_status = (data.get("status") or "").strip().upper()
@@ -216,9 +214,17 @@ def update_status(session_id: int):
         return jsonify({"error": "status is required"}), 400
 
     end_time = _parse_datetime(data.get("end_time"))
+    post_bun = _float(data, "post_bun")
+    post_weight = _float(data, "post_weight")
 
     try:
-        sess = update_session_status(session_id, new_status, end_time=end_time)
+        sess = update_session_status(
+            session_id,
+            new_status,
+            end_time=end_time,
+            post_bun=post_bun,
+            post_weight=post_weight,
+        )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 422
     except LookupError as exc:
@@ -234,7 +240,98 @@ def update_status(session_id: int):
     return jsonify({"success": True, "session": session_summary(sess)}), 200
 
 
+# ── Prescription routes (Section 23 #5) ──────────────────────────────────────
+
+
+@renal_bp.route("/prescriptions/<string:patient_id>", methods=["GET"])
+@login_required
+@roles_required(*_RENAL_ROLES)
+def list_prescriptions(patient_id: str):
+    """
+    GET /renal/prescriptions/<patient_id>
+    List Nephrology Dialysis Prescriptions for a patient.
+    """
+    from departments.renal.engine import get_patient_prescriptions
+
+    prescriptions = get_patient_prescriptions(patient_id)
+    return jsonify(
+        {
+            "patient_id": patient_id,
+            "count": len(prescriptions),
+            "prescriptions": [
+                {
+                    "id": p.id,
+                    "patient_id": p.patient_id,
+                    "nephrologist_id": p.nephrologist_id,
+                    "dialysate_flow_rate": p.dialysate_flow_rate,
+                    "blood_flow_rate": p.blood_flow_rate,
+                    "dialysate_composition": p.dialysate_composition,
+                    "heparin_bolus_units": p.heparin_bolus_units,
+                    "heparin_infusion_rate": p.heparin_infusion_rate,
+                    "target_uf_liters": p.target_uf_liters,
+                    "duration_hours": p.duration_hours,
+                    "status": p.status,
+                    "notes": p.notes,
+                    "created_at": p.created_at.isoformat(),
+                }
+                for p in prescriptions
+            ],
+        }
+    ), 200
+
+
+@renal_bp.route("/prescriptions/<string:patient_id>", methods=["POST"])
+@login_required
+@roles_required("doctor", "admin", "renal")
+def add_prescription(patient_id: str):
+    """
+    POST /renal/prescriptions/<patient_id>
+    Create a new Nephrology Dialysis Prescription.
+    """
+    from departments.renal.engine import create_prescription
+
+    data = request.get_json(silent=True) or {}
+    nephrologist_id = _require_authenticated_user_id()
+
+    try:
+        p = create_prescription(
+            patient_id=patient_id,
+            nephrologist_id=nephrologist_id,
+            dialysate_flow_rate=_float(data, "dialysate_flow_rate") or 500.0,
+            blood_flow_rate=_float(data, "blood_flow_rate") or 300.0,
+            dialysate_composition=data.get("dialysate_composition", "K 2.0, Ca 1.25, Na 138"),
+            heparin_bolus_units=_float(data, "heparin_bolus_units"),
+            heparin_infusion_rate=_float(data, "heparin_infusion_rate"),
+            target_uf_liters=_float(data, "target_uf_liters"),
+            duration_hours=_float(data, "duration_hours") or 4.0,
+            notes=data.get("notes"),
+        )
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 422
+
+    return jsonify(
+        {
+            "success": True,
+            "prescription": {
+                "id": p.id,
+                "patient_id": p.patient_id,
+                "nephrologist_id": p.nephrologist_id,
+                "dialysate_flow_rate": p.dialysate_flow_rate,
+                "blood_flow_rate": p.blood_flow_rate,
+                "dialysate_composition": p.dialysate_composition,
+                "heparin_bolus_units": p.heparin_bolus_units,
+                "heparin_infusion_rate": p.heparin_infusion_rate,
+                "target_uf_liters": p.target_uf_liters,
+                "duration_hours": p.duration_hours,
+                "status": p.status,
+                "created_at": p.created_at.isoformat(),
+            },
+        }
+    ), 201
+
+
 # ── Vascular access routes ────────────────────────────────────────────────────
+
 
 
 @renal_bp.route("/access/<string:patient_id>", methods=["GET"])

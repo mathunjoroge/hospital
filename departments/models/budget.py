@@ -60,10 +60,10 @@ class VoteHead(db.Model):
         """Check if amount fits within available balance."""
         return self.available_amount >= round(float(amount), 2)
 
-    def encumber(self, amount: float):
-        """Encumber / reserve funds upon PO ordering."""
+    def encumber(self, amount: float, allow_overspend: bool = True):
+        """Encumber / reserve funds upon PO ordering. Supports soft warning overspend."""
         amt = round(float(amount), 2)
-        if not self.can_encumber(amt):
+        if not allow_overspend and not self.can_encumber(amt):
             raise ValueError(
                 f"Insufficient funds in vote-head {self.code}. Available: {self.available_amount}, requested: {amt}"
             )

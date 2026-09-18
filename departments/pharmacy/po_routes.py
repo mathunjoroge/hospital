@@ -275,7 +275,7 @@ def submit_po_order(po_id):
             }
         ), 403
 
-    # Phase D — Budget / Vote-Head Validation & Encumbrance
+    # Phase D — Budget / Vote-Head Validation & Soft Warning Encumbrance
     vote_head_totals = {}
     for item in po.items:
         if item.vote_head_id:
@@ -284,28 +284,32 @@ def submit_po_order(po_id):
                 vote_head_totals.get(item.vote_head_id, 0.0) + cost
             )
 
+    budget_warnings = []
     for vh_id, cost in vote_head_totals.items():
         vh = db.session.get(VoteHead, vh_id)
         if vh:
             if not vh.can_encumber(cost):
-                return jsonify(
-                    {
-                        "error": f"Budget vote-head cap exceeded for {vh.code}. Available: {vh.available_amount:.2f}, Required: {cost:.2f}"
-                    }
-                ), 400
-            vh.encumber(cost)
+                budget_warnings.append(
+                    f"Budget vote-head cap exceeded for {vh.code}. Available: KES {vh.available_amount:.2f}, Required: KES {cost:.2f}. Emergency override applied."
+                )
+            vh.encumber(cost, allow_overspend=True)
 
     po.status = "ORDERED"
     po.approved_by_id = current_uid
     po.ordered_at = datetime.now(timezone.utc)
+    if budget_warnings:
+        warn_note = "; ".join(budget_warnings)
+        po.notes = f"{po.notes or ''}\n[BUDGET_WARNING] {warn_note}".strip()
     db.session.commit()
 
-    return jsonify(
-        {
-            "message": f"PO {po.po_number} marked as ORDERED",
-            "purchase_order": po.to_dict(),
-        }
-    )
+    resp = {
+        "message": f"PO {po.po_number} marked as ORDERED",
+        "purchase_order": po.to_dict(),
+    }
+    if budget_warnings:
+        resp["warnings"] = budget_warnings
+        resp["budget_warning"] = True
+    return jsonify(resp)
 
 
 @po_bp.route("/pharmacy/po/<int:po_id>/receive", methods=["POST"])
@@ -576,18 +580,15 @@ def record_direct_receipt():
         except ValueError:
             return jsonify({"error": "Invalid expiry_date format. Use YYYY-MM-DD"}), 400
 
-        # Optional VoteHead Budget Encumbrance
+        # Optional VoteHead Budget Encumbrance with Soft Warning
         if vh_id:
             vh = db.session.get(VoteHead, vh_id)
             if vh:
                 line_cost = quantity * unit_cost
                 if not vh.can_encumber(line_cost):
-                    return jsonify(
-                        {
-                            "error": f"Budget vote-head cap exceeded for {vh.code}. Available: {vh.available_amount:.2f}, Required: {line_cost:.2f}"
-                        }
-                    ), 400
-                vh.encumber(line_cost)
+                    warn_text = f"Budget vote-head cap exceeded for {vh.code}. Available: KES {vh.available_amount:.2f}, Required: KES {line_cost:.2f}. Emergency override applied."
+                    po.notes = f"{po.notes or ''}\n[BUDGET_WARNING] {warn_text}".strip()
+                vh.encumber(line_cost, allow_overspend=True)
 
         drug_id = item.get("drug_id") if item_type == "DRUG" else None
         non_pharm_id = (

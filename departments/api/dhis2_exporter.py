@@ -40,12 +40,14 @@ from flask import (
 )
 
 from departments.api.auth import jwt_or_session_required
+from departments.hiv_art.models import ARTEnrollment, CD4Count, ViralLoad
 from departments.malaria.models import MalariaCase
 from departments.mch.models import AncVisit, ImmunizationRecord
 from departments.models.laboratory import LabResult
 from departments.models.medicine import AdmittedPatient, PrescribedMedicine, SOAPNote
 from departments.models.records import Patient
 from departments.rbac import roles_required
+from departments.tb_dots.models import DoseTaken, SputumResult, TBEnrollment
 
 logger = logging.getLogger(__name__)
 
@@ -265,6 +267,37 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
         MalariaCase.treatment_start_date <= end_date,
     ).count()
 
+    # 9. HIV / ART Indicators (MOH 731)
+    hiv_art_active_total = ARTEnrollment.query.count()
+    hiv_art_new_started_month = ARTEnrollment.query.filter(
+        ARTEnrollment.art_start_date >= start_date,
+        ARTEnrollment.art_start_date <= end_date,
+    ).count()
+    hiv_art_vl_suppressed_month = ViralLoad.query.filter(
+        ViralLoad.test_date >= start_date,
+        ViralLoad.test_date <= end_date,
+        ViralLoad.viral_load_copies < 1000,
+    ).count()
+    hiv_art_cd4_tested_month = CD4Count.query.filter(
+        CD4Count.test_date >= start_date,
+        CD4Count.test_date <= end_date,
+    ).count()
+
+    # 10. TB / DOTS Indicators (MOH 711)
+    tb_active_total = TBEnrollment.query.count()
+    tb_newly_enrolled_month = TBEnrollment.query.filter(
+        TBEnrollment.enrollment_date >= start_date,
+        TBEnrollment.enrollment_date <= end_date,
+    ).count()
+    tb_dots_doses_month = DoseTaken.query.filter(
+        DoseTaken.date_taken >= start_date,
+        DoseTaken.date_taken <= end_date,
+    ).count()
+    tb_sputum_tests_month = SputumResult.query.filter(
+        SputumResult.test_date >= start_date,
+        SputumResult.test_date <= end_date,
+    ).count()
+
     period_str = f"{year}{month:02d}"
 
     data_elements = [
@@ -317,6 +350,46 @@ def aggregate_monthly_khis_data(year: int, month: int) -> dict:
             "dataElement": "MOH731_ANC_VISITS_TOTAL",
             "category": "MOH 731",
             "value": anc_visits_count,
+        },
+        {
+            "dataElement": "MOH731_HIV_ART_ACTIVE_PATIENTS",
+            "category": "MOH 731 (HIV/ART)",
+            "value": hiv_art_active_total,
+        },
+        {
+            "dataElement": "MOH731_HIV_ART_NEWLY_STARTED",
+            "category": "MOH 731 (HIV/ART)",
+            "value": hiv_art_new_started_month,
+        },
+        {
+            "dataElement": "MOH731_HIV_VIRAL_LOAD_SUPPRESSED",
+            "category": "MOH 731 (HIV/ART)",
+            "value": hiv_art_vl_suppressed_month,
+        },
+        {
+            "dataElement": "MOH731_HIV_CD4_TESTS_CONDUCTED",
+            "category": "MOH 731 (HIV/ART)",
+            "value": hiv_art_cd4_tested_month,
+        },
+        {
+            "dataElement": "MOH711_TB_ACTIVE_CASES",
+            "category": "MOH 711 (TB/DOTS)",
+            "value": tb_active_total,
+        },
+        {
+            "dataElement": "MOH711_TB_NEWLY_ENROLLED",
+            "category": "MOH 711 (TB/DOTS)",
+            "value": tb_newly_enrolled_month,
+        },
+        {
+            "dataElement": "MOH711_TB_DOTS_DOSES_ADMINISTERED",
+            "category": "MOH 711 (TB/DOTS)",
+            "value": tb_dots_doses_month,
+        },
+        {
+            "dataElement": "MOH711_TB_SPUTUM_TESTS_CONDUCTED",
+            "category": "MOH 711 (TB/DOTS)",
+            "value": tb_sputum_tests_month,
         },
         {
             "dataElement": "MOH710_IMMUNIZATIONS_ADMINISTERED",

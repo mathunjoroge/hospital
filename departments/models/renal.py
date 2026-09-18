@@ -34,6 +34,11 @@ class DialysisSession(db.Model):
     pre_weight = db.Column(db.Float, nullable=True)  # kg
     post_weight = db.Column(db.Float, nullable=True)  # kg
 
+    # Adequacy & Bun parameters (Section 23 #3)
+    pre_bun = db.Column(db.Float, nullable=True)  # mg/dL pre-dialysis blood urea nitrogen
+    post_bun = db.Column(db.Float, nullable=True)  # mg/dL post-dialysis blood urea nitrogen
+    spkt_v = db.Column(db.Float, nullable=True)  # Single-pool Kt/V adequacy score
+
     status = db.Column(
         db.String(50), nullable=False, default="SCHEDULED"
     )  # SCHEDULED, IN_PROGRESS, COMPLETED, TERMINATED_EARLY
@@ -43,6 +48,38 @@ class DialysisSession(db.Model):
     )
 
     nurse = db.relationship("User", backref="dialysis_sessions")
+
+
+class DialysisPrescription(db.Model):
+    """
+    Nephrology Dialysis Prescription (Section 23 #5).
+    Specifies dialysate flow, blood flow, dialysate composition, heparin dosing, and UF target.
+    """
+
+    __tablename__ = "dialysis_prescriptions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.String(20), nullable=False, index=True)
+    nephrologist_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    dialysate_flow_rate = db.Column(db.Float, nullable=False, default=500.0)  # mL/min
+    blood_flow_rate = db.Column(db.Float, nullable=False, default=300.0)  # mL/min
+    dialysate_composition = db.Column(
+        db.String(100), nullable=False, default="K 2.0, Ca 1.25, Na 138"
+    )
+    heparin_bolus_units = db.Column(db.Float, nullable=True, default=1000.0)  # units
+    heparin_infusion_rate = db.Column(db.Float, nullable=True, default=500.0)  # units/hr
+    target_uf_liters = db.Column(db.Float, nullable=True, default=2.5)  # L
+    duration_hours = db.Column(db.Float, nullable=False, default=4.0)  # hrs
+
+    status = db.Column(db.String(20), nullable=False, default="ACTIVE")  # ACTIVE, EXPIRED, CANCELLED
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, index=True
+    )
+
+    nephrologist = db.relationship("User", backref="dialysis_prescriptions")
+
 
 
 class VascularAccessRecord(db.Model):
