@@ -28,7 +28,14 @@ from datetime import datetime
 import pytest
 from werkzeug.security import generate_password_hash
 
-from departments.models.hr import Allowance, AuditLog, Deduction, Employee, Leave, Payroll
+from departments.models.hr import (
+    Allowance,
+    AuditLog,
+    Deduction,
+    Employee,
+    Leave,
+    Payroll,
+)
 from departments.models.user import User
 from extensions import db
 
