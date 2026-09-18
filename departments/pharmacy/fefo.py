@@ -13,7 +13,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, jsonify, request
-from flask_login import login_required
+from flask_login import current_user, login_required
 
 try:
     from extensions import db
@@ -21,6 +21,7 @@ except ImportError:
     from extensions import db
 
 from departments.models.pharmacy import Batch, DispensedDrug, Drug
+from departments.models.stock_movement import record_movement
 from departments.rbac import roles_required
 
 logger = logging.getLogger(__name__)
@@ -78,10 +79,15 @@ def allocate_drug_fefo(drug_id: int, quantity_requested: int) -> list[dict]:
 
 
 def dispense_medication_fefo(
-    patient_id: str, drug_id: int, quantity: int, prescription_id: str = "RX-MANUAL"
+    patient_id: str,
+    drug_id: int,
+    quantity: int,
+    prescription_id: str = "RX-MANUAL",
+    user_id: int | None = None,
 ) -> list[DispensedDrug]:
     """
     Execute 2-step verification dispensing with automated FEFO batch allocation & stock deduction.
+    user_id should be current_user.id when called from a web route; pass None for programmatic callers.
     """
     allocations = allocate_drug_fefo(drug_id, quantity)
     drug = db.session.get(Drug, drug_id)
@@ -108,6 +114,20 @@ def dispense_medication_fefo(
         )
         db.session.add(dispensed)
         dispensed_records.append(dispensed)
+
+        # Finding A: write a DISPENSED ledger row for each FEFO batch segment.
+        record_movement(
+            item_type="DRUG",
+            item_id=drug_id,
+            movement_type="DISPENSED",
+            quantity_delta=-take_qty,
+            balance_after=drug.quantity_in_stock,
+            reference_type="PRESCRIPTION",
+            reference_id=prescription_id,
+            user_id=user_id,
+            batch_id=batch.id,
+            notes=f"FEFO dispense to patient {patient_id}",
+        )
 
     db.session.commit()
     logger.info(
@@ -208,7 +228,7 @@ def handle_fefo_dispense():
 
     try:
         records = dispense_medication_fefo(
-            patient_id, drug_id, quantity, prescription_id
+            patient_id, drug_id, quantity, prescription_id, user_id=current_user.id
         )
         return jsonify(
             {

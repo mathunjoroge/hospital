@@ -15,6 +15,7 @@ from departments.models.pharmacy import (  # Import PatientWaitingList and Patie
     Drug,
 )
 from departments.models.records import Patient
+from departments.models.stock_movement import record_movement
 from departments.rbac import roles_required
 from departments.shared.encounter_utils import is_encounter_open_for_dispensing
 from departments.shared.payment_gate import has_unpaid_charges
@@ -195,15 +196,36 @@ def delete_dispensed_drug(dispensed_drug_id):
             flash("This dispensing record has already been voided.", "warning")
             return redirect(request.referrer or url_for("pharmacy.index"))
 
-        # Restore stock to batch transactionally
+        # Findings A+B: restore batch AND drug-level stock, then write ledger entry.
+        qty_returned = dispensed_drug.quantity_dispensed
         batch = (
             db.session.get(Batch, dispensed_drug.batch_id)
             if dispensed_drug.batch_id
             else None
         )
+        drug_for_void = (
+            db.session.get(Drug, dispensed_drug.drug_id)
+            if dispensed_drug.drug_id
+            else None
+        )
         if batch:
-            batch.quantity_in_stock += dispensed_drug.quantity_dispensed
+            batch.quantity_in_stock += qty_returned
             db.session.add(batch)
+        if drug_for_void:
+            drug_for_void.quantity_in_stock += qty_returned
+            db.session.add(drug_for_void)
+            record_movement(
+                item_type="DRUG",
+                item_id=drug_for_void.id,
+                movement_type="VOID_RETURN",
+                quantity_delta=qty_returned,
+                balance_after=drug_for_void.quantity_in_stock,
+                reference_type="VOID_DISPENSE",
+                reference_id=str(dispensed_drug_id),
+                user_id=current_user.id,
+                batch_id=dispensed_drug.batch_id,
+                notes=f"Void by user {current_user.id}: {void_reason}",
+            )
 
         # Void — preserve original record, never delete
         dispensed_drug.status = "VOIDED"
@@ -343,6 +365,19 @@ def save_dispensed_drugs():
                                 db.session.add(new_dispensed_drug)
                             batch.quantity_in_stock -= qty_to_dispense
                             drug.quantity_in_stock -= qty_to_dispense
+                            # Finding A: ledger entry for each batch segment
+                            record_movement(
+                                item_type="DRUG",
+                                item_id=drug.id,
+                                movement_type="DISPENSED",
+                                quantity_delta=-qty_to_dispense,
+                                balance_after=drug.quantity_in_stock,
+                                reference_type="PRESCRIPTION",
+                                reference_id=prescription_id,
+                                user_id=current_user.id,
+                                batch_id=batch.id,
+                                notes=f"Partial FEFO dispense (insufficient stock) to patient {dispensed_drug.patient_id}",
+                            )
                             total_dispensed += qty_to_dispense
                             remaining_quantity -= qty_to_dispense
                             logger.debug(
@@ -380,6 +415,19 @@ def save_dispensed_drugs():
                         db.session.add(original_batch)
                         db.session.add(drug)
                         db.session.add(dispensed_drug)
+                        # Finding A: ledger entry for original-batch segment
+                        record_movement(
+                            item_type="DRUG",
+                            item_id=drug.id,
+                            movement_type="DISPENSED",
+                            quantity_delta=-qty_from_original,
+                            balance_after=drug.quantity_in_stock,
+                            reference_type="PRESCRIPTION",
+                            reference_id=prescription_id,
+                            user_id=current_user.id,
+                            batch_id=original_batch.id,
+                            notes=f"Updated dispense qty (original batch) for patient {dispensed_drug.patient_id}",
+                        )
 
                     while remaining_quantity > 0 and batch_index < len(batches):
                         next_batch = batches[batch_index]
@@ -408,15 +456,27 @@ def save_dispensed_drugs():
                             db.session.add(next_batch)
                             db.session.add(drug)
                             db.session.add(new_dispensed_drug)
+                            # Finding A: ledger entry for each overflow batch segment
+                            record_movement(
+                                item_type="DRUG",
+                                item_id=drug.id,
+                                movement_type="DISPENSED",
+                                quantity_delta=-qty_from_next,
+                                balance_after=drug.quantity_in_stock,
+                                reference_type="PRESCRIPTION",
+                                reference_id=prescription_id,
+                                user_id=current_user.id,
+                                batch_id=next_batch.id,
+                                notes=f"Updated dispense qty (overflow batch) for patient {dispensed_drug.patient_id}",
+                            )
                         batch_index += 1
 
             elif quantity_difference < 0:
-                # Reduce quantity in original batch
+                # Reduce quantity in original batch (stock is returned — delta is positive)
                 batch = Batch.query.filter_by(id=dispensed_drug.batch_id).first()
-                batch.quantity_in_stock -= (
-                    quantity_difference  # Adds back since difference is negative
-                )
-                drug.quantity_in_stock -= quantity_difference
+                qty_returned = -quantity_difference  # positive amount returned to stock
+                batch.quantity_in_stock += qty_returned
+                drug.quantity_in_stock += qty_returned
                 dispensed_drug.quantity_dispensed = new_quantity
                 logger.debug(
                     f"Reduced quantity - Batch stock: {batch.quantity_in_stock}, Drug stock: {drug.quantity_in_stock}, Dispensed qty: {dispensed_drug.quantity_dispensed}"
@@ -424,6 +484,19 @@ def save_dispensed_drugs():
                 db.session.add(batch)
                 db.session.add(drug)
                 db.session.add(dispensed_drug)
+                # Finding A: ledger entry for stock-return portion
+                record_movement(
+                    item_type="DRUG",
+                    item_id=drug.id,
+                    movement_type="VOID_RETURN",
+                    quantity_delta=qty_returned,
+                    balance_after=drug.quantity_in_stock,
+                    reference_type="PRESCRIPTION",
+                    reference_id=prescription_id,
+                    user_id=current_user.id,
+                    batch_id=dispensed_drug.batch_id,
+                    notes=f"Quantity reduced on dispense record for patient {dispensed_drug.patient_id}",
+                )
 
         logger.debug(
             f"Querying prescribed medicines for prescription_id '{prescription_id}'"
@@ -557,6 +630,14 @@ def save_prescription(prescription_id):
 
         patient_id = prescribed_medicines[0].patient_id
 
+        # Finding C: build a set of authorised generic names from the prescription so
+        # we can warn (non-blocking) if the pharmacist selects an unrelated drug.
+        prescribed_names = {
+            pm.medicine.generic_name.strip().lower()
+            for pm in prescribed_medicines
+            if pm.medicine and pm.medicine.generic_name
+        }
+
         # Phase-1 payment gate
         unpaid = has_unpaid_charges(patient_id)
         if unpaid and current_app.config.get("PHARMACY_REQUIRE_PAID", False):
@@ -601,6 +682,32 @@ def save_prescription(prescription_id):
                     url_for("pharmacy.view_prescriptions", patient_id=patient_id)
                 )
 
+            # Finding C: warn if dispensed drug name does not appear in the prescription.
+            # Non-blocking — pharmacist may be substituting a generic/brand equivalent,
+            # but the discrepancy must be visible and logged.
+            if (
+                prescribed_names
+                and drug.generic_name.strip().lower() not in prescribed_names
+            ):
+                flash(
+                    f"Warning: '{drug.generic_name}' is not listed in this prescription. "
+                    "Verify with the prescribing clinician before dispensing.",
+                    "warning",
+                )
+                db.session.add(
+                    Log(
+                        level="WARNING",
+                        message=(
+                            f"Pharmacy name-mismatch: drug '{drug.generic_name}' (id={drug.id}) "
+                            f"dispensed against prescription {prescription_id} "
+                            f"(prescribed: {', '.join(prescribed_names) or 'unknown'}) "
+                            f"for patient {patient_id}."
+                        ),
+                        user_id=current_user.id,
+                        source="pharmacy",
+                    )
+                )
+
             # Check if the batch exists and has sufficient stock
             batch = Batch.query.filter_by(
                 batch_number=batch_number, drug_id=drug.id
@@ -625,9 +732,24 @@ def save_prescription(prescription_id):
             )
             db.session.add(new_dispensed_drug)
 
-            # Update batch stock
+            # Finding B: keep drug-level stock cache in sync with batch deduction.
+            # Finding A: append a DISPENSED row to the stock-movement ledger.
             batch.quantity_in_stock -= quantity_dispensed
+            drug.quantity_in_stock = max(0, drug.quantity_in_stock - quantity_dispensed)
             db.session.add(batch)
+            db.session.add(drug)
+            record_movement(
+                item_type="DRUG",
+                item_id=drug.id,
+                movement_type="DISPENSED",
+                quantity_delta=-quantity_dispensed,
+                balance_after=drug.quantity_in_stock,
+                reference_type="PRESCRIPTION",
+                reference_id=prescription_id,
+                user_id=current_user.id,
+                batch_id=batch.id,
+                notes=f"Dispensed to patient {patient_id} via save_prescription",
+            )
 
         # Commit changes to the database
         db.session.commit()

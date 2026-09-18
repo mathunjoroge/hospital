@@ -16,6 +16,7 @@ from sqlalchemy.orm import joinedload
 from departments.models.medicine import PrescribedMedicine
 from departments.models.pharmacy import Batch, DispensedDrug, Drug
 from departments.models.records import Patient
+from departments.models.stock_movement import record_movement
 from departments.rbac import roles_required
 from extensions import db
 
@@ -63,19 +64,40 @@ def remove_dispensed(dispense_id):
                 )
             )
 
-        # Reverse stock in same transaction
+        # Findings A+B: reverse batch AND drug-level stock, then write ledger entry.
+        from datetime import datetime, timezone
+
+        qty_returned = dispensed_drug.quantity_dispensed
         batch = (
             db.session.get(Batch, dispensed_drug.batch_id)
             if dispensed_drug.batch_id
             else None
         )
+        drug_for_void = (
+            db.session.get(Drug, dispensed_drug.drug_id)
+            if dispensed_drug.drug_id
+            else None
+        )
         if batch:
-            batch.quantity_in_stock += dispensed_drug.quantity_dispensed
+            batch.quantity_in_stock += qty_returned
             db.session.add(batch)
+        if drug_for_void:
+            drug_for_void.quantity_in_stock += qty_returned
+            db.session.add(drug_for_void)
+            record_movement(
+                item_type="DRUG",
+                item_id=drug_for_void.id,
+                movement_type="VOID_RETURN",
+                quantity_delta=qty_returned,
+                balance_after=drug_for_void.quantity_in_stock,
+                reference_type="VOID_DISPENSE",
+                reference_id=str(dispense_id),
+                user_id=current_user.id,
+                batch_id=dispensed_drug.batch_id,
+                notes=f"Void by user {current_user.id}: {void_reason}",
+            )
 
         # Void — preserve clinical record
-        from datetime import datetime, timezone
-
         dispensed_drug.status = "VOIDED"
         dispensed_drug.voided_by = current_user.id
         dispensed_drug.voided_at = datetime.now(timezone.utc)
@@ -198,8 +220,23 @@ def process_dispense(prescription_id):
         )
         db.session.add(new_dispensed_drug)
 
+        # Findings A+B: sync both batch and drug-level stock, then write ledger.
         batch.quantity_in_stock -= quantity_dispensed
+        drug.quantity_in_stock = max(0, drug.quantity_in_stock - quantity_dispensed)
         db.session.add(batch)
+        db.session.add(drug)
+        record_movement(
+            item_type="DRUG",
+            item_id=drug.id,
+            movement_type="DISPENSED",
+            quantity_delta=-quantity_dispensed,
+            balance_after=drug.quantity_in_stock,
+            reference_type="PRESCRIPTION",
+            reference_id=prescription_id,
+            user_id=current_user.id,
+            batch_id=batch.id,
+            notes=f"Dispensed to patient {patient_id} via process_dispense",
+        )
 
         db.session.commit()
         flash(

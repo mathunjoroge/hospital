@@ -25,6 +25,7 @@ from departments.models.pharmacy import (  # Import PatientWaitingList and Patie
     RequestItem,
 )
 from departments.models.records import Patient
+from departments.models.stock_movement import record_movement
 from departments.models.user import User
 from departments.rbac import roles_required
 from extensions import db
@@ -105,19 +106,39 @@ def remove_batch(batch_id):
         batch = Batch.query.get_or_404(batch_id)
         drug = db.session.get(Drug, batch.drug_id)
 
+        # Capture before-delete values (batch row disappears after delete)
+        qty_removed = batch.quantity_in_stock
+        batch_id_for_log = batch.id
+        batch_number_for_log = batch.batch_number
+        expiry_date_for_log = batch.expiry_date
+
         # Log the batch in expiries table
         expiry_record = Expiry(
             drug_id=batch.drug_id,
-            batch_number=batch.batch_number,
-            quantity_removed=batch.quantity_in_stock,
-            expiry_date=batch.expiry_date,
+            batch_number=batch_number_for_log,
+            quantity_removed=qty_removed,
+            expiry_date=expiry_date_for_log,
             removal_date=datetime.now(timezone.utc).date(),
         )
         db.session.add(expiry_record)
 
         # Update drugs.quantity_in_stock
-        drug.quantity_in_stock -= batch.quantity_in_stock
+        drug.quantity_in_stock -= qty_removed
         drug.quantity_in_stock = max(drug.quantity_in_stock, 0)
+
+        # Finding A: write WRITEOFF ledger row before the batch row is deleted.
+        record_movement(
+            item_type="DRUG",
+            item_id=drug.id,
+            movement_type="WRITEOFF",
+            quantity_delta=-qty_removed,
+            balance_after=drug.quantity_in_stock,
+            reference_type="EXPIRY",
+            reference_id=str(batch_id_for_log),
+            user_id=current_user.id,
+            batch_id=batch_id_for_log,
+            notes=f"Expiry write-off: batch {batch_number_for_log} exp {expiry_date_for_log}",
+        )
 
         # Remove the batch
         db.session.delete(batch)
@@ -149,19 +170,39 @@ def remove_all_expiries():
         for batch in expired_batches:
             drug = db.session.get(Drug, batch.drug_id)
 
+            # Capture before-delete values
+            qty_removed = batch.quantity_in_stock
+            batch_id_for_log = batch.id
+            batch_number_for_log = batch.batch_number
+            expiry_date_for_log = batch.expiry_date
+
             # Log each batch in expiries table
             expiry_record = Expiry(
                 drug_id=batch.drug_id,
-                batch_number=batch.batch_number,
-                quantity_removed=batch.quantity_in_stock,
-                expiry_date=batch.expiry_date,
+                batch_number=batch_number_for_log,
+                quantity_removed=qty_removed,
+                expiry_date=expiry_date_for_log,
                 removal_date=today,
             )
             db.session.add(expiry_record)
 
             # Update drugs.quantity_in_stock
-            drug.quantity_in_stock -= batch.quantity_in_stock
+            drug.quantity_in_stock -= qty_removed
             drug.quantity_in_stock = max(drug.quantity_in_stock, 0)
+
+            # Finding A: WRITEOFF ledger row before the batch is deleted
+            record_movement(
+                item_type="DRUG",
+                item_id=drug.id,
+                movement_type="WRITEOFF",
+                quantity_delta=-qty_removed,
+                balance_after=drug.quantity_in_stock,
+                reference_type="EXPIRY",
+                reference_id=str(batch_id_for_log),
+                user_id=current_user.id,
+                batch_id=batch_id_for_log,
+                notes=f"Bulk expiry write-off: batch {batch_number_for_log} exp {expiry_date_for_log}",
+            )
 
             # Remove the batch
             db.session.delete(batch)

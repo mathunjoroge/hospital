@@ -1,0 +1,1042 @@
+diff --git a/DECISIONS_PENDING.md b/DECISIONS_PENDING.md
+index be90e5f..b90fe5a 100644
+--- a/DECISIONS_PENDING.md
++++ b/DECISIONS_PENDING.md
+@@ -292,3 +292,18 @@ If Rhapsody or another engine is preferred, the `docker-compose.yml` Mirth servi
+   7. **Billing** — ✅ DECIDED (Option A: Auto-bill flat "Dialysis Session — <modality>" line item on session status `COMPLETED` via `event_listeners.py`).
+ 
+ * **Implementation Note:** Skeleton implemented in `departments/models/renal.py`, `departments/renal/engine.py`, `departments/renal/routes.py`, `departments/billing/event_listeners.py`, and verified by `tests/test_renal_module.py` (31 tests passing). Regression guards explicitly assert no Kt/V field exists prior to clinical sign-off.
++
++---
++
++## [Pharmacy Audit Finding D] Controlled-Drug Batch Stock Disconnected from General Inventory
++
++* **Context**: `departments/pharmacy/controlled_drugs_service.py::dispense_controlled_drug()` correctly maintains a mg-based running balance in `ControlledDrugBalance` / `ControlledDrugDispense` with dual-signature enforcement. However, it never decrements `Batch.quantity_in_stock` or `Drug.quantity_in_stock` in the general pharmacy inventory. As a result:
++  - Controlled substances appear in the general pharmacy stock reports at their full received quantity regardless of how much has been dispensed.
++  - `reconcile_stock_balance()` will always show a variance for controlled drugs once any doses are dispensed.
++  - The `StockMovement` ledger (bin card) has no DISPENSED rows for controlled drugs.
++* **Why not auto-fixed**: Controlled drugs are dispensed in `dose_mg` (free-text strength, e.g. "10mg/ml 5ml ampoule"). Converting `dose_mg` to pack units (the unit stored in `Batch.quantity_in_stock`) requires knowing the concentration and pack size per drug. This is currently stored only in free-text `Drug.strength`, which is not machine-parseable. A silent unit-conversion guess would risk creating incorrect stock figures for schedule 2/3 narcotics — a regulatory and patient-safety hard stop.
++* **Decisions Required**:
++  1. **Strength format**: Should `Drug.strength` be migrated to structured fields (`strength_value NUMERIC`, `strength_unit VARCHAR`, `pack_size INTEGER`, `pack_unit VARCHAR`) to make the conversion computable? Or is a separate `controlled_drug_pack_qty` field per dispense record preferred?
++  2. **Unit conversion ownership**: Should the pharmacist be required to enter the pack-unit quantity alongside `dose_mg` at the point of dispensing, or should conversion be computed automatically once structured strength data exists?
++  3. **Retrospective reconciliation**: Once the fix is in place, should existing `ControlledDrugBalance` rows be used to back-fill `StockMovement` rows, or is it acceptable to start the ledger from the go-live date of this fix?
++* **Acceptance criteria for the fix**: `dispense_controlled_drug()` should, in the same transaction, deduct the correct pack-unit quantity from `Batch.quantity_in_stock` + `Drug.quantity_in_stock` and write a `StockMovement` row with `movement_type="DISPENSED"`, `reference_type="CONTROLLED_DISPENSE"`, and `reference_id=str(dispense.id)`.
+diff --git a/departments/pharmacy/dispensing.py b/departments/pharmacy/dispensing.py
+index eb58d80..c34736d 100644
+--- a/departments/pharmacy/dispensing.py
++++ b/departments/pharmacy/dispensing.py
+@@ -14,6 +14,7 @@ from departments.models.pharmacy import (  # Import PatientWaitingList and Patie
+     DispensedDrug,
+     Drug,
+ )
++from departments.models.stock_movement import record_movement
+ from departments.models.records import Patient
+ from departments.rbac import roles_required
+ from departments.shared.encounter_utils import is_encounter_open_for_dispensing
+@@ -195,15 +196,36 @@ def delete_dispensed_drug(dispensed_drug_id):
+             flash("This dispensing record has already been voided.", "warning")
+             return redirect(request.referrer or url_for("pharmacy.index"))
+ 
+-        # Restore stock to batch transactionally
++        # Findings A+B: restore batch AND drug-level stock, then write ledger entry.
++        qty_returned = dispensed_drug.quantity_dispensed
+         batch = (
+             db.session.get(Batch, dispensed_drug.batch_id)
+             if dispensed_drug.batch_id
+             else None
+         )
++        drug_for_void = (
++            db.session.get(Drug, dispensed_drug.drug_id)
++            if dispensed_drug.drug_id
++            else None
++        )
+         if batch:
+-            batch.quantity_in_stock += dispensed_drug.quantity_dispensed
++            batch.quantity_in_stock += qty_returned
+             db.session.add(batch)
++        if drug_for_void:
++            drug_for_void.quantity_in_stock += qty_returned
++            db.session.add(drug_for_void)
++            record_movement(
++                item_type="DRUG",
++                item_id=drug_for_void.id,
++                movement_type="VOID_RETURN",
++                quantity_delta=qty_returned,
++                balance_after=drug_for_void.quantity_in_stock,
++                reference_type="VOID_DISPENSE",
++                reference_id=str(dispensed_drug_id),
++                user_id=current_user.id,
++                batch_id=dispensed_drug.batch_id,
++                notes=f"Void by user {current_user.id}: {void_reason}",
++            )
+ 
+         # Void — preserve original record, never delete
+         dispensed_drug.status = "VOIDED"
+@@ -343,6 +365,19 @@ def save_dispensed_drugs():
+                                 db.session.add(new_dispensed_drug)
+                             batch.quantity_in_stock -= qty_to_dispense
+                             drug.quantity_in_stock -= qty_to_dispense
++                            # Finding A: ledger entry for each batch segment
++                            record_movement(
++                                item_type="DRUG",
++                                item_id=drug.id,
++                                movement_type="DISPENSED",
++                                quantity_delta=-qty_to_dispense,
++                                balance_after=drug.quantity_in_stock,
++                                reference_type="PRESCRIPTION",
++                                reference_id=prescription_id,
++                                user_id=current_user.id,
++                                batch_id=batch.id,
++                                notes=f"Partial FEFO dispense (insufficient stock) to patient {dispensed_drug.patient_id}",
++                            )
+                             total_dispensed += qty_to_dispense
+                             remaining_quantity -= qty_to_dispense
+                             logger.debug(
+@@ -380,6 +415,19 @@ def save_dispensed_drugs():
+                         db.session.add(original_batch)
+                         db.session.add(drug)
+                         db.session.add(dispensed_drug)
++                        # Finding A: ledger entry for original-batch segment
++                        record_movement(
++                            item_type="DRUG",
++                            item_id=drug.id,
++                            movement_type="DISPENSED",
++                            quantity_delta=-qty_from_original,
++                            balance_after=drug.quantity_in_stock,
++                            reference_type="PRESCRIPTION",
++                            reference_id=prescription_id,
++                            user_id=current_user.id,
++                            batch_id=original_batch.id,
++                            notes=f"Updated dispense qty (original batch) for patient {dispensed_drug.patient_id}",
++                        )
+ 
+                     while remaining_quantity > 0 and batch_index < len(batches):
+                         next_batch = batches[batch_index]
+@@ -408,15 +456,27 @@ def save_dispensed_drugs():
+                             db.session.add(next_batch)
+                             db.session.add(drug)
+                             db.session.add(new_dispensed_drug)
++                            # Finding A: ledger entry for each overflow batch segment
++                            record_movement(
++                                item_type="DRUG",
++                                item_id=drug.id,
++                                movement_type="DISPENSED",
++                                quantity_delta=-qty_from_next,
++                                balance_after=drug.quantity_in_stock,
++                                reference_type="PRESCRIPTION",
++                                reference_id=prescription_id,
++                                user_id=current_user.id,
++                                batch_id=next_batch.id,
++                                notes=f"Updated dispense qty (overflow batch) for patient {dispensed_drug.patient_id}",
++                            )
+                         batch_index += 1
+ 
+             elif quantity_difference < 0:
+-                # Reduce quantity in original batch
++                # Reduce quantity in original batch (stock is returned — delta is positive)
+                 batch = Batch.query.filter_by(id=dispensed_drug.batch_id).first()
+-                batch.quantity_in_stock -= (
+-                    quantity_difference  # Adds back since difference is negative
+-                )
+-                drug.quantity_in_stock -= quantity_difference
++                qty_returned = -quantity_difference  # positive amount returned to stock
++                batch.quantity_in_stock += qty_returned
++                drug.quantity_in_stock += qty_returned
+                 dispensed_drug.quantity_dispensed = new_quantity
+                 logger.debug(
+                     f"Reduced quantity - Batch stock: {batch.quantity_in_stock}, Drug stock: {drug.quantity_in_stock}, Dispensed qty: {dispensed_drug.quantity_dispensed}"
+@@ -424,6 +484,19 @@ def save_dispensed_drugs():
+                 db.session.add(batch)
+                 db.session.add(drug)
+                 db.session.add(dispensed_drug)
++                # Finding A: ledger entry for stock-return portion
++                record_movement(
++                    item_type="DRUG",
++                    item_id=drug.id,
++                    movement_type="VOID_RETURN",
++                    quantity_delta=qty_returned,
++                    balance_after=drug.quantity_in_stock,
++                    reference_type="PRESCRIPTION",
++                    reference_id=prescription_id,
++                    user_id=current_user.id,
++                    batch_id=dispensed_drug.batch_id,
++                    notes=f"Quantity reduced on dispense record for patient {dispensed_drug.patient_id}",
++                )
+ 
+         logger.debug(
+             f"Querying prescribed medicines for prescription_id '{prescription_id}'"
+@@ -557,6 +630,14 @@ def save_prescription(prescription_id):
+ 
+         patient_id = prescribed_medicines[0].patient_id
+ 
++        # Finding C: build a set of authorised generic names from the prescription so
++        # we can warn (non-blocking) if the pharmacist selects an unrelated drug.
++        prescribed_names = {
++            pm.medicine.generic_name.strip().lower()
++            for pm in prescribed_medicines
++            if pm.medicine and pm.medicine.generic_name
++        }
++
+         # Phase-1 payment gate
+         unpaid = has_unpaid_charges(patient_id)
+         if unpaid and current_app.config.get("PHARMACY_REQUIRE_PAID", False):
+@@ -601,6 +682,32 @@ def save_prescription(prescription_id):
+                     url_for("pharmacy.view_prescriptions", patient_id=patient_id)
+                 )
+ 
++            # Finding C: warn if dispensed drug name does not appear in the prescription.
++            # Non-blocking — pharmacist may be substituting a generic/brand equivalent,
++            # but the discrepancy must be visible and logged.
++            if (
++                prescribed_names
++                and drug.generic_name.strip().lower() not in prescribed_names
++            ):
++                flash(
++                    f"Warning: '{drug.generic_name}' is not listed in this prescription. "
++                    "Verify with the prescribing clinician before dispensing.",
++                    "warning",
++                )
++                db.session.add(
++                    Log(
++                        level="WARNING",
++                        message=(
++                            f"Pharmacy name-mismatch: drug '{drug.generic_name}' (id={drug.id}) "
++                            f"dispensed against prescription {prescription_id} "
++                            f"(prescribed: {', '.join(prescribed_names) or 'unknown'}) "
++                            f"for patient {patient_id}."
++                        ),
++                        user_id=current_user.id,
++                        source="pharmacy",
++                    )
++                )
++
+             # Check if the batch exists and has sufficient stock
+             batch = Batch.query.filter_by(
+                 batch_number=batch_number, drug_id=drug.id
+@@ -625,9 +732,24 @@ def save_prescription(prescription_id):
+             )
+             db.session.add(new_dispensed_drug)
+ 
+-            # Update batch stock
++            # Finding B: keep drug-level stock cache in sync with batch deduction.
++            # Finding A: append a DISPENSED row to the stock-movement ledger.
+             batch.quantity_in_stock -= quantity_dispensed
++            drug.quantity_in_stock = max(0, drug.quantity_in_stock - quantity_dispensed)
+             db.session.add(batch)
++            db.session.add(drug)
++            record_movement(
++                item_type="DRUG",
++                item_id=drug.id,
++                movement_type="DISPENSED",
++                quantity_delta=-quantity_dispensed,
++                balance_after=drug.quantity_in_stock,
++                reference_type="PRESCRIPTION",
++                reference_id=prescription_id,
++                user_id=current_user.id,
++                batch_id=batch.id,
++                notes=f"Dispensed to patient {patient_id} via save_prescription",
++            )
+ 
+         # Commit changes to the database
+         db.session.commit()
+diff --git a/departments/pharmacy/fefo.py b/departments/pharmacy/fefo.py
+index c5c907e..40318c8 100644
+--- a/departments/pharmacy/fefo.py
++++ b/departments/pharmacy/fefo.py
+@@ -13,7 +13,7 @@ import logging
+ from datetime import datetime, timedelta, timezone
+ 
+ from flask import Blueprint, jsonify, request
+-from flask_login import login_required
++from flask_login import current_user, login_required
+ 
+ try:
+     from extensions import db
+@@ -21,6 +21,7 @@ except ImportError:
+     from extensions import db
+ 
+ from departments.models.pharmacy import Batch, DispensedDrug, Drug
++from departments.models.stock_movement import record_movement
+ from departments.rbac import roles_required
+ 
+ logger = logging.getLogger(__name__)
+@@ -78,10 +79,15 @@ def allocate_drug_fefo(drug_id: int, quantity_requested: int) -> list[dict]:
+ 
+ 
+ def dispense_medication_fefo(
+-    patient_id: str, drug_id: int, quantity: int, prescription_id: str = "RX-MANUAL"
++    patient_id: str,
++    drug_id: int,
++    quantity: int,
++    prescription_id: str = "RX-MANUAL",
++    user_id: int | None = None,
+ ) -> list[DispensedDrug]:
+     """
+     Execute 2-step verification dispensing with automated FEFO batch allocation & stock deduction.
++    user_id should be current_user.id when called from a web route; pass None for programmatic callers.
+     """
+     allocations = allocate_drug_fefo(drug_id, quantity)
+     drug = db.session.get(Drug, drug_id)
+@@ -109,6 +115,20 @@ def dispense_medication_fefo(
+         db.session.add(dispensed)
+         dispensed_records.append(dispensed)
+ 
++        # Finding A: write a DISPENSED ledger row for each FEFO batch segment.
++        record_movement(
++            item_type="DRUG",
++            item_id=drug_id,
++            movement_type="DISPENSED",
++            quantity_delta=-take_qty,
++            balance_after=drug.quantity_in_stock,
++            reference_type="PRESCRIPTION",
++            reference_id=prescription_id,
++            user_id=user_id,
++            batch_id=batch.id,
++            notes=f"FEFO dispense to patient {patient_id}",
++        )
++
+     db.session.commit()
+     logger.info(
+         f"Dispensed {quantity} units of Drug {drug_id} for Patient {patient_id} across {len(allocations)} FEFO batches."
+@@ -208,7 +228,7 @@ def handle_fefo_dispense():
+ 
+     try:
+         records = dispense_medication_fefo(
+-            patient_id, drug_id, quantity, prescription_id
++            patient_id, drug_id, quantity, prescription_id, user_id=current_user.id
+         )
+         return jsonify(
+             {
+diff --git a/departments/pharmacy/inventory.py b/departments/pharmacy/inventory.py
+index c7d4fc6..f4d1c7d 100644
+--- a/departments/pharmacy/inventory.py
++++ b/departments/pharmacy/inventory.py
+@@ -25,6 +25,7 @@ from departments.models.pharmacy import (  # Import PatientWaitingList and Patie
+     RequestItem,
+ )
+ from departments.models.records import Patient
++from departments.models.stock_movement import record_movement
+ from departments.models.user import User
+ from departments.rbac import roles_required
+ from extensions import db
+@@ -105,20 +106,40 @@ def remove_batch(batch_id):
+         batch = Batch.query.get_or_404(batch_id)
+         drug = db.session.get(Drug, batch.drug_id)
+ 
++        # Capture before-delete values (batch row disappears after delete)
++        qty_removed = batch.quantity_in_stock
++        batch_id_for_log = batch.id
++        batch_number_for_log = batch.batch_number
++        expiry_date_for_log = batch.expiry_date
++
+         # Log the batch in expiries table
+         expiry_record = Expiry(
+             drug_id=batch.drug_id,
+-            batch_number=batch.batch_number,
+-            quantity_removed=batch.quantity_in_stock,
+-            expiry_date=batch.expiry_date,
++            batch_number=batch_number_for_log,
++            quantity_removed=qty_removed,
++            expiry_date=expiry_date_for_log,
+             removal_date=datetime.now(timezone.utc).date(),
+         )
+         db.session.add(expiry_record)
+ 
+         # Update drugs.quantity_in_stock
+-        drug.quantity_in_stock -= batch.quantity_in_stock
++        drug.quantity_in_stock -= qty_removed
+         drug.quantity_in_stock = max(drug.quantity_in_stock, 0)
+ 
++        # Finding A: write WRITEOFF ledger row before the batch row is deleted.
++        record_movement(
++            item_type="DRUG",
++            item_id=drug.id,
++            movement_type="WRITEOFF",
++            quantity_delta=-qty_removed,
++            balance_after=drug.quantity_in_stock,
++            reference_type="EXPIRY",
++            reference_id=str(batch_id_for_log),
++            user_id=current_user.id,
++            batch_id=batch_id_for_log,
++            notes=f"Expiry write-off: batch {batch_number_for_log} exp {expiry_date_for_log}",
++        )
++
+         # Remove the batch
+         db.session.delete(batch)
+         db.session.commit()
+@@ -149,20 +170,40 @@ def remove_all_expiries():
+         for batch in expired_batches:
+             drug = db.session.get(Drug, batch.drug_id)
+ 
++            # Capture before-delete values
++            qty_removed = batch.quantity_in_stock
++            batch_id_for_log = batch.id
++            batch_number_for_log = batch.batch_number
++            expiry_date_for_log = batch.expiry_date
++
+             # Log each batch in expiries table
+             expiry_record = Expiry(
+                 drug_id=batch.drug_id,
+-                batch_number=batch.batch_number,
+-                quantity_removed=batch.quantity_in_stock,
+-                expiry_date=batch.expiry_date,
++                batch_number=batch_number_for_log,
++                quantity_removed=qty_removed,
++                expiry_date=expiry_date_for_log,
+                 removal_date=today,
+             )
+             db.session.add(expiry_record)
+ 
+             # Update drugs.quantity_in_stock
+-            drug.quantity_in_stock -= batch.quantity_in_stock
++            drug.quantity_in_stock -= qty_removed
+             drug.quantity_in_stock = max(drug.quantity_in_stock, 0)
+ 
++            # Finding A: WRITEOFF ledger row before the batch is deleted
++            record_movement(
++                item_type="DRUG",
++                item_id=drug.id,
++                movement_type="WRITEOFF",
++                quantity_delta=-qty_removed,
++                balance_after=drug.quantity_in_stock,
++                reference_type="EXPIRY",
++                reference_id=str(batch_id_for_log),
++                user_id=current_user.id,
++                batch_id=batch_id_for_log,
++                notes=f"Bulk expiry write-off: batch {batch_number_for_log} exp {expiry_date_for_log}",
++            )
++
+             # Remove the batch
+             db.session.delete(batch)
+ 
+diff --git a/departments/pharmacy/stock_ops.py b/departments/pharmacy/stock_ops.py
+index 9821713..a3f189e 100644
+--- a/departments/pharmacy/stock_ops.py
++++ b/departments/pharmacy/stock_ops.py
+@@ -16,6 +16,7 @@ from sqlalchemy.orm import joinedload
+ from departments.models.medicine import PrescribedMedicine
+ from departments.models.pharmacy import Batch, DispensedDrug, Drug
+ from departments.models.records import Patient
++from departments.models.stock_movement import record_movement
+ from departments.rbac import roles_required
+ from extensions import db
+ 
+@@ -63,19 +64,40 @@ def remove_dispensed(dispense_id):
+                 )
+             )
+ 
+-        # Reverse stock in same transaction
++        # Findings A+B: reverse batch AND drug-level stock, then write ledger entry.
++        from datetime import datetime, timezone
++
++        qty_returned = dispensed_drug.quantity_dispensed
+         batch = (
+             db.session.get(Batch, dispensed_drug.batch_id)
+             if dispensed_drug.batch_id
+             else None
+         )
++        drug_for_void = (
++            db.session.get(Drug, dispensed_drug.drug_id)
++            if dispensed_drug.drug_id
++            else None
++        )
+         if batch:
+-            batch.quantity_in_stock += dispensed_drug.quantity_dispensed
++            batch.quantity_in_stock += qty_returned
+             db.session.add(batch)
++        if drug_for_void:
++            drug_for_void.quantity_in_stock += qty_returned
++            db.session.add(drug_for_void)
++            record_movement(
++                item_type="DRUG",
++                item_id=drug_for_void.id,
++                movement_type="VOID_RETURN",
++                quantity_delta=qty_returned,
++                balance_after=drug_for_void.quantity_in_stock,
++                reference_type="VOID_DISPENSE",
++                reference_id=str(dispense_id),
++                user_id=current_user.id,
++                batch_id=dispensed_drug.batch_id,
++                notes=f"Void by user {current_user.id}: {void_reason}",
++            )
+ 
+         # Void — preserve clinical record
+-        from datetime import datetime, timezone
+-
+         dispensed_drug.status = "VOIDED"
+         dispensed_drug.voided_by = current_user.id
+         dispensed_drug.voided_at = datetime.now(timezone.utc)
+@@ -198,8 +220,23 @@ def process_dispense(prescription_id):
+         )
+         db.session.add(new_dispensed_drug)
+ 
++        # Findings A+B: sync both batch and drug-level stock, then write ledger.
+         batch.quantity_in_stock -= quantity_dispensed
++        drug.quantity_in_stock = max(0, drug.quantity_in_stock - quantity_dispensed)
+         db.session.add(batch)
++        db.session.add(drug)
++        record_movement(
++            item_type="DRUG",
++            item_id=drug.id,
++            movement_type="DISPENSED",
++            quantity_delta=-quantity_dispensed,
++            balance_after=drug.quantity_in_stock,
++            reference_type="PRESCRIPTION",
++            reference_id=prescription_id,
++            user_id=current_user.id,
++            batch_id=batch.id,
++            notes=f"Dispensed to patient {patient_id} via process_dispense",
++        )
+ 
+         db.session.commit()
+         flash(
+diff --git a/tests/test_pharmacy_ledger.py b/tests/test_pharmacy_ledger.py
+new file mode 100644
+index 0000000..80c0efc
+--- /dev/null
++++ b/tests/test_pharmacy_ledger.py
+@@ -0,0 +1,544 @@
++"""
++tests/test_pharmacy_ledger.py
++─────────────────────────────
++Live-API tests for the pharmacy ledger + stock-sync patch (Findings A, B, C).
++
++Finding A — every dispensing/void/write-off path now writes a StockMovement row.
++Finding B — Drug.quantity_in_stock stays in sync with batch-level deductions.
++Finding C — save_prescription warns (non-blocking) when dispensed drug name
++            does not appear in the prescription's medicine list.
++"""
++import pytest
++
++from departments.models.pharmacy import Batch, DispensedDrug, Drug, DrugCategory
++from departments.models.stock_movement import StockMovement, record_movement
++from extensions import db
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# Helpers
++# ─────────────────────────────────────────────────────────────────────────────
++
++def _get_or_create_category(app):
++    """Return a DrugCategory id, creating one if needed."""
++    with app.app_context():
++        cat = DrugCategory.query.filter_by(name="TestCategory").first()
++        if not cat:
++            cat = DrugCategory(name="TestCategory")
++            db.session.add(cat)
++            db.session.commit()
++        return cat.id
++
++
++def _make_drug(app, generic_name="Amoxicillin", qty=100):
++    """Create and persist a Drug + one Batch. Returns (drug_id, batch_id)."""
++    cat_id = _get_or_create_category(app)
++    with app.app_context():
++        drug = Drug(
++            generic_name=generic_name,
++            brand_name=f"{generic_name} Brand",
++            category_id=cat_id,
++            dosage_form="Tablet",
++            strength="500mg",
++            buying_price=5.0,
++            selling_price=10.0,
++            quantity_in_stock=qty,
++            reorder_level=20,
++            storage_condition="Ambient",
++        )
++        db.session.add(drug)
++        db.session.flush()
++
++        batch = Batch(
++            drug_id=drug.id,
++            batch_number=f"B-{drug.id}-001",
++            quantity_in_stock=qty,
++            expiry_date=None,
++        )
++        db.session.add(batch)
++        db.session.commit()
++        return drug.id, batch.id
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# record_movement helper — sanity unit tests
++# ─────────────────────────────────────────────────────────────────────────────
++
++class TestRecordMovementHelper:
++    def test_creates_row_with_correct_fields(self, app):
++        drug_id, _ = _make_drug(app, "Paracetamol", qty=50)
++        with app.app_context():
++            mv = record_movement(
++                item_type="DRUG",
++                item_id=drug_id,
++                movement_type="DISPENSED",
++                quantity_delta=-10,
++                balance_after=40,
++                reference_type="PRESCRIPTION",
++                reference_id="RX-TEST-001",
++                notes="unit test",
++            )
++            db.session.commit()
++            saved = db.session.get(StockMovement, mv.id)
++
++        assert saved.item_type == "DRUG"
++        assert saved.item_id == drug_id
++        assert saved.movement_type == "DISPENSED"
++        assert saved.quantity_delta == -10
++        assert saved.balance_after == 40
++        assert saved.reference_id == "RX-TEST-001"
++
++    def test_void_return_is_positive_delta(self, app):
++        drug_id, _ = _make_drug(app, "Ibuprofen", qty=30)
++        with app.app_context():
++            mv = record_movement(
++                item_type="DRUG",
++                item_id=drug_id,
++                movement_type="VOID_RETURN",
++                quantity_delta=5,
++                balance_after=35,
++            )
++            db.session.commit()
++            # Read inside context to avoid DetachedInstanceError
++            assert mv.quantity_delta == 5
++            assert mv.movement_type == "VOID_RETURN"
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# Finding A — DISPENSED/WRITEOFF ledger rows written by every dispense path
++# ─────────────────────────────────────────────────────────────────────────────
++
++class TestFindingA_LedgerEntries:
++
++    def test_fefo_dispense_writes_dispensed_movement(self, app):
++        """dispense_medication_fefo() must produce one DISPENSED row (single batch)."""
++        from departments.pharmacy.fefo import dispense_medication_fefo
++
++        drug_id, _ = _make_drug(app, "Metformin", qty=60)
++        with app.app_context():
++            before = StockMovement.query.filter_by(
++                item_type="DRUG", item_id=drug_id, movement_type="DISPENSED"
++            ).count()
++            dispense_medication_fefo(
++                patient_id="P-TEST-01",
++                drug_id=drug_id,
++                quantity=20,
++                prescription_id="RX-FEFO-001",
++                user_id=None,
++            )
++            after = StockMovement.query.filter_by(
++                item_type="DRUG", item_id=drug_id, movement_type="DISPENSED"
++            ).count()
++
++        assert after == before + 1, (
++            "Finding A: dispense_medication_fefo() must write one DISPENSED ledger row."
++        )
++
++    def test_fefo_dispense_ledger_delta_matches_quantity(self, app):
++        """DISPENSED row's quantity_delta must equal -(dispensed quantity)."""
++        from departments.pharmacy.fefo import dispense_medication_fefo
++
++        drug_id, _ = _make_drug(app, "Atorvastatin", qty=80)
++        with app.app_context():
++            dispense_medication_fefo("P-TEST-02", drug_id, 25, "RX-FEFO-002")
++            mv = StockMovement.query.filter_by(
++                item_type="DRUG", item_id=drug_id, movement_type="DISPENSED"
++            ).first()
++
++        assert mv is not None
++        assert mv.quantity_delta == -25
++
++    def test_fefo_dispense_multi_batch_writes_row_per_batch(self, app):
++        """Two-batch FEFO dispense must produce two DISPENSED ledger rows."""
++        from datetime import date, timedelta
++        from departments.pharmacy.fefo import dispense_medication_fefo
++
++        cat_id = _get_or_create_category(app)
++        with app.app_context():
++            drug = Drug(
++                generic_name="Ciprofloxacin",
++                brand_name="Cipro",
++                category_id=cat_id,
++                dosage_form="Tablet",
++                strength="250mg",
++                buying_price=3.0,
++                selling_price=5.0,
++                quantity_in_stock=30,
++                reorder_level=5,
++                storage_condition="Ambient",
++            )
++            db.session.add(drug)
++            db.session.flush()
++
++            b1 = Batch(drug_id=drug.id, batch_number="B-CIP-001",
++                       quantity_in_stock=10,
++                       expiry_date=date.today() + timedelta(days=30))
++            b2 = Batch(drug_id=drug.id, batch_number="B-CIP-002",
++                       quantity_in_stock=20,
++                       expiry_date=date.today() + timedelta(days=90))
++            db.session.add_all([b1, b2])
++            db.session.commit()
++            drug_id = drug.id
++
++            dispense_medication_fefo("P-TEST-03", drug_id, 25, "RX-FEFO-003")
++            rows = StockMovement.query.filter_by(
++                item_type="DRUG", item_id=drug_id, movement_type="DISPENSED"
++            ).all()
++
++        assert len(rows) == 2, "Two-batch FEFO must produce two DISPENSED rows."
++        assert sum(abs(r.quantity_delta) for r in rows) == 25
++
++    def test_remove_batch_writes_writeoff_movement(self, app, client, admin_user):
++        """remove_batch() must write a WRITEOFF StockMovement row."""
++        drug_id, batch_id = _make_drug(app, "Omeprazole", qty=40)
++
++        resp = client.get(f"/pharmacy/remove_batch/{batch_id}", follow_redirects=True)
++        assert resp.status_code == 200
++
++        with app.app_context():
++            mv = StockMovement.query.filter_by(
++                item_type="DRUG", item_id=drug_id, movement_type="WRITEOFF"
++            ).first()
++
++        assert mv is not None, "Finding A: remove_batch() must write a WRITEOFF row."
++        assert mv.quantity_delta == -40
++
++    def test_remove_all_expiries_writes_writeoff_per_batch(self, app, client, admin_user):
++        """remove_all_expiries() must write one WRITEOFF row per expired batch."""
++        from datetime import date, timedelta
++
++        cat_id = _get_or_create_category(app)
++        with app.app_context():
++            drug = Drug(
++                generic_name="ExpiredDrug",
++                brand_name="ExpBrand",
++                category_id=cat_id,
++                dosage_form="Syrup",
++                strength="100mg/5ml",
++                buying_price=2.0,
++                selling_price=8.0,
++                quantity_in_stock=50,
++                reorder_level=5,
++                storage_condition="Ambient",
++            )
++            db.session.add(drug)
++            db.session.flush()
++
++            past = date.today() - timedelta(days=1)
++            b1 = Batch(drug_id=drug.id, batch_number="EXP-001",
++                       quantity_in_stock=15, expiry_date=past)
++            b2 = Batch(drug_id=drug.id, batch_number="EXP-002",
++                       quantity_in_stock=35, expiry_date=past)
++            db.session.add_all([b1, b2])
++            db.session.commit()
++            drug_id = drug.id
++
++        resp = client.get("/pharmacy/remove_all_expiries", follow_redirects=True)
++        assert resp.status_code == 200
++
++        with app.app_context():
++            rows = StockMovement.query.filter_by(
++                item_type="DRUG", item_id=drug_id, movement_type="WRITEOFF"
++            ).all()
++
++        assert len(rows) == 2, "remove_all_expiries must write one WRITEOFF per batch."
++        assert sum(abs(r.quantity_delta) for r in rows) == 50
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# Finding B — Drug.quantity_in_stock stays in sync
++# ─────────────────────────────────────────────────────────────────────────────
++
++class TestFindingB_DrugLevelStockSync:
++
++    def test_fefo_dispense_decrements_drug_quantity(self, app):
++        """Drug.quantity_in_stock must drop by the dispensed amount."""
++        from departments.pharmacy.fefo import dispense_medication_fefo
++
++        drug_id, _ = _make_drug(app, "Salbutamol", qty=100)
++        with app.app_context():
++            dispense_medication_fefo("P-TEST-10", drug_id, 30, "RX-B-001")
++            drug = db.session.get(Drug, drug_id)
++
++        assert drug.quantity_in_stock == 70, (
++            "Finding B: Drug.quantity_in_stock must drop from 100 to 70."
++        )
++
++    def test_remove_batch_decrements_drug_quantity(self, app, client, admin_user):
++        """remove_batch() must reduce Drug.quantity_in_stock by batch qty."""
++        drug_id, batch_id = _make_drug(app, "Fluconazole", qty=55)
++        client.get(f"/pharmacy/remove_batch/{batch_id}", follow_redirects=True)
++
++        with app.app_context():
++            drug = db.session.get(Drug, drug_id)
++
++        assert drug.quantity_in_stock == 0, (
++            "Finding B: removing only batch must reduce Drug.quantity_in_stock to 0."
++        )
++
++    def test_void_via_remove_dispensed_restores_drug_quantity(self, app, client, admin_user):
++        """
++        remove_dispensed() must restore Drug.quantity_in_stock.
++        The original bug only restored the batch row, not the drug-level cache.
++        """
++        from departments.pharmacy.fefo import dispense_medication_fefo
++
++        drug_id, _ = _make_drug(app, "Doxycycline", qty=80)
++
++        with app.app_context():
++            records = dispense_medication_fefo("P-TEST-11", drug_id, 20, "RX-B-002")
++            dispense_id = records[0].id
++
++        with app.app_context():
++            assert db.session.get(Drug, drug_id).quantity_in_stock == 60
++
++        resp = client.post(
++            f"/pharmacy/remove_dispensed/{dispense_id}",
++            data={"void_reason": "Test void for stock sync", "prescription_id": "RX-B-002"},
++            follow_redirects=True,
++        )
++        assert resp.status_code == 200
++
++        with app.app_context():
++            drug = db.session.get(Drug, drug_id)
++
++        assert drug.quantity_in_stock == 80, (
++            "Finding B: voiding must restore Drug.quantity_in_stock to pre-dispense value."
++        )
++
++    def test_void_writes_void_return_movement(self, app, client, admin_user):
++        """remove_dispensed() must write a VOID_RETURN StockMovement row."""
++        from departments.pharmacy.fefo import dispense_medication_fefo
++
++        drug_id, _ = _make_drug(app, "Metronidazole", qty=50)
++        with app.app_context():
++            records = dispense_medication_fefo("P-TEST-12", drug_id, 10, "RX-B-003")
++            dispense_id = records[0].id
++
++        client.post(
++            f"/pharmacy/remove_dispensed/{dispense_id}",
++            data={"void_reason": "ledger test", "prescription_id": "RX-B-003"},
++            follow_redirects=True,
++        )
++
++        with app.app_context():
++            mv = StockMovement.query.filter_by(
++                item_type="DRUG", item_id=drug_id, movement_type="VOID_RETURN"
++            ).first()
++
++        assert mv is not None, "VOID_RETURN ledger row must exist after voiding."
++        assert mv.quantity_delta == 10
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# Finding C — name-mismatch guard in save_prescription
++# ─────────────────────────────────────────────────────────────────────────────
++
++class TestFindingC_NameMismatchGuard:
++
++    def _setup_prescription(self, app, rx_id="RX-C-001"):
++        """Create patient + medicine + PrescribedMedicine for a given rx_id."""
++        from datetime import date
++        from departments.models.medicine import Medicine, PrescribedMedicine
++        from departments.models.records import Patient
++
++        with app.app_context():
++            p = Patient.query.filter_by(patient_id="P-C-001").first()
++            if not p:
++                p = Patient(
++                    patient_id="P-C-001",
++                    name="Test Patient C",
++                    sex="M",
++                    date_of_birth=date(1990, 1, 1),
++                    contact="0700000000",
++                )
++                db.session.add(p)
++                db.session.flush()
++
++            med = Medicine(
++                generic_name="Amoxicillin",
++                brand_name="Amoxil",
++                dosage="500mg TID",
++            )
++            db.session.add(med)
++            db.session.flush()
++
++            pm = PrescribedMedicine(
++                patient_id="P-C-001",
++                medicine_id=med.id,
++                dosage="500mg",
++                strength="500mg",
++                frequency="TID",
++                prescription_id=rx_id,
++                num_days=5,
++                status=0,
++            )
++            db.session.add(pm)
++            db.session.commit()
++
++    def test_name_match_dispense_succeeds(self, app, client, admin_user):
++        """Happy path: name matches → dispense completes, no warning in logs."""
++        self._setup_prescription(app, rx_id="RX-C-MATCH")
++        drug_id, batch_id = _make_drug(app, "Amoxicillin", qty=100)
++
++        with app.app_context():
++            bn = db.session.get(Batch, batch_id).batch_number
++
++        resp = client.post(
++            "/pharmacy/save_prescription/RX-C-MATCH",
++            data={
++                "patient_id": "P-C-001",
++                "drugs[]": [str(drug_id)],
++                "quantity[]": ["10"],
++                "batch_number[]": [bn],
++            },
++            follow_redirects=True,
++        )
++        assert resp.status_code == 200
++
++        with app.app_context():
++            dispensed = DispensedDrug.query.filter_by(
++                prescription_id="RX-C-MATCH", drug_id=drug_id
++            ).first()
++        assert dispensed is not None, "Match case: dispense must complete."
++
++    def test_name_mismatch_is_non_blocking(self, app, client, admin_user):
++        """
++        Mismatch: different drug dispensed → dispense still completes
++        (pharmacist may be substituting a generic/brand equivalent).
++        """
++        self._setup_prescription(app, rx_id="RX-C-MISMATCH")
++        drug_id, batch_id = _make_drug(app, "Ibuprofen", qty=100)
++
++        with app.app_context():
++            bn = db.session.get(Batch, batch_id).batch_number
++
++        resp = client.post(
++            "/pharmacy/save_prescription/RX-C-MISMATCH",
++            data={
++                "patient_id": "P-C-001",
++                "drugs[]": [str(drug_id)],
++                "quantity[]": ["5"],
++                "batch_number[]": [bn],
++            },
++            follow_redirects=True,
++        )
++        assert resp.status_code == 200
++
++        with app.app_context():
++            dispensed = DispensedDrug.query.filter_by(
++                prescription_id="RX-C-MISMATCH", drug_id=drug_id
++            ).first()
++        assert dispensed is not None, (
++            "Finding C: name-mismatch is non-blocking — dispense must still complete."
++        )
++
++    def test_name_mismatch_still_writes_ledger(self, app, client, admin_user):
++        """Even a mismatched dispense must write a DISPENSED ledger row (Finding A)."""
++        self._setup_prescription(app, rx_id="RX-C-LEDGER")
++        drug_id, batch_id = _make_drug(app, "Diclofenac", qty=60)
++
++        with app.app_context():
++            bn = db.session.get(Batch, batch_id).batch_number
++
++        client.post(
++            "/pharmacy/save_prescription/RX-C-LEDGER",
++            data={
++                "patient_id": "P-C-001",
++                "drugs[]": [str(drug_id)],
++                "quantity[]": ["8"],
++                "batch_number[]": [bn],
++            },
++            follow_redirects=True,
++        )
++
++        with app.app_context():
++            mv = StockMovement.query.filter_by(
++                item_type="DRUG", item_id=drug_id, movement_type="DISPENSED"
++            ).first()
++
++        assert mv is not None, "Finding A+C: mismatch dispense must still write DISPENSED row."
++        assert mv.quantity_delta == -8
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# Reconciliation — ledger sum must match Drug.quantity_in_stock
++# ─────────────────────────────────────────────────────────────────────────────
++
++class TestReconciliation:
++
++    def test_ledger_matches_drug_stock_after_dispense(self, app):
++        """
++        After RECEIVED + DISPENSED movements, reconcile_stock_balance()
++        must return match=True.
++        """
++        from departments.models.stock_movement import reconcile_stock_balance
++        from departments.pharmacy.fefo import dispense_medication_fefo
++
++        drug_id, _ = _make_drug(app, "Codeine", qty=200)
++
++        with app.app_context():
++            # Seed a RECEIVED row so the ledger total starts at 200
++            record_movement(
++                item_type="DRUG", item_id=drug_id,
++                movement_type="RECEIVED", quantity_delta=200, balance_after=200,
++                reference_type="MANUAL", notes="Initial stock baseline",
++            )
++            db.session.commit()
++
++            dispense_medication_fefo("P-RECON-01", drug_id, 50, "RX-RECON-01")
++            result = reconcile_stock_balance("DRUG", drug_id)
++
++        assert result["match"], (
++            f"Ledger ({result['ledger_balance']}) must match "
++            f"Drug.quantity_in_stock ({result['cached_balance']}). "
++            f"Variance={result['variance']}"
++        )
++
++    def test_writeoff_keeps_reconciliation_clean(self, app, client, admin_user):
++        """After a bulk expiry write-off, reconcile_stock_balance returns match=True."""
++        from datetime import date, timedelta
++        from departments.models.stock_movement import reconcile_stock_balance
++
++        cat_id = _get_or_create_category(app)
++        with app.app_context():
++            drug = Drug(
++                generic_name="ReconWriteoff",
++                brand_name="RWB",
++                category_id=cat_id,
++                dosage_form="Tablet",
++                strength="100mg",
++                buying_price=1.0,
++                selling_price=2.0,
++                quantity_in_stock=30,
++                reorder_level=5,
++                storage_condition="Ambient",
++            )
++            db.session.add(drug)
++            db.session.flush()
++
++            record_movement(
++                item_type="DRUG", item_id=drug.id,
++                movement_type="RECEIVED", quantity_delta=30, balance_after=30,
++                reference_type="MANUAL", notes="Baseline for writeoff test",
++            )
++
++            batch = Batch(
++                drug_id=drug.id,
++                batch_number="RWB-001",
++                quantity_in_stock=30,
++                expiry_date=date.today() - timedelta(days=1),
++            )
++            db.session.add(batch)
++            db.session.commit()
++            drug_id = drug.id
++
++        client.get("/pharmacy/remove_all_expiries", follow_redirects=True)
++
++        with app.app_context():
++            result = reconcile_stock_balance("DRUG", drug_id)
++
++        assert result["match"], (
++            f"Reconciliation mismatch after expiry write-off: "
++            f"ledger={result['ledger_balance']} cached={result['cached_balance']}"
++        )

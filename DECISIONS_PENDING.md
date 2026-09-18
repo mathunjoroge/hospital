@@ -292,3 +292,18 @@ If Rhapsody or another engine is preferred, the `docker-compose.yml` Mirth servi
   7. **Billing** — ✅ DECIDED (Option A: Auto-bill flat "Dialysis Session — <modality>" line item on session status `COMPLETED` via `event_listeners.py`).
 
 * **Implementation Note:** Skeleton implemented in `departments/models/renal.py`, `departments/renal/engine.py`, `departments/renal/routes.py`, `departments/billing/event_listeners.py`, and verified by `tests/test_renal_module.py` (31 tests passing). Regression guards explicitly assert no Kt/V field exists prior to clinical sign-off.
+
+---
+
+## [Pharmacy Audit Finding D] Controlled-Drug Batch Stock Disconnected from General Inventory
+
+* **Context**: `departments/pharmacy/controlled_drugs_service.py::dispense_controlled_drug()` correctly maintains a mg-based running balance in `ControlledDrugBalance` / `ControlledDrugDispense` with dual-signature enforcement. However, it never decrements `Batch.quantity_in_stock` or `Drug.quantity_in_stock` in the general pharmacy inventory. As a result:
+  - Controlled substances appear in the general pharmacy stock reports at their full received quantity regardless of how much has been dispensed.
+  - `reconcile_stock_balance()` will always show a variance for controlled drugs once any doses are dispensed.
+  - The `StockMovement` ledger (bin card) has no DISPENSED rows for controlled drugs.
+* **Why not auto-fixed**: Controlled drugs are dispensed in `dose_mg` (free-text strength, e.g. "10mg/ml 5ml ampoule"). Converting `dose_mg` to pack units (the unit stored in `Batch.quantity_in_stock`) requires knowing the concentration and pack size per drug. This is currently stored only in free-text `Drug.strength`, which is not machine-parseable. A silent unit-conversion guess would risk creating incorrect stock figures for schedule 2/3 narcotics — a regulatory and patient-safety hard stop.
+* **Decisions Required**:
+  1. **Strength format**: Should `Drug.strength` be migrated to structured fields (`strength_value NUMERIC`, `strength_unit VARCHAR`, `pack_size INTEGER`, `pack_unit VARCHAR`) to make the conversion computable? Or is a separate `controlled_drug_pack_qty` field per dispense record preferred?
+  2. **Unit conversion ownership**: Should the pharmacist be required to enter the pack-unit quantity alongside `dose_mg` at the point of dispensing, or should conversion be computed automatically once structured strength data exists?
+  3. **Retrospective reconciliation**: Once the fix is in place, should existing `ControlledDrugBalance` rows be used to back-fill `StockMovement` rows, or is it acceptable to start the ledger from the go-live date of this fix?
+* **Acceptance criteria for the fix**: `dispense_controlled_drug()` should, in the same transaction, deduct the correct pack-unit quantity from `Batch.quantity_in_stock` + `Drug.quantity_in_stock` and write a `StockMovement` row with `movement_type="DISPENSED"`, `reference_type="CONTROLLED_DISPENSE"`, and `reference_id=str(dispense.id)`.
