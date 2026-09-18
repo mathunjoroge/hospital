@@ -596,7 +596,7 @@ def reset_password(user_id):
             db.session.commit()
             flash(f"Password for {user.username} has been reset successfully.", "success")
             return redirect(url_for("admin.manage_users"))
-        except Exception as e:
+        except Exception:
             db.session.rollback()
             flash("Something went wrong. Please try again.", "error")
             logger.exception("Error in admin.reset_password: ")
@@ -636,7 +636,7 @@ def lock_user(user_id):
         )
         db.session.commit()
         flash(f"Account for {user.username} has been locked.", "warning")
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         flash("Failed to lock account. Please try again.", "error")
         logger.exception("Error in admin.lock_user: ")
@@ -671,7 +671,7 @@ def unlock_user(user_id):
         )
         db.session.commit()
         flash(f"Account for {user.username} has been unlocked.", "success")
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         flash("Failed to unlock account. Please try again.", "error")
         logger.exception("Error in admin.unlock_user: ")
@@ -706,7 +706,7 @@ def disable_mfa(user_id):
         )
         db.session.commit()
         flash(f"MFA disabled for {user.username}. They must re-enroll on next login.", "warning")
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         flash("Failed to disable MFA. Please try again.", "error")
         logger.exception("Error in admin.disable_mfa: ")
@@ -774,7 +774,7 @@ def bulk_user_action():
         )
         db.session.commit()
         flash(f"Bulk {action} applied to {affected} user(s).", "success")
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         flash("Bulk action failed. Please try again.", "error")
         logger.exception("Error in admin.bulk_user_action: ")
