@@ -80,8 +80,7 @@ def add_note():
             patient_record = Patient.query.filter_by(patient_id=patient_id).first()
             if not patient_record:
                 flash(
-                    f"Patient '{patient_id}' not found. "
-                    "Please select a valid patient from the list.",
+                    f"Patient {patient_id} was not found. Please choose an existing patient.",
                     "error",
                 )
                 return render_template(
