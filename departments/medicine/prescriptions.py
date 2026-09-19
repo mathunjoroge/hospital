@@ -555,9 +555,9 @@ def drug_details(drug: str):
                     LEFT JOIN act_table_full act ON s.id = act.struct_id
                     LEFT JOIN target_dictionary td ON act.target_id = td.id
                     LEFT JOIN action_type at ON act.action_type = at.id::VARCHAR
-                    WHERE UPPER(ai.substance_name) = %s
+                    WHERE s.id = %s
                 """,
-                    [normalized_drug],
+                    [struct_id],
                 )
                 additional_details = cur.fetchall()
                 additional_details = list(
@@ -578,11 +578,26 @@ def drug_details(drug: str):
     from departments.models.medicine import Medicine, OncologyDrug
     from departments.models.pharmacy import Drug as PharmDrug
 
-    onco = OncologyDrug.query.filter(OncologyDrug.name.ilike(drug)).first()
-    med = Medicine.query.filter(
-        (Medicine.generic_name.ilike(drug)) | (Medicine.brand_name.ilike(drug))
-    ).first()
-    pharm = PharmDrug.query.filter(PharmDrug.generic_name.ilike(drug)).first()
+    candidates = [drug]
+    if "," in drug or " and " in drug.lower() or "/" in drug:
+        for item in drug.replace(" and ", ",").split(","):
+            for part in item.split("/"):
+                cleaned = part.strip()
+                if len(cleaned) >= 3:
+                    candidates.append(cleaned)
+
+    onco = None
+    med = None
+    pharm = None
+
+    for cand in candidates:
+        onco = OncologyDrug.query.filter(OncologyDrug.name.ilike(cand)).first()
+        med = Medicine.query.filter(
+            (Medicine.generic_name.ilike(cand)) | (Medicine.brand_name.ilike(cand))
+        ).first()
+        pharm = PharmDrug.query.filter(PharmDrug.generic_name.ilike(cand)).first()
+        if onco or med or pharm:
+            break
 
     if onco or med or pharm:
         name = onco.name if onco else (med.generic_name if med else pharm.generic_name)

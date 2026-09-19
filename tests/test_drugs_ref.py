@@ -92,3 +92,27 @@ def test_fetch_drugs_data_local_fallback(app):
         assert len(results) > 0
         names = [r["generic_name"] for r in results]
         assert "IbuprofenTestDrug" in names
+
+
+def test_drugs_ref_details_multi_ingredient_string(auth_medicine_client, app):
+    """Multi-ingredient compound strings resolve ingredient components instead of failing with 'No details found'."""
+    with app.app_context():
+        med = Medicine(
+            generic_name="Ascorbic acid",
+            brand_name="Vitamin C",
+            dosage="500mg",
+        )
+        db.session.add(med)
+        db.session.commit()
+
+    complex_query = (
+        ".beta.-carotene, ascorbic acid, cholecalciferol, .alpha.-tocopherol acetate, "
+        "dl-, thiamine mononitrate, riboflavin, niacinamide, pyridoxine hydrochloride, "
+        "folic acid, 5-methyltetrahydrofolic acid, calcium formate, ferrous asparto "
+        "glycinate, cyanocobalamin, biotin, potassium iodide, magnesium oxide, zinc oxide and cupric oxide"
+    )
+
+    resp = auth_medicine_client.get(f"/medicine/drugs-ref/details/{complex_query}")
+    assert resp.status_code == 200
+    assert b"No details found" not in resp.data
+
