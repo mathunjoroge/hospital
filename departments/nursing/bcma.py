@@ -227,15 +227,22 @@ def bcma_administer():
         nurse_id              : int  — administering nurse/clinician user ID
         override_reason       : str  — (optional) required when overriding a mismatch
     """
+    from flask_login import current_user
+
     data = request.get_json(silent=True) or {}
     patient_barcode = data.get("patient_barcode", "").strip()
     drug_barcode = data.get("drug_barcode", "").strip()
-    nurse_id = data.get("nurse_id")
     override_reason = (data.get("override_reason") or "").strip()
 
-    if not patient_barcode or not drug_barcode or not nurse_id:
+    # B1-FIX: nurse_id MUST come from the authenticated session, not the request
+    # body. Accepting it from the caller allows any authenticated user to forge
+    # another nurse's identity in the medication administration record — the same
+    # class of bug that was fixed in mar.py chart_medication().
+    nurse_id = current_user.id
+
+    if not patient_barcode or not drug_barcode:
         return jsonify(
-            {"error": "patient_barcode, drug_barcode and nurse_id are required"}
+            {"error": "patient_barcode and drug_barcode are required"}
         ), 400
 
     # ── Re-run the full verification ──────────────────────────────────────────
@@ -302,6 +309,8 @@ def bcma_administer():
         medication=str(medicine.id),  # stored as medicine_id string
         dosage=prescription.dosage if prescription else data.get("dosage", ""),
         recorded_by=nurse_id,
+        # Store as naive UTC — consistent with _check_duplicate_dose's cutoff_naive
+        # and with MedicationAdmin rows written by mar.py chart_medication().
         time_administered=datetime.now(timezone.utc).replace(tzinfo=None),
         scan_verified=True,
         barcode_patient_id=patient_barcode,
@@ -315,7 +324,8 @@ def bcma_administer():
     _log_audit(
         "BCMA_DOSE_ADMINISTERED",
         f"Drug {medicine.generic_name} administered to {patient.patient_id} "
-        f"by nurse {nurse_id}. scan_verified=True override={bool(override_reason)}",
+        f"by nurse (user_id={nurse_id}, session-verified). "
+        f"scan_verified=True override={bool(override_reason)}",
         patient.patient_id,
     )
 

@@ -210,10 +210,21 @@ def issue_request(request_id):
                                 title=f"Issue Request #{request_id}",
                             ), 400
 
-                        # Deduct from Store stock
-                        item.drug.quantity_in_stock = max(
-                            0, item.drug.quantity_in_stock - quantity_issued
-                        )
+                        # Deduct from Store stock — reject if insufficient
+                        if quantity_issued > item.drug.quantity_in_stock:
+                            flash(
+                                f"Insufficient store stock for "
+                                f"{item.drug.generic_name}: "
+                                f"requested {quantity_issued}, "
+                                f"available {item.drug.quantity_in_stock}.",
+                                "error",
+                            )
+                            return render_template(
+                                "stores/issue_request.html",
+                                drug_request=drug_request,
+                                title=f"Issue Request #{request_id}",
+                            ), 400
+                        item.drug.quantity_in_stock -= quantity_issued
 
                         # Create/update Pharmacy Batch so Pharmacy receives the issued stock with actual expiry date
                         batch = Batch.query.filter_by(
@@ -250,8 +261,19 @@ def issue_request(request_id):
                             user_id=user_id,
                         )
 
-                if all(item.quantity_issued is not None for item in drug_request.items):
+                any_issued = any(
+                    (item.quantity_issued or 0) > 0 for item in drug_request.items
+                )
+                all_fully_met = all(
+                    item.quantity_issued is not None
+                    and item.quantity_issued >= item.quantity_requested
+                    for item in drug_request.items
+                )
+                if all_fully_met:
                     drug_request.status = "Completed"
+                elif any_issued:
+                    drug_request.status = "Partially Issued"
+                # else: status stays Pending — nothing was actually issued
                 db.session.commit()
                 flash(
                     "Drug request issued successfully and stock released to pharmacy",
@@ -363,16 +385,45 @@ def manage_reagent_requests():
 
             if action == "approve":
                 reagent = db.session.get(NonPharmItem, reagent_request.item_id)
-                if reagent:
-                    reagent.stock_level = max(
-                        0, reagent.stock_level - reagent_request.quantity_requested
+                if not reagent:
+                    flash("Commodity item not found.", "error")
+                    return redirect(url_for("stores.manage_reagent_requests"))
+
+                qty_req = reagent_request.quantity_requested
+                if reagent.stock_level < qty_req:
+                    flash(
+                        f"Insufficient stock for {reagent.name}: "
+                        f"requested {qty_req}, available {reagent.stock_level}.",
+                        "error",
                     )
-                    reagent.in_dispensing += reagent_request.quantity_requested
+                    return redirect(url_for("stores.manage_reagent_requests"))
+
+                reagent.stock_level -= qty_req
                 reagent_request.status = "Approved"
-                reagent_request.quantity_issued = reagent_request.quantity_requested
+                reagent_request.quantity_issued = qty_req
+
+                current_uid = (
+                    current_user.id
+                    if hasattr(current_user, "is_authenticated")
+                    and current_user.is_authenticated
+                    else None
+                )
+                from departments.models.stock_movement import record_movement
+                record_movement(
+                    item_type="NON_PHARM",
+                    item_id=reagent.id,
+                    movement_type="ISSUED",
+                    quantity_delta=-qty_req,
+                    balance_after=reagent.stock_level,
+                    reference_type="COMMODITY_REQUEST",
+                    reference_id=str(reagent_request.id),
+                    user_id=current_uid,
+                    notes=f"Issued to department via commodity request #{reagent_request.id}",
+                )
+
                 db.session.commit()
                 flash(
-                    f"Commodity request approved! Stock released for {reagent.name if reagent else 'item'}.",
+                    f"Commodity request approved! {qty_req} × {reagent.name} released to department.",
                     "success",
                 )
             else:
@@ -860,6 +911,18 @@ def create_commodity_requisition():
         else 1
     )
 
+    # Guard: warn (but do not block) when requested quantity exceeds current stock
+    if item.stock_level < quantity:
+        msg = (
+            f"Warning: requested {quantity} × {item.name} but only "
+            f"{item.stock_level} units are currently in store. "
+            "The requisition has been created and will be reviewed by stores staff."
+        )
+        if request.is_json:
+            pass  # warning returned in the response payload below
+        else:
+            flash(msg, "warning")
+
     order = OtherOrder(
         item_id=item.id,
         quantity_requested=quantity,
@@ -872,17 +935,22 @@ def create_commodity_requisition():
     db.session.commit()
 
     if request.is_json:
-        return jsonify(
-            {
-                "message": f"Commodity requisition for {item.name} created successfully.",
-                "requisition": {
-                    "id": order.id,
-                    "item_id": item.id,
-                    "department": department,
-                    "quantity": quantity,
-                },
-            }
-        ), 201
+        payload = {
+            "message": f"Commodity requisition for {item.name} created successfully.",
+            "requisition": {
+                "id": order.id,
+                "item_id": item.id,
+                "department": department,
+                "quantity": quantity,
+                "current_stock": item.stock_level,
+            },
+        }
+        if item.stock_level < quantity:
+            payload["warning"] = (
+                f"Requested {quantity} units but only {item.stock_level} "
+                "in store. Stores staff will review before issuing."
+            )
+        return jsonify(payload), 201
     flash(f"Commodity requisition for {item.name} submitted successfully!", "success")
     return redirect(url_for("stores.manage_reagent_requests"))
 

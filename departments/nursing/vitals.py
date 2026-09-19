@@ -197,16 +197,22 @@ def vitals(patient_id):
 
 # Alert/Action line logic
 def check_alert_action(dilation, time_hours):
-    alert_dilation = 4 + time_hours  # Alert line: starts at 4 cm, increases 1 cm/hour
-    action_dilation = (
-        4 + (time_hours - 4) if time_hours >= 4 else 0
-    )  # Action line: 4 hours to the right
-    status = "Normal"
+    """Classify labour progress against WHO alert/action lines.
+
+    Alert line: starts at 4 cm at hour 0, progresses 1 cm/hour (capped at 10).
+    Action line: the same line shifted 4 hours to the right (applicable when
+    time_hours >= 4), also capped at 10.
+
+    Returns one of: "Normal", "Crossed Alert Line", "Crossed Action Line".
+    """
+    alert_dilation = min(4 + time_hours, 10)  # cap at full dilation
+    action_dilation = min(time_hours, 10) if time_hours >= 4 else None
+
+    if action_dilation is not None and dilation < action_dilation:
+        return "Crossed Action Line"
     if dilation < alert_dilation:
-        status = "Crossed Alert Line"
-    if time_hours >= 4 and dilation < action_dilation:
-        status = "Crossed Action Line"
-    return status
+        return "Crossed Alert Line"
+    return "Normal"
 
 
 # Route to display the Partogram form
@@ -250,6 +256,22 @@ def submit_partogram():
         urine_volume = request.form.get("urine_volume")
         urine_acetone = request.form.get("urine_acetone")
         timestamp = datetime.now(timezone.utc)
+
+        # Step 0: Validate patient exists in the database
+        if not patient_id:
+            return render_template(
+                "nursing/error.html", errors=["Patient ID is required."]
+            )
+        from departments.models.records import Patient as PatientModel
+        patient_record = PatientModel.query.filter_by(patient_id=patient_id).first()
+        if not patient_record:
+            return render_template(
+                "nursing/error.html",
+                errors=[
+                    f"Patient '{patient_id}' not found. "
+                    "Please verify the patient ID before recording a partogram."
+                ],
+            )
 
         # Step 1: Validate required fields
         required_fields = {
@@ -364,9 +386,15 @@ def submit_partogram():
                     "Time since active labor start must be greater than the previous entry for this patient."
                 )
 
-        # If there are errors, render the error page
+        # If there are validation errors, flash them and return to the form
+        # so the nurse can correct the entry without losing context.
         if errors:
-            return render_template("nursing/error.html", errors=errors)
+            for err in errors:
+                flash(err, "error")
+            return render_template(
+                "nursing/partogram.html",
+                prefill=request.form,
+            ), 400
 
         # Step 7: Check alert/action lines
         labour_status = check_alert_action(cervical_dilation, time_hours)
@@ -423,8 +451,14 @@ def view_partogram(patient_id):
         )
 
         if not records:
-            flash(f"No partogram records found for patient {patient_id}.", "info")
-            return redirect(url_for("nursing.index"))
+            flash(
+                f"No partogram records found for patient {patient_id}. "
+                "You can record the first entry below.",
+                "info",
+            )
+            return redirect(
+                url_for("nursing.record_partogram") + f"?patient_id={patient_id}"
+            )
 
         # Convert ORM objects to dicts for template rendering
         entries = [
@@ -546,20 +580,21 @@ def vital_signs():
                 return redirect(url_for("nursing.vital_signs"))
 
             # Capture all fields from the Vitals model
-            heart_rate = request.form.get("heart_rate")
             respiratory_rate = request.form.get("respiratory_rate")
             oxygen_saturation = request.form.get("oxygen_saturation")
             temperature = request.form.get("temperature")
-            pulse = request.form.get("pulse")
+            pulse = request.form.get("pulse") or request.form.get("heart_rate")
             blood_pressure_systolic = request.form.get("blood_pressure_systolic")
             blood_pressure_diastolic = request.form.get("blood_pressure_diastolic")
             blood_glucose = request.form.get("blood_glucose")
             weight = request.form.get("weight")
             height = request.form.get("height")
 
+            # Note: the Vitals model uses `nurse_id`, not `recorded_by`.
+            # `heart_rate` is not a column on Vitals — pulse carries that reading.
             new_vital_sign = Vitals(
                 patient_id=patient_id,
-                heart_rate=int(heart_rate) if heart_rate else None,
+                nurse_id=current_user.id,
                 respiratory_rate=int(respiratory_rate) if respiratory_rate else None,
                 oxygen_saturation=int(oxygen_saturation) if oxygen_saturation else None,
                 temperature=float(temperature) if temperature else None,
@@ -574,7 +609,6 @@ def vital_signs():
                 weight=float(weight) if weight else None,
                 height=float(height) if height else None,
                 timestamp=datetime.now(timezone.utc),
-                recorded_by=current_user.id,
             )
             db.session.add(new_vital_sign)
             db.session.commit()

@@ -28,6 +28,7 @@
                             <th>Dosage Form</th>
                             <th>Strength</th>
                             <th>Quantity Requested</th>
+                            <th>In Store</th>
                             <th>Quantity Issued</th>
                             <th>Expiry Date *</th>
                             <th>Batch Number</th>
@@ -41,6 +42,13 @@
                             <td>{{ item.drug.dosage_form }}</td>
                             <td>{{ item.drug.strength }}</td>
                             <td>{{ item.quantity_requested }}</td>
+                            <td>
+                                {% if item.drug.quantity_in_stock < item.quantity_requested %}
+                                    <span class="badge bg-danger">{{ item.drug.quantity_in_stock }}</span>
+                                {% else %}
+                                    <span class="badge bg-success">{{ item.drug.quantity_in_stock }}</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 <input type="number" 
                                        name="quantity_issued_{{ item.id }}" 

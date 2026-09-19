@@ -330,6 +330,15 @@ def receive_po_shipment(po_id):
     if po.status in ("RECEIVED", "RECEIVED_WITH_DISCREPANCY"):
         return jsonify({"error": "Purchase order has already been received"}), 400
 
+    if po.status not in ("ORDERED", "PARTIALLY_RECEIVED"):
+        return jsonify(
+            {
+                "error": f"Purchase order is in '{po.status}' status and cannot be "
+                "received. Only ORDERED or PARTIALLY_RECEIVED purchase orders "
+                "may have a shipment recorded against them."
+            }
+        ), 400
+
     data = request.get_json(silent=True) or {}
     items_input = data.get("items", [])
 
@@ -358,6 +367,11 @@ def receive_po_shipment(po_id):
     # Validate that every line item being received has an explicit expiry date
     now = datetime.now(timezone.utc)
     discrepancies = []
+    current_uid = (
+        current_user.id
+        if hasattr(current_user, "is_authenticated") and current_user.is_authenticated
+        else None
+    )
 
     for po_item in po.items:
         key = (
@@ -406,24 +420,29 @@ def receive_po_shipment(po_id):
         non_pharm = po_item.non_pharm_item
 
         if drug:
-            # Create FEFO batch with real receiving expiry date
-            batch = Batch(
-                drug_id=drug.id,
-                batch_number=batch_num,
-                quantity_in_stock=qty_rcvd,
-                expiry_date=exp_date,
-            )
-            db.session.add(batch)
+            # Create or merge FEFO batch: if the same batch_number already exists
+            # for this drug (e.g. from a previous partial receive), add to its
+            # quantity rather than inserting a duplicate row.
+            existing_batch = Batch.query.filter_by(
+                drug_id=drug.id, batch_number=batch_num
+            ).first()
+            if existing_batch:
+                existing_batch.quantity_in_stock += qty_rcvd
+                if exp_date:
+                    existing_batch.expiry_date = exp_date
+                batch = existing_batch
+            else:
+                batch = Batch(
+                    drug_id=drug.id,
+                    batch_number=batch_num,
+                    quantity_in_stock=qty_rcvd,
+                    expiry_date=exp_date,
+                )
+                db.session.add(batch)
             db.session.flush()
             drug.quantity_in_stock += qty_rcvd
 
             # Append to immutable StockMovement ledger
-            current_uid = (
-                current_user.id
-                if hasattr(current_user, "is_authenticated")
-                and current_user.is_authenticated
-                else None
-            )
             record_movement(
                 item_type="DRUG",
                 item_id=drug.id,
@@ -437,12 +456,6 @@ def receive_po_shipment(po_id):
             )
         elif non_pharm:
             non_pharm.stock_level += qty_rcvd
-            current_uid = (
-                current_user.id
-                if hasattr(current_user, "is_authenticated")
-                and current_user.is_authenticated
-                else None
-            )
             record_movement(
                 item_type="NON_PHARM",
                 item_id=non_pharm.id,
@@ -456,11 +469,6 @@ def receive_po_shipment(po_id):
             )
 
     # SOD Audit flag
-    current_uid = (
-        current_user.id
-        if hasattr(current_user, "is_authenticated") and current_user.is_authenticated
-        else None
-    )
     po.received_by_id = current_uid
     if (
         po.received_by_id

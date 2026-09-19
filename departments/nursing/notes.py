@@ -68,8 +68,31 @@ def add_note():
 
     if request.method == "POST":
         try:
-            patient_id = request.form["patient_id"]
-            note = request.form["note"]
+            patient_id = request.form.get("patient_id", "").strip()
+            note = request.form.get("note", "").strip()
+
+            # Validate patient exists
+            if not patient_id:
+                flash("Patient ID is required.", "error")
+                return render_template(
+                    "nursing/add_note.html", patients=Patient.query.all()
+                )
+            patient_record = Patient.query.filter_by(patient_id=patient_id).first()
+            if not patient_record:
+                flash(
+                    f"Patient '{patient_id}' not found. "
+                    "Please select a valid patient from the list.",
+                    "error",
+                )
+                return render_template(
+                    "nursing/add_note.html", patients=Patient.query.all()
+                )
+
+            if not note:
+                flash("Observation note cannot be empty.", "error")
+                return render_template(
+                    "nursing/add_note.html", patients=Patient.query.all()
+                )
             allergies = request.form.get("allergies", "")
             code_status = request.form.get("code_status", "")
             medications = request.form.get(
@@ -89,33 +112,34 @@ def add_note():
                 medications=medications,
                 shift_update=shift_update,
             )
-            db.session.add(new_note)
-            db.session.commit()
-            logger.info(f"Nurse {current_user.id} added note for patient {patient_id}")
-            db.session.add(
-                Log(
-                    level="INFO",
-                    message=f"Nurse {current_user.username} (ID: {current_user.id}) added note for patient {patient_id}",
-                    user_id=current_user.id,
-                    source="nursing",
-                )
+            audit_log = Log(
+                level="INFO",
+                message=f"Nurse {current_user.username} (ID: {current_user.id}) added note for patient {patient_id}",
+                user_id=current_user.id,
+                source="nursing",
             )
-            db.session.commit()
+            db.session.add(new_note)
+            db.session.add(audit_log)
+            db.session.commit()  # single atomic commit: note + audit log together
+            logger.info(f"Nurse {current_user.id} added note for patient {patient_id}")
             flash("Note added successfully.", "success")
             return redirect(url_for("nursing.view_notes"))
         except Exception as e:
             db.session.rollback()
             flash("Something went wrong. Please try again.", "error")
             logger.exception("Error in nursing.add_note: ")
-            db.session.add(
-                Log(
-                    level="ERROR",
-                    message=f"Error adding note: {e!s}",
-                    user_id=current_user.id,
-                    source="nursing",
+            try:
+                db.session.add(
+                    Log(
+                        level="ERROR",
+                        message=f"Error adding note: {e!s}",
+                        user_id=current_user.id,
+                        source="nursing",
+                    )
                 )
-            )
-            db.session.commit()
+                db.session.commit()
+            except Exception:  # noqa: BLE001
+                db.session.rollback()
             return render_template(
                 "nursing/add_note.html", patients=Patient.query.all()
             )

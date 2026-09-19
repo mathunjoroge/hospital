@@ -166,7 +166,7 @@ def test_issue_request_requires_expiry_date(
 
     with app.app_context():
         drug = db.session.merge(drug)
-
+        # Use quantity=5 so it fits within drug's initial stock of 10
         req_obj = DrugRequest(
             request_date=datetime.now(timezone.utc).date(),
             status="Pending",
@@ -176,7 +176,7 @@ def test_issue_request_requires_expiry_date(
         db.session.flush()
 
         req_item = RequestItem(
-            request_id=req_obj.id, drug_id=drug.id, quantity_requested=20
+            request_id=req_obj.id, drug_id=drug.id, quantity_requested=5
         )
         db.session.add(req_item)
         db.session.commit()
@@ -184,18 +184,19 @@ def test_issue_request_requires_expiry_date(
         req_id = req_obj.id
         item_id = req_item.id
 
-    # 1. POST without expiry date → 400
+    # 1. POST without expiry date → 400 (expiry is mandatory)
     resp = client.post(
         f"/stores/issue_request/{req_id}",
-        data={f"quantity_issued_{item_id}": 20},
+        data={f"quantity_issued_{item_id}": 5},
     )
     assert resp.status_code == 400
 
     # 2. POST with explicit expiry date and batch_number → 302 redirect (success)
+    # Drug has quantity_in_stock=10 from fixture; issuing 5 is within stock.
     resp_ok = client.post(
         f"/stores/issue_request/{req_id}",
         data={
-            f"quantity_issued_{item_id}": 20,
+            f"quantity_issued_{item_id}": 5,
             f"expiry_date_{item_id}": "2027-11-15",
             f"batch_number_{item_id}": "BATCH-STORES-99",
         },

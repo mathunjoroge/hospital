@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from extensions import db
 
@@ -17,7 +17,7 @@ class NursingNote(db.Model):
     shift_update = db.Column(
         db.Text, nullable=True
     )  # e.g., "Patient stable, BP checked"
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     # Add relationship
     nurse = db.relationship("User", backref="nursing_notes")
 
@@ -32,7 +32,7 @@ class NursingCareTask(db.Model):
     priority = db.Column(
         db.String(20), nullable=False, default="Medium"
     )  # e.g., Low, Medium, High
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     completed_at = db.Column(db.DateTime, nullable=True)
     nurse = db.relationship("User", backref="care_tasks")
 
@@ -53,7 +53,7 @@ class Vitals(db.Model):
     blood_glucose = db.Column(db.Float, nullable=True)  # mg/dL
     weight = db.Column(db.Float, nullable=True)  # kg
     height = db.Column(db.Float, nullable=True)  # cm
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     # Add relationship
     nurse = db.relationship("User", backref="vitals")
 
@@ -129,7 +129,7 @@ class MedicationAdmin(db.Model):
     patient_id = db.Column(db.String(50), nullable=False)
     medication = db.Column(db.String(100), nullable=False)
     dosage = db.Column(db.String(50), nullable=False)
-    time_administered = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    time_administered = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     recorded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     # P8-05 BCMA fields
     scan_verified = db.Column(db.Boolean, default=False, nullable=False)
@@ -155,7 +155,7 @@ class Messages(db.Model):
     receiver_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     patient_id = db.Column(db.String(50), nullable=True)
     message = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     sender = db.relationship("User", foreign_keys=[sender_id], backref="sent_messages")
     receiver = db.relationship(
         "User", foreign_keys=[receiver_id], backref="received_messages"
@@ -168,7 +168,7 @@ class Notifications(db.Model):
     receiver_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     message = db.Column(db.Text, nullable=False)
     is_read = db.Column(db.Boolean, default=False)
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     receiver = db.relationship("User", backref="notifications")
 
 
@@ -199,10 +199,10 @@ class TriageAssessment(db.Model):
     priority_status = db.Column(
         db.String(30), default="WAITING"
     )  # WAITING, SEEN, ESCALATED, DISPOSITIONED
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     # ED Operations Management tracking
-    arrival_at = db.Column(db.DateTime, nullable=True, default=datetime.utcnow)
+    arrival_at = db.Column(db.DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
     triage_completed_at = db.Column(db.DateTime, nullable=True)
     seen_by_doctor_at = db.Column(db.DateTime, nullable=True)
     disposition_at = db.Column(db.DateTime, nullable=True)
