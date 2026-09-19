@@ -5,7 +5,7 @@
     <h2 class="mb-4">Lab Dashboard</h2>
 
     <div class="row">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card text-white bg-primary mb-3">
                 <div class="card-body">
                     <h5 class="card-title">Total Tests</h5>
@@ -14,7 +14,7 @@
             </div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card text-white bg-warning mb-3">
                 <div class="card-body">
                     <h5 class="card-title">Pending Tests</h5>
@@ -23,11 +23,24 @@
             </div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card text-white bg-danger mb-3">
                 <div class="card-body">
                     <h5 class="card-title">Abnormal Results</h5>
                     <p class="card-text display-4">{{ abnormal_tests }}</p>
+                    <small class="text-white-50">{{ panic_tests }} critical panic</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Avg Turnaround (30d)</h5>
+                    <p class="card-text display-4">
+                        {{ avg_tat_hours if avg_tat_hours is not none else '—' }}
+                    </p>
+                    <small class="text-white-50">hours, request → result</small>
                 </div>
             </div>
         </div>

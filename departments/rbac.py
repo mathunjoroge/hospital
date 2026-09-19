@@ -36,6 +36,10 @@ ROLE_ALIASES = {
     "pharmacist": {"pharmacy", "pharmacist"},
     "stores": {"stores", "storekeeper"},
     "storekeeper": {"stores", "storekeeper"},
+    # Laboratory: web UI routes use "laboratory", LIS API historically
+    # used "lab_tech" — alias both so one lab account works everywhere.
+    "laboratory": {"laboratory", "lab_tech"},
+    "lab_tech": {"laboratory", "lab_tech"},
 }
 
 

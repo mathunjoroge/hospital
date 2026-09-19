@@ -1,8 +1,8 @@
+import logging
 from datetime import datetime, timezone
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from flask_socketio import SocketIO
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
@@ -13,10 +13,7 @@ from extensions import db
 
 from . import bp  # Import the blueprint
 
-socketio = SocketIO()
-# Generate a UUID and convert it to a string
-
-# Display the lab waiting list
+logger = logging.getLogger(__name__)
 
 
 # order for reagets
@@ -94,15 +91,6 @@ def reagents_order():
         # Use `username` instead of `name`
         user_name_map = {user.id: user.username for user in users}
 
-        # Debugging Logs
-        print(f"Debug: Found {len(pending_orders)} pending orders")
-        for order in pending_orders:
-            requester_name = user_name_map.get(order.requested_by, "Unknown")
-            item_name = order.item.name if order.item else "Unknown"
-            print(
-                f"Debug: Order ID {order.id}, Requested by {requester_name}, Item: {item_name}, Quantity: {order.quantity_requested}"
-            )
-
         return render_template(
             "laboratory/reagents_order.html",
             pending_orders=pending_orders,
@@ -113,7 +101,7 @@ def reagents_order():
     except (SQLAlchemyError, ValueError) as e:
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in laboratory.reagents_order: {e}")
+        logger.exception("Error in laboratory.reagents_order")
         return redirect(url_for("laboratory.index"))
 
 
@@ -138,7 +126,7 @@ def lab_reagent_inventory():
 
     except SQLAlchemyError as e:
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in laboratory.lab_reagent_inventory: {e}")
+        logger.exception("Error in laboratory.lab_reagent_inventory")
         return redirect(url_for("laboratory.index"))
 
 
@@ -154,6 +142,14 @@ def request_reagent_restock():
 
         if not item_id or not quantity:
             flash("Item and quantity required!", "error")
+            return redirect(url_for("laboratory.lab_reagent_inventory"))
+
+        # P2-17: validate the item is actually a lab reagent (category 6) —
+        # a tampered item_id could otherwise file restock orders for any
+        # non-pharm inventory item.
+        reagent = NonPharmItem.query.filter_by(id=item_id, category_id=6).first()
+        if not reagent:
+            flash("Selected item is not a valid lab reagent.", "error")
             return redirect(url_for("laboratory.lab_reagent_inventory"))
 
         new_request = OtherOrder(
@@ -173,7 +169,7 @@ def request_reagent_restock():
     except (SQLAlchemyError, ValueError) as e:
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in laboratory.request_reagent_restock: {e}")
+        logger.exception("Error in laboratory.request_reagent_restock")
         return redirect(url_for("laboratory.lab_reagent_inventory"))
 
 

@@ -12,7 +12,7 @@
             <p><strong>Patient Name:</strong> {{ lab_request.patient.name }}</p>
             <p><strong>Patient ID:</strong> {{ lab_request.patient.patient_id }}</p>
             <p><strong>Test Name:</strong> {{ lab_test.test_name }}</p>
-            <p><strong>Cost:</strong> ${{ "%.2f" | format(lab_test.cost) }}</p>
+            <p><strong>Cost:</strong> KES {{ "%.2f" | format(lab_test.cost) }}</p>
             <p><strong>Description:</strong> {{ lab_test.description | default("No description provided") }}</p>
         </div>
     </div>

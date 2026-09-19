@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+
+    <h2 class="mb-4 text-center">
+        <i class="bi bi-patch-check me-2"></i>Result Verification Queue
+        <span class="badge bg-warning text-dark align-middle ms-2">2-Tier Sign-off</span>
+    </h2>
+
+    <p class="text-muted text-center mb-4">
+        Results below were entered by lab staff and require a <strong>second signatory</strong>
+        before release. The user who entered a result cannot verify it themselves.
+    </p>
+
+    {% if pending %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Patient</th>
+                    <th>Test</th>
+                    <th>Entered</th>
+                    <th>Panic Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in pending %}
+                <tr class="{{ 'table-danger' if r.panic_status == 'PANIC_CRITICAL' else ('table-warning' if r.panic_status == 'ABNORMAL' else '') }}">
+                    <td class="fw-bold">{{ r.patient_name }} <small class="text-muted">({{ r.patient_id }})</small></td>
+                    <td>{{ r.test_name }}</td>
+                    <td>{{ r.test_date.strftime('%Y-%m-%d %H:%M') if r.test_date else '—' }}</td>
+                    <td>
+                        {% if r.panic_status == 'PANIC_CRITICAL' %}
+                        <span class="badge bg-danger"><i class="bi bi-exclamation-octagon me-1"></i>CRITICAL</span>
+                        {% elif r.panic_status == 'ABNORMAL' %}
+                        <span class="badge bg-warning text-dark">Abnormal</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Normal</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{{ url_for('laboratory.view_lab_results', result_id=r.id) }}"
+                           class="btn btn-sm btn-outline-primary me-1">
+                            <i class="bi bi-eye me-1"></i>Review
+                        </a>
+                        <button type="button" class="btn btn-sm btn-success"
+                                onclick="verifyResult('{{ r.result_id }}', 'VERIFY', this)">
+                            <i class="bi bi-check2-circle me-1"></i>Verify
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                onclick="verifyResult('{{ r.result_id }}', 'REJECT', this)">
+                            <i class="bi bi-x-circle me-1"></i>Reject
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-check2-all fs-1 text-success d-block mb-3"></i>
+        <h5 class="fw-bold">Nothing awaiting verification</h5>
+        <p class="text-muted">All entered results have been signed off.</p>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+  async function verifyResult(resultId, action, btn) {
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sending…';
+    try {
+      const resp = await fetch('/laboratory/lis/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token() }}',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ result_id: resultId, action: action }),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        window.location.reload();
+      } else {
+        alert(data.error || 'Verification failed');
+        btn.disabled = false;
+        btn.innerHTML = original;
+      }
+    } catch (err) {
+      alert('Network error during verification');
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  }
+</script>
+{% endblock %}

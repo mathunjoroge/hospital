@@ -1,10 +1,10 @@
 import json
+import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from flask import Response, flash, redirect, render_template, request, session, url_for
+from flask import Response, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from flask_socketio import SocketIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from sqlalchemy.exc import SQLAlchemyError
@@ -18,8 +18,7 @@ from extensions import db
 
 from . import bp  # Import the blueprint
 
-socketio = SocketIO()
-# Generate a UUID and convert it to a string
+logger = logging.getLogger(__name__)
 
 # Display the lab waiting list
 
@@ -33,6 +32,21 @@ def process_lab_request(request_id):
     try:
         # Fetch the requested lab test by ID
         lab_request = RequestedLab.query.get_or_404(request_id)
+
+        # P1-7 idempotency: a result already recorded for this request must not
+        # be silently duplicated (double-click / retry protection).
+        if lab_request.status == 1 and lab_request.result_id:
+            existing = LabResult.query.filter_by(
+                result_id=lab_request.result_id
+            ).first()
+            if existing:
+                flash(
+                    "This lab request has already been processed. Showing the recorded result.",
+                    "info",
+                )
+                return redirect(
+                    url_for("laboratory.view_lab_results", result_id=existing.id)
+                )
 
         # Fetch the associated lab test details
         lab_test = LabTest.query.get_or_404(lab_request.lab_test_id)
@@ -52,11 +66,6 @@ def process_lab_request(request_id):
                 if result.strip()
             }
 
-            # Debug: Print raw form data and combined dictionary
-            print(f"Debug: Raw Lab Test IDs: {lab_test_ids}")
-            print(f"Debug: Raw Results: {results}")
-            print(f"Debug: Combined Results Dictionary: {results_dict}")
-
             # Validate that all required fields are provided
             if not results_dict:
                 flash("At least one result must be entered!", "error")
@@ -65,16 +74,38 @@ def process_lab_request(request_id):
                     lab_request=lab_request,
                     lab_test=lab_test,
                     parameters=parameters,
-                    result_id=session.get(
-                        "result_id"
-                    ),  # Pass the result_id to the template
+                    result_id=str(uuid.uuid4()),
                 )
 
-            # Generate a unique result_id (if not already generated)
-            result_id = session.get("result_id") or str(uuid.uuid4())
-            session["result_id"] = result_id  # Store in session for consistency
+            # P2-16: per-request UUID — no shared session key, so two tabs
+            # processing different requests cannot clobber each other's id.
+            result_id = str(uuid.uuid4())
 
-            # Create or update the lab result record
+            # P1-6: run every entered value through the panic-threshold engine
+            # so web-entered results get the same safety evaluation as LIS ones.
+            from departments.laboratory.panic_alerts import evaluate_panic_level
+
+            overall_panic_status = "NORMAL"
+            overall_panic_msgs = []
+            for param_id, value in results_dict.items():
+                param = db.session.get(LabResultTemplate, int(param_id))
+                if not param:
+                    continue
+                try:
+                    value_f = float(value)
+                except ValueError:
+                    continue  # non-numeric (qualitative) results are not scored
+                status, msg = evaluate_panic_level(param.parameter_name, value_f)
+                if status == "PANIC_CRITICAL":
+                    overall_panic_status = "PANIC_CRITICAL"
+                    overall_panic_msgs.append(msg)
+                elif status == "ABNORMAL" and overall_panic_status == "NORMAL":
+                    overall_panic_status = "ABNORMAL"
+                    overall_panic_msgs.append(msg)
+
+            panic_message = "\n".join(overall_panic_msgs) or None
+
+            # Create the lab result record
             lab_result = LabResult(
                 patient_id=lab_request.patient_id,
                 lab_test_id=lab_test.id,
@@ -83,17 +114,22 @@ def process_lab_request(request_id):
                 result=json.dumps(results_dict),  # Store the results as a JSON string
                 result_id=result_id,  # Assign the unique result_id
                 updated_by=current_user.id,  # Set the user who processed the result
+                status="PENDING_VERIFICATION",
+                panic_status=overall_panic_status,
+                panic_message=panic_message,
             )
-
             db.session.add(lab_result)
+
+            # Mark the request processed and link it to the result — all in ONE
+            # commit so a partial failure can never leave a pending request
+            # pointing at nothing (or vice versa).
+            lab_request.status = 1
+            lab_request.result_id = result_id
+            db.session.add(lab_request)
             db.session.commit()
 
-            # Update the lab request status to processed (e.g., status=1)
-            lab_request.status = 1
-            lab_request.result_id = (
-                result_id  # Link the lab request to the result via result_id
-            )
-            db.session.commit()
+            # P1-8: advance any linked specimen into analysis/completed states.
+            _advance_specimens_for_request(lab_request)
 
             # FIX 4: Advance encounter stage after lab completion
             from departments.shared.visit_closure import advance_after_completion
@@ -105,14 +141,19 @@ def process_lab_request(request_id):
 
             trigger_lab_result_ready(lab_request)
 
-            flash("Lab test results submitted successfully!", "success")
+            if overall_panic_status == "PANIC_CRITICAL":
+                flash(
+                    "Results saved — CRITICAL PANIC VALUE detected. Pathologist "
+                    "verification and clinician notification required.",
+                    "danger",
+                )
+            elif overall_panic_status == "ABNORMAL":
+                flash("Results saved — abnormal value(s) flagged for review.", "warning")
+            else:
+                flash("Lab test results submitted successfully!", "success")
             return redirect(
-                url_for("laboratory.index")
-            )  # Redirect back to the lab index page
-
-        # Generate a unique result_id for the form (only on GET requests)
-        if request.method == "GET":
-            session["result_id"] = str(uuid.uuid4())  # Store in session
+                url_for("laboratory.view_lab_results", result_id=lab_result.id)
+            )
 
         # Render the form on GET request
         return render_template(
@@ -120,14 +161,36 @@ def process_lab_request(request_id):
             lab_request=lab_request,
             lab_test=lab_test,
             parameters=parameters,
-            result_id=session.get("result_id"),  # Pass the result_id to the template
+            result_id=str(uuid.uuid4()),
         )
 
     except (SQLAlchemyError, ValueError, KeyError, json.JSONDecodeError) as e:
         flash("Something went wrong. Please try again.", "error")
         db.session.rollback()  # Rollback changes in case of error
-        print(f"Debug: Error in laboratory.process_lab_request: {e}")  # Debugging
+        logger.exception("Error in laboratory.process_lab_request")
         return redirect(url_for("laboratory.index"))
+
+
+def _advance_specimens_for_request(lab_request):
+    """
+    P1-8: bridge the specimen-tracking workflow and the testing workflow.
+    Un-collected specimens for this request are marked IN_ANALYSIS once a
+    result is recorded; received ones advance to COMPLETED with a
+    chain-of-custody entry, via LIMSService so the CoC log stays intact.
+    """
+    from departments.laboratory.lims_service import LIMSService
+
+    for specimen in lab_request.specimens:
+        if specimen.status == "ORDERED":
+            LIMSService.update_specimen_status(
+                specimen.id, "IN_ANALYSIS", user_id=current_user.id,
+                notes="Result entry started",
+            )
+        elif specimen.status in ("RECEIVED", "COLLECTED"):
+            LIMSService.update_specimen_status(
+                specimen.id, "COMPLETED", user_id=current_user.id,
+                notes=f"Result recorded ({lab_request.result_id})",
+            )
 
 
 # view lab results
@@ -141,13 +204,9 @@ def view_lab_results(result_id):
         # Fetch the lab result by ID
         lab_result = LabResult.query.get_or_404(result_id)
 
-        # Debug: Print raw result string
-        print(f"Debug: Raw Result String: {lab_result.result}")
-
         # Parse the result string back into a dictionary
         try:
             results_dict = json.loads(lab_result.result) if lab_result.result else {}
-            print(f"Debug: Parsed Results Dictionary: {results_dict}")  # Debug
         except json.JSONDecodeError:
             flash("Something went wrong. Please try again.", "warning")
             results_dict = {}  # Fallback to an empty dictionary if parsing fails
@@ -162,9 +221,6 @@ def view_lab_results(result_id):
         test_presentation = []
         for param in parameters:
             result_value = results_dict.get(str(param.id))  # Ensure key is a string
-            print(
-                f"Debug: Parameter ID: {param.id}, Parameter Name: {param.parameter_name}, Result Value: {result_value}"
-            )  # Debugging
 
             try:
                 # Convert result to float for comparisons
@@ -198,9 +254,6 @@ def view_lab_results(result_id):
                 }
             )
 
-        # Debug: Print final test presentation data
-        print(f"Debug: Final Test Presentation Data: {test_presentation}")
-
         return render_template(
             "laboratory/view_lab_results.html",
             lab_test=lab_test,
@@ -210,7 +263,7 @@ def view_lab_results(result_id):
 
     except (SQLAlchemyError, ValueError, KeyError) as e:
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in laboratory.view_lab_results: {e}")  # Debugging
+        logger.exception("Error in laboratory.view_lab_results")
         return redirect(url_for("laboratory.index"))
 
 
@@ -237,7 +290,7 @@ def pending_lab_results():
 
     except SQLAlchemyError as e:
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in laboratory.pending_lab_results: {e}")
+        logger.exception("Error in laboratory.pending_lab_results")
         return redirect(url_for("laboratory.index"))
 
 
@@ -245,11 +298,14 @@ def pending_lab_results():
 @login_required
 @roles_required("laboratory", "admin")
 def processed_lab_results():
-    """Displays processed lab test results."""
+    """Displays processed lab test results (paginated)."""
 
     try:
+        page = request.args.get("page", 1, type=int)
+        per_page = 50
+
         # Fetch processed lab results where updated_by is NOT NULL
-        processed_lab_results = (
+        pagination = (
             db.session.query(
                 LabResult.id,
                 LabResult.patient_id,
@@ -265,11 +321,9 @@ def processed_lab_results():
             .join(Patient, Patient.patient_id == LabResult.patient_id)
             .filter(LabResult.updated_by.isnot(None))
             .order_by(LabResult.test_date.desc())
-            .all()
+            .paginate(page=page, per_page=per_page, error_out=False)
         )
-
-        # Debug: Print processed results
-        print("Processed Lab Results:", processed_lab_results)
+        processed_lab_results = pagination.items
 
         # If no processed results exist, inform the user
         if not processed_lab_results:
@@ -278,11 +332,12 @@ def processed_lab_results():
         return render_template(
             "laboratory/processed_lab_results.html",
             processed_lab_results=processed_lab_results,
+            pagination=pagination,
         )
 
     except SQLAlchemyError as e:
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in laboratory.processed_lab_results: {e}")  # Debugging
+        logger.exception("Error in laboratory.processed_lab_results")
         return redirect(url_for("laboratory.index"))
 
 
@@ -373,10 +428,41 @@ def search_patient():
 @login_required
 @roles_required("laboratory", "admin")
 def abnormal_results():
-    """Displays lab test results that are outside normal ranges."""
+    """
+    Displays lab test results that are outside normal ranges.
+
+    P1-10: queries the panic_status column written at result-entry time
+    instead of scanning and JSON-parsing every LabResult in the database.
+    Legacy rows predating the panic engine are still covered by a bounded
+    90-day JSON re-scan fallback.
+    """
 
     try:
-        abnormal_results = (
+        cutoff = datetime.now(timezone.utc) - timedelta(days=90)
+
+        # Primary source: panic evaluation persisted at entry time
+        engine_flagged = (
+            db.session.query(
+                LabResult.id,
+                LabResult.patient_id,
+                LabResult.lab_test_id,
+                LabResult.result,
+                LabResult.panic_status,
+                LabResult.panic_message,
+                LabTest.test_name,
+            )
+            .join(LabTest, LabResult.lab_test_id == LabTest.id)
+            .filter(
+                LabResult.panic_status.in_(["PANIC_CRITICAL", "ABNORMAL"]),
+                LabResult.test_date >= cutoff,
+            )
+            .order_by(LabResult.test_date.desc())
+            .limit(200)
+            .all()
+        )
+
+        # Legacy rows (no panic evaluation) within the same window
+        legacy_rows = (
             db.session.query(
                 LabResult.id,
                 LabResult.patient_id,
@@ -385,18 +471,80 @@ def abnormal_results():
                 LabTest.test_name,
             )
             .join(LabTest, LabResult.lab_test_id == LabTest.id)
+            .filter(
+                LabResult.panic_status == "NORMAL",  # default — never evaluated
+                LabResult.updated_by.isnot(None),
+                LabResult.test_date >= cutoff,
+            )
+            .order_by(LabResult.test_date.desc())
+            .limit(500)
             .all()
         )
 
         flagged_results = []
-        for result in abnormal_results:
+
+        # Engine-flagged results: split the stored panic message per parameter
+        for result in engine_flagged:
+            abnormal_parameters = []
             try:
-                result_data = json.loads(
-                    result.result
-                )  # Convert stored JSON result back to dictionary
+                result_data = json.loads(result.result) if result.result else {}
+            except json.JSONDecodeError:
+                result_data = {}
+            for param_id, value in result_data.items():
+                param = db.session.get(LabResultTemplate, int(param_id))
+                if not param:
+                    continue
+                try:
+                    value_f = float(value)
+                except ValueError:
+                    continue
+                if (
+                    value_f < param.normal_range_low
+                    or value_f > param.normal_range_high
+                ):
+                    abnormal_parameters.append(
+                        {
+                            "parameter": param.parameter_name,
+                            "value": value,
+                            "normal_range": f"{param.normal_range_low} - {param.normal_range_high}",
+                            "unit": param.unit,
+                        }
+                    )
+            if abnormal_parameters:
+                flagged_results.append(
+                    {
+                        "id": result.id,
+                        "patient_id": result.patient_id,
+                        "test_name": result.test_name,
+                        "panic_status": result.panic_status,
+                        "abnormal_parameters": abnormal_parameters,
+                    }
+                )
+            else:
+                # Message-based fallback (LIS single-value results)
+                flagged_results.append(
+                    {
+                        "id": result.id,
+                        "patient_id": result.patient_id,
+                        "test_name": result.test_name,
+                        "panic_status": result.panic_status,
+                        "abnormal_parameters": [
+                            {
+                                "parameter": result.result or "Result",
+                                "value": "",
+                                "normal_range": "",
+                                "unit": "",
+                            }
+                        ],
+                    }
+                )
+
+        # Legacy fallback scan (bounded)
+        for result in legacy_rows:
+            try:
+                result_data = json.loads(result.result) if result.result else {}
                 abnormal_parameters = []
 
-                # Check each parameter against its normal range
                 for param_id, value in result_data.items():
                     param = db.session.get(LabResultTemplate, param_id)
                     if param and (
@@ -418,21 +566,55 @@ def abnormal_results():
                             "id": result.id,
                             "patient_id": result.patient_id,
                             "test_name": result.test_name,
+                            "panic_status": "ABNORMAL",
                             "abnormal_parameters": abnormal_parameters,
                         }
                     )
 
-            except (ValueError, KeyError, json.JSONDecodeError) as e:
-                print(f"Error processing lab result {result.id}: {e}")
+            except (ValueError, KeyError, json.JSONDecodeError):
+                logger.debug("Skipping unparseable lab result %s", result.id)
 
         return render_template(
             "laboratory/abnormal_results.html", flagged_results=flagged_results
         )
 
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in laboratory.abnormal_results: {e}")
+        logger.exception("Error in laboratory.abnormal_results")
         return redirect(url_for("laboratory.index"))
+
+
+# verification queue
+@bp.route("/verification_queue")
+@login_required
+@roles_required("laboratory", "admin", "medicine")
+def verification_queue():
+    """
+    P1-6: web UI for the 2-tier verification workflow. Lists results entered
+    by the LIS API or web entry that are still PENDING_VERIFICATION, so a
+    pathologist/doctor can sign them off (via the LIS verify API).
+    """
+    pending = (
+        db.session.query(
+            LabResult.id,
+            LabResult.result_id,
+            LabResult.patient_id,
+            LabResult.test_date,
+            LabResult.panic_status,
+            LabResult.panic_message,
+            LabResult.updated_by,
+            LabTest.test_name,
+            Patient.name.label("patient_name"),
+        )
+        .join(LabTest, LabTest.id == LabResult.lab_test_id)
+        .join(Patient, Patient.patient_id == LabResult.patient_id)
+        .filter(LabResult.status == "PENDING_VERIFICATION")
+        .order_by(LabResult.test_date.asc())  # oldest first — criticals age worst
+        .limit(200)
+        .all()
+    )
+
+    return render_template("laboratory/verification_queue.html", pending=pending)
 
 
 # dashboard

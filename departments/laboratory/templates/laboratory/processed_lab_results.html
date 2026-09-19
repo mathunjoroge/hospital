@@ -38,6 +38,28 @@
             </table>
         </div>
     </div>
+
+    {% if pagination and pagination.pages > 1 %}
+    <nav aria-label="Result pages" class="mt-3">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+                <a class="page-link" href="{{ url_for('laboratory.processed_lab_results', page=pagination.prev_num) if pagination.has_prev else '#' }}">&laquo;</a>
+            </li>
+            {% for p in pagination.iter_pages() %}
+                {% if p %}
+                <li class="page-item {{ 'active' if p == pagination.page }}">
+                    <a class="page-link" href="{{ url_for('laboratory.processed_lab_results', page=p) }}">{{ p }}</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+                {% endif %}
+            {% endfor %}
+            <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+                <a class="page-link" href="{{ url_for('laboratory.processed_lab_results', page=pagination.next_num) if pagination.has_next else '#' }}">&raquo;</a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
     {% else %}
     <p class="text-muted text-center">No processed lab results available.</p>
     {% endif %}

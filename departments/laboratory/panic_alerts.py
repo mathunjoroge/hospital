@@ -19,7 +19,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-from flask import Blueprint, abort, jsonify, request
+from flask import Blueprint, abort, jsonify, request, session
 from flask_login import current_user, login_required
 
 try:
@@ -86,6 +86,36 @@ def _require_authenticated_user_id() -> int:
     abort(401)
 
 
+def _resolve_ordering_clinician_id(lab_res) -> int | None:
+    """
+    Resolve the user_id of the clinician who ordered the lab test, so critical
+    panic alerts reach the person managing the patient (not just the verifier).
+
+    Resolution order:
+      1. Clinician recorded on the patient's ACTIVE encounter (provider_id).
+      2. None if unresolvable — caller falls back to notifying the verifier only.
+    """
+    try:
+        from departments.models.encounter import Encounter
+
+        enc = (
+            Encounter.query.filter_by(
+                patient_id=lab_res.patient_id, status="ACTIVE"
+            )
+            .order_by(Encounter.id.desc())
+            .first()
+        )
+        if enc and enc.provider_id:
+            # provider_id is a string column; users.id is integer.
+            return int(enc.provider_id)
+    except (ValueError, TypeError, AttributeError):
+        logger.debug(
+            "Could not resolve ordering clinician for patient %s",
+            lab_res.patient_id,
+        )
+    return None
+
+
 def evaluate_panic_level(parameter_name: str, value: float) -> tuple[str, str]:
     """
     Evaluate numerical lab value against reference range and panic thresholds.
@@ -138,17 +168,31 @@ def handle_enter_result():
     Lab Tech enters test result (Tier 1). Evaluates panic status.
 
     P0-11: tech_id is derived from the authenticated user — never from the request body.
+    P0-04: patient_id, lab_test_id, parameter_name and result_value are all
+    REQUIRED. The previous silent defaults (lab_test_id=1, "Hemoglobin",
+    14.0) could fabricate a normal-looking result from a malformed request.
     """
     data = request.get_json() or {}
     patient_id = data.get("patient_id")
-    lab_test_id = data.get("lab_test_id", 1)
-    parameter_name = data.get("parameter_name", "Hemoglobin")
+    lab_test_id = data.get("lab_test_id")
+    parameter_name = (data.get("parameter_name") or "").strip()
     result_notes = data.get("notes", "")
 
+    if not patient_id or not lab_test_id or not parameter_name:
+        return jsonify(
+            {
+                "error": "patient_id, lab_test_id, and parameter_name are required. "
+                "No defaults are applied to clinical data."
+            }
+        ), 400
+
     try:
-        result_val = float(data.get("result_value", 14.0))
+        result_val = float(data.get("result_value"))
     except (TypeError, ValueError):
-        return jsonify({"error": "result_value must be a number"}), 400
+        return jsonify(
+            {"error": "result_value is required and must be a number. "
+            "No default value is applied to clinical data."}
+        ), 400
 
     # P0-11: Derive tech_id from authenticated session — ignore any client-supplied value.
     tech_id = _require_authenticated_user_id()
@@ -156,6 +200,12 @@ def handle_enter_result():
     patient = Patient.query.filter_by(patient_id=patient_id).first()
     if not patient:
         return jsonify({"error": "Patient not found"}), 404
+
+    # Validate the lab test exists — never persist a dangling clinical result.
+    from departments.models.medicine import LabTest
+
+    if not db.session.get(LabTest, lab_test_id):
+        return jsonify({"error": f"Lab test {lab_test_id} not found"}), 404
 
     panic_status, panic_msg = evaluate_panic_level(parameter_name, result_val)
     res_uuid = f"RES-{str(uuid.uuid4())[:8].upper()}"
@@ -203,7 +253,8 @@ def handle_verify_result():
     P0-06 / P0-11:
       - verifier_id derived from authenticated user — client-supplied value rejected.
       - Re-verification of an already-VERIFIED result is blocked to prevent silent overwrite.
-        If correction is needed, use the amendment workflow (not implemented yet).
+      - Tier separation: the user who ENTERED the result (updated_by) cannot
+        verify it — a second person is mandatory for 2-tier sign-off.
     """
     data = request.get_json() or {}
     result_id = data.get("result_id")
@@ -229,6 +280,25 @@ def handle_verify_result():
             }
         ), 409
 
+    # P0-02: 2-tier separation — the entering tech can never verify their own
+    # result. Admin role-switch is exempt (supervisor override is audited).
+    if (
+        lab_res.updated_by is not None
+        and lab_res.updated_by == verifier_id
+        and not (
+            getattr(current_user, "role", "") == "admin"
+            and "switched_user" not in session
+        )
+    ):
+        return jsonify(
+            {
+                "error": "2-tier verification violation: the user who entered this "
+                "result cannot verify it. A second signatory is required.",
+                "result_id": result_id,
+                "code": "SELF_VERIFICATION_BLOCKED",
+            }
+        ), 403
+
     if action == "REJECT":
         lab_res.status = "REJECTED"
         lab_res.verified_by = verifier_id
@@ -245,25 +315,41 @@ def handle_verify_result():
     lab_res.verified_by = verifier_id
     lab_res.verified_at = datetime.now(timezone.utc)
 
-    # Dispatch panic alert notification if panic critical
+    # P0-03: Dispatch panic alert to the ORDERING CLINICIAN, not the verifier.
+    # The verifier just saw the result — the clinician managing the patient is
+    # the one who must act on a critical value. Fall back to verifier if no
+    # ordering clinician can be resolved.
     notification_sent = False
+    alert_recipient_id = None
     if lab_res.panic_status == "PANIC_CRITICAL":
+        clinician_id = _resolve_ordering_clinician_id(lab_res)
+
         alert_text = (
             f"CRITICAL LAB PANIC ALERT: Patient {lab_res.patient_id} "
             f"— {lab_res.panic_message}"
         )
-        notification = Notifications(receiver_id=verifier_id, message=alert_text)
-        db.session.add(notification)
-        notification_sent = True
+        recipients = []
+        if clinician_id and clinician_id != verifier_id:
+            recipients.append(clinician_id)
+        # The verifier still gets a copy for documentation/closure.
+        recipients.append(verifier_id)
+
+        for receiver in dict.fromkeys(recipients):  # de-duplicate, keep order
+            db.session.add(Notifications(receiver_id=receiver, message=alert_text))
+            notification_sent = True
+            if alert_recipient_id is None:
+                alert_recipient_id = receiver
 
     db.session.commit()
 
     logger.info(
-        "Lab result VERIFIED: result_id=%s verifier_id=%s panic=%s alert_sent=%s",
+        "Lab result VERIFIED: result_id=%s verifier_id=%s panic=%s alert_sent=%s "
+        "alert_recipient=%s",
         result_id,
         verifier_id,
         lab_res.panic_status,
         notification_sent,
+        alert_recipient_id,
     )
 
     return jsonify(
@@ -273,6 +359,7 @@ def handle_verify_result():
             "status": "VERIFIED",
             "panic_status": lab_res.panic_status,
             "panic_alert_sent": notification_sent,
+            "panic_alert_recipient_id": alert_recipient_id,
         }
     ), 200
 

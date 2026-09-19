@@ -4,9 +4,11 @@
 <a href="{{ url_for('laboratory.lab_tests') }}"><i class="bi bi-clipboard-data me-2"></i> Lab Test Catalog</a>
 <a href="{{ url_for('laboratory.search_patient') }}"><i class="bi bi-person-lines-fill me-2"></i> Patient Lab History</a>
 <a href="{{ url_for('laboratory.abnormal_results') }}"><i class="bi bi-exclamation-triangle me-2" style="color: #ef4444;"></i> Panic / Abnormal Results</a>
+<a href="{{ url_for('laboratory.verification_queue') }}"><i class="bi bi-patch-check me-2" style="color: #f59e0b;"></i> Verification Queue</a>
 
 <div class="sidebar-heading mt-3">LIMS & Westgard QC</div>
-<a href="{{ url_for('laboratory.dashboard') }}"><i class="bi bi-bar-chart-line me-2" style="color: #10b981;"></i> LIMS & QC Dashboard</a>
+<a href="{{ url_for('laboratory.lims_dashboard') }}"><i class="bi bi-upc-scan me-2" style="color: #10b981;"></i> Specimen Tracking & QC</a>
+<a href="{{ url_for('laboratory.dashboard') }}"><i class="bi bi-bar-chart-line me-2" style="color: #10b981;"></i> Lab Statistics</a>
 <a href="{{ url_for('laboratory.processed_lab_results') }}"><i class="bi bi-check2-circle me-2"></i> Processed Results</a>
 
 <div class="sidebar-heading mt-3">Inventory & Reagents</div>

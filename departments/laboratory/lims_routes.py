@@ -169,6 +169,93 @@ def api_reject_specimen():
         return jsonify({"error": str(e)}), 400
 
 
+@bp.route("/api/lims/specimens/start-analysis", methods=["POST"])
+@login_required
+@roles_required("laboratory", "admin")
+def api_start_analysis_specimen():
+    """Marks a specimen as IN_ANALYSIS (P1-8: completes the state machine)."""
+    data = request.get_json(silent=True) or request.form
+    barcode = data.get("barcode") or data.get("specimen_id")
+    notes = data.get("notes")
+
+    if not barcode:
+        return jsonify({"error": "barcode or specimen_id required"}), 400
+
+    try:
+        specimen = LIMSService.update_specimen_status(
+            specimen_id_or_barcode=barcode,
+            new_status="IN_ANALYSIS",
+            user_id=current_user.id,
+            notes=notes,
+        )
+        return jsonify(
+            {
+                "message": f"Specimen {specimen.barcode} moved to analysis",
+                "status": specimen.status,
+            }
+        )
+    except (ValueError, KeyError, SQLAlchemyError) as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@bp.route("/api/lims/specimens/complete", methods=["POST"])
+@login_required
+@roles_required("laboratory", "admin")
+def api_complete_specimen():
+    """Marks a specimen as COMPLETED (analysis finished, result recorded)."""
+    data = request.get_json(silent=True) or request.form
+    barcode = data.get("barcode") or data.get("specimen_id")
+    notes = data.get("notes")
+
+    if not barcode:
+        return jsonify({"error": "barcode or specimen_id required"}), 400
+
+    try:
+        specimen = LIMSService.update_specimen_status(
+            specimen_id_or_barcode=barcode,
+            new_status="COMPLETED",
+            user_id=current_user.id,
+            notes=notes,
+        )
+        return jsonify(
+            {
+                "message": f"Specimen {specimen.barcode} completed",
+                "status": specimen.status,
+            }
+        )
+    except (ValueError, KeyError, SQLAlchemyError) as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@bp.route("/api/lims/specimens/dispose", methods=["POST"])
+@login_required
+@roles_required("laboratory", "admin")
+def api_dispose_specimen():
+    """Marks a completed specimen as DISPOSED (biohazard disposal)."""
+    data = request.get_json(silent=True) or request.form
+    barcode = data.get("barcode") or data.get("specimen_id")
+    notes = data.get("notes")
+
+    if not barcode:
+        return jsonify({"error": "barcode or specimen_id required"}), 400
+
+    try:
+        specimen = LIMSService.update_specimen_status(
+            specimen_id_or_barcode=barcode,
+            new_status="DISPOSED",
+            user_id=current_user.id,
+            notes=notes,
+        )
+        return jsonify(
+            {
+                "message": f"Specimen {specimen.barcode} disposed",
+                "status": specimen.status,
+            }
+        )
+    except (ValueError, KeyError, SQLAlchemyError) as e:
+        return jsonify({"error": str(e)}), 400
+
+
 @bp.route("/api/lims/specimens/track/<barcode>", methods=["GET"])
 @login_required
 @roles_required("laboratory", "admin", "medicine")
@@ -280,15 +367,24 @@ def api_log_qc_run():
             json.loads(qc_result.violated_rules) if qc_result.violated_rules else []
         )
 
-        return jsonify(
-            {
-                "message": "QC run recorded and evaluated",
-                "qc_result_id": qc_result.id,
-                "z_score": qc_result.z_score,
-                "status": qc_result.status,
-                "violated_rules": violated_rules,
-            }
-        )
+        # P2-17: a REJECTED QC run means the analyzer is out of control.
+        # Surface an explicit clinical-safety warning in the response so the
+        # caller must consciously acknowledge it before reporting patient
+        # results from this analyzer.
+        resp = {
+            "message": "QC run recorded and evaluated",
+            "qc_result_id": qc_result.id,
+            "z_score": qc_result.z_score,
+            "status": qc_result.status,
+            "violated_rules": violated_rules,
+        }
+        if qc_result.status == "REJECT":
+            resp["clinical_safety_warning"] = (
+                "QC REJECTED — analyzer out of control. Do not release patient "
+                "results from this analyzer until QC passes. Repeat control "
+                "runs and investigate per SOP."
+            )
+        return jsonify(resp)
     except (ValueError, KeyError, SQLAlchemyError) as e:
         return jsonify({"error": str(e)}), 400
 

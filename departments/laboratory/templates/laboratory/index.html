@@ -83,7 +83,7 @@
   </div>
 
   <!-- Laboratory Queue Card -->
-  {% set req_list = pending_requests if pending_requests else (pending_lab_requests if pending_lab_requests else []) %}
+  {% set req_list = pending_lab_requests if pending_lab_requests else [] %}
   <div class="card border-0 shadow-sm">
     <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
       <h5 class="mb-0 fw-bold text-dark">
@@ -116,15 +116,15 @@
               </td>
               <td>
                 <div class="fw-bold text-dark fs-6">
-                  {{ request.patient.name if request.patient else (request.name if request.name else 'Unknown Patient') }}
+                  {{ request.patient.name if request.patient else 'Unknown Patient' }}
                 </div>
                 <small class="badge bg-light text-info font-monospace border">
-                  {{ request.patient_id if request.patient_id else (request.patient.patient_id if request.patient else 'N/A') }}
+                  {{ request.patient_id }}
                 </small>
               </td>
               <td>
                 <div class="fw-semibold text-dark">
-                  {{ request.lab_test.test_name if request.lab_test else (request.test_name if request.test_name else 'Lab Investigation') }}
+                  {{ request.lab_test.test_name if request.lab_test else 'Lab Investigation' }}
                 </div>
               </td>
               <td>
@@ -133,7 +133,8 @@
                 </span>
               </td>
               <td class="text-end">
-                <a href="{{ url_for('laboratory.process_lab_request', request_id=request.lab_test.id if request.lab_test else (request.id if request.id else 1)) }}" class="btn btn-sm btn-info text-white fw-semibold">
+                <!-- request.id is the RequestedLab PK — never substitute another id here -->
+                <a href="{{ url_for('laboratory.process_lab_request', request_id=request.id) }}" class="btn btn-sm btn-info text-white fw-semibold">
                   <i class="bi bi-play-circle me-1"></i> Process Test
                 </a>
               </td>
@@ -147,6 +148,17 @@
         <i class="bi bi-emoji-smile fs-1 text-success d-block mb-3"></i>
         <h5 class="text-dark fw-bold">All caught up!</h5>
         <p class="text-muted mb-0">No pending lab test requests currently in the queue.</p>
+      </div>
+      {% endif %}
+      {% if pending_requests %}
+      <div class="alert alert-warning d-flex align-items-center gap-2 m-3 mb-0">
+        <i class="bi bi-people-fill me-2"></i>
+        <div>
+          {{ pending_requests | length }} patient{{ 's are' if pending_requests | length != 1 else ' is' }} in the
+          <strong>AWAITING_LAB</strong> stage of the visit flow (see
+          <a href="{{ url_for('ui_dashboard.live_queue_dashboard') }}">Live Queue</a>).
+          Individual test orders for these patients appear above once requested.
+        </div>
       </div>
       {% endif %}
     </div>
