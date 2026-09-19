@@ -2,7 +2,7 @@ import logging
 from decimal import Decimal, InvalidOperation
 
 from flask import abort, flash, redirect, render_template, request, url_for
-from flask_login import current_user, login_required
+from flask_login import login_required
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
@@ -70,7 +70,7 @@ def lab_tests():
         # Render the lab_tests.html template with the fetched data
         return render_template("laboratory/lab_tests.html", lab_tests=lab_tests)
 
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in laboratory.lab_tests")
         return redirect(url_for("laboratory.index"))
@@ -208,7 +208,7 @@ def edit_lab_test(test_id):
         logger.warning("Invalid input in laboratory.edit_lab_test: %s", ve)
         return redirect(url_for("laboratory.edit_lab_test", test_id=test_id))
 
-    except (SQLAlchemyError, ValueError, KeyError) as e:
+    except (SQLAlchemyError, ValueError, KeyError):
         flash("Something went wrong. Please try again.", "error")
         db.session.rollback()  # Rollback changes in case of error
         logger.exception("Error in laboratory.edit_lab_test")
@@ -249,7 +249,7 @@ def delete_lab_test(test_id):
         flash("Lab test deleted successfully!", "success")
         return redirect(url_for("laboratory.lab_tests"))
 
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in laboratory.delete_lab_test")
@@ -318,7 +318,7 @@ def add_lab_test():
         # Render the add form on GET request
         return render_template("laboratory/add_lab_test.html")
 
-    except (SQLAlchemyError, ValueError) as e:
+    except (SQLAlchemyError, ValueError):
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in laboratory.add_lab_test")
@@ -343,7 +343,7 @@ def view_lab_test(test_id):
             parameters=result_templates,
         )
 
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in laboratory.view_lab_test")
         return redirect(url_for("laboratory.lab_tests"))

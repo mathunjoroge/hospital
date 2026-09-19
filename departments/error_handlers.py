@@ -1,4 +1,5 @@
 import logging
+
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFError
 

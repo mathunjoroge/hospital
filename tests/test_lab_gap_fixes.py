@@ -17,13 +17,11 @@ from datetime import datetime, timezone
 import pytest
 from werkzeug.security import generate_password_hash
 
-from departments.laboratory.panic_alerts import evaluate_panic_level
 from departments.models.laboratory import LabResult, LabResultTemplate
 from departments.models.medicine import LabTest, RequestedLab
 from departments.models.records import Patient
 from departments.models.user import User
 from extensions import db
-
 
 # ─── helpers / fixtures ──────────────────────────────────────────────────────
 

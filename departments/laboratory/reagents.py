@@ -98,7 +98,7 @@ def reagents_order():
             lab_reagents=lab_reagents,
         )
 
-    except (SQLAlchemyError, ValueError) as e:
+    except (SQLAlchemyError, ValueError):
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in laboratory.reagents_order")
@@ -124,7 +124,7 @@ def lab_reagent_inventory():
             "laboratory/lab_reagent_inventory.html", reagents=reagents
         )
 
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in laboratory.lab_reagent_inventory")
         return redirect(url_for("laboratory.index"))
@@ -166,7 +166,7 @@ def request_reagent_restock():
         flash("Reagent restock request submitted!", "success")
         return redirect(url_for("laboratory.lab_reagent_inventory"))
 
-    except (SQLAlchemyError, ValueError) as e:
+    except (SQLAlchemyError, ValueError):
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in laboratory.request_reagent_restock")

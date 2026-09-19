@@ -3,7 +3,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from flask import Response, abort, flash, redirect, render_template, request, url_for
+from flask import Response, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -164,7 +164,7 @@ def process_lab_request(request_id):
             result_id=str(uuid.uuid4()),
         )
 
-    except (SQLAlchemyError, ValueError, KeyError, json.JSONDecodeError) as e:
+    except (SQLAlchemyError, ValueError, KeyError, json.JSONDecodeError):
         flash("Something went wrong. Please try again.", "error")
         db.session.rollback()  # Rollback changes in case of error
         logger.exception("Error in laboratory.process_lab_request")
@@ -261,7 +261,7 @@ def view_lab_results(result_id):
             test_presentation=test_presentation,
         )
 
-    except (SQLAlchemyError, ValueError, KeyError) as e:
+    except (SQLAlchemyError, ValueError, KeyError):
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in laboratory.view_lab_results")
         return redirect(url_for("laboratory.index"))
@@ -288,7 +288,7 @@ def pending_lab_results():
             pending_lab_requests=pending_lab_requests,
         )
 
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in laboratory.pending_lab_results")
         return redirect(url_for("laboratory.index"))
@@ -335,7 +335,7 @@ def processed_lab_results():
             pagination=pagination,
         )
 
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in laboratory.processed_lab_results")
         return redirect(url_for("laboratory.index"))

@@ -91,7 +91,7 @@ def expiries():
 
         return render_template("pharmacy/expiries.html", expired_drugs=expired_drugs)
 
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in pharmacy.expiries")
         return redirect(url_for("home"))
@@ -145,7 +145,7 @@ def remove_batch(batch_id):
         db.session.commit()
 
         flash(f"Batch {batch.batch_number} removed from inventory.", "success")
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in pharmacy.remove_batch")
@@ -211,7 +211,7 @@ def remove_all_expiries():
         flash(
             f"Removed {len(expired_batches)} expired batches from inventory.", "success"
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in pharmacy.remove_all_expiries")
@@ -280,7 +280,7 @@ def inventory():
             normal_stock_drugs=normal_stock_drugs,
         )
 
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in pharmacy.inventory")
         return redirect(url_for("home"))
@@ -418,7 +418,7 @@ def record_purchase():
 
         return render_template("pharmacy/record_purchase.html", drugs=drugs)
 
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in pharmacy.record_purchase")
         return redirect(url_for("pharmacy.index"))
@@ -464,7 +464,7 @@ def low_stock():
             "pharmacy/low_stock.html", low_stock_drugs=low_stock_drugs
         )
 
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in pharmacy.low_stock")
         return redirect(url_for("pharmacy.index"))
@@ -530,7 +530,7 @@ def drug_requests():
             latest_request=latest_request,
         )
 
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in pharmacy.drug_requests")
@@ -556,7 +556,7 @@ def save_order():
 
         return redirect(url_for("pharmacy.index"))  # Redirect to pharmacy dashboard
 
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
         logger.exception("Error in pharmacy.save_order")

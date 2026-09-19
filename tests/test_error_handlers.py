@@ -1,4 +1,3 @@
-import pytest
 
 
 def test_csrf_error_handler_returns_custom_json(client, app, admin_user):

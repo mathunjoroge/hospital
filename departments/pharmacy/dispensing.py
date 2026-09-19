@@ -186,9 +186,7 @@ def delete_dispensed_drug(dispensed_drug_id):
         return redirect(request.referrer or url_for("pharmacy.index"))
 
     try:
-        dispensed_drug = void_dispensed_drug(
-            dispensed_drug_id, void_reason, current_user.id
-        )
+        void_dispensed_drug(dispensed_drug_id, void_reason, current_user.id)
         db.session.commit()
         flash("Dispensing record voided and stock restored successfully.", "success")
 
