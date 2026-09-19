@@ -370,7 +370,7 @@ def dashboard():
     panic_tests = LabResult.query.filter_by(panic_status="PANIC_CRITICAL").count()
 
     # P2-13: turnaround time (request -> result) over the last 30 days.
-    from datetime import timedelta
+    from datetime import datetime, timedelta, timezone
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=30)
     tat_rows = (

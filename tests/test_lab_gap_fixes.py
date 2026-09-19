@@ -438,3 +438,11 @@ class TestDeletionGuards:
 
         with app.app_context():
             assert db.session.get(LabTest, fresh_id) is None
+
+    def test_dashboard_route(self, client, lab_setup):
+        """GET /laboratory/dashboard renders cleanly and calculates TAT."""
+        _login(client, "gaplab_tech")
+        resp = client.get("/laboratory/dashboard")
+        assert resp.status_code == 200
+        assert b"Laboratory Dashboard" in resp.data or b"Dashboard" in resp.data
+
