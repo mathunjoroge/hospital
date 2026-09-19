@@ -128,7 +128,15 @@ def test_oncology_note_void_preserves_record(client, app):
     with app.app_context():
         saved_note = db.session.get(OncologyNote, note_id)
         assert saved_note is not None
-        assert getattr(saved_note, "is_voided", True) is True
+        # NB: the original assertion used getattr(..., "is_voided", True), whose
+        # default made it pass even though no such column existed and nothing
+        # was persisted. Assert the real, persisted state instead.
+        assert saved_note.is_voided is True
+        assert saved_note.voided_reason == "Entered in error"
+        assert saved_note.voided_by == admin_id
+        assert saved_note.voided_at is not None
+        # original text is preserved (void, never delete)
+        assert saved_note.note_content == "Initial oncology note content"
 
 
 # ── 7. Pharmacy Void Workflow (Dispensing) ──

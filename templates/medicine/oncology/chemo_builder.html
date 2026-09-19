@@ -80,7 +80,7 @@
     <a class="navbar-brand d-flex align-items-center gap-2" href="#">
       <i class="bi bi-capsule-prescription fs-4 text-purple" style="color: var(--accent-purple);"></i>
       <span class="fw-bold fs-5">Oncology &amp; Chemotherapy Protocol Builder</span>
-      <span class="badge bg-purple text-white fw-bold ms-2" style="background-color: var(--accent-purple);">Patient: {{ patient_id }}</span>
+      <span class="badge bg-purple text-white fw-bold ms-2" style="background-color: var(--accent-purple);">Patient: {{ patient_name }} ({{ patient_id }})</span>
     </a>
     <div class="d-flex align-items-center gap-3">
       <button class="btn btn-outline-light btn-sm" onclick="window.location.reload();">
@@ -91,6 +91,9 @@
 </nav>
 
 <div class="container-fluid px-4">
+
+  <!-- Calculation / validation errors (never leave stale doses on screen) -->
+  <div id="calcError" class="alert alert-danger d-none" role="alert"></div>
 
   <!-- Toxicity Warning Banners -->
   <div id="toxicityBanner" class="alert-banner-toxicity d-flex align-items-center justify-content-between d-none">
@@ -112,11 +115,11 @@
       <div class="row g-3 align-items-end">
         <div class="col-md-2">
           <label class="form-label text-muted small fw-bold">Height (cm)</label>
-          <input type="number" class="form-control bg-secondary text-white border-0" id="heightCm" value="170" onchange="recalculateChemo()">
+          <input type="number" class="form-control bg-secondary text-white border-0" id="heightCm" min="30" max="250" step="0.1" placeholder="measured cm" required onchange="recalculateChemo()">
         </div>
         <div class="col-md-2">
           <label class="form-label text-muted small fw-bold">Weight (kg)</label>
-          <input type="number" class="form-control bg-secondary text-white border-0" id="weightKg" value="70" onchange="recalculateChemo()">
+          <input type="number" class="form-control bg-secondary text-white border-0" id="weightKg" min="1" max="350" step="0.1" placeholder="measured kg" required onchange="recalculateChemo()">
         </div>
         <div class="col-md-3">
           <label class="form-label text-muted small fw-bold">BSA Formula</label>
@@ -127,7 +130,7 @@
         </div>
         <div class="col-md-3">
           <label class="form-label text-muted small fw-bold">Chemotherapy Protocol</label>
-          <select class="form-select bg-secondary text-white border-0" id="protocolName" onchange="recalculateChemo()">
+          <select class="form-select bg-secondary text-white border-0" id="protocolName" onchange="onProtocolChange()">
             <option value="FOLFOX6">FOLFOX6 (Colorectal Cancer)</option>
             <option value="AC-T" selected>AC-T (Breast Cancer)</option>
             <option value="ABVD">ABVD (Hodgkin Lymphoma)</option>
@@ -137,7 +140,7 @@
         <div class="col-md-2">
           <div class="kpi-card text-center py-2 px-3">
             <div class="text-muted small fw-semibold text-uppercase">BSA (m²)</div>
-            <div class="kpi-val text-info" id="bsaDisplay">1.82</div>
+            <div class="kpi-val text-info" id="bsaDisplay">&mdash;</div>
           </div>
         </div>
       </div>
@@ -148,7 +151,7 @@
   <div class="card bg-dark border-secondary mb-4">
     <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center py-3">
       <h5 class="mb-0 text-white fw-bold"><i class="bi bi-prescription2 text-cyan me-2" style="color: var(--accent-cyan);"></i>Calculated Chemotherapy Doses</h5>
-      <span class="badge bg-purple text-white" id="cancerTypeBadge">Breast Cancer</span>
+      <span class="badge bg-purple text-white" id="cancerTypeBadge">&mdash;</span>
     </div>
     <div class="card-body p-0">
       <div class="table-responsive">
@@ -177,13 +180,13 @@
     <div class="card-body d-flex justify-content-between align-items-center">
       <div class="d-flex align-items-center gap-3">
         <label class="form-label text-white mb-0 fw-bold">Cycle Number:</label>
-        <input type="number" class="form-control bg-secondary text-white border-0" id="cycleNum" value="1" style="width: 80px;">
+        <input type="number" class="form-control bg-secondary text-white border-0" id="cycleNum" value="1" min="1" max="30" style="width: 80px;" onchange="recalculateChemo()">
         <span class="text-muted">of</span>
-        <input type="number" class="form-control bg-secondary text-white border-0" id="totalCycles" value="6" style="width: 80px;">
+        <input type="number" class="form-control bg-secondary text-white border-0" id="totalCycles" value="8" min="1" max="30" style="width: 80px;">
         <span class="text-muted">total cycles</span>
       </div>
       <div>
-        <button class="btn btn-purple text-white fw-bold px-4 py-2" style="background-color: var(--accent-purple);" onclick="saveChemoOrder()">
+        <button id="signBtn" class="btn btn-purple text-white fw-bold px-4 py-2" style="background-color: var(--accent-purple);" onclick="saveChemoOrder()" disabled>
           <i class="bi bi-shield-check me-2"></i>Sign &amp; Order Chemotherapy Regimen
         </button>
       </div>
@@ -194,86 +197,155 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  const patientId = "{{ patient_id }}";
+  const patientId = {{ patient_id|tojson }};
+  let lastCalcOk = false;
 
-  async function recalculateChemo() {
+  function esc(v) {
+    const d = document.createElement('div');
+    d.textContent = v == null ? '' : String(v);
+    return d.innerHTML;
+  }
+
+  function showCalcError(message) {
+    lastCalcOk = false;
+    document.getElementById('signBtn').disabled = true;
+    const box = document.getElementById('calcError');
+    box.textContent = message;
+    box.classList.remove('d-none');
+    // Never leave the previous patient's/inputs' doses on screen.
+    document.getElementById('chemoTableBody').innerHTML = '';
+    document.getElementById('bsaDisplay').innerText = '\u2014';
+    document.getElementById('toxicityBanner').classList.add('d-none');
+  }
+
+  function clearCalcError() {
+    document.getElementById('calcError').classList.add('d-none');
+  }
+
+  async function onProtocolChange() {
+    // Apply the protocol's default cycle count, then recalculate.
+    await recalculateChemo(true);
+  }
+
+  async function recalculateChemo(applyDefaultCycles = false) {
     const height = document.getElementById('heightCm').value;
     const weight = document.getElementById('weightKg').value;
     const formula = document.getElementById('bsaFormula').value;
     const protocol = document.getElementById('protocolName').value;
+    const cycle = document.getElementById('cycleNum').value;
 
-    const res = await fetch(`/medicine/oncology/api/calculate-chemo?patient_id=${patientId}&protocol=${protocol}&height=${height}&weight=${weight}&formula=${formula}`);
-    if(!res.ok) return;
+    if (!height || !weight) {
+      showCalcError('Enter the patient\u2019s measured height and weight to calculate doses.');
+      return;
+    }
 
-    const data = await res.json();
+    const qs = new URLSearchParams({patient_id: patientId, protocol, height, weight, formula, cycle});
+    let res, data;
+    try {
+      res = await fetch(`/medicine/oncology/api/calculate-chemo?${qs}`);
+      data = await res.json();
+    } catch (e) {
+      showCalcError('Could not reach the server. Doses are NOT calculated.');
+      return;
+    }
+    if (!res.ok) {
+      showCalcError(data.message || 'Dose calculation failed.');
+      return;
+    }
+    clearCalcError();
+
     document.getElementById('bsaDisplay').innerText = data.bsa_m2;
     document.getElementById('cancerTypeBadge').innerText = data.cancer_type;
+    if (applyDefaultCycles && data.default_total_cycles) {
+      document.getElementById('totalCycles').value = data.default_total_cycles;
+    }
 
     // Toxicity Banner
     const banner = document.getElementById('toxicityBanner');
     const details = document.getElementById('toxicityDetails');
-    if(data.has_toxicity_warning) {
+    if (data.has_toxicity_warning) {
       banner.classList.remove('d-none');
-      details.innerHTML = data.toxicity_warnings.map(w => `<div>• ${w}</div>`).join('');
+      details.innerHTML = data.toxicity_warnings.map(w => `<div>\u2022 ${esc(w)}</div>`).join('');
     } else {
       banner.classList.add('d-none');
     }
 
-    // Populate Table
+    // Populate Table. Doses and cumulative totals are ABSOLUTE amounts (d.dose_unit);
+    // only the protocol basis is per m\u00b2 (d.unit).
     const tbody = document.getElementById('chemoTableBody');
     tbody.innerHTML = '';
     data.drugs.forEach(d => {
       const tr = document.createElement('tr');
       const capBadge = d.cap_exceeded
         ? `<span class="badge bg-danger text-white"><i class="bi bi-exclamation-triangle-fill me-1"></i>Cap Exceeded</span>`
-        : `<span class="badge bg-success text-dark"><i class="bi bi-check-circle me-1"></i>Safe</span>`;
+        : `<span class="badge bg-success text-dark"><i class="bi bi-check-circle me-1"></i>Within cap</span>`;
+      const perM2 = (v) => d.dose_per_m2 ? ` <span class="text-muted">(${esc(v)} mg/m\u00b2)</span>` : '';
 
       tr.innerHTML = `
-        <td class="fw-bold text-white">${d.drug_name}</td>
-        <td>${d.dose_per_m2 ? d.dose_per_m2 + ' ' + d.unit : 'Fixed Dose'}</td>
-        <td><span class="badge bg-info text-dark fw-bold fs-6">${d.dose_display}</span></td>
-        <td class="small text-muted">${d.route}</td>
-        <td>${d.prev_cumulative_dose} ${d.unit}</td>
-        <td><span class="fw-bold ${d.cap_exceeded ? 'text-danger' : 'text-light'}">${d.new_cumulative_dose} ${d.unit}</span></td>
+        <td class="fw-bold text-white">${esc(d.drug_name)}</td>
+        <td>${d.dose_per_m2 ? esc(d.dose_per_m2) + ' ' + esc(d.unit) : 'Fixed Dose'}</td>
+        <td><span class="badge bg-info text-dark fw-bold fs-6">${esc(d.dose_display)}</span></td>
+        <td class="small text-muted">${esc(d.route)}</td>
+        <td>${esc(d.prev_cumulative_dose)} ${esc(d.dose_unit)}${perM2(d.prev_cumulative_per_m2)}</td>
+        <td><span class="fw-bold ${d.cap_exceeded ? 'text-danger' : 'text-light'}">${esc(d.new_cumulative_dose)} ${esc(d.dose_unit)}</span>${perM2(d.new_cumulative_per_m2)}</td>
         <td>${capBadge}</td>
       `;
       tbody.appendChild(tr);
     });
+    lastCalcOk = true;
+    document.getElementById('signBtn').disabled = false;
   }
 
-  async function saveChemoOrder() {
-    const height = document.getElementById('heightCm').value;
-    const weight = document.getElementById('weightKg').value;
-    const formula = document.getElementById('bsaFormula').value;
-    const protocol = document.getElementById('protocolName').value;
-    const cycle = document.getElementById('cycleNum').value;
-    const total_cycles = document.getElementById('totalCycles').value;
-
+  async function postOrder(overrideReason) {
+    const payload = {
+      patient_id: patientId,
+      protocol_name: document.getElementById('protocolName').value,
+      height_cm: document.getElementById('heightCm').value,
+      weight_kg: document.getElementById('weightKg').value,
+      bsa_formula: document.getElementById('bsaFormula').value,
+      cycle_number: document.getElementById('cycleNum').value,
+      total_cycles: document.getElementById('totalCycles').value
+    };
+    if (overrideReason) payload.toxicity_override_reason = overrideReason;
     const res = await fetch(`/medicine/oncology/api/save-chemo-order`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        patient_id: patientId,
-        protocol_name: protocol,
-        height_cm: height,
-        weight_kg: weight,
-        bsa_formula: formula,
-        cycle_number: cycle,
-        total_cycles: total_cycles
-      })
+      body: JSON.stringify(payload)
     });
+    return {res, body: await res.json().catch(() => ({}))};
+  }
 
-    if(res.ok) {
+  async function saveChemoOrder() {
+    if (!lastCalcOk) {
+      alert('Doses are not currently calculated. Fix the highlighted problem first.');
+      return;
+    }
+    let {res, body} = await postOrder(null);
+
+    // Lifetime cap exceeded: the prescriber must document a justification.
+    if (res.status === 409 && body.code === 'TOXICITY_OVERRIDE_REQUIRED') {
+      const lines = (body.toxicity_warnings || []).join('\n');
+      const reason = prompt(
+        (body.message || 'Lifetime toxicity cap exceeded.') + '\n\n' + lines +
+        '\n\nEnter the documented clinical justification to override (min. 10 characters), or Cancel to stop:'
+      );
+      if (!reason || reason.trim().length < 10) {
+        alert('Order NOT saved: a documented justification is required to exceed a lifetime cap.');
+        return;
+      }
+      ({res, body} = await postOrder(reason.trim()));
+    }
+
+    if (res.ok) {
       alert('Chemotherapy Regimen Order signed and saved successfully!');
       window.location.reload();
     } else {
-      const err = await res.json();
-      alert('Order Error: ' + (err.message || 'Failed to save chemotherapy order'));
+      alert('Order Error: ' + (body.message || 'Failed to save chemotherapy order'));
     }
   }
 
-  // Initial load calculation
-  window.onload = recalculateChemo;
+  // Nothing is calculated until measured height/weight are entered.
+  window.onload = () => recalculateChemo(true);
 </script>
 </div>
 {% endblock %}

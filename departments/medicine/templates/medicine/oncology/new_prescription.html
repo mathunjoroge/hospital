@@ -77,7 +77,8 @@
 
           <div class="mb-3">
             <label for="prescribed_by" class="form-label">Prescribed By</label>
-            <input type="text" class="form-control" id="prescribed_by" name="prescribed_by" placeholder="Enter doctor's name" required {% if no_bookings or no_regimens %}disabled{% endif %}>
+            <input type="text" class="form-control" id="prescribed_by" value="{{ current_user.full_name or current_user.username }}" readonly disabled>
+            <div class="form-text">Recorded automatically from your login.</div>
           </div>
 
           <div class="mb-3">

@@ -508,7 +508,7 @@ class OncoPatient(db.Model):
     cancer_type = db.Column(
         db.String(100), nullable=False
     )  # e.g., 'Breast', 'Lung', 'Prostate'
-    stage = db.Column(db.String(20), nullable=False)  # e.g., 'Stage I', 'Stage II'
+    stage = db.Column(db.String(100), nullable=False)  # e.g., 'Stage I', 'Stage II'
     date_enrolled = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     status = db.Column(db.String(20), default="Active", nullable=False)
     patient = db.relationship(
@@ -536,6 +536,15 @@ class OncologyNote(db.Model):
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
+    # Soft-void (clinical records are never physically deleted). These MUST be
+    # mapped columns: assigning unmapped attributes on the instance is silently
+    # discarded at commit time.
+    is_voided = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.false()
+    )
+    voided_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    voided_at = db.Column(db.DateTime, nullable=True)
+    voided_reason = db.Column(db.String(500), nullable=True)
     patient = db.relationship(
         "Patient",
         backref=db.backref(

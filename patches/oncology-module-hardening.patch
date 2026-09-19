@@ -1,0 +1,4128 @@
+From 9b0a1d614aafb967859f1cb62f21dfa27cf9a9e7 Mon Sep 17 00:00:00 2001
+From: Oncology Review <review@example.com>
+Date: Sat, 19 Sep 2026 07:44:49 +0000
+Subject: [PATCH] Oncology module: fix patient-safety, data-integrity and
+ access-control gaps
+
+Review of the oncology module (chemotherapy engine, chart/encounter, notes,
+bookings, legacy chemo prescriptions). Every defect below was reproduced
+before fixing; most on real PostgreSQL 16, which is the production target
+(the module only "worked" on SQLite through type affinity).
+
+CHEMOTHERAPY ENGINE / API  (departments/medicine/chemotherapy_engine.py)
+- No invented patient data: calculate_bsa() returned 1.73 m2 for any invalid
+  input and the API defaulted missing/garbage height/weight to 170 cm / 70 kg.
+  nan/inf were accepted (HTTP 200, BSA nan/inf). Now rejected with a clear
+  error; plausibility bounds 30-250 cm / 1-350 kg; formula whitelisted.
+- Fail closed: the cumulative-dose lookup did `except Exception: pass` and
+  returned {}, silently disabling every lifetime-cap check (and the table was
+  never migrated, see below). Now raises -> API returns 503.
+- Cancelled orders no longer count toward lifetime totals.
+- Lifetime mg/m2 is accumulated per order with that order's own BSA instead of
+  dividing a mg total by today's BSA (which under-detects the cap when BSA grows).
+- Units: absolute doses/cumulatives were labelled "mg/m2" (e.g. "109.2 mg/m2")
+  in the API and UI; bleomycin cap message said "units/m2".
+- AC-T gave doxorubicin+cyclophosphamide+paclitaxel every cycle. It is
+  sequential (AC x4 then T x4): drugs are now phase-gated by cycle.
+- Vincristine single-dose cap now also comes from the global cap table so a
+  future protocol cannot bypass it.
+- Save endpoint: requires an existing patient; validates cycle/total cycles;
+  rejects duplicate active cycle orders (also a partial unique index);
+  a lifetime-cap warning is a hard stop unless a documented justification
+  (>=10 chars) is supplied and stored; garbage numbers are 400, not 500;
+  order creation is audited and rolled back if the audit row cannot be written.
+- New: order status workflow (ORDERED->PREPARED->ADMINISTERED, cancel with
+  reason, role-gated, audited) and a per-patient order list. Without a cancel
+  path an erroneous order permanently inflated cumulative dose.
+- Builder UI: no pre-filled 170/70, patient name shown, server errors shown
+  instead of leaving stale doses on screen, correct unit labels, cycle sent to
+  the calculator, override prompt flow, HTML-escaped output, |tojson id.
+
+SCHEMA  (models + migration e5f6a7b8c9d0)
+- chemotherapy_regimen_orders had NO migration and the model was not imported
+  by departments.models: databases built with `flask db upgrade` had no chemo
+  order table. Model registered; migration creates the table (or adds the new
+  columns + patient FK NOT VALID if it exists from create_all()).
+- oncology_notes had no void columns: the "void" route set unmapped attributes,
+  flashed success and persisted NOTHING (existing test used
+  getattr(note, "is_voided", True) and passed vacuously). Columns added.
+- onco_patients.stage widened 20->100 (CancerStage.label is 100).
+- Migration refuses (with an actionable message) to add the unique index over
+  pre-existing duplicate active orders rather than altering clinical data.
+  Downgrade never drops the chemo table. Verified on PostgreSQL 16: upgrade of
+  (a) a database lacking the table, as the migration chain produces, and (b) a
+  create_all()-era database with the old table shape; duplicate-order refusal
+  and recovery; downgrade/upgrade round trip; zero Alembic drift vs. the models.
+  NOTE: the repo's full chain cannot be run from an empty PostgreSQL database
+  for an unrelated pre-existing reason (an earlier revision uses
+  `BOOLEAN DEFAULT 0`), so (a) was built with the original code minus the table
+  and stamped at the previous head c3d4e5f6a7b8.
+
+PATIENT IDENTITY
+- OncoPatient.patient_id is a string FK to patients.patient_id but the
+  encounter view queried/wrote the integer PK and the enrol form posted it:
+  encounter page 500'd on PostgreSQL (varchar = integer) and enrolment
+  violated the FK.
+- Legacy prescriptions: onco_prescriptions.onco_patient_id is an INTEGER FK to
+  onco_patients.id but routes stored/compared the patient number (DataError /
+  "integer = varchar" 500 on PostgreSQL). Now resolved via the enrolment row.
+- Fuzzy ILIKE patient lookups replaced by exact matches. In the AI summary the
+  consent check was exact but the patient was resolved with ILIKE '%x%' on id
+  OR name, so consent for "P1" released the notes of "P10" to the LLM
+  (reproduced). Bookings validated fuzzily then stored the raw text.
+
+CHART / NOTES
+- Editing oncology details silently discarded edits (form re-populated from DB
+  before POST was read). Names (not ids) are stored, stage is checked against
+  the cancer type, PRG redirect after POST (refresh no longer duplicates notes).
+- Voided notes are flagged in the UI, cannot be edited, and are excluded from
+  the AI summary; the void form now actually sends the required reason.
+- Note amendments keep the previous text in the append-only audit log
+  (SECURITY.md: immutable clinical history).
+- AI summary: disclosure audited before the model call, prompt size bounded.
+- Stage filter fetched /get_stages, which 404s (blueprint is mounted at
+  /medicine), so the dependent stage dropdown never filtered.
+
+ACCESS CONTROL
+- Oncology chart, enrolment, note edit, bookings, legacy prescriptions and
+  disease admin were login_required only: a lab_tech could read and write the
+  chart. Now role-gated (write: doctor/medicine/oncology/admin; read adds
+  nurse/pharmacist; scheduling adds nurse). /get_stages was unauthenticated.
+- Legacy prescription: prescriber came from a free-text form field (spoofable);
+  now the logged-in user. Drugs must belong to the regimen, >=1 drug, regimen
+  must be Active, patient must be enrolled.
+- Removed print() calls that wrote patient ids/notes to stdout.
+- rbac.has_any_role(): non-aborting twin of roles_required (same semantics).
+
+TESTS
+- tests/test_oncology_hardening.py: 171 regression tests. Run against the
+  original code 138 fail; the other 33 pin behaviour that was already correct
+  (e.g. anonymous users bounced) or that the old code satisfied incidentally.
+- Four existing tests encoded the old behaviour and were updated: calculate_bsa
+  (0,0)==1.73; two engine tests ran with no app/DB at all and passed only
+  because the history lookup swallowed the error; builder test used a
+  non-existent patient. The vacuous void assertion now checks persisted state.
+
+BEHAVIOUR CHANGES TO BE AWARE OF
+- Saving an order over a lifetime cap now needs a documented justification.
+- The calculate/save APIs no longer accept missing biometrics (no defaults).
+- Non-clinical roles lose access to oncology patient data.
+- The legacy prescription "Prescribed by" field is ignored (login is used).
+
+NOT CHANGED - needs clinical / product sign-off (see review notes)
+- Protocol library values (incl. AC-T phase ranges and default cycle counts)
+  and bleomycin cap (300 vs. commonly cited 400 units).
+- ABVD is given on days 1 and 15: one order/cycle under-counts cumulative dose.
+- No cross-anthracycline (epirubicin/daunorubicin) equivalence; no ANC/platelet,
+  renal or hepatic gating; no independent double-check for chemo preparation.
+- The encounter page only renders forms/notes for patients with a booking.
+- Legacy prescription doses remain free text (the chemo builder is the safe path).
+---
+ departments/medicine/chemotherapy_engine.py   |  322 ++++-
+ departments/medicine/oncology.py              |  750 ++++++++--
+ departments/medicine/prescriptions.py         |  186 ++-
+ .../medicine/oncology/add_onco_patient.html   |    2 +-
+ .../medicine/oncology/encounter.html          |   27 +-
+ .../medicine/oncology/new_prescription.html   |    3 +-
+ departments/models/__init__.py                |    2 +
+ departments/models/medicine.py                |   11 +-
+ departments/models/oncology_models.py         |   43 +-
+ departments/rbac.py                           |   24 +
+ .../e5f6a7b8c9d0_oncology_module_hardening.py |  256 ++++
+ .../medicine/oncology/chemo_builder.html      |  164 ++-
+ tests/security/test_p0_security.py            |   10 +-
+ tests/test_oncology_chemotherapy.py           |   32 +-
+ tests/test_oncology_hardening.py              | 1263 +++++++++++++++++
+ 15 files changed, 2757 insertions(+), 338 deletions(-)
+ create mode 100644 migrations/versions/e5f6a7b8c9d0_oncology_module_hardening.py
+ create mode 100644 tests/test_oncology_hardening.py
+
+diff --git a/departments/medicine/chemotherapy_engine.py b/departments/medicine/chemotherapy_engine.py
+index 7bc71f4..d6511f1 100644
+--- a/departments/medicine/chemotherapy_engine.py
++++ b/departments/medicine/chemotherapy_engine.py
+@@ -3,12 +3,46 @@ departments/medicine/chemotherapy_engine.py
+ ─────────────────────────────────────────────
+ Clinical Engine for Oncology Body Surface Area (BSA) calculation,
+ standard chemotherapy protocol dosing, and cumulative lifetime toxicity tracking.
++
++Safety posture (this module drives real drug doses):
++  * Never invent patient data. Missing / non-numeric / non-finite / implausible
++    height or weight is rejected — there is no silent "standard adult" fallback.
++  * Fail CLOSED. If the cumulative-dose history cannot be read, the calculation
++    is refused rather than reporting "no prior exposure" (which would silently
++    disable the lifetime-cap check).
++  * Cancelled orders never count toward lifetime totals.
++  * Lifetime mg/m² exposure is accumulated per order using the BSA in effect when
++    that order was written, not by dividing a milligram total by today's BSA.
+ """
+ 
++import json
+ import math
+ from typing import Any
+ 
+ from departments.models.oncology_models import ChemotherapyRegimenOrder
++from extensions import db
++
++# Plausibility envelope for BSA inputs (adult + paediatric). Outside it, the
++# value is almost certainly a unit or data-entry error, so refuse to dose.
++HEIGHT_CM_RANGE = (30.0, 250.0)
++WEIGHT_KG_RANGE = (1.0, 350.0)
++BSA_FORMULAS = ("mosteller", "dubois")
++MAX_CYCLES = 30
++
++
++class ChemoInputError(ValueError):
++    """Invalid clinical input (biometrics, formula, cycle...). Safe to show to the prescriber."""
++
++    code = "INVALID_INPUT"
++
++
++class ChemoCycleError(ChemoInputError):
++    code = "CYCLE_OUT_OF_RANGE"
++
++
++class CumulativeHistoryUnavailable(RuntimeError):
++    """Prior chemotherapy exposure could not be read reliably; lifetime caps cannot be verified."""
++
+ 
+ # Cumulative Lifetime Toxicity Limits per standard Oncology Guidelines (NCCN/ASCO)
+ LIFETIME_TOXICITY_CAPS = {
+@@ -34,6 +68,7 @@ CHEMO_PROTOCOLS: dict[str, dict[str, Any]] = {
+     "FOLFOX6": {
+         "description": "Oxaliplatin, Leucovorin, and 5-Fluorouracil (Colorectal Cancer)",
+         "cancer_type": "Colorectal Cancer",
++        "default_total_cycles": 12,
+         "drugs": [
+             {
+                 "drug_name": "Oxaliplatin",
+@@ -64,30 +99,35 @@ CHEMO_PROTOCOLS: dict[str, dict[str, Any]] = {
+     "AC-T": {
+         "description": "Doxorubicin & Cyclophosphamide followed by Paclitaxel (Breast Cancer)",
+         "cancer_type": "Breast Cancer",
++        "default_total_cycles": 8,
+         "drugs": [
+             {
+                 "drug_name": "Doxorubicin",
+                 "dose_per_m2": 60.0,
+                 "unit": "mg/m2",
+                 "route": "IV Push",
++                "cycles": (1, 4),  # AC phase
+             },
+             {
+                 "drug_name": "Cyclophosphamide",
+                 "dose_per_m2": 600.0,
+                 "unit": "mg/m2",
+                 "route": "IV Infusion over 1h",
++                "cycles": (1, 4),  # AC phase
+             },
+             {
+                 "drug_name": "Paclitaxel",
+                 "dose_per_m2": 175.0,
+                 "unit": "mg/m2",
+                 "route": "IV Infusion over 3h",
++                "cycles": (5, 8),  # T phase (sequential, never concurrent with AC)
+             },
+         ],
+     },
+     "ABVD": {
+         "description": "Doxorubicin, Bleomycin, Vinblastine, Dacarbazine (Hodgkin Lymphoma)",
+         "cancer_type": "Hodgkin Lymphoma",
++        "default_total_cycles": 6,
+         "drugs": [
+             {
+                 "drug_name": "Doxorubicin",
+@@ -118,6 +158,7 @@ CHEMO_PROTOCOLS: dict[str, dict[str, Any]] = {
+     "CHOP": {
+         "description": "Cyclophosphamide, Doxorubicin, Vincristine, Prednisone (Non-Hodgkin Lymphoma)",
+         "cancer_type": "Non-Hodgkin Lymphoma",
++        "default_total_cycles": 6,
+         "drugs": [
+             {
+                 "drug_name": "Cyclophosphamide",
+@@ -149,6 +190,50 @@ CHEMO_PROTOCOLS: dict[str, dict[str, Any]] = {
+ }
+ 
+ 
++def _finite_number(value: Any, name: str) -> float:
++    """Parse a required, finite number. Never substitutes a default."""
++    if value is None or isinstance(value, bool):
++        raise ChemoInputError(f"{name} is required and must be a number.")
++    if isinstance(value, str) and not value.strip():
++        raise ChemoInputError(f"{name} is required and must be a number.")
++    try:
++        number = float(value)
++    except (TypeError, ValueError):
++        raise ChemoInputError(f"{name} must be a number.") from None
++    if not math.isfinite(number):
++        raise ChemoInputError(f"{name} must be a finite number.")
++    return number
++
++
++def normalize_bsa_formula(formula: Any) -> str:
++    """Return 'mosteller' or 'dubois'; reject anything else (no silent fallback)."""
++    if formula is None or (isinstance(formula, str) and not formula.strip()):
++        return "mosteller"
++    normalized = str(formula).strip().lower()
++    if normalized not in BSA_FORMULAS:
++        raise ChemoInputError(
++            f"Unsupported BSA formula '{formula}'. Valid options: {list(BSA_FORMULAS)}."
++        )
++    return normalized
++
++
++def validate_biometrics(height_cm: Any, weight_kg: Any) -> tuple[float, float]:
++    """Validate and return (height_cm, weight_kg) as finite, plausible floats."""
++    h = _finite_number(height_cm, "height (cm)")
++    w = _finite_number(weight_kg, "weight (kg)")
++    if not (HEIGHT_CM_RANGE[0] <= h <= HEIGHT_CM_RANGE[1]):
++        raise ChemoInputError(
++            f"Height {h:g} cm is outside the plausible range "
++            f"{HEIGHT_CM_RANGE[0]:g}-{HEIGHT_CM_RANGE[1]:g} cm. Check units."
++        )
++    if not (WEIGHT_KG_RANGE[0] <= w <= WEIGHT_KG_RANGE[1]):
++        raise ChemoInputError(
++            f"Weight {w:g} kg is outside the plausible range "
++            f"{WEIGHT_KG_RANGE[0]:g}-{WEIGHT_KG_RANGE[1]:g} kg. Check units."
++        )
++    return h, w
++
++
+ def calculate_bsa(
+     height_cm: float, weight_kg: float, formula: str = "mosteller"
+ ) -> float:
+@@ -158,45 +243,117 @@ def calculate_bsa(
+     Formulas:
+       - Mosteller: sqrt((height_cm * weight_kg) / 3600)
+       - DuBois: 0.007184 * (height_cm ** 0.725) * (weight_kg ** 0.425)
++
++    Raises ChemoInputError for missing, non-numeric, non-finite or implausible
++    inputs and for an unknown formula. There is deliberately NO default BSA.
+     """
++    h, w = validate_biometrics(height_cm, weight_kg)
++    formula_key = normalize_bsa_formula(formula)
++
++    if formula_key == "dubois":
++        bsa = 0.007184 * (h**0.725) * (w**0.425)
++    else:
++        bsa = math.sqrt((h * w) / 3600.0)
++
++    return round(bsa, 2)
++
++
++def get_protocol_max_cycle(protocol: dict[str, Any]) -> int | None:
++    """Highest cycle any phase-gated drug is scheduled for, or None if not phase-gated."""
++    ends = [d["cycles"][1] for d in protocol["drugs"] if "cycles" in d]
++    return max(ends) if ends else None
++
++
++def validate_cycle(cycle_number: Any, protocol: dict[str, Any]) -> int:
++    """Validate a cycle number against global limits and the protocol's phases."""
++    if isinstance(cycle_number, bool):
++        raise ChemoCycleError("cycle number must be a whole number.")
+     try:
+-        h = float(height_cm)
+-        w = float(weight_kg)
+-        if h <= 0 or w <= 0:
+-            return 1.73  # Standard adult default fallback
++        as_float = float(cycle_number)
++    except (TypeError, ValueError):
++        raise ChemoCycleError("cycle number must be a whole number.") from None
++    if not math.isfinite(as_float) or as_float != int(as_float):
++        raise ChemoCycleError("cycle number must be a whole number.")
++    cycle = int(as_float)
++    if not (1 <= cycle <= MAX_CYCLES):
++        raise ChemoCycleError(f"cycle number must be between 1 and {MAX_CYCLES}.")
++    max_cycle = get_protocol_max_cycle(protocol)
++    if max_cycle is not None and cycle > max_cycle:
++        raise ChemoCycleError(
++            f"cycle {cycle} is beyond the last cycle ({max_cycle}) of this protocol."
++        )
++    return cycle
+ 
+-        if formula.lower() == "dubois":
+-            bsa = 0.007184 * (h**0.725) * (w**0.425)
+-        else:  # mosteller default
+-            bsa = math.sqrt((h * w) / 3600.0)
+ 
+-        return round(bsa, 2)
+-    except (ValueError, TypeError):
+-        return 1.73
++def _absolute_unit(basis_unit: str) -> str:
++    """'mg/m2' -> 'mg', 'units/m2' -> 'units', 'mg' -> 'mg'."""
++    return basis_unit.split("/")[0]
+ 
+ 
+-def get_patient_cumulative_doses(patient_id: str) -> dict[str, float]:
++def get_patient_cumulative_exposure(patient_id: str) -> dict[str, dict[str, float]]:
+     """
+-    Query all historical chemotherapy orders for patient to sum cumulative lifetime doses.
+-    Returns dict mapping drug_name -> cumulative_dose.
++    Sum every non-cancelled chemotherapy order for the patient.
++
++    Returns {drug_name: {"total": <absolute dose>, "per_m2": <mg/m2 exposure>}}.
++    ``per_m2`` is accumulated per order using that order's own recorded BSA.
++
++    Raises CumulativeHistoryUnavailable if the history cannot be read or is
++    malformed — callers must NOT treat that as "no prior exposure".
+     """
+     totals: dict[str, float] = {}
++    per_m2: dict[str, float] = {}
+     try:
+-        orders = ChemotherapyRegimenOrder.query.filter_by(patient_id=patient_id).all()
+-        import json
+-
++        orders = ChemotherapyRegimenOrder.query.filter(
++            ChemotherapyRegimenOrder.patient_id == patient_id,
++            ChemotherapyRegimenOrder.status != "CANCELLED",
++        ).all()
+         for order in orders:
+             if not order.calculated_doses_json:
+                 continue
+-            doses = json.loads(order.calculated_doses_json)
+-            for d in doses:
+-                drug_name = d.get("drug_name")
+-                calc_dose = float(d.get("calculated_dose", 0.0))
+-                if drug_name:
+-                    totals[drug_name] = round(totals.get(drug_name, 0.0) + calc_dose, 2)
+-    except Exception:  # noqa: BLE001
+-        pass
+-    return totals
++            bsa = float(order.bsa_m2 or 0.0)
++            if not math.isfinite(bsa) or bsa <= 0:
++                raise CumulativeHistoryUnavailable(
++                    f"Order #{order.id} has an invalid recorded BSA ({order.bsa_m2})."
++                )
++            for dose in json.loads(order.calculated_doses_json):
++                drug_name = dose.get("drug_name")
++                if not drug_name:
++                    continue
++                amount = float(dose.get("calculated_dose", 0.0))
++                if not math.isfinite(amount):
++                    raise CumulativeHistoryUnavailable(
++                        f"Order #{order.id} has a non-numeric dose for {drug_name}."
++                    )
++                totals[drug_name] = totals.get(drug_name, 0.0) + amount
++                per_m2[drug_name] = per_m2.get(drug_name, 0.0) + amount / bsa
++    except CumulativeHistoryUnavailable:
++        raise
++    except Exception as exc:  # noqa: BLE001 - deliberately broad: ANY failure must fail closed
++        db.session.rollback()
++        raise CumulativeHistoryUnavailable(
++            "Prior chemotherapy history could not be read; lifetime toxicity "
++            "caps cannot be verified."
++        ) from exc
++
++    return {
++        name: {"total": round(totals[name], 2), "per_m2": round(per_m2[name], 2)}
++        for name in totals
++    }
++
++
++def get_patient_cumulative_doses(patient_id: str) -> dict[str, float]:
++    """
++    Cumulative absolute lifetime dose per drug (cancelled orders excluded).
++    Raises CumulativeHistoryUnavailable instead of silently returning {}.
++    """
++    return {
++        name: values["total"]
++        for name, values in get_patient_cumulative_exposure(patient_id).items()
++    }
++
++
++def _error(code: str, message: str) -> dict[str, Any]:
++    return {"error": True, "code": code, "message": message}
+ 
+ 
+ def calculate_regimen_doses(
+@@ -205,75 +362,101 @@ def calculate_regimen_doses(
+     height_cm: float,
+     weight_kg: float,
+     formula: str = "mosteller",
++    cycle_number: int = 1,
+ ) -> dict[str, Any]:
+     """
+     Calculate exact chemotherapy drug doses for patient BSA and verify cumulative toxicity caps.
++
++    On any problem returns ``{"error": True, "code": ..., "message": ...}`` — it never
++    falls back to assumed biometrics or to an assumed-empty dose history.
+     """
+-    proto_key = protocol_name.upper().strip()
++    proto_key = str(protocol_name or "").upper().strip()
+     if proto_key not in CHEMO_PROTOCOLS:
+-        return {
+-            "error": True,
+-            "message": f"Protocol '{protocol_name}' is not recognized. Valid options: {list(CHEMO_PROTOCOLS.keys())}",
+-        }
++        return _error(
++            "UNKNOWN_PROTOCOL",
++            f"Protocol '{protocol_name}' is not recognized. Valid options: {list(CHEMO_PROTOCOLS.keys())}",
++        )
+ 
+     protocol = CHEMO_PROTOCOLS[proto_key]
+-    bsa = calculate_bsa(height_cm, weight_kg, formula=formula)
+-    prev_cum_doses = get_patient_cumulative_doses(patient_id)
++
++    try:
++        formula_key = normalize_bsa_formula(formula)
++        bsa = calculate_bsa(height_cm, weight_kg, formula=formula_key)
++        cycle = validate_cycle(cycle_number, protocol)
++    except ChemoInputError as exc:
++        return _error(exc.code, str(exc))
++
++    try:
++        prev_exposure = get_patient_cumulative_exposure(patient_id)
++    except CumulativeHistoryUnavailable as exc:
++        return _error("CUMULATIVE_HISTORY_UNAVAILABLE", str(exc))
+ 
+     calculated_drugs = []
+     has_toxicity_warning = False
+     toxicity_warnings = []
+ 
+     for drug in protocol["drugs"]:
++        # Phase gating (e.g. AC-T: doxorubicin/cyclophosphamide cycles 1-4, paclitaxel 5-8)
++        if "cycles" in drug and not (drug["cycles"][0] <= cycle <= drug["cycles"][1]):
++            continue
++
+         drug_name = drug["drug_name"]
+-        unit = drug["unit"]
++        unit = drug["unit"]  # basis unit, e.g. "mg/m2"
++        dose_unit = _absolute_unit(unit)  # unit of the calculated dose, e.g. "mg"
+         route = drug["route"]
+ 
+         if "fixed_dose" in drug:
+             calc_dose = float(drug["fixed_dose"])
+-            dose_str = f"{calc_dose} {unit}"
++            dose_str = f"{calc_dose} {dose_unit}"
+             dose_per_m2 = None
+         else:
+             d_per_m2 = float(drug["dose_per_m2"])
+             dose_per_m2 = d_per_m2
+             raw_dose = round(bsa * d_per_m2, 1)
+ 
+-            # Apply single-dose max cap (e.g. Vincristine max 2.0 mg)
+-            if "cap_max_mg" in drug and raw_dose > drug["cap_max_mg"]:
+-                calc_dose = float(drug["cap_max_mg"])
+-                dose_str = f"{calc_dose} {unit} (Capped from {raw_dose} mg)"
++            # Single-dose max cap (e.g. Vincristine max 2.0 mg). Protocol-level
++            # cap wins; otherwise fall back to the drug's global single-dose cap
++            # so a future protocol containing the drug cannot bypass it.
++            single_cap = drug.get(
++                "cap_max_mg",
++                LIFETIME_TOXICITY_CAPS.get(drug_name, {}).get("single_dose_cap"),
++            )
++            if single_cap is not None and raw_dose > single_cap:
++                calc_dose = float(single_cap)
++                dose_str = (
++                    f"{calc_dose} {dose_unit} (Capped from {raw_dose} {dose_unit})"
++                )
+             else:
+                 calc_dose = raw_dose
+-                dose_str = f"{calc_dose} {unit}"
++                dose_str = f"{calc_dose} {dose_unit}"
+ 
+         # Cumulative lifetime dose evaluation
+-        prev_tot = prev_cum_doses.get(drug_name, 0.0)
++        prev = prev_exposure.get(drug_name, {"total": 0.0, "per_m2": 0.0})
++        prev_tot = prev["total"]
+         new_cum_tot = round(prev_tot + calc_dose, 1)
++        prev_per_m2 = prev["per_m2"]
++        new_per_m2 = round(prev_per_m2 + calc_dose / bsa, 1)
+         cap_exceeded = False
+         cap_warning = None
+ 
+-        if drug_name in LIFETIME_TOXICITY_CAPS:
+-            cap_info = LIFETIME_TOXICITY_CAPS[drug_name]
+-            if "limit_per_m2" in cap_info:
+-                # Cumulative dose per m2 = new_cum_tot / bsa
+-                cum_per_m2 = round(new_cum_tot / bsa, 1) if bsa > 0 else 0
+-                if cum_per_m2 > cap_info["limit_per_m2"]:
+-                    cap_exceeded = True
+-                    has_toxicity_warning = True
+-                    cap_warning = (
+-                        f"CRITICAL TOXICITY WARNING: Cumulative {drug_name} dose ({cum_per_m2} mg/m²) "
+-                        f"EXCEEDS lifetime cap of {cap_info['limit_per_m2']} mg/m² ({cap_info['organ']})."
+-                    )
+-                    toxicity_warnings.append(cap_warning)
+-            elif "limit_total" in cap_info:
+-                if new_cum_tot > cap_info["limit_total"]:
+-                    cap_exceeded = True
+-                    has_toxicity_warning = True
+-                    cap_warning = (
+-                        f"CRITICAL TOXICITY WARNING: Cumulative {drug_name} dose ({new_cum_tot} {unit}) "
+-                        f"EXCEEDS lifetime cap of {cap_info['limit_total']} {unit} ({cap_info['organ']})."
+-                    )
+-                    toxicity_warnings.append(cap_warning)
++        cap_info = LIFETIME_TOXICITY_CAPS.get(drug_name, {})
++        if "limit_per_m2" in cap_info:
++            if new_per_m2 > cap_info["limit_per_m2"]:
++                cap_exceeded = True
++                cap_warning = (
++                    f"CRITICAL TOXICITY WARNING: Cumulative {drug_name} dose ({new_per_m2} mg/m²) "
++                    f"EXCEEDS lifetime cap of {cap_info['limit_per_m2']} mg/m² ({cap_info['organ']})."
++                )
++        elif "limit_total" in cap_info:
++            if new_cum_tot > cap_info["limit_total"]:
++                cap_exceeded = True
++                cap_warning = (
++                    f"CRITICAL TOXICITY WARNING: Cumulative {drug_name} dose ({new_cum_tot} {dose_unit}) "
++                    f"EXCEEDS lifetime cap of {cap_info['limit_total']} {dose_unit} ({cap_info['organ']})."
++                )
++        if cap_exceeded:
++            has_toxicity_warning = True
++            toxicity_warnings.append(cap_warning)
+ 
+         calculated_drugs.append(
+             {
+@@ -281,10 +464,13 @@ def calculate_regimen_doses(
+                 "dose_per_m2": dose_per_m2,
+                 "calculated_dose": calc_dose,
+                 "dose_display": dose_str,
+-                "unit": unit,
++                "unit": unit,  # basis unit (per m2) — kept for API compatibility
++                "dose_unit": dose_unit,  # unit of calculated_dose and the cumulative totals
+                 "route": route,
+                 "prev_cumulative_dose": prev_tot,
+                 "new_cumulative_dose": new_cum_tot,
++                "prev_cumulative_per_m2": prev_per_m2,
++                "new_cumulative_per_m2": new_per_m2,
+                 "cap_exceeded": cap_exceeded,
+                 "cap_warning": cap_warning,
+             }
+@@ -295,10 +481,12 @@ def calculate_regimen_doses(
+         "protocol_name": proto_key,
+         "description": protocol["description"],
+         "cancer_type": protocol["cancer_type"],
+-        "height_cm": height_cm,
+-        "weight_kg": weight_kg,
++        "cycle_number": cycle,
++        "default_total_cycles": protocol.get("default_total_cycles"),
++        "height_cm": float(height_cm),
++        "weight_kg": float(weight_kg),
+         "bsa_m2": bsa,
+-        "bsa_formula": formula,
++        "bsa_formula": formula_key,
+         "drugs": calculated_drugs,
+         "has_toxicity_warning": has_toxicity_warning,
+         "toxicity_warnings": toxicity_warnings,
+diff --git a/departments/medicine/oncology.py b/departments/medicine/oncology.py
+index 02259d8..0c330e7 100644
+--- a/departments/medicine/oncology.py
++++ b/departments/medicine/oncology.py
+@@ -4,13 +4,21 @@ from datetime import datetime, timezone
+ 
+ from flask import abort, flash, jsonify, redirect, render_template, request, url_for
+ from flask_login import current_user, login_required
++from sqlalchemy.exc import IntegrityError
+ 
+ from departments.api.audit import log_audit_event
+ from departments.forms import OncologyNoteForm, OncoPatientForm, PatientSearchForm
+-from departments.medicine.chemotherapy_engine import calculate_regimen_doses
++from departments.medicine.chemotherapy_engine import (
++    MAX_CYCLES,
++    ChemoInputError,
++    calculate_regimen_doses,
++    normalize_bsa_formula,
++    validate_biometrics,
++)
+ from departments.models.compliance import has_ai_consent
+ from departments.models.laboratory import LabResultTemplate
+ from departments.models.medicine import (
++    CancerStage,
+     CancerType,
+     CancerTypeStage,
+     Disease,
+@@ -25,11 +33,15 @@ from departments.models.medicine import (
+     RegimenCategory,
+     SpecialWarning,
+ )
+-from departments.models.oncology_models import ChemotherapyRegimenOrder
++from departments.models.oncology_models import (
++    CHEMO_ALLOWED_TRANSITIONS,
++    CHEMO_STATUSES,
++    ChemotherapyRegimenOrder,
++)
+ from departments.models.records import Patient
+ from departments.nlp.chatbot import UniversalClinicalSummarizer
+ from departments.nlp.logging_setup import get_logger
+-from departments.rbac import roles_required
++from departments.rbac import has_any_role, roles_required
+ from extensions import db
+ 
+ from . import bp
+@@ -48,6 +60,70 @@ Summarizer = UniversalClinicalSummarizer(
+ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "pdf", "txt", "csv", "docx"}
+ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB max file size
+ 
++# ---------------------------------------------------------------------------
++# Access policy for the oncology module.
++#   READ  : anyone who legitimately needs the oncology chart / chemo orders.
++#   WRITE : clinicians who diagnose, document, prescribe or cancel.
++# Reference-data pages (drugs, regimens, warnings, cancer types) stay open to
++# any authenticated user; they contain no patient data.
++# ---------------------------------------------------------------------------
++CLINICAL_WRITE_ROLES = ("doctor", "medicine", "oncology", "admin")
++CLINICAL_READ_ROLES = CLINICAL_WRITE_ROLES + ("nurse", "pharmacist")
++SCHEDULING_ROLES = CLINICAL_WRITE_ROLES + ("nurse",)
++
++# Who may move a chemotherapy order to which status.
++CHEMO_STATUS_ROLES = {
++    "PREPARED": CLINICAL_WRITE_ROLES + ("pharmacist",),
++    "ADMINISTERED": CLINICAL_WRITE_ROLES + ("nurse",),
++    "CANCELLED": CLINICAL_WRITE_ROLES,
++}
++
++MIN_TOXICITY_OVERRIDE_CHARS = 10
++MIN_CANCEL_REASON_CHARS = 5
++AI_SUMMARY_MAX_CHARS = 12000
++
++
++def _find_patient(patient_id):
++    """
++    Exact lookup by patient number. Deliberately NOT fuzzy: a partial match on
++    an id or name can silently resolve to a different patient than the one the
++    caller was authorised / consented for.
++    """
++    patient_id = (patient_id or "").strip() if isinstance(patient_id, str) else ""
++    if not patient_id:
++        return None
++    return Patient.query.filter_by(patient_id=patient_id).first()
++
++
++def _commit_with_audit(action, resource_type, resource_id, details=None):
++    """
++    Commit pending changes together with an audit row.
++
++    ``log_audit_event`` commits the session, and rolls it back if the audit row
++    cannot be written. So a False return means BOTH the audit row and the
++    pending change were discarded ("no audit trail, no change").
++    """
++    return (
++        log_audit_event(
++            action=action,
++            resource_type=resource_type,
++            resource_id=str(resource_id),
++            details=details,
++        )
++        is not None
++    )
++
++
++def _json_error(code, message, status, **extra):
++    payload = {"error": True, "code": code, "message": message}
++    payload.update(extra)
++    return jsonify(payload), status
++
++
++def _utcnow_naive():
++    """UTC now without tzinfo (matches the naive DateTime columns used here)."""
++    return datetime.now(timezone.utc).replace(tzinfo=None)
++
+ 
+ @bp.route("/diseases/")
+ @login_required
+@@ -67,6 +143,7 @@ def view_disease(disease_id):
+ 
+ @bp.route("/diseases/add", methods=["GET", "POST"])
+ @login_required
++@roles_required(*CLINICAL_WRITE_ROLES)
+ def add_disease():
+     if request.method == "POST":
+         name = request.form["name"].strip()
+@@ -115,6 +192,7 @@ def add_disease():
+ 
+ @bp.route("/diseases/edit/<int:disease_id>", methods=["GET", "POST"])
+ @login_required
++@roles_required(*CLINICAL_WRITE_ROLES)
+ def edit_disease(disease_id):
+     disease = Disease.query.get_or_404(disease_id)
+     plan = disease.management_plan
+@@ -193,6 +271,7 @@ def delete_disease(disease_id):
+ 
+ @bp.route("/oncology", methods=["GET", "POST"])
+ @login_required
++@roles_required(*CLINICAL_READ_ROLES)
+ def oncology():
+     search_form = PatientSearchForm()
+     selected_patient = None
+@@ -223,12 +302,87 @@ def oncology():
+     )
+ 
+ 
++def _oncology_notes_for(patient_id):
++    """All notes for the chart, newest first. Voided notes are kept (and flagged in the UI)."""
++    return (
++        OncologyNote.query.filter_by(patient_id=patient_id)
++        .order_by(OncologyNote.note_date.desc(), OncologyNote.id.desc())
++        .all()
++    )
++
++
++def _save_oncology_details(onco_form, selected_patient, onco_patient):
++    """
++    Persist the oncology details form. Returns (ok, onco_patient).
++
++    The form posts CancerType / CancerStage *ids*; the OncoPatient columns hold
++    the human-readable *names* (same as the /oncology/add path), so resolve them.
++    """
++    cancer_type = db.session.get(CancerType, onco_form.cancer_type.data)
++    stage = db.session.get(CancerStage, onco_form.stage.data)
++    if not cancer_type or not stage:
++        flash("Selected cancer type or stage does not exist.", "danger")
++        return False, onco_patient
++
++    # Server-side check that the stage belongs to the cancer type (the
++    # client-side filter is only a convenience). Types with no stage links
++    # defined yet accept any stage.
++    linked_stage_ids = {
++        link.cancer_stage_id
++        for link in CancerTypeStage.query.filter_by(cancer_type_id=cancer_type.id)
++    }
++    if linked_stage_ids and stage.id not in linked_stage_ids:
++        flash(f"Stage '{stage.label}' is not valid for {cancer_type.name}.", "danger")
++        return False, onco_patient
++
++    if onco_patient:
++        action = "ONCOLOGY_RECORD_UPDATED"
++        onco_patient.diagnosis = onco_form.diagnosis.data
++        onco_patient.diagnosis_date = onco_form.diagnosis_date.data
++        onco_patient.cancer_type = cancer_type.name
++        onco_patient.stage = stage.label
++        onco_patient.status = onco_form.status.data
++    else:
++        action = "ONCOLOGY_ENROLLED"
++        onco_patient = OncoPatient(
++            patient_id=selected_patient.patient_id,
++            diagnosis=onco_form.diagnosis.data,
++            diagnosis_date=onco_form.diagnosis_date.data,
++            cancer_type=cancer_type.name,
++            stage=stage.label,
++            status=onco_form.status.data,
++            date_enrolled=datetime.now(timezone.utc),
++        )
++        db.session.add(onco_patient)
++    db.session.flush()
++
++    if not _commit_with_audit(
++        action,
++        "OncoPatient",
++        onco_patient.id,
++        {
++            "patient_id": selected_patient.patient_id,
++            "cancer_type": cancer_type.name,
++            "stage": stage.label,
++            "status": onco_form.status.data,
++        },
++    ):
++        flash("Audit trail unavailable; oncology details were NOT saved.", "danger")
++        return False, None
++    return True, onco_patient
++
++
+ @bp.route("/oncology/encounter/<patient_id>", methods=["GET", "POST"])
+ @login_required
++@roles_required(*CLINICAL_READ_ROLES)
+ def oncology_encounter(patient_id):
+     # Fetch patient
+     selected_patient = Patient.query.filter_by(patient_id=patient_id).first_or_404()
+ 
++    # Only clinicians may change the oncology chart; nurses/pharmacists read.
++    if request.method == "POST" and not has_any_role(*CLINICAL_WRITE_ROLES):
++        abort(403)
++
+     # Add age attribute based on date_of_birth
+     today = datetime.now(timezone.utc).date()
+     dob = selected_patient.date_of_birth
+@@ -241,67 +395,70 @@ def oncology_encounter(patient_id):
+     onco_form = OncoPatientForm()
+     note_form = OncologyNoteForm()
+ 
+-    # Fetch existing oncology record
+-    onco_patient = OncoPatient.query.filter_by(patient_id=selected_patient.id).first()
++    # Fetch existing oncology record. OncoPatient.patient_id is the patient
++    # NUMBER (FK to patients.patient_id), not the integer primary key.
++    onco_patient = (
++        OncoPatient.query.filter_by(patient_id=selected_patient.patient_id)
++        .order_by(OncoPatient.id.desc())
++        .first()
++    )
+     bookings = OncologyBooking.query.filter_by(
+         patient_id=selected_patient.patient_id
+     ).all()
+-    notes = (
+-        OncologyNote.query.filter_by(patient_id=selected_patient.patient_id)
+-        .order_by(OncologyNote.note_date.desc())
+-        .all()
+-    )
+ 
+-    # Prepopulate the oncology form if data exists
+-    if onco_patient:
+-        onco_form.diagnosis.data = onco_patient.diagnosis
+-        onco_form.diagnosis_date.data = onco_patient.diagnosis_date
+-        onco_form.cancer_type.data = onco_patient.cancer_type
+-        onco_form.stage.data = onco_patient.stage
+-        onco_form.status.data = onco_patient.status
++    # Prepopulate the form from the stored record on GET ONLY. Doing it on POST
++    # would overwrite the submitted values before they are read, silently
++    # discarding every edit while still reporting success.
++    if request.method == "GET":
++        if onco_patient:
++            onco_form.diagnosis.data = onco_patient.diagnosis
++            onco_form.diagnosis_date.data = onco_patient.diagnosis_date
++            stored_type = CancerType.query.filter_by(
++                name=onco_patient.cancer_type
++            ).first()
++            stored_stage = CancerStage.query.filter_by(label=onco_patient.stage).first()
++            if stored_type:
++                onco_form.cancer_type.data = stored_type.id
++            if stored_stage:
++                onco_form.stage.data = stored_stage.id
++            onco_form.status.data = onco_patient.status
++        log_audit_event(
++            action="ONCOLOGY_ENCOUNTER_VIEW",
++            resource_type="Patient",
++            resource_id=selected_patient.patient_id,
++        )
++
++    encounter_url = url_for(
++        "medicine.oncology_encounter", patient_id=selected_patient.patient_id
++    )
+ 
+     # Handle oncology form submission
+-    if onco_form.validate_on_submit() and onco_form.submit_update.data:
+-        if onco_patient:
+-            # Update existing record
+-            onco_patient.diagnosis = onco_form.diagnosis.data
+-            onco_patient.diagnosis_date = onco_form.diagnosis_date.data
+-            onco_patient.cancer_type = onco_form.cancer_type.data
+-            onco_patient.stage = onco_form.stage.data
+-            onco_patient.status = onco_form.status.data
+-            flash("Oncology patient details updated successfully.", "success")
+-        else:
+-            # Create new record
+-            onco_patient = OncoPatient(
+-                patient_id=selected_patient.id,
+-                diagnosis=onco_form.diagnosis.data,
+-                diagnosis_date=onco_form.diagnosis_date.data,
+-                cancer_type=onco_form.cancer_type.data,
+-                stage=onco_form.stage.data,
+-                status=onco_form.status.data,
+-                date_enrolled=datetime.now(timezone.utc),
+-            )
+-            db.session.add(onco_patient)
+-            flash("Oncology patient details created successfully.", "success")
+-        db.session.commit()
++    if onco_form.submit_update.data and onco_form.validate_on_submit():
++        ok, onco_patient = _save_oncology_details(
++            onco_form, selected_patient, onco_patient
++        )
++        if ok:
++            flash("Oncology patient details saved successfully.", "success")
++            return redirect(encounter_url)  # PRG: refresh must not resubmit
+ 
+     # Handle note form submission
+-    if note_form.validate_on_submit() and note_form.submit_note.data:
++    if note_form.submit_note.data and note_form.validate_on_submit():
+         new_note = OncologyNote(
+             patient_id=selected_patient.patient_id,
+             note_date=note_form.note_date.data,
+             note_content=note_form.note_content.data,
+         )
+         db.session.add(new_note)
+-        db.session.commit()
+-        flash("Oncology note added successfully.", "success")
+-
+-    # Refresh notes after any new submission
+-    notes = (
+-        OncologyNote.query.filter_by(patient_id=selected_patient.patient_id)
+-        .order_by(OncologyNote.note_date.desc())
+-        .all()
+-    )
++        db.session.flush()
++        if _commit_with_audit(
++            "ONCOLOGY_NOTE_CREATED",
++            "OncologyNote",
++            new_note.id,
++            {"patient_id": selected_patient.patient_id},
++        ):
++            flash("Oncology note added successfully.", "success")
++            return redirect(encounter_url)  # PRG: refresh must not duplicate the note
++        flash("Audit trail unavailable; note was NOT saved.", "danger")
+ 
+     return render_template(
+         "medicine/oncology/encounter.html",
+@@ -311,12 +468,13 @@ def oncology_encounter(patient_id):
+         selected_patient=selected_patient,
+         onco_patient=onco_patient,
+         bookings=bookings,
+-        notes=notes,
++        notes=_oncology_notes_for(selected_patient.patient_id),
+     )
+ 
+ 
+ @bp.route("/oncology/ai_summary/<patient_id>", methods=["GET", "POST"])
+ @login_required
++@roles_required(*CLINICAL_READ_ROLES)
+ def oncology_ai_summary(patient_id):
+     """Generates AI clinical summary for an oncology patient, gated by DPA 2019 AI consent."""
+     try:
+@@ -345,42 +503,110 @@ def oncology_ai_summary(patient_id):
+             }
+         ), 500
+ 
+-    selected_patient = Patient.query.filter(
+-        db.or_(
+-            Patient.patient_id.ilike(f"%{patient_id}%"),
+-            Patient.name.ilike(f"%{patient_id}%"),
+-        )
+-    ).first()
++    # Consent was verified for EXACTLY this patient number, so the notes sent to
++    # the model must belong to exactly that patient. (A fuzzy ILIKE lookup here
++    # previously let consent for "P1" release the notes of "P10".)
++    selected_patient = _find_patient(patient_id)
+     if not selected_patient:
+         return jsonify({"error": "Patient not found"}), 404
+-    notes = OncologyNote.query.filter_by(patient_id=selected_patient.patient_id).all()
+-    notes_text = (
+-        " ".join([n.note_content for n in notes if n.note_content])
+-        or "Patient enrolled in oncology care."
++
++    # Voided notes are, by definition, entered in error: never feed them to the model.
++    notes = (
++        OncologyNote.query.filter_by(
++            patient_id=selected_patient.patient_id, is_voided=False
++        )
++        .order_by(OncologyNote.note_date.desc(), OncologyNote.id.desc())
++        .all()
+     )
++    chunks, used = [], 0
++    for note in notes:  # newest first, bounded prompt size
++        if not note.note_content:
++            continue
++        if used + len(note.note_content) > AI_SUMMARY_MAX_CHARS and chunks:
++            break
++        chunks.append(note.note_content[:AI_SUMMARY_MAX_CHARS])
++        used += len(note.note_content)
++    chunks.reverse()  # chronological for the model
++    notes_text = " ".join(chunks) or "Patient enrolled in oncology care."
++
++    # Record the disclosure to the external model BEFORE sending it.
++    if not _commit_with_audit(
++        "ONCOLOGY_AI_SUMMARY_GENERATED",
++        "Patient",
++        selected_patient.patient_id,
++        {"notes_included": len(chunks)},
++    ):
++        return jsonify(
++            {
++                "error": "Audit trail unavailable; AI summary not generated.",
++                "code": "AUDIT_UNAVAILABLE",
++            }
++        ), 503
++
+     summary = Summarizer.answer(notes_text)
+-    return jsonify({"patient_id": patient_id, "summary": summary})
++    return jsonify({"patient_id": selected_patient.patient_id, "summary": summary})
+ 
+ 
+ @bp.route("/oncology/add", methods=["GET", "POST"])
+ @login_required
++@roles_required(*CLINICAL_WRITE_ROLES)
+ def add_onco_patient():
+     if request.method == "POST":
+-        patient_id = request.form.get("patient_id")
+-        diagnosis = request.form.get("diagnosis")
+-        cancer_type = request.form.get("cancer_type")
+-        stage = request.form.get("stage")
+-        diagnosis_date = request.form.get("diagnosis_date")
++        patient_number = (request.form.get("patient_id") or "").strip()
++        diagnosis = (request.form.get("diagnosis") or "").strip()
++        cancer_type = (request.form.get("cancer_type") or "").strip()
++        stage = (request.form.get("stage") or "").strip()
++        diagnosis_date_raw = (request.form.get("diagnosis_date") or "").strip()
++
++        if not all([patient_number, diagnosis, cancer_type, stage, diagnosis_date_raw]):
++            flash(
++                "Patient, diagnosis, cancer type, stage and date are required.",
++                "danger",
++            )
++            return redirect(url_for("medicine.add_onco_patient"))
++        if len(diagnosis) > 200 or len(cancer_type) > 100 or len(stage) > 100:
++            flash("Diagnosis, cancer type or stage is too long.", "danger")
++            return redirect(url_for("medicine.add_onco_patient"))
++
++        patient = _find_patient(patient_number)
++        if not patient:
++            flash("Selected patient does not exist.", "danger")
++            return redirect(url_for("medicine.add_onco_patient"))
++
++        try:
++            diagnosis_date = datetime.strptime(diagnosis_date_raw, "%Y-%m-%d").date()  # noqa: DTZ007
++        except ValueError:
++            flash("Invalid diagnosis date. Use YYYY-MM-DD.", "danger")
++            return redirect(url_for("medicine.add_onco_patient"))
++        if diagnosis_date > datetime.now(timezone.utc).date():
++            flash("Diagnosis date cannot be in the future.", "danger")
++            return redirect(url_for("medicine.add_onco_patient"))
++
++        if OncoPatient.query.filter_by(
++            patient_id=patient.patient_id, status="Active"
++        ).first():
++            flash("Patient is already enrolled in oncology care.", "warning")
++            return redirect(
++                url_for("medicine.oncology_encounter", patient_id=patient.patient_id)
++            )
+ 
+         onco_patient = OncoPatient(
+-            patient_id=patient_id,
++            patient_id=patient.patient_id,
+             diagnosis=diagnosis,
+             cancer_type=cancer_type,
+             stage=stage,
+-            diagnosis_date=datetime.strptime(diagnosis_date, "%Y-%m-%d"),  # noqa: DTZ007
++            diagnosis_date=diagnosis_date,
+         )
+         db.session.add(onco_patient)
+-        db.session.commit()
++        db.session.flush()
++        if not _commit_with_audit(
++            "ONCOLOGY_ENROLLED",
++            "OncoPatient",
++            onco_patient.id,
++            {"patient_id": patient.patient_id, "cancer_type": cancer_type},
++        ):
++            flash("Audit trail unavailable; enrolment was NOT saved.", "danger")
++            return redirect(url_for("medicine.add_onco_patient"))
+         flash("Patient enrolled in oncology care successfully.", "success")
+         return redirect(url_for("medicine.oncology"))
+ 
+@@ -390,19 +616,36 @@ def add_onco_patient():
+ 
+ @bp.route("/oncology/note/<int:note_id>/edit", methods=["GET", "POST"])
+ @login_required
++@roles_required(*CLINICAL_WRITE_ROLES)
+ def edit_note(note_id):
+-    note = OncologyNote.query.get_or_404(note_id)
++    note = db.get_or_404(OncologyNote, note_id)
+     patient = Patient.query.filter_by(patient_id=note.patient_id).first_or_404()
++    encounter_url = url_for(
++        "medicine.oncology_encounter", patient_id=patient.patient_id
++    )
++
++    if note.is_voided:
++        flash("A voided note cannot be edited.", "warning")
++        return redirect(encounter_url)
+ 
+     form = OncologyNoteForm()
+     if form.validate_on_submit() and form.submit_note.data:
++        # Amendments must not destroy history (SECURITY.md: immutable clinical
++        # history). The append-only audit row carries the text being replaced.
++        previous = {
++            "patient_id": note.patient_id,
++            "previous_note_date": note.note_date.isoformat(),
++            "previous_content": note.note_content,
++        }
+         note.note_date = form.note_date.data
+         note.note_content = form.note_content.data
+-        db.session.commit()
++        if not _commit_with_audit(
++            "ONCOLOGY_NOTE_AMENDED", "OncologyNote", note.id, previous
++        ):
++            flash("Audit trail unavailable; note was NOT changed.", "danger")
++            return redirect(encounter_url)
+         flash("Oncology note updated successfully.", "success")
+-        return redirect(
+-            url_for("medicine.oncology_encounter", patient_id=patient.patient_id)
+-        )
++        return redirect(encounter_url)
+ 
+     if request.method == "GET":
+         form.note_date.data = note.note_date
+@@ -414,6 +657,7 @@ def edit_note(note_id):
+ 
+ 
+ @bp.route("/get_stages/<int:type_id>")
++@login_required
+ def get_stages(type_id):
+     links = CancerTypeStage.query.filter_by(cancer_type_id=type_id).all()
+     stages = [
+@@ -424,53 +668,55 @@ def get_stages(type_id):
+ 
+ @bp.route("/oncology/note/<int:note_id>/void", methods=["POST"])
+ @login_required
+-@roles_required("admin", "medicine", "doctor")
++@roles_required(*CLINICAL_WRITE_ROLES)
+ def delete_note(note_id):
+     """
+     P0-09: Void (soft-delete) an oncology note — never physically delete.
+     Original record is preserved for audit trail.
+     Requires authentication, role, and a void reason.
+     """
+-    note = OncologyNote.query.get_or_404(note_id)
++    note = db.get_or_404(OncologyNote, note_id)
+     patient_id = note.patient_id
++    encounter_url = url_for("medicine.oncology_encounter", patient_id=patient_id)
+ 
++    payload = request.get_json(silent=True) or {}
+     void_reason = (
+-        (request.form.get("void_reason") or request.get_json(silent=True) or {}).get(
+-            "void_reason"
+-        )
+-        if not request.form.get("void_reason")
+-        else request.form.get("void_reason")
+-    )
+-    if not void_reason:
+-        flash("A void reason is required to void a clinical note.", "error")
+-        return redirect(url_for("medicine.oncology_encounter", patient_id=patient_id))
++        request.form.get("void_reason") or payload.get("void_reason") or ""
++    ).strip()
++    if len(void_reason) < 3:
++        flash("A void reason is required to void a clinical note.", "danger")
++        return redirect(encounter_url)
+ 
+-    if getattr(note, "is_voided", False):
++    if note.is_voided:
+         flash("This note has already been voided.", "warning")
+-        return redirect(url_for("medicine.oncology_encounter", patient_id=patient_id))
++        return redirect(encounter_url)
+ 
+     # Void — never physically delete. Preserve audit trail.
+     note.is_voided = True
+     note.voided_by = current_user.id
+-    note.voided_reason = void_reason
+-    note.voided_at = __import__("datetime").datetime.now(
+-        __import__("datetime").timezone.utc
+-    )
+-    db.session.commit()
++    note.voided_reason = void_reason[:500]
++    note.voided_at = _utcnow_naive()
++    if not _commit_with_audit(
++        "ONCOLOGY_NOTE_VOIDED",
++        "OncologyNote",
++        note.id,
++        {"patient_id": patient_id, "reason": void_reason[:500]},
++    ):
++        flash("Audit trail unavailable; note was NOT voided.", "danger")
++        return redirect(encounter_url)
+ 
+     logger.info(
+-        "Oncology note VOIDED: note_id=%s patient_id=%s actor_id=%s reason=%s",
++        "Oncology note VOIDED: note_id=%s patient_id=%s actor_id=%s",
+         note_id,
+         patient_id,
+         current_user.id,
+-        void_reason,
+     )
+ 
+     flash(
+         "Oncology note voided successfully. The original record is preserved.",
+         "success",
+     )
+-    return redirect(url_for("medicine.oncology_encounter", patient_id=patient_id))
++    return redirect(encounter_url)
+ 
+ 
+ @bp.route("/drugs/")
+@@ -551,6 +797,7 @@ def warnings():
+ 
+ @bp.route("/bookings/")
+ @login_required
++@roles_required(*CLINICAL_READ_ROLES)
+ def bookings():
+     status = request.args.get("status", type=str)
+     purpose = request.args.get("purpose", type=str)
+@@ -596,19 +843,15 @@ def bookings():
+ 
+ @bp.route("/bookings/new", methods=["GET", "POST"])
+ @login_required
++@roles_required(*SCHEDULING_ROLES)
+ def new_booking():
+     if request.method == "POST":
+-        patient_id = request.form.get("patient_id")
++        patient_id = (request.form.get("patient_id") or "").strip()
+         booking_date = request.form.get("booking_date")
+         purpose = request.form.get("purpose")
+         status = request.form.get("status")
+         notes = request.form.get("notes", "").strip() or None
+ 
+-        # Log form data for debugging
+-        print(
+-            f"Form data: patient_id={patient_id}, booking_date={booking_date}, purpose={purpose}, status={status}, notes={notes}"
+-        )
+-
+         # Validate required fields
+         if not patient_id:
+             flash("Patient selection is required.", "danger")
+@@ -623,13 +866,9 @@ def new_booking():
+             flash("Status is required.", "danger")
+             return redirect(url_for("medicine.new_booking"))
+ 
+-        # Validate patient exists
+-        patient = Patient.query.filter(
+-            db.or_(
+-                Patient.patient_id.ilike(f"%{patient_id}%"),
+-                Patient.name.ilike(f"%{patient_id}%"),
+-            )
+-        ).first()
++        # Validate patient exists — exact match on the patient number. A fuzzy
++        # id/name match could validate one patient and then store another value.
++        patient = _find_patient(patient_id)
+         if not patient:
+             flash("Selected patient does not exist.", "danger")
+             return redirect(url_for("medicine.new_booking"))
+@@ -659,14 +898,13 @@ def new_booking():
+         # Parse booking_date
+         try:
+             booking_date = datetime.strptime(booking_date, "%Y-%m-%d").date()  # noqa: DTZ007
+-        except ValueError as e:
+-            print(f"Date parsing error: {e}")
++        except ValueError:
+             flash("Invalid date format. Use YYYY-MM-DD.", "danger")
+             return redirect(url_for("medicine.new_booking"))
+ 
+-        # Create new booking
++        # Create new booking (canonical patient number, never raw user input)
+         new_booking = OncologyBooking(
+-            patient_id=patient_id,
++            patient_id=patient.patient_id,
+             booking_date=booking_date,
+             purpose=purpose,
+             status=status,
+@@ -675,7 +913,15 @@ def new_booking():
+             updated_at=datetime.now(timezone.utc),
+         )
+         db.session.add(new_booking)
+-        db.session.commit()
++        db.session.flush()
++        if not _commit_with_audit(
++            "ONCOLOGY_BOOKING_CREATED",
++            "OncologyBooking",
++            new_booking.id,
++            {"patient_id": patient.patient_id, "purpose": purpose, "status": status},
++        ):
++            flash("Audit trail unavailable; booking was NOT saved.", "danger")
++            return redirect(url_for("medicine.new_booking"))
+         flash("Booking created successfully!", "success")
+         return redirect(url_for("medicine.bookings"))
+ 
+@@ -759,67 +1005,167 @@ def process_lab_result(lab_result, test_name):
+ # ---------------------------------------------------------------------------
+ # Chemotherapy Protocol Builder Routes (Gap #7)
+ # ---------------------------------------------------------------------------
++_CHEMO_ERROR_HTTP_STATUS = {
++    "INVALID_INPUT": 400,
++    "UNKNOWN_PROTOCOL": 400,
++    "CYCLE_OUT_OF_RANGE": 400,
++    "CUMULATIVE_HISTORY_UNAVAILABLE": 503,
++}
++
++
++def _serialize_chemo_order(order):
++    return {
++        "order_id": order.id,
++        "patient_id": order.patient_id,
++        "protocol_name": order.protocol_name,
++        "cycle_number": order.cycle_number,
++        "total_cycles": order.total_cycles,
++        "status": order.status,
++        "bsa_m2": order.bsa_m2,
++        "has_toxicity_warning": order.has_toxicity_warning,
++        "toxicity_override_reason": order.toxicity_override_reason,
++        "status_reason": order.status_reason,
++        "physician_id": order.physician_id,
++        "created_at": order.created_at.isoformat() if order.created_at else None,
++    }
++
++
+ @bp.route("/oncology/chemo-builder/<string:patient_id>", methods=["GET"])
+ @login_required
+-@roles_required("doctor", "medicine", "oncology", "admin")
++@roles_required(*CLINICAL_WRITE_ROLES)
+ def chemo_builder(patient_id: str):
+     """Render Oncology Chemotherapy Protocol Builder Workstation UI."""
++    patient = _find_patient(patient_id)
++    if not patient:
++        abort(404)
+     return render_template(
+-        "medicine/oncology/chemo_builder.html", patient_id=patient_id
++        "medicine/oncology/chemo_builder.html",
++        patient_id=patient.patient_id,
++        patient_name=patient.name,
+     )
+ 
+ 
+ @bp.route("/oncology/api/calculate-chemo", methods=["GET"])
+ @login_required
+-@roles_required("doctor", "medicine", "oncology", "admin")
++@roles_required(*CLINICAL_WRITE_ROLES)
+ def api_calculate_chemo():
+     """API endpoint to calculate BSA and chemotherapy protocol doses with toxicity alerts."""
+-    patient_id = request.args.get("patient_id", "")
+-    protocol = request.args.get("protocol", "AC-T")
+-    height = request.args.get("height", 170.0, type=float)
+-    weight = request.args.get("weight", 70.0, type=float)
+-    formula = request.args.get("formula", "mosteller")
++    patient = _find_patient(request.args.get("patient_id", ""))
++    if not patient:
++        return _json_error("PATIENT_NOT_FOUND", "Patient not found.", 404)
+ 
++    # Raw strings go straight to the engine, which rejects anything missing,
++    # non-numeric, non-finite or implausible. No defaults are invented here.
+     calc_res = calculate_regimen_doses(
+-        patient_id=patient_id,
+-        protocol_name=protocol,
+-        height_cm=height,
+-        weight_kg=weight,
+-        formula=formula,
++        patient_id=patient.patient_id,
++        protocol_name=request.args.get("protocol", ""),
++        height_cm=request.args.get("height"),
++        weight_kg=request.args.get("weight"),
++        formula=request.args.get("formula", "mosteller"),
++        cycle_number=request.args.get("cycle", 1),
+     )
+     if calc_res.get("error"):
+-        return jsonify(calc_res), 400
++        return jsonify(calc_res), _CHEMO_ERROR_HTTP_STATUS.get(
++            calc_res.get("code"), 400
++        )
+ 
+     return jsonify(calc_res), 200
+ 
+ 
+ @bp.route("/oncology/api/save-chemo-order", methods=["POST"])
+ @login_required
+-@roles_required("doctor", "medicine", "oncology", "admin")
++@roles_required(*CLINICAL_WRITE_ROLES)
+ def api_save_chemo_order():
+     """API endpoint to save signed Chemotherapy Regimen Order."""
+     data = request.get_json(silent=True) or request.form.to_dict()
+ 
+-    patient_id = data.get("patient_id")
+-    protocol = data.get("protocol_name")
+-    height = float(data.get("height_cm", 170.0))
+-    weight = float(data.get("weight_kg", 70.0))
+-    formula = data.get("bsa_formula", "mosteller")
+-    cycle = int(data.get("cycle_number", 1))
+-    total_cycles = int(data.get("total_cycles", 6))
+-
++    patient_id = str(data.get("patient_id") or "").strip()
++    protocol = str(data.get("protocol_name") or "").strip()
+     if not patient_id or not protocol:
+-        return jsonify({"message": "patient_id and protocol_name are required"}), 400
++        return _json_error(
++            "INVALID_INPUT", "patient_id and protocol_name are required", 400
++        )
++
++    patient = _find_patient(patient_id)
++    if not patient:
++        return _json_error("PATIENT_NOT_FOUND", "Patient not found.", 404)
++
++    try:
++        formula = normalize_bsa_formula(data.get("bsa_formula"))
++        height, weight = validate_biometrics(
++            data.get("height_cm"), data.get("weight_kg")
++        )
++    except ChemoInputError as exc:
++        return _json_error(exc.code, str(exc), 400)
+ 
++    # The server ALWAYS recomputes doses; nothing dose-related is trusted from the client.
+     calc_res = calculate_regimen_doses(
+-        patient_id=patient_id,
++        patient_id=patient.patient_id,
+         protocol_name=protocol,
+         height_cm=height,
+         weight_kg=weight,
+         formula=formula,
++        cycle_number=data.get("cycle_number", 1),
+     )
+     if calc_res.get("error"):
+-        return jsonify(calc_res), 400
++        return jsonify(calc_res), _CHEMO_ERROR_HTTP_STATUS.get(
++            calc_res.get("code"), 400
++        )
++
++    cycle = calc_res["cycle_number"]
++
++    raw_total = data.get("total_cycles")
++    if raw_total in (None, ""):
++        total_cycles = calc_res.get("default_total_cycles") or 6
++    else:
++        try:
++            as_float = float(raw_total)
++            if isinstance(raw_total, bool) or as_float != int(as_float):
++                raise ValueError  # noqa: TRY301
++            total_cycles = int(as_float)
++        except (TypeError, ValueError, OverflowError):
++            return _json_error(
++                "INVALID_INPUT", "total_cycles must be a whole number.", 400
++            )
++    if not (1 <= total_cycles <= MAX_CYCLES) or total_cycles < cycle:
++        return _json_error(
++            "INVALID_INPUT",
++            f"total_cycles must be between {cycle} and {MAX_CYCLES}.",
++            400,
++        )
++
++    # Lifetime-cap warnings are a hard stop unless the prescriber documents a reason.
++    override_reason = str(data.get("toxicity_override_reason") or "").strip()
++    if (
++        calc_res["has_toxicity_warning"]
++        and len(override_reason) < MIN_TOXICITY_OVERRIDE_CHARS
++    ):
++        return _json_error(
++            "TOXICITY_OVERRIDE_REQUIRED",
++            "Lifetime toxicity cap exceeded. Provide a documented clinical "
++            f"justification (at least {MIN_TOXICITY_OVERRIDE_CHARS} characters) to proceed.",
++            409,
++            toxicity_warnings=calc_res["toxicity_warnings"],
++        )
++    if not calc_res["has_toxicity_warning"]:
++        override_reason = ""
++
++    # One active order per patient/protocol/cycle (a retry or double-click must
++    # not double-count cumulative dose).
++    duplicate = ChemotherapyRegimenOrder.query.filter(
++        ChemotherapyRegimenOrder.patient_id == patient.patient_id,
++        ChemotherapyRegimenOrder.protocol_name == calc_res["protocol_name"],
++        ChemotherapyRegimenOrder.cycle_number == cycle,
++        ChemotherapyRegimenOrder.status != "CANCELLED",
++    ).first()
++    if duplicate:
++        return _json_error(
++            "DUPLICATE_CYCLE_ORDER",
++            f"An active {calc_res['protocol_name']} order for cycle {cycle} already "
++            f"exists (order #{duplicate.id}). Cancel it first if it was entered in error.",
++            409,
++            order_id=duplicate.id,
++        )
+ 
+     # P0-11: Derive physician_id from authenticated session only.
+     # Never fall back to session.get("user_id", 1).
+@@ -828,7 +1174,7 @@ def api_save_chemo_order():
+     physician_id = current_user.id
+ 
+     order = ChemotherapyRegimenOrder(
+-        patient_id=patient_id,
++        patient_id=patient.patient_id,
+         physician_id=physician_id,
+         protocol_name=calc_res["protocol_name"],
+         cancer_type=calc_res["cancer_type"],
+@@ -843,18 +1189,138 @@ def api_save_chemo_order():
+         toxicity_warning_details="\n".join(calc_res["toxicity_warnings"])
+         if calc_res["toxicity_warnings"]
+         else None,
++        toxicity_override_reason=override_reason or None,
+         status="ORDERED",
+     )
+ 
+     db.session.add(order)
+-    db.session.commit()
++    try:
++        db.session.flush()
++    except IntegrityError:  # concurrent duplicate hit the partial unique index
++        db.session.rollback()
++        return _json_error(
++            "DUPLICATE_CYCLE_ORDER",
++            f"An active {calc_res['protocol_name']} order for cycle {cycle} already exists.",
++            409,
++        )
++
++    # A chemotherapy order without an audit record is not acceptable: if the
++    # audit row cannot be written the order is rolled back as well.
++    if not _commit_with_audit(
++        "CHEMO_ORDER_CREATED",
++        "ChemotherapyRegimenOrder",
++        order.id,
++        {
++            "patient_id": patient.patient_id,
++            "protocol": calc_res["protocol_name"],
++            "cycle_number": cycle,
++            "bsa_m2": calc_res["bsa_m2"],
++            "has_toxicity_warning": calc_res["has_toxicity_warning"],
++            "toxicity_override_reason": override_reason or None,
++        },
++    ):
++        return _json_error(
++            "AUDIT_UNAVAILABLE",
++            "Audit trail unavailable; the chemotherapy order was NOT saved.",
++            503,
++        )
+ 
+     return jsonify(
+         {
+             "success": True,
+             "order_id": order.id,
+             "protocol_name": order.protocol_name,
++            "cycle_number": order.cycle_number,
++            "status": order.status,
+             "bsa_m2": order.bsa_m2,
+             "has_toxicity_warning": order.has_toxicity_warning,
+         }
+     ), 201
++
++
++@bp.route("/oncology/api/chemo-orders/<string:patient_id>", methods=["GET"])
++@login_required
++@roles_required(*CLINICAL_READ_ROLES)
++def api_list_chemo_orders(patient_id: str):
++    """List a patient's chemotherapy orders (newest first), including cancelled ones."""
++    patient = _find_patient(patient_id)
++    if not patient:
++        return _json_error("PATIENT_NOT_FOUND", "Patient not found.", 404)
++    orders = (
++        ChemotherapyRegimenOrder.query.filter_by(patient_id=patient.patient_id)
++        .order_by(
++            ChemotherapyRegimenOrder.created_at.desc(),
++            ChemotherapyRegimenOrder.id.desc(),
++        )
++        .all()
++    )
++    return jsonify(
++        {
++            "patient_id": patient.patient_id,
++            "orders": [_serialize_chemo_order(o) for o in orders],
++        }
++    )
++
++
++@bp.route("/oncology/api/chemo-order/<int:order_id>/status", methods=["POST"])
++@login_required
++@roles_required(*CLINICAL_READ_ROLES)
++def api_update_chemo_order_status(order_id: int):
++    """
++    Move an order along ORDERED -> PREPARED -> ADMINISTERED, or cancel it.
++
++    Orders are never deleted. Cancelling requires a reason and removes the
++    order from cumulative lifetime-dose totals; ADMINISTERED is terminal.
++    """
++    order = db.session.get(ChemotherapyRegimenOrder, order_id)
++    if not order:
++        return _json_error("ORDER_NOT_FOUND", "Chemotherapy order not found.", 404)
++
++    data = request.get_json(silent=True) or request.form.to_dict()
++    new_status = str(data.get("status") or "").strip().upper()
++    reason = str(data.get("reason") or "").strip()
++
++    if new_status not in CHEMO_STATUSES:
++        return _json_error(
++            "INVALID_INPUT", f"status must be one of {list(CHEMO_STATUSES)}.", 400
++        )
++    if new_status not in CHEMO_ALLOWED_TRANSITIONS.get(order.status, ()):
++        return _json_error(
++            "INVALID_TRANSITION",
++            f"Cannot move an order from {order.status} to {new_status}.",
++            409,
++        )
++    if not has_any_role(*CHEMO_STATUS_ROLES[new_status]):
++        return _json_error(
++            "FORBIDDEN", f"Your role may not set status {new_status}.", 403
++        )
++    if new_status == "CANCELLED" and len(reason) < MIN_CANCEL_REASON_CHARS:
++        return _json_error(
++            "REASON_REQUIRED",
++            f"A reason (at least {MIN_CANCEL_REASON_CHARS} characters) is required to cancel an order.",
++            400,
++        )
++
++    previous_status = order.status
++    order.status = new_status
++    order.status_reason = reason or None
++    order.status_changed_by = current_user.id
++    order.status_changed_at = _utcnow_naive()
++    if not _commit_with_audit(
++        "CHEMO_ORDER_STATUS_CHANGED",
++        "ChemotherapyRegimenOrder",
++        order.id,
++        {
++            "patient_id": order.patient_id,
++            "from": previous_status,
++            "to": new_status,
++            "reason": reason or None,
++        },
++    ):
++        return _json_error(
++            "AUDIT_UNAVAILABLE",
++            "Audit trail unavailable; the status change was NOT saved.",
++            503,
++        )
++
++    return jsonify({"success": True, **_serialize_chemo_order(order)}), 200
+diff --git a/departments/medicine/prescriptions.py b/departments/medicine/prescriptions.py
+index 0c7d0c4..5a64fa2 100644
+--- a/departments/medicine/prescriptions.py
++++ b/departments/medicine/prescriptions.py
+@@ -3,7 +3,7 @@ import uuid
+ from datetime import datetime, timezone
+ 
+ from flask import flash, redirect, render_template, request, session, url_for
+-from flask_login import login_required
++from flask_login import current_user, login_required
+ from psycopg2.extras import RealDictCursor
+ 
+ from departments.clinical_safety.engine import ClinicalSafetyEngine
+@@ -15,6 +15,7 @@ from departments.models.medicine import (
+     OncologyBooking,
+     OncologyDrug,
+     OncologyRegimen,
++    OncoPatient,
+     OncoPrescription,
+     PrescribedMedicine,
+     PrescriptionDrugDetail,
+@@ -31,6 +32,12 @@ from departments.shared.encounter_utils import active_encounter
+ from extensions import db
+ 
+ from . import bp
++from .oncology import (
++    CLINICAL_READ_ROLES,
++    CLINICAL_WRITE_ROLES,
++    _commit_with_audit,
++    _find_patient,
++)
+ 
+ logger = get_logger()
+ 
+@@ -509,21 +516,47 @@ def drug_details(drug: str):
+ # add patient to theatre lists
+ 
+ 
++def _prescription_drug_rows(prescription_id):
++    """Drug lines of one prescription, tolerating a drug that has since been removed."""
++    rows = []
++    for detail in PrescriptionDrugDetail.query.filter_by(
++        prescription_id=prescription_id
++    ).all():
++        drug = db.session.get(OncologyDrug, detail.drug_id)
++        rows.append(
++            {
++                "name": drug.name if drug else "Unknown drug",
++                "dosage": detail.dosage,
++                "calculated_dose": detail.calculated_dose,
++                "infusion_fluid": detail.infusion_fluid,
++                "infusion_time": detail.infusion_time,
++            }
++        )
++    return rows
++
++
+ @bp.route("/prescriptions/new", methods=["GET", "POST"])
+ @login_required
++@roles_required(*CLINICAL_WRITE_ROLES)
+ def new_prescription():
++    """
++    Legacy free-text chemotherapy prescription form.
++
++    NOTE: dosage / calculated_dose are still clinician-typed text here; the
++    server-validated path is the chemotherapy builder (BSA + lifetime caps).
++    """
+     if request.method == "POST":
+         booking_id = request.form.get("booking_id")
+         regimen_id = request.form.get("regimen_id")
+         start_date = request.form.get("start_date")
+-        prescribed_by = request.form.get("prescribed_by")
+         notes = request.form.get("notes", "").strip() or None
+         drug_ids = request.form.getlist("drug_id")  # List of drug IDs
+ 
+-        # Log form data for debugging
+-        print(
+-            f"Form data: booking_id={booking_id}, regimen_id={regimen_id}, start_date={start_date}, prescribed_by={prescribed_by}, notes={notes}, drug_ids={drug_ids}"
+-        )
++        # The prescriber is the authenticated user. It used to be a free-text
++        # form field, i.e. anyone could prescribe "as" anyone else.
++        prescribed_by = (
++            getattr(current_user, "full_name", None) or current_user.username
++        )[:100]
+ 
+         # Validate required fields
+         if not booking_id:
+@@ -535,8 +568,8 @@ def new_prescription():
+         if not start_date:
+             flash("Start date is required.", "danger")
+             return redirect(url_for("medicine.new_prescription"))
+-        if not prescribed_by:
+-            flash("Prescribed by is required.", "danger")
++        if not drug_ids:
++            flash("Select at least one drug for the prescription.", "danger")
+             return redirect(url_for("medicine.new_prescription"))
+ 
+         # Validate booking
+@@ -550,46 +583,77 @@ def new_prescription():
+             )
+             return redirect(url_for("medicine.new_prescription"))
+ 
+-        # Validate patient
++        # Validate patient (exact patient number)
+         patient = Patient.query.filter_by(patient_id=booking.patient_id).first()
+         if not patient:
+             flash("Associated patient does not exist.", "danger")
+             return redirect(url_for("medicine.new_prescription"))
+ 
+-        # Validate regimen
++        # onco_prescriptions.onco_patient_id is an INTEGER FK to onco_patients.id,
++        # so resolve the patient's enrolment row; never store the patient number there.
++        onco_patient = (
++            OncoPatient.query.filter_by(patient_id=patient.patient_id, status="Active")
++            .order_by(OncoPatient.id.desc())
++            .first()
++        )
++        if not onco_patient:
++            flash(
++                "Patient is not enrolled in active oncology care. Enrol the patient first.",
++                "danger",
++            )
++            return redirect(url_for("medicine.new_prescription"))
++
++        # Validate regimen (and that it is still in use)
+         regimen = OncologyRegimen.query.filter_by(id=regimen_id).first()
+         if not regimen:
+             flash("Selected regimen does not exist.", "danger")
+             return redirect(url_for("medicine.new_prescription"))
++        if (regimen.status or "Active") != "Active":
++            flash(
++                f"Regimen '{regimen.name}' is {regimen.status} and cannot be prescribed.",
++                "danger",
++            )
++            return redirect(url_for("medicine.new_prescription"))
+ 
+-        # Validate drug inputs
++        # Validate drug inputs: each drug must be a member of the chosen regimen.
+         regimen_drugs = RegimenDrugAssociation.query.filter_by(
+-            regimen_id=regimen_id
++            regimen_id=regimen.id
+         ).all()
+         if not regimen_drugs:
+             flash("Selected regimen has no associated drugs.", "danger")
+             return redirect(url_for("medicine.new_prescription"))
++        regimen_drug_ids = {rd.drug_id for rd in regimen_drugs}
+ 
+         # Parse start_date
+         try:
+             start_date = datetime.strptime(start_date, "%Y-%m-%d").date()  # noqa: DTZ007
+-        except ValueError as e:
+-            print(f"Date parsing error: {e}")
++        except ValueError:
+             flash("Invalid date format. Use YYYY-MM-DD.", "danger")
+             return redirect(url_for("medicine.new_prescription"))
+ 
+         # Validate and collect drug details
+         drug_inputs = {}
+-        for drug_id in drug_ids:
+-            dosage = request.form.get(f"dosage_{drug_id}", "").strip() or None
++        for raw_drug_id in drug_ids:
++            try:
++                drug_id = int(raw_drug_id)
++            except (TypeError, ValueError):
++                flash(f"Invalid drug ID {raw_drug_id}.", "danger")
++                return redirect(url_for("medicine.new_prescription"))
++            if drug_id not in regimen_drug_ids:
++                flash(
++                    f"Drug ID {drug_id} is not part of regimen '{regimen.name}'.",
++                    "danger",
++                )
++                return redirect(url_for("medicine.new_prescription"))
++            dosage = request.form.get(f"dosage_{raw_drug_id}", "").strip() or None
+             calculated_dose = (
+-                request.form.get(f"calculated_dose_{drug_id}", "").strip() or None
++                request.form.get(f"calculated_dose_{raw_drug_id}", "").strip() or None
+             )
+             infusion_fluid = (
+-                request.form.get(f"infusion_fluid_{drug_id}", "").strip() or None
++                request.form.get(f"infusion_fluid_{raw_drug_id}", "").strip() or None
+             )
+             infusion_time = (
+-                request.form.get(f"infusion_time_{drug_id}", "").strip() or None
++                request.form.get(f"infusion_time_{raw_drug_id}", "").strip() or None
+             )
+             if not dosage or not calculated_dose:
+                 flash(
+@@ -607,8 +671,8 @@ def new_prescription():
+         # Create prescription
+         try:
+             new_prescription = OncoPrescription(
+-                onco_patient_id=booking.patient_id,
+-                regimen_id=regimen_id,
++                onco_patient_id=onco_patient.id,
++                regimen_id=regimen.id,
+                 start_date=start_date,
+                 end_date=None,
+                 prescribed_by=prescribed_by,
+@@ -637,14 +701,27 @@ def new_prescription():
+                 )
+                 db.session.add(drug_detail)
+ 
+-            db.session.commit()
++            if not _commit_with_audit(
++                "CHEMO_PRESCRIPTION_CREATED",
++                "OncoPrescription",
++                new_prescription.id,
++                {
++                    "patient_id": patient.patient_id,
++                    "regimen_id": regimen.id,
++                    "drug_ids": sorted(drug_inputs),
++                },
++            ):
++                flash(
++                    "Audit trail unavailable; the prescription was NOT saved.", "danger"
++                )
++                return redirect(url_for("medicine.new_prescription"))
+             flash("Chemotherapy prescription created successfully!", "success")
+             return redirect(
+-                url_for("medicine.list_prescriptions", patient_id=booking.patient_id)
++                url_for("medicine.list_prescriptions", patient_id=patient.patient_id)
+             )
+-        except Exception as e:  # noqa: BLE001
++        except Exception:  # noqa: BLE001
+             db.session.rollback()
+-            print(f"Error creating prescription: {e}")
++            logger.exception("Error creating chemotherapy prescription")
+             flash("An error occurred while creating the prescription.", "danger")
+             return redirect(url_for("medicine.new_prescription"))
+ 
+@@ -698,35 +775,29 @@ def new_prescription():
+ 
+ @bp.route("/prescriptions/<patient_id>", methods=["GET"])
+ @login_required
++@roles_required(*CLINICAL_READ_ROLES)
+ def list_prescriptions(patient_id):
+-    patient = Patient.query.filter(
+-        db.or_(
+-            Patient.patient_id.ilike(f"%{patient_id}%"),
+-            Patient.name.ilike(f"%{patient_id}%"),
+-        )
+-    ).first()
++    # Exact match only. A fuzzy id/name match used to show one patient's header
++    # above prescriptions that were looked up under a different identifier.
++    patient = _find_patient(patient_id)
+     if not patient:
+         flash("Patient does not exist.", "danger")
+         return redirect(url_for("medicine.new_prescription"))
+ 
+-    prescriptions = OncoPrescription.query.filter_by(onco_patient_id=patient_id).all()
++    onco_ids = [
++        row.id for row in OncoPatient.query.filter_by(patient_id=patient.patient_id)
++    ]
++    prescriptions = (
++        OncoPrescription.query.filter(OncoPrescription.onco_patient_id.in_(onco_ids))
++        .order_by(OncoPrescription.created_at.desc())
++        .all()
++        if onco_ids
++        else []
++    )
+     prescription_details = []
+ 
+     for prescription in prescriptions:
+         regimen = db.session.get(OncologyRegimen, prescription.regimen_id)
+-        drug_details = PrescriptionDrugDetail.query.filter_by(
+-            prescription_id=prescription.id
+-        ).all()
+-        drugs = [
+-            {
+-                "name": db.session.get(OncologyDrug, detail.drug_id).name,
+-                "dosage": detail.dosage,
+-                "calculated_dose": detail.calculated_dose,
+-                "infusion_fluid": detail.infusion_fluid,
+-                "infusion_time": detail.infusion_time,
+-            }
+-            for detail in drug_details
+-        ]
+         prescription_details.append(
+             {
+                 "id": prescription.id,
+@@ -734,7 +805,7 @@ def list_prescriptions(patient_id):
+                 "start_date": prescription.start_date.strftime("%Y-%m-%d"),
+                 "prescribed_by": prescription.prescribed_by,
+                 "notes": prescription.notes,
+-                "drugs": drugs,
++                "drugs": _prescription_drug_rows(prescription.id),
+                 "created_at": prescription.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+             }
+         )
+@@ -749,30 +820,21 @@ def list_prescriptions(patient_id):
+ # New route to list all prescriptions
+ @bp.route("/prescriptions", methods=["GET"])
+ @login_required
++@roles_required(*CLINICAL_READ_ROLES)
+ def all_prescriptions():
+-    # Query all prescriptions, joining with patients and regimens for display
++    # Query all prescriptions, joining with patients and regimens for display.
++    # OncoPrescription -> OncoPatient (integer id) -> Patient (patient number).
+     prescriptions = (
+         db.session.query(OncoPrescription, Patient, OncologyRegimen)
+-        .join(Patient, OncoPrescription.onco_patient_id == Patient.patient_id)
++        .join(OncoPatient, OncoPrescription.onco_patient_id == OncoPatient.id)
++        .join(Patient, OncoPatient.patient_id == Patient.patient_id)
+         .join(OncologyRegimen, OncoPrescription.regimen_id == OncologyRegimen.id)
++        .order_by(OncoPrescription.created_at.desc())
+         .all()
+     )
+ 
+     prescription_details = []
+     for prescription, patient, regimen in prescriptions:
+-        drug_details = PrescriptionDrugDetail.query.filter_by(
+-            prescription_id=prescription.id
+-        ).all()
+-        drugs = [
+-            {
+-                "name": db.session.get(OncologyDrug, detail.drug_id).name,
+-                "dosage": detail.dosage,
+-                "calculated_dose": detail.calculated_dose,
+-                "infusion_fluid": detail.infusion_fluid,
+-                "infusion_time": detail.infusion_time,
+-            }
+-            for detail in drug_details
+-        ]
+         prescription_details.append(
+             {
+                 "id": prescription.id,
+@@ -782,7 +844,7 @@ def all_prescriptions():
+                 "start_date": prescription.start_date.strftime("%Y-%m-%d"),
+                 "prescribed_by": prescription.prescribed_by,
+                 "notes": prescription.notes,
+-                "drugs": drugs,
++                "drugs": _prescription_drug_rows(prescription.id),
+                 "created_at": prescription.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+             }
+         )
+diff --git a/departments/medicine/templates/medicine/oncology/add_onco_patient.html b/departments/medicine/templates/medicine/oncology/add_onco_patient.html
+index 77770c9..fd0c2a4 100644
+--- a/departments/medicine/templates/medicine/oncology/add_onco_patient.html
++++ b/departments/medicine/templates/medicine/oncology/add_onco_patient.html
+@@ -32,7 +32,7 @@
+           <select id="patient_id" name="patient_id" class="form-select" required>
+             <option value="" disabled selected>Select a patient</option>
+             {% for p in patients %}
+-              <option value="{{ p.id }}">{{ p.name }}</option>
++              <option value="{{ p.patient_id }}">{{ p.name }} ({{ p.patient_id }})</option>
+             {% endfor %}
+           </select>
+         </div>
+diff --git a/departments/medicine/templates/medicine/oncology/encounter.html b/departments/medicine/templates/medicine/oncology/encounter.html
+index a355261..d063185 100644
+--- a/departments/medicine/templates/medicine/oncology/encounter.html
++++ b/departments/medicine/templates/medicine/oncology/encounter.html
+@@ -60,7 +60,7 @@
+ <script>
+   document.getElementById('cancerType').addEventListener('change', function() {
+     const typeId = this.value;
+-    fetch(`/get_stages/${typeId}`)
++    fetch(`{{ url_for('medicine.get_stages', type_id=0)[:-1] }}${typeId}`)
+       .then(res => res.json())
+       .then(data => {
+         const stageSelect = document.getElementById('cancerStage');
+@@ -166,17 +166,28 @@
+           </thead>
+           <tbody>
+             {% for note in notes %}
+-              <tr>
++              <tr{% if note.is_voided %} class="table-secondary"{% endif %}>
+                 <td>{{ note.note_date.strftime('%Y-%m-%d') }}</td>
+-                <td>{{ note.note_content }}</td>
++                <td>
++                  {% if note.is_voided %}
++                    <span class="badge bg-secondary me-1">VOIDED</span>
++                    <s class="text-muted">{{ note.note_content }}</s>
++                    <div class="small text-muted mt-1">Reason: {{ note.voided_reason }}{% if note.voided_at %} &middot; {{ note.voided_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}</div>
++                  {% else %}
++                    {{ note.note_content }}
++                  {% endif %}
++                </td>
+                 <td>{{ note.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                 <td>{{ note.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                 <td>
+-                  <a href="{{ url_for('medicine.edit_note', note_id=note.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+-                  <form action="{{ url_for('medicine.delete_note', note_id=note.id) }}" method="POST" style="display:inline;">
+-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+-                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this note?');">Delete</button>
+-                  </form>
++                  {% if not note.is_voided %}
++                    <a href="{{ url_for('medicine.edit_note', note_id=note.id) }}" class="btn btn-sm btn-outline-primary mb-1">Edit</a>
++                    <form action="{{ url_for('medicine.delete_note', note_id=note.id) }}" method="POST" class="d-flex gap-1 align-items-center">
++                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
++                      <input type="text" name="void_reason" class="form-control form-control-sm" placeholder="Reason for voiding" required minlength="3" maxlength="500" style="min-width:160px;">
++                      <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Void this note? The original text is kept for the audit trail but will be marked as entered in error.');">Void</button>
++                    </form>
++                  {% endif %}
+                 </td>
+               </tr>
+             {% endfor %}
+diff --git a/departments/medicine/templates/medicine/oncology/new_prescription.html b/departments/medicine/templates/medicine/oncology/new_prescription.html
+index dd0b279..d7ebb8a 100644
+--- a/departments/medicine/templates/medicine/oncology/new_prescription.html
++++ b/departments/medicine/templates/medicine/oncology/new_prescription.html
+@@ -77,7 +77,8 @@
+ 
+           <div class="mb-3">
+             <label for="prescribed_by" class="form-label">Prescribed By</label>
+-            <input type="text" class="form-control" id="prescribed_by" name="prescribed_by" placeholder="Enter doctor's name" required {% if no_bookings or no_regimens %}disabled{% endif %}>
++            <input type="text" class="form-control" id="prescribed_by" value="{{ current_user.full_name or current_user.username }}" readonly disabled>
++            <div class="form-text">Recorded automatically from your login.</div>
+           </div>
+ 
+           <div class="mb-3">
+diff --git a/departments/models/__init__.py b/departments/models/__init__.py
+index 310b6e8..c3b4275 100644
+--- a/departments/models/__init__.py
++++ b/departments/models/__init__.py
+@@ -89,6 +89,7 @@ from .nursing import (
+     Partogram,
+     Vitals,
+ )
++from .oncology_models import ChemotherapyRegimenOrder
+ from .patient_user import PatientUser
+ from .pharmacy import (
+     Batch,
+@@ -141,6 +142,7 @@ __all__ = [
+     "CancerTypeStage",
+     "Charge",
+     "ChargeCategory",
++    "ChemotherapyRegimenOrder",
+     "Claim",
+     "ClaimStatus",
+     "Clinic",
+diff --git a/departments/models/medicine.py b/departments/models/medicine.py
+index 61e7d06..a35ead2 100644
+--- a/departments/models/medicine.py
++++ b/departments/models/medicine.py
+@@ -508,7 +508,7 @@ class OncoPatient(db.Model):
+     cancer_type = db.Column(
+         db.String(100), nullable=False
+     )  # e.g., 'Breast', 'Lung', 'Prostate'
+-    stage = db.Column(db.String(20), nullable=False)  # e.g., 'Stage I', 'Stage II'
++    stage = db.Column(db.String(100), nullable=False)  # e.g., 'Stage I', 'Stage II'
+     date_enrolled = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+     status = db.Column(db.String(20), default="Active", nullable=False)
+     patient = db.relationship(
+@@ -536,6 +536,15 @@ class OncologyNote(db.Model):
+     updated_at = db.Column(
+         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+     )
++    # Soft-void (clinical records are never physically deleted). These MUST be
++    # mapped columns: assigning unmapped attributes on the instance is silently
++    # discarded at commit time.
++    is_voided = db.Column(
++        db.Boolean, nullable=False, default=False, server_default=db.false()
++    )
++    voided_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
++    voided_at = db.Column(db.DateTime, nullable=True)
++    voided_reason = db.Column(db.String(500), nullable=True)
+     patient = db.relationship(
+         "Patient",
+         backref=db.backref(
+diff --git a/departments/models/oncology_models.py b/departments/models/oncology_models.py
+index 3634426..cfc22a2 100644
+--- a/departments/models/oncology_models.py
++++ b/departments/models/oncology_models.py
+@@ -9,17 +9,47 @@ from datetime import datetime
+ 
+ from extensions import db
+ 
++# Order lifecycle. ADMINISTERED and CANCELLED are terminal.
++CHEMO_STATUSES = ("ORDERED", "PREPARED", "ADMINISTERED", "CANCELLED")
++CHEMO_ALLOWED_TRANSITIONS: dict[str, tuple[str, ...]] = {
++    "ORDERED": ("PREPARED", "CANCELLED"),
++    "PREPARED": ("ADMINISTERED", "CANCELLED"),
++    "ADMINISTERED": (),
++    "CANCELLED": (),
++}
++
+ 
+ class ChemotherapyRegimenOrder(db.Model):
+     """
+     Chemotherapy regimen prescription order for oncology patients.
+     Tracks body surface area (BSA), protocol doses, and cumulative lifetime toxicity caps.
++
++    Clinical history is never deleted: an erroneous order is moved to CANCELLED
++    (with a reason) and is then excluded from cumulative lifetime-dose totals.
+     """
+ 
+     __tablename__ = "chemotherapy_regimen_orders"
++    __table_args__ = (
++        # At most one *active* (non-cancelled) order per patient/protocol/cycle.
++        # Stops a double-click or retry from double-counting cumulative doses.
++        db.Index(
++            "uq_chemo_active_patient_protocol_cycle",
++            "patient_id",
++            "protocol_name",
++            "cycle_number",
++            unique=True,
++            postgresql_where=db.text("status <> 'CANCELLED'"),
++            sqlite_where=db.text("status <> 'CANCELLED'"),
++        ),
++    )
+ 
+     id = db.Column(db.Integer, primary_key=True)
+-    patient_id = db.Column(db.String(20), nullable=False, index=True)
++    patient_id = db.Column(
++        db.String(20),
++        db.ForeignKey("patients.patient_id"),
++        nullable=False,
++        index=True,
++    )
+     physician_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+ 
+     protocol_name = db.Column(
+@@ -51,9 +81,18 @@ class ChemotherapyRegimenOrder(db.Model):
+     )  # ORDERED, PREPARED, ADMINISTERED, CANCELLED
+     has_toxicity_warning = db.Column(db.Boolean, nullable=False, default=False)
+     toxicity_warning_details = db.Column(db.Text, nullable=True)
++    # Prescriber's documented justification when a lifetime-cap warning was overridden.
++    toxicity_override_reason = db.Column(db.Text, nullable=True)
++
++    # Last status transition (who / when / why)
++    status_reason = db.Column(db.Text, nullable=True)
++    status_changed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
++    status_changed_at = db.Column(db.DateTime, nullable=True)
+ 
+     created_at = db.Column(
+         db.DateTime, nullable=False, default=datetime.utcnow, index=True
+     )
+ 
+-    physician = db.relationship("User", backref="chemotherapy_orders")
++    physician = db.relationship(
++        "User", foreign_keys=[physician_id], backref="chemotherapy_orders"
++    )
+diff --git a/departments/rbac.py b/departments/rbac.py
+index 31773cd..7681ef7 100644
+--- a/departments/rbac.py
++++ b/departments/rbac.py
+@@ -92,3 +92,27 @@ def roles_required(*roles):
+         return wrapper
+ 
+     return decorator
++
++
++def has_any_role(*roles) -> bool:
++    """
++    Non-aborting counterpart of ``roles_required`` with identical semantics
++    (role aliases, admin bypass unless a role-switch is active).
++
++    Use it inside a view that serves several roles but must restrict part of its
++    behaviour (e.g. read-only for nurses, write for doctors).
++    """
++    user = get_effective_user()
++    if not user:
++        return False
++
++    user_role = (user.role or "").lower()
++    if user_role == "admin" and "switched_user" not in session:
++        return True
++
++    allowed_roles = {r.lower() for r in roles}
++    for r in list(allowed_roles):
++        if r in ROLE_ALIASES:
++            allowed_roles.update(ROLE_ALIASES[r])
++
++    return get_effective_role() in allowed_roles
+diff --git a/migrations/versions/e5f6a7b8c9d0_oncology_module_hardening.py b/migrations/versions/e5f6a7b8c9d0_oncology_module_hardening.py
+new file mode 100644
+index 0000000..c283034
+--- /dev/null
++++ b/migrations/versions/e5f6a7b8c9d0_oncology_module_hardening.py
+@@ -0,0 +1,256 @@
++"""oncology module hardening: chemo orders table, note void columns, stage width
++
++1. chemotherapy_regimen_orders
++   The model existed but NO migration ever created the table, so any database
++   built with `flask db upgrade` had no chemotherapy order table (the cumulative
++   lifetime-dose check then silently returned "no history").  Created here if
++   missing; if it already exists (databases bootstrapped with db.create_all())
++   the new columns are added instead.  Also adds a partial unique index that
++   allows only one *active* (non-cancelled) order per patient/protocol/cycle.
++2. oncology_notes: is_voided / voided_by / voided_at / voided_reason.
++   The void route assigned these attributes but they were never mapped columns,
++   so "voiding" a note persisted nothing.
++3. onco_patients.stage widened 20 -> 100 (CancerStage.label is 100 chars).
++
++Downgrade removes only the columns/index this revision added and deliberately
++does NOT drop chemotherapy_regimen_orders (clinical order history), its patient
++foreign key (a harmless integrity constraint), or narrow onco_patients.stage
++(possible truncation).
++
++Revision ID: e5f6a7b8c9d0
++Revises: c3d4e5f6a7b8
++Create Date: 2026-09-19
++
++"""
++
++from alembic import op
++import sqlalchemy as sa
++
++# revision identifiers, used by Alembic.
++revision = "e5f6a7b8c9d0"
++down_revision = "c3d4e5f6a7b8"
++branch_labels = None
++depends_on = None
++
++CHEMO = "chemotherapy_regimen_orders"
++ACTIVE_CYCLE_INDEX = "uq_chemo_active_patient_protocol_cycle"
++
++
++def _columns(inspector, table):
++    return {c["name"]: c for c in inspector.get_columns(table)}
++
++
++def _fk_name(inspector, table, column):
++    """Actual name of the FK on `column` (None if absent or unnamed, e.g. SQLite)."""
++    for fk in inspector.get_foreign_keys(table):
++        if fk.get("constrained_columns") == [column]:
++            return fk.get("name")
++    return None
++
++
++def _create_chemo_table():
++    op.create_table(
++        CHEMO,
++        sa.Column("id", sa.Integer(), nullable=False),
++        sa.Column("patient_id", sa.String(length=20), nullable=False),
++        sa.Column("physician_id", sa.Integer(), nullable=False),
++        sa.Column("protocol_name", sa.String(length=50), nullable=False),
++        sa.Column("cancer_type", sa.String(length=100), nullable=True),
++        sa.Column("weight_kg", sa.Float(), nullable=False),
++        sa.Column("height_cm", sa.Float(), nullable=False),
++        sa.Column("bsa_m2", sa.Float(), nullable=False),
++        sa.Column("bsa_formula", sa.String(length=20), nullable=False),
++        sa.Column("cycle_number", sa.Integer(), nullable=False),
++        sa.Column("total_cycles", sa.Integer(), nullable=False),
++        sa.Column("calculated_doses_json", sa.Text(), nullable=False),
++        sa.Column("status", sa.String(length=20), nullable=False),
++        sa.Column("has_toxicity_warning", sa.Boolean(), nullable=False),
++        sa.Column("toxicity_warning_details", sa.Text(), nullable=True),
++        sa.Column("toxicity_override_reason", sa.Text(), nullable=True),
++        sa.Column("status_reason", sa.Text(), nullable=True),
++        sa.Column("status_changed_by", sa.Integer(), nullable=True),
++        sa.Column("status_changed_at", sa.DateTime(), nullable=True),
++        sa.Column("created_at", sa.DateTime(), nullable=False),
++        sa.ForeignKeyConstraint(["patient_id"], ["patients.patient_id"]),
++        sa.ForeignKeyConstraint(["physician_id"], ["users.id"]),
++        sa.ForeignKeyConstraint(
++            ["status_changed_by"],
++            ["users.id"],
++            name="fk_chemo_orders_status_changed_by_users",
++        ),
++        sa.PrimaryKeyConstraint("id"),
++    )
++    op.create_index(
++        op.f("ix_chemotherapy_regimen_orders_patient_id"), CHEMO, ["patient_id"]
++    )
++    op.create_index(
++        op.f("ix_chemotherapy_regimen_orders_created_at"), CHEMO, ["created_at"]
++    )
++
++
++def _ensure_chemo_patient_fk(bind, inspector):
++    """
++    Pre-existing table (db.create_all() era) has no patient FK. Add it so that
++    NEW orders can never reference a non-existent patient. On PostgreSQL it is
++    added NOT VALID: enforced for every new/updated row, while any legacy
++    orphaned rows are tolerated (and can be reviewed, then VALIDATEd, by an
++    operator) instead of blocking the upgrade.
++    """
++    if _fk_name(inspector, CHEMO, "patient_id"):
++        return
++    name = "fk_chemo_orders_patient_id_patients"
++    if bind.dialect.name == "postgresql":
++        op.create_foreign_key(
++            name,
++            CHEMO,
++            "patients",
++            ["patient_id"],
++            ["patient_id"],
++            postgresql_not_valid=True,
++        )
++    else:
++        with op.batch_alter_table(CHEMO, schema=None) as batch_op:
++            batch_op.create_foreign_key(
++                name, "patients", ["patient_id"], ["patient_id"]
++            )
++
++
++def _add_missing_chemo_columns(inspector):
++    existing = _columns(inspector, CHEMO)
++    wanted = [
++        sa.Column("toxicity_override_reason", sa.Text(), nullable=True),
++        sa.Column("status_reason", sa.Text(), nullable=True),
++        sa.Column("status_changed_by", sa.Integer(), nullable=True),
++        sa.Column("status_changed_at", sa.DateTime(), nullable=True),
++    ]
++    missing = [c for c in wanted if c.name not in existing]
++    if not missing:
++        return
++    with op.batch_alter_table(CHEMO, schema=None) as batch_op:
++        for col in missing:
++            batch_op.add_column(col)
++        if any(c.name == "status_changed_by" for c in missing):
++            batch_op.create_foreign_key(
++                "fk_chemo_orders_status_changed_by_users",
++                "users",
++                ["status_changed_by"],
++                ["id"],
++            )
++
++
++def _create_active_cycle_index(bind, inspector):
++    if ACTIVE_CYCLE_INDEX in {i["name"] for i in inspector.get_indexes(CHEMO)}:
++        return
++    duplicates = bind.execute(
++        sa.text(
++            "SELECT patient_id, protocol_name, cycle_number, COUNT(*) AS n "
++            f"FROM {CHEMO} WHERE status <> 'CANCELLED' "
++            "GROUP BY patient_id, protocol_name, cycle_number HAVING COUNT(*) > 1"
++        )
++    ).fetchall()
++    if duplicates:
++        # Never silently cancel/alter clinical orders in a migration: a human
++        # must decide which duplicate is the real one.
++        listing = "; ".join(f"{r[0]}/{r[1]}/cycle {r[2]} x{r[3]}" for r in duplicates)
++        raise RuntimeError(
++            "Cannot enforce one active chemotherapy order per patient/protocol/cycle: "
++            f"duplicate active orders exist ({listing}). Cancel the erroneous "
++            "duplicates (status='CANCELLED', with a status_reason) and re-run the upgrade."
++        )
++    op.create_index(
++        ACTIVE_CYCLE_INDEX,
++        CHEMO,
++        ["patient_id", "protocol_name", "cycle_number"],
++        unique=True,
++        postgresql_where=sa.text("status <> 'CANCELLED'"),
++        sqlite_where=sa.text("status <> 'CANCELLED'"),
++    )
++
++
++def upgrade():
++    bind = op.get_bind()
++    inspector = sa.inspect(bind)
++    tables = inspector.get_table_names()
++
++    # 1. chemotherapy_regimen_orders --------------------------------------
++    if CHEMO not in tables:
++        _create_chemo_table()
++    else:
++        _add_missing_chemo_columns(inspector)
++        _ensure_chemo_patient_fk(bind, sa.inspect(bind))
++    _create_active_cycle_index(bind, sa.inspect(bind))
++
++    # 2. oncology_notes soft-void columns ---------------------------------
++    if "oncology_notes" in tables:
++        existing = _columns(inspector, "oncology_notes")
++        with op.batch_alter_table("oncology_notes", schema=None) as batch_op:
++            if "is_voided" not in existing:
++                batch_op.add_column(
++                    sa.Column(
++                        "is_voided",
++                        sa.Boolean(),
++                        nullable=False,
++                        server_default=sa.false(),
++                    )
++                )
++            if "voided_by" not in existing:
++                batch_op.add_column(sa.Column("voided_by", sa.Integer(), nullable=True))
++                batch_op.create_foreign_key(
++                    "fk_oncology_notes_voided_by_users", "users", ["voided_by"], ["id"]
++                )
++            if "voided_at" not in existing:
++                batch_op.add_column(
++                    sa.Column("voided_at", sa.DateTime(), nullable=True)
++                )
++            if "voided_reason" not in existing:
++                batch_op.add_column(
++                    sa.Column("voided_reason", sa.String(length=500), nullable=True)
++                )
++
++    # 3. onco_patients.stage width ----------------------------------------
++    if "onco_patients" in tables:
++        stage = _columns(inspector, "onco_patients").get("stage")
++        current_len = getattr(stage["type"], "length", None) if stage else None
++        if stage is not None and current_len is not None and current_len < 100:
++            with op.batch_alter_table("onco_patients", schema=None) as batch_op:
++                batch_op.alter_column(
++                    "stage",
++                    existing_type=sa.String(length=current_len),
++                    type_=sa.String(length=100),
++                    existing_nullable=False,
++                )
++
++
++def downgrade():
++    bind = op.get_bind()
++    inspector = sa.inspect(bind)
++    tables = inspector.get_table_names()
++
++    if "oncology_notes" in tables:
++        existing = _columns(inspector, "oncology_notes")
++        with op.batch_alter_table("oncology_notes", schema=None) as batch_op:
++            fk = _fk_name(inspector, "oncology_notes", "voided_by")
++            if fk:
++                batch_op.drop_constraint(fk, type_="foreignkey")
++            for name in ("voided_reason", "voided_at", "voided_by", "is_voided"):
++                if name in existing:
++                    batch_op.drop_column(name)
++
++    if CHEMO in tables:
++        if ACTIVE_CYCLE_INDEX in {i["name"] for i in inspector.get_indexes(CHEMO)}:
++            op.drop_index(ACTIVE_CYCLE_INDEX, table_name=CHEMO)
++        existing = _columns(inspector, CHEMO)
++        with op.batch_alter_table(CHEMO, schema=None) as batch_op:
++            fk = _fk_name(inspector, CHEMO, "status_changed_by")
++            if fk:
++                batch_op.drop_constraint(fk, type_="foreignkey")
++            for name in (
++                "status_changed_at",
++                "status_changed_by",
++                "status_reason",
++                "toxicity_override_reason",
++            ):
++                if name in existing:
++                    batch_op.drop_column(name)
++    # NOTE: chemotherapy_regimen_orders itself and onco_patients.stage width are
++    # intentionally left in place (clinical data / possible truncation).
+diff --git a/templates/medicine/oncology/chemo_builder.html b/templates/medicine/oncology/chemo_builder.html
+index 0784e38..9bbdeb6 100644
+--- a/templates/medicine/oncology/chemo_builder.html
++++ b/templates/medicine/oncology/chemo_builder.html
+@@ -80,7 +80,7 @@
+     <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+       <i class="bi bi-capsule-prescription fs-4 text-purple" style="color: var(--accent-purple);"></i>
+       <span class="fw-bold fs-5">Oncology &amp; Chemotherapy Protocol Builder</span>
+-      <span class="badge bg-purple text-white fw-bold ms-2" style="background-color: var(--accent-purple);">Patient: {{ patient_id }}</span>
++      <span class="badge bg-purple text-white fw-bold ms-2" style="background-color: var(--accent-purple);">Patient: {{ patient_name }} ({{ patient_id }})</span>
+     </a>
+     <div class="d-flex align-items-center gap-3">
+       <button class="btn btn-outline-light btn-sm" onclick="window.location.reload();">
+@@ -92,6 +92,9 @@
+ 
+ <div class="container-fluid px-4">
+ 
++  <!-- Calculation / validation errors (never leave stale doses on screen) -->
++  <div id="calcError" class="alert alert-danger d-none" role="alert"></div>
++
+   <!-- Toxicity Warning Banners -->
+   <div id="toxicityBanner" class="alert-banner-toxicity d-flex align-items-center justify-content-between d-none">
+     <div class="d-flex align-items-center gap-3">
+@@ -112,11 +115,11 @@
+       <div class="row g-3 align-items-end">
+         <div class="col-md-2">
+           <label class="form-label text-muted small fw-bold">Height (cm)</label>
+-          <input type="number" class="form-control bg-secondary text-white border-0" id="heightCm" value="170" onchange="recalculateChemo()">
++          <input type="number" class="form-control bg-secondary text-white border-0" id="heightCm" min="30" max="250" step="0.1" placeholder="measured cm" required onchange="recalculateChemo()">
+         </div>
+         <div class="col-md-2">
+           <label class="form-label text-muted small fw-bold">Weight (kg)</label>
+-          <input type="number" class="form-control bg-secondary text-white border-0" id="weightKg" value="70" onchange="recalculateChemo()">
++          <input type="number" class="form-control bg-secondary text-white border-0" id="weightKg" min="1" max="350" step="0.1" placeholder="measured kg" required onchange="recalculateChemo()">
+         </div>
+         <div class="col-md-3">
+           <label class="form-label text-muted small fw-bold">BSA Formula</label>
+@@ -127,7 +130,7 @@
+         </div>
+         <div class="col-md-3">
+           <label class="form-label text-muted small fw-bold">Chemotherapy Protocol</label>
+-          <select class="form-select bg-secondary text-white border-0" id="protocolName" onchange="recalculateChemo()">
++          <select class="form-select bg-secondary text-white border-0" id="protocolName" onchange="onProtocolChange()">
+             <option value="FOLFOX6">FOLFOX6 (Colorectal Cancer)</option>
+             <option value="AC-T" selected>AC-T (Breast Cancer)</option>
+             <option value="ABVD">ABVD (Hodgkin Lymphoma)</option>
+@@ -137,7 +140,7 @@
+         <div class="col-md-2">
+           <div class="kpi-card text-center py-2 px-3">
+             <div class="text-muted small fw-semibold text-uppercase">BSA (m²)</div>
+-            <div class="kpi-val text-info" id="bsaDisplay">1.82</div>
++            <div class="kpi-val text-info" id="bsaDisplay">&mdash;</div>
+           </div>
+         </div>
+       </div>
+@@ -148,7 +151,7 @@
+   <div class="card bg-dark border-secondary mb-4">
+     <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center py-3">
+       <h5 class="mb-0 text-white fw-bold"><i class="bi bi-prescription2 text-cyan me-2" style="color: var(--accent-cyan);"></i>Calculated Chemotherapy Doses</h5>
+-      <span class="badge bg-purple text-white" id="cancerTypeBadge">Breast Cancer</span>
++      <span class="badge bg-purple text-white" id="cancerTypeBadge">&mdash;</span>
+     </div>
+     <div class="card-body p-0">
+       <div class="table-responsive">
+@@ -177,13 +180,13 @@
+     <div class="card-body d-flex justify-content-between align-items-center">
+       <div class="d-flex align-items-center gap-3">
+         <label class="form-label text-white mb-0 fw-bold">Cycle Number:</label>
+-        <input type="number" class="form-control bg-secondary text-white border-0" id="cycleNum" value="1" style="width: 80px;">
++        <input type="number" class="form-control bg-secondary text-white border-0" id="cycleNum" value="1" min="1" max="30" style="width: 80px;" onchange="recalculateChemo()">
+         <span class="text-muted">of</span>
+-        <input type="number" class="form-control bg-secondary text-white border-0" id="totalCycles" value="6" style="width: 80px;">
++        <input type="number" class="form-control bg-secondary text-white border-0" id="totalCycles" value="8" min="1" max="30" style="width: 80px;">
+         <span class="text-muted">total cycles</span>
+       </div>
+       <div>
+-        <button class="btn btn-purple text-white fw-bold px-4 py-2" style="background-color: var(--accent-purple);" onclick="saveChemoOrder()">
++        <button id="signBtn" class="btn btn-purple text-white fw-bold px-4 py-2" style="background-color: var(--accent-purple);" onclick="saveChemoOrder()" disabled>
+           <i class="bi bi-shield-check me-2"></i>Sign &amp; Order Chemotherapy Regimen
+         </button>
+       </div>
+@@ -194,86 +197,155 @@
+ 
+ <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+ <script>
+-  const patientId = "{{ patient_id }}";
++  const patientId = {{ patient_id|tojson }};
++  let lastCalcOk = false;
++
++  function esc(v) {
++    const d = document.createElement('div');
++    d.textContent = v == null ? '' : String(v);
++    return d.innerHTML;
++  }
++
++  function showCalcError(message) {
++    lastCalcOk = false;
++    document.getElementById('signBtn').disabled = true;
++    const box = document.getElementById('calcError');
++    box.textContent = message;
++    box.classList.remove('d-none');
++    // Never leave the previous patient's/inputs' doses on screen.
++    document.getElementById('chemoTableBody').innerHTML = '';
++    document.getElementById('bsaDisplay').innerText = '\u2014';
++    document.getElementById('toxicityBanner').classList.add('d-none');
++  }
++
++  function clearCalcError() {
++    document.getElementById('calcError').classList.add('d-none');
++  }
+ 
+-  async function recalculateChemo() {
++  async function onProtocolChange() {
++    // Apply the protocol's default cycle count, then recalculate.
++    await recalculateChemo(true);
++  }
++
++  async function recalculateChemo(applyDefaultCycles = false) {
+     const height = document.getElementById('heightCm').value;
+     const weight = document.getElementById('weightKg').value;
+     const formula = document.getElementById('bsaFormula').value;
+     const protocol = document.getElementById('protocolName').value;
++    const cycle = document.getElementById('cycleNum').value;
+ 
+-    const res = await fetch(`/medicine/oncology/api/calculate-chemo?patient_id=${patientId}&protocol=${protocol}&height=${height}&weight=${weight}&formula=${formula}`);
+-    if(!res.ok) return;
++    if (!height || !weight) {
++      showCalcError('Enter the patient\u2019s measured height and weight to calculate doses.');
++      return;
++    }
++
++    const qs = new URLSearchParams({patient_id: patientId, protocol, height, weight, formula, cycle});
++    let res, data;
++    try {
++      res = await fetch(`/medicine/oncology/api/calculate-chemo?${qs}`);
++      data = await res.json();
++    } catch (e) {
++      showCalcError('Could not reach the server. Doses are NOT calculated.');
++      return;
++    }
++    if (!res.ok) {
++      showCalcError(data.message || 'Dose calculation failed.');
++      return;
++    }
++    clearCalcError();
+ 
+-    const data = await res.json();
+     document.getElementById('bsaDisplay').innerText = data.bsa_m2;
+     document.getElementById('cancerTypeBadge').innerText = data.cancer_type;
++    if (applyDefaultCycles && data.default_total_cycles) {
++      document.getElementById('totalCycles').value = data.default_total_cycles;
++    }
+ 
+     // Toxicity Banner
+     const banner = document.getElementById('toxicityBanner');
+     const details = document.getElementById('toxicityDetails');
+-    if(data.has_toxicity_warning) {
++    if (data.has_toxicity_warning) {
+       banner.classList.remove('d-none');
+-      details.innerHTML = data.toxicity_warnings.map(w => `<div>• ${w}</div>`).join('');
++      details.innerHTML = data.toxicity_warnings.map(w => `<div>\u2022 ${esc(w)}</div>`).join('');
+     } else {
+       banner.classList.add('d-none');
+     }
+ 
+-    // Populate Table
++    // Populate Table. Doses and cumulative totals are ABSOLUTE amounts (d.dose_unit);
++    // only the protocol basis is per m\u00b2 (d.unit).
+     const tbody = document.getElementById('chemoTableBody');
+     tbody.innerHTML = '';
+     data.drugs.forEach(d => {
+       const tr = document.createElement('tr');
+       const capBadge = d.cap_exceeded
+         ? `<span class="badge bg-danger text-white"><i class="bi bi-exclamation-triangle-fill me-1"></i>Cap Exceeded</span>`
+-        : `<span class="badge bg-success text-dark"><i class="bi bi-check-circle me-1"></i>Safe</span>`;
++        : `<span class="badge bg-success text-dark"><i class="bi bi-check-circle me-1"></i>Within cap</span>`;
++      const perM2 = (v) => d.dose_per_m2 ? ` <span class="text-muted">(${esc(v)} mg/m\u00b2)</span>` : '';
+ 
+       tr.innerHTML = `
+-        <td class="fw-bold text-white">${d.drug_name}</td>
+-        <td>${d.dose_per_m2 ? d.dose_per_m2 + ' ' + d.unit : 'Fixed Dose'}</td>
+-        <td><span class="badge bg-info text-dark fw-bold fs-6">${d.dose_display}</span></td>
+-        <td class="small text-muted">${d.route}</td>
+-        <td>${d.prev_cumulative_dose} ${d.unit}</td>
+-        <td><span class="fw-bold ${d.cap_exceeded ? 'text-danger' : 'text-light'}">${d.new_cumulative_dose} ${d.unit}</span></td>
++        <td class="fw-bold text-white">${esc(d.drug_name)}</td>
++        <td>${d.dose_per_m2 ? esc(d.dose_per_m2) + ' ' + esc(d.unit) : 'Fixed Dose'}</td>
++        <td><span class="badge bg-info text-dark fw-bold fs-6">${esc(d.dose_display)}</span></td>
++        <td class="small text-muted">${esc(d.route)}</td>
++        <td>${esc(d.prev_cumulative_dose)} ${esc(d.dose_unit)}${perM2(d.prev_cumulative_per_m2)}</td>
++        <td><span class="fw-bold ${d.cap_exceeded ? 'text-danger' : 'text-light'}">${esc(d.new_cumulative_dose)} ${esc(d.dose_unit)}</span>${perM2(d.new_cumulative_per_m2)}</td>
+         <td>${capBadge}</td>
+       `;
+       tbody.appendChild(tr);
+     });
++    lastCalcOk = true;
++    document.getElementById('signBtn').disabled = false;
+   }
+ 
+-  async function saveChemoOrder() {
+-    const height = document.getElementById('heightCm').value;
+-    const weight = document.getElementById('weightKg').value;
+-    const formula = document.getElementById('bsaFormula').value;
+-    const protocol = document.getElementById('protocolName').value;
+-    const cycle = document.getElementById('cycleNum').value;
+-    const total_cycles = document.getElementById('totalCycles').value;
+-
++  async function postOrder(overrideReason) {
++    const payload = {
++      patient_id: patientId,
++      protocol_name: document.getElementById('protocolName').value,
++      height_cm: document.getElementById('heightCm').value,
++      weight_kg: document.getElementById('weightKg').value,
++      bsa_formula: document.getElementById('bsaFormula').value,
++      cycle_number: document.getElementById('cycleNum').value,
++      total_cycles: document.getElementById('totalCycles').value
++    };
++    if (overrideReason) payload.toxicity_override_reason = overrideReason;
+     const res = await fetch(`/medicine/oncology/api/save-chemo-order`, {
+       method: 'POST',
+       headers: {'Content-Type': 'application/json'},
+-      body: JSON.stringify({
+-        patient_id: patientId,
+-        protocol_name: protocol,
+-        height_cm: height,
+-        weight_kg: weight,
+-        bsa_formula: formula,
+-        cycle_number: cycle,
+-        total_cycles: total_cycles
+-      })
++      body: JSON.stringify(payload)
+     });
++    return {res, body: await res.json().catch(() => ({}))};
++  }
++
++  async function saveChemoOrder() {
++    if (!lastCalcOk) {
++      alert('Doses are not currently calculated. Fix the highlighted problem first.');
++      return;
++    }
++    let {res, body} = await postOrder(null);
++
++    // Lifetime cap exceeded: the prescriber must document a justification.
++    if (res.status === 409 && body.code === 'TOXICITY_OVERRIDE_REQUIRED') {
++      const lines = (body.toxicity_warnings || []).join('\n');
++      const reason = prompt(
++        (body.message || 'Lifetime toxicity cap exceeded.') + '\n\n' + lines +
++        '\n\nEnter the documented clinical justification to override (min. 10 characters), or Cancel to stop:'
++      );
++      if (!reason || reason.trim().length < 10) {
++        alert('Order NOT saved: a documented justification is required to exceed a lifetime cap.');
++        return;
++      }
++      ({res, body} = await postOrder(reason.trim()));
++    }
+ 
+-    if(res.ok) {
++    if (res.ok) {
+       alert('Chemotherapy Regimen Order signed and saved successfully!');
+       window.location.reload();
+     } else {
+-      const err = await res.json();
+-      alert('Order Error: ' + (err.message || 'Failed to save chemotherapy order'));
++      alert('Order Error: ' + (body.message || 'Failed to save chemotherapy order'));
+     }
+   }
+ 
+-  // Initial load calculation
+-  window.onload = recalculateChemo;
++  // Nothing is calculated until measured height/weight are entered.
++  window.onload = () => recalculateChemo(true);
+ </script>
+ </div>
+ {% endblock %}
+diff --git a/tests/security/test_p0_security.py b/tests/security/test_p0_security.py
+index b55b54b..872023e 100644
+--- a/tests/security/test_p0_security.py
++++ b/tests/security/test_p0_security.py
+@@ -128,7 +128,15 @@ def test_oncology_note_void_preserves_record(client, app):
+     with app.app_context():
+         saved_note = db.session.get(OncologyNote, note_id)
+         assert saved_note is not None
+-        assert getattr(saved_note, "is_voided", True) is True
++        # NB: the original assertion used getattr(..., "is_voided", True), whose
++        # default made it pass even though no such column existed and nothing
++        # was persisted. Assert the real, persisted state instead.
++        assert saved_note.is_voided is True
++        assert saved_note.voided_reason == "Entered in error"
++        assert saved_note.voided_by == admin_id
++        assert saved_note.voided_at is not None
++        # original text is preserved (void, never delete)
++        assert saved_note.note_content == "Initial oncology note content"
+ 
+ 
+ # ── 7. Pharmacy Void Workflow (Dispensing) ──
+diff --git a/tests/test_oncology_chemotherapy.py b/tests/test_oncology_chemotherapy.py
+index a784098..c83fe7d 100644
+--- a/tests/test_oncology_chemotherapy.py
++++ b/tests/test_oncology_chemotherapy.py
+@@ -5,11 +5,17 @@ Unit and integration tests for Oncology BSA calculation, chemotherapy protocol d
+ cumulative toxicity cap enforcement, and builder endpoints.
+ """
+ 
++from datetime import date
++
++import pytest
++
+ from departments.medicine.chemotherapy_engine import (
++    ChemoInputError,
+     calculate_bsa,
+     calculate_regimen_doses,
+ )
+ from departments.models.oncology_models import ChemotherapyRegimenOrder
++from departments.models.records import Patient
+ from extensions import db
+ 
+ 
+@@ -21,11 +27,12 @@ def test_calculate_bsa():
+     bsa_dubois = calculate_bsa(170, 70, formula="dubois")
+     assert bsa_dubois == 1.81
+ 
+-    # Invalid biometrics fallback
+-    assert calculate_bsa(0, 0) == 1.73
++    # Invalid biometrics are REFUSED (there is no silent "standard adult" BSA).
++    with pytest.raises(ChemoInputError):
++        calculate_bsa(0, 0)
+ 
+ 
+-def test_calculate_regimen_doses_folfox():
++def test_calculate_regimen_doses_folfox(app):
+     """Test FOLFOX6 protocol dose calculations."""
+     res = calculate_regimen_doses("PAT_ONCO_01", "FOLFOX6", 170, 70)
+     assert res["protocol_name"] == "FOLFOX6"
+@@ -37,7 +44,7 @@ def test_calculate_regimen_doses_folfox():
+     assert oxali["cap_exceeded"] is False
+ 
+ 
+-def test_vincristine_single_dose_cap():
++def test_vincristine_single_dose_cap(app):
+     """Test Vincristine 2.0 mg single dose cap enforcement in CHOP protocol."""
+     # Large BSA (e.g. 200cm, 120kg -> BSA ~ 2.58 m2)
+     # Vincristine 1.4 mg/m2 * 2.58 = 3.61 mg -> should be capped at 2.0 mg
+@@ -73,14 +80,25 @@ def test_doxorubicin_lifetime_toxicity_cap(app):
+ 
+ def test_chemo_builder_endpoints(client, app, admin_user):
+     """Test Chemotherapy Builder UI and API endpoints."""
++    with app.app_context():
++        db.session.add(
++            Patient(
++                patient_id="P-ONC-01",
++                name="Onco Test",
++                sex="Female",
++                date_of_birth=date(1985, 5, 5),
++            )
++        )
++        db.session.commit()
++
+     # Test GET Chemo Builder UI Page
+-    resp_ui = client.get("/medicine/oncology/chemo-builder/PAT_ONCO_TEST")
++    resp_ui = client.get("/medicine/oncology/chemo-builder/P-ONC-01")
+     assert resp_ui.status_code == 200
+     assert b"Chemotherapy Protocol Builder" in resp_ui.data
+ 
+     # Test GET calculate chemo API
+     resp_calc = client.get(
+-        "/medicine/oncology/api/calculate-chemo?patient_id=PAT_ONCO_TEST&protocol=AC-T&height=170&weight=70"
++        "/medicine/oncology/api/calculate-chemo?patient_id=P-ONC-01&protocol=AC-T&height=170&weight=70"
+     )
+     assert resp_calc.status_code == 200
+     calc_data = resp_calc.get_json()
+@@ -91,7 +109,7 @@ def test_chemo_builder_endpoints(client, app, admin_user):
+     resp_save = client.post(
+         "/medicine/oncology/api/save-chemo-order",
+         json={
+-            "patient_id": "PAT_ONCO_TEST",
++            "patient_id": "P-ONC-01",
+             "protocol_name": "ABVD",
+             "height_cm": 175,
+             "weight_kg": 75,
+diff --git a/tests/test_oncology_hardening.py b/tests/test_oncology_hardening.py
+new file mode 100644
+index 0000000..092805b
+--- /dev/null
++++ b/tests/test_oncology_hardening.py
+@@ -0,0 +1,1263 @@
++"""
++tests/test_oncology_hardening.py
++────────────────────────────────
++Regression tests for the oncology module review.
++
++Every test here corresponds to a defect that was reproduced against the
++original code (most of them on real PostgreSQL) and would FAIL on that code.
++Groups:
++  A. Chemotherapy engine     – input validation, units, cumulative exposure,
++                                fail-closed history, AC-T phases
++  B. Chemo API               – patient existence, strict parsing, cycle rules,
++                                toxicity override, duplicates, audit, status flow
++  C. Patient chart           – identity mapping (patient number, not int PK),
++                                edit persistence, note void/amend, AI-summary consent
++  D. Bookings / legacy Rx    – exact patient match, integer FK mapping, provenance
++  E. Access control          – non-clinical roles, anonymous
++"""
++
++import json
++from datetime import date
++
++import pytest
++from flask import g
++from sqlalchemy import inspect as sa_inspect
++from sqlalchemy import text
++
++from departments.medicine import chemotherapy_engine as engine
++from departments.medicine.chemotherapy_engine import (
++    ChemoInputError,
++    CumulativeHistoryUnavailable,
++    calculate_bsa,
++    calculate_regimen_doses,
++    get_patient_cumulative_doses,
++)
++from departments.models.compliance import AuditLog, PatientConsent
++from departments.models.medicine import (
++    CancerStage,
++    CancerType,
++    CancerTypeStage,
++    OncologyBooking,
++    OncologyDrug,
++    OncologyNote,
++    OncologyRegimen,
++    OncoPatient,
++    OncoPrescription,
++    RegimenDrugAssociation,
++)
++from departments.models.oncology_models import ChemotherapyRegimenOrder
++from departments.models.records import Patient
++from departments.models.user import User
++from extensions import db
++
++# ─────────────────────────────── fixtures / helpers ───────────────────────────
++
++
++def _mk_user(role, name=None):
++    user = User(username=name or f"u_{role}", password="x", role=role)
++    db.session.add(user)
++    db.session.commit()
++    return user.id
++
++
++def _mk_patient(pid, name="Test Patient"):
++    p = Patient(patient_id=pid, name=name, sex="Female", date_of_birth=date(1985, 5, 5))
++    db.session.add(p)
++    db.session.commit()
++    return p
++
++
++def _login(client, user_id):
++    """Log `user_id` in. Requests reuse the test's app context, so also drop
++    flask-login's per-context cached user or a previous login would leak."""
++    g.pop("_login_user", None)
++    with client.session_transaction() as sess:
++        sess["_user_id"] = str(user_id)
++        sess["_fresh"] = True
++
++
++@pytest.fixture
++def doctor(app):
++    return _mk_user("doctor")
++
++
++@pytest.fixture
++def patient(app):
++    return _mk_patient("P0001", "Amy First")
++
++
++def _order(
++    patient_id="P0001",
++    doses=None,
++    bsa=1.82,
++    status="ORDERED",
++    cycle=1,
++    protocol="AC-T",
++    physician_id=1,
++):
++    order = ChemotherapyRegimenOrder(
++        patient_id=patient_id,
++        physician_id=physician_id,
++        protocol_name=protocol,
++        weight_kg=70.0,
++        height_cm=170.0,
++        bsa_m2=bsa,
++        cycle_number=cycle,
++        status=status,
++        calculated_doses_json=json.dumps(
++            doses or [{"drug_name": "Doxorubicin", "calculated_dose": 100.0}]
++        ),
++    )
++    db.session.add(order)
++    db.session.commit()
++    return order
++
++
++SAVE = "/medicine/oncology/api/save-chemo-order"
++CALC = "/medicine/oncology/api/calculate-chemo"
++
++
++def _save_body(**over):
++    body = {
++        "patient_id": "P0001",
++        "protocol_name": "CHOP",
++        "height_cm": 170,
++        "weight_kg": 70,
++        "bsa_formula": "mosteller",
++        "cycle_number": 1,
++        "total_cycles": 6,
++    }
++    body.update(over)
++    return body
++
++
++# ══════════════════════════════════════════════════════════════════════════════
++# A. Chemotherapy engine
++# ══════════════════════════════════════════════════════════════════════════════
++
++
++class TestBsaInputValidation:
++    """There must be no silent 'standard adult' fallback (was: return 1.73)."""
++
++    @pytest.mark.parametrize(
++        "height,weight",
++        [
++            (0, 0),
++            (-5, 70),
++            (170, -1),
++            (float("nan"), 70),
++            (170, float("inf")),
++            (None, 70),
++            ("", 70),
++            ("abc", 70),
++            (True, 70),
++            (17, 700),  # unit mistakes: plausible-looking BSA, absurd inputs
++            (1700, 70),
++        ],
++    )
++    def test_rejects_bad_biometrics(self, height, weight):
++        with pytest.raises(ChemoInputError):
++            calculate_bsa(height, weight)
++
++    def test_rejects_unknown_formula(self):
++        with pytest.raises(ChemoInputError):
++            calculate_bsa(170, 70, formula="xyz")
++
++    def test_valid_values_unchanged(self):
++        assert calculate_bsa(170, 70, "mosteller") == 1.82
++        assert calculate_bsa(170, 70, "DuBois") == 1.81  # case-insensitive
++        assert calculate_bsa("170", "70") == 1.82  # numeric strings from forms
++
++
++class TestDoseUnitsAndPhases:
++    def test_absolute_dose_is_not_labelled_per_m2(self, app):
++        res = calculate_regimen_doses("P0001", "AC-T", 170, 70)
++        dox = next(d for d in res["drugs"] if d["drug_name"] == "Doxorubicin")
++        assert dox["calculated_dose"] == 109.2
++        assert dox["dose_display"] == "109.2 mg"  # was "109.2 mg/m2"
++        assert dox["dose_unit"] == "mg"
++        assert dox["unit"] == "mg/m2"  # protocol basis is still per m2
++
++    def test_bleomycin_units(self, app):
++        res = calculate_regimen_doses("P0001", "ABVD", 170, 70)
++        bleo = next(d for d in res["drugs"] if d["drug_name"] == "Bleomycin")
++        assert bleo["dose_display"].endswith(" units")
++        assert "/m2" not in bleo["dose_display"]
++
++    def test_bleomycin_cap_message_uses_absolute_unit(self, app):
++        _order(doses=[{"drug_name": "Bleomycin", "calculated_dose": 299.0}])
++        res = calculate_regimen_doses("P0001", "ABVD", 170, 70)
++        assert res["has_toxicity_warning"] is True
++        msg = " ".join(res["toxicity_warnings"])
++        # 299 prior + 18.2 (10 units/m2 x 1.82) = 317.2 absolute units
++        assert "(317.2 units)" in msg
++        assert "cap of 300.0 units" in msg
++        assert "units/m2" not in msg
++
++    @pytest.mark.parametrize(
++        "cycle,expected",
++        [
++            (1, ["Doxorubicin", "Cyclophosphamide"]),
++            (4, ["Doxorubicin", "Cyclophosphamide"]),
++            (5, ["Paclitaxel"]),
++            (8, ["Paclitaxel"]),
++        ],
++    )
++    def test_ac_t_is_sequential_not_concurrent(self, app, cycle, expected):
++        res = calculate_regimen_doses("P0001", "AC-T", 170, 70, cycle_number=cycle)
++        assert [d["drug_name"] for d in res["drugs"]] == expected
++
++    def test_ac_t_rejects_cycle_beyond_protocol(self, app):
++        res = calculate_regimen_doses("P0001", "AC-T", 170, 70, cycle_number=9)
++        assert res["error"] is True and res["code"] == "CYCLE_OUT_OF_RANGE"
++
++    @pytest.mark.parametrize("cycle", [0, -3, 31, 1.5, "x", None])
++    def test_rejects_bad_cycle_numbers(self, app, cycle):
++        res = calculate_regimen_doses("P0001", "CHOP", 170, 70, cycle_number=cycle)
++        assert res["error"] is True and res["code"] == "CYCLE_OUT_OF_RANGE"
++
++    def test_engine_returns_error_dict_not_defaults(self, app):
++        res = calculate_regimen_doses("P0001", "CHOP", None, 70)
++        assert res["error"] is True and res["code"] == "INVALID_INPUT"
++
++    def test_default_total_cycles_exposed(self, app):
++        assert (
++            calculate_regimen_doses("P0001", "AC-T", 170, 70)["default_total_cycles"]
++            == 8
++        )
++
++
++class TestCumulativeExposure:
++    def test_cancelled_orders_do_not_count(self, app):
++        _order(
++            doses=[{"drug_name": "Doxorubicin", "calculated_dose": 800.0}],
++            status="CANCELLED",
++        )
++        assert get_patient_cumulative_doses("P0001") == {}
++        res = calculate_regimen_doses("P0001", "AC-T", 170, 70)
++        assert res["has_toxicity_warning"] is False
++
++    def test_active_orders_count(self, app):
++        _order(doses=[{"drug_name": "Doxorubicin", "calculated_dose": 800.0}])
++        assert get_patient_cumulative_doses("P0001") == {"Doxorubicin": 800.0}
++
++    def test_per_m2_uses_each_orders_own_bsa(self, app):
++        """
++        Prior: 400 mg at BSA 1.0  = 400 mg/m2.
++        New  : 60 mg/m2 at BSA 2.0 = 120 mg.
++        True lifetime = 400 + 60 = 460 mg/m2 (> 450 cap).
++        Dividing the mg total by the NEW bsa gives (400+120)/2.0 = 260 -> cap missed.
++        """
++        _order(doses=[{"drug_name": "Doxorubicin", "calculated_dose": 400.0}], bsa=1.0)
++        res = calculate_regimen_doses("P0001", "AC-T", 180, 80)  # BSA 2.00
++        assert res["bsa_m2"] == 2.0
++        dox = next(d for d in res["drugs"] if d["drug_name"] == "Doxorubicin")
++        assert dox["new_cumulative_per_m2"] == 460.0
++        assert dox["cap_exceeded"] is True and res["has_toxicity_warning"] is True
++
++    def test_legacy_low_history_still_within_cap(self, app):
++        _order(doses=[{"drug_name": "Doxorubicin", "calculated_dose": 200.0}])
++        res = calculate_regimen_doses("P0001", "AC-T", 170, 70)
++        assert res["has_toxicity_warning"] is False
++
++    def test_fails_closed_when_history_table_is_missing(self, app):
++        """Production reality before the migration: the table did not exist and
++        the old code returned {} -> caps silently skipped."""
++        ChemotherapyRegimenOrder.__table__.drop(db.engine)
++        with pytest.raises(CumulativeHistoryUnavailable):
++            get_patient_cumulative_doses("P0001")
++        res = calculate_regimen_doses("P0001", "AC-T", 170, 70)
++        assert res["error"] is True and res["code"] == "CUMULATIVE_HISTORY_UNAVAILABLE"
++
++    def test_fails_closed_on_corrupt_history_json(self, app):
++        order = _order()
++        order.calculated_doses_json = "{not json"
++        db.session.commit()
++        with pytest.raises(CumulativeHistoryUnavailable):
++            get_patient_cumulative_doses("P0001")
++
++    def test_vincristine_cap_applies_even_without_protocol_level_cap(
++        self, app, monkeypatch
++    ):
++        proto = json.loads(json.dumps(engine.CHEMO_PROTOCOLS["CHOP"]))
++        for d in proto["drugs"]:
++            d.pop("cap_max_mg", None)
++        monkeypatch.setitem(engine.CHEMO_PROTOCOLS, "CHOP", proto)
++        res = calculate_regimen_doses("P0001", "CHOP", 200, 120)
++        vinc = next(d for d in res["drugs"] if d["drug_name"] == "Vincristine")
++        assert vinc["calculated_dose"] == 2.0
++
++
++# ══════════════════════════════════════════════════════════════════════════════
++# B. Chemo API
++# ══════════════════════════════════════════════════════════════════════════════
++
++
++class TestCalculateEndpoint:
++    def test_unknown_patient_404(self, client, doctor):
++        _login(client, doctor)
++        r = client.get(f"{CALC}?patient_id=NOPE&protocol=CHOP&height=170&weight=70")
++        assert r.status_code == 404 and r.get_json()["code"] == "PATIENT_NOT_FOUND"
++
++    @pytest.mark.parametrize(
++        "qs",
++        [
++            "height=nan&weight=70",
++            "height=inf&weight=70",
++            "height=abc&weight=xyz",
++            "height=-5&weight=70",
++            "height=17&weight=700",
++            "",  # missing entirely — used to silently become 170 cm / 70 kg
++            "height=170",
++        ],
++    )
++    def test_bad_or_missing_biometrics_rejected(self, client, doctor, patient, qs):
++        _login(client, doctor)
++        r = client.get(f"{CALC}?patient_id=P0001&protocol=CHOP&{qs}")
++        assert r.status_code == 400
++        assert r.get_json()["code"] == "INVALID_INPUT"
++
++    def test_missing_protocol_rejected(self, client, doctor, patient):
++        _login(client, doctor)
++        r = client.get(f"{CALC}?patient_id=P0001&height=170&weight=70")
++        assert r.status_code == 400 and r.get_json()["code"] == "UNKNOWN_PROTOCOL"
++
++    def test_valid_request_and_cycle_param(self, client, doctor, patient):
++        _login(client, doctor)
++        r = client.get(
++            f"{CALC}?patient_id=P0001&protocol=AC-T&height=170&weight=70&cycle=5"
++        )
++        body = r.get_json()
++        assert r.status_code == 200 and body["bsa_m2"] == 1.82
++        assert [d["drug_name"] for d in body["drugs"]] == ["Paclitaxel"]
++
++    def test_history_unavailable_is_503_not_silent_pass(self, client, doctor, patient):
++        ChemotherapyRegimenOrder.__table__.drop(db.engine)
++        _login(client, doctor)
++        r = client.get(f"{CALC}?patient_id=P0001&protocol=AC-T&height=170&weight=70")
++        assert r.status_code == 503
++        assert r.get_json()["code"] == "CUMULATIVE_HISTORY_UNAVAILABLE"
++
++    def test_response_is_valid_json_never_nan(self, client, doctor, patient):
++        _login(client, doctor)
++        r = client.get(f"{CALC}?patient_id=P0001&protocol=CHOP&height=nan&weight=70")
++        assert b"NaN" not in r.data and b"Infinity" not in r.data
++
++
++class TestSaveEndpoint:
++    def test_happy_path_persists_and_audits(self, client, doctor, patient):
++        _login(client, doctor)
++        r = client.post(SAVE, json=_save_body())
++        assert r.status_code == 201
++        order = db.session.get(ChemotherapyRegimenOrder, r.get_json()["order_id"])
++        assert order.status == "ORDERED" and order.physician_id == doctor
++        assert order.patient_id == "P0001" and order.bsa_formula == "mosteller"
++        audit = AuditLog.query.filter_by(action="CHEMO_ORDER_CREATED").one()
++        assert audit.resource_id == str(order.id) and audit.user_id == doctor
++
++    def test_unknown_patient_rejected_and_nothing_saved(self, client, doctor):
++        _login(client, doctor)
++        r = client.post(SAVE, json=_save_body(patient_id="NOPE"))
++        assert r.status_code == 404
++        assert ChemotherapyRegimenOrder.query.count() == 0
++
++    def test_bogus_formula_rejected(self, client, doctor, patient):
++        _login(client, doctor)
++        r = client.post(SAVE, json=_save_body(bsa_formula="xyz"))
++        assert r.status_code == 400
++        assert ChemotherapyRegimenOrder.query.count() == 0
++
++    def test_formula_is_normalised(self, client, doctor, patient):
++        _login(client, doctor)
++        client.post(SAVE, json=_save_body(bsa_formula="DuBois"))
++        assert ChemotherapyRegimenOrder.query.one().bsa_formula == "dubois"
++
++    @pytest.mark.parametrize(
++        "override",
++        [
++            {"cycle_number": -3},
++            {"cycle_number": 0},
++            {"cycle_number": 2.5},
++            {"cycle_number": "x"},
++            {"total_cycles": 0},
++            {"total_cycles": 99},
++            {"total_cycles": 1, "cycle_number": 3},
++            {"height_cm": "tall"},  # used to raise ValueError -> HTTP 500
++            {"height_cm": None},
++            {"weight_kg": float("nan")},
++            {"weight_kg": 0},
++        ],
++    )
++    def test_invalid_numbers_are_400_not_500(self, client, doctor, patient, override):
++        _login(client, doctor)
++        r = client.post(SAVE, json=_save_body(**override))
++        assert r.status_code == 400, r.get_json()
++        assert ChemotherapyRegimenOrder.query.count() == 0
++
++    def test_total_cycles_defaults_from_protocol(self, client, doctor, patient):
++        _login(client, doctor)
++        body = _save_body(protocol_name="AC-T")
++        body.pop("total_cycles")
++        client.post(SAVE, json=body)
++        assert ChemotherapyRegimenOrder.query.one().total_cycles == 8
++
++    def test_duplicate_active_cycle_conflicts(self, client, doctor, patient):
++        _login(client, doctor)
++        assert client.post(SAVE, json=_save_body()).status_code == 201
++        r = client.post(SAVE, json=_save_body())  # double-click / retry
++        assert r.status_code == 409 and r.get_json()["code"] == "DUPLICATE_CYCLE_ORDER"
++        assert ChemotherapyRegimenOrder.query.count() == 1
++
++    def test_db_enforces_single_active_order_even_if_app_check_is_bypassed(
++        self, app, patient
++    ):
++        _order(protocol="CHOP", cycle=1)
++        db.session.add(
++            ChemotherapyRegimenOrder(
++                patient_id="P0001",
++                physician_id=1,
++                protocol_name="CHOP",
++                weight_kg=70,
++                height_cm=170,
++                bsa_m2=1.82,
++                cycle_number=1,
++                calculated_doses_json="[]",
++                status="ORDERED",
++            )
++        )
++        with pytest.raises(Exception, match="(?i)unique"):
++            db.session.commit()
++        db.session.rollback()
++
++    def test_cancelled_duplicate_can_be_reordered(self, client, doctor, patient):
++        _login(client, doctor)
++        first = client.post(SAVE, json=_save_body()).get_json()["order_id"]
++        client.post(
++            f"/medicine/oncology/api/chemo-order/{first}/status",
++            json={"status": "CANCELLED", "reason": "entered in error"},
++        )
++        assert client.post(SAVE, json=_save_body()).status_code == 201
++
++
++class TestToxicityOverride:
++    def _over_cap(self):
++        _order(doses=[{"drug_name": "Doxorubicin", "calculated_dose": 800.0}])
++
++    def _ac_t(self, **over):
++        return _save_body(protocol_name="AC-T", total_cycles=8, cycle_number=2, **over)
++
++    def test_cap_exceeded_blocks_save_without_reason(self, client, doctor, patient):
++        self._over_cap()
++        _login(client, doctor)
++        r = client.post(SAVE, json=self._ac_t())
++        assert r.status_code == 409
++        body = r.get_json()
++        assert (
++            body["code"] == "TOXICITY_OVERRIDE_REQUIRED" and body["toxicity_warnings"]
++        )
++        assert ChemotherapyRegimenOrder.query.count() == 1  # only the seeded one
++
++    def test_short_reason_is_not_enough(self, client, doctor, patient):
++        self._over_cap()
++        _login(client, doctor)
++        r = client.post(SAVE, json=self._ac_t(toxicity_override_reason="ok"))
++        assert r.status_code == 409
++
++    def test_documented_override_saves_and_is_audited(self, client, doctor, patient):
++        self._over_cap()
++        _login(client, doctor)
++        why = "Curative intent, cardiology cleared, dexrazoxane cover"
++        r = client.post(SAVE, json=self._ac_t(toxicity_override_reason=why))
++        assert r.status_code == 201 and r.get_json()["has_toxicity_warning"] is True
++        order = db.session.get(ChemotherapyRegimenOrder, r.get_json()["order_id"])
++        assert order.toxicity_override_reason == why
++        audit = AuditLog.query.filter_by(action="CHEMO_ORDER_CREATED").one()
++        assert why in audit.details
++
++    def test_stray_override_reason_ignored_when_no_warning(
++        self, client, doctor, patient
++    ):
++        _login(client, doctor)
++        client.post(SAVE, json=_save_body(toxicity_override_reason="not needed here"))
++        assert ChemotherapyRegimenOrder.query.one().toxicity_override_reason is None
++
++    def test_order_not_saved_when_audit_cannot_be_written(
++        self, client, doctor, patient, monkeypatch
++    ):
++        import departments.medicine.oncology as onc
++
++        monkeypatch.setattr(onc, "log_audit_event", lambda **kw: None)
++        _login(client, doctor)
++        r = client.post(SAVE, json=_save_body())
++        assert r.status_code == 503 and r.get_json()["code"] == "AUDIT_UNAVAILABLE"
++
++
++class TestOrderStatusWorkflow:
++    def _new_order(self, client):
++        return client.post(SAVE, json=_save_body()).get_json()["order_id"]
++
++    def _set(self, client, oid, status, reason=None):
++        body = {"status": status}
++        if reason:
++            body["reason"] = reason
++        return client.post(
++            f"/medicine/oncology/api/chemo-order/{oid}/status", json=body
++        )
++
++    def test_full_lifecycle(self, client, doctor, patient):
++        _login(client, doctor)
++        oid = self._new_order(client)
++        assert self._set(client, oid, "PREPARED").status_code == 200
++        r = self._set(client, oid, "ADMINISTERED")
++        assert r.status_code == 200 and r.get_json()["status"] == "ADMINISTERED"
++        assert (
++            AuditLog.query.filter_by(action="CHEMO_ORDER_STATUS_CHANGED").count() == 2
++        )
++
++    def test_cannot_skip_or_leave_terminal_states(self, client, doctor, patient):
++        _login(client, doctor)
++        oid = self._new_order(client)
++        assert (
++            self._set(client, oid, "ADMINISTERED").status_code == 409
++        )  # skipped PREPARED
++        self._set(client, oid, "PREPARED")
++        self._set(client, oid, "ADMINISTERED")
++        assert self._set(client, oid, "CANCELLED", "too late now").status_code == 409
++
++    def test_cancel_requires_reason_and_removes_from_cumulative(
++        self, client, doctor, patient
++    ):
++        _login(client, doctor)
++        oid = self._new_order(client)
++        assert self._set(client, oid, "CANCELLED").status_code == 400
++        assert self._set(client, oid, "CANCELLED", "duplicate entry").status_code == 200
++        order = db.session.get(ChemotherapyRegimenOrder, oid)
++        assert order.status == "CANCELLED" and order.status_reason == "duplicate entry"
++        assert order.status_changed_by == doctor
++        assert get_patient_cumulative_doses("P0001") == {}  # excluded, row retained
++
++    def test_nurse_may_administer_but_not_cancel(self, client, doctor, patient):
++        _login(client, doctor)
++        oid = self._new_order(client)
++        self._set(client, oid, "PREPARED")
++        _login(client, _mk_user("nurse"))
++        assert self._set(client, oid, "CANCELLED", "no good reason").status_code == 403
++        assert self._set(client, oid, "ADMINISTERED").status_code == 200
++
++    def test_unknown_order_and_status(self, client, doctor, patient):
++        _login(client, doctor)
++        assert self._set(client, 9999, "PREPARED").status_code == 404
++        oid = self._new_order(client)
++        assert self._set(client, oid, "BOGUS").status_code == 400
++
++    def test_list_endpoint(self, client, doctor, patient):
++        _login(client, doctor)
++        oid = self._new_order(client)
++        self._set(client, oid, "CANCELLED", "entered in error")
++        r = client.get("/medicine/oncology/api/chemo-orders/P0001")
++        orders = r.get_json()["orders"]
++        assert r.status_code == 200 and orders[0]["order_id"] == oid
++        assert orders[0]["status"] == "CANCELLED"
++        assert client.get("/medicine/oncology/api/chemo-orders/NOPE").status_code == 404
++
++
++class TestChemoBuilderPage:
++    def test_builder_requires_existing_patient(self, client, doctor):
++        _login(client, doctor)
++        assert client.get("/medicine/oncology/chemo-builder/NOPE").status_code == 404
++
++    def test_builder_shows_patient_name_and_no_prefilled_biometrics(
++        self, client, doctor, patient
++    ):
++        _login(client, doctor)
++        html = client.get("/medicine/oncology/chemo-builder/P0001").get_data(
++            as_text=True
++        )
++        assert "Amy First" in html
++        assert 'id="heightCm" value=' not in html and 'id="weightKg" value=' not in html
++
++
++# ══════════════════════════════════════════════════════════════════════════════
++# C. Patient chart
++# ══════════════════════════════════════════════════════════════════════════════
++
++
++@pytest.fixture
++def cancer_ref(app):
++    """A cancer type with two linked stages plus one unrelated stage."""
++    breast = CancerType(code="BRE", name="Breast")
++    st1 = CancerStage(code="S2", label="Stage II")
++    st2 = CancerStage(code="S3", label="Stage III")
++    other = CancerStage(code="AA1", label="Ann Arbor I")
++    db.session.add_all([breast, st1, st2, other])
++    db.session.flush()
++    db.session.add_all(
++        [
++            CancerTypeStage(cancer_type_id=breast.id, cancer_stage_id=st1.id),
++            CancerTypeStage(cancer_type_id=breast.id, cancer_stage_id=st2.id),
++        ]
++    )
++    db.session.commit()
++    return {"type": breast.id, "s2": st1.id, "s3": st2.id, "other": other.id}
++
++
++def _enrol(pid="P0001", **over):
++    row = dict(
++        patient_id=pid,
++        diagnosis="Invasive ductal carcinoma",
++        diagnosis_date=date(2026, 1, 1),
++        cancer_type="Breast",
++        stage="Stage II",
++    )
++    row.update(over)
++    onco = OncoPatient(**row)
++    db.session.add(onco)
++    db.session.commit()
++    return onco
++
++
++def _encounter(pid="P0001"):
++    return f"/medicine/oncology/encounter/{pid}"
++
++
++def _book(pid="P0001"):
++    """encounter.html renders the oncology forms and notes only for patients that
++    have an oncology booking."""
++    db.session.add(
++        OncologyBooking(
++            patient_id=pid,
++            booking_date=date(2030, 1, 1),
++            purpose="Follow-up",
++            status="Scheduled",
++        )
++    )
++    db.session.commit()
++
++
++class TestEncounterIdentityMapping:
++    """
++    OncoPatient.patient_id is a string FK to patients.patient_id.  The encounter
++    view used the integer primary key, which cannot even be compared to that
++    column on PostgreSQL (varchar = integer -> HTTP 500).
++    """
++
++    def test_encounter_finds_enrolment_by_patient_number(self, client, doctor, patient):
++        _enrol()
++        _book()
++        _login(client, doctor)
++        r = client.get(_encounter())
++        assert r.status_code == 200
++        assert b"Invasive ductal carcinoma" in r.data  # prepopulated from the record
++
++    def test_new_enrolment_stores_patient_number_not_int_pk(
++        self, client, doctor, patient, cancer_ref
++    ):
++        _login(client, doctor)
++        r = client.post(
++            _encounter(),
++            data={
++                "submit_update": "1",
++                "diagnosis": "DCIS",
++                "diagnosis_date": "2026-02-02",
++                "cancer_type": cancer_ref["type"],
++                "stage": cancer_ref["s2"],
++                "status": "Active",
++            },
++        )
++        assert r.status_code == 302  # PRG redirect
++        row = OncoPatient.query.one()
++        assert row.patient_id == "P0001"  # not "1"
++        assert row.cancer_type == "Breast" and row.stage == "Stage II"  # names, not ids
++        assert AuditLog.query.filter_by(action="ONCOLOGY_ENROLLED").count() == 1
++
++    def test_editing_persists_the_submitted_values(
++        self, client, doctor, patient, cancer_ref
++    ):
++        """The form used to be re-populated from the DB BEFORE reading POST data,
++        so every edit was silently discarded while 'updated successfully' showed."""
++        _enrol()
++        _login(client, doctor)
++        client.post(
++            _encounter(),
++            data={
++                "submit_update": "1",
++                "diagnosis": "Changed dx",
++                "diagnosis_date": "2026-03-03",
++                "cancer_type": cancer_ref["type"],
++                "stage": cancer_ref["s3"],
++                "status": "Completed",
++            },
++        )
++        row = OncoPatient.query.one()
++        assert (row.diagnosis, row.stage, row.status) == (
++            "Changed dx",
++            "Stage III",
++            "Completed",
++        )
++        assert OncoPatient.query.count() == 1  # updated in place, not duplicated
++
++    def test_stage_must_belong_to_cancer_type(
++        self, client, doctor, patient, cancer_ref
++    ):
++        _login(client, doctor)
++        client.post(
++            _encounter(),
++            data={
++                "submit_update": "1",
++                "diagnosis": "x",
++                "diagnosis_date": "2026-02-02",
++                "cancer_type": cancer_ref["type"],
++                "stage": cancer_ref["other"],
++                "status": "Active",
++            },
++        )
++        assert OncoPatient.query.count() == 0
++
++    def test_form_prefill_selects_stored_type_and_stage(
++        self, client, doctor, patient, cancer_ref
++    ):
++        _enrol()
++        _book()
++        _login(client, doctor)
++        html = client.get(_encounter()).get_data(as_text=True)
++        assert f'<option selected value="{cancer_ref["type"]}">Breast' in html
++        assert f'<option selected value="{cancer_ref["s2"]}">Stage II' in html
++
++    def test_stage_filter_script_targets_real_route(self, client, doctor, patient):
++        _book()
++        _login(client, doctor)
++        html = client.get(_encounter()).get_data(as_text=True)
++        assert "/medicine/get_stages/" in html  # was "/get_stages/" -> 404
++
++    def test_refreshing_after_post_does_not_duplicate_the_note(
++        self, client, doctor, patient
++    ):
++        _login(client, doctor)
++        r = client.post(
++            _encounter(),
++            data={
++                "submit_note": "1",
++                "note_date": "2026-04-04",
++                "note_content": "Cycle 2 tolerated well",
++            },
++        )
++        assert r.status_code == 302
++        assert client.get(r.headers["Location"]).status_code == 200
++        assert OncologyNote.query.count() == 1
++
++    def test_encounter_view_is_audited(self, client, doctor, patient):
++        _login(client, doctor)
++        client.get(_encounter())
++        assert AuditLog.query.filter_by(action="ONCOLOGY_ENCOUNTER_VIEW").count() == 1
++
++    def test_enrol_form_posts_patient_number(self, client, doctor, patient):
++        """add_onco_patient.html posted the integer PK, which violates the FK on PostgreSQL."""
++        _login(client, doctor)
++        html = client.get("/medicine/oncology/add").get_data(as_text=True)
++        assert 'value="P0001"' in html
++        assert f'value="{db.session.get(Patient, 1).id}">Amy First</option>' not in html
++
++
++class TestEnrolRoute:
++    BASE = dict(
++        patient_id="P0001",
++        diagnosis="Ca",
++        cancer_type="Breast",
++        stage="II",
++        diagnosis_date="2026-01-01",
++    )
++
++    def test_happy_path_uses_patient_number(self, client, doctor, patient):
++        _login(client, doctor)
++        assert client.post("/medicine/oncology/add", data=self.BASE).status_code == 302
++        assert OncoPatient.query.one().patient_id == "P0001"
++
++    @pytest.mark.parametrize(
++        "field", ["patient_id", "diagnosis", "cancer_type", "stage", "diagnosis_date"]
++    )
++    def test_missing_field_is_a_validation_message_not_a_500(
++        self, client, doctor, patient, field
++    ):
++        _login(client, doctor)
++        data = {**self.BASE, field: ""}
++        assert client.post("/medicine/oncology/add", data=data).status_code == 302
++        assert OncoPatient.query.count() == 0
++
++    def test_bad_date_future_date_and_unknown_patient(self, client, doctor, patient):
++        _login(client, doctor)
++        for over in (
++            {"diagnosis_date": "01/02/2026"},
++            {"diagnosis_date": "2999-01-01"},
++            {"patient_id": "NOPE"},
++            {"patient_id": "Amy"},
++        ):
++            client.post("/medicine/oncology/add", data={**self.BASE, **over})
++        assert OncoPatient.query.count() == 0
++
++    def test_second_active_enrolment_refused(self, client, doctor, patient):
++        _login(client, doctor)
++        client.post("/medicine/oncology/add", data=self.BASE)
++        client.post("/medicine/oncology/add", data=self.BASE)
++        assert OncoPatient.query.count() == 1
++
++
++class TestNoteVoidAndAmend:
++    def _note(self, text_="Original note"):
++        n = OncologyNote(
++            patient_id="P0001", note_date=date(2026, 1, 1), note_content=text_
++        )
++        db.session.add(n)
++        db.session.commit()
++        return n.id
++
++    def _void(self, client, nid, reason="Entered in error"):
++        return client.post(
++            f"/medicine/oncology/note/{nid}/void", data={"void_reason": reason}
++        )
++
++    def test_void_is_really_persisted(self, client, doctor, patient):
++        """`is_voided` etc. were never mapped columns: the route reported success
++        and stored nothing."""
++        nid = self._note()
++        _login(client, doctor)
++        assert self._void(client, nid).status_code == 302
++        db.session.expire_all()
++        row = db.session.execute(
++            text(
++                "select is_voided, voided_reason, voided_by, voided_at, note_content "
++                "from oncology_notes where id=:i"
++            ),
++            {"i": nid},
++        ).one()
++        assert row.is_voided in (1, True) and row.voided_reason == "Entered in error"
++        assert row.voided_by == doctor and row.voided_at is not None
++        assert row.note_content == "Original note"  # void, never delete
++        assert AuditLog.query.filter_by(action="ONCOLOGY_NOTE_VOIDED").count() == 1
++
++    def test_void_columns_exist_in_schema(self, app):
++        cols = {c["name"] for c in sa_inspect(db.engine).get_columns("oncology_notes")}
++        assert {"is_voided", "voided_by", "voided_at", "voided_reason"} <= cols
++
++    def test_void_requires_reason(self, client, doctor, patient):
++        nid = self._note()
++        _login(client, doctor)
++        self._void(client, nid, reason="  ")
++        assert db.session.get(OncologyNote, nid).is_voided is False
++
++    def test_voided_note_cannot_be_edited_or_voided_again(
++        self, client, doctor, patient
++    ):
++        nid = self._note()
++        _login(client, doctor)
++        self._void(client, nid)
++        client.post(
++            f"/medicine/oncology/note/{nid}/edit",
++            data={
++                "submit_note": "1",
++                "note_date": "2026-05-05",
++                "note_content": "tampered",
++            },
++        )
++        db.session.expire_all()
++        assert db.session.get(OncologyNote, nid).note_content == "Original note"
++        self._void(client, nid, reason="again")
++        assert AuditLog.query.filter_by(action="ONCOLOGY_NOTE_VOIDED").count() == 1
++
++    def test_voided_note_is_flagged_in_encounter_ui(self, client, doctor, patient):
++        _book()
++        nid = self._note("wrong-patient text")
++        _login(client, doctor)
++        self._void(client, nid, reason="wrong patient")
++        html = client.get(_encounter()).get_data(as_text=True)
++        assert "VOIDED" in html and "wrong patient" in html
++
++    def test_void_form_actually_sends_a_reason(self, client, doctor, patient):
++        """The old 'Delete' form posted no void_reason, so voiding from the UI could never work."""
++        _book()
++        self._note()
++        _login(client, doctor)
++        html = client.get(_encounter()).get_data(as_text=True)
++        assert 'name="void_reason"' in html
++
++    def test_amendment_keeps_previous_text_in_audit_trail(
++        self, client, doctor, patient
++    ):
++        nid = self._note("first version")
++        _login(client, doctor)
++        client.post(
++            f"/medicine/oncology/note/{nid}/edit",
++            data={
++                "submit_note": "1",
++                "note_date": "2026-05-05",
++                "note_content": "second version",
++            },
++        )
++        assert db.session.get(OncologyNote, nid).note_content == "second version"
++        audit = AuditLog.query.filter_by(action="ONCOLOGY_NOTE_AMENDED").one()
++        assert "first version" in audit.details
++
++    def test_no_void_when_audit_cannot_be_written(
++        self, client, doctor, patient, monkeypatch
++    ):
++        import departments.medicine.oncology as onc
++
++        nid = self._note()
++        monkeypatch.setattr(onc, "log_audit_event", lambda **kw: None)
++        _login(client, doctor)
++        self._void(client, nid)
++        db.session.expire_all()
++        assert db.session.get(OncologyNote, nid).is_voided is False
++
++
++class TestAiSummaryConsentScope:
++    """Consent was checked for the URL id, but the patient was then resolved with
++    ILIKE '%id%' on id OR name — so consent for 'P1' released the notes of 'P10'."""
++
++    @pytest.fixture
++    def two_patients(self, app):
++        _mk_patient(
++            "P10", "Zed Tenth"
++        )  # inserted first: ILIKE '%P1%'.first() prefers it
++        _mk_patient("P1", "Amy First")
++        db.session.add(
++            PatientConsent(
++                patient_id="P1", consent_type="ai_diagnosis", is_granted=True
++            )
++        )
++        db.session.add(
++            OncologyNote(
++                patient_id="P10",
++                note_date=date(2026, 1, 1),
++                note_content="SECRET-NOTE-OF-P10",
++            )
++        )
++        db.session.add(
++            OncologyNote(
++                patient_id="P1", note_date=date(2026, 1, 1), note_content="note of P1"
++            )
++        )
++        db.session.commit()
++
++    @pytest.fixture
++    def captured(self, monkeypatch):
++        import departments.medicine.oncology as onc
++
++        seen = {}
++        monkeypatch.setattr(
++            onc.Summarizer,
++            "answer",
++            lambda t: seen.setdefault("text", t) and "stub",
++            raising=False,
++        )
++        return seen
++
++    def test_only_the_consented_patients_notes_reach_the_model(
++        self, client, doctor, two_patients, captured
++    ):
++        _login(client, doctor)
++        r = client.get("/medicine/oncology/ai_summary/P1")
++        assert r.status_code == 200
++        assert captured["text"] == "note of P1"
++        assert "SECRET-NOTE-OF-P10" not in captured["text"]
++
++    def test_partial_id_or_name_does_not_resolve_a_patient(
++        self, client, doctor, two_patients, captured
++    ):
++        _login(client, doctor)
++        db.session.add(
++            PatientConsent(
++                patient_id="Amy", consent_type="ai_diagnosis", is_granted=True
++            )
++        )
++        db.session.commit()
++        assert client.get("/medicine/oncology/ai_summary/Amy").status_code == 404
++        assert "text" not in captured
++
++    def test_voided_notes_are_never_sent(self, client, doctor, two_patients, captured):
++        db.session.add(
++            OncologyNote(
++                patient_id="P1",
++                note_date=date(2026, 2, 2),
++                note_content="ENTERED-IN-ERROR",
++                is_voided=True,
++            )
++        )
++        db.session.commit()
++        _login(client, doctor)
++        client.get("/medicine/oncology/ai_summary/P1")
++        assert "ENTERED-IN-ERROR" not in captured["text"]
++
++    def test_disclosure_is_audited_and_no_audit_means_no_llm_call(
++        self, client, doctor, two_patients, captured, monkeypatch
++    ):
++        _login(client, doctor)
++        client.get("/medicine/oncology/ai_summary/P1")
++        assert (
++            AuditLog.query.filter_by(action="ONCOLOGY_AI_SUMMARY_GENERATED").count()
++            == 1
++        )
++        captured.clear()
++        import departments.medicine.oncology as onc
++
++        monkeypatch.setattr(onc, "log_audit_event", lambda **kw: None)
++        r = client.get("/medicine/oncology/ai_summary/P1")
++        assert r.status_code == 503 and "text" not in captured
++
++    def test_prompt_size_is_bounded(self, client, doctor, two_patients, captured):
++        for i in range(30):
++            db.session.add(
++                OncologyNote(
++                    patient_id="P1",
++                    note_date=date(2026, 3, 1),
++                    note_content=f"{i:02d}" + "x" * 900,
++                )
++            )
++        db.session.commit()
++        _login(client, doctor)
++        client.get("/medicine/oncology/ai_summary/P1")
++        assert len(captured["text"]) <= 13000
++
++
++# ══════════════════════════════════════════════════════════════════════════════
++# D. Bookings and the legacy prescription flow
++# ══════════════════════════════════════════════════════════════════════════════
++
++BOOK = "/medicine/bookings/new"
++
++
++class TestBookings:
++    def _post(self, client, pid, **over):
++        data = {
++            "patient_id": pid,
++            "booking_date": "2030-01-01",
++            "purpose": "Chemotherapy",
++            "status": "Scheduled",
++        }
++        data.update(over)
++        return client.post(BOOK, data=data)
++
++    def test_exact_patient_number_stored_canonically(self, client, doctor, patient):
++        _login(client, doctor)
++        assert self._post(client, " P0001 ").status_code == 302
++        b = OncologyBooking.query.one()
++        assert b.patient_id == "P0001"
++        assert AuditLog.query.filter_by(action="ONCOLOGY_BOOKING_CREATED").count() == 1
++
++    @pytest.mark.parametrize("fragment", ["Amy", "P00", "amy first", "%", "P0001%"])
++    def test_fuzzy_input_is_rejected(self, client, doctor, patient, fragment):
++        """Name/partial-id used to pass validation and the RAW text was stored:
++        an FK violation (HTTP 500) on PostgreSQL, an orphaned booking on SQLite."""
++        _login(client, doctor)
++        assert self._post(client, fragment).status_code == 302
++        assert OncologyBooking.query.count() == 0
++
++    def test_booking_list_only_shows_joinable_rows(self, client, doctor, patient):
++        _login(client, doctor)
++        self._post(client, "P0001")
++        assert b"Amy First" in client.get("/medicine/bookings/").data
++
++
++@pytest.fixture
++def rx_setup(app, patient, cancer_ref):
++    onco = _enrol()
++    booking = OncologyBooking(
++        patient_id="P0001",
++        booking_date=date(2030, 1, 1),
++        purpose="Chemotherapy",
++        status="Scheduled",
++    )
++    drug = OncologyDrug(name="Doxorubicin", dosage_form="Injection", strength="50mg")
++    other_drug = OncologyDrug(name="Unrelated", dosage_form="Tablet", strength="10mg")
++    regimen = OncologyRegimen(name="AC", cycle_duration_days=21, total_cycles=4)
++    db.session.add_all([booking, drug, other_drug, regimen])
++    db.session.flush()
++    db.session.add(
++        RegimenDrugAssociation(regimen_id=regimen.id, drug_id=drug.id, sequence=1)
++    )
++    db.session.commit()
++    return {
++        "onco": onco.id,
++        "booking": booking.id,
++        "drug": drug.id,
++        "other_drug": other_drug.id,
++        "regimen": regimen.id,
++    }
++
++
++def _rx_form(ids, **over):
++    d = ids["drug"]
++    # `prescribed_by` is part of the baseline because the ORIGINAL route required it; without
++    # it every negative test below would be rejected for that reason alone (i.e. vacuously).
++    data = {
++        "booking_id": ids["booking"],
++        "regimen_id": ids["regimen"],
++        "start_date": "2030-01-02",
++        "prescribed_by": "Dr Baseline",
++        "drug_id": [d],
++        f"dosage_{d}": "60 mg/m2",
++        f"calculated_dose_{d}": "109.2 mg",
++    }
++    data.update(over)
++    return data
++
++
++class TestLegacyPrescriptions:
++    """onco_prescriptions.onco_patient_id is an INTEGER FK to onco_patients.id;
++    the routes wrote/compared the string patient number (crashes on PostgreSQL)."""
++
++    def test_prescription_links_to_the_enrolment_row(self, client, doctor, rx_setup):
++        _login(client, doctor)
++        r = client.post("/medicine/prescriptions/new", data=_rx_form(rx_setup))
++        assert r.status_code == 302
++        rx = OncoPrescription.query.one()
++        assert rx.onco_patient_id == rx_setup["onco"] and isinstance(
++            rx.onco_patient_id, int
++        )
++        assert (
++            AuditLog.query.filter_by(action="CHEMO_PRESCRIPTION_CREATED").count() == 1
++        )
++
++    def test_prescriber_comes_from_session_not_from_the_form(
++        self, client, doctor, rx_setup
++    ):
++        _login(client, doctor)
++        client.post(
++            "/medicine/prescriptions/new",
++            data=_rx_form(rx_setup, prescribed_by="Dr Someone Else"),
++        )
++        assert OncoPrescription.query.one().prescribed_by == "u_doctor"
++
++    def test_drug_must_belong_to_the_regimen(self, client, doctor, rx_setup):
++        _login(client, doctor)
++        bad = rx_setup["other_drug"]
++        data = _rx_form(
++            rx_setup,
++            drug_id=[bad],
++            **{f"dosage_{bad}": "1", f"calculated_dose_{bad}": "1"},
++        )
++        client.post("/medicine/prescriptions/new", data=data)
++        assert OncoPrescription.query.count() == 0
++
++    def test_at_least_one_drug_required(self, client, doctor, rx_setup):
++        _login(client, doctor)
++        client.post("/medicine/prescriptions/new", data=_rx_form(rx_setup, drug_id=[]))
++        assert OncoPrescription.query.count() == 0
++
++    def test_deprecated_regimen_cannot_be_prescribed(self, client, doctor, rx_setup):
++        db.session.get(OncologyRegimen, rx_setup["regimen"]).status = "Deprecated"
++        db.session.commit()
++        _login(client, doctor)
++        client.post("/medicine/prescriptions/new", data=_rx_form(rx_setup))
++        assert OncoPrescription.query.count() == 0
++
++    def test_patient_must_be_enrolled_in_oncology(self, client, doctor, rx_setup):
++        OncoPatient.query.delete()
++        db.session.commit()
++        _login(client, doctor)
++        client.post("/medicine/prescriptions/new", data=_rx_form(rx_setup))
++        assert OncoPrescription.query.count() == 0
++
++    def test_list_shows_prescriptions_under_the_right_patient(
++        self, client, doctor, rx_setup
++    ):
++        _login(client, doctor)
++        client.post("/medicine/prescriptions/new", data=_rx_form(rx_setup))
++        r = client.get("/medicine/prescriptions/P0001")
++        assert (
++            r.status_code == 200 and b"Amy First" in r.data and b"Doxorubicin" in r.data
++        )
++
++    def test_list_does_not_fuzzy_match_another_patient(self, client, doctor, rx_setup):
++        _mk_patient("P00010", "Other Person")
++        _login(client, doctor)
++        assert client.get("/medicine/prescriptions/P0001").status_code == 200
++        r = client.get("/medicine/prescriptions/Other")  # a name fragment
++        assert r.status_code == 302  # "Patient does not exist", not a fuzzy hit
++
++    def test_all_prescriptions_page_joins_via_onco_patient(
++        self, client, doctor, rx_setup
++    ):
++        _login(client, doctor)
++        client.post("/medicine/prescriptions/new", data=_rx_form(rx_setup))
++        r = client.get("/medicine/prescriptions")
++        assert r.status_code == 200 and b"Amy First" in r.data
++
++
++# ══════════════════════════════════════════════════════════════════════════════
++# E. Access control
++# ══════════════════════════════════════════════════════════════════════════════
++
++# (method, url, kwargs).  Everything below handles patient data or clinical
++# writes: a non-clinical role must get 403, an anonymous caller must be bounced.
++PROTECTED = [
++    ("get", "/medicine/oncology", {}),
++    ("get", "/medicine/oncology/add", {}),
++    ("post", "/medicine/oncology/add", {"data": {}}),
++    ("get", "/medicine/oncology/encounter/P0001", {}),
++    ("post", "/medicine/oncology/encounter/P0001", {"data": {}}),
++    ("get", "/medicine/oncology/ai_summary/P0001", {}),
++    ("get", "/medicine/oncology/note/1/edit", {}),
++    ("post", "/medicine/oncology/note/1/void", {"data": {}}),
++    ("get", "/medicine/bookings/", {}),
++    ("get", BOOK, {}),
++    ("post", BOOK, {"data": {}}),
++    ("get", "/medicine/prescriptions", {}),
++    ("get", "/medicine/prescriptions/P0001", {}),
++    ("get", "/medicine/prescriptions/new", {}),
++    ("get", "/medicine/oncology/chemo-builder/P0001", {}),
++    ("get", CALC, {}),
++    ("post", SAVE, {"json": {}}),
++    ("get", "/medicine/oncology/api/chemo-orders/P0001", {}),
++    ("post", "/medicine/oncology/api/chemo-order/1/status", {"json": {}}),
++    ("post", "/medicine/diseases/add", {"data": {}}),
++    ("get", "/medicine/get_stages/1", {}),
++]
++
++
++class TestAccessControl:
++    @pytest.mark.parametrize("method,url,kw", PROTECTED)
++    def test_anonymous_is_bounced(self, client, patient, method, url, kw):
++        r = getattr(client, method)(url, **kw)
++        assert r.status_code in (301, 302, 401), (url, r.status_code)
++
++    @pytest.mark.parametrize(
++        "method,url,kw", [p for p in PROTECTED if "get_stages" not in p[1]]
++    )
++    def test_non_clinical_role_is_forbidden(self, client, patient, method, url, kw):
++        _login(client, _mk_user("lab_tech"))
++        r = getattr(client, method)(url, **kw)
++        assert r.status_code == 403, (method, url, r.status_code)
++
++    def test_lab_tech_cannot_enrol_a_patient(self, client, patient):
++        _login(client, _mk_user("lab_tech"))
++        client.post("/medicine/oncology/add", data=TestEnrolRoute.BASE)
++        assert OncoPatient.query.count() == 0
++
++    def test_nurse_can_read_the_chart_but_not_change_it(
++        self, client, patient, cancer_ref
++    ):
++        nurse = _mk_user("nurse")
++        _enrol()
++        _login(client, nurse)
++        assert client.get(_encounter()).status_code == 200
++        r = client.post(
++            _encounter(),
++            data={
++                "submit_note": "1",
++                "note_date": "2026-04-04",
++                "note_content": "nurse edit",
++            },
++        )
++        assert r.status_code == 403 and OncologyNote.query.count() == 0
++
++    def test_nurse_cannot_reach_the_chemo_order_builder_or_api(self, client, patient):
++        _login(client, _mk_user("nurse"))
++        assert client.get("/medicine/oncology/chemo-builder/P0001").status_code == 403
++        assert client.post(SAVE, json=_save_body()).status_code == 403
++
++    def test_get_stages_needs_a_session_but_any_role_may_read_reference_data(
++        self, client, patient
++    ):
++        assert client.get("/medicine/get_stages/1").status_code in (301, 302, 401)
++        _login(client, _mk_user("lab_tech"))
++        assert client.get("/medicine/get_stages/1").status_code == 200
+-- 
+2.43.0
+

@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 
 from flask import flash, redirect, render_template, request, session, url_for
-from flask_login import login_required
+from flask_login import current_user, login_required
 from psycopg2.extras import RealDictCursor
 
 from departments.clinical_safety.engine import ClinicalSafetyEngine
@@ -15,6 +15,7 @@ from departments.models.medicine import (
     OncologyBooking,
     OncologyDrug,
     OncologyRegimen,
+    OncoPatient,
     OncoPrescription,
     PrescribedMedicine,
     PrescriptionDrugDetail,
@@ -31,6 +32,12 @@ from departments.shared.encounter_utils import active_encounter
 from extensions import db
 
 from . import bp
+from .oncology import (
+    CLINICAL_READ_ROLES,
+    CLINICAL_WRITE_ROLES,
+    _commit_with_audit,
+    _find_patient,
+)
 
 logger = get_logger()
 
@@ -509,21 +516,47 @@ def drug_details(drug: str):
 # add patient to theatre lists
 
 
+def _prescription_drug_rows(prescription_id):
+    """Drug lines of one prescription, tolerating a drug that has since been removed."""
+    rows = []
+    for detail in PrescriptionDrugDetail.query.filter_by(
+        prescription_id=prescription_id
+    ).all():
+        drug = db.session.get(OncologyDrug, detail.drug_id)
+        rows.append(
+            {
+                "name": drug.name if drug else "Unknown drug",
+                "dosage": detail.dosage,
+                "calculated_dose": detail.calculated_dose,
+                "infusion_fluid": detail.infusion_fluid,
+                "infusion_time": detail.infusion_time,
+            }
+        )
+    return rows
+
+
 @bp.route("/prescriptions/new", methods=["GET", "POST"])
 @login_required
+@roles_required(*CLINICAL_WRITE_ROLES)
 def new_prescription():
+    """
+    Legacy free-text chemotherapy prescription form.
+
+    NOTE: dosage / calculated_dose are still clinician-typed text here; the
+    server-validated path is the chemotherapy builder (BSA + lifetime caps).
+    """
     if request.method == "POST":
         booking_id = request.form.get("booking_id")
         regimen_id = request.form.get("regimen_id")
         start_date = request.form.get("start_date")
-        prescribed_by = request.form.get("prescribed_by")
         notes = request.form.get("notes", "").strip() or None
         drug_ids = request.form.getlist("drug_id")  # List of drug IDs
 
-        # Log form data for debugging
-        print(
-            f"Form data: booking_id={booking_id}, regimen_id={regimen_id}, start_date={start_date}, prescribed_by={prescribed_by}, notes={notes}, drug_ids={drug_ids}"
-        )
+        # The prescriber is the authenticated user. It used to be a free-text
+        # form field, i.e. anyone could prescribe "as" anyone else.
+        prescribed_by = (
+            getattr(current_user, "full_name", None) or current_user.username
+        )[:100]
 
         # Validate required fields
         if not booking_id:
@@ -535,8 +568,8 @@ def new_prescription():
         if not start_date:
             flash("Start date is required.", "danger")
             return redirect(url_for("medicine.new_prescription"))
-        if not prescribed_by:
-            flash("Prescribed by is required.", "danger")
+        if not drug_ids:
+            flash("Select at least one drug for the prescription.", "danger")
             return redirect(url_for("medicine.new_prescription"))
 
         # Validate booking
@@ -550,46 +583,77 @@ def new_prescription():
             )
             return redirect(url_for("medicine.new_prescription"))
 
-        # Validate patient
+        # Validate patient (exact patient number)
         patient = Patient.query.filter_by(patient_id=booking.patient_id).first()
         if not patient:
             flash("Associated patient does not exist.", "danger")
             return redirect(url_for("medicine.new_prescription"))
 
-        # Validate regimen
+        # onco_prescriptions.onco_patient_id is an INTEGER FK to onco_patients.id,
+        # so resolve the patient's enrolment row; never store the patient number there.
+        onco_patient = (
+            OncoPatient.query.filter_by(patient_id=patient.patient_id, status="Active")
+            .order_by(OncoPatient.id.desc())
+            .first()
+        )
+        if not onco_patient:
+            flash(
+                "Patient is not enrolled in active oncology care. Enrol the patient first.",
+                "danger",
+            )
+            return redirect(url_for("medicine.new_prescription"))
+
+        # Validate regimen (and that it is still in use)
         regimen = OncologyRegimen.query.filter_by(id=regimen_id).first()
         if not regimen:
             flash("Selected regimen does not exist.", "danger")
             return redirect(url_for("medicine.new_prescription"))
+        if (regimen.status or "Active") != "Active":
+            flash(
+                f"Regimen '{regimen.name}' is {regimen.status} and cannot be prescribed.",
+                "danger",
+            )
+            return redirect(url_for("medicine.new_prescription"))
 
-        # Validate drug inputs
+        # Validate drug inputs: each drug must be a member of the chosen regimen.
         regimen_drugs = RegimenDrugAssociation.query.filter_by(
-            regimen_id=regimen_id
+            regimen_id=regimen.id
         ).all()
         if not regimen_drugs:
             flash("Selected regimen has no associated drugs.", "danger")
             return redirect(url_for("medicine.new_prescription"))
+        regimen_drug_ids = {rd.drug_id for rd in regimen_drugs}
 
         # Parse start_date
         try:
             start_date = datetime.strptime(start_date, "%Y-%m-%d").date()  # noqa: DTZ007
-        except ValueError as e:
-            print(f"Date parsing error: {e}")
+        except ValueError:
             flash("Invalid date format. Use YYYY-MM-DD.", "danger")
             return redirect(url_for("medicine.new_prescription"))
 
         # Validate and collect drug details
         drug_inputs = {}
-        for drug_id in drug_ids:
-            dosage = request.form.get(f"dosage_{drug_id}", "").strip() or None
+        for raw_drug_id in drug_ids:
+            try:
+                drug_id = int(raw_drug_id)
+            except (TypeError, ValueError):
+                flash(f"Invalid drug ID {raw_drug_id}.", "danger")
+                return redirect(url_for("medicine.new_prescription"))
+            if drug_id not in regimen_drug_ids:
+                flash(
+                    f"Drug ID {drug_id} is not part of regimen '{regimen.name}'.",
+                    "danger",
+                )
+                return redirect(url_for("medicine.new_prescription"))
+            dosage = request.form.get(f"dosage_{raw_drug_id}", "").strip() or None
             calculated_dose = (
-                request.form.get(f"calculated_dose_{drug_id}", "").strip() or None
+                request.form.get(f"calculated_dose_{raw_drug_id}", "").strip() or None
             )
             infusion_fluid = (
-                request.form.get(f"infusion_fluid_{drug_id}", "").strip() or None
+                request.form.get(f"infusion_fluid_{raw_drug_id}", "").strip() or None
             )
             infusion_time = (
-                request.form.get(f"infusion_time_{drug_id}", "").strip() or None
+                request.form.get(f"infusion_time_{raw_drug_id}", "").strip() or None
             )
             if not dosage or not calculated_dose:
                 flash(
@@ -607,8 +671,8 @@ def new_prescription():
         # Create prescription
         try:
             new_prescription = OncoPrescription(
-                onco_patient_id=booking.patient_id,
-                regimen_id=regimen_id,
+                onco_patient_id=onco_patient.id,
+                regimen_id=regimen.id,
                 start_date=start_date,
                 end_date=None,
                 prescribed_by=prescribed_by,
@@ -637,14 +701,27 @@ def new_prescription():
                 )
                 db.session.add(drug_detail)
 
-            db.session.commit()
+            if not _commit_with_audit(
+                "CHEMO_PRESCRIPTION_CREATED",
+                "OncoPrescription",
+                new_prescription.id,
+                {
+                    "patient_id": patient.patient_id,
+                    "regimen_id": regimen.id,
+                    "drug_ids": sorted(drug_inputs),
+                },
+            ):
+                flash(
+                    "Audit trail unavailable; the prescription was NOT saved.", "danger"
+                )
+                return redirect(url_for("medicine.new_prescription"))
             flash("Chemotherapy prescription created successfully!", "success")
             return redirect(
-                url_for("medicine.list_prescriptions", patient_id=booking.patient_id)
+                url_for("medicine.list_prescriptions", patient_id=patient.patient_id)
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             db.session.rollback()
-            print(f"Error creating prescription: {e}")
+            logger.exception("Error creating chemotherapy prescription")
             flash("An error occurred while creating the prescription.", "danger")
             return redirect(url_for("medicine.new_prescription"))
 
@@ -698,35 +775,29 @@ def new_prescription():
 
 @bp.route("/prescriptions/<patient_id>", methods=["GET"])
 @login_required
+@roles_required(*CLINICAL_READ_ROLES)
 def list_prescriptions(patient_id):
-    patient = Patient.query.filter(
-        db.or_(
-            Patient.patient_id.ilike(f"%{patient_id}%"),
-            Patient.name.ilike(f"%{patient_id}%"),
-        )
-    ).first()
+    # Exact match only. A fuzzy id/name match used to show one patient's header
+    # above prescriptions that were looked up under a different identifier.
+    patient = _find_patient(patient_id)
     if not patient:
         flash("Patient does not exist.", "danger")
         return redirect(url_for("medicine.new_prescription"))
 
-    prescriptions = OncoPrescription.query.filter_by(onco_patient_id=patient_id).all()
+    onco_ids = [
+        row.id for row in OncoPatient.query.filter_by(patient_id=patient.patient_id)
+    ]
+    prescriptions = (
+        OncoPrescription.query.filter(OncoPrescription.onco_patient_id.in_(onco_ids))
+        .order_by(OncoPrescription.created_at.desc())
+        .all()
+        if onco_ids
+        else []
+    )
     prescription_details = []
 
     for prescription in prescriptions:
         regimen = db.session.get(OncologyRegimen, prescription.regimen_id)
-        drug_details = PrescriptionDrugDetail.query.filter_by(
-            prescription_id=prescription.id
-        ).all()
-        drugs = [
-            {
-                "name": db.session.get(OncologyDrug, detail.drug_id).name,
-                "dosage": detail.dosage,
-                "calculated_dose": detail.calculated_dose,
-                "infusion_fluid": detail.infusion_fluid,
-                "infusion_time": detail.infusion_time,
-            }
-            for detail in drug_details
-        ]
         prescription_details.append(
             {
                 "id": prescription.id,
@@ -734,7 +805,7 @@ def list_prescriptions(patient_id):
                 "start_date": prescription.start_date.strftime("%Y-%m-%d"),
                 "prescribed_by": prescription.prescribed_by,
                 "notes": prescription.notes,
-                "drugs": drugs,
+                "drugs": _prescription_drug_rows(prescription.id),
                 "created_at": prescription.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             }
         )
@@ -749,30 +820,21 @@ def list_prescriptions(patient_id):
 # New route to list all prescriptions
 @bp.route("/prescriptions", methods=["GET"])
 @login_required
+@roles_required(*CLINICAL_READ_ROLES)
 def all_prescriptions():
-    # Query all prescriptions, joining with patients and regimens for display
+    # Query all prescriptions, joining with patients and regimens for display.
+    # OncoPrescription -> OncoPatient (integer id) -> Patient (patient number).
     prescriptions = (
         db.session.query(OncoPrescription, Patient, OncologyRegimen)
-        .join(Patient, OncoPrescription.onco_patient_id == Patient.patient_id)
+        .join(OncoPatient, OncoPrescription.onco_patient_id == OncoPatient.id)
+        .join(Patient, OncoPatient.patient_id == Patient.patient_id)
         .join(OncologyRegimen, OncoPrescription.regimen_id == OncologyRegimen.id)
+        .order_by(OncoPrescription.created_at.desc())
         .all()
     )
 
     prescription_details = []
     for prescription, patient, regimen in prescriptions:
-        drug_details = PrescriptionDrugDetail.query.filter_by(
-            prescription_id=prescription.id
-        ).all()
-        drugs = [
-            {
-                "name": db.session.get(OncologyDrug, detail.drug_id).name,
-                "dosage": detail.dosage,
-                "calculated_dose": detail.calculated_dose,
-                "infusion_fluid": detail.infusion_fluid,
-                "infusion_time": detail.infusion_time,
-            }
-            for detail in drug_details
-        ]
         prescription_details.append(
             {
                 "id": prescription.id,
@@ -782,7 +844,7 @@ def all_prescriptions():
                 "start_date": prescription.start_date.strftime("%Y-%m-%d"),
                 "prescribed_by": prescription.prescribed_by,
                 "notes": prescription.notes,
-                "drugs": drugs,
+                "drugs": _prescription_drug_rows(prescription.id),
                 "created_at": prescription.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             }
         )

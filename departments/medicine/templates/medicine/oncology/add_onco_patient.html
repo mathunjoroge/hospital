@@ -32,7 +32,7 @@
           <select id="patient_id" name="patient_id" class="form-select" required>
             <option value="" disabled selected>Select a patient</option>
             {% for p in patients %}
-              <option value="{{ p.id }}">{{ p.name }}</option>
+              <option value="{{ p.patient_id }}">{{ p.name }} ({{ p.patient_id }})</option>
             {% endfor %}
           </select>
         </div>

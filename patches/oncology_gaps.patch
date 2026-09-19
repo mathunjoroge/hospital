@@ -1,0 +1,274 @@
+diff --git a/departments/medicine/chemotherapy_engine.py b/departments/medicine/chemotherapy_engine.py
+index 7bc71f4..72bcc0b 100644
+--- a/departments/medicine/chemotherapy_engine.py
++++ b/departments/medicine/chemotherapy_engine.py
+@@ -182,7 +182,16 @@ def get_patient_cumulative_doses(patient_id: str) -> dict[str, float]:
+     """
+     totals: dict[str, float] = {}
+     try:
+-        orders = ChemotherapyRegimenOrder.query.filter_by(patient_id=patient_id).all()
++        # O4-FIX: exclude CANCELLED orders — cancelled cycles were never administered
++        # and must not count toward the patient's lifetime cumulative toxicity total.
++        orders = (
++            ChemotherapyRegimenOrder.query
++            .filter(
++                ChemotherapyRegimenOrder.patient_id == patient_id,
++                ChemotherapyRegimenOrder.status != "CANCELLED",
++            )
++            .all()
++        )
+         import json
+ 
+         for order in orders:
+diff --git a/departments/medicine/oncology.py b/departments/medicine/oncology.py
+index 02259d8..588c41b 100644
+--- a/departments/medicine/oncology.py
++++ b/departments/medicine/oncology.py
+@@ -242,7 +242,8 @@ def oncology_encounter(patient_id):
+     note_form = OncologyNoteForm()
+ 
+     # Fetch existing oncology record
+-    onco_patient = OncoPatient.query.filter_by(patient_id=selected_patient.id).first()
++    # O2-FIX: OncoPatient.patient_id is the string FK, not the integer PK
++    onco_patient = OncoPatient.query.filter_by(patient_id=selected_patient.patient_id).first()
+     bookings = OncologyBooking.query.filter_by(
+         patient_id=selected_patient.patient_id
+     ).all()
+@@ -273,7 +274,7 @@ def oncology_encounter(patient_id):
+         else:
+             # Create new record
+             onco_patient = OncoPatient(
+-                patient_id=selected_patient.id,
++                patient_id=selected_patient.patient_id,  # O2-FIX: string FK, not int PK
+                 diagnosis=onco_form.diagnosis.data,
+                 diagnosis_date=onco_form.diagnosis_date.data,
+                 cancer_type=onco_form.cancer_type.data,
+@@ -291,6 +292,7 @@ def oncology_encounter(patient_id):
+             patient_id=selected_patient.patient_id,
+             note_date=note_form.note_date.data,
+             note_content=note_form.note_content.data,
++            author_id=current_user.id,  # O3-FIX: record authoring clinician
+         )
+         db.session.add(new_note)
+         db.session.commit()
+@@ -434,12 +436,9 @@ def delete_note(note_id):
+     note = OncologyNote.query.get_or_404(note_id)
+     patient_id = note.patient_id
+ 
+-    void_reason = (
+-        (request.form.get("void_reason") or request.get_json(silent=True) or {}).get(
+-            "void_reason"
+-        )
+-        if not request.form.get("void_reason")
+-        else request.form.get("void_reason")
++    # O11-FIX: clean extraction — form takes priority, JSON body as fallback
++    void_reason = request.form.get("void_reason") or (
++        (request.get_json(silent=True) or {}).get("void_reason")
+     )
+     if not void_reason:
+         flash("A void reason is required to void a clinical note.", "error")
+@@ -664,6 +663,15 @@ def new_booking():
+             flash("Invalid date format. Use YYYY-MM-DD.", "danger")
+             return redirect(url_for("medicine.new_booking"))
+ 
++        # O10-FIX: scheduled bookings must be on or after today
++        from datetime import date as _date
++        if status == "Scheduled" and booking_date < _date.today():
++            flash(
++                "Booking date cannot be in the past for a Scheduled appointment.",
++                "danger",
++            )
++            return redirect(url_for("medicine.new_booking"))
++
+         # Create new booking
+         new_booking = OncologyBooking(
+             patient_id=patient_id,
+@@ -780,6 +788,12 @@ def api_calculate_chemo():
+     weight = request.args.get("weight", 70.0, type=float)
+     formula = request.args.get("formula", "mosteller")
+ 
++    # O8-FIX: validate biometric bounds before dosing calculation
++    if height <= 0 or height > 250:
++        return jsonify({"error": "height must be between 1 and 250 cm"}), 400
++    if weight <= 0 or weight > 300:
++        return jsonify({"error": "weight must be between 1 and 300 kg"}), 400
++
+     calc_res = calculate_regimen_doses(
+         patient_id=patient_id,
+         protocol_name=protocol,
+@@ -805,12 +819,24 @@ def api_save_chemo_order():
+     height = float(data.get("height_cm", 170.0))
+     weight = float(data.get("weight_kg", 70.0))
+     formula = data.get("bsa_formula", "mosteller")
+-    cycle = int(data.get("cycle_number", 1))
+-    total_cycles = int(data.get("total_cycles", 6))
+-
+     if not patient_id or not protocol:
+         return jsonify({"message": "patient_id and protocol_name are required"}), 400
+ 
++    # O6-FIX: verify patient exists before saving an order against them
++    from departments.models.records import Patient as PatientModel
++    if not PatientModel.query.filter_by(patient_id=patient_id).first():
++        return jsonify({"error": f"Patient '{patient_id}' not found"}), 404
++
++    # O7-FIX: validate cycle_number and total_cycles
++    cycle = int(data.get("cycle_number", 1))
++    total_cycles = int(data.get("total_cycles", 6))
++    if cycle < 1 or total_cycles < 1:
++        return jsonify({"error": "cycle_number and total_cycles must be >= 1"}), 400
++    if cycle > total_cycles:
++        return jsonify(
++            {"error": f"cycle_number ({cycle}) cannot exceed total_cycles ({total_cycles})"}
++        ), 400
++
+     calc_res = calculate_regimen_doses(
+         patient_id=patient_id,
+         protocol_name=protocol,
+@@ -822,11 +848,26 @@ def api_save_chemo_order():
+         return jsonify(calc_res), 400
+ 
+     # P0-11: Derive physician_id from authenticated session only.
+-    # Never fall back to session.get("user_id", 1).
+     if not (current_user and getattr(current_user, "is_authenticated", False)):
+         abort(401)
+     physician_id = current_user.id
+ 
++    # O5-FIX: when lifetime toxicity cap is exceeded, require an explicit
++    # physician override acknowledgement before the order can be saved.
++    if calc_res["has_toxicity_warning"]:
++        override = str(data.get("confirm_toxicity_override", "")).lower()
++        if override not in ("true", "1", "yes"):
++            return jsonify(
++                {
++                    "error": "Chemotherapy order blocked: cumulative lifetime toxicity cap exceeded.",
++                    "toxicity_warnings": calc_res["toxicity_warnings"],
++                    "action_required": (
++                        "Re-submit with confirm_toxicity_override=true to proceed "
++                        "after clinical review."
++                    ),
++                }
++            ), 409
++
+     order = ChemotherapyRegimenOrder(
+         patient_id=patient_id,
+         physician_id=physician_id,
+diff --git a/departments/models/medicine.py b/departments/models/medicine.py
+index 61e7d06..ec3a7c6 100644
+--- a/departments/models/medicine.py
++++ b/departments/models/medicine.py
+@@ -1,4 +1,4 @@
+-from datetime import date, datetime
++from datetime import date, datetime, timezone
+ 
+ from sqlalchemy.orm import relationship
+ 
+@@ -532,16 +532,38 @@ class OncologyNote(db.Model):
+     )
+     note_date = db.Column(db.Date, nullable=False, default=date.today)
+     note_content = db.Column(db.Text, nullable=False)
+-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
++
++    # O3-FIX: track who authored the note for clinical audit trail
++    author_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
++
++    created_at = db.Column(
++        db.DateTime, nullable=False,
++        default=lambda: datetime.now(timezone.utc)
++    )
+     updated_at = db.Column(
+-        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
++        db.DateTime, nullable=False,
++        default=lambda: datetime.now(timezone.utc),
++        onupdate=lambda: datetime.now(timezone.utc),
+     )
++
++    # O1-FIX: soft-void columns required by delete_note() route
++    is_voided = db.Column(db.Boolean, nullable=False, default=False)
++    voided_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
++    voided_reason = db.Column(db.Text, nullable=True)
++    voided_at = db.Column(db.DateTime, nullable=True)
++
+     patient = db.relationship(
+         "Patient",
+         backref=db.backref(
+             "oncology_notes", lazy="dynamic", cascade="all, delete-orphan"
+         ),
+     )
++    author = db.relationship(
++        "User", foreign_keys=[author_id], backref="oncology_notes_authored"
++    )
++    voided_by_user = db.relationship(
++        "User", foreign_keys=[voided_by], backref="oncology_notes_voided"
++    )
+ 
+     def __repr__(self):
+         return f"<OncologyNote for patient_id={self.patient_id} on {self.note_date}>"
+diff --git a/departments/models/oncology_models.py b/departments/models/oncology_models.py
+index 3634426..2939a1f 100644
+--- a/departments/models/oncology_models.py
++++ b/departments/models/oncology_models.py
+@@ -5,7 +5,7 @@ Data models for Oncology & Chemotherapy Regimen Engine.
+ Stores chemotherapy orders, BSA calculations, protocol definitions, and cumulative lifetime toxicity tracking.
+ """
+ 
+-from datetime import datetime
++from datetime import datetime, timezone
+ 
+ from extensions import db
+ 
+@@ -53,7 +53,7 @@ class ChemotherapyRegimenOrder(db.Model):
+     toxicity_warning_details = db.Column(db.Text, nullable=True)
+ 
+     created_at = db.Column(
+-        db.DateTime, nullable=False, default=datetime.utcnow, index=True
++        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+     )
+ 
+     physician = db.relationship("User", backref="chemotherapy_orders")
+diff --git a/tests/test_oncology_chemotherapy.py b/tests/test_oncology_chemotherapy.py
+index a784098..cafcf69 100644
+--- a/tests/test_oncology_chemotherapy.py
++++ b/tests/test_oncology_chemotherapy.py
+@@ -73,6 +73,23 @@ def test_doxorubicin_lifetime_toxicity_cap(app):
+ 
+ def test_chemo_builder_endpoints(client, app, admin_user):
+     """Test Chemotherapy Builder UI and API endpoints."""
++    from datetime import date
++    from departments.models.records import Patient
++    from extensions import db
++
++    # Seed patient required by O6-FIX (patient existence validation)
++    with app.app_context():
++        if not Patient.query.filter_by(patient_id="PAT_ONCO_TEST").first():
++            db.session.add(
++                Patient(
++                    patient_id="PAT_ONCO_TEST",
++                    name="Oncology Test Patient",
++                    gender="Female",
++                    date_of_birth=date(1975, 6, 20),
++                )
++            )
++            db.session.commit()
++
+     # Test GET Chemo Builder UI Page
+     resp_ui = client.get("/medicine/oncology/chemo-builder/PAT_ONCO_TEST")
+     assert resp_ui.status_code == 200
+@@ -87,7 +104,8 @@ def test_chemo_builder_endpoints(client, app, admin_user):
+     assert calc_data["protocol_name"] == "AC-T"
+     assert calc_data["bsa_m2"] == 1.82
+ 
+-    # Test POST save chemo order API
++    # Test POST save chemo order API — ABVD cycle 1 for a new patient
++    # has no toxicity warning, so confirm_toxicity_override is not needed here.
+     resp_save = client.post(
+         "/medicine/oncology/api/save-chemo-order",
+         json={
+@@ -100,7 +118,7 @@ def test_chemo_builder_endpoints(client, app, admin_user):
+             "total_cycles": 6,
+         },
+     )
+-    assert resp_save.status_code == 201
++    assert resp_save.status_code == 201, resp_save.get_json()
+     save_data = resp_save.get_json()
+     assert save_data["success"] is True
+     assert save_data["protocol_name"] == "ABVD"

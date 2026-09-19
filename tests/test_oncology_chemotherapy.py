@@ -5,11 +5,17 @@ Unit and integration tests for Oncology BSA calculation, chemotherapy protocol d
 cumulative toxicity cap enforcement, and builder endpoints.
 """
 
+from datetime import date
+
+import pytest
+
 from departments.medicine.chemotherapy_engine import (
+    ChemoInputError,
     calculate_bsa,
     calculate_regimen_doses,
 )
 from departments.models.oncology_models import ChemotherapyRegimenOrder
+from departments.models.records import Patient
 from extensions import db
 
 
@@ -21,11 +27,12 @@ def test_calculate_bsa():
     bsa_dubois = calculate_bsa(170, 70, formula="dubois")
     assert bsa_dubois == 1.81
 
-    # Invalid biometrics fallback
-    assert calculate_bsa(0, 0) == 1.73
+    # Invalid biometrics are REFUSED (there is no silent "standard adult" BSA).
+    with pytest.raises(ChemoInputError):
+        calculate_bsa(0, 0)
 
 
-def test_calculate_regimen_doses_folfox():
+def test_calculate_regimen_doses_folfox(app):
     """Test FOLFOX6 protocol dose calculations."""
     res = calculate_regimen_doses("PAT_ONCO_01", "FOLFOX6", 170, 70)
     assert res["protocol_name"] == "FOLFOX6"
@@ -37,7 +44,7 @@ def test_calculate_regimen_doses_folfox():
     assert oxali["cap_exceeded"] is False
 
 
-def test_vincristine_single_dose_cap():
+def test_vincristine_single_dose_cap(app):
     """Test Vincristine 2.0 mg single dose cap enforcement in CHOP protocol."""
     # Large BSA (e.g. 200cm, 120kg -> BSA ~ 2.58 m2)
     # Vincristine 1.4 mg/m2 * 2.58 = 3.61 mg -> should be capped at 2.0 mg
@@ -73,14 +80,25 @@ def test_doxorubicin_lifetime_toxicity_cap(app):
 
 def test_chemo_builder_endpoints(client, app, admin_user):
     """Test Chemotherapy Builder UI and API endpoints."""
+    with app.app_context():
+        db.session.add(
+            Patient(
+                patient_id="P-ONC-01",
+                name="Onco Test",
+                sex="Female",
+                date_of_birth=date(1985, 5, 5),
+            )
+        )
+        db.session.commit()
+
     # Test GET Chemo Builder UI Page
-    resp_ui = client.get("/medicine/oncology/chemo-builder/PAT_ONCO_TEST")
+    resp_ui = client.get("/medicine/oncology/chemo-builder/P-ONC-01")
     assert resp_ui.status_code == 200
     assert b"Chemotherapy Protocol Builder" in resp_ui.data
 
     # Test GET calculate chemo API
     resp_calc = client.get(
-        "/medicine/oncology/api/calculate-chemo?patient_id=PAT_ONCO_TEST&protocol=AC-T&height=170&weight=70"
+        "/medicine/oncology/api/calculate-chemo?patient_id=P-ONC-01&protocol=AC-T&height=170&weight=70"
     )
     assert resp_calc.status_code == 200
     calc_data = resp_calc.get_json()
@@ -91,7 +109,7 @@ def test_chemo_builder_endpoints(client, app, admin_user):
     resp_save = client.post(
         "/medicine/oncology/api/save-chemo-order",
         json={
-            "patient_id": "PAT_ONCO_TEST",
+            "patient_id": "P-ONC-01",
             "protocol_name": "ABVD",
             "height_cm": 175,
             "weight_kg": 75,

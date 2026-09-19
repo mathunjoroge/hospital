@@ -9,17 +9,47 @@ from datetime import datetime
 
 from extensions import db
 
+# Order lifecycle. ADMINISTERED and CANCELLED are terminal.
+CHEMO_STATUSES = ("ORDERED", "PREPARED", "ADMINISTERED", "CANCELLED")
+CHEMO_ALLOWED_TRANSITIONS: dict[str, tuple[str, ...]] = {
+    "ORDERED": ("PREPARED", "CANCELLED"),
+    "PREPARED": ("ADMINISTERED", "CANCELLED"),
+    "ADMINISTERED": (),
+    "CANCELLED": (),
+}
+
 
 class ChemotherapyRegimenOrder(db.Model):
     """
     Chemotherapy regimen prescription order for oncology patients.
     Tracks body surface area (BSA), protocol doses, and cumulative lifetime toxicity caps.
+
+    Clinical history is never deleted: an erroneous order is moved to CANCELLED
+    (with a reason) and is then excluded from cumulative lifetime-dose totals.
     """
 
     __tablename__ = "chemotherapy_regimen_orders"
+    __table_args__ = (
+        # At most one *active* (non-cancelled) order per patient/protocol/cycle.
+        # Stops a double-click or retry from double-counting cumulative doses.
+        db.Index(
+            "uq_chemo_active_patient_protocol_cycle",
+            "patient_id",
+            "protocol_name",
+            "cycle_number",
+            unique=True,
+            postgresql_where=db.text("status <> 'CANCELLED'"),
+            sqlite_where=db.text("status <> 'CANCELLED'"),
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.String(20), nullable=False, index=True)
+    patient_id = db.Column(
+        db.String(20),
+        db.ForeignKey("patients.patient_id"),
+        nullable=False,
+        index=True,
+    )
     physician_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     protocol_name = db.Column(
@@ -51,9 +81,18 @@ class ChemotherapyRegimenOrder(db.Model):
     )  # ORDERED, PREPARED, ADMINISTERED, CANCELLED
     has_toxicity_warning = db.Column(db.Boolean, nullable=False, default=False)
     toxicity_warning_details = db.Column(db.Text, nullable=True)
+    # Prescriber's documented justification when a lifetime-cap warning was overridden.
+    toxicity_override_reason = db.Column(db.Text, nullable=True)
+
+    # Last status transition (who / when / why)
+    status_reason = db.Column(db.Text, nullable=True)
+    status_changed_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    status_changed_at = db.Column(db.DateTime, nullable=True)
 
     created_at = db.Column(
         db.DateTime, nullable=False, default=datetime.utcnow, index=True
     )
 
-    physician = db.relationship("User", backref="chemotherapy_orders")
+    physician = db.relationship(
+        "User", foreign_keys=[physician_id], backref="chemotherapy_orders"
+    )

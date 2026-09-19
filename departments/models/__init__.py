@@ -89,6 +89,7 @@ from .nursing import (
     Partogram,
     Vitals,
 )
+from .oncology_models import ChemotherapyRegimenOrder
 from .patient_user import PatientUser
 from .pharmacy import (
     Batch,
@@ -141,6 +142,7 @@ __all__ = [
     "CancerTypeStage",
     "Charge",
     "ChargeCategory",
+    "ChemotherapyRegimenOrder",
     "Claim",
     "ClaimStatus",
     "Clinic",

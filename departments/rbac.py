@@ -92,3 +92,27 @@ def roles_required(*roles):
         return wrapper
 
     return decorator
+
+
+def has_any_role(*roles) -> bool:
+    """
+    Non-aborting counterpart of ``roles_required`` with identical semantics
+    (role aliases, admin bypass unless a role-switch is active).
+
+    Use it inside a view that serves several roles but must restrict part of its
+    behaviour (e.g. read-only for nurses, write for doctors).
+    """
+    user = get_effective_user()
+    if not user:
+        return False
+
+    user_role = (user.role or "").lower()
+    if user_role == "admin" and "switched_user" not in session:
+        return True
+
+    allowed_roles = {r.lower() for r in roles}
+    for r in list(allowed_roles):
+        if r in ROLE_ALIASES:
+            allowed_roles.update(ROLE_ALIASES[r])
+
+    return get_effective_role() in allowed_roles
