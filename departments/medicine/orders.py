@@ -367,7 +367,9 @@ def inject_unmatched_count():
 
 
 from departments.shared.drugcentral import (
+    get_cached_drug_query,
     get_drugcentral_connection as get_db_connection,
+    set_cached_drug_query,
 )
 
 
@@ -375,6 +377,11 @@ def fetch_drugs_data(
     search_query: str | None = None, category: str | None = None
 ) -> list[dict[str, Any]]:
     """Fetch distinct product data with optional search by generic name, brand name, or therapeutic category."""
+    cache_key = f"drugs_data:{search_query or ''}:{category or ''}"
+    cached_val = get_cached_drug_query(cache_key)
+    if cached_val is not None:
+        return cached_val
+
     results: list[dict[str, Any]] = []
     seen = set()
 
@@ -484,4 +491,5 @@ def fetch_drugs_data(
     except Exception:  # noqa: BLE001
         logger.exception("Error fetching local hospital database medicines")
 
+    set_cached_drug_query(cache_key, results)
     return results
