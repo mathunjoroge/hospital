@@ -373,6 +373,9 @@ from departments.shared.drugcentral import (
 
 def fetch_drugs_data(search_query: str | None = None) -> list[dict[str, Any]]:
     """Fetch distinct product data with optional search by generic name or brand name."""
+    results: list[dict[str, Any]] = []
+    seen = set()
+
     try:
         with get_db_connection() as conn, conn.cursor(
             cursor_factory=RealDictCursor
@@ -388,11 +391,69 @@ def fetch_drugs_data(search_query: str | None = None) -> list[dict[str, Any]]:
                 base_query += """
                     WHERE generic_name ILIKE %s OR product_name ILIKE %s
                 """
-                params = [search_param] * 2  # 2 parameters now
+                params = [search_param] * 2
 
-            base_query += " ORDER BY generic_name"
+            base_query += " ORDER BY generic_name LIMIT 200"
             cur.execute(base_query, params)
-            return cur.fetchall()
+            for row in cur.fetchall():
+                item = dict(row)
+                key = (
+                    (item.get("generic_name") or "").lower(),
+                    (item.get("product_name") or "").lower(),
+                )
+                if key not in seen:
+                    seen.add(key)
+                    results.append(item)
     except Exception:  # noqa: BLE001
-        logger.exception("Database error fetching drugs reference data")
-        return []
+        logger.exception("Database error fetching drugs reference data from DrugCentral")
+
+    # Local hospital database medicines & pharmacy drugs fallback/supplement
+    try:
+        from departments.models.medicine import Medicine
+        from departments.models.pharmacy import Drug as PharmDrug
+
+        query = Medicine.query
+        if search_query:
+            pattern = f"%{search_query}%"
+            query = query.filter(
+                (Medicine.generic_name.ilike(pattern))
+                | (Medicine.brand_name.ilike(pattern))
+            )
+        for m in query.order_by(Medicine.generic_name).all():
+            key = (m.generic_name.lower(), m.brand_name.lower())
+            if key not in seen:
+                seen.add(key)
+                results.append(
+                    {
+                        "generic_name": m.generic_name,
+                        "product_name": m.brand_name,
+                        "route": "Oral / Systemic",
+                        "form": m.dosage,
+                    }
+                )
+
+        p_query = PharmDrug.query
+        if search_query:
+            pattern = f"%{search_query}%"
+            p_query = p_query.filter(PharmDrug.generic_name.ilike(pattern))
+        for pd in p_query.order_by(PharmDrug.generic_name).all():
+            brand = pd.generic_name
+            key = (pd.generic_name.lower(), brand.lower())
+            if key not in seen:
+                seen.add(key)
+                form_str = (
+                    f"{pd.dosage_form or ''} {pd.strength or ''}".strip()
+                    or "Standard"
+                )
+                results.append(
+                    {
+                        "generic_name": pd.generic_name,
+                        "product_name": brand,
+                        "route": "Pharmacy Stock",
+                        "form": form_str,
+                    }
+                )
+    except Exception:  # noqa: BLE001
+        logger.exception("Error fetching local hospital database medicines")
+
+    return results

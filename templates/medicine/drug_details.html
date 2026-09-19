@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Pharmacology Reference: {{ drug }} - Hospital System{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="h3 font-weight-bold text-dark mb-0">
+                    <i class="fas fa-pills text-primary me-2"></i>{{ drug }}
+                </h2>
+                {% if struct_id %}
+                <span class="badge bg-secondary font-weight-normal">DrugCentral ID: {{ struct_id }}</span>
+                {% elif is_local %}
+                <span class="badge bg-info text-dark font-weight-normal">Hospital Formulary</span>
+                {% endif %}
+            </div>
+            <p class="text-muted small mb-0 mt-1">Clinical pharmacology, Mechanism of Action, and reference data.</p>
+        </div>
+        <div>
+            <a href="{{ url_for('medicine.drugs_ref') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Drug Reference Search
+            </a>
+        </div>
+    </div>
+
+    <!-- Mechanism of Action / Target Summary Card -->
+    {% if additional_details %}
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-primary text-white py-3">
+            <h5 class="mb-0 h6 font-weight-bold">
+                <i class="fas fa-microscope me-2"></i>Mechanism of Action & Molecular Targets
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% for detail in additional_details %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="p-3 bg-light rounded border h-100">
+                        <div class="fw-bold text-dark mb-1">
+                            <i class="fas fa-atom text-primary me-1"></i>
+                            Target Protein / Form: <span class="text-primary">{{ detail.target_protein or 'N/A' }}</span>
+                        </div>
+                        <div class="small text-secondary mb-2">
+                            <strong>Action Type / Strength:</strong> {{ detail.action_type or 'N/A' }}
+                        </div>
+                        {% if detail.mechanism_of_action %}
+                        <div class="small text-muted border-top pt-2 mt-2">
+                            <strong>Mechanism:</strong> {{ detail.mechanism_of_action }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Grouped Data Tables (Side Effects, Approvals, ATC, Patents, Class, etc.) -->
+    {% if grouped_data %}
+    <div class="row">
+        {% for table_name, rows in grouped_data.items() %}
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light py-3 border-bottom">
+                    <h5 class="mb-0 h6 text-dark fw-bold">
+                        <i class="fas fa-table text-secondary me-2"></i>{{ table_name }}
+                        <span class="badge bg-secondary rounded-pill ms-2">{{ rows|length }}</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 350px;">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    {% if rows and rows[0] is mapping %}
+                                        {% for key in rows[0].keys() %}
+                                            {% if key != 'struct_id' %}
+                                            <th scope="col" class="small text-uppercase text-secondary">{{ key|replace('_', ' ') }}</th>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in rows %}
+                                <tr>
+                                    {% for key, value in row.items() %}
+                                        {% if key != 'struct_id' %}
+                                        <td class="small">{{ value if value is not none else '-' }}</td>
+                                        {% endif %}
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% elif not additional_details %}
+    <div class="card shadow-sm border-0 p-5 text-center">
+        <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+        <h5>No extended pharmacology details available</h5>
+        <p class="text-muted">No DrugCentral or extended clinical entries were found for "{{ drug }}".</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Drug Reference & Formulary Browser - Hospital System{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 font-weight-bold text-dark mb-1">
+                <i class="fas fa-pills text-primary me-2"></i>Drug Reference & Clinical Formulary
+            </h2>
+            <p class="text-muted small mb-0">Search active pharmaceutical ingredients, brand names, dosage forms, and clinical pharmacology.</p>
+        </div>
+        <div>
+            <a href="{{ url_for('medicine.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Medicine Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Search Bar Card -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body bg-light rounded">
+            <form method="GET" action="{{ url_for('medicine.drugs_ref') }}" class="row g-3 align-items-center">
+                <div class="col-md-9">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
+                        <input type="text" 
+                               name="search" 
+                               class="form-control border-start-0 ps-0" 
+                               placeholder="Search generic name, brand name, or active ingredient (e.g. Paracetamol, Amoxicillin)..." 
+                               value="{{ search_query or '' }}" 
+                               autofocus>
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1">
+                        <i class="fas fa-search me-1"></i> Search Reference
+                    </button>
+                    {% if search_query %}
+                    <a href="{{ url_for('medicine.drugs_ref') }}" class="btn btn-outline-secondary">Clear</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-dark">
+                {% if search_query %}
+                Search Results for "<span class="text-primary">{{ search_query }}</span>"
+                {% else %}
+                All Formulary Drugs
+                {% endif %}
+            </h5>
+            <span class="badge bg-info text-dark font-weight-normal px-3 py-2">
+                {{ drugs_data|length }} product(s) found
+            </span>
+        </div>
+
+        <div class="card-body p-0">
+            {% if drugs_data %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col" class="ps-4">Generic / Active Ingredient</th>
+                            <th scope="col">Brand / Product Name</th>
+                            <th scope="col">Dosage Form</th>
+                            <th scope="col">Administration Route</th>
+                            <th scope="col" class="text-end pe-4">Clinical Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for drug in drugs_data %}
+                        <tr>
+                            <td class="ps-4 fw-bold text-dark">
+                                <i class="fas fa-capsules text-primary me-2 opacity-75"></i>
+                                {{ drug.generic_name or 'N/A' }}
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">
+                                    {{ drug.product_name or drug.generic_name or 'N/A' }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="text-secondary small">
+                                    {{ drug.form or 'Standard' }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary-subtle text-secondary small">
+                                    {{ drug.route or 'Oral / Systemic' }}
+                                </span>
+                            </td>
+                            <td class="text-end pe-4">
+                                {% if drug.generic_name %}
+                                <a href="{{ url_for('medicine.drug_details', drug=drug.generic_name) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-info-circle me-1"></i> Pharmacology Details
+                                </a>
+                                {% else %}
+                                <span class="text-muted small">No details</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-prescription-bottle-alt fa-3x text-muted mb-3 opacity-50"></i>
+                <h5 class="text-secondary">No matching drugs found</h5>
+                <p class="text-muted small">Try adjusting your search query or search by active ingredient name.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
