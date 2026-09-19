@@ -76,7 +76,7 @@ The right choice depends on your facility, your team's skills and your regulator
 | **Patient records** | UUID-based identification, duplicate detection and record merge, Subject Access Request (SAR) support |
 | **Triage and nursing** | ESI (Emergency Severity Index) triage scoring, vitals tracking, Medication Administration Records (MAR), nursing care plans |
 | **Consultation** | Digital SOAP notes, ICD-10 diagnosis coding, clinical NLP chatbot integration, inpatient bed management |
-| **Pharmacy** | e-Prescribing validation, FEFO (first-expired, first-out) stock control, drug interaction checks, cheminformatics |
+| **Pharmacy** | e-Prescribing validation, FEFO (first-expired, first-out) stock control, DrugCentral & OpenFDA clinical drug reference console, target protein activity, live autocomplete search |
 | **Laboratory (LIS)** | Test ordering, result verification, critical panic value alerts |
 | **Imaging and radiology** | Imaging requests and DICOM metadata integration |
 | **Billing and insurance** | Automated invoicing, partial payment allocation, M-Pesa mobile money, SHA / SHIF claim adjudication |
@@ -188,6 +188,8 @@ PYTHONPATH=. venv/bin/pytest --cov=. --cov-report=term-missing
 | `/api/fhir/R4/Observation?patient=<id>` | `GET` | FHIR R4 Observation bundle (vitals and labs) |
 | `/api/khis/export/dhis2_json` | `GET` | KHIS / DHIS2 monthly `dataValueSets` JSON |
 | `/api/khis/export/csv` | `GET` | KHIS / DHIS2 monthly CSV export |
+| `/medicine/drugs-ref/search` | `GET` | Clinical Drug Reference Console (DrugCentral & OpenFDA fallback) |
+| `/medicine/drugs-ref/api/autocomplete` | `GET` | Live drug autocomplete search suggestions API |
 | `/admin/audit-trail/export` | `GET` | SIEM-compatible JSON audit log export |
 
 ---
