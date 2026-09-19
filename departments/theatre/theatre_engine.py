@@ -17,6 +17,8 @@ Capabilities:
 import logging
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import func
+
 from departments.models.medicine import TheatreList
 from departments.models.theatre import (
     AnaestheticRecord,
@@ -27,6 +29,26 @@ from departments.models.theatre import (
 from extensions import db
 
 logger = logging.getLogger(__name__)
+
+# Single source of truth for operating rooms (routes validate against this;
+# utilization metrics iterate over it).
+OR_ROOMS = ("OR 1", "OR 2", "OR 3", "Cardiac OR", "Emergency OR")
+
+# Plausibility envelopes for streamed intraoperative vitals. Outside these
+# ranges a value is almost certainly a sensor/unit/data-entry fault, and the
+# anaesthetic record is a medico-legal document — refuse to store it.
+VITALS_RANGES = {
+    "hr": (20, 300),
+    "bp_sys": (30, 400),
+    "bp_dia": (10, 300),
+    "spo2": (0, 100),
+    "etco2": (0, 200),
+    "agent_conc": (0.0, 20.0),
+}
+
+# Bound the vitals JSON series (~5000 snapshots ≈ 80+ hours at 1/min) so a
+# misbehaving stream cannot grow the row unbounded.
+MAX_VITALS_SNAPSHOTS = 5000
 
 # ASA Physical Status Reference Dictionary
 ASA_REFERENCE = {
@@ -77,13 +99,23 @@ class TheatreOperationsEngine:
         """
         Evaluate ASA Physical Status classification & compute perioperative risk grade.
         Emergency cases (is_emergency=True or '-E' suffix) double the baseline risk percentage.
+
+        Raises ValueError for an unrecognized ASA code — an unknown grade must
+        never silently be assessed as "ASA I — Normal Healthy Patient".
         """
-        clean_status = (asa_status or "ASA I").strip().upper()
+        clean_status = (asa_status or "").strip().upper()
+        if not clean_status:
+            raise ValueError("ASA classification is required.")
         if clean_status.endswith("-E") or clean_status.endswith(" E"):
             is_emergency = True
             clean_status = clean_status.replace("-E", "").replace(" E", "").strip()
 
-        ref = ASA_REFERENCE.get(clean_status, ASA_REFERENCE["ASA I"])
+        ref = ASA_REFERENCE.get(clean_status)
+        if not ref:
+            raise ValueError(
+                f"Unknown ASA classification '{asa_status}'. "
+                f"Valid codes: {sorted(ASA_REFERENCE)} (optionally suffixed -E)."
+            )
         base_mortality = ref["mortality_pct"]
 
         emergency_multiplier = 2.0 if is_emergency else 1.0
@@ -139,8 +171,13 @@ class TheatreOperationsEngine:
         ]
 
         event_clean = (event_type or "").upper().strip()
+        # Fail closed: an unrecognized event must be rejected, never quietly
+        # rewritten to MAINTENANCE (the timeline is the anaesthesia record).
         if event_clean not in valid_events:
-            event_clean = "MAINTENANCE"
+            raise ValueError(
+                f"Invalid anesthesia event type '{event_type}'. "
+                f"Valid events: {valid_events}."
+            )
 
         now_iso = datetime.now(timezone.utc).isoformat()
         event_obj = {
@@ -172,15 +209,25 @@ class TheatreOperationsEngine:
         if not record:
             return {
                 "theatre_entry_id": entry_id,
-                "asa_assessment": TheatreOperationsEngine.evaluate_asa_score("ASA I"),
+                "asa_assessment": None,
+                "asa_warning": "No anaesthetic record exists for this case.",
                 "events": [],
                 "vitals_count": 0,
                 "duration_minutes": 0,
             }
 
-        asa_eval = TheatreOperationsEngine.evaluate_asa_score(
-            record.asa_status, record.is_emergency
-        )
+        try:
+            asa_eval = TheatreOperationsEngine.evaluate_asa_score(
+                record.asa_status, record.is_emergency
+            )
+        except ValueError:
+            # Legacy/unknown stored code — surface it, never invent ASA I.
+            asa_eval = {
+                "asa_code": record.asa_status,
+                "risk_level": "UNKNOWN",
+                "estimated_mortality_pct": None,
+                "warning": f"Unrecognized stored ASA code '{record.asa_status}'.",
+            }
 
         events = record.timeline_events
         vitals = record.vitals_series
@@ -252,14 +299,24 @@ class TheatreOperationsEngine:
     def calculate_or_utilization_metrics() -> dict:
         """
         Compute Operating Theatre utilization, room occupancy rates, ASA distribution, and turnover time.
+        Uses grouped aggregates (no per-room/per-record N+1 queries).
         """
-        rooms = ["OR 1", "OR 2", "OR 3", "Cardiac OR", "Emergency OR"]
-        room_stats = {}
+        rooms = list(OR_ROOMS)  # single source of truth
+        room_stats = {
+            r: {"total": 0, "active": 0, "completed": 0, "occupancy_status": "AVAILABLE"}
+            for r in rooms
+        }
 
         total_cases = TheatreList.query.count()
         completed_cases = TheatreList.query.filter_by(status=1).count()
         scheduled_cases = TheatreList.query.filter_by(status=0).count()
 
+        # ASA distribution via SQL aggregation instead of loading every record.
+        asa_rows = (
+            db.session.query(AnaestheticRecord.asa_status, func.count(AnaestheticRecord.id))
+            .group_by(AnaestheticRecord.asa_status)
+            .all()
+        )
         asa_counts = {
             "ASA I": 0,
             "ASA II": 0,
@@ -268,27 +325,33 @@ class TheatreOperationsEngine:
             "ASA V": 0,
             "ASA VI": 0,
         }
-
-        records = AnaestheticRecord.query.all()
-        for r in records:
-            base_asa = r.asa_status.replace("-E", "").strip()
+        for asa_status, count in asa_rows:
+            base_asa = (asa_status or "").replace("-E", "").strip()
             if base_asa in asa_counts:
-                asa_counts[base_asa] += 1
+                asa_counts[base_asa] += count
 
-        for r in rooms:
-            cases_in_room = TheatreList.query.filter_by(or_room=r).all()
-            in_progress = [c for c in cases_in_room if c.status == 0]
-            done = [c for c in cases_in_room if c.status == 1]
-            room_stats[r] = {
-                "total": len(cases_in_room),
-                "active": len(in_progress),
-                "completed": len(done),
-                "occupancy_status": "OCCUPIED" if len(in_progress) > 0 else "AVAILABLE",
-            }
+        # Per-room totals in ONE grouped query (rows outside known rooms are
+        # surfaced under an "Other" bucket so they are never invisible).
+        room_rows = (
+            db.session.query(TheatreList.or_room, TheatreList.status, func.count(TheatreList.id))
+            .group_by(TheatreList.or_room, TheatreList.status)
+            .all()
+        )
+        for or_room, status, count in room_rows:
+            key = or_room if or_room in room_stats else "Other"
+            bucket = room_stats.setdefault(
+                key, {"total": 0, "active": 0, "completed": 0, "occupancy_status": "AVAILABLE"}
+            )
+            bucket["total"] += count
+            if status == 0:
+                bucket["active"] += count
+                bucket["occupancy_status"] = "OCCUPIED"
+            elif status == 1:
+                bucket["completed"] += count
 
-        # Overall OR Occupancy Percentage
+        # Overall OR Occupancy Percentage (known rooms only)
         active_rooms = sum(
-            1 for r in room_stats.values() if r["occupancy_status"] == "OCCUPIED"
+            1 for r in rooms if room_stats[r]["occupancy_status"] == "OCCUPIED"
         )
         or_utilization_pct = round((active_rooms / len(rooms)) * 100, 1)
 
@@ -312,10 +375,43 @@ class TheatreOperationsEngine:
         etco2: int | None = None,
         agent_concentration: float | None = None,
     ) -> AnaestheticRecord:
-        """Stream a time-stamped intraoperative vital sign snapshot to AnaestheticRecord."""
+        """
+        Stream a time-stamped intraoperative vital sign snapshot to AnaestheticRecord.
+
+        Provided values are validated against VITALS_RANGES; None fields are
+        permitted (partial snapshots), but a snapshot with NO vitals at all is
+        rejected. Raises ValueError on implausible/non-numeric input.
+        """
         entry = db.session.get(TheatreList, entry_id)
         if not entry:
             raise ValueError(f"Theatre list entry {entry_id} not found.")
+
+        provided = {
+            "hr": hr,
+            "bp_sys": bp_systolic,
+            "bp_dia": bp_diastolic,
+            "spo2": spo2,
+            "etco2": etco2,
+            "agent_conc": agent_concentration,
+        }
+        if all(v is None for v in provided.values()):
+            raise ValueError(
+                "At least one vital sign value is required for a snapshot."
+            )
+
+        for name, value in provided.items():
+            if value is None:
+                continue
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                raise ValueError(f"Vital '{name}' must be a number.") from None
+            low, high = VITALS_RANGES[name]
+            if not (low <= numeric <= high):
+                raise ValueError(
+                    f"Vital '{name}'={value} is outside the plausible range "
+                    f"{low}-{high}. Check the sensor/entry."
+                )
 
         record = AnaestheticRecord.query.filter_by(theatre_entry_id=entry_id).first()
         if not record:
@@ -328,15 +424,14 @@ class TheatreOperationsEngine:
 
         snapshot = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "hr": hr,
-            "bp_sys": bp_systolic,
-            "bp_dia": bp_diastolic,
-            "spo2": spo2,
-            "etco2": etco2,
-            "agent_conc": agent_concentration,
+            **{key: value for key, value in provided.items() if value is not None},
         }
 
         current_series = list(record.vitals_series)
+        if len(current_series) >= MAX_VITALS_SNAPSHOTS:
+            # Keep the series bounded: drop the oldest snapshots.
+            current_series = current_series[-(MAX_VITALS_SNAPSHOTS - 1) :]
+            snapshot["series_truncated"] = True
         current_series.append(snapshot)
         record.vitals_series = current_series
 
@@ -455,10 +550,40 @@ class TheatreOperationsEngine:
 
     @staticmethod
     def get_or_dashboard_metrics() -> dict:
-        """Compute real-time Operating Theatre utilization, active cases, and safety metrics."""
+        """Compute real-time Operating Theatre utilization, active cases, and safety metrics.
+
+        Related clinical records are prefetched in bulk (no per-entry queries).
+        """
         entries = (
             TheatreList.query.order_by(TheatreList.created_at.desc()).limit(50).all()
         )
+        entry_ids = [e.id for e in entries]
+
+        # Bulk-prefetch all four clinical records for the 50 entries (4 queries).
+        chk_by_entry = {
+            c.theatre_entry_id: c
+            for c in WhoSurgicalChecklist.query.filter(
+                WhoSurgicalChecklist.theatre_entry_id.in_(entry_ids)
+            ).all()
+        }
+        cnt_by_entry = {
+            c.theatre_entry_id: c
+            for c in SurgicalInstrumentCount.query.filter(
+                SurgicalInstrumentCount.theatre_entry_id.in_(entry_ids)
+            ).all()
+        }
+        post_by_entry = {
+            n.theatre_entry_id: n
+            for n in PostOpNote.query.filter(
+                PostOpNote.theatre_entry_id.in_(entry_ids)
+            ).all()
+        }
+        ana_by_entry = {
+            a.theatre_entry_id: a
+            for a in AnaestheticRecord.query.filter(
+                AnaestheticRecord.theatre_entry_id.in_(entry_ids)
+            ).all()
+        }
 
         active_cases = []
         who_completed_count = 0
@@ -466,10 +591,10 @@ class TheatreOperationsEngine:
         completed_cases_count = 0
 
         for e in entries:
-            chk = WhoSurgicalChecklist.query.filter_by(theatre_entry_id=e.id).first()
-            cnt = SurgicalInstrumentCount.query.filter_by(theatre_entry_id=e.id).first()
-            post = PostOpNote.query.filter_by(theatre_entry_id=e.id).first()
-            ana = AnaestheticRecord.query.filter_by(theatre_entry_id=e.id).first()
+            chk = chk_by_entry.get(e.id)
+            cnt = cnt_by_entry.get(e.id)
+            post = post_by_entry.get(e.id)
+            ana = ana_by_entry.get(e.id)
 
             is_chk_complete = chk.is_fully_completed() if chk else False
             if is_chk_complete:
@@ -483,10 +608,25 @@ class TheatreOperationsEngine:
             if e.status == 1:
                 completed_cases_count += 1
 
-            asa_eval = TheatreOperationsEngine.evaluate_asa_score(
-                ana.asa_status if ana else "ASA I",
-                ana.is_emergency if ana else False,
-            )
+            if ana:
+                try:
+                    asa_eval = TheatreOperationsEngine.evaluate_asa_score(
+                        ana.asa_status, ana.is_emergency
+                    )
+                except ValueError:
+                    asa_eval = {
+                        "asa_code": ana.asa_status,
+                        "risk_level": "UNKNOWN",
+                        "estimated_mortality_pct": None,
+                    }
+            else:
+                # No anaesthetic record yet — report honestly instead of
+                # defaulting the patient to "ASA I — Normal Healthy Patient".
+                asa_eval = {
+                    "asa_code": None,
+                    "risk_level": "UNASSESSED",
+                    "estimated_mortality_pct": None,
+                }
 
             active_cases.append(
                 {

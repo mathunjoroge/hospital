@@ -314,11 +314,14 @@ class TestTheatreModuleRoutes:
         self, client, app, admin_user, sample_theatre_entry_id
     ):
         with client:
+            # Clinical values are never fabricated: a NEW post-op note must be
+            # given the procedure performed explicitly (P0-3/P0-4 fix).
             resp = client.post(
                 f"/theatre/postop/{sample_theatre_entry_id}",
                 json={
                     "preop_diagnosis": "Appendicitis",
                     "postop_diagnosis": "Acute Appendicitis",
+                    "procedure_performed": "Laparoscopic Appendectomy",
                     "surgical_findings": "Appendix removed cleanly.",
                     "aldrete_activity": 2,
                     "aldrete_respiration": 2,
@@ -331,6 +334,21 @@ class TestTheatreModuleRoutes:
             data = resp.get_json()
             assert data["total_aldrete_score"] == 10
             assert data["fit_for_pacu_discharge"] is True
+
+    def test_postop_note_requires_procedure_on_creation(
+        self, client, app, admin_user, sample_theatre_entry_id
+    ):
+        """A new post-op note without procedure_performed must be rejected, not fabricated."""
+        with client:
+            resp = client.post(
+                f"/theatre/postop/{sample_theatre_entry_id}",
+                json={
+                    "preop_diagnosis": "Appendicitis",
+                    "postop_diagnosis": "Acute Appendicitis",
+                    "surgical_findings": "Appendix removed cleanly.",
+                },
+            )
+            assert resp.status_code == 400
 
     def test_instrument_count_api_endpoint(
         self, client, app, admin_user, sample_theatre_entry_id

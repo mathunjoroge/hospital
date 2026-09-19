@@ -338,6 +338,15 @@ class SurgicalInstrumentCount(db.Model):
     circulating_nurse = db.relationship("User", foreign_keys=[circulating_nurse_id])
 
     def calculate_reconciliation(self) -> dict:
+        """Reconcile counts at skin closure — and at cavity closure when one was
+        performed.
+
+        A cavity-closure count is considered performed when ANY cavity figure is
+        non-zero. If it was performed, it must reconcile too: a count that only
+        matches at skin while the cavity figure is short means an item may still
+        be inside the patient. When no cavity count exists (legacy rows / "no
+        cavity" procedures), the cavity check is skipped.
+        """
         total_sponges_in = (self.sponges_initial or 0) + (self.sponges_added or 0)
         total_needles_in = (self.needles_initial or 0) + (self.needles_added or 0)
         total_inst_in = (self.instruments_initial or 0) + (self.instruments_added or 0)
@@ -350,13 +359,38 @@ class SurgicalInstrumentCount(db.Model):
         needle_ok = needles_skin == total_needles_in
         inst_ok = inst_skin == total_inst_in
 
-        reconciled = sponge_ok and needle_ok and inst_ok
+        cavity_performed = any(
+            (
+                (self.sponges_closing_cavity or 0) != 0,
+                (self.needles_closing_cavity or 0) != 0,
+                (self.instruments_closing_cavity or 0) != 0,
+            )
+        )
+        if cavity_performed:
+            sponge_cavity_ok = (self.sponges_closing_cavity or 0) == total_sponges_in
+            needle_cavity_ok = (self.needles_closing_cavity or 0) == total_needles_in
+            inst_cavity_ok = (self.instruments_closing_cavity or 0) == total_inst_in
+        else:
+            sponge_cavity_ok = needle_cavity_ok = inst_cavity_ok = True
+
+        reconciled = (
+            sponge_ok
+            and needle_ok
+            and inst_ok
+            and sponge_cavity_ok
+            and needle_cavity_ok
+            and inst_cavity_ok
+        )
         self.count_reconciled = reconciled
         return {
             "reconciled": reconciled,
             "sponges_ok": sponge_ok,
             "needles_ok": needle_ok,
             "instruments_ok": inst_ok,
+            "cavity_performed": cavity_performed,
+            "sponges_cavity_ok": sponge_cavity_ok,
+            "needles_cavity_ok": needle_cavity_ok,
+            "instruments_cavity_ok": inst_cavity_ok,
             "sponge_diff": sponges_skin - total_sponges_in,
             "needle_diff": needles_skin - total_needles_in,
             "inst_diff": inst_skin - total_inst_in,
