@@ -1,11 +1,22 @@
 {% extends "base.html" %}
 
+{% block title %}Medicine Error - Hospital System{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-    <h2>Drug Not Found</h2>
-    <p>The requested drug with CD ID {{ cd_id }} could not be found in the database.</p>
-    <a href="{{ url_for('medicine.drugs_ref') }}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left"></i> Back to Drug List
-    </a>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <div class="card shadow-sm border-0 p-4">
+                <div class="card-body">
+                    <i class="fas fa-exclamation-triangle fa-4x text-warning mb-3"></i>
+                    <h3 class="h4 font-weight-bold text-dark mb-2">Notice</h3>
+                    <p class="text-secondary lead fs-6 mb-4">{{ message or "An error occurred while processing your request." }}</p>
+                    <a href="{{ url_for('medicine.drugs_ref') }}" class="btn btn-primary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Drug Reference Search
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

@@ -1,65 +1,176 @@
 {% extends "base.html" %}
 
-{% block title %}Drug Reference & Formulary Browser - Hospital System{% endblock %}
+{% block title %}Drug Reference & Pharmacology Console - Hospital System{% endblock %}
 
 {% block content %}
+<style>
+  .hero-ref-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f766e 100%);
+    color: #ffffff;
+    border-radius: 12px;
+    padding: 2rem 2.5rem;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.3);
+  }
+
+  .category-pill {
+    transition: all 0.2s ease-in-out;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  .category-pill:hover, .category-pill.active {
+    background: #0d9488;
+    color: #ffffff;
+    border-color: #14b8a6;
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
+    transform: translateY(-1px);
+  }
+
+  .drug-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+  }
+
+  .drug-card:hover {
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+    border-color: #0d9488;
+  }
+
+  .badge-route {
+    background-color: #f1f5f9;
+    color: #334155;
+    font-weight: 600;
+  }
+
+  .autocomplete-item:hover {
+    background-color: #f0fdf4 !important;
+  }
+</style>
+
 <div class="container-fluid py-4">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="h3 font-weight-bold text-dark mb-1">
-                <i class="fas fa-pills text-primary me-2"></i>Drug Reference & Clinical Formulary
-            </h2>
-            <p class="text-muted small mb-0">Search active pharmaceutical ingredients, brand names, dosage forms, and clinical pharmacology.</p>
+    <!-- Hero Header -->
+    <div class="hero-ref-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+            <div>
+                <h1 class="h2 font-weight-bold mb-1 d-flex align-items-center gap-2">
+                    <i class="fas fa-pills text-teal me-1" style="color: #2dd4bf;"></i>
+                    Clinical Drug Reference Console
+                </h1>
+                <p class="mb-0 text-slate-300 opacity-90">
+                    Comprehensive DrugCentral pharmacology, target protein activity, FAERS adverse effects, and formulary dosing.
+                </p>
+            </div>
+            <div>
+                <a href="{{ url_for('medicine.index') }}" class="btn btn-outline-light btn-sm px-3">
+                    <i class="fas fa-arrow-left me-1"></i> Medicine Dashboard
+                </a>
+            </div>
         </div>
-        <div>
-            <a href="{{ url_for('medicine.index') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-1"></i> Back to Medicine Dashboard
-            </a>
+
+        <!-- Therapeutic Category Quick Filter Pills -->
+        <div class="pt-2">
+            <span class="small text-slate-300 fw-bold me-2 uppercase opacity-75">Therapeutic Categories:</span>
+            <div class="d-inline-flex flex-wrap gap-2 mt-2">
+                <a href="{{ url_for('medicine.drugs_ref') }}" 
+                   class="category-pill px-3 py-1 rounded-pill {% if not selected_category %}active{% endif %}">
+                    <i class="fas fa-th-large me-1"></i> All Categories
+                </a>
+                <a href="{{ url_for('medicine.drugs_ref', category='antibiotics') }}" 
+                   class="category-pill px-3 py-1 rounded-pill {% if selected_category == 'antibiotics' %}active{% endif %}">
+                    <i class="fas fa-shield-virus me-1"></i> Antibiotics & Anti-Infectives
+                </a>
+                <a href="{{ url_for('medicine.drugs_ref', category='cardiovascular') }}" 
+                   class="category-pill px-3 py-1 rounded-pill {% if selected_category == 'cardiovascular' %}active{% endif %}">
+                    <i class="fas fa-heartbeat me-1"></i> Cardiovascular & Antihypertensives
+                </a>
+                <a href="{{ url_for('medicine.drugs_ref', category='analgesics') }}" 
+                   class="category-pill px-3 py-1 rounded-pill {% if selected_category == 'analgesics' %}active{% endif %}">
+                    <i class="fas fa-capsules me-1"></i> Analgesics & NSAIDs
+                </a>
+                <a href="{{ url_for('medicine.drugs_ref', category='oncology') }}" 
+                   class="category-pill px-3 py-1 rounded-pill {% if selected_category == 'oncology' %}active{% endif %}">
+                    <i class="fas fa-dna me-1"></i> Oncology & Chemotherapy
+                </a>
+                <a href="{{ url_for('medicine.drugs_ref', category='antidiabetics') }}" 
+                   class="category-pill px-3 py-1 rounded-pill {% if selected_category == 'antidiabetics' %}active{% endif %}">
+                    <i class="fas fa-vial me-1"></i> Antidiabetics & Endocrine
+                </a>
+                <a href="{{ url_for('medicine.drugs_ref', category='respiratory') }}" 
+                   class="category-pill px-3 py-1 rounded-pill {% if selected_category == 'respiratory' %}active{% endif %}">
+                    <i class="fas fa-lungs me-1"></i> Respiratory & Bronchodilators
+                </a>
+                <a href="{{ url_for('medicine.drugs_ref', category='cns_psychiatry') }}" 
+                   class="category-pill px-3 py-1 rounded-pill {% if selected_category == 'cns_psychiatry' %}active{% endif %}">
+                    <i class="fas fa-brain me-1"></i> CNS & Psychiatry
+                </a>
+                <a href="{{ url_for('medicine.drugs_ref', category='gastrointestinal') }}" 
+                   class="category-pill px-3 py-1 rounded-pill {% if selected_category == 'gastrointestinal' %}active{% endif %}">
+                    <i class="fas fa-stethoscope me-1"></i> Gastrointestinal
+                </a>
+            </div>
         </div>
     </div>
 
-    <!-- Search Bar Card -->
+    <!-- Search Card with Live Autocomplete -->
     <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body bg-light rounded">
-            <form method="GET" action="{{ url_for('medicine.drugs_ref') }}" class="row g-3 align-items-center">
-                <div class="col-md-9">
-                    <div class="input-group">
+        <div class="card-body p-3 bg-light rounded position-relative">
+            <form method="GET" action="{{ url_for('medicine.drugs_ref') }}" class="row g-2 align-items-center">
+                {% if selected_category %}
+                <input type="hidden" name="category" value="{{ selected_category }}">
+                {% endif %}
+                <div class="col-md-9 col-lg-10 position-relative">
+                    <div class="input-group input-group-lg">
                         <span class="input-group-text bg-white border-end-0">
-                            <i class="fas fa-search text-muted"></i>
+                            <i class="fas fa-search text-primary" id="search-icon"></i>
                         </span>
                         <input type="text" 
+                               id="drug-search-input"
                                name="search" 
-                               class="form-control border-start-0 ps-0" 
-                               placeholder="Search generic name, brand name, or active ingredient (e.g. Paracetamol, Amoxicillin)..." 
+                               class="form-control border-start-0 ps-0 fs-6" 
+                               placeholder="Live Search: Type active ingredient, generic name, brand name (e.g., Amoxicillin, Metformin)..." 
                                value="{{ search_query or '' }}" 
+                               autocomplete="off"
                                autofocus>
                     </div>
+                    <!-- Live Autocomplete Overlay -->
+                    <div id="live-search-autocomplete" 
+                         class="dropdown-menu shadow-lg w-100 border-0 mt-1 py-2" 
+                         style="display: none; position: absolute; top: 100%; left: 0; z-index: 1050; max-height: 380px; overflow-y: auto; background: #ffffff; border-radius: 10px; border: 1px solid #cbd5e1;">
+                    </div>
                 </div>
-                <div class="col-md-3 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary flex-grow-1">
-                        <i class="fas fa-search me-1"></i> Search Reference
+                <div class="col-md-3 col-lg-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg flex-grow-1">
+                        <i class="fas fa-search me-1"></i> Search
                     </button>
-                    {% if search_query %}
-                    <a href="{{ url_for('medicine.drugs_ref') }}" class="btn btn-outline-secondary">Clear</a>
+                    {% if search_query or selected_category %}
+                    <a href="{{ url_for('medicine.drugs_ref') }}" class="btn btn-outline-secondary btn-lg" title="Clear Filters">
+                        <i class="fas fa-times"></i>
+                    </a>
                     {% endif %}
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Results Section -->
+    <!-- Results Table Card -->
     <div class="card shadow-sm border-0">
-        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 text-dark">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+            <h5 class="mb-0 text-dark fw-bold">
                 {% if search_query %}
-                Search Results for "<span class="text-primary">{{ search_query }}</span>"
+                Matching Drugs for "<span class="text-primary">{{ search_query }}</span>"
+                {% elif selected_category %}
+                Formulary Results for Category: <span class="text-primary uppercase">{{ selected_category|replace('_', ' ') }}</span>
                 {% else %}
-                All Formulary Drugs
+                Pharmacology & Formulary Directory
                 {% endif %}
             </h5>
-            <span class="badge bg-info text-dark font-weight-normal px-3 py-2">
-                {{ drugs_data|length }} product(s) found
+            <span id="records-count-badge" class="badge bg-teal-subtle text-teal border border-teal px-3 py-2 fs-6" style="background-color: #e6fffa; color: #0d9488;">
+                <i class="fas fa-list-ul me-1"></i> {{ drugs_data|length }} record(s) available
             </span>
         </div>
 
@@ -69,43 +180,47 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th scope="col" class="ps-4">Generic / Active Ingredient</th>
+                            <th scope="col" class="ps-4">Active Ingredient / Generic Name</th>
                             <th scope="col">Brand / Product Name</th>
                             <th scope="col">Dosage Form</th>
-                            <th scope="col">Administration Route</th>
-                            <th scope="col" class="text-end pe-4">Clinical Reference</th>
+                            <th scope="col">Route of Administration</th>
+                            <th scope="col" class="text-end pe-4">Clinician Action</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="drugs-table-body">
                         {% for drug in drugs_data %}
                         <tr>
-                            <td class="ps-4 fw-bold text-dark">
-                                <i class="fas fa-capsules text-primary me-2 opacity-75"></i>
-                                {{ drug.generic_name or 'N/A' }}
+                            <td class="ps-4">
+                                <div class="fw-bold text-dark fs-6">
+                                    <i class="fas fa-capsules text-teal me-2 opacity-75" style="color: #0d9488;"></i>
+                                    {{ drug.generic_name or 'N/A' }}
+                                </div>
                             </td>
                             <td>
-                                <span class="badge bg-light text-dark border">
+                                <span class="badge bg-white text-dark border px-2 py-1">
                                     {{ drug.product_name or drug.generic_name or 'N/A' }}
                                 </span>
                             </td>
                             <td>
-                                <span class="text-secondary small">
-                                    {{ drug.form or 'Standard' }}
+                                <span class="text-secondary small fw-medium">
+                                    {{ drug.form or 'Standard Formulation' }}
                                 </span>
                             </td>
                             <td>
-                                <span class="badge bg-secondary-subtle text-secondary small">
+                                <span class="badge badge-route px-2 py-1">
+                                    <i class="fas fa-syringe me-1 text-muted"></i>
                                     {{ drug.route or 'Oral / Systemic' }}
                                 </span>
                             </td>
                             <td class="text-end pe-4">
                                 {% if drug.generic_name %}
                                 <a href="{{ url_for('medicine.drug_details', drug=drug.generic_name) }}" 
-                                   class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-info-circle me-1"></i> Pharmacology Details
+                                   class="btn btn-sm btn-teal" 
+                                   style="background-color: #0d9488; color: #ffffff;">
+                                    <i class="fas fa-book-medical me-1"></i> View Clinical Reference
                                 </a>
                                 {% else %}
-                                <span class="text-muted small">No details</span>
+                                <span class="text-muted small">No reference</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -115,12 +230,88 @@
             </div>
             {% else %}
             <div class="text-center py-5">
-                <i class="fas fa-prescription-bottle-alt fa-3x text-muted mb-3 opacity-50"></i>
-                <h5 class="text-secondary">No matching drugs found</h5>
-                <p class="text-muted small">Try adjusting your search query or search by active ingredient name.</p>
+                <i class="fas fa-notes-medical fa-3x text-muted mb-3 opacity-50"></i>
+                <h5 class="text-secondary fw-bold">No drugs matching query</h5>
+                <p class="text-muted small">Try searching by generic active ingredient name (e.g., Amoxicillin, Metformin, Paracetamol).</p>
             </div>
             {% endif %}
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const searchInput = document.getElementById("drug-search-input");
+    const autocompleteBox = document.getElementById("live-search-autocomplete");
+    const tableBody = document.getElementById("drugs-table-body");
+    const recordsBadge = document.getElementById("records-count-badge");
+    let debounceTimer = null;
+
+    if (!searchInput) return;
+
+    searchInput.addEventListener("input", function() {
+        const query = this.value.trim();
+
+        // 1. Client-side real-time table filtering if rows are rendered
+        if (tableBody) {
+            const rows = tableBody.querySelectorAll("tr");
+            let visibleCount = 0;
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (!query || text.includes(query.toLowerCase())) {
+                    row.style.display = "";
+                    visibleCount++;
+                } else {
+                    row.style.display = "none";
+                }
+            });
+            if (recordsBadge && query) {
+                recordsBadge.innerHTML = '<i class="fas fa-filter me-1"></i> ' + visibleCount + ' filtered result(s)';
+            }
+        }
+
+        // 2. Debounced API fetch for autocomplete dropdown
+        clearTimeout(debounceTimer);
+        if (query.length < 2) {
+            autocompleteBox.style.display = "none";
+            autocompleteBox.innerHTML = "";
+            return;
+        }
+
+        debounceTimer = setTimeout(() => {
+            fetch("{{ url_for('medicine.drugs_ref_autocomplete') }}?q=" + encodeURIComponent(query))
+                .then(res => res.json())
+                .then(data => {
+                    if (!data || data.length === 0) {
+                        autocompleteBox.innerHTML = '<div class="dropdown-item text-muted small py-2 px-3"><i class="fas fa-search me-1"></i> No instant suggestions found. Press Enter to search.</div>';
+                        autocompleteBox.style.display = "block";
+                        return;
+                    }
+                    let html = '<div class="dropdown-header text-uppercase text-muted fw-bold fs-7 px-3 py-1">Instant Drug Matches</div>';
+                    data.forEach(item => {
+                        html += `
+                        <a href="${item.url}" class="dropdown-item autocomplete-item py-2 px-3 border-bottom border-light text-wrap d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold text-dark"><i class="fas fa-capsules me-2" style="color:#0d9488;"></i>${item.generic_name}</div>
+                                <div class="small text-muted">${item.product_name ? 'Brand: ' + item.product_name + ' • ' : ''}${item.form || ''}</div>
+                            </div>
+                            <span class="badge bg-light text-dark ms-2"><i class="fas fa-arrow-right text-primary me-1"></i>Details</span>
+                        </a>`;
+                    });
+                    autocompleteBox.innerHTML = html;
+                    autocompleteBox.style.display = "block";
+                })
+                .catch(err => {
+                    console.error("Live search error:", err);
+                });
+        }, 150);
+    });
+
+    document.addEventListener("click", function(e) {
+        if (!searchInput.contains(e.target) && !autocompleteBox.contains(e.target)) {
+            autocompleteBox.style.display = "none";
+        }
+    });
+});
+</script>
 {% endblock %}

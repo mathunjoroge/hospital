@@ -116,3 +116,24 @@ def test_drugs_ref_details_multi_ingredient_string(auth_medicine_client, app):
     assert resp.status_code == 200
     assert b"No details found" not in resp.data
 
+
+def test_drugs_ref_autocomplete_endpoint(auth_medicine_client, app):
+    """Autocomplete endpoint returns JSON list of matching drug objects."""
+    with app.app_context():
+        med = Medicine(
+            generic_name="LiveSearchDrug",
+            brand_name="InstantBrand",
+            dosage="100mg",
+        )
+        db.session.add(med)
+        db.session.commit()
+
+    resp = auth_medicine_client.get("/medicine/drugs-ref/api/autocomplete?q=LiveSearch")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert isinstance(data, list)
+    assert len(data) > 0
+    assert data[0]["generic_name"] == "LiveSearchDrug"
+    assert "url" in data[0]
+
+

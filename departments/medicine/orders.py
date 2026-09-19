@@ -371,10 +371,24 @@ from departments.shared.drugcentral import (
 )
 
 
-def fetch_drugs_data(search_query: str | None = None) -> list[dict[str, Any]]:
-    """Fetch distinct product data with optional search by generic name or brand name."""
+def fetch_drugs_data(
+    search_query: str | None = None, category: str | None = None
+) -> list[dict[str, Any]]:
+    """Fetch distinct product data with optional search by generic name, brand name, or therapeutic category."""
     results: list[dict[str, Any]] = []
     seen = set()
+
+    # Category keyword mapping for quick clinical pills
+    CATEGORY_KEYWORDS = {
+        "antibiotics": ["cillin", "cef", "floxacin", "mycin", "cycline", "sulfa", "azole", "penem"],
+        "cardiovascular": ["lol", "pril", "sartan", "dipine", "statin", "furosemide", "digoxin", "nitrate"],
+        "analgesics": ["paracetamol", "ibuprofen", "morphine", "tramadol", "codeine", "diclofenac", "naproxen", "aspirin"],
+        "oncology": ["cisplatin", "doxorubicin", "paclitaxel", "fluorouracil", "methotrexate", "tamoxifen", "cyclophosphamide"],
+        "antidiabetics": ["metformin", "glipizide", "insulin", "empagliflozin", "sitagliptin", "gliclazide"],
+        "respiratory": ["salbutamol", "budesonide", "montelukast", "theophylline", "ipratropium", "fluticasone"],
+        "cns_psychiatry": ["diazepam", "lorazepam", "haloperidol", "sertraline", "fluoxetine", "olanzapine", "carbamazepine"],
+        "gastrointestinal": ["omeprazole", "pantoprazole", "ranitidine", "metoclopramide", "loperamide", "ondansetron"],
+    }
 
     try:
         with get_db_connection() as conn, conn.cursor(
@@ -385,13 +399,25 @@ def fetch_drugs_data(search_query: str | None = None) -> list[dict[str, Any]]:
                 FROM product
             """
 
+            where_clauses = []
             params = []
+
             if search_query:
                 search_param = f"%{search_query}%"
-                base_query += """
-                    WHERE generic_name ILIKE %s OR product_name ILIKE %s
-                """
-                params = [search_param] * 2
+                where_clauses.append("(generic_name ILIKE %s OR product_name ILIKE %s)")
+                params.extend([search_param, search_param])
+
+            if category and category.lower() in CATEGORY_KEYWORDS:
+                cat_patterns = CATEGORY_KEYWORDS[category.lower()]
+                cat_clause_parts = []
+                for pat in cat_patterns:
+                    cat_clause_parts.append("generic_name ILIKE %s OR product_name ILIKE %s")
+                    params.extend([f"%{pat}%", f"%{pat}%"])
+                if cat_clause_parts:
+                    where_clauses.append(f"({' OR '.join(cat_clause_parts)})")
+
+            if where_clauses:
+                base_query += " WHERE " + " AND ".join(where_clauses)
 
             base_query += " ORDER BY generic_name LIMIT 200"
             cur.execute(base_query, params)
@@ -404,8 +430,10 @@ def fetch_drugs_data(search_query: str | None = None) -> list[dict[str, Any]]:
                 if key not in seen:
                     seen.add(key)
                     results.append(item)
-    except Exception:  # noqa: BLE001
-        logger.exception("Database error fetching drugs reference data from DrugCentral")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "DrugCentral connection unavailable (%s); using local hospital database.", exc
+        )
 
     # Local hospital database medicines & pharmacy drugs fallback/supplement
     try:

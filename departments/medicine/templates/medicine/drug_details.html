@@ -1,134 +1,500 @@
 {% extends "base.html" %}
 
+{% block title %}Clinical Pharmacology: {{ drug }} - Hospital System{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">Drug Details</h2>
+<style>
+  .doctor-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0d9488 100%);
+    color: #ffffff;
+    border-radius: 12px;
+    padding: 2rem 2.5rem;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.3);
+  }
 
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <!-- Drug Name or Identifier -->
-            <h3 class="card-title mb-4">{{ drug|default('N/A') }}</h3>
-            <hr class="mb-4">
+  .stat-pill {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 0.75rem 1.25rem;
+    color: #ffffff;
+  }
 
-            <!-- Additional Details (Mechanism of Action, etc.) -->
-            {% if additional_details %}
-                <div class="mb-5">
-                    <h5 class="mb-3">Mechanism of Action</h5>
-                    <p class="text-muted">{{ additional_details[0].mechanism_of_action|default('No mechanism of action available.') }}</p>
+  .stat-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+  }
+
+  .stat-val {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #2dd4bf;
+  }
+
+  .moa-box {
+    background-color: #f0fdf4;
+    border-left: 4px solid #16a34a;
+    border-radius: 6px;
+    padding: 1.25rem;
+  }
+
+  .nav-tabs-doctor .nav-link {
+    font-weight: 600;
+    color: #64748b;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.85rem 1.5rem;
+  }
+
+  .nav-tabs-doctor .nav-link:hover {
+    color: #0d9488;
+  }
+
+  .nav-tabs-doctor .nav-link.active {
+    color: #0d9488;
+    background: transparent;
+    border-bottom-color: #0d9488;
+  }
+
+  .badge-class {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    font-weight: 600;
+  }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Doctor Header Banner -->
+    <div class="doctor-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <h1 class="h2 font-weight-bold mb-0 text-white">{{ drug }}</h1>
+                    {% if struct_id %}
+                    <span class="badge bg-teal" style="background-color: #0d9488;">
+                        DrugCentral ID: #{{ struct_id }}
+                    </span>
+                    {% elif openfda_source is defined and openfda_source %}
+                    <span class="badge bg-primary">
+                        <i class="fas fa-database me-1"></i>Source: OpenFDA
+                    </span>
+                    {% elif is_local %}
+                    <span class="badge bg-info text-dark">Hospital Formulary</span>
+                    {% endif %}
                 </div>
-
-                <div class="mb-5">
-                    <h5 class="mb-3">Target Proteins</h5>
-                    <ul class="list-group">
-                        {% for detail in additional_details %}
-                            <li class="list-group-item">
-                                <strong>{{ detail.target_protein|default('N/A') }}</strong>
-                                {% if detail.action_type and detail.action_type != "None" %}
-                                    <br>
-                                    <span class="text-muted">Action Type: {{ detail.action_type }}</span>
-                                {% endif %}
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% endif %}
-
-            <!-- Grouped Data from Other Tables (Collapsible) -->
-            {% for table_name, rows in grouped_data.items() %}
-                <div class="mb-3">
-                    <button class="btn btn-secondary w-100 text-start d-flex justify-content-between align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_{{ table_name|replace(' ', '_') }}" aria-expanded="false" aria-controls="collapse_{{ table_name|replace(' ', '_') }}">
-                        {{ table_name }}
-                        <i class="fas fa-chevron-down"></i>
-                    </button>
-
-                    <div class="collapse mt-2" id="collapse_{{ table_name|replace(' ', '_') }}">
-                        <!-- Search box for filtering -->
-                        <input type="text" class="form-control mb-2 search-input" placeholder="Search {{ table_name }}..." onkeyup="debouncedFilterTable(this, '{{ table_name|replace(' ', '_') }}')">
-
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-hover sortable-table" id="{{ table_name|replace(' ', '_') }}">
-                                <thead class="table-light">
-                                    <tr>
-                                        {% for column in rows[0].keys() %}
-                                            <th onclick="sortTable('{{ table_name|replace(' ', '_') }}', {{ loop.index0 }})">
-                                                {{ column|replace('_', ' ')|title }} &#x25B2;&#x25BC;
-                                            </th>
-                                        {% endfor %}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for row in rows %}
-                                        <tr>
-                                            {% for value in row.values() %}
-                                                <td>{{ value|default('N/A') }}</td>
-                                            {% endfor %}
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                <p class="mb-0 text-slate-300 small">
+                    <i class="fas fa-stethoscope me-1 text-teal" style="color: #2dd4bf;"></i>
+                    Physician & Clinician Reference Manual — Active Pharmaceutical Ingredient Summary
+                </p>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                <div class="position-relative" style="min-width: 260px; max-width: 380px;">
+                    <form method="GET" action="{{ url_for('medicine.drugs_ref') }}" class="m-0">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white border-0" style="color: #0d9488;">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text"
+                                   id="details-search-input"
+                                   name="search"
+                                   class="form-control border-0 shadow-none ps-0"
+                                   placeholder="Search another drug..."
+                                   autocomplete="off">
+                            <button type="submit" class="btn btn-teal btn-sm text-white" style="background-color: #0d9488;">
+                                Go
+                            </button>
                         </div>
+                    </form>
+                    <div id="details-autocomplete-box" 
+                         class="dropdown-menu shadow-lg w-100 border-0 mt-1 py-2" 
+                         style="display: none; position: absolute; top: 100%; left: 0; z-index: 1050; max-height: 380px; overflow-y: auto; background: #ffffff; border-radius: 8px;">
                     </div>
                 </div>
-            {% endfor %}
+                <a href="{{ url_for('medicine.drugs_ref') }}" class="btn btn-outline-light btn-sm px-3">
+                    <i class="fas fa-th-list me-1"></i> Full Directory
+                </a>
+            </div>
+        </div>
+
+        <!-- Dosing & ATC Summary Quick Pills -->
+        <div class="row g-3 mt-1">
+            <div class="col-md-3 col-sm-6">
+                <div class="stat-pill">
+                    <div class="stat-label">ATC Classification</div>
+                    <div class="stat-val">
+                        {% if atc_ddd_rows and atc_ddd_rows[0].atc_code %}
+                        {{ atc_ddd_rows[0].atc_code }}
+                        {% else %}
+                        Standard ATC
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="stat-pill">
+                    <div class="stat-label">Defined Daily Dose (DDD)</div>
+                    <div class="stat-val">
+                        {% if atc_ddd_rows and atc_ddd_rows[0].ddd %}
+                        {{ atc_ddd_rows[0].ddd }} {{ atc_ddd_rows[0].unit_type or '' }}
+                        {% else %}
+                        Clinical Protocol
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="stat-pill">
+                    <div class="stat-label">Primary Route</div>
+                    <div class="stat-val">
+                        {% if atc_ddd_rows and atc_ddd_rows[0].route %}
+                        {{ atc_ddd_rows[0].route }}
+                        {% else %}
+                        Oral / Parenteral
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="stat-pill">
+                    <div class="stat-label">Target Proteins</div>
+                    <div class="stat-val">
+                        {{ targets|length }} Verified Targets
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Back to Search Button -->
-    <div class="mt-4 d-flex justify-content-center">
-        <a href="{{ url_for('medicine.drugs_ref') }}" class="btn btn-primary">
-            <i class="fas fa-arrow-left"></i> Back to Search
-        </a>
+    <!-- Pharmacological Classes Badges -->
+    {% if pharma_classes %}
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body py-3">
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <span class="small text-muted font-weight-bold uppercase me-2">Pharmacological Classes:</span>
+                {% for pc in pharma_classes %}
+                <span class="badge badge-class px-3 py-2 fs-6">
+                    <i class="fas fa-tag me-1 opacity-75"></i>
+                    {{ pc.name }} <small class="opacity-75">({{ pc.source or 'EPC' }})</small>
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Mechanism of Action Highlight Box -->
+    {% if struct_row and struct_row.mrdef %}
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-0">
+            <div class="moa-box">
+                <h5 class="h6 font-weight-bold text-success mb-2 d-flex align-items-center">
+                    <i class="fas fa-microscope me-2"></i> Mechanism of Action (MoA)
+                </h5>
+                <p class="mb-0 text-dark leading-relaxed fs-6">
+                    {{ struct_row.mrdef }}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Doctor Console Tabbed Navigation -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white border-bottom p-0">
+            <ul class="nav nav-tabs nav-tabs-doctor px-3" id="doctorTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                        <i class="fas fa-dna me-1 text-primary"></i> Pharmacology & Targets ({{ targets|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="safety-tab" data-bs-toggle="tab" data-bs-target="#safety" type="button" role="tab">
+                        <i class="fas fa-exclamation-triangle me-1 text-warning"></i> Safety & Adverse Effects ({{ adverse_effects|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="products-tab" data-bs-toggle="tab" data-bs-target="#products" type="button" role="tab">
+                        <i class="fas fa-pills me-1 text-success"></i> Market Formulations ({{ products|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="regulatory-tab" data-bs-toggle="tab" data-bs-target="#regulatory" type="button" role="tab">
+                        <i class="fas fa-file-contract me-1 text-info"></i> FDA Approvals & Patents ({{ approvals|length }})
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <div class="card-body p-4">
+            <div class="tab-content" id="doctorTabContent">
+                
+                <!-- TAB 1: PHARMACOLOGY & TARGETS -->
+                <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                    <h5 class="h6 font-weight-bold text-dark mb-3">Biological Target Proteins & Binding Activity</h5>
+                    {% if targets %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col">Target Protein Name</th>
+                                    <th scope="col">Organism</th>
+                                    <th scope="col">Biological Action</th>
+                                    <th scope="col">Activity Measurement</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for t in targets %}
+                                <tr>
+                                    <td class="fw-bold text-dark">{{ t.target_name }}</td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">{{ t.organism or 'Homo sapiens' }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-teal-subtle text-teal border border-teal" style="background-color: #e6fffa; color: #0d9488;">
+                                            {{ t.action_type or 'Modulator' }}
+                                        </span>
+                                    </td>
+                                    <td class="small text-secondary">
+                                        {% if t.act_value %}
+                                        {{ t.act_value }} {{ t.act_unit or '' }}
+                                        {% else %}
+                                        Verified Interaction
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small">No specific protein target interactions recorded in DrugCentral for this substance.</p>
+                    {% endif %}
+
+                    {% if ingredients %}
+                    <h5 class="h6 font-weight-bold text-dark mt-4 mb-3">Active Substance Quantities</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Substance Name</th>
+                                    <th>Quantity</th>
+                                    <th>Unit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ing in ingredients %}
+                                <tr>
+                                    <td class="fw-bold">{{ ing.substance_name }}</td>
+                                    <td>{{ ing.quantity or '-' }}</td>
+                                    <td>{{ ing.unit or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- TAB 2: SAFETY & ADVERSE EFFECTS (FAERS) -->
+                <div class="tab-pane fade" id="safety" role="tabpanel">
+                    <div class="alert alert-warning border-start border-warning border-4 mb-4">
+                        <h6 class="fw-bold mb-1"><i class="fas fa-shield-alt me-1"></i> FDA FAERS Adverse Event Signal Analysis</h6>
+                        <p class="mb-0 small">Log-Likelihood Ratio (LLR) threshold scores indicate adverse reaction reporting frequency across clinical patient populations.</p>
+                    </div>
+
+                    {% if adverse_effects %}
+                    <div class="table-responsive" style="max-height: 450px;">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>Adverse Event (MedDRA Term)</th>
+                                    <th>Population Cohort</th>
+                                    <th>LLR Significance Score</th>
+                                    <th>Reporting Level</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ae in adverse_effects %}
+                                <tr>
+                                    <td class="fw-bold text-dark">{{ ae.meddra_name or ae.drug_ae }}</td>
+                                    <td>
+                                        <span class="badge {% if ae.cohort == 'Pediatric' %}bg-info text-dark{% elif ae.cohort == 'Geriatric' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                            {{ ae.cohort }}
+                                        </span>
+                                    </td>
+                                    <td class="small fw-bold text-danger">
+                                        LLR: {{ ae.llr_threshold or 'Significant' }}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">{{ ae.level or 'MedDRA PT' }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small">No FAERS adverse effect signals logged for this drug.</p>
+                    {% endif %}
+                </div>
+
+                <!-- TAB 3: FORMULATIONS & MARKET PRODUCTS -->
+                <div class="tab-pane fade" id="products" role="tabpanel">
+                    <h5 class="h6 font-weight-bold text-dark mb-3">Marketed Formulations & Strengths</h5>
+                    {% if products %}
+                    <div class="table-responsive" style="max-height: 450px;">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>Trade / Brand Name</th>
+                                    <th>Generic Name</th>
+                                    <th>Strength</th>
+                                    <th>Dosage Form</th>
+                                    <th>Route</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in products %}
+                                <tr>
+                                    <td class="fw-bold text-dark">{{ p.product_name }}</td>
+                                    <td>{{ p.generic_name }}</td>
+                                    <td><span class="badge bg-light text-dark border">{{ p.strength or 'Standard' }}</span></td>
+                                    <td>{{ p.form or '-' }}</td>
+                                    <td><span class="badge badge-route">{{ p.route or '-' }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small">No specific marketed products listed for this structure.</p>
+                    {% endif %}
+                </div>
+
+                <!-- TAB 4: FDA APPROVALS & PATENTS -->
+                <div class="tab-pane fade" id="regulatory" role="tabpanel">
+                    <h5 class="h6 font-weight-bold text-dark mb-3">FDA Regulatory Approvals</h5>
+                    {% if approvals %}
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Approval Date / ID</th>
+                                    <th>Applicant / Sponsor</th>
+                                    <th>Application Type</th>
+                                    <th>Orphan Drug Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for app_item in approvals %}
+                                <tr>
+                                    <td class="fw-bold">{{ app_item.approval or '-' }}</td>
+                                    <td>{{ app_item.applicant or '-' }}</td>
+                                    <td>{{ app_item.type or '-' }}</td>
+                                    <td>
+                                        {% if app_item.orphan %}
+                                        <span class="badge bg-warning text-dark">Orphan Drug</span>
+                                        {% else %}
+                                        Standard
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small mb-4">No specific FDA approval rows recorded for this item.</p>
+                    {% endif %}
+
+                    <h5 class="h6 font-weight-bold text-dark mb-3">Orange Book Patents & Exclusivity</h5>
+                    {% if patents %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Application No</th>
+                                    <th>Trade Name</th>
+                                    <th>Patent No</th>
+                                    <th>Patent Expiration Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pat in patents %}
+                                <tr>
+                                    <td>{{ pat.appl_no or '-' }}</td>
+                                    <td>{{ pat.trade_name or '-' }}</td>
+                                    <td class="fw-bold">{{ pat.patent_no or '-' }}</td>
+                                    <td class="text-danger fw-bold">{{ pat.patent_expire_date or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small">No active Orange Book patent entries found.</p>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- JavaScript for Sorting and Filtering -->
 <script>
-function debounce(func, timeout = 300) {
-    let timer;
-    return (...args) => {
-        clearTimeout(timer);
-        timer = setTimeout(() => { func.apply(this, args); }, timeout);
-    };
-}
+document.addEventListener("DOMContentLoaded", function() {
+    const searchInput = document.getElementById("details-search-input");
+    const autocompleteBox = document.getElementById("details-autocomplete-box");
+    let debounceTimer = null;
 
-function filterTable(input, tableId) {
-    let filter = input.value.toLowerCase();
-    let table = document.getElementById(tableId);
-    let rows = table.querySelectorAll("tbody tr");
+    if (!searchInput) return;
 
-    rows.forEach(row => {
-        let text = row.innerText.toLowerCase();
-        row.style.display = text.includes(filter) ? "" : "none";
-        if (filter) {
-            row.innerHTML = row.innerHTML.replace(new RegExp(filter, 'gi'), match => `<span class="bg-warning">${match}</span>`);
-        }
-    });
-}
+    searchInput.addEventListener("input", function() {
+        const query = this.value.trim();
+        clearTimeout(debounceTimer);
 
-const debouncedFilterTable = debounce(filterTable);
-
-function sortTable(tableId, columnIndex) {
-    let table = document.getElementById(tableId);
-    let tbody = table.querySelector("tbody");
-    let rows = Array.from(tbody.rows);
-    let ascending = table.dataset.sortOrder !== "asc"; // Toggle sorting order
-
-    rows.sort((rowA, rowB) => {
-        let cellA = rowA.cells[columnIndex].innerText.trim();
-        let cellB = rowB.cells[columnIndex].innerText.trim();
-
-        // Check if the content is numeric
-        if (!isNaN(cellA)) {
-            return ascending ? cellA - cellB : cellB - cellA;
+        if (query.length < 2) {
+            autocompleteBox.style.display = "none";
+            autocompleteBox.innerHTML = "";
+            return;
         }
 
-        // Default to string comparison
-        return ascending ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
+        debounceTimer = setTimeout(() => {
+            fetch("{{ url_for('medicine.drugs_ref_autocomplete') }}?q=" + encodeURIComponent(query))
+                .then(res => res.json())
+                .then(data => {
+                    if (!data || data.length === 0) {
+                        autocompleteBox.innerHTML = '<div class="dropdown-item text-muted small py-2 px-3"><i class="fas fa-search me-1"></i> No instant suggestions found.</div>';
+                        autocompleteBox.style.display = "block";
+                        return;
+                    }
+                    let html = '<div class="dropdown-header text-uppercase text-muted fw-bold fs-7 px-3 py-1">Instant Drug Matches</div>';
+                    data.forEach(item => {
+                        html += `
+                        <a href="${item.url}" class="dropdown-item py-2 px-3 border-bottom border-light text-wrap d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold text-dark"><i class="fas fa-capsules me-2" style="color:#0d9488;"></i>${item.generic_name}</div>
+                                <div class="small text-muted">${item.product_name ? 'Brand: ' + item.product_name : ''}</div>
+                            </div>
+                            <span class="badge bg-light text-dark ms-2"><i class="fas fa-arrow-right text-primary me-1"></i>View</span>
+                        </a>`;
+                    });
+                    autocompleteBox.innerHTML = html;
+                    autocompleteBox.style.display = "block";
+                })
+                .catch(err => {
+                    console.error("Details search error:", err);
+                });
+        }, 150);
     });
 
-    table.dataset.sortOrder = ascending ? "asc" : "desc";
-    rows.forEach(row => tbody.appendChild(row));
-}
+    document.addEventListener("click", function(e) {
+        if (!searchInput.contains(e.target) && !autocompleteBox.contains(e.target)) {
+            autocompleteBox.style.display = "none";
+        }
+    });
+});
 </script>
-
 {% endblock %}
