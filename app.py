@@ -273,6 +273,10 @@ if app.config.get("TESTING"):
 login_manager.init_app(app)
 login_manager.login_view = "login"
 
+from departments.error_handlers import register_error_handlers
+
+register_error_handlers(app, login_manager)
+
 # JWT configuration — isolated from session SECRET_KEY for security
 # Falls back to SECRET_KEY if not explicitly set in environment
 jwt_secret = os.environ.get("JWT_SECRET_KEY", secret_key)

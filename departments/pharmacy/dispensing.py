@@ -176,75 +176,25 @@ def dispense_prescription(prescription_id):
 def delete_dispensed_drug(dispensed_drug_id):
     """
     P0-05: Void a dispensed drug entry and restore stock transactionally.
-    The original record is PRESERVED for audit trail with status='VOIDED'.
-    A void_reason is required. Stock is reversed in the same transaction.
-    Never uses physical db.session.delete() on clinical dispense records.
+    Delegates to the shared void_service — see void_dispensed_drug().
     """
+    from departments.pharmacy.void_service import VoidError, void_dispensed_drug
+
     void_reason = request.form.get("void_reason", "").strip()
     if not void_reason:
         flash("A void reason is required to reverse a dispensing record.", "error")
         return redirect(request.referrer or url_for("pharmacy.index"))
 
     try:
-        dispensed_drug = db.session.get(DispensedDrug, dispensed_drug_id)
-        if not dispensed_drug:
-            flash("Dispensed drug not found!", "error")
-            return redirect(request.referrer or url_for("pharmacy.index"))
-
-        # Guard against double-void
-        if dispensed_drug.status == "VOIDED":
-            flash("This dispensing record has already been voided.", "warning")
-            return redirect(request.referrer or url_for("pharmacy.index"))
-
-        # Findings A+B: restore batch AND drug-level stock, then write ledger entry.
-        qty_returned = dispensed_drug.quantity_dispensed
-        batch = (
-            db.session.get(Batch, dispensed_drug.batch_id)
-            if dispensed_drug.batch_id
-            else None
+        dispensed_drug = void_dispensed_drug(
+            dispensed_drug_id, void_reason, current_user.id
         )
-        drug_for_void = (
-            db.session.get(Drug, dispensed_drug.drug_id)
-            if dispensed_drug.drug_id
-            else None
-        )
-        if batch:
-            batch.quantity_in_stock += qty_returned
-            db.session.add(batch)
-        if drug_for_void:
-            drug_for_void.quantity_in_stock += qty_returned
-            db.session.add(drug_for_void)
-            record_movement(
-                item_type="DRUG",
-                item_id=drug_for_void.id,
-                movement_type="VOID_RETURN",
-                quantity_delta=qty_returned,
-                balance_after=drug_for_void.quantity_in_stock,
-                reference_type="VOID_DISPENSE",
-                reference_id=str(dispensed_drug_id),
-                user_id=current_user.id,
-                batch_id=dispensed_drug.batch_id,
-                notes=f"Void by user {current_user.id}: {void_reason}",
-            )
-
-        # Void — preserve original record, never delete
-        dispensed_drug.status = "VOIDED"
-        dispensed_drug.voided_by = current_user.id
-        dispensed_drug.voided_at = datetime.now(timezone.utc)
-        dispensed_drug.void_reason = void_reason
-        db.session.add(dispensed_drug)
-
         db.session.commit()
-
-        logger.info(
-            "Dispensed drug VOIDED: id=%s drug=%s patient=%s actor=%s reason=%s",
-            dispensed_drug_id,
-            dispensed_drug.drug_id,
-            dispensed_drug.patient_id,
-            current_user.id,
-            void_reason,
-        )
         flash("Dispensing record voided and stock restored successfully.", "success")
+
+    except VoidError as exc:
+        db.session.rollback()
+        flash(str(exc), "warning")
 
     except (SQLAlchemyError, ValueError) as exc:
         db.session.rollback()
@@ -256,6 +206,7 @@ def delete_dispensed_drug(dispensed_drug_id):
 
 @bp.route("/save_dispensed_drugs", methods=["POST"])
 @login_required
+@roles_required("pharmacy", "admin")
 def save_dispensed_drugs():
     """Saves dispensed drugs, updates stock from multiple batches if needed, and marks prescription as completed."""
     try:
@@ -286,6 +237,22 @@ def save_dispensed_drugs():
             logger.debug("No updated drugs found in form data")
             flash("No drugs to update!", "error")
             return redirect(url_for("pharmacy.index"))
+
+        # --- T3.7: Encounter Scoping Check ---
+        # Must run BEFORE any stock deduction so a closed encounter can never
+        # consume stock that then has to be manually reversed.
+        first_med = (
+            db.session.query(PrescribedMedicine)
+            .filter_by(prescription_id=prescription_id)
+            .first()
+        )
+        if first_med and not is_encounter_open_for_dispensing(first_med.encounter_id):
+            flash(
+                "Cannot dispense: The associated encounter is closed or the patient has been discharged.",
+                "danger",
+            )
+            return redirect(request.referrer or url_for("pharmacy.index"))
+        # -------------------------------------
 
         logger.debug(f"Processing {len(updated_drugs)} updated drugs")
         for drug_data in updated_drugs:
@@ -507,16 +474,6 @@ def save_dispensed_drugs():
             .all()
         )
 
-        # --- T3.7: Encounter Scoping Check ---
-        if prescribed_meds and not is_encounter_open_for_dispensing(
-            prescribed_meds[0].encounter_id
-        ):
-            flash(
-                "Cannot dispense: The associated encounter is closed or the patient has been discharged.",
-                "danger",
-            )
-            return redirect(request.referrer or url_for("pharmacy.index"))
-        # -------------------------------------
         logger.debug(f"Found {len(prescribed_meds)} prescribed medicines")
         for med in prescribed_meds:
             logger.debug(
@@ -709,9 +666,13 @@ def save_prescription(prescription_id):
                 )
 
             # Check if the batch exists and has sufficient stock
-            batch = Batch.query.filter_by(
-                batch_number=batch_number, drug_id=drug.id
-            ).first()
+            # with_for_update() locks the batch row so two concurrent dispenses
+            # cannot both pass the stock check and over-dispense.
+            batch = (
+                Batch.query.filter_by(batch_number=batch_number, drug_id=drug.id)
+                .with_for_update()
+                .first()
+            )
             if not batch or batch.quantity_in_stock < quantity_dispensed:
                 flash(
                     f'Insufficient stock for {drug.generic_name} ({drug.brand_name}). Available: {batch.quantity_in_stock if batch else "N/A"}',

@@ -29,6 +29,13 @@ ROLE_ALIASES = {
     "mch": {"mch", "anc", "pediatrics", "nicu"},
     "icu": {"icu", "hdu"},
     "renal": {"renal", "dialysis"},
+    # Pharmacy & stores roles are matched case-insensitively downstream
+    # (roles_required lowercases both sides), so aliases map the lowercase
+    # canonical keys to the mixed-case spellings used in user records.
+    "pharmacy": {"pharmacy", "pharmacist"},
+    "pharmacist": {"pharmacy", "pharmacist"},
+    "stores": {"stores", "storekeeper"},
+    "storekeeper": {"stores", "storekeeper"},
 }
 
 

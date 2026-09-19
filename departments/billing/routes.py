@@ -29,6 +29,7 @@ from departments.models.medicine import (
 )
 from departments.models.pharmacy import DispensedDrug, Drug
 from departments.models.records import ClinicBooking, Patient
+from departments.pharmacy.status import not_voided
 from departments.rbac import roles_required
 from extensions import db
 
@@ -335,9 +336,11 @@ def view_unpaid_bills(patient_id):
     unpaid_billings = Billing.query.filter_by(patient_id=patient_id, status=0).all()
     unpaid_drug_bills = DrugsBill.query.filter_by(patient_id=patient_id, status=0).all()
 
-    dispensed_drugs = DispensedDrug.query.filter_by(
-        patient_id=patient_id, receipt_number=None
-    ).all()
+    dispensed_drugs = (
+        DispensedDrug.query.filter_by(patient_id=patient_id, receipt_number=None)
+        .filter(not_voided(DispensedDrug.status))
+        .all()
+    )
     requested_labs = RequestedLab.query.filter_by(
         patient_id=patient_id, status=1, receipt_number=None
     ).all()
@@ -588,7 +591,9 @@ def pay_bills(patient_id):
         all_items = {
             "dispensed_drugs": DispensedDrug.query.filter_by(
                 patient_id=patient_id, receipt_number=None
-            ).all(),
+            )
+            .filter(not_voided(DispensedDrug.status))
+            .all(),
             "requested_labs": RequestedLab.query.filter_by(
                 patient_id=patient_id, status=1, receipt_number=None
             ).all(),
@@ -834,9 +839,11 @@ def pay_bills(patient_id):
             return redirect(url_for("billing.pay_bills", patient_id=patient_id))
 
     # GET request: Show payment form
-    dispensed_drugs = DispensedDrug.query.filter_by(
-        patient_id=patient_id, receipt_number=None
-    ).all()
+    dispensed_drugs = (
+        DispensedDrug.query.filter_by(patient_id=patient_id, receipt_number=None)
+        .filter(not_voided(DispensedDrug.status))
+        .all()
+    )
     requested_labs = RequestedLab.query.filter_by(
         patient_id=patient_id, status=1, receipt_number=None
     ).all()

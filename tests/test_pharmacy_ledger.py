@@ -199,7 +199,7 @@ class TestFindingA_LedgerEntries:
         """remove_batch() must write a WRITEOFF StockMovement row."""
         drug_id, batch_id = _make_drug(app, "Omeprazole", qty=40)
 
-        resp = client.get(f"/pharmacy/remove_batch/{batch_id}", follow_redirects=True)
+        resp = client.post(f"/pharmacy/remove_batch/{batch_id}", follow_redirects=True)
         assert resp.status_code == 200
 
         with app.app_context():
@@ -250,7 +250,7 @@ class TestFindingA_LedgerEntries:
             db.session.commit()
             drug_id = drug.id
 
-        resp = client.get("/pharmacy/remove_all_expiries", follow_redirects=True)
+        resp = client.post("/pharmacy/remove_all_expiries", follow_redirects=True)
         assert resp.status_code == 200
 
         with app.app_context():
@@ -284,7 +284,7 @@ class TestFindingB_DrugLevelStockSync:
     def test_remove_batch_decrements_drug_quantity(self, app, client, admin_user):
         """remove_batch() must reduce Drug.quantity_in_stock by batch qty."""
         drug_id, batch_id = _make_drug(app, "Fluconazole", qty=55)
-        client.get(f"/pharmacy/remove_batch/{batch_id}", follow_redirects=True)
+        client.post(f"/pharmacy/remove_batch/{batch_id}", follow_redirects=True)
 
         with app.app_context():
             drug = db.session.get(Drug, drug_id)

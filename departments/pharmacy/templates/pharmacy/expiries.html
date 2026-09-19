@@ -119,11 +119,13 @@
             <td><span class="expiry-date"><i class="bi bi-calendar-x me-1"></i>{{ drug.expiry_date.strftime('%d %b %Y') if drug.expiry_date else '—' }}</span></td>
             <td>{{ drug.total_stock }}</td>
             <td>
-              <a href="{{ url_for('pharmacy.remove_batch', batch_id=drug.batch_id) }}"
-                 class="btn-remove-one"
-                 onclick="return confirm('Remove this expired batch from inventory?');">
-                <i class="bi bi-trash3"></i> Remove
-              </a>
+              <form method="POST" action="{{ url_for('pharmacy.remove_batch', batch_id=drug.batch_id) }}" class="d-inline"
+                    onsubmit="return confirm('Remove this expired batch from inventory?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="btn-remove-one border-0 bg-transparent p-0">
+                  <i class="bi bi-trash3"></i> Remove
+                </button>
+              </form>
             </td>
           </tr>
           {% endfor %}
@@ -134,11 +136,13 @@
 
   <!-- Remove All Button -->
   <div class="d-flex gap-3 align-items-center mb-4 animate-fade-in">
-    <a href="{{ url_for('pharmacy.remove_all_expiries') }}"
-       class="btn-remove-all"
-       onclick="return confirm('Remove ALL expired batches from inventory? This cannot be undone.');">
-      <i class="bi bi-trash3-fill"></i> Remove All Expired Batches
-    </a>
+    <form method="POST" action="{{ url_for('pharmacy.remove_all_expiries') }}" class="d-inline"
+          onsubmit="return confirm('Remove ALL expired batches from inventory? This cannot be undone.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <button type="submit" class="btn-remove-all border-0">
+        <i class="bi bi-trash3-fill"></i> Remove All Expired Batches
+      </button>
+    </form>
     <a href="{{ url_for('pharmacy.expiries_report') }}" class="btn-report-ph">
       <i class="bi bi-file-earmark-text"></i> Expiry Report
     </a>

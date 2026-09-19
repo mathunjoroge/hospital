@@ -23,6 +23,7 @@ from departments.models.pharmacy import (  # Import PatientWaitingList and Patie
     Drug,
     Expiry,
 )
+from departments.pharmacy.status import not_voided
 from departments.rbac import roles_required
 from extensions import db
 
@@ -81,21 +82,26 @@ def expiries_report():
             total_removed=total_removed,
         )
 
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in pharmacy.expiries_report: {e}")
+        logger.exception("Error in pharmacy.expiries_report")
         return redirect(url_for("pharmacy.index"))
 
 
 @bp.route("/analytics", methods=["GET", "POST"])
 @login_required
+@roles_required("pharmacy", "admin")
 def analytics():
     end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=30)
 
     if request.method == "POST":
-        start_date = datetime.strptime(request.form.get("start_date"), "%Y-%m-%d")  # noqa: DTZ007
-        end_date = datetime.strptime(request.form.get("end_date"), "%Y-%m-%d")  # noqa: DTZ007
+        try:
+            start_date = datetime.strptime(request.form.get("start_date"), "%Y-%m-%d")  # noqa: DTZ007
+            end_date = datetime.strptime(request.form.get("end_date"), "%Y-%m-%d")  # noqa: DTZ007
+        except (ValueError, TypeError):
+            flash("Invalid date range. Use YYYY-MM-DD for both dates.", "error")
+            return redirect(url_for("pharmacy.analytics"))
 
     # Sales Trends (from drugs_bill, only paid bills)
     sales = DrugsBill.query.filter(
@@ -106,10 +112,12 @@ def analytics():
         date_key = sale.billed_at.strftime("%Y-%m-%d")
         sales_data[date_key] = sales_data.get(date_key, 0) + float(sale.total_cost)
 
-    # Top Dispensed Drugs (with additional fields)
+    # Top Dispensed Drugs (with additional fields). VOIDED rows are excluded
+    # so reversals don't inflate consumption.
     dispensed = (
         DispensedDrug.query.filter(
-            DispensedDrug.date_dispensed.between(start_date, end_date)
+            DispensedDrug.date_dispensed.between(start_date, end_date),
+            not_voided(DispensedDrug.status),
         )
         .join(Drug, DispensedDrug.drug_id == Drug.id)
         .all()
@@ -137,6 +145,7 @@ def analytics():
             .filter(
                 DispensedDrug.drug_id == drug.id,
                 DispensedDrug.date_dispensed.between(start_date, end_date),
+                not_voided(DispensedDrug.status),
             )
             .scalar()
             or 0
@@ -199,6 +208,7 @@ def analytics():
 
 @bp.route("/analytics/export")
 @login_required
+@roles_required("pharmacy", "admin")
 def export_analytics():
     sales_data = session.get("sales_data", {})
     start_date = session.get(
@@ -231,6 +241,37 @@ def export_analytics():
         headers={
             "Content-Disposition": f"attachment;filename=analytics_sales_{start_date}_to_{end_date}.csv"
         },
+    )
+
+
+# --- MOH-647 Tracer Commodity Report (facility-facing) ---
+
+
+@bp.route("/moh-647", methods=["GET"])
+@login_required
+@roles_required("pharmacy", "admin")
+def moh_647_report():
+    """
+    Renders the Kenya MOH-647 Tracer HPT monthly report for on-screen review.
+    The same aggregation feeds the DHIS2 exporter (departments/api/dhis2_exporter.py).
+    """
+    from departments.pharmacy.moh_647 import aggregate_moh647_monthly
+
+    today = datetime.now(timezone.utc).date()
+    year = request.args.get("year", default=today.year, type=int)
+    month = request.args.get("month", default=today.month, type=int)
+
+    if not (1 <= month <= 12) or not (2000 <= year <= 2100):
+        flash("Invalid reporting period.", "error")
+        return redirect(url_for("pharmacy.moh_647_report"))
+
+    report = aggregate_moh647_monthly(year=year, month=month)
+
+    return render_template(
+        "pharmacy/moh_647_report.html",
+        report=report,
+        year=year,
+        month=month,
     )
 
 

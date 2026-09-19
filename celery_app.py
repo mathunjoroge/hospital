@@ -59,6 +59,10 @@ celery.conf.beat_schedule = {
         "task": "departments.tasks.sync_icd10_codes",
         "schedule": crontab(hour=0, minute=0),  # 00:00 UTC / 03:00 EAT
     },
+    "pharmacy-inventory-alerts": {
+        "task": "departments.tasks.pharmacy_inventory_alerts",
+        "schedule": crontab(hour=4, minute=0),  # 04:00 UTC / 07:00 EAT
+    },
     "snomed-nightly-sync": {
         "task": "departments.tasks.sync_snomed_codes",
         "schedule": crontab(hour=0, minute=30),  # 00:30 UTC / 03:30 EAT

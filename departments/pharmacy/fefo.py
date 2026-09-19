@@ -12,7 +12,7 @@ Features:
 import logging
 from datetime import datetime, timedelta, timezone
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user, login_required
 
 try:
@@ -214,17 +214,57 @@ def handle_fefo_preview():
 @login_required
 @roles_required("pharmacy", "pharmacist", "admin")
 def handle_fefo_dispense():
-    """Execute 2-step dispensing with FEFO allocation and stock reduction."""
+    """
+    Execute 2-step dispensing with FEFO allocation and stock reduction.
+
+    Step 1 (verification): payment gate + encounter-open checks mirror the
+    web dispensing path so both dispense flows enforce the same rules.
+    Step 2 (execution): FEFO allocation with automated stock deduction.
+    """
+    from departments.shared.encounter_utils import is_encounter_open_for_dispensing
+    from departments.shared.payment_gate import has_unpaid_charges
+
     data = request.get_json() or {}
     patient_id = data.get("patient_id")
     drug_id = data.get("drug_id")
     quantity = data.get("quantity", 1)
     prescription_id = data.get("prescription_id", "RX-MANUAL")
+    allow_on_credit = bool(data.get("allow_on_credit", False))
 
     if not patient_id or not drug_id or quantity <= 0:
         return jsonify(
             {"error": "patient_id, drug_id, and positive quantity required"}
         ), 400
+
+    # ── Step 1: verification ─────────────────────────────────────────────
+    # Encounter must still be open for the prescription being filled.
+    if prescription_id and prescription_id != "RX-MANUAL":
+        from departments.models.medicine import PrescribedMedicine
+
+        med = PrescribedMedicine.query.filter_by(
+            prescription_id=prescription_id
+        ).first()
+        if med and not is_encounter_open_for_dispensing(med.encounter_id):
+            return jsonify(
+                {
+                    "success": False,
+                    "error": "Cannot dispense: the associated encounter is closed "
+                    "or the patient has been discharged.",
+                    "code": "ENCOUNTER_CLOSED",
+                }
+            ), 409
+
+    # Payment gate (mirrors PHARMACY_REQUIRE_PAID behaviour of the web path).
+    unpaid = has_unpaid_charges(patient_id)
+    if unpaid and current_app.config.get("PHARMACY_REQUIRE_PAID", False):
+        if not allow_on_credit:
+            return jsonify(
+                {
+                    "success": False,
+                    "error": "Dispensing blocked: patient has unsettled charges.",
+                    "code": "PAYMENT_REQUIRED",
+                }
+            ), 402
 
     try:
         records = dispense_medication_fefo(

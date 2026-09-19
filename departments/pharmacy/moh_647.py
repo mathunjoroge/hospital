@@ -8,9 +8,10 @@ ending physical counts, and stockout statuses for essential Kenya MOH tracer com
 
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import func, or_
+from sqlalchemy import func
 
 from departments.models.pharmacy import DispensedDrug, Drug, Expiry, Purchase
+from departments.pharmacy.status import not_voided
 from extensions import db
 
 MOH647_TRACER_CATALOG = [
@@ -207,7 +208,9 @@ def aggregate_moh647_monthly(year: int = None, month: int = None) -> dict:
             .scalar()
         )
 
-        # 2. Dispensed / Issued in month
+        # 2. Dispensed / Issued in month. Status is written inconsistently across
+        # writers (0, 1, "Pending", "COMPLETED", ...), so we count everything that
+        # is NOT explicitly voided rather than whitelisting individual values.
         issued = (
             db.session.query(
                 func.coalesce(func.sum(DispensedDrug.quantity_dispensed), 0)
@@ -215,14 +218,7 @@ def aggregate_moh647_monthly(year: int = None, month: int = None) -> dict:
             .filter(DispensedDrug.drug_id == drug.id)
             .filter(DispensedDrug.date_dispensed >= start_dt)
             .filter(DispensedDrug.date_dispensed <= end_dt)
-            .filter(
-                or_(
-                    DispensedDrug.status == "0",
-                    DispensedDrug.status == "COMPLETED",
-                    DispensedDrug.status == "DISPENSED",
-                    DispensedDrug.status.is_(None),
-                )
-            )
+            .filter(not_voided(DispensedDrug.status))
             .scalar()
         )
 

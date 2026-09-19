@@ -93,11 +93,11 @@ def expiries():
 
     except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in pharmacy.expiries: {e}")
+        logger.exception("Error in pharmacy.expiries")
         return redirect(url_for("home"))
 
 
-@bp.route("/remove_batch/<int:batch_id>", methods=["GET"])
+@bp.route("/remove_batch/<int:batch_id>", methods=["POST"])
 @login_required
 @roles_required("pharmacy", "admin")
 def remove_batch(batch_id):
@@ -148,11 +148,11 @@ def remove_batch(batch_id):
     except Exception as e:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in pharmacy.remove_batch: {e}")
+        logger.exception("Error in pharmacy.remove_batch")
     return redirect(url_for("pharmacy.expiries"))
 
 
-@bp.route("/remove_all_expiries", methods=["GET"])
+@bp.route("/remove_all_expiries", methods=["POST"])
 @login_required
 @roles_required("pharmacy", "admin")
 def remove_all_expiries():
@@ -214,7 +214,7 @@ def remove_all_expiries():
     except Exception as e:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in pharmacy.remove_all_expiries: {e}")
+        logger.exception("Error in pharmacy.remove_all_expiries")
     return redirect(url_for("pharmacy.expiries"))
 
 
@@ -282,7 +282,7 @@ def inventory():
 
     except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in pharmacy.inventory: {e}")
+        logger.exception("Error in pharmacy.inventory")
         return redirect(url_for("home"))
 
     # prescriptions
@@ -300,6 +300,7 @@ def record_purchase():
             batch_numbers = request.form.getlist("batch_numbers[]")
             quantities = request.form.getlist("quantities[]")
             unit_costs = request.form.getlist("unit_costs[]")
+            expiry_dates = request.form.getlist("expiry_dates[]")
 
             # Validate input
             if not all([drug_ids, batch_numbers, quantities, unit_costs]):
@@ -307,11 +308,47 @@ def record_purchase():
                 return redirect(url_for("pharmacy.record_purchase"))
 
             # Record each purchase
-            for drug_id, batch_number, quantity, unit_cost in zip(
-                drug_ids, batch_numbers, quantities, unit_costs
+            for line_no, (drug_id, batch_number, quantity, unit_cost) in enumerate(
+                zip(drug_ids, batch_numbers, quantities, unit_costs)
             ):
                 if not quantity.strip() or not unit_cost.strip():
                     continue  # Skip empty entries
+
+                # Parse and validate quantities (positive integers only)
+                try:
+                    qty = int(quantity)
+                    if qty <= 0:
+                        raise ValueError
+                except ValueError:
+                    flash(f"Invalid quantity for drug ID {drug_id}!", "error")
+                    return redirect(url_for("pharmacy.record_purchase"))
+
+                # Parse unit cost as Decimal (Numeric columns must not receive float)
+                from decimal import Decimal, InvalidOperation
+
+                try:
+                    cost = Decimal(unit_cost).quantize(Decimal("0.01"))
+                    if cost < 0:
+                        raise InvalidOperation
+                except (InvalidOperation, ValueError):
+                    flash(f"Invalid unit cost for drug ID {drug_id}!", "error")
+                    return redirect(url_for("pharmacy.record_purchase"))
+
+                # Parse expiry date (required for new batches — the old "add later"
+                # behaviour left batches permanently invisible to expiry alerts)
+                expiry_date = None
+                expiry_raw = (
+                    expiry_dates[line_no].strip() if line_no < len(expiry_dates) else ""
+                )
+                if expiry_raw:
+                    try:
+                        expiry_date = datetime.strptime(expiry_raw, "%Y-%m-%d").date()  # noqa: DTZ007
+                    except ValueError:
+                        flash(
+                            f"Invalid expiry date for drug ID {drug_id}. Use YYYY-MM-DD.",
+                            "error",
+                        )
+                        return redirect(url_for("pharmacy.record_purchase"))
 
                 # Fetch the drug and batch
                 drug = Drug.query.get_or_404(int(drug_id))
@@ -320,29 +357,57 @@ def record_purchase():
                 ).first()
 
                 if not batch:
+                    if not expiry_date:
+                        flash(
+                            f"Expiry date is required for new batch '{batch_number}' "
+                            f"({drug.generic_name}). Use YYYY-MM-DD.",
+                            "error",
+                        )
+                        return redirect(url_for("pharmacy.record_purchase"))
                     # Create a new batch if it doesn't exist
                     batch = Batch(
                         drug_id=drug.id,
                         batch_number=batch_number,
-                        expiry_date=None,  # Expiry date can be added later
+                        expiry_date=expiry_date,
                         quantity_in_stock=0,
                     )
                     db.session.add(batch)
-                    db.session.commit()
+                    db.session.flush()  # Get batch.id before writing Purchase/ledger
+                elif expiry_date:
+                    # Existing batch: refresh its expiry if the form provided one
+                    batch.expiry_date = expiry_date
 
-                # Update batch stock level
-                batch.quantity_in_stock += int(quantity)
+                # Update batch stock level AND drug-level stock cache in sync
+                batch.quantity_in_stock += qty
+                drug.quantity_in_stock = (drug.quantity_in_stock or 0) + qty
+                db.session.add(batch)
+                db.session.add(drug)
 
                 # Record the purchase
                 new_purchase = Purchase(
                     drug_id=drug.id,
                     batch_id=batch.id,
                     purchase_date=datetime.now(timezone.utc).date(),
-                    quantity_purchased=int(quantity),
-                    unit_cost=float(unit_cost),
-                    total_cost=float(unit_cost) * int(quantity),
+                    quantity_purchased=qty,
+                    unit_cost=cost,
+                    total_cost=cost * qty,
                 )
                 db.session.add(new_purchase)
+
+                # Append RECEIVED row to the immutable stock-movement ledger so
+                # reconcile_stock_balance() stays consistent with po_routes receiving.
+                record_movement(
+                    item_type="DRUG",
+                    item_id=drug.id,
+                    batch_id=batch.id,
+                    movement_type="RECEIVED",
+                    quantity_delta=qty,
+                    balance_after=drug.quantity_in_stock,
+                    reference_type="DIRECT_PURCHASE",
+                    reference_id=str(batch.batch_number),
+                    user_id=current_user.id,
+                    notes=f"Direct purchase of {qty} units at {cost} per unit",
+                )
 
             db.session.commit()
             flash("Purchase recorded successfully!", "success")
@@ -355,8 +420,7 @@ def record_purchase():
 
     except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        db.session.rollback()  # Rollback changes in case of error
-        print(f"Debug: Error in pharmacy.record_purchase: {e}")  # Debugging
+        logger.exception("Error in pharmacy.record_purchase")
         return redirect(url_for("pharmacy.index"))
     # view prescription
 
@@ -396,21 +460,13 @@ def low_stock():
             .all()
         )
 
-        # Debug: Print results to verify data
-        if not low_stock_drugs:
-            print("Debug: No low stock drugs found.")
-        for drug in low_stock_drugs:
-            print(
-                f"Drug: {drug.generic_name}, Stock: {drug.current_stock}, Reorder: {drug.reorder_level}"
-            )
-
         return render_template(
             "pharmacy/low_stock.html", low_stock_drugs=low_stock_drugs
         )
 
     except Exception as e:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in pharmacy.low_stock: {e}")
+        logger.exception("Error in pharmacy.low_stock")
         return redirect(url_for("pharmacy.index"))
 
 
@@ -428,9 +484,11 @@ def drug_requests():
                 flash("Please select a drug and enter a valid quantity.", "error")
                 return redirect(url_for("pharmacy.drug_requests"))
 
-            # Check if an open request exists for the user
+            # Check if an open (draft) request exists for the user.
+            # Items are added to the PENDING cart; once save_order marks it
+            # "Submitted" a fresh cart is created on the next add.
             existing_request = DrugRequest.query.filter_by(
-                requested_by=current_user.id, status="Submitted"
+                requested_by=current_user.id, status="Pending"
             ).first()
 
             if not existing_request:
@@ -475,12 +533,12 @@ def drug_requests():
     except Exception as e:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in pharmacy.drug_requests: {e}")
+        logger.exception("Error in pharmacy.drug_requests")
         return redirect(url_for("pharmacy.index"))
 
 
 # save order
-@bp.route("/save-order", methods=["GET"])
+@bp.route("/save-order", methods=["POST"])
 @login_required
 @roles_required("pharmacy", "admin")
 def save_order():
@@ -501,7 +559,7 @@ def save_order():
     except Exception as e:  # noqa: BLE001
         db.session.rollback()
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in pharmacy.save_order: {e}")
+        logger.exception("Error in pharmacy.save_order")
         return redirect(url_for("pharmacy.index"))
 
 
@@ -634,6 +692,7 @@ def served_requests_details(request_id):
 
 @bp.route("/get_all_batches", methods=["GET"])
 @login_required
+@roles_required("pharmacy", "admin")
 def get_all_batches():
     """Fetch all available drugs with unique batches, ordered by expiry date."""
     try:
@@ -646,7 +705,6 @@ def get_all_batches():
         )
 
         if not batches:
-            print("📌 DEBUG: No available drugs found")
             return jsonify({"error": "No available drugs"}), 200
 
         # Convert to JSON format
@@ -664,7 +722,6 @@ def get_all_batches():
             for batch in batches
         ]
 
-        print(f"📌 DEBUG: API Response: {len(batch_list)} unique batches returned")
         return jsonify(batch_list), 200
 
     except Exception:

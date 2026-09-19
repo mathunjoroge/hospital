@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4 mb-5">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-1"><i class="bi bi-file-medical me-2"></i>MOH-647 Tracer HPT Report</h2>
+      <p class="text-muted mb-0">
+        Kenya Health Facility Tracer Health Products &amp; Technologies —
+        {{ report.month }}/{{ report.year }}
+      </p>
+    </div>
+    <form method="GET" class="d-flex gap-2 align-items-end">
+      <div>
+        <label class="form-label small text-muted mb-1">Month</label>
+        <select name="month" class="form-select form-select-sm">
+          {% for m in range(1, 13) %}
+          <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label small text-muted mb-1">Year</label>
+        <input type="number" name="year" class="form-control form-control-sm" value="{{ year }}" min="2000" max="2100" style="width: 100px;">
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Load</button>
+    </form>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card text-bg-primary h-100">
+        <div class="card-body">
+          <h6 class="card-title">Items Monitored</h6>
+          <div class="fs-2 fw-bold">{{ report.total_monitored }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-bg-success h-100">
+        <div class="card-body">
+          <h6 class="card-title">In Stock</h6>
+          <div class="fs-2 fw-bold">{{ report.in_stock_count }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-bg-warning h-100">
+        <div class="card-body">
+          <h6 class="card-title">Low Stock</h6>
+          <div class="fs-2 fw-bold">{{ report.low_stock_count }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-bg-danger h-100">
+        <div class="card-body">
+          <h6 class="card-title">Stockouts</h6>
+          <div class="fs-2 fw-bold">{{ report.stockout_count }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tracer Items Table -->
+  <div class="card">
+    <div class="card-header bg-light">
+      <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-table me-2"></i>Tracer Commodity Balance Sheet</h5>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0">
+          <thead class="table-dark">
+            <tr>
+              <th>Category</th>
+              <th>Tracer Item</th>
+              <th>Mapped Drug (in system)</th>
+              <th class="text-end">Beginning</th>
+              <th class="text-end">Received</th>
+              <th class="text-end">Issued</th>
+              <th class="text-end">Losses</th>
+              <th class="text-end">Ending</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in report.tracer_items %}
+            <tr>
+              <td><span class="badge bg-secondary">{{ item.category }}</span></td>
+              <td class="fw-bold">{{ item.tracer_name }}</td>
+              <td>{{ item.generic_name }} <small class="text-muted">({{ item.unit }})</small></td>
+              <td class="text-end">{{ item.beginning_stock }}</td>
+              <td class="text-end text-success">+{{ item.received }}</td>
+              <td class="text-end text-primary">&minus;{{ item.issued }}</td>
+              <td class="text-end text-danger">&minus;{{ item.losses }}</td>
+              <td class="text-end fw-bold">{{ item.ending_stock }}</td>
+              <td>
+                {% if item.is_stockout %}
+                <span class="badge bg-danger">STOCKOUT</span>
+                {% elif item.is_low_stock %}
+                <span class="badge bg-warning text-dark">LOW STOCK</span>
+                {% else %}
+                <span class="badge bg-success">IN STOCK</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="9" class="text-center text-muted py-4">
+                <i class="bi bi-inbox d-block fs-2 mb-2"></i>
+                No tracer commodities matched. Drug names must contain a tracer keyword
+                (e.g. "Amoxicillin", "Paracetamol", "Oxytocin", "Coartem").
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

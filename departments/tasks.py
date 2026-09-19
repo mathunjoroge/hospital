@@ -111,6 +111,43 @@ def scheduled_midnight_ward_charges():
 
 
 # ---------------------------------------------------------------------------
+# Pharmacy Inventory Alerts (near-expiry + low stock)
+# ---------------------------------------------------------------------------
+
+
+@shared_task(name="departments.tasks.pharmacy_inventory_alerts")
+def pharmacy_inventory_alerts():
+    """
+    Celery beat task: daily pharmacy stock scan for near-expiry batches and
+    drugs below their reorder level. Logs a summary; wire to
+    departments/notifications dispatch as the next integration step.
+
+    Schedule: 04:00 UTC / 07:00 EAT (set in celery_app.py beat schedule).
+    """
+    from app import app
+
+    logger.info("[Celery] Pharmacy inventory alert scan starting …")
+    try:
+        with app.app_context():
+            from departments.pharmacy.fefo import check_pharmacy_inventory_alerts
+
+            alerts = check_pharmacy_inventory_alerts(near_expiry_days=60)
+            logger.info(
+                "[Celery] Pharmacy alerts: %d near-expiry batches, %d low-stock drugs",
+                alerts["expiry_count"],
+                alerts["reorder_count"],
+            )
+            return {
+                "status": "ok",
+                "expiry_alerts": alerts["expiry_count"],
+                "reorder_alerts": alerts["reorder_count"],
+            }
+    except Exception as exc:
+        logger.error("[Celery] Pharmacy inventory alert scan failed: %s", exc)
+        raise
+
+
+# ---------------------------------------------------------------------------
 # ICD-10 Nightly Re-Sync (DECISIONS_PENDING #4 resolved 2026-09-13)
 # ---------------------------------------------------------------------------
 

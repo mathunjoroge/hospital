@@ -161,7 +161,7 @@ def auto_generate_pos():
 
 @po_bp.route("/pharmacy/po/create", methods=["POST"])
 @login_required
-@roles_required("pharmacy", "admin", "stores", "Storekeeper", "Admin", "Pharmacist")
+@roles_required("pharmacy", "admin", "stores")
 def create_manual_po():
     """
     Manually create a draft Purchase Order for a specified supplier and line items.
@@ -522,7 +522,7 @@ def receive_po_shipment(po_id):
 
 @po_bp.route("/pharmacy/receipt/direct", methods=["POST"])
 @login_required
-@roles_required("pharmacy", "admin", "stores", "Storekeeper", "Admin", "Pharmacist")
+@roles_required("pharmacy", "admin", "stores")
 def record_direct_receipt():
     """
     Record direct receipt of supplies from a supplier without a prior Purchase Order.
@@ -683,7 +683,7 @@ def record_direct_receipt():
 
 @po_bp.route("/pharmacy/rtv/create", methods=["POST"])
 @login_required
-@roles_required("pharmacy", "admin", "stores", "Storekeeper", "Admin", "Pharmacist")
+@roles_required("pharmacy", "admin", "stores")
 def create_supplier_return():
     """Create a draft Return to Vendor (RTV) record."""
     data = request.get_json() or {}
@@ -764,7 +764,7 @@ def create_supplier_return():
 
 @po_bp.route("/pharmacy/rtv/<int:rtv_id>/dispatch", methods=["POST"])
 @login_required
-@roles_required("pharmacy", "admin", "stores", "Storekeeper", "Admin", "Pharmacist")
+@roles_required("pharmacy", "admin", "stores")
 def dispatch_supplier_return(rtv_id):
     """Dispatch Return to Vendor (RTV), deduct stock, and record RETURN_TO_VENDOR movements."""
     rtv = db.session.get(SupplierReturn, rtv_id)
@@ -834,7 +834,7 @@ def dispatch_supplier_return(rtv_id):
 
 @po_bp.route("/pharmacy/suppliers/<int:supplier_id>/metrics", methods=["GET"])
 @login_required
-@roles_required("pharmacy", "admin", "stores", "Storekeeper", "Admin", "Pharmacist")
+@roles_required("pharmacy", "admin", "stores")
 def get_supplier_otif_metrics(supplier_id):
     """Calculate Supplier On-Time In-Full (OTIF) performance scorecards."""
     supplier = db.session.get(Supplier, supplier_id)
@@ -894,7 +894,7 @@ def get_supplier_otif_metrics(supplier_id):
 
 @po_bp.route("/pharmacy/smart-reorder", methods=["GET"])
 @login_required
-@roles_required("pharmacy", "admin", "stores", "Storekeeper", "Admin", "Pharmacist")
+@roles_required("pharmacy", "admin", "stores")
 def calculate_smart_reorder():
     """Calculate 30-day Average Daily Consumption (ADC) and dynamic Reorder Points (ROP)."""
     import math

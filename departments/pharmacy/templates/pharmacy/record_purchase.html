@@ -11,6 +11,7 @@
                 <tr>
                     <th>Drug Name</th>
                     <th>Batch Number</th>
+                    <th>Expiry Date</th>
                     <th>Quantity Purchased</th>
                     <th>Unit Cost</th>
                 </tr>
@@ -21,6 +22,9 @@
                     <td>{{ drug.generic_name }} ({{ drug.brand_name | default("N/A") }})</td>
                     <td>
                         <input type="text" id="batch_number_{{ drug.id }}" name="batch_numbers[]" class="form-control" placeholder="Enter batch number">
+                    </td>
+                    <td>
+                        <input type="date" id="expiry_date_{{ drug.id }}" name="expiry_dates[]" class="form-control">
                     </td>
                     <td>
                         <input type="number" id="quantity_{{ drug.id }}" name="quantities[]" class="form-control" placeholder="Enter quantity">

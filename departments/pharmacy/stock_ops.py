@@ -17,6 +17,7 @@ from departments.models.medicine import PrescribedMedicine
 from departments.models.pharmacy import Batch, DispensedDrug, Drug
 from departments.models.records import Patient
 from departments.models.stock_movement import record_movement
+from departments.pharmacy.status import not_voided
 from departments.rbac import roles_required
 from extensions import db
 
@@ -31,8 +32,10 @@ logger = logging.getLogger(__name__)
 def remove_dispensed(dispense_id):
     """
     P0-05: Void a dispensed drug entry — stock reversed transactionally.
-    Original record is preserved. void_reason is required.
+    Delegates to the shared void_service — see void_dispensed_drug().
     """
+    from departments.pharmacy.void_service import VoidError, void_dispensed_drug
+
     void_reason = request.form.get("void_reason", "").strip()
     if not void_reason:
         flash("A void reason is required to reverse a dispensing record.", "error")
@@ -44,74 +47,8 @@ def remove_dispensed(dispense_id):
         )
 
     try:
-        dispensed_drug = db.session.get(DispensedDrug, dispense_id)
-        if not dispensed_drug:
-            flash(f"Dispensed drug with ID {dispense_id} does not exist!", "error")
-            return redirect(
-                url_for(
-                    "pharmacy.dispense_prescription",
-                    prescription_id=request.form.get("prescription_id"),
-                )
-            )
-
-        # Guard against double-void
-        if dispensed_drug.status == "VOIDED":
-            flash("This dispensing record has already been voided.", "warning")
-            return redirect(
-                url_for(
-                    "pharmacy.dispense_prescription",
-                    prescription_id=dispensed_drug.prescription_id,
-                )
-            )
-
-        # Findings A+B: reverse batch AND drug-level stock, then write ledger entry.
-        from datetime import datetime, timezone
-
-        qty_returned = dispensed_drug.quantity_dispensed
-        batch = (
-            db.session.get(Batch, dispensed_drug.batch_id)
-            if dispensed_drug.batch_id
-            else None
-        )
-        drug_for_void = (
-            db.session.get(Drug, dispensed_drug.drug_id)
-            if dispensed_drug.drug_id
-            else None
-        )
-        if batch:
-            batch.quantity_in_stock += qty_returned
-            db.session.add(batch)
-        if drug_for_void:
-            drug_for_void.quantity_in_stock += qty_returned
-            db.session.add(drug_for_void)
-            record_movement(
-                item_type="DRUG",
-                item_id=drug_for_void.id,
-                movement_type="VOID_RETURN",
-                quantity_delta=qty_returned,
-                balance_after=drug_for_void.quantity_in_stock,
-                reference_type="VOID_DISPENSE",
-                reference_id=str(dispense_id),
-                user_id=current_user.id,
-                batch_id=dispensed_drug.batch_id,
-                notes=f"Void by user {current_user.id}: {void_reason}",
-            )
-
-        # Void — preserve clinical record
-        dispensed_drug.status = "VOIDED"
-        dispensed_drug.voided_by = current_user.id
-        dispensed_drug.voided_at = datetime.now(timezone.utc)
-        dispensed_drug.void_reason = void_reason
-        db.session.add(dispensed_drug)
+        dispensed_drug = void_dispensed_drug(dispense_id, void_reason, current_user.id)
         db.session.commit()
-
-        logger.info(
-            "Dispensed drug VOIDED via remove_dispensed: id=%s patient=%s actor=%s reason=%s",
-            dispense_id,
-            dispensed_drug.patient_id,
-            current_user.id,
-            void_reason,
-        )
         flash(
             f"{dispensed_drug.drug.generic_name} voided — stock restored.",
             "success",
@@ -123,9 +60,19 @@ def remove_dispensed(dispense_id):
             )
         )
 
-    except Exception as e:  # noqa: BLE001
+    except VoidError as exc:
+        db.session.rollback()
+        flash(str(exc), "warning")
+        return redirect(
+            url_for(
+                "pharmacy.dispense_prescription",
+                prescription_id=request.form.get("prescription_id"),
+            )
+        )
+
+    except Exception:  # noqa: BLE001
         flash("Something went wrong. Please try again.", "error")
-        logger.error(f"Error in pharmacy.remove_dispensed: {e}")
+        logger.exception("Error in pharmacy.remove_dispensed")
         db.session.rollback()
         return redirect(
             url_for(
@@ -178,7 +125,12 @@ def process_dispense(prescription_id):
                 )
             )
 
-        batch = Batch.query.filter_by(id=batch_id, drug_id=drug.id).first()
+        # with_for_update() locks the batch row against concurrent dispenses.
+        batch = (
+            Batch.query.filter_by(id=batch_id, drug_id=drug.id)
+            .with_for_update()
+            .first()
+        )
         if not batch:
             flash(
                 f"Batch ID {batch_id} does not exist for {drug.generic_name}.", "error"
@@ -304,6 +256,7 @@ def process_dispense(prescription_id):
 
 @bp.route("/patient_history", methods=["GET", "POST"])
 @login_required
+@roles_required("pharmacy", "admin")
 def patient_history():
     """API endpoint to retrieve patient history by patient_id with clinical data."""
     from departments.models.billing import Billing
@@ -349,6 +302,7 @@ def patient_history():
         )
         dispensed_drugs = (
             DispensedDrug.query.filter_by(patient_id=patient_id)
+            .filter(not_voided(DispensedDrug.status))
             .options(joinedload(DispensedDrug.drug), joinedload(DispensedDrug.batch))
             .all()
         )

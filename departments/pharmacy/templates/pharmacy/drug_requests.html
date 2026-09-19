@@ -96,9 +96,12 @@
       <p class="mb-0 text-white-50">Create and manage department stock requests from the central store</p>
     </div>
     {% if latest_request %}
-    <a href="{{ url_for('pharmacy.save_order') }}" class="btn btn-light fw-bold text-success px-4 py-2 shadow-sm">
-      <i class="bi bi-check-all me-2"></i>Save & Finalize Order
-    </a>
+    <form method="POST" action="{{ url_for('pharmacy.save_order') }}" class="mb-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <button type="submit" class="btn btn-light fw-bold text-success px-4 py-2 shadow-sm">
+        <i class="bi bi-check-all me-2"></i>Save & Finalize Order
+      </button>
+    </form>
     {% endif %}
   </div>
 
@@ -184,9 +187,12 @@
   </div>
 
   <div class="text-center mt-4">
-    <a href="{{ url_for('pharmacy.save_order') }}" class="btn btn-ph-primary btn-lg px-5 shadow">
-      <i class="bi bi-send-check me-2"></i> Submit & Save Order
-    </a>
+    <form method="POST" action="{{ url_for('pharmacy.save_order') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <button type="submit" class="btn btn-ph-primary btn-lg px-5 shadow">
+        <i class="bi bi-send-check me-2"></i> Submit & Save Order
+      </button>
+    </form>
   </div>
   {% else %}
   <div class="ph-card text-center p-5">

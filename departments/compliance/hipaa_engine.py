@@ -29,7 +29,7 @@ class HIPAAComplianceEngine:
         session_timeout_set = bool(os.getenv("PERMANENT_SESSION_LIFETIME", "1800"))
 
         return {
-            "section": "§ 164.312(a) Access Control",
+            "section": "Section 164.312(a) Access Control",
             "status": "PASS" if has_roles and session_timeout_set else "WARN",
             "score": 100 if has_roles and session_timeout_set else 80,
             "details": {
@@ -47,7 +47,7 @@ class HIPAAComplianceEngine:
         is_intact = chain_res.get("valid", False)
 
         return {
-            "section": "§ 164.312(b) Audit Controls",
+            "section": "Section 164.312(b) Audit Controls",
             "status": "PASS" if is_intact else "FAIL",
             "score": 100 if is_intact else 0,
             "details": {
@@ -70,7 +70,7 @@ class HIPAAComplianceEngine:
             crypto_working = False
 
         return {
-            "section": "§ 164.312(c) Integrity & Encryption",
+            "section": "Section 164.312(c) Integrity & Encryption",
             "status": "PASS" if crypto_working else "FAIL",
             "score": 100 if crypto_working else 0,
             "details": {
@@ -84,7 +84,7 @@ class HIPAAComplianceEngine:
     def evaluate_authentication() -> dict[str, Any]:
         """§ 164.312(d) Entity Authentication & Account Lockout."""
         return {
-            "section": "§ 164.312(d) Person or Entity Authentication",
+            "section": "Section 164.312(d) Person or Entity Authentication",
             "status": "PASS",
             "score": 100,
             "details": {
@@ -99,7 +99,7 @@ class HIPAAComplianceEngine:
     def evaluate_transmission_security() -> dict[str, Any]:
         """§ 164.312(e) Transmission Security & TLS Safeguards."""
         return {
-            "section": "§ 164.312(e) Transmission Security",
+            "section": "Section 164.312(e) Transmission Security",
             "status": "PASS",
             "score": 100,
             "details": {
