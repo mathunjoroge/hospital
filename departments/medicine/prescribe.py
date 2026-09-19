@@ -11,8 +11,10 @@ Features:
 """
 
 import logging
+from decimal import Decimal
 
 from flask import Blueprint, jsonify, request
+from flask_login import login_required
 
 try:
     from extensions import db
@@ -22,7 +24,9 @@ except ImportError:
 from departments.medicine.cdss import evaluate_prescription_safety
 from departments.models.billing import InvoiceLineItem
 from departments.models.medicine import Medicine, PrescribedMedicine, SOAPNote
+from departments.models.pharmacy import Drug
 from departments.models.records import Patient
+from departments.rbac import roles_required
 from departments.shared.drug_safety_rules import (  # noqa: F401
     ALLERGY_GROUPS,
     KNOWN_INTERACTIONS,
@@ -316,6 +320,8 @@ def check_drug_safety(patient_id: str, new_medications: list[str], **kwargs) -> 
 
 
 @prescribe_bp.route("/icd10", methods=["GET"])
+@login_required
+@roles_required("medicine", "admin")
 def handle_icd10_search():
     """Search ICD-10 codes."""
     q = request.args.get("q", "")
@@ -324,6 +330,8 @@ def handle_icd10_search():
 
 
 @prescribe_bp.route("/validate", methods=["POST"])
+@login_required
+@roles_required("medicine", "admin")
 def handle_safety_validate():
     """Validate drug safety (allergies and DDIs) prior to sign-off."""
     data = request.get_json() or {}
@@ -337,6 +345,8 @@ def handle_safety_validate():
 
 
 @prescribe_bp.route("/cdss/evaluate", methods=["POST"])
+@login_required
+@roles_required("medicine", "admin")
 def handle_cdss_evaluate():
     """Comprehensive Clinical Decision Support System (CDSS) evaluation endpoint."""
 
@@ -359,6 +369,8 @@ def handle_cdss_evaluate():
 
 
 @prescribe_bp.route("/soap", methods=["POST"])
+@login_required
+@roles_required("medicine", "admin")
 def handle_soap_consultation():
     """Save structured SOAP consultation note."""
     data = request.get_json() or {}
@@ -401,21 +413,33 @@ def handle_soap_consultation():
 
 
 @prescribe_bp.route("/signoff", methods=["POST"])
+@login_required
+@roles_required("medicine", "admin")
 def handle_prescription_signoff():
     """Sign off e-prescription with allergy/DDI validation and auto-invoice item generation."""
     import uuid
 
     data = request.get_json() or {}
-    patient_id = data.get("patient_id")
-    data.get("doctor_id", 1)
+    patient_id = (data.get("patient_id") or "").strip()
     prescriptions = data.get(
         "prescriptions", []
-    )  # list of dicts: {name, dosage, frequency, duration, cost}
+    )  # list of dicts: {name, dosage, frequency, duration, num_days}
     override_warning = data.get("override_warning", False)
-    data.get("override_reason", "")
+
+    if not patient_id:
+        return jsonify({"error": "patient_id is required"}), 400
+
+    # Exact patient match: never let a fuzzy lookup write a prescription onto
+    # a different patient's chart ("P1" must not resolve to "P10").
+    patient = Patient.query.filter_by(patient_id=patient_id).first()
+    if not patient:
+        return jsonify({"error": "Patient not found"}), 404
+
+    if not prescriptions or not any(p.get("name") for p in prescriptions):
+        return jsonify({"error": "At least one prescription item is required"}), 400
 
     med_names = [p.get("name") for p in prescriptions if p.get("name")]
-    safety_check = check_drug_safety(patient_id, med_names)
+    safety_check = check_drug_safety(patient.patient_id, med_names)
 
     if safety_check["critical_block"] and not override_warning:
         return jsonify(
@@ -427,27 +451,44 @@ def handle_prescription_signoff():
         ), 400
 
     created_meds = []
-    total_pharmacy_charge = 0.0
+    total_pharmacy_charge = Decimal("0.00")
     rx_uuid = str(uuid.uuid4())
-    encounter = active_encounter(patient_id)
+    encounter = active_encounter(patient.patient_id)
 
     for item in prescriptions:
-        name = item.get("name")
-        dosage = item.get("dosage", "500mg")
-        strength = item.get("strength", "Standard")
-        frequency = item.get("frequency", "TDS")
-        num_days = int(item.get("num_days", 7))
-        cost = float(item.get("cost", 150.0))
+        name = (item.get("name") or "").strip()
+        if not name:
+            continue
+        dosage = (item.get("dosage") or "").strip()
+        strength = (item.get("strength") or "Standard").strip()
+        frequency = (item.get("frequency") or "").strip()
+        try:
+            num_days = int(item.get("num_days", 7))
+        except (TypeError, ValueError):
+            return jsonify(
+                {"error": f"num_days must be a whole number for '{name}'."}
+            ), 400
+        if num_days < 1:
+            return jsonify({"error": f"num_days must be >= 1 for '{name}'."}), 400
+        if not dosage or not frequency:
+            return jsonify(
+                {"error": f"dosage and frequency are required for '{name}'."}
+            ), 400
 
-        # Find or create Medicine master entry
+        # Find existing Medicine master entry (dedup by generic_name, then
+        # fall back to the pharmacy Drug catalogue price). The charge is never
+        # taken from the client.
         med_obj = Medicine.query.filter_by(generic_name=name).first()
         if not med_obj:
             med_obj = Medicine(generic_name=name, brand_name=name, dosage=dosage)
             db.session.add(med_obj)
             db.session.flush()
 
+        drug_catalogue = Drug.query.filter_by(generic_name=name).first()
+        unit_price = drug_catalogue.selling_price if drug_catalogue else None
+
         rx_item = PrescribedMedicine(
-            patient_id=patient_id,
+            patient_id=patient.patient_id,
             encounter_id=encounter.id if encounter else None,
             medicine_id=med_obj.id,
             dosage=dosage,
@@ -458,7 +499,11 @@ def handle_prescription_signoff():
         )
         db.session.add(rx_item)
         created_meds.append(name)
-        total_pharmacy_charge += cost
+        if unit_price is not None:
+            total_pharmacy_charge += unit_price
+
+    if not created_meds:
+        return jsonify({"error": "No valid prescription items supplied."}), 400
 
     # Automatically add to patient's active draft Invoice or create new Invoice
     from departments.billing.sync import get_or_create_open_invoice
@@ -481,7 +526,7 @@ def handle_prescription_signoff():
             "prescribed_count": len(created_meds),
             "prescription_id": rx_uuid,
             "invoice_number": inv.invoice_number,
-            "total_charge": total_pharmacy_charge,
+            "total_charge": float(total_pharmacy_charge),
             "warnings_logged": safety_check["alerts"],
         }
     ), 201

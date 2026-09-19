@@ -96,6 +96,34 @@ def process_clinical_chatbot_task(
         raise
 
 
+@shared_task(name="departments.tasks.process_soap_note_ai_analysis")
+def process_soap_note_ai_analysis(note_id: int):
+    """
+    Celery task: trigger the FastAPI NLP service for a saved SOAP note.
+
+    Replaces the synchronous requests.post() that used to sit in the doctor's
+    request path and block the consultation for up to 30 seconds whenever the
+    NLP worker was slow or down.
+    """
+    import requests
+
+    logger.info("[Celery] Triggering NLP analysis for SOAP note %s", note_id)
+    try:
+        response = requests.post(
+            "http://127.0.0.1:8000/process_note",
+            json={"note_id": note_id},
+            timeout=30,
+        )
+        response.raise_for_status()
+        logger.info("[Celery] NLP analysis completed for SOAP note %s", note_id)
+        return {"status": "ok", "note_id": note_id}
+    except requests.exceptions.RequestException as exc:
+        logger.error(
+            "[Celery] NLP analysis trigger failed for note %s: %s", note_id, exc
+        )
+        raise
+
+
 # --- T3.5: Ward Daily Charges ---
 
 

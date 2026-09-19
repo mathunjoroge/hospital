@@ -19,11 +19,20 @@ from departments.models.medicine import (
 from departments.models.records import Patient
 from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.nlp.logging_setup import get_logger
+from departments.rbac import roles_required
 from extensions import db
 
 from . import bp
 
 logger = get_logger()
+
+# Allowed ward-round clinical statuses (mirrors the form's <option> list).
+WARD_ROUND_STATUSES = {
+    "Under Treatment",
+    "Stable",
+    "Critical",
+    "Ready for Discharge",
+}
 
 # Instantiate the summarizer for use in chatbot_interface
 
@@ -41,6 +50,7 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB max file size
 
 @bp.route("/add-to-theatre", methods=["GET", "POST"])
 @login_required
+@roles_required("medicine", "theatre", "admin")
 def add_to_theatre():
     """Add a patient to the theatre list."""
     if request.method == "POST":
@@ -53,20 +63,15 @@ def add_to_theatre():
 
             patient_id = data.get("patient_id")  # Supports text like "P1000"
             procedure_id = data.get("procedure_id")
-            created_by = data.get("created_by")
             notes_on_book = data.get("notes_on_book", None)
 
-            if not patient_id or not procedure_id or not created_by:
-                flash("All fields are required!", "danger")
+            if not patient_id or not procedure_id:
+                flash("Patient and procedure are required!", "danger")
                 return redirect(url_for("medicine.add_to_theatre"))
 
-            # Check if patient exists
-            patient = Patient.query.filter(
-                db.or_(
-                    Patient.patient_id.ilike(f"%{patient_id}%"),
-                    Patient.name.ilike(f"%{patient_id}%"),
-                )
-            ).first()
+            # Exact patient match: a fuzzy ilike lookup could book surgery for
+            # a different patient than the one intended ("P1" → "P10").
+            patient = Patient.query.filter_by(patient_id=patient_id).first()
             if not patient:
                 flash(f"Patient {patient_id} not found.", "danger")
                 return redirect(url_for("medicine.add_to_theatre"))
@@ -77,16 +82,32 @@ def add_to_theatre():
                 flash("Procedure not found.", "danger")
                 return redirect(url_for("medicine.add_to_theatre"))
 
+            # Guard against duplicate active bookings for the same
+            # patient/procedure (double-clicks, refresh resubmits).
+            duplicate = TheatreList.query.filter_by(
+                patient_id=patient.patient_id, procedure_id=procedure.id, status=0
+            ).first()
+            if duplicate:
+                flash(
+                    "This patient already has an active booking for this procedure.",
+                    "warning",
+                )
+                return redirect(url_for("medicine.get_theatre_list"))
+
+            # P0-5: attribution comes from the authenticated session, never
+            # from a client-controlled form field.
+            created_by = current_user.id
+
             # Create SURGICAL encounter scoped to this booking (T3.2)
             surgical_enc = create_surgical_encounter(
-                patient_id=patient_id,
+                patient_id=patient.patient_id,
                 provider_id=str(created_by) if created_by else None,
                 chief_complaint=f"Surgical procedure: {procedure.name}",
             )
 
             # Create theatre list entry linked to the surgical encounter
             new_entry = TheatreList(
-                patient_id=patient_id,
+                patient_id=patient.patient_id,
                 procedure_id=procedure_id,
                 status=0,
                 created_by=created_by,
@@ -104,7 +125,7 @@ def add_to_theatre():
                 from departments.billing.sync import sync_charge
 
                 sync_charge(
-                    patient_id=patient_id,
+                    patient_id=patient.patient_id,
                     source_table="theatre_list",
                     source_id=new_entry.id,
                     description=f"Theatre: {procedure.name}",
@@ -133,6 +154,7 @@ def add_to_theatre():
 # ✅ Corrected Route: Display Theatre List
 @bp.route("/theatre-list", methods=["GET"])
 @login_required
+@roles_required("medicine", "theatre", "nursing", "admin")
 def get_theatre_list():
     """Retrieve all theatre list entries."""
     try:
@@ -171,6 +193,7 @@ def get_theatre_list():
 
 @bp.route("/update-post-op/<int:entry_id>", methods=["GET", "POST"])
 @login_required
+@roles_required("medicine", "theatre", "admin")
 def update_post_op(entry_id):
     """Update post-operative notes for a theatre list entry."""
     try:
@@ -227,6 +250,7 @@ def update_post_op(entry_id):
 
 @bp.route("/theatre-transition/<int:entry_id>/<string:new_stage>", methods=["POST"])
 @login_required
+@roles_required("medicine", "theatre", "admin")
 def transition_theatre_stage(entry_id, new_stage):
     """Transitions a SURGICAL encounter to the next valid stage using the state machine."""
     entry = TheatreList.query.get_or_404(entry_id)
@@ -245,6 +269,7 @@ def transition_theatre_stage(entry_id, new_stage):
 
 @bp.route("/admit-patient", methods=["GET", "POST"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def admit_patient():
     """Admit a patient to a ward, assign a room & bed."""
     form = AdmitPatientForm()
@@ -268,15 +293,11 @@ def admit_patient():
             room_id = request.form.get("room_id")
             bed_id = request.form.get("bed_id")
             admission_criteria = request.form.get("admission_criteria")
-            admitted_by = request.form.get("admitted_by")
 
-            # ✅ Check if patient exists
-            patient = Patient.query.filter(
-                db.or_(
-                    Patient.patient_id.ilike(f"%{patient_id}%"),
-                    Patient.name.ilike(f"%{patient_id}%"),
-                )
-            ).first()
+            # ✅ Check if patient exists — exact match on the patient number.
+            # A fuzzy id/name match could admit one patient while storing the
+            # identifier of another.
+            patient = Patient.query.filter_by(patient_id=patient_id).first()
             if not patient:
                 flash("Patient not found.", "danger")
                 return redirect(url_for("medicine.admit_patient"))
@@ -293,26 +314,33 @@ def admit_patient():
                 flash("Room not found in the selected ward.", "danger")
                 return redirect(url_for("medicine.admit_patient"))
 
-            # ✅ Check if bed exists & is available
-            bed = Bed.query.filter_by(
-                id=bed_id, room_id=room_id, occupied=False
-            ).first()
+            # ✅ Check if bed exists & is available. Row-lock the bed so two
+            # concurrent admissions cannot both read occupied=False and take
+            # the same bed.
+            bed = (
+                Bed.query.filter_by(id=bed_id, room_id=room_id, occupied=False)
+                .with_for_update()
+                .first()
+            )
             if not bed:
                 flash("Selected bed is not available.", "danger")
                 return redirect(url_for("medicine.admit_patient"))
 
             # ✅ Admit patient & mark bed as occupied
             admission = AdmittedPatient(
-                patient_id=patient_id,
+                patient_id=patient.patient_id,
                 ward_id=ward_id,
                 room_id=room_id,
                 bed_id=bed_id,
                 admission_criteria=admission_criteria,
-                admitted_by=admitted_by,
+                admitted_by=current_user.id,
                 admitted_on=datetime.now(timezone.utc),
             )
 
             bed.occupied = True  # Mark bed as occupied
+            # Keep the bed in the same turnaround state machine the ADT engine
+            # uses, so housekeeping sees released beds consistently.
+            bed.status = "OCCUPIED"
 
             db.session.add(admission)
 
@@ -320,13 +348,29 @@ def admit_patient():
             from departments.models.encounter import Encounter
 
             ipd_encounter = Encounter(
-                patient_id=patient_id,
+                patient_id=patient.patient_id,
                 encounter_type="IPD",
                 status="ACTIVE",
                 stage="ADMITTED",
                 started_at=datetime.now(timezone.utc),
             )
             db.session.add(ipd_encounter)
+
+            # Keep ward occupancy counters and bed history consistent with the
+            # ADT engine path (which recalculates on every event).
+            ward.occupied_beds = (
+                Bed.query.join(WardRoom, Bed.room_id == WardRoom.id)
+                .filter(WardRoom.ward_id == ward.id, Bed.occupied.is_(True))
+                .count()
+            )
+            db.session.add(
+                WardBedHistory(
+                    ward_id=ward.id,
+                    patient_id=patient.patient_id,
+                    action="Admit",
+                    timestamp=datetime.now(timezone.utc),
+                )
+            )
             db.session.commit()
 
             flash(
@@ -348,6 +392,7 @@ def admit_patient():
 # 2️⃣ Discharge a Patient (Free Up Bed)
 @bp.route("/discharge-patient/<int:id>", methods=["POST"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def discharge_patient(id):
     """Discharge a patient and free their assigned bed."""
     try:
@@ -357,21 +402,33 @@ def discharge_patient(id):
             return redirect(url_for("medicine.view_admitted_patients"))
 
         ward = db.session.get(Ward, admission.ward_id)
-        # FIX 2: Use stored bed_id, fallback to searching the ward
+        # FIX 2: Release ONLY the admission's own bed. The old ward-wide
+        # "first occupied bed" fallback could free a different patient's bed.
         bed = db.session.get(Bed, admission.bed_id) if admission.bed_id else None
-        if not bed:
-            bed = (
-                Bed.query.join(WardRoom, Bed.room_id == WardRoom.id)
-                .filter(WardRoom.ward_id == admission.ward_id, Bed.occupied.is_(True))
-                .first()
-            )
 
-        if ward and ward.occupied_beds > 0:
-            ward.occupied_beds -= 1
         if bed:
             bed.occupied = False
+            # Hand the bed to housekeeping via the ADT turnaround machine.
+            bed.status = "DIRTY"
+
+        if ward:
+            # Recalculate instead of blind-decrementing (matches ADTEngine).
+            ward.occupied_beds = (
+                Bed.query.join(WardRoom, Bed.room_id == WardRoom.id)
+                .filter(WardRoom.ward_id == ward.id, Bed.occupied.is_(True))
+                .count()
+            )
 
         admission.discharged_on = datetime.now(timezone.utc)
+
+        db.session.add(
+            WardBedHistory(
+                ward_id=admission.ward_id,
+                patient_id=admission.patient_id,
+                action="Discharge",
+                timestamp=datetime.now(timezone.utc),
+            )
+        )
 
         # Close the IPD Encounter
         from departments.models.encounter import Encounter
@@ -403,6 +460,7 @@ def discharge_patient(id):
 # 3️⃣ patients in ward
 @bp.route("/admitted-patients", methods=["GET"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def view_admitted_patients():
     """View all admitted patients."""
     try:
@@ -432,6 +490,7 @@ def view_admitted_patients():
 
 @bp.route("/ward-bed-history/<int:ward_id>", methods=["GET"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def ward_bed_history(ward_id):
     """View bed history for a ward."""
     try:
@@ -459,9 +518,19 @@ def ward_bed_history(ward_id):
 @bp.route("/available-rooms/<int:ward_id>", methods=["GET"])
 @login_required
 def available_rooms(ward_id):
-    """Return available rooms in a ward."""
+    """Return rooms in a ward that still have at least one free bed.
+
+    WardRoom.occupied is never written anywhere, so filtering on it always
+    reported every room available. Beds are the real constraint.
+    """
     try:
-        rooms = WardRoom.query.filter_by(ward_id=ward_id, occupied=False).all()
+        rooms = (
+            db.session.query(WardRoom)
+            .join(Bed, Bed.room_id == WardRoom.id)
+            .filter(WardRoom.ward_id == ward_id, Bed.occupied.is_(False))
+            .distinct()
+            .all()
+        )
         return jsonify(
             {
                 "rooms": [
@@ -475,6 +544,7 @@ def available_rooms(ward_id):
 
 @bp.route("/available-beds/<int:room_id>", methods=["GET"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def available_beds(room_id):
     """Return available beds in a room."""
     try:
@@ -489,6 +559,7 @@ def available_beds(room_id):
 # ✅ View Inpatients List
 @bp.route("/inpatients", methods=["GET"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def view_inpatients():
     """Show all admitted patients for ward rounds."""
     admitted_patients = (
@@ -510,6 +581,7 @@ def view_inpatients():
 
 @bp.route("/ward-rounds", methods=["GET", "POST"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def ward_rounds():
     """View inpatients and allow doctors to update ward rounds."""
     if request.method == "POST":
@@ -522,10 +594,20 @@ def ward_rounds():
                 flash("All fields are required!", "danger")
                 return redirect(url_for("medicine.ward_rounds"))
 
-            # Check if admission exists
+            # Check if admission exists and is still active
             admission = db.session.get(AdmittedPatient, admission_id)
             if not admission:
                 flash("Patient admission not found.", "danger")
+                return redirect(url_for("medicine.ward_rounds"))
+            if admission.discharged_on is not None:
+                flash(
+                    "This patient has already been discharged — ward rounds "
+                    "can only be recorded for active admissions.",
+                    "danger",
+                )
+                return redirect(url_for("medicine.ward_rounds"))
+            if status not in WARD_ROUND_STATUSES:
+                flash("Invalid ward-round status.", "danger")
                 return redirect(url_for("medicine.ward_rounds"))
 
             # Save ward round entry
@@ -570,6 +652,7 @@ def ward_rounds():
 
 @bp.route("/ward-rounds/<int:admission_id>", methods=["GET"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def view_ward_rounds(admission_id):
     """
     Ward round history for a single admission.
@@ -597,6 +680,7 @@ def view_ward_rounds(admission_id):
 
 @bp.route("/ward-rounds/add", methods=["POST"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def add_ward_round():
     """Add a ward round note for a patient."""
     try:
@@ -606,6 +690,18 @@ def add_ward_round():
 
         if not admission_id or not notes:
             flash("Please provide required fields!", "danger")
+            return redirect(
+                url_for("medicine.view_ward_rounds", admission_id=admission_id)
+            )
+
+        admission = db.session.get(AdmittedPatient, admission_id)
+        if not admission or admission.discharged_on is not None:
+            flash(
+                "Ward rounds can only be recorded for active admissions.", "danger"
+            )
+            return redirect(url_for("medicine.view_ward_rounds", admission_id=admission_id))
+        if status not in WARD_ROUND_STATUSES:
+            flash("Invalid ward-round status.", "danger")
             return redirect(
                 url_for("medicine.view_ward_rounds", admission_id=admission_id)
             )
@@ -676,6 +772,7 @@ def transition_surgical_stage(encounter_id: int, new_stage: str):
 
 @bp.route("/inpatients/ward-grid", methods=["GET"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def ward_bed_grid_view():
     """Render interactive Inpatient Ward Bed Management & Turnaround Console UI."""
     from departments.medicine.adt_engine import ADTEngine
@@ -686,6 +783,7 @@ def ward_bed_grid_view():
 
 @bp.route("/api/beds/status", methods=["GET"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def api_get_bed_status_matrix():
     """Return JSON feeds of live ward bed status matrix."""
     from departments.medicine.adt_engine import ADTEngine
@@ -696,6 +794,7 @@ def api_get_bed_status_matrix():
 
 @bp.route("/api/beds/<int:bed_id>/status", methods=["POST"])
 @login_required
+@roles_required("medicine", "nursing", "theatre", "admin")
 def api_update_bed_status(bed_id: int):
     """Update bed cleaning / housekeeping turnaround status."""
     from departments.medicine.adt_engine import ADTEngine
@@ -731,6 +830,7 @@ def api_update_bed_status(bed_id: int):
 
 @bp.route("/api/adt/admit", methods=["POST"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def api_adt_admit_a01():
     """Process HL7 ADT^A01 Inpatient Admission API endpoint."""
     from departments.medicine.adt_engine import ADTEngine
@@ -777,6 +877,7 @@ def api_adt_admit_a01():
 
 @bp.route("/api/adt/transfer", methods=["POST"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def api_adt_transfer_a02():
     """Process HL7 ADT^A02 Patient Transfer API endpoint."""
     from departments.medicine.adt_engine import ADTEngine
@@ -820,6 +921,7 @@ def api_adt_transfer_a02():
 
 @bp.route("/api/adt/discharge", methods=["POST"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def api_adt_discharge_a03():
     """Process HL7 ADT^A03 Patient Discharge API endpoint."""
     from departments.medicine.adt_engine import ADTEngine
@@ -855,6 +957,7 @@ def api_adt_discharge_a03():
 
 @bp.route("/api/adt/events", methods=["GET"])
 @login_required
+@roles_required("medicine", "nursing", "admin")
 def api_get_adt_events():
     """Fetch historical HL7 ADT event logs."""
     from departments.models.medicine import ADTLog

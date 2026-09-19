@@ -3,8 +3,8 @@ import os
 import uuid as uuid_module
 from datetime import datetime, timedelta, timezone
 
-import requests
 from flask import (
+    abort,
     current_app,
     flash,
     redirect,
@@ -161,43 +161,41 @@ def submit_soap_notes(patient_id):
         db.session.add(new_soap_note)
         db.session.commit()
 
-        # ⭐ --- START: TRIGGER FASTAPI NLP SERVICE --- ⭐
+        # ⭐ --- START: TRIGGER FASTAPI NLP SERVICE (async) --- ⭐
+        # Dispatched via Celery so the clinician's save request never blocks
+        # on the external NLP worker (previously a synchronous 30s-timeout
+        # call in the request path).
         try:
-            # The note_id is now available on the new_soap_note object
-            note_id = new_soap_note.id
+            from departments.tasks import process_soap_note_ai_analysis
 
-            # This URL should ideally be stored in your Flask app's configuration
-            nlp_api_url = "http://127.0.0.1:8000/process_note"
-            payload = {"note_id": note_id}
-
-            # Send the request to the FastAPI service
-            response = requests.post(nlp_api_url, json=payload, timeout=30)
-
-            # This will raise an HTTPError if the HTTP request returned an unsuccessful status code
-            response.raise_for_status()
-
+            process_soap_note_ai_analysis.delay(new_soap_note.id)
             logger.info(
-                f"Successfully triggered AI analysis for SOAP note ID: {note_id}"
+                "Queued async AI analysis for SOAP note ID: %s", new_soap_note.id
             )
-
-        except requests.exceptions.RequestException as e:
-            # Catch connection errors, timeouts, and bad responses
-            logger.error(f"Failed to trigger AI analysis for note ID {note_id}: {e}")
+        except Exception:
+            logger.exception(
+                "Failed to queue AI analysis for SOAP note ID %s", new_soap_note.id
+            )
             flash(
-                "Note saved, but the AI analysis service could not be reached. Please ask an admin to process it manually.",
+                "Note saved, but the AI analysis service could not be queued. Please ask an admin to process it manually.",
                 "warning",
             )
-        # ⭐ --- END: TRIGGER FASTAPI NLP SERVICE --- ⭐
+        # ⭐ --- END: TRIGGER FASTAPI NLP SERVICE (async) --- ⭐
 
         # --- Imaging Request Processing ---
+        # Word-boundary matching only: substring matching used to fire on
+        # words that merely CONTAIN a keyword ("aCTual", "imporTANt",
+        # "PETer"), creating phantom unmatched imaging requests.
         imaging_keywords = ["ct", "mri", "x-ray", "ultrasound", "pet", "scan"]
         words = recommendation.lower().split()
         matched_imaging = set()
         for i, word in enumerate(words):
+            stripped = word.strip(".,;:!?")
             for keyword in imaging_keywords:
-                if keyword in word:
+                if stripped == keyword or stripped.startswith(keyword + "-"):
                     phrase = " ".join(words[i : i + 2]) if i + 1 < len(words) else word
                     matched_imaging.add(phrase)
+                    break
 
         unmatched_requests = []
         for imaging_request in matched_imaging:
@@ -237,15 +235,29 @@ def submit_soap_notes(patient_id):
         # Phase 2: consult complete != visit complete. Route the visit to the
         # next department and keep the Encounter open so post-consult charges
         # (lab, drugs) still scope to this visit's invoice.
-        pending_labs = RequestedLab.query.filter_by(
-            patient_id=patient_id, status=0
-        ).count()
-        pending_imaging = RequestedImage.query.filter_by(
-            patient_id=patient_id, status=0
-        ).count()
-        pending_rx = PrescribedMedicine.query.filter_by(
-            patient_id=patient_id, status=0
-        ).count()
+        # Scope pending work to THIS encounter — a stale request from a prior
+        # visit must not pin every future encounter to AWAITING_RESULTS.
+        pending_labs = (
+            RequestedLab.query.filter_by(status=0).filter(
+                RequestedLab.encounter_id == encounter.id
+            ).count()
+            if encounter
+            else 0
+        )
+        pending_imaging = (
+            RequestedImage.query.filter_by(status=0).filter(
+                RequestedImage.encounter_id == encounter.id
+            ).count()
+            if encounter
+            else 0
+        )
+        pending_rx = (
+            PrescribedMedicine.query.filter_by(status=0).filter(
+                PrescribedMedicine.encounter_id == encounter.id
+            ).count()
+            if encounter
+            else 0
+        )
 
         encounter = (
             Encounter.query.filter_by(patient_id=str(patient_id), status="ACTIVE")
@@ -314,12 +326,24 @@ def notes(patient_id):
 
 @bp.route("/notes/<int:note_id>/reprocess", methods=["POST"])
 @login_required
+@roles_required("medicine", "admin")
 def reprocess_note(note_id):
-    return redirect(
-        url_for(
-            "medicine.notes", patient_id=db.session.get(SOAPNote, note_id).patient_id
+    """Re-queue the AI analysis for a SOAP note (previously a no-op redirect)."""
+    note = db.session.get(SOAPNote, note_id)
+    if not note:
+        abort(404)
+    try:
+        from departments.tasks import process_soap_note_ai_analysis
+
+        process_soap_note_ai_analysis.delay(note.id)
+        flash("AI analysis re-queued for this note.", "success")
+    except Exception:
+        logger.exception("Failed to re-queue AI analysis for note %s", note_id)
+        flash(
+            "Could not queue AI analysis — please try again or contact an admin.",
+            "error",
         )
-    )
+    return redirect(url_for("medicine.notes", patient_id=note.patient_id))
 
 
 def _results_ready_for_review(hours: int = 48):
@@ -398,12 +422,12 @@ def index():
             pending_labs = RequestedLab.query.filter_by(status=0).count()
             pending_imaging = RequestedImage.query.filter_by(status=0).count()
             theatre_pending = TheatreList.query.filter_by(status=0).count()
+            results_ready = _results_ready_for_review()
         except Exception as e:  # noqa: BLE001
             db.session.rollback()
             logger.error(f"Error calculating dashboard KPIs: {e}")
             total_inpatients = pending_labs = pending_imaging = theatre_pending = 0
-
-        results_ready = _results_ready_for_review()
+            results_ready = []
 
         return render_template(
             "medicine/index.html",
@@ -436,13 +460,9 @@ def index():
 def soap_notes(patient_id):
     """View or submit SOAP notes for a specific patient."""
     try:
-        # Fetch the patient
-        patient = Patient.query.filter(
-            db.or_(
-                Patient.patient_id.ilike(f"%{patient_id}%"),
-                Patient.name.ilike(f"%{patient_id}%"),
-            )
-        ).first()
+        # Fetch the patient — exact match only, so the notes opened are for
+        # the exact patient the clinician selected (no "P1" → "P10" drift).
+        patient = Patient.query.filter_by(patient_id=patient_id).first()
         if not patient:
             flash(f"Patient with ID {patient_id} not found!", "error")
             return redirect(url_for("medicine.index"))
@@ -493,9 +513,10 @@ def soap_notes(patient_id):
             drugs=drugs,
             prescription_id=prescription_id,  # Pass the prescription_id to the template
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
+        db.session.rollback()
+        logger.exception("Error in medicine.soap_notes")
         flash("Something went wrong. Please try again.", "error")
-        print(f"Debug: Error in medicine.soap_notes: {e}")  # Debugging
         return redirect(url_for("medicine.index"))  # Redirect to index on error
 
 

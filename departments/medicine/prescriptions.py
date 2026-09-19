@@ -83,21 +83,20 @@ def prescribe_drugs(patient_id):
             )
             return redirect(url_for("medicine.index"))
 
-        # Get patient record
-        patient = Patient.query.filter(
-            db.or_(
-                Patient.patient_id.ilike(f"%{patient_id}%"),
-                Patient.name.ilike(f"%{patient_id}%"),
-            )
-        ).first()
+        # Get patient record — exact match only. A fuzzy ilike on id/name
+        # could save the prescription onto a different patient than the one
+        # the clinician selected ("P1" resolving to "P10").
+        patient = Patient.query.filter_by(patient_id=patient_id).first()
         if not patient:
             flash(f"Patient with ID {patient_id} not found in the system!", "error")
             return redirect(url_for("medicine.index"))
 
-        # Generate new prescription session if missing
-        if "prescription_id" not in session:
-            session["prescription_id"] = str(uuid.uuid4())
-        prescription_id = session["prescription_id"]
+        # Per-patient prescription draft key. A single shared session key was
+        # clobbered when a clinician worked on two patients in separate tabs.
+        draft_key = f"prescription_id_{patient.patient_id}"
+        if draft_key not in session:
+            session[draft_key] = str(uuid.uuid4())
+        prescription_id = session[draft_key]
 
         drugs = Medicine.query.all()
 
@@ -121,7 +120,8 @@ def prescribe_drugs(patient_id):
                     dept=dept,
                 )
 
-            # Save prescriptions
+            # Save prescriptions — scoped to the active encounter for this
+            # patient's visit.
             encounter = active_encounter(patient.patient_id)
             for drug_id in drugs_selected:
                 prescribed = PrescribedMedicine(
@@ -141,9 +141,9 @@ def prescribe_drugs(patient_id):
             try:
                 db.session.commit()
 
-            except Exception as e:  # noqa: BLE001
+            except Exception:  # noqa: BLE001
                 db.session.rollback()
-                logger.error(f"Database commit failed: {e}")
+                logger.exception("Database commit failed in prescribe_drugs")
                 flash("Something went wrong. Please try again.", "error")
                 return redirect(
                     url_for(
@@ -284,6 +284,20 @@ def delete_prescribed_medicine(medicine_id):
     try:
         prescribed_medicine = PrescribedMedicine.query.get_or_404(medicine_id)
         patient_id = prescribed_medicine.patient_id
+        if prescribed_medicine.status == 1:
+            flash(
+                "This prescription has already been dispensed by pharmacy "
+                "and can no longer be deleted.",
+                "error",
+            )
+            return redirect(
+                url_for(
+                    "medicine.prescribe_drugs",
+                    patient_id=patient_id,
+                    prescription_id=prescription_id,
+                    dept=dept,
+                )
+            )
         db.session.delete(prescribed_medicine)
         db.session.commit()
         flash("Prescribed medicine deleted successfully!", "success")
@@ -315,8 +329,9 @@ def save_prescription(prescription_id, patient_id):
 
         # Optional: mark prescription as finalized in DB here
 
-        # ✅ Clear current prescription session
-        session.pop("prescription_id", None)
+        # ✅ Clear the per-patient prescription draft (matches the per-patient
+        # key used by prescribe_drugs).
+        session.pop(f"prescription_id_{patient_id}", None)
 
         flash("Prescription finalized and saved successfully.", "success")
 
@@ -346,8 +361,8 @@ def get_edit_form():
             "medicine/edit_prescribed_medicine.html",
             prescribed_medicine=prescribed_medicine,
         )
-    except Exception as e:  # noqa: BLE001
-        print(f"Debug: Error in medicine.get_edit_form: {e}")
+    except Exception:  # noqa: BLE001
+        logger.exception("Error serving medicine edit form")
         return "Error loading edit form."
 
 
@@ -505,8 +520,8 @@ def drug_details(drug: str):
                 grouped_data=grouped_data,
                 struct_id=struct_id,
             )
-    except Exception as e:  # noqa: BLE001
-        print(f"Database error: {e!s}")
+    except Exception:  # noqa: BLE001
+        logger.exception("Database error fetching DrugCentral drug details")
         return render_template(
             "medicine/error.html",
             message="An error occurred while fetching drug details.",

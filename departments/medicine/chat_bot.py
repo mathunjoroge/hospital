@@ -75,6 +75,37 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+# Heuristics for detecting patient-identifiable clinical narratives in
+# unscoped chatbot input (no patient_id supplied).
+_CLINICAL_MARKERS = (
+    "patient ",
+    "pt ",
+    "complains of",
+    "presenting with",
+    "hx of",
+    "history of",
+    "on examination",
+    "o/e",
+    "bp ",
+    "temp ",
+    "diagnosis",
+    "prescribed",
+    "admitted",
+    "discharged",
+    "ward",
+    "symptoms",
+    "vitals",
+)
+
+
+def _contains_clinical_narrative(text: str) -> bool:
+    """Conservative heuristic: True when text looks like clinical note content."""
+    if not text:
+        return False
+    lowered = text.lower()
+    return any(marker in lowered for marker in _CLINICAL_MARKERS)
+
+
 def extract_file_content(file):
     """Extract content from uploaded file based on its type."""
     filename = secure_filename(file.filename)
@@ -284,6 +315,38 @@ def chatbot_interface():
                         ).encode("utf-8"),
                         status=403,
                     )
+            elif input_note or file_content:
+                # P2-18: no patient_id supplied, but clinical content is being
+                # sent to the external model. Past clinical notes used to slip
+                # through with NO consent gate and NO disclosure audit row.
+                # Detect patient-identifiable clinical narratives and require
+                # a consented patient identifier before releasing them.
+                looks_clinical = _contains_clinical_narrative(
+                    (input_note or "") + "\n" + (file_content or "")
+                )
+                if looks_clinical:
+                    log_audit_event(
+                        action="AI_CONSENT_REFUSED",
+                        resource_type="Patient",
+                        resource_id="UNSCOPED_INPUT",
+                        details={
+                            "feature": "clinical_chatbot",
+                            "reason": "Patient-identifiable clinical content submitted without a patient_id; refusing AI processing (DPA 2019)",
+                        },
+                    )
+                    return Response(
+                        Summarizer._format_output(
+                            "This input looks like patient clinical data. Select the patient (or enter their patient ID) so AI consent can be verified before processing — DPA 2019 requires it.",
+                            is_error=True,
+                        ).encode("utf-8"),
+                        status=403,
+                    )
+                log_audit_event(
+                    action="AI_CHATBOT_GENERAL_QUERY",
+                    resource_type="None",
+                    resource_id="none",
+                    details={"feature": "clinical_chatbot"},
+                )
 
             # Assemble full context
             conversation_context = session.get("conversation", [])[:]

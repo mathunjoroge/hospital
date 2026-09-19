@@ -249,6 +249,12 @@ def check_patient_allergies(patient: Patient, drug_name: str) -> dict | None:
     """
     Check if patient has recorded allergies matching the drug.
 
+    Sources, in priority order:
+      1. Structured PatientAllergy registry (primary, always authoritative).
+      2. Nursing-note free-text allergy documentation.
+      3. Legacy heuristic: patient narrative fields mentioning the allergen
+         class or the word "allergy" (kept for backward compatibility).
+
     Returns:
         Warning dict if allergen match found, otherwise None.
     """
@@ -257,13 +263,37 @@ def check_patient_allergies(patient: Patient, drug_name: str) -> dict | None:
 
     drug_lower = drug_name.strip().lower()
 
-    # Search patient notes / next_of_kin / allergy fields
-    combined_history = " ".join(
-        [
-            patient.name or "",
-            patient.relationship_with_next_of_kin or "",
-        ]
-    ).lower()
+    # Build the documented-allergy text corpus for this patient.
+    history_parts = [
+        patient.name or "",
+        patient.relationship_with_next_of_kin or "",
+    ]
+
+    try:
+        from departments.models.records import PatientAllergy
+
+        for allergy in PatientAllergy.query.filter_by(
+            patient_id=patient.patient_id
+        ).all():
+            if allergy.allergen:
+                history_parts.append(allergy.allergen)
+            if allergy.reaction:
+                history_parts.append(allergy.reaction)
+    except Exception:  # noqa: BLE001
+        logger.warning("PatientAllergy lookup failed for %s", patient.patient_id)
+
+    try:
+        from departments.models.nursing import NursingNote
+
+        for note in NursingNote.query.filter_by(
+            patient_id=patient.patient_id
+        ).all():
+            if note.allergies:
+                history_parts.append(note.allergies)
+    except Exception:  # noqa: BLE001
+        logger.warning("Nursing allergy lookup failed for %s", patient.patient_id)
+
+    combined_history = " ".join(history_parts).lower()
 
     for allergen, keywords in ALLERGY_PATTERNS.items():
         if any(kw in drug_lower for kw in keywords):  # noqa: SIM102

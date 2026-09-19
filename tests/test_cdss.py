@@ -64,7 +64,7 @@ def test_renal_dosing_guidance():
     assert "Lactic Acidosis" in guidance["guidance"]
 
 
-def test_cdss_evaluate_endpoint(client):
+def test_cdss_evaluate_endpoint(client, admin_user):
     """POST /medicine/prescribe/cdss/evaluate returns structured CDSS safety report."""
     resp = client.post(
         "/medicine/prescribe/cdss/evaluate",
@@ -227,7 +227,7 @@ def test_evaluate_prescription_safety_hepatic_pediatric_pregnancy():
     assert any("Category X" in w.get("message", "") for w in preg_res["warnings"])
 
 
-def test_cdss_evaluate_endpoint_pregnancy_block(client):
+def test_cdss_evaluate_endpoint_pregnancy_block(client, admin_user):
     """POST /medicine/prescribe/cdss/evaluate returns pregnancy Category X warnings."""
     resp = client.post(
         "/medicine/prescribe/cdss/evaluate",

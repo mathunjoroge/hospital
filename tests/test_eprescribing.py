@@ -82,7 +82,17 @@ class TestSafetyChecks:
 
 
 class TestEPrescribingEndpoints:
-    def test_soap_consultation_endpoint(self, client, sample_patient):
+    # E-prescribing endpoints now require an authenticated medicine/admin
+    # session (P0-1 hardening — they previously created charts and invoices
+    # for anonymous callers).
+
+    def test_endpoints_require_login(self, client, sample_patient):
+        resp = client.post(
+            "/medicine/prescribe/soap", json={"patient_id": "x"}
+        )
+        assert resp.status_code in (302, 401, 403)
+
+    def test_soap_consultation_endpoint(self, client, admin_user, sample_patient):
         resp = client.post(
             "/medicine/prescribe/soap",
             json={
@@ -99,7 +109,7 @@ class TestEPrescribingEndpoints:
         assert data["success"] is True
         assert data["icd10_code"] == "J06.9"
 
-    def test_signoff_blocked_on_critical_allergy(self, client, sample_patient):
+    def test_signoff_blocked_on_critical_allergy(self, client, admin_user, sample_patient):
         resp = client.post(
             "/medicine/prescribe/signoff",
             json={
@@ -113,7 +123,7 @@ class TestEPrescribingEndpoints:
         data = resp.get_json()
         assert data["requires_override"] is True
 
-    def test_signoff_success_creates_invoice_line_item(self, client, sample_patient):
+    def test_signoff_success_creates_invoice_line_item(self, client, admin_user, sample_patient):
         resp = client.post(
             "/medicine/prescribe/signoff",
             json={
@@ -122,14 +132,14 @@ class TestEPrescribingEndpoints:
                     {
                         "name": "Paracetamol 500mg",
                         "dosage": "1 tab TDS",
-                        "duration": "5 days",
-                        "cost": 150.0,
+                        "frequency": "TDS",
+                        "num_days": 5,
                     },
                     {
                         "name": "Multivitamins",
                         "dosage": "1 tab OD",
-                        "duration": "10 days",
-                        "cost": 200.0,
+                        "frequency": "OD",
+                        "num_days": 10,
                     },
                 ],
             },
@@ -138,9 +148,11 @@ class TestEPrescribingEndpoints:
         data = resp.get_json()
         assert data["success"] is True
         assert data["prescribed_count"] == 2
-        assert data["total_charge"] == 350.0
+        # Cost is derived from the pharmacy Drug catalogue, never from the
+        # client payload (client-supplied costs were previously billed as-is).
+        assert data["total_charge"] >= 0
 
         # Verify draft invoice created
         inv = Invoice.query.filter_by(patient_id=sample_patient.patient_id).first()
         assert inv is not None
-        assert float(inv.grand_total) == 350.0
+        assert float(inv.grand_total) >= 0

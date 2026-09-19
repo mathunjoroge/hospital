@@ -928,7 +928,9 @@ def new_booking():
     patients = Patient.query.all()
     if not patients:
         flash("No patients available. Please add a patient first.", "danger")
-        return redirect(url_for("medicine.patients_list"))
+        # FIX: 'medicine.patients_list' does not exist — that url_for raised a
+        # guaranteed BuildError 500. Route to the oncology home instead.
+        return redirect(url_for("medicine.oncology"))
     return render_template("medicine/oncology/new_booking.html", patients=patients)
 
 

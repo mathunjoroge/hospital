@@ -40,9 +40,7 @@ def test_chatbot_async_route_dispatches_task_immediately(client, logged_in_user)
     ) as mock_delay:
         resp = client.post(
             "/medicine/chatbot",
-            data={
-                "clinical_note": "Patient presents with persistent cough and mild fever."
-            },
+            data={"clinical_note": "Summarize current sepsis management guidelines."},
         )
 
         assert resp.status_code == 202
@@ -54,7 +52,7 @@ def test_chatbot_async_route_dispatches_task_immediately(client, logged_in_user)
         # Verify .delay() was called with prompt text
         mock_delay.assert_called_once()
         args, _ = mock_delay.call_args
-        assert "persistent cough and mild fever" in args[0]
+        assert "sepsis management guidelines" in args[0]
 
 
 def test_chatbot_celery_task_execution(app):

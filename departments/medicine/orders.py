@@ -1,11 +1,11 @@
 import os
 import uuid
+from datetime import datetime
 from typing import Any
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import login_required
 from psycopg2.extras import RealDictCursor
-from sqlalchemy.orm import joinedload
 
 from departments.models.medicine import (
     Imaging,
@@ -15,7 +15,7 @@ from departments.models.medicine import (
     SOAPNote,
     UnmatchedImagingRequest,
 )
-from departments.models.records import Patient, PatientWaitingList
+from departments.models.records import Patient
 from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.nlp.logging_setup import get_logger
 from departments.rbac import roles_required
@@ -44,23 +44,18 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB max file size
 @login_required
 @roles_required("medicine", "admin")
 def request_lab_tests(patient_id):
-    """Handles lab test requests."""
+    """Handles lab test requests (OPD waiting-list and admitted IPD patients)."""
     try:
         dept = request.args.get("dept")  # ✅ Capture dept from query string
 
-        # Fetch patient from waiting list
-        patient_entry = (
-            PatientWaitingList.query.filter_by(patient_id=patient_id)
-            .options(joinedload(PatientWaitingList.patient))
-            .first()
-        )
-        if not patient_entry or not patient_entry.patient:
-            flash(
-                f"Patient with ID {patient_id} not found in the waiting list!", "error"
-            )
+        # Resolve the patient from the Patient master directly. The old
+        # waiting-list-only lookup meant admitted (IPD) patients could never
+        # have labs ordered from the ward.
+        patient = Patient.query.filter_by(patient_id=patient_id).first()
+        if not patient:
+            flash(f"Patient with ID {patient_id} not found!", "error")
             return redirect(url_for("medicine.index"))
 
-        patient = patient_entry.patient
         lab_tests = LabTest.query.all()
 
         if request.method == "POST":
@@ -82,6 +77,15 @@ def request_lab_tests(patient_id):
 
             encounter = active_encounter(patient_id)
 
+            # Duplicate guard: skip tests already requested and still pending
+            # for this patient (double-click / refresh resubmits).
+            pending_test_ids = {
+                row.lab_test_id
+                for row in RequestedLab.query.filter_by(
+                    patient_id=patient_id, status=0
+                ).all()
+            }
+
             for lab_test_id in lab_test_ids:
                 description = descriptions.get(str(lab_test_id), "").strip()
 
@@ -96,6 +100,9 @@ def request_lab_tests(patient_id):
                         lab_tests=lab_tests,
                         dept=dept,
                     )
+
+                if int(lab_test_id) in pending_test_ids:
+                    continue  # already requested and pending
 
                 result_id = str(uuid.uuid4())
 
@@ -142,23 +149,16 @@ def request_lab_tests(patient_id):
 @login_required
 @roles_required("medicine", "admin")
 def request_imaging(patient_id):
-    """Handles imaging requests."""
+    """Handles imaging requests (OPD waiting-list and admitted IPD patients)."""
     try:
         dept = request.args.get("dept")  # ✅ Capture dept from query string
 
-        # Fetch patient from waiting list
-        patient_entry = (
-            PatientWaitingList.query.filter_by(patient_id=patient_id)
-            .options(joinedload(PatientWaitingList.patient))
-            .first()
-        )
-        if not patient_entry or not patient_entry.patient:
-            flash(
-                f"Patient with ID {patient_id} not found in the waiting list!", "error"
-            )
+        # Resolve from Patient master directly (see request_lab_tests note).
+        patient = Patient.query.filter_by(patient_id=patient_id).first()
+        if not patient:
+            flash(f"Patient with ID {patient_id} not found!", "error")
             return redirect(url_for("medicine.index"))
 
-        patient = patient_entry.patient
         soap_notes = (
             SOAPNote.query.filter_by(patient_id=patient_id)
             .order_by(SOAPNote.created_at.desc())
@@ -187,6 +187,14 @@ def request_imaging(patient_id):
 
             encounter = active_encounter(patient_id)
 
+            # Duplicate guard for pending imaging requests.
+            pending_imaging_ids = {
+                row.imaging_id
+                for row in RequestedImage.query.filter_by(
+                    patient_id=patient_id, status=0
+                ).all()
+            }
+
             for imaging_id in imaging_ids:
                 description = descriptions.get(str(imaging_id), "").strip()
 
@@ -202,6 +210,9 @@ def request_imaging(patient_id):
                         imaging_types=imaging_types,
                         dept=dept,
                     )
+
+                if int(imaging_id) in pending_imaging_ids:
+                    continue  # already requested and pending
 
                 result_id = str(uuid.uuid4())
                 new_image_request = RequestedImage(
@@ -280,10 +291,26 @@ def unmatched_imaging():
             else:
                 flash("Invalid request!", "error")
 
-    # Get filtering parameters
+    # Get filtering parameters (validate dates: raw strings passed straight
+    # to a DateTime comparison raised a 500 on invalid input)
     patient_name = request.args.get("patient_name", "").strip()
-    start_date = request.args.get("start_date", "")
-    end_date = request.args.get("end_date", "")
+    start_date_raw = request.args.get("start_date", "")
+    end_date_raw = request.args.get("end_date", "")
+
+    def _parse_date(raw, end_of_day=False):
+        if not raw:
+            return None
+        try:
+            parsed = datetime.strptime(raw, "%Y-%m-%d")
+            if end_of_day:
+                parsed = parsed.replace(hour=23, minute=59, second=59)
+            return parsed
+        except ValueError:
+            flash("Invalid date filter — use YYYY-MM-DD.", "error")
+            return None
+
+    start_date = _parse_date(start_date_raw)
+    end_date = _parse_date(end_date_raw, end_of_day=True)
 
     # Base query for unmatched imaging requests
     unmatched_requests = UnmatchedImagingRequest.query.join(Patient).order_by(
@@ -308,12 +335,12 @@ def unmatched_imaging():
     imaging_options = Imaging.query.all()
 
     return render_template(
-        "unmatched_imaging.html",
+        "medicine/unmatched_imaging.html",
         unmatched_requests=unmatched_requests,
         imaging_options=imaging_options,
         patient_name=patient_name,
-        start_date=start_date,
-        end_date=end_date,
+        start_date=start_date_raw,
+        end_date=end_date_raw,
     )
 
 
@@ -366,6 +393,6 @@ def fetch_drugs_data(search_query: str | None = None) -> list[dict[str, Any]]:
             base_query += " ORDER BY generic_name"
             cur.execute(base_query, params)
             return cur.fetchall()
-    except Exception as e:  # noqa: BLE001
-        print(f"Database error: {e!s}")
+    except Exception:  # noqa: BLE001
+        logger.exception("Database error fetching drugs reference data")
         return []
