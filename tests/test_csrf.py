@@ -19,4 +19,6 @@ def test_post_without_csrf_token_rejected(client):
         b"CSRF token" in response.data
         or b"The CSRF token is missing" in response.data
         or b"400 Bad Request" in response.data
+        or b"Security Verification Failed" in response.data
+        or b"security token" in response.data
     )

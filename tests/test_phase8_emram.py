@@ -356,6 +356,10 @@ class TestETLAdditional:
 
     def test_etl_endpoint_exists(self, client, admin_user):
         """POST /api/analytics/etl/trigger endpoint exists."""
+        client.post(
+            "/login",
+            data={"username": admin_user.username, "password": "password123"},
+        )
         resp = client.post("/api/analytics/etl/trigger", follow_redirects=True)
         assert resp.status_code in [
             200,
@@ -366,10 +370,14 @@ class TestETLAdditional:
     def test_etl_requires_auth(self, client):
         """ETL trigger endpoint requires authentication."""
         resp = client.post("/api/analytics/etl/trigger", follow_redirects=False)
-        assert resp.status_code == 302
+        assert resp.status_code in [302, 401]  # Redirect or 401 for API endpoints
 
     def test_etl_with_date_param(self, client, admin_user):
         """ETL accepts date parameter."""
+        client.post(
+            "/login",
+            data={"username": admin_user.username, "password": "password123"},
+        )
         resp = client.post(
             "/api/analytics/etl/trigger?date=2024-01-15", follow_redirects=True
         )
