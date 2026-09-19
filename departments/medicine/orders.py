@@ -19,6 +19,13 @@ from departments.models.records import Patient
 from departments.nlp.chatbot import UniversalClinicalSummarizer
 from departments.nlp.logging_setup import get_logger
 from departments.rbac import roles_required
+from departments.shared.drugcentral import (
+    get_cached_drug_query,
+    set_cached_drug_query,
+)
+from departments.shared.drugcentral import (
+    get_drugcentral_connection as get_db_connection,
+)
 from departments.shared.encounter_utils import active_encounter
 from extensions import db, socketio
 
@@ -364,13 +371,6 @@ def get_unmatched_count():
 def inject_unmatched_count():
     """Inject the unmatched count into the template context."""
     return {"unmatched_count": get_unmatched_count()}
-
-
-from departments.shared.drugcentral import (
-    get_cached_drug_query,
-    get_drugcentral_connection as get_db_connection,
-    set_cached_drug_query,
-)
 
 
 def fetch_drugs_data(

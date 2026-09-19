@@ -1,9 +1,9 @@
 import pytest
+from werkzeug.security import generate_password_hash
+
 from departments.models.medicine import Medicine
-from departments.models.pharmacy import DrugCategory, Drug as PharmDrug
 from departments.models.user import User
 from extensions import db
-from werkzeug.security import generate_password_hash
 
 
 @pytest.fixture

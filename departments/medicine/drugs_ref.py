@@ -1,5 +1,3 @@
-import logging
-
 from flask import jsonify, render_template, request, url_for
 from flask_login import login_required
 from psycopg2.extras import RealDictCursor
@@ -234,27 +232,6 @@ def drug_details(drug: str):
         with get_db_connection() as conn, conn.cursor(
             cursor_factory=RealDictCursor
         ) as cur:
-            # Table name mapping for user-friendly display
-            TABLE_NAME_MAPPING = {
-                "faers": "Side Effects",
-                "faers_male": "Side Effects (Male)",
-                "faers_female": "Side Effects (Female)",
-                "faers_ped": "Side Effects (Pediatric)",
-                "faers_ger": "Side Effects (Geriatric)",
-                "approval": "Regulatory Approvals",
-                "ob_patent_view": "Patents",
-                "ob_exclusivity_view": "Exclusivity Data",
-                "active_ingredient": "Active Ingredients",
-                "pharma_class": "Pharmacological Class",
-                "act_table_full": "Drug-Target Interactions",
-                "pka": "pKa Values",
-                "pdb": "Protein Data Bank (PDB) Structures",
-                "atc_ddd": "ATC Classification & Defined Daily Dose",
-                "struct2obprod": "Marketed Drug Products",
-                "struct2atc": "ATC Codes",
-                "omop_relationship": "Clinical Data Relationships",
-            }
-
             # Tier 1: Exact match on active_ingredient.substance_name
             cur.execute(
                 """
