@@ -2,12 +2,21 @@
 
 Thank you for contributing to the Health Information Management System (HIMS). To maintain high clinical safety, data privacy, and code quality, please adhere to the following development guidelines.
 
+## 🚀 How to Get Started
+
+1. **Find an Issue**: Look for issues labeled `good first issue` or `help wanted` on GitHub.
+2. **Setup Environment**: Copy `.env.example` to `.env` to configure local variables:
+   ```bash
+   cp .env.example .env
+   ```
+   *(Never commit real secrets or credentials in `.env` to source control)*
+
 ---
 
 ## 🛠️ Development Workflow
 
 1. **Fork & Branching**:
-   - Create feature/bugfix branches off `main` or `hardening/phase-0`.
+   - Create feature/bugfix branches off `main`.
    - Branch naming convention: `feature/short-description` or `fix/issue-description`.
 
 2. **Coding Standards**:
