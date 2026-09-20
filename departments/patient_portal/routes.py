@@ -12,8 +12,9 @@ from flask import (
 from departments.api.audit import log_audit_event
 from departments.models.billing import Invoice, InvoiceLineItem, Payment
 from departments.models.insurance import Claim, PatientInsurance
-from departments.models.medicine import RequestedLab
+from departments.models.medicine import OncologyBooking, RequestedLab
 from departments.models.records import Clinic, ClinicBooking
+from departments.models.renal import DialysisSession
 from extensions import db
 
 from . import patient_portal_bp
@@ -26,11 +27,52 @@ def dashboard():
     patient = g.current_patient
 
     # Upcoming bookings (ClinicBooking uses clinic_date, not booking_date)
+    today = datetime.now(timezone.utc).date()
     upcoming_bookings = (
         ClinicBooking.query.filter_by(patient_id=patient.patient_id)
-        .filter(ClinicBooking.clinic_date >= datetime.now(timezone.utc).date())
+        .filter(ClinicBooking.clinic_date >= today)
         .all()
     )
+
+    # Specialty appointments (B6): upcoming dialysis runs & oncology bookings
+    dialysis_sessions = (
+        DialysisSession.query.filter(
+            DialysisSession.patient_id == patient.patient_id,
+            DialysisSession.session_date >= today,
+            DialysisSession.status.in_(("SCHEDULED", "IN_PROGRESS")),
+        )
+        .order_by(DialysisSession.session_date.asc())
+        .limit(5)
+        .all()
+    )
+    oncology_bookings = (
+        OncologyBooking.query.filter(
+            OncologyBooking.patient_id == patient.patient_id,
+            OncologyBooking.booking_date >= today,
+            OncologyBooking.status == "Scheduled",
+        )
+        .order_by(OncologyBooking.booking_date.asc())
+        .limit(5)
+        .all()
+    )
+    specialty_appointments = [
+        {
+            "kind": f"Dialysis ({s.modality})",
+            "date": s.session_date,
+            "time": s.start_time.strftime("%H:%M") if s.start_time else None,
+            "status": s.status,
+        }
+        for s in dialysis_sessions
+    ] + [
+        {
+            "kind": f"Oncology — {ob.purpose}",
+            "date": ob.booking_date,
+            "time": ob.start_time.strftime("%H:%M") if ob.start_time else None,
+            "status": ob.status,
+        }
+        for ob in oncology_bookings
+    ]
+    specialty_appointments.sort(key=lambda a: (a["date"], a["time"] or "99:99"))
 
     # Released lab results only — integer statuses: 1 = done/released
     # We show status=1 (processed) as the "released" gate
@@ -54,6 +96,7 @@ def dashboard():
         "patient_portal/dashboard.html",
         patient=patient,
         upcoming_bookings=upcoming_bookings,
+        specialty_appointments=specialty_appointments,
         released_labs=released_labs,
         recent_invoices=recent_invoices,
     )

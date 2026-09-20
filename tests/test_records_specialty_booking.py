@@ -287,31 +287,136 @@ class TestOncologySourceParity:
         db.session.commit()
 
     def test_oncology_board_source_filter(self, app, admin_user):
-        self._seed_two_bookings()
+        # NOTE: keep login + request inside the SAME app context — the
+        # admin_user fixture's session detaches after its own context exits.
+        with app.app_context():
+            self._seed_two_bookings()
 
-        resp = app.test_client().get("/medicine/bookings/?source=RECORDS")
-        assert resp.status_code == 200
-        html = resp.data
-        assert b"Records Referred" in html          # records booking shown
-        assert b"Unit Booked" not in html           # unit booking filtered out
-        assert html.count(b"fas fa-clipboard") == 1  # exactly one Records badge
-        assert b'value="RECORDS" selected' in html   # filter stays selected
+            tc = app.test_client()
+            tc.post(
+                "/login", data={"username": "admin_test_fixture", "password": "admin123"}
+            )
+            resp = tc.get("/medicine/bookings/?source=RECORDS")
+            assert resp.status_code == 200
+            html = resp.data
+            assert b"Records Referred" in html          # records booking shown
+            assert b"Unit Booked" not in html           # unit booking filtered out
+            assert html.count(b"fas fa-clipboard") == 1  # exactly one Records badge
+            assert b'value="RECORDS" selected' in html   # filter stays selected
 
     def test_oncology_board_shows_all_sources_by_default(self, app, admin_user):
-        self._seed_two_bookings()
+        with app.app_context():
+            self._seed_two_bookings()
 
-        resp = app.test_client().get("/medicine/bookings/")
-        assert resp.status_code == 200
-        html = resp.data
-        assert b"Records Referred" in html
-        assert b"Unit Booked" in html
-        assert html.count(b"fas fa-clipboard") == 1  # only the records card is badged
+            tc = app.test_client()
+            tc.post(
+                "/login", data={"username": "admin_test_fixture", "password": "admin123"}
+            )
+            resp = tc.get("/medicine/bookings/")
+            assert resp.status_code == 200
+            html = resp.data
+            assert b"Records Referred" in html
+            assert b"Unit Booked" in html
+            assert html.count(b"fas fa-clipboard") == 1  # only the records card is badged
 
     def test_oncology_board_invalid_source_ignored(self, app, admin_user):
-        self._seed_two_bookings()
+        with app.app_context():
+            self._seed_two_bookings()
 
-        resp = app.test_client().get("/medicine/bookings/?source=bogus")
-        assert resp.status_code == 200
-        html = resp.data
-        assert b"Records Referred" in html
-        assert b"Unit Booked" in html
+            tc = app.test_client()
+            tc.post(
+                "/login", data={"username": "admin_test_fixture", "password": "admin123"}
+            )
+            resp = tc.get("/medicine/bookings/?source=bogus")
+            assert resp.status_code == 200
+            html = resp.data
+            assert b"Records Referred" in html
+            assert b"Unit Booked" in html
+
+
+# ─────────────────────────────────────────────────────────────
+# 5. Oncology slot times (B5)
+# ─────────────────────────────────────────────────────────────
+
+
+class TestOncologySlotTime:
+    def test_new_booking_with_slot_time(self, app, admin_user):
+        from extensions import db
+
+        with app.app_context():
+            db.session.add(_make_patient("OSL1"))
+            db.session.commit()
+            tc = app.test_client()
+            tc.post(
+                "/login", data={"username": "admin_test_fixture", "password": "admin123"}
+            )
+
+            resp = tc.post(
+                "/medicine/bookings/new",
+                data={
+                    "patient_id": "PTOSL1",
+                    "booking_date": BOOKING_DATE.strftime("%Y-%m-%d"),
+                    "start_time": "14:30",
+                    "purpose": "Chemotherapy",
+                    "status": "Scheduled",
+                },
+                follow_redirects=True,
+            )
+
+            assert resp.status_code == 200
+            booking = OncologyBooking.query.filter_by(patient_id="PTOSL1").one()
+            assert booking.start_time is not None
+            assert booking.start_time.hour == 14
+            assert booking.start_time.minute == 30
+            assert booking.start_time.date() == BOOKING_DATE
+
+    def test_new_booking_invalid_slot_time_rejected(self, app, admin_user):
+        from extensions import db
+
+        with app.app_context():
+            db.session.add(_make_patient("OSL2"))
+            db.session.commit()
+            tc = app.test_client()
+            tc.post(
+                "/login", data={"username": "admin_test_fixture", "password": "admin123"}
+            )
+
+            resp = tc.post(
+                "/medicine/bookings/new",
+                data={
+                    "patient_id": "PTOSL2",
+                    "booking_date": BOOKING_DATE.strftime("%Y-%m-%d"),
+                    "start_time": "9am",
+                    "purpose": "Consultation",
+                    "status": "Scheduled",
+                },
+                follow_redirects=True,
+            )
+
+            assert resp.status_code == 200  # flash + redirect back to form
+            assert OncologyBooking.query.filter_by(patient_id="PTOSL2").count() == 0
+
+    def test_booking_without_slot_time_stays_null(self, app, admin_user):
+        from extensions import db
+
+        with app.app_context():
+            db.session.add(_make_patient("OSL3"))
+            db.session.commit()
+            tc = app.test_client()
+            tc.post(
+                "/login", data={"username": "admin_test_fixture", "password": "admin123"}
+            )
+
+            tc.post(
+                "/medicine/bookings/new",
+                data={
+                    "patient_id": "PTOSL3",
+                    "booking_date": BOOKING_DATE.strftime("%Y-%m-%d"),
+                    "purpose": "Follow-up",
+                    "status": "Scheduled",
+                },
+                follow_redirects=True,
+            )
+
+            booking = OncologyBooking.query.filter_by(patient_id="PTOSL3").one()
+            assert booking.start_time is None

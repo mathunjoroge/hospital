@@ -28,14 +28,20 @@ from flask import abort, jsonify, render_template, request
 from flask_login import current_user, login_required
 
 from departments.models.records import Patient
+from departments.models.renal import RenalUnitConfig
 from departments.rbac import roles_required
 from departments.renal.engine import (
+    VALID_MODALITIES,
     assign_chair_time,
+    count_chair_conflicts,
     create_session,
+    create_session_series,
+    get_chair_capacity,
     get_patient_access_records,
     get_patient_sessions,
     get_unit_sessions,
     log_access_record,
+    parse_weekdays,
     session_summary,
     update_session_status,
 )
@@ -447,8 +453,12 @@ def set_chair_time(session_id: int):
     Assign (or reassign) the chair start time for a session — e.g. slotting a
     Records booking (date only) into the day sheet.
 
-    JSON body: {"chair_time": "HH:MM", "end_time_hm": "HH:MM" (optional)}
-    Both times are anchored to the session's own session_date.
+    JSON body: {"chair_time": "HH:MM", "end_time_hm": "HH:MM" (optional),
+                "session_date": "YYYY-MM-DD" (optional — A3 move-to date)}
+
+    A2: when other active sessions already occupy the slot, a `warning` is
+    returned; when the slot is at chair capacity (RenalUnitConfig.chair_count,
+    default 1), the assignment is rejected with 422.
     """
     data = request.get_json(silent=True) or {}
     chair_time = (data.get("chair_time") or "").strip()
@@ -456,22 +466,120 @@ def set_chair_time(session_id: int):
         return jsonify({"error": "chair_time is required (24-hour HH:MM)"}), 400
     end_time_hm = (data.get("end_time_hm") or "").strip() or None
 
+    move_date = _parse_date(data.get("session_date"))
+    if data.get("session_date") and move_date is None:
+        return jsonify(
+            {"error": "Invalid session_date. Use YYYY-MM-DD."}
+        ), 422
+
     try:
         sess = assign_chair_time(
-            session_id, chair_time=chair_time, end_time_hm=end_time_hm
+            session_id,
+            chair_time=chair_time,
+            end_time_hm=end_time_hm,
+            session_date=move_date,
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 422
     except LookupError as exc:
         return jsonify({"error": str(exc)}), 404
 
+    # A2: soft warning when the slot is shared but not yet at capacity.
+    warning = None
+    if sess.start_time:
+        others = count_chair_conflicts(
+            sess.session_date, sess.start_time, exclude_id=sess.id
+        )
+        if others:
+            warning = (
+                f"{others} other patient(s) share this chair slot "
+                f"(capacity {get_chair_capacity()})."
+            )
+
     logger.info(
-        "Chair time assigned: session_id=%s start=%s actor=%s",
+        "Chair time assigned: session_id=%s start=%s actor=%s warning=%s",
         session_id,
         sess.start_time,
         current_user.id,
+        warning,
     )
-    return jsonify({"success": True, "session": session_summary(sess)}), 200
+    return jsonify(
+        {"success": True, "session": session_summary(sess), "warning": warning}
+    ), 200
+
+
+@renal_bp.route("/sessions/<string:patient_id>/series", methods=["POST"])
+@login_required
+@roles_required(*_RENAL_ROLES)
+def create_series(patient_id: str):
+    """
+    POST /renal/sessions/<patient_id>/series
+    Auto-generate a recurring dialysis series (B4) for a chronic patient.
+
+    JSON body: {"days": "Mon/Wed/Fri" (default: unit shift_pattern),
+                "weeks": 4 (1–26), "chair_time": "HH:MM" (optional),
+                "modality": "HD"|"CRRT", "start_date": "YYYY-MM-DD" (optional,
+                default tomorrow)}
+
+    Dates that already hold a pending session for the patient are skipped.
+    """
+    data = request.get_json(silent=True) or {}
+
+    pattern = (data.get("days") or "").strip()
+    if not pattern:
+        config = RenalUnitConfig.query.first()
+        pattern = (config.shift_pattern or "") if config else ""
+    weekdays = parse_weekdays(pattern)
+    if not weekdays:
+        return jsonify(
+            {"error": "days is required (e.g. 'Mon/Wed/Fri')"}
+        ), 400
+
+    modality = (data.get("modality") or "HD").strip().upper()
+    if modality not in VALID_MODALITIES:
+        return jsonify(
+            {"error": f"modality must be one of {sorted(VALID_MODALITIES)}"}
+        ), 422
+
+    try:
+        weeks = int(data.get("weeks") or 4)
+    except (TypeError, ValueError):
+        return jsonify({"error": "weeks must be an integer (1–26)"}), 422
+
+    start_date = _parse_date(data.get("start_date"))
+    if data.get("start_date") and start_date is None:
+        return jsonify({"error": "Invalid start_date. Use YYYY-MM-DD."}), 422
+
+    chair_time = (data.get("chair_time") or "").strip() or None
+
+    try:
+        created, skipped = create_session_series(
+            patient_id=patient_id,
+            nurse_id=_require_authenticated_user_id(),
+            weekdays=weekdays,
+            weeks=weeks,
+            start_date=start_date,
+            chair_time=chair_time,
+            modality=modality,
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 422
+
+    logger.info(
+        "Series created: patient=%s count=%d skipped=%d actor=%s",
+        patient_id,
+        len(created),
+        len(skipped),
+        current_user.id,
+    )
+    return jsonify(
+        {
+            "success": True,
+            "count": len(created),
+            "created": [session_summary(s) for s in created],
+            "skipped": [d.isoformat() for d in skipped],
+        }
+    ), 201
 
 
 # ── Prescription routes (Section 23 #5) ──────────────────────────────────────

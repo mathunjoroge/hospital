@@ -19,12 +19,14 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import date, datetime, time
+import re
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from departments.models.renal import (
     DialysisPrescription,
     DialysisSession,
+    RenalUnitConfig,
     VascularAccessRecord,
 )
 from extensions import db
@@ -216,10 +218,31 @@ def _parse_hm(value: str, field: str) -> time:
         ) from None
 
 
+def get_chair_capacity() -> int:
+    """Configured chair count for the unit (default 1 when unconfigured)."""
+    config = RenalUnitConfig.query.first()
+    return int(config.chair_count) if config and config.chair_count else 1
+
+
+def count_chair_conflicts(
+    session_date: date, start_time: datetime, exclude_id: int | None = None
+) -> int:
+    """Other active (SCHEDULED/IN_PROGRESS) sessions holding the same slot."""
+    query = DialysisSession.query.filter(
+        DialysisSession.session_date == session_date,
+        DialysisSession.start_time == start_time,
+        DialysisSession.status.in_(("SCHEDULED", "IN_PROGRESS")),
+    )
+    if exclude_id is not None:
+        query = query.filter(DialysisSession.id != exclude_id)
+    return query.count()
+
+
 def assign_chair_time(
     session_id: int,
     chair_time: str,
     end_time_hm: str | None = None,
+    session_date: date | None = None,
 ) -> DialysisSession:
     """
     Assign (or reassign) the chair start time for a dialysis session.
@@ -229,33 +252,63 @@ def assign_chair_time(
     is how nurses slot it into the morning/afternoon/evening day sheet.
 
     end_time_hm: optional "HH:MM" end time; must be after the start time.
-    Raises ValueError for bad input, LookupError for unknown session ids.
+    session_date: optional move-to date (A3 reschedule). When the session
+      moves to a different day, any existing end time is re-anchored to the
+      new date so the duration is preserved.
+
+    Raises ValueError for bad input or a full chair slot (A2: conflict when
+    other active sessions already occupy the slot at chair capacity),
+    LookupError for unknown session ids.
     """
     session = db.session.get(DialysisSession, session_id)
     if session is None:
         raise LookupError(f"DialysisSession #{session_id} not found.")
-    if session.session_date is None:
+
+    new_session_date = session_date or session.session_date
+    if new_session_date is None:
         raise ValueError("Session has no session_date to anchor the chair time to.")
 
     start_t = _parse_hm(chair_time, "chair_time")
-    new_start = datetime.combine(session.session_date, start_t)
+    new_start = datetime.combine(new_session_date, start_t)
+
+    # A2: chair conflict detection — block when the slot is at capacity.
+    capacity = get_chair_capacity()
+    others = count_chair_conflicts(
+        new_session_date, new_start, exclude_id=session.id
+    )
+    if others >= capacity:
+        raise ValueError(
+            f"Chair slot {chair_time} on {new_session_date.isoformat()} is fully "
+            f"booked ({others}/{capacity} chairs occupied). Choose another time."
+        )
 
     new_end = session.end_time
     if end_time_hm:
         end_t = _parse_hm(end_time_hm, "end_time_hm")
-        candidate_end = datetime.combine(session.session_date, end_t)
+        candidate_end = datetime.combine(new_session_date, end_t)
         if candidate_end <= new_start:
             raise ValueError("End time must be after the start time.")
         new_end = candidate_end
+    elif (
+        session.end_time
+        and session_date
+        and session.session_date != new_session_date
+    ):
+        # A3: moving day — re-anchor the existing end time to the new date.
+        new_end = datetime.combine(new_session_date, session.end_time.time())
 
+    session.session_date = new_session_date
     session.start_time = new_start
     session.end_time = new_end
     db.session.commit()
     logger.info(
-        "Chair time assigned: session_id=%s start=%s end=%s",
+        "Chair time assigned: session_id=%s date=%s start=%s end=%s conflicts=%d/%d",
         session_id,
+        session.session_date,
         session.start_time,
         session.end_time,
+        others,
+        capacity,
     )
 
     # Notify the patient of their scheduled chair time (best-effort — a
@@ -270,6 +323,107 @@ def assign_chair_time(
         )
 
     return session
+
+
+# ── Recurring series (B4) ──────────────────────────────────────────────────
+
+_WEEKDAY_MAP = {
+    "mon": 0,
+    "tue": 1,
+    "wed": 2,
+    "thu": 3,
+    "fri": 4,
+    "sat": 5,
+    "sun": 6,
+}
+
+
+def parse_weekdays(pattern: str | None) -> list[int]:
+    """
+    Parse a shift pattern like "Mon/Wed/Fri" (3-letter or full names, '/' or
+    ',' separated) into weekday ints (Monday=0). Duplicates collapse.
+    """
+    if not pattern:
+        return []
+    tokens = [t.strip().lower()[:3] for t in re.split(r"[/,]", pattern) if t.strip()]
+    return sorted({_WEEKDAY_MAP[t] for t in tokens if t in _WEEKDAY_MAP})
+
+
+def create_session_series(
+    patient_id: str,
+    nurse_id: int,
+    weekdays: list[int],
+    weeks: int = 4,
+    start_date: date | None = None,
+    chair_time: str | None = None,
+    modality: str = "HD",
+) -> tuple[list[DialysisSession], list[date]]:
+    """
+    Auto-generate SCHEDULED sessions on the given weekdays for `weeks` weeks
+    (chronic dialysis patients, e.g. Mon/Wed/Fri).
+
+    Dates that already hold a SCHEDULED/IN_PROGRESS session for the patient
+    are skipped (no duplicates). chair_time optionally slots each session
+    ("HH:MM", anchored to each date). Returns (created, skipped_dates).
+    """
+    if not weekdays:
+        raise ValueError(
+            "No valid weekdays in pattern. Use e.g. 'Mon/Wed/Fri'."
+        )
+    if weeks < 1 or weeks > 26:
+        raise ValueError("weeks must be between 1 and 26.")
+    if modality not in VALID_MODALITIES:
+        raise ValueError(
+            f"Invalid modality '{modality}'. Must be one of {VALID_MODALITIES}."
+        )
+
+    start = start_date or (date.today() + timedelta(days=1))
+    end = start + timedelta(weeks=weeks)
+
+    created: list[DialysisSession] = []
+    skipped: list[date] = []
+    current = start
+    while current < end:
+        if current.weekday() in weekdays:
+            existing = DialysisSession.query.filter(
+                DialysisSession.patient_id == patient_id,
+                DialysisSession.session_date == current,
+                DialysisSession.status.in_(("SCHEDULED", "IN_PROGRESS")),
+            ).first()
+            if existing:
+                skipped.append(current)
+                current += timedelta(days=1)
+                continue
+
+            start_time = None
+            if chair_time:
+                start_time = datetime.combine(
+                    current, _parse_hm(chair_time, "chair_time")
+                )
+            session = DialysisSession(
+                patient_id=patient_id,
+                nurse_id=nurse_id,
+                modality=modality,
+                session_date=current,
+                start_time=start_time,
+                status="SCHEDULED",
+                source="RENAL",
+                notes="Recurring series",
+            )
+            db.session.add(session)
+            created.append(session)
+        current += timedelta(days=1)
+
+    db.session.commit()
+    logger.info(
+        "Session series created: patient=%s weekdays=%s weeks=%d created=%d skipped=%d",
+        patient_id,
+        weekdays,
+        weeks,
+        len(created),
+        len(skipped),
+    )
+    return created, skipped
 
 
 def get_patient_sessions(patient_id: str) -> list[DialysisSession]:

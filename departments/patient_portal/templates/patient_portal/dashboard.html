@@ -60,6 +60,38 @@
             {% endif %}
         </div>
 
+        <!-- Dialysis & Oncology Appointments -->
+        <div class="card">
+            <div class="card-header-flex">
+                <h3 class="card-title"><i class="bi bi-heart-pulse text-primary"></i> Dialysis &amp; Oncology Appointments</h3>
+            </div>
+            {% if specialty_appointments %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date &amp; Time</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in specialty_appointments %}
+                        <tr>
+                            <td><strong style="color: white;">{{ a.date }}{% if a.time %} · {{ a.time }}{% endif %}</strong></td>
+                            <td>{{ a.kind }}</td>
+                            <td><span class="badge badge-info"><i class="bi bi-clock"></i> {{ a.status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div style="text-align: center; padding: 2rem 1rem; color: var(--text-muted);">
+                    <i class="bi bi-heart-pulse" style="font-size: 2rem; display: block; margin-bottom: 0.5rem; opacity: 0.5;"></i>
+                    <p style="margin: 0;">No dialysis or oncology appointments scheduled.</p>
+                </div>
+            {% endif %}
+        </div>
+
         <!-- Verified Lab Results -->
         <div class="card">
             <div class="card-header-flex">

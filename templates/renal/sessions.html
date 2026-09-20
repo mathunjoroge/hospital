@@ -344,6 +344,53 @@
           </form>
           <div id="sessionResult" class="mt-3"></div>
         </div>
+
+        <!-- Recurring Series (chronic patients) -->
+        <div class="renal-card mt-3">
+          <h5 class="fw-bold mb-3 text-info border-bottom border-secondary pb-2">
+            <i class="bi bi-calendar-week me-2"></i>Recurring Series (chronic patients)
+          </h5>
+          <form id="seriesForm" onsubmit="submitSeries(event)">
+            <div class="row g-3 mb-3">
+              <div class="col-12">
+                <label class="form-label text-white fw-semibold">Days</label>
+                <div class="d-flex gap-3 flex-wrap">
+                  {% for d in ['Mon','Tue','Wed','Thu','Fri','Sat'] %}
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="series_days" id="series_{{ d }}" value="{{ d }}">
+                    <label class="form-check-label text-white small" for="series_{{ d }}">{{ d }}</label>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold">Weeks</label>
+                <input type="number" class="form-control" id="series_weeks" value="4" min="1" max="26">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold">Chair Time (optional)</label>
+                <input type="time" class="form-control" id="series_time">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label text-white fw-semibold">Modality</label>
+                <select class="form-select" id="series_modality">
+                  <option value="HD" selected>HD</option>
+                  <option value="CRRT">CRRT</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label text-white fw-semibold">Start From (optional — default tomorrow)</label>
+              <input type="date" class="form-control" id="series_start">
+            </div>
+            <button type="submit" class="btn btn-outline-info w-100 fw-bold">
+              <i class="bi bi-magic me-1"></i> Generate Series
+            </button>
+          </form>
+          <div id="seriesResult" class="mt-3"></div>
+        </div>
       </div>
 
       <!-- Vascular Access Logging Form -->
@@ -475,8 +522,8 @@
         </a>
         {% endif %}
         {% if st == 'SCHEDULED' or st == 'IN_PROGRESS' %}
-        <button class="btn btn-sm btn-outline-info py-0 px-2" title="Assign / edit chair time"
-                onclick="openChairTimeModal({{ s.id }}, '{{ s.start_time_hm or '' }}', '{{ s.end_time_hm or '' }}')">
+        <button class="btn btn-sm btn-outline-info py-0 px-2" title="Assign / edit chair time (or move day)"
+                onclick="openChairTimeModal({{ s.id }}, '{{ s.start_time_hm or '' }}', '{{ s.end_time_hm or '' }}', '{{ s.session_date }}')">
           <i class="bi bi-clock-history"></i>
         </button>
         {% endif %}
@@ -623,6 +670,11 @@
       <div class="modal-body">
         <input type="hidden" id="ct_session_id">
         <div class="mb-3">
+          <label class="form-label small fw-semibold" for="ct_date">Session Date</label>
+          <input type="date" class="form-control form-control-sm" id="ct_date">
+          <div class="form-text text-muted">Change this to move the session to another day.</div>
+        </div>
+        <div class="mb-3">
           <label class="form-label small fw-semibold" for="ct_start">Start Time (24h)</label>
           <input type="time" class="form-control form-control-sm" id="ct_start" required>
         </div>
@@ -760,8 +812,9 @@ async function submitAccess(e) {
 // ── Chair time assignment ──
 let chairTimeModalInstance = null;
 
-function openChairTimeModal(sessionId, startHm, endHm) {
+function openChairTimeModal(sessionId, startHm, endHm, sessionDate) {
   document.getElementById('ct_session_id').value = sessionId;
+  document.getElementById('ct_date').value = sessionDate || '';
   document.getElementById('ct_start').value = startHm || '';
   document.getElementById('ct_end').value = endHm || '';
   document.getElementById('ct_error').textContent = '';
@@ -771,6 +824,7 @@ function openChairTimeModal(sessionId, startHm, endHm) {
 
 async function saveChairTime() {
   const sid = document.getElementById('ct_session_id').value;
+  const startDate = document.getElementById('ct_date').value;
   const start = document.getElementById('ct_start').value;
   const end = document.getElementById('ct_end').value;
   const errDiv = document.getElementById('ct_error');
@@ -782,7 +836,11 @@ async function saveChairTime() {
     const res = await fetch(`/renal/sessions/${sid}/chair-time`, {
       method: 'PATCH',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({chair_time: start, end_time_hm: end || null})
+      body: JSON.stringify({
+        chair_time: start,
+        end_time_hm: end || null,
+        session_date: startDate || null
+      })
     });
     if (res.ok) {
       chairTimeModalInstance.hide();
@@ -793,6 +851,43 @@ async function saveChairTime() {
     }
   } catch (err) {
     errDiv.textContent = 'Network error — please retry.';
+  }
+}
+
+// ── Recurring series (chronic patients) ──
+async function submitSeries(e) {
+  e.preventDefault();
+  const pid = document.getElementById('sess_patient_id').value;
+  const days = Array.from(
+    document.querySelectorAll('input[name="series_days"]:checked')
+  ).map(c => c.value);
+  const div = document.getElementById('seriesResult');
+  if (!days.length) {
+    div.innerHTML = '<div class="alert alert-warning p-2 small">Pick at least one weekday.</div>';
+    return;
+  }
+  const body = {
+    days: days.join('/'),
+    weeks: parseInt(document.getElementById('series_weeks').value, 10) || 4,
+    chair_time: document.getElementById('series_time').value || null,
+    modality: document.getElementById('series_modality').value,
+    start_date: document.getElementById('series_start').value || null
+  };
+  try {
+    const res = await fetch(`/renal/sessions/${pid}/series`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (res.ok) {
+      div.innerHTML = `<div class="alert alert-success p-2 small"><i class="bi bi-check-circle me-1"></i>${data.count} session(s) created${data.skipped.length ? `, ${data.skipped.length} date(s) skipped (already booked)` : ''}. Reloading...</div>`;
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      div.innerHTML = `<div class="alert alert-danger p-2 small">${data.error || 'Failed to create series.'}</div>`;
+    }
+  } catch (err) {
+    console.error(err);
   }
 }
 

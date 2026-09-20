@@ -107,7 +107,7 @@
                                     <div class="booking-body">
                                         <div class="booking-info-item">
                                             <span class="booking-info-label">Booking Date:</span>
-                                            <span class="booking-info-value">{{ booking.booking_date.strftime('%Y-%m-%d') }}</span>
+                                            <span class="booking-info-value">{{ booking.booking_date.strftime('%Y-%m-%d') }}{% if booking.start_time %} · {{ booking.start_time.strftime('%H:%M') }}{% endif %}</span>
                                         </div>
                                         <div class="booking-info-item">
                                             <span class="booking-info-label">Purpose:</span>

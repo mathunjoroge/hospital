@@ -907,10 +907,23 @@ def new_booking():
             flash("Invalid date format. Use YYYY-MM-DD.", "danger")
             return redirect(url_for("medicine.new_booking"))
 
+        # Optional slot time (B5) — 24-hour HH:MM anchored to booking_date
+        start_time = None
+        raw_start = (request.form.get("start_time") or "").strip()
+        if raw_start:
+            try:
+                start_time = datetime.combine(
+                    booking_date, datetime.strptime(raw_start, "%H:%M").time()
+                )
+            except ValueError:
+                flash("Invalid start time. Use 24-hour HH:MM.", "danger")
+                return redirect(url_for("medicine.new_booking"))
+
         # Create new booking (canonical patient number, never raw user input)
         new_booking = OncologyBooking(
             patient_id=patient.patient_id,
             booking_date=booking_date,
+            start_time=start_time,
             purpose=purpose,
             status=status,
             notes=notes,

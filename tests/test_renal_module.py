@@ -1071,6 +1071,211 @@ class TestChairTimeAssignment:
             assert updated.start_time is not None
             assert updated.start_time.hour == 9
 
+
+# ── Chair conflicts (A2) & reschedule (A3) ───────────────────────────────
+
+
+class TestChairConflictsAndReschedule:
+    def test_conflict_blocks_at_default_capacity(self, app, nurse_user):
+        """Default capacity 1: a second patient cannot hold the same slot."""
+        import pytest as _pytest
+        from datetime import date, timedelta
+
+        from departments.renal.engine import assign_chair_time, create_session
+
+        day = date.today() + timedelta(days=1)
+        with app.app_context():
+            s1 = create_session(patient_id="PRCC1", nurse_id=nurse_user,
+                                modality="HD", session_date=day)
+            s2 = create_session(patient_id="PRCC2", nurse_id=nurse_user,
+                                modality="HD", session_date=day)
+            assign_chair_time(s1.id, chair_time="08:00")
+            with _pytest.raises(ValueError, match="fully booked"):
+                assign_chair_time(s2.id, chair_time="08:00")
+
+    def test_conflict_allows_when_capacity_raised(self, client, admin_user, app):
+        """chair_count=2: two patients share the slot; response carries warning."""
+        from datetime import date, timedelta
+
+        from departments.models.renal import RenalUnitConfig
+        from departments.renal.engine import assign_chair_time, create_session
+        from extensions import db as _db
+
+        day = date.today() + timedelta(days=1)
+        with app.app_context():
+            _db.session.add(RenalUnitConfig(chair_count=2))
+            _db.session.commit()
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            s1 = create_session(patient_id="PRCC3", nurse_id=nurse.id,
+                                modality="HD", session_date=day)
+            s2 = create_session(patient_id="PRCC4", nurse_id=nurse.id,
+                                modality="HD", session_date=day)
+            assign_chair_time(s1.id, chair_time="08:00")
+            session_id = s2.id
+
+        rv = client.patch(
+            f"/renal/sessions/{session_id}/chair-time", json={"chair_time": "08:00"}
+        )
+        assert rv.status_code == 200
+        assert rv.get_json()["warning"] is not None
+        assert "share this chair slot" in rv.get_json()["warning"]
+
+    def test_reassign_own_slot_no_self_conflict(self, app, nurse_user):
+        from datetime import date, timedelta
+
+        from departments.renal.engine import assign_chair_time, create_session
+
+        day = date.today() + timedelta(days=1)
+        with app.app_context():
+            s = create_session(patient_id="PRCC5", nurse_id=nurse_user,
+                               modality="HD", session_date=day)
+            assign_chair_time(s.id, chair_time="08:00")
+            moved = assign_chair_time(s.id, chair_time="10:00")  # same session
+            assert moved.start_time.hour == 10
+
+    def test_reschedule_moves_date_and_reanchors_end(self, app, nurse_user):
+        """A3: moving day re-anchors start AND existing end to the new date."""
+        from datetime import date, timedelta
+
+        from departments.renal.engine import assign_chair_time, create_session
+
+        day = date.today() + timedelta(days=1)
+        new_day = day + timedelta(days=2)
+        with app.app_context():
+            s = create_session(patient_id="PRCC6", nurse_id=nurse_user,
+                               modality="HD", session_date=day)
+            assign_chair_time(s.id, chair_time="08:00", end_time_hm="12:00")
+
+            moved = assign_chair_time(
+                s.id, chair_time="09:00", session_date=new_day
+            )
+            assert moved.session_date == new_day
+            assert moved.start_time.hour == 9
+            assert moved.end_time is not None
+            assert moved.end_time.date() == new_day
+            assert moved.end_time.hour == 12  # end time-of-day preserved, re-anchored to new date
+
+    def test_route_reschedule_invalid_date_422(self, client, admin_user, app):
+        from datetime import date, timedelta
+
+        from departments.renal.engine import create_session
+
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            s = create_session(
+                patient_id="PRCC7", nurse_id=nurse.id, modality="HD",
+                session_date=date.today() + timedelta(days=1),
+            )
+            session_id = s.id
+
+        rv = client.patch(
+            f"/renal/sessions/{session_id}/chair-time",
+            json={"chair_time": "08:00", "session_date": "not-a-date"},
+        )
+        assert rv.status_code == 422
+
+    def test_route_conflict_returns_422(self, client, admin_user, app):
+        from datetime import date, timedelta
+
+        from departments.renal.engine import assign_chair_time, create_session
+
+        day = date.today() + timedelta(days=1)
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            s1 = create_session(patient_id="PRCC8", nurse_id=nurse.id,
+                                modality="HD", session_date=day)
+            s2 = create_session(patient_id="PRCC9", nurse_id=nurse.id,
+                                modality="HD", session_date=day)
+            assign_chair_time(s1.id, chair_time="07:00")
+            session_id = s2.id
+
+        rv = client.patch(
+            f"/renal/sessions/{session_id}/chair-time", json={"chair_time": "07:00"}
+        )
+        assert rv.status_code == 422
+        assert "fully booked" in rv.get_json()["error"]
+
+
+# ── Recurring dialysis series (B4) ──────────────────────────────────────────
+
+
+class TestSessionSeries:
+    def test_parse_weekdays(self, app):
+        from departments.renal.engine import parse_weekdays
+
+        assert parse_weekdays("Mon/Wed/Fri") == [0, 2, 4]
+        assert parse_weekdays("monday, friday") == [0, 4]
+        assert parse_weekdays("Tue") == [1]
+        assert parse_weekdays("") == []
+        assert parse_weekdays("Someday") == []
+
+    def test_series_creates_and_skips_existing(self, app, nurse_user):
+        """Fixed Monday start (2027-01-04): 3 targets; Wednesday pre-exists."""
+        from datetime import date, datetime
+
+        from departments.models.renal import DialysisSession
+        from departments.renal.engine import create_session_series
+        from extensions import db as _db
+
+        start = date(2027, 1, 4)  # a Monday
+        assert start.weekday() == 0
+
+        with app.app_context():
+            _db.session.add(
+                DialysisSession(
+                    patient_id="PRSS1", nurse_id=nurse_user, modality="HD",
+                    session_date=date(2027, 1, 6), status="SCHEDULED",
+                )
+            )
+            _db.session.commit()
+
+            created, skipped = create_session_series(
+                patient_id="PRSS1",
+                nurse_id=nurse_user,
+                weekdays=[0, 2, 4],
+                weeks=1,
+                start_date=start,
+                chair_time="08:00",
+            )
+
+            assert len(created) == 2
+            assert skipped == [date(2027, 1, 6)]
+            assert {s.session_date for s in created} == {
+                date(2027, 1, 4), date(2027, 1, 8)
+            }
+            for s in created:
+                assert s.status == "SCHEDULED"
+                assert s.start_time.hour == 8
+                assert s.start_time.date() == s.session_date
+
+    def test_series_route_creates(self, client, admin_user, app):
+        rv = client.post(
+            "/renal/sessions/PRSR9/series",
+            json={"days": "Mon/Wed/Fri", "weeks": 2, "chair_time": "07:30"},
+        )
+        assert rv.status_code == 201
+        data = rv.get_json()
+        assert data["count"] == 6  # 3 days/week × 2 weeks
+        assert data["created"][0]["start_time_hm"] == "07:30"
+
+    def test_series_route_requires_days(self, client, admin_user):
+        rv = client.post("/renal/sessions/PRSR9/series", json={})
+        assert rv.status_code == 400
+
+    def test_series_route_invalid_weeks_422(self, client, admin_user):
+        rv = client.post(
+            "/renal/sessions/PRSR9/series",
+            json={"days": "Mon", "weeks": "lots"},
+        )
+        assert rv.status_code == 422
+
+    def test_series_route_invalid_modality_422(self, client, admin_user):
+        rv = client.post(
+            "/renal/sessions/PRSR9/series",
+            json={"days": "Mon", "modality": "PD"},
+        )
+        assert rv.status_code == 422
+
     def test_sessions_default_to_renal_source(self, app, nurse_user):
         from datetime import date, timedelta
 

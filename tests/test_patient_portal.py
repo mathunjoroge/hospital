@@ -209,6 +209,83 @@ def test_lab_result_release_gating(client, app):
     assert resp.status_code == 200
 
 
+def test_dashboard_shows_specialty_appointments(client, app):
+    """B6: portal dashboard surfaces upcoming dialysis & oncology appointments."""
+    from datetime import date, datetime, timedelta
+
+    from departments.models.medicine import OncologyBooking
+    from departments.models.patient_user import PatientUser
+    from departments.models.records import Patient
+    from departments.models.renal import DialysisSession
+    from departments.models.user import User
+    from extensions import db
+    from werkzeug.security import generate_password_hash
+
+    with app.app_context():
+        patient = Patient(
+            patient_id="PPORT1",
+            name="Specialty Portal Patient",
+            place_of_residence="Nairobi",
+            sex="Female",
+            date_of_birth=date(1988, 3, 3),
+            marital_status="Single",
+            contact="0700550001",
+            next_of_kin="Kin",
+            relationship_with_next_of_kin="Parent",
+            next_of_kin_contact="0711111111",
+            emergency_contact="0722222222",
+        )
+        db.session.add(patient)
+        db.session.commit()
+
+        portal_user = PatientUser(patient_id=patient.id, username="specialty_patient")
+        portal_user.set_password("Pass1234!")
+        nurse = User(
+            username="portal_nurse",
+            role="nurse",
+            password=generate_password_hash("Pass1234!"),
+        )
+        db.session.add_all([portal_user, nurse])
+        db.session.commit()
+
+        dialysis_day = date.today() + timedelta(days=3)
+        db.session.add(
+            DialysisSession(
+                patient_id="PPORT1",
+                nurse_id=nurse.id,
+                modality="HD",
+                session_date=dialysis_day,
+                start_time=datetime.combine(
+                    dialysis_day, datetime.min.time()
+                ).replace(hour=8),
+                status="SCHEDULED",
+            )
+        )
+        db.session.add(
+            OncologyBooking(
+                patient_id="PPORT1",
+                booking_date=dialysis_day + timedelta(days=2),
+                purpose="Consultation",
+                status="Scheduled",
+                source="RECORDS",
+            )
+        )
+        db.session.commit()
+
+    client.post(
+        "/portal/login",
+        data={"username": "specialty_patient", "password": "Pass1234!"},
+    )
+    resp = client.get("/portal/dashboard")
+
+    assert resp.status_code == 200
+    assert b"Dialysis &amp; Oncology Appointments" in resp.data
+    assert b"Dialysis (HD)" in resp.data
+    assert b"08:00" in resp.data
+    assert b"Oncology" in resp.data
+    assert b"Consultation" in resp.data
+
+
 def test_appointment_booking_and_audited_profile_update(client, app):
     pid1, _ = setup_test_patients(app)
 

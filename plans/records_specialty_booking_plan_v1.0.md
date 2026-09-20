@@ -3,7 +3,7 @@
 
 *Renal / Dialysis Unit + Oncology — booked-from-Records visibility, day-sheet operations, notifications*
 
-*Version 1.0 · September 20, 2026 · Owner: Records / Renal / Oncology leads*
+*Version 1.1 · September 20, 2026 · Owner: Records / Renal / Oncology leads — v1.1 closes backlog items A2, A3, B4, B5, B6*
 
 ---
 
@@ -24,11 +24,11 @@
 | Patient notification on chair-time assignment            | **✓ Complete** | `trigger_chair_time_assigned` → `appointment_confirmed` event, best-effort |
 | Soft-deleted patients blocked from booking               | **✓ Complete** | `book_clinic` rejects `is_active=False` |
 | SMS channel for notifications                            | **✗ Missing**  | Dispatcher has `SandboxSMSChannel`; wire AfricasTalking for reminders (item B1) |
-| Chair capacity / conflict detection                      | **✗ Missing**  | Two patients can hold the same chair time (item B2) |
-| Reschedule to a different day                            | **✗ Missing**  | `assign_chair_time` anchors to existing `session_date` only (item B3) |
-| Recurring dialysis series (e.g. Mon/Wed/Fri)             | **✗ Missing**  | `RenalUnitConfig.shift_pattern` exists but unused (item B4) |
-| Oncology slot times / chemo chair scheduling             | **✗ Missing**  | Oncology bookings are date-only (item B5) |
-| Patient portal view of specialty appointments            | **✗ Missing**  | Portal reads its own booking tables only (item B6) |
+| Chair capacity / conflict detection                      | **✓ Complete** | `count_chair_conflicts` + `get_chair_capacity` (`RenalUnitConfig.chair_count`, default 1); full slot → 422, shared slot → `warning` in response |
+| Reschedule to a different day                            | **✓ Complete** | `assign_chair_time(session_date=...)` moves the day; end time-of-day re-anchored; modal has "Session Date" field |
+| Recurring dialysis series (e.g. Mon/Wed/Fri)             | **✓ Complete** | `create_session_series` + `POST /renal/sessions/<pid>/series` + console form; existing dates skipped |
+| Oncology slot times / chemo chair scheduling             | **✓ Complete** | `oncology_bookings.start_time` (migration `b9e4f7c2a810`); optional slot time on new-booking form; shown on board |
+| Patient portal view of specialty appointments            | **✓ Complete** | Portal dashboard "Dialysis & Oncology Appointments" card (upcoming, date+time+status) |
 
 ---
 
@@ -69,8 +69,9 @@ rows are never billed directly.
 |-----------|--------|
 | `d1a4c7e9f201` | `dialysis_sessions.source` (String 20, default `RENAL`) |
 | `c8d3e6a1b405` | `oncology_bookings.source` (String 20, default `ONCOLOGY`) |
+| `b9e4f7c2a810` | `oncology_bookings.start_time` (DateTime, nullable — B5 slot times) |
 
-Both applied to the dev PostgreSQL database. Specialty clinic catalog rows
+All applied to the dev PostgreSQL database. Specialty clinic catalog rows
 ("Renal / Dialysis Clinic", "Oncology Clinic", fee 1000.00) seeded; the
 startup seeder re-runs idempotently on every boot.
 
