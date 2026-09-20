@@ -14,10 +14,10 @@ import logging
 import os
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
 from departments.audit import verify_audit_log_chain
 from departments.crypto import decrypt_value, encrypt_value
+
+logger = logging.getLogger(__name__)
 
 
 class HIPAAComplianceEngine:

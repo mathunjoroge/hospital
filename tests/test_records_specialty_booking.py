@@ -262,9 +262,6 @@ class TestOncologySourceParity:
     @staticmethod
     def _seed_two_bookings():
         """One RECORDS booking + one unit booking with distinct patient names."""
-        from departments.models.user import User
-        from werkzeug.security import generate_password_hash as gph
-
         from extensions import db
 
         records_p = _make_patient("OCR1")

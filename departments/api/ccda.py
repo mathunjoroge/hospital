@@ -15,15 +15,10 @@ for inter-facility continuity of care exchange. Includes sections for:
 
 import logging
 import xml.etree.ElementTree as ET
-
-import defusedxml
-
-defusedxml.defuse_stdlib()  # Patch stdlib XML parsers against XXE/entity-expansion attacks
 from datetime import datetime, timezone
 
+import defusedxml
 from flask import Blueprint, Response
-
-logger = logging.getLogger(__name__)
 
 from departments.api.auth import jwt_or_session_required
 from departments.models.laboratory import LabResult
@@ -31,6 +26,10 @@ from departments.models.medicine import PrescribedMedicine, SOAPNote
 from departments.models.nursing import Vitals
 from departments.models.records import Patient
 from departments.rbac import roles_required
+
+defusedxml.defuse_stdlib()  # Patch stdlib XML parsers against XXE/entity-expansion attacks
+
+logger = logging.getLogger(__name__)
 
 ccda_bp = Blueprint("ccda", __name__)
 

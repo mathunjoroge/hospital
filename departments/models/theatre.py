@@ -12,9 +12,9 @@ import json
 import logging
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
-
 from extensions import db
+
+logger = logging.getLogger(__name__)
 
 
 class WhoSurgicalChecklist(db.Model):
