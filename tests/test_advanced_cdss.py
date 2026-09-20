@@ -117,8 +117,8 @@ def test_pregnancy_3rd_trimester_nsaid_warning():
 
 
 def test_alert_fatigue_manager():
-    """Test CRITICAL alerts pass through while duplicate moderate alerts are suppressed."""
-    mgr = AlertFatigueManager(suppression_window_hours=24)
+    """Test CRITICAL alerts pass through while duplicate moderate alerts are suppressed (shadow_mode=False)."""
+    mgr = AlertFatigueManager(suppression_window_hours=24, shadow_mode=False)
     raw_alerts = [
         {
             "type": "ALLERGY_WARNING",
@@ -155,6 +155,34 @@ def test_alert_fatigue_manager():
     # Moderate alert suppressed, CRITICAL alert retained
     assert len(filtered_suppressed) == 1
     assert filtered_suppressed[0]["severity"] == "CRITICAL"
+
+
+def test_alert_fatigue_manager_shadow_mode():
+    """Test shadow mode (P1-13) retains all alerts while logging suppression decision."""
+    mgr = AlertFatigueManager(suppression_window_hours=24, shadow_mode=True)
+    raw_alerts = [
+        {
+            "type": "HEPATIC_DOSING_ALERT",
+            "severity": "MODERATE",
+            "drug": "paracetamol",
+            "message": "Hepatic warning",
+        },
+    ]
+    overrides = [
+        {
+            "alert_type": "HEPATIC_DOSING_ALERT",
+            "drug": "paracetamol",
+            "created_at": pytest.importorskip("datetime").datetime.now(
+                pytest.importorskip("datetime").timezone.utc
+            ),
+        }
+    ]
+    filtered_shadow = mgr.process_and_filter(
+        raw_alerts, patient_id="P123", recent_overrides=overrides
+    )
+    # In shadow mode, alert is retained despite recent override
+    assert len(filtered_shadow) == 1
+
 
 
 def test_clinical_safety_engine_check_by_names_integration(app):
