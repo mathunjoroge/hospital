@@ -1078,8 +1078,9 @@ class TestChairTimeAssignment:
 class TestChairConflictsAndReschedule:
     def test_conflict_blocks_at_default_capacity(self, app, nurse_user):
         """Default capacity 1: a second patient cannot hold the same slot."""
-        import pytest as _pytest
         from datetime import date, timedelta
+
+        import pytest as _pytest
 
         from departments.renal.engine import assign_chair_time, create_session
 
@@ -1211,7 +1212,7 @@ class TestSessionSeries:
 
     def test_series_creates_and_skips_existing(self, app, nurse_user):
         """Fixed Monday start (2027-01-04): 3 targets; Wednesday pre-exists."""
-        from datetime import date, datetime
+        from datetime import date
 
         from departments.models.renal import DialysisSession
         from departments.renal.engine import create_session_series

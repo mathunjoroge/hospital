@@ -213,13 +213,14 @@ def test_dashboard_shows_specialty_appointments(client, app):
     """B6: portal dashboard surfaces upcoming dialysis & oncology appointments."""
     from datetime import date, datetime, timedelta
 
+    from werkzeug.security import generate_password_hash
+
     from departments.models.medicine import OncologyBooking
     from departments.models.patient_user import PatientUser
     from departments.models.records import Patient
     from departments.models.renal import DialysisSession
     from departments.models.user import User
     from extensions import db
-    from werkzeug.security import generate_password_hash
 
     with app.app_context():
         patient = Patient(
