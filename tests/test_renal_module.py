@@ -705,7 +705,10 @@ class TestShiftGrouping:
 
         with app.app_context():
             nurse = User.query.filter_by(username="admin_test_fixture").first()
-            at = lambda h: datetime.combine(day, datetime.min.time()).replace(hour=h)
+
+            def at(hour):
+                return datetime.combine(day, datetime.min.time()).replace(hour=hour)
+
             create_session(patient_id="PRG1", nurse_id=nurse.id, modality="HD",
                            session_date=day, start_time=at(8))
             create_session(patient_id="PRG2", nurse_id=nurse.id, modality="HD",
