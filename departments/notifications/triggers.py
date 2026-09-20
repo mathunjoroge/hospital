@@ -5,6 +5,7 @@ from departments.models.notification_log import OutboundNotificationLog
 from departments.models.patient_user import PatientUser
 from departments.models.records import ClinicBooking, Patient
 from departments.notifications.dispatcher import (
+    EVENT_APPOINTMENT_CONFIRMED,
     EVENT_APPOINTMENT_REMINDER,
     EVENT_CLAIM_STATUS_CHANGED,
     EVENT_CREDENTIAL_EXPIRED,
@@ -92,6 +93,51 @@ def trigger_appointment_reminder(booking: ClinicBooking):
         subject=subject,
         body=body,
         patient_id=booking.patient_id,
+        channels=["email"],
+    )
+
+
+def trigger_chair_time_assigned(session):
+    """
+    Notify the patient that a dialysis chair time has been assigned/updated
+    for their session (called by the renal engine on assign_chair_time).
+    """
+    if not session or not getattr(session, "patient_id", None):
+        return None
+
+    email = _get_patient_email(session.patient_id)
+    if not email:
+        return None
+
+    start_hm = session.start_time.strftime("%H:%M") if session.start_time else None
+    if not start_hm:
+        return None
+    end_hm = session.end_time.strftime("%H:%M") if session.end_time else None
+    window = start_hm + (f"–{end_hm}" if end_hm else "")
+
+    from departments.renal.engine import shift_for_datetime
+
+    shift_label = shift_for_datetime(session.start_time)
+    shift_note = f" ({shift_label.lower()} shift)" if shift_label else ""
+
+    subject = "Dialysis Session Scheduled — Hospital HMIS"
+    body = (
+        f"Dear Patient,\n\n"
+        f"Your {session.modality} dialysis session has been scheduled for "
+        f"{session.session_date.strftime('%A, %d %B %Y')} at {window}"
+        f"{shift_note}.\n"
+        f"Session Reference: #{session.id}\n\n"
+        f"Please arrive 15 minutes before your scheduled time."
+        f" If you need to reschedule, contact the Renal Unit.\n\n"
+        f"Renal / Dialysis Unit"
+    )
+
+    return NotificationDispatcher.dispatch_event(
+        event_type=EVENT_APPOINTMENT_CONFIRMED,
+        recipient=email,
+        subject=subject,
+        body=body,
+        patient_id=session.patient_id,
         channels=["email"],
     )
 

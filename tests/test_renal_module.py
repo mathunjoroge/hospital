@@ -545,6 +545,78 @@ class TestUnitScheduleBoard:
         assert data["count"] == 1
         assert data["date_range"]["filter_start"] == tomorrow
 
+    def test_board_source_filter(self, client, admin_user, app):
+        """source=RECORDS/RENAL narrows the board; unknown values are ignored."""
+        from datetime import date, timedelta
+
+        from departments.models.renal import DialysisSession
+        from departments.renal.engine import create_session
+        from extensions import db as _db
+
+        day = date.today() + timedelta(days=1)
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            create_session(
+                patient_id="PRQ1", nurse_id=nurse.id, modality="HD",
+                session_date=day,
+            )
+            _db.session.add(
+                DialysisSession(
+                    patient_id="PRQ2", nurse_id=nurse.id, modality="HD",
+                    session_date=day, status="SCHEDULED", source="RECORDS",
+                )
+            )
+            _db.session.commit()
+
+        rv = client.get("/renal/sessions?source=RECORDS")
+        ids = {s["patient_id"] for s in rv.get_json()["sessions"]}
+        assert ids == {"PRQ2"}
+        assert rv.get_json()["source"] == "RECORDS"
+
+        rv = client.get("/renal/sessions?source=RENAL")
+        ids = {s["patient_id"] for s in rv.get_json()["sessions"]}
+        assert ids == {"PRQ1"}
+
+        rv = client.get("/renal/sessions?source=bogus")
+        data = rv.get_json()
+        assert data["source"] is None
+        assert len(data["sessions"]) == 2
+
+    def test_per_patient_source_filter(self, client, admin_user, app):
+        from datetime import date, timedelta
+
+        from departments.models.renal import DialysisSession
+        from departments.renal.engine import create_session
+        from extensions import db as _db
+
+        day = date.today() + timedelta(days=1)
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            create_session(
+                patient_id="PRQ3", nurse_id=nurse.id, modality="HD",
+                session_date=day,
+            )
+            _db.session.add(
+                DialysisSession(
+                    patient_id="PRQ3", nurse_id=nurse.id, modality="CRRT",
+                    session_date=day + timedelta(days=5), status="SCHEDULED",
+                    source="RECORDS",
+                )
+            )
+            _db.session.commit()
+
+        rv = client.get("/renal/sessions/PRQ3?source=RECORDS")
+        data = rv.get_json()
+        assert data["count"] == 1
+        assert data["sessions"][0]["source"] == "RECORDS"
+
+    def test_board_html_persists_source_filter(self, client, admin_user, app):
+        rv = client.get(
+            "/renal/sessions?source=RECORDS", headers={"Accept": "text/html"}
+        )
+        assert rv.status_code == 200
+        assert b'value="RECORDS" selected' in rv.data
+
     def test_board_html_renders_with_date_filter(self, client, admin_user, app):
         from datetime import date, timedelta
 
@@ -882,6 +954,61 @@ class TestChairTimeAssignment:
     def test_route_unknown_session_404(self, client, admin_user):
         rv = client.patch("/renal/sessions/999999/chair-time", json={"chair_time": "08:00"})
         assert rv.status_code == 404
+
+    def test_chair_time_assignment_dispatches_notification(self, app, nurse_user):
+        """Assigning a chair time queues an appointment_confirmed notification."""
+        from datetime import date, timedelta
+
+        from departments.models.notification_log import OutboundNotificationLog
+        from departments.notifications.dispatcher import EVENT_APPOINTMENT_CONFIRMED
+        from departments.renal.engine import assign_chair_time, create_session
+        from extensions import db as _db
+
+        with app.app_context():
+            _db.session.add(_make_renal_patient("NT1", name="Notify Patient"))
+            _db.session.commit()
+            s = create_session(
+                patient_id="PRNT1", nurse_id=nurse_user, modality="HD",
+                session_date=date.today() + timedelta(days=1),
+            )
+
+            assign_chair_time(s.id, chair_time="08:30")
+
+            log = OutboundNotificationLog.query.filter_by(
+                patient_id="PRNT1", event_type=EVENT_APPOINTMENT_CONFIRMED
+            ).first()
+            assert log is not None
+            assert log.status == "SENT"
+            assert "08:30" in log.body
+            assert "morning shift" in log.body
+
+    def test_notification_failure_does_not_fail_assignment(
+        self, app, nurse_user, monkeypatch
+    ):
+        from datetime import date, timedelta
+
+        from departments.renal.engine import assign_chair_time, create_session
+        from extensions import db as _db
+
+        def boom(session):
+            raise RuntimeError("smtp down")
+
+        monkeypatch.setattr(
+            "departments.notifications.triggers.trigger_chair_time_assigned", boom
+        )
+
+        with app.app_context():
+            _db.session.add(_make_renal_patient("NT2", name="Resilient Patient"))
+            _db.session.commit()
+            s = create_session(
+                patient_id="PRNT2", nurse_id=nurse_user, modality="HD",
+                session_date=date.today() + timedelta(days=1),
+            )
+
+            updated = assign_chair_time(s.id, chair_time="09:00")
+
+            assert updated.start_time is not None
+            assert updated.start_time.hour == 9
 
     def test_sessions_default_to_renal_source(self, app, nurse_user):
         from datetime import date, timedelta

@@ -257,6 +257,18 @@ def assign_chair_time(
         session.start_time,
         session.end_time,
     )
+
+    # Notify the patient of their scheduled chair time (best-effort — a
+    # notification failure must never fail the assignment itself).
+    try:
+        from departments.notifications.triggers import trigger_chair_time_assigned
+
+        trigger_chair_time_assigned(session)
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "Chair-time notification failed for session #%s", session_id
+        )
+
     return session
 
 
@@ -276,6 +288,7 @@ def get_unit_sessions(
     limit: int = 200,
     start_date: date | None = None,
     end_date: date | None = None,
+    source: str | None = None,
 ) -> list[DialysisSession]:
     """
     Return dialysis sessions across ALL patients for the unit-wide schedule
@@ -283,6 +296,7 @@ def get_unit_sessions(
 
     statuses: filter by status (e.g. {"SCHEDULED"}); None = all statuses.
     start_date / end_date: inclusive session_date range; None = unbounded.
+    source: "RECORDS" or "RENAL" booking origin; None = all sources.
     Ordering: ascending by session date for pending work (SCHEDULED /
     IN_PROGRESS — soonest first, like a day sheet), descending otherwise.
     """
@@ -293,6 +307,8 @@ def get_unit_sessions(
         query = query.filter(DialysisSession.session_date >= start_date)
     if end_date is not None:
         query = query.filter(DialysisSession.session_date <= end_date)
+    if source:
+        query = query.filter(DialysisSession.source == source)
 
     ascending = statuses is not None and statuses <= {"SCHEDULED", "IN_PROGRESS"}
     order = (

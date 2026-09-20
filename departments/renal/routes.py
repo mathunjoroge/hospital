@@ -126,6 +126,8 @@ def list_sessions(patient_id: str | None = None):
     raw_status = (request.args.get("status") or "").strip().upper()
     start_date = _parse_date(request.args.get("start"))
     end_date = _parse_date(request.args.get("end"))
+    raw_source = (request.args.get("source") or "").strip().upper()
+    selected_source = raw_source if raw_source in ("RECORDS", "RENAL") else None
     date_context = {
         "filter_start": start_date.isoformat() if start_date else None,
         "filter_end": end_date.isoformat() if end_date else None,
@@ -133,7 +135,7 @@ def list_sessions(patient_id: str | None = None):
 
     if patient_id is None:
         # ── Unit-wide schedule board ─────────────────────────────────────
-        sessions = _board_sessions(raw_status, start_date, end_date)
+        sessions = _board_sessions(raw_status, start_date, end_date, selected_source)
         is_day_sheet = bool(
             date_context["filter_start"]
             and date_context["filter_start"] == date_context["filter_end"]
@@ -146,6 +148,7 @@ def list_sessions(patient_id: str | None = None):
                 sessions=sessions,
                 access_records=[],
                 selected_status=raw_status or "UPCOMING",
+                selected_source=selected_source,
                 today=date.today().isoformat(),
                 week_end=(date.today() + timedelta(days=6)).isoformat(),
                 is_day_sheet=is_day_sheet,
@@ -157,6 +160,7 @@ def list_sessions(patient_id: str | None = None):
                 "scope": "unit",
                 "count": len(sessions),
                 "date_range": date_context,
+                "source": selected_source,
                 "sessions": sessions,
             }
         ), 200
@@ -169,6 +173,10 @@ def list_sessions(patient_id: str | None = None):
         sessions = [s for s in sessions if s.session_date and s.session_date >= start_date]
     if end_date is not None:
         sessions = [s for s in sessions if s.session_date and s.session_date <= end_date]
+    if selected_source:
+        sessions = [
+            s for s in sessions if getattr(s, "source", "RENAL") == selected_source
+        ]
 
     patient = Patient.query.filter_by(patient_id=patient_id).first()
     rows = []
@@ -203,6 +211,7 @@ def list_sessions(patient_id: str | None = None):
             sessions=rows,
             access_records=formatted_access,
             selected_status=raw_status or None,
+            selected_source=selected_source,
             today=date.today().isoformat(),
             week_end=(date.today() + timedelta(days=6)).isoformat(),
             is_day_sheet=is_day_sheet,
@@ -248,7 +257,10 @@ def _group_by_shift(rows: list[dict]) -> list[tuple[str | None, list[dict]]]:
 
 
 def _board_sessions(
-    status: str, start_date: date | None = None, end_date: date | None = None
+    status: str,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    source: str | None = None,
 ) -> list[dict]:
     """Unit-wide board rows for the given filters, with patient names."""
     if status in ("", "UPCOMING"):
@@ -259,7 +271,7 @@ def _board_sessions(
         statuses = {status}
 
     sessions = get_unit_sessions(
-        statuses=statuses, start_date=start_date, end_date=end_date
+        statuses=statuses, start_date=start_date, end_date=end_date, source=source
     )
     patient_ids = {s.patient_id for s in sessions}
     names = {}

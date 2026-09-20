@@ -228,7 +228,7 @@
           <div class="text-muted small fw-semibold text-uppercase">Rows Shown</div>
           <div class="stat-val text-info mt-1">{{ sessions|length if sessions else 0 }}</div>
           <small class="text-muted">
-            <i class="bi bi-funnel me-1"></i>Filter: {{ selected_status or 'UPCOMING' }}{% if filter_start %} · {{ filter_start }} → {{ filter_end or '…' }}{% endif %}
+            <i class="bi bi-funnel me-1"></i>Filter: {{ selected_status or 'UPCOMING' }}{% if selected_source %} · {{ selected_source|title }}{% endif %}{% if filter_start %} · {{ filter_start }} → {{ filter_end or '…' }}{% endif %}
           </small>
         </div>
       </div>
@@ -510,6 +510,7 @@
           <form method="get" class="d-flex gap-2 align-items-center flex-wrap ms-md-2"
                 action="{% if patient_id %}/renal/sessions/{{ patient_id }}{% else %}/renal/sessions{% endif %}">
             {% if selected_status %}<input type="hidden" name="status" value="{{ selected_status }}">{% endif %}
+            {% if selected_source %}<input type="hidden" name="source" value="{{ selected_source }}">{% endif %}
             <input type="date" class="form-control form-control-sm" name="start" value="{{ filter_start or '' }}" title="From date" aria-label="From date">
             <span class="text-muted small">→</span>
             <input type="date" class="form-control form-control-sm" name="end" value="{{ filter_end or '' }}" title="To date" aria-label="To date">
@@ -523,6 +524,20 @@
             {% if filter_start or filter_end %}
               <a class="btn btn-sm btn-outline-secondary" href="{% if patient_id %}/renal/sessions/{{ patient_id }}{% else %}/renal/sessions?status={{ selected_status or 'UPCOMING' }}{% endif %}">Clear</a>
             {% endif %}
+          </form>
+
+          <!-- 📋 Source filter (Records bookings vs unit-logged) -->
+          <form method="get" class="d-flex align-items-center"
+                action="{% if patient_id %}/renal/sessions/{{ patient_id }}{% else %}/renal/sessions{% endif %}">
+            {% if selected_status %}<input type="hidden" name="status" value="{{ selected_status }}">{% endif %}
+            {% if filter_start %}<input type="hidden" name="start" value="{{ filter_start }}">{% endif %}
+            {% if filter_end %}<input type="hidden" name="end" value="{{ filter_end }}">{% endif %}
+            <select name="source" class="form-select form-select-sm" style="width: auto;"
+                    onchange="this.form.submit()" aria-label="Filter by booking source">
+              <option value="">All sources</option>
+              <option value="RECORDS" {% if selected_source == 'RECORDS' %}selected{% endif %}>📋 Records bookings</option>
+              <option value="RENAL" {% if selected_source == 'RENAL' %}selected{% endif %}>Unit-logged</option>
+            </select>
           </form>
         </div>
       </div>
