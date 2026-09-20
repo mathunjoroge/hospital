@@ -22,7 +22,6 @@
 
   .navbar-renal {
     background: rgba(21, 28, 44, 0.85);
-    backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--card-border);
   }
 
@@ -63,21 +62,77 @@
   .status-badge-in_progress { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid #10b981; }
   .status-badge-completed { background: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid #22c55e; }
   .status-badge-terminated { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; }
+
+  /* ── Patient search ── */
+  .renal-search-wrap { position: relative; width: 300px; max-width: 60vw; }
+  .renal-search-results {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    z-index: 1050;
+    max-height: 320px;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+  .renal-search-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    color: var(--text-main);
+    padding: 0.5rem 0.9rem;
+    font-size: 0.9rem;
+  }
+  .renal-search-item:hover { background: rgba(59, 130, 246, 0.15); }
+
+  .renal-filter-btn { border-color: var(--card-border); color: var(--text-muted); }
+  .renal-filter-btn.active { background: #3b82f6; border-color: #3b82f6; color: #fff; font-weight: 600; }
+
+  .patient-chip {
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid #3b82f6;
+    color: #93c5fd;
+    border-radius: 999px;
+    padding: 0.25rem 0.9rem;
+    font-size: 0.85rem;
+  }
 </style>
 
 <div class="renal-wrapper pt-3">
   <div class="container-fluid px-4">
 
     <!-- Header Banner -->
-    <div class="d-flex justify-content-between align-items-center mb-4 p-3 rounded-3 navbar-renal">
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 rounded-3 navbar-renal flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
         <i class="bi bi-water fs-2" style="color: #3b82f6;"></i>
         <div>
           <h4 class="fw-bold mb-0 text-white">Renal &amp; Dialysis Clinical Console</h4>
-          <small class="text-muted">Hemodialysis (HD), CRRT Session Management &amp; Vascular Access Registry</small>
+          <small class="text-muted">
+            {% if patient_id %}
+              Hemodialysis (HD), CRRT Session Management &amp; Vascular Access Registry
+            {% else %}
+              Unit-wide Schedule Board — upcoming HD/CRRT runs across all patients
+            {% endif %}
+          </small>
         </div>
       </div>
-      <div>
+      <div class="d-flex align-items-center gap-3 flex-wrap">
+        <!-- 🔍 Patient search (autocomplete) -->
+        <div class="renal-search-wrap">
+          <input type="text" id="renalPatientSearch" class="form-control form-control-sm"
+                 placeholder="🔍 Search patient by name or ID…" autocomplete="off">
+          <div id="renalPatientSearchResults" class="renal-search-results d-none"></div>
+        </div>
+        {% if patient_id %}
+          <a href="/renal/sessions" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-grid-3x3-gap me-1"></i> Unit Schedule
+          </a>
+        {% endif %}
         <a href="{{ url_for('ui_clinical.prescription_workbench') }}" class="btn btn-outline-info btn-sm me-2">
           <i class="bi bi-shield-check me-1"></i> Rx Safety Workbench
         </a>
@@ -87,8 +142,19 @@
       </div>
     </div>
 
+    {% if patient_id %}
+    <div class="mb-3">
+      <span class="patient-chip">
+        <i class="bi bi-person me-1"></i>
+        {% if patient %}{{ patient.name }}{% else %}Unknown patient{% endif %}
+        · <code>{{ patient_id }}</code>
+      </span>
+    </div>
+    {% endif %}
+
     <!-- Quick Stats Row -->
     <div class="row g-3 mb-4">
+      {% if patient_id %}
       <div class="col-md-3">
         <div class="renal-card mb-0">
           <div class="text-muted small fw-semibold text-uppercase">Total Dialysis Sessions</div>
@@ -121,10 +187,59 @@
           <small class="text-muted"><i class="bi bi-receipt me-1"></i>Triggers on Session COMPLETED</small>
         </div>
       </div>
+      {% else %}
+      <div class="col-md-3">
+        <div class="renal-card mb-0">
+          <div class="text-muted small fw-semibold text-uppercase">Scheduled (Upcoming)</div>
+          {% set scheduled_count = sessions | selectattr('status', 'equalto', 'SCHEDULED') | list | length if sessions else 0 %}
+          <div class="stat-val text-primary mt-1">{{ scheduled_count }}</div>
+          <small class="text-muted"><i class="bi bi-calendar-check me-1"></i>Soonest first</small>
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="renal-card mb-0">
+          <div class="text-muted small fw-semibold text-uppercase">Active Runs (In Progress)</div>
+          {% set active_count = sessions | selectattr('status', 'equalto', 'IN_PROGRESS') | list | length if sessions else 0 %}
+          <div class="stat-val text-success mt-1">{{ active_count }}</div>
+          <small class="text-muted"><i class="bi bi-play-circle me-1"></i>Live HD / CRRT Machines</small>
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="renal-card mb-0">
+          <div class="text-muted small fw-semibold text-uppercase">Rows Shown</div>
+          <div class="stat-val text-info mt-1">{{ sessions|length if sessions else 0 }}</div>
+          <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filter: {{ selected_status or 'UPCOMING' }}</small>
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="renal-card mb-0">
+          <div class="text-muted small fw-semibold text-uppercase">Automated Billing</div>
+          <div class="stat-val text-warning mt-1">Enabled</div>
+          <small class="text-muted"><i class="bi bi-receipt me-1"></i>Triggers on Session COMPLETED</small>
+        </div>
+      </div>
+      {% endif %}
     </div>
 
+    {% if not patient_id %}
+    <!-- Board-mode hint -->
+    <div class="renal-card mb-4 py-3">
+      <div class="d-flex align-items-center gap-2 text-muted small">
+        <i class="bi bi-info-circle text-primary"></i>
+        Search a patient above (or click a patient row below) to open their console —
+        log HD/CRRT sessions, record vascular access, and run the chairside workflow.
+        Bookings made from Records appear here automatically as
+        <span class="badge status-badge-scheduled ms-1">SCHEDULED</span> sessions.
+      </div>
+    </div>
+    {% endif %}
+
+    {% if patient_id %}
     <div class="row g-4 mb-4">
-      
+
       <!-- Session Logging Form -->
       <div class="col-lg-5">
         <div class="renal-card h-100">
@@ -189,7 +304,7 @@
 
             <div class="mb-3">
               <label class="form-label text-white fw-semibold">Session Notes &amp; Observations</label>
-              <textarea class="form-control" id="sess_notes" rows="2" placeholder="Heffarin dose, cramps, vitals stability..."></textarea>
+              <textarea class="form-control" id="sess_notes" rows="2" placeholder="Heparin dose, cramps, vitals stability..."></textarea>
             </div>
 
             <button type="submit" class="btn btn-primary w-100 fw-bold">
@@ -274,14 +389,30 @@
       </div>
 
     </div>
+    {% endif %}
 
     <!-- Dialysis Sessions Table -->
     <div class="renal-card">
-      <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary pb-2">
-        <h5 class="fw-bold mb-0 text-white"><i class="bi bi-activity me-2 text-primary"></i>Dialysis Sessions History</h5>
-        <div>
-          <button class="btn btn-sm btn-outline-secondary me-2" onclick="location.href='/renal/sessions'">All Sessions</button>
-          <button class="btn btn-sm btn-outline-success" onclick="location.href='/renal/sessions?status=IN_PROGRESS'">Filter Active</button>
+      <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary pb-2 flex-wrap gap-2">
+        <h5 class="fw-bold mb-0 text-white">
+          {% if patient_id %}
+            <i class="bi bi-activity me-2 text-primary"></i>Dialysis Sessions History
+          {% else %}
+            <i class="bi bi-grid-3x3-gap me-2 text-primary"></i>Unit Schedule Board
+          {% endif %}
+        </h5>
+        <div class="d-flex gap-2 flex-wrap">
+          {% if patient_id %}
+            <a class="btn btn-sm renal-filter-btn {% if not selected_status %}active{% endif %}" href="/renal/sessions/{{ patient_id }}">All</a>
+            <a class="btn btn-sm renal-filter-btn {% if selected_status == 'SCHEDULED' %}active{% endif %}" href="/renal/sessions/{{ patient_id }}?status=SCHEDULED">SCHEDULED</a>
+            <a class="btn btn-sm renal-filter-btn {% if selected_status == 'IN_PROGRESS' %}active{% endif %}" href="/renal/sessions/{{ patient_id }}?status=IN_PROGRESS">IN&nbsp;PROGRESS</a>
+          {% else %}
+            <a class="btn btn-sm renal-filter-btn {% if selected_status == 'UPCOMING' %}active{% endif %}" href="/renal/sessions?status=UPCOMING">Upcoming</a>
+            <a class="btn btn-sm renal-filter-btn {% if selected_status == 'SCHEDULED' %}active{% endif %}" href="/renal/sessions?status=SCHEDULED">SCHEDULED</a>
+            <a class="btn btn-sm renal-filter-btn {% if selected_status == 'IN_PROGRESS' %}active{% endif %}" href="/renal/sessions?status=IN_PROGRESS">IN&nbsp;PROGRESS</a>
+            <a class="btn btn-sm renal-filter-btn {% if selected_status == 'COMPLETED' %}active{% endif %}" href="/renal/sessions?status=COMPLETED">COMPLETED</a>
+            <a class="btn btn-sm renal-filter-btn {% if selected_status == 'ALL' %}active{% endif %}" href="/renal/sessions?status=ALL">All</a>
+          {% endif %}
         </div>
       </div>
 
@@ -290,6 +421,7 @@
           <thead>
             <tr class="text-muted border-secondary">
               <th>ID</th>
+              {% if not patient_id %}<th>Patient</th>{% endif %}
               <th>Modality</th>
               <th>Session Date</th>
               <th>Flow Rates (BFR / DFR)</th>
@@ -303,12 +435,20 @@
             {% if sessions %}
               {% for s in sessions %}
               <tr>
-                <td><code class="text-muted">#{{ s.id if s.id else s.session_id }}</code></td>
+                <td><code class="text-muted">#{{ s.id }}</code></td>
+                {% if not patient_id %}
+                <td>
+                  <a href="/renal/sessions/{{ s.patient_id }}" class="text-decoration-none text-white fw-semibold">
+                    {{ s.patient_name or 'Unknown patient' }}
+                  </a>
+                  <br><small class="text-muted"><code>{{ s.patient_id }}</code></small>
+                </td>
+                {% endif %}
                 <td><span class="badge bg-primary font-monospace">{{ s.modality }}</span></td>
                 <td class="fw-semibold text-white">{{ s.session_date }}</td>
-                <td>{{ s.blood_flow_rate or '—' }} / {{ s.dialysate_flow_rate or '—' }} <small class="text-muted">mL/min</small></td>
-                <td>{{ s.pre_weight or '—' }} &rarr; {{ s.post_weight or '—' }} <small class="text-muted">kg</small></td>
-                <td><strong class="text-info">{{ s.ultrafiltration_volume or '0' }}</strong> <small class="text-muted">L</small></td>
+                <td>{{ s.blood_flow_rate_ml_min or '—' }} / {{ s.dialysate_flow_rate_ml_min or '—' }} <small class="text-muted">mL/min</small></td>
+                <td>{{ s.pre_weight_kg or '—' }} &rarr; {{ s.post_weight_kg or '—' }} <small class="text-muted">kg</small></td>
+                <td><strong class="text-info">{{ s.ultrafiltration_volume_ml or '0' }}</strong> <small class="text-muted">mL</small></td>
                 <td>
                   {% set st = s.status|string|upper %}
                   {% if st == 'COMPLETED' %}
@@ -321,9 +461,20 @@
                     <span class="badge status-badge-scheduled"><i class="bi bi-clock me-1"></i>{{ st }}</span>
                   {% endif %}
                 </td>
-                <td>
+                <td class="text-nowrap">
+                  {% set st = s.status|string|upper %}
+                  {% if not patient_id %}
+                  <a class="btn btn-sm btn-outline-light py-0 px-2" href="/renal/sessions/{{ s.patient_id }}" title="Open patient console">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                  </a>
+                  {% endif %}
+                  {% if st == 'SCHEDULED' %}
+                  <button class="btn btn-sm btn-primary py-0 px-2" onclick="updateSessionStatus({{ s.id }}, 'IN_PROGRESS')" title="Start run">
+                    Start
+                  </button>
+                  {% endif %}
                   {% if st != 'COMPLETED' and st != 'TERMINATED_EARLY' %}
-                  <button class="btn btn-sm btn-success py-0 px-2" onclick="updateSessionStatus({{ s.id if s.id else s.session_id }}, 'COMPLETED')">
+                  <button class="btn btn-sm btn-success py-0 px-2" onclick="updateSessionStatus({{ s.id }}, 'COMPLETED')">
                     Complete &amp; Bill
                   </button>
                   {% else %}
@@ -334,7 +485,13 @@
               {% endfor %}
             {% else %}
               <tr>
+                {% if patient_id %}
                 <td colspan="8" class="text-center text-muted py-3">No dialysis sessions logged for patient {{ patient_id }}.</td>
+                {% else %}
+                <td colspan="9" class="text-center text-muted py-3">
+                  No sessions match this filter. Bookings made from Records appear here automatically as SCHEDULED runs.
+                </td>
+                {% endif %}
               </tr>
             {% endif %}
           </tbody>
@@ -346,9 +503,55 @@
 </div>
 
 <script>
-document.getElementById('sess_date').value = new Date().toISOString().split('T')[0];
-document.getElementById('acc_date').value = new Date().toISOString().split('T')[0];
+// Default dates (only when the per-patient forms are rendered)
+const sessDateEl = document.getElementById('sess_date');
+if (sessDateEl) sessDateEl.value = '{{ today }}';
+const accDateEl = document.getElementById('acc_date');
+if (accDateEl) accDateEl.value = '{{ today }}';
 
+// ── Patient search (autocomplete → per-patient console) ──
+const renalSearchInput = document.getElementById('renalPatientSearch');
+const renalSearchResults = document.getElementById('renalPatientSearchResults');
+let renalSearchTimer = null;
+
+if (renalSearchInput && renalSearchResults) {
+  renalSearchInput.addEventListener('input', () => {
+    clearTimeout(renalSearchTimer);
+    const q = renalSearchInput.value.trim();
+    if (q.length < 2) {
+      renalSearchResults.classList.add('d-none');
+      renalSearchResults.innerHTML = '';
+      return;
+    }
+    renalSearchTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/renal/api/search-patients?q=${encodeURIComponent(q)}`);
+        const items = await res.json();
+        renalSearchResults.innerHTML = items.length
+          ? items.map(i =>
+              `<button type="button" class="renal-search-item" data-pid="${i.id}">${i.text}</button>`
+            ).join('')
+          : '<div class="renal-search-item text-muted">No matching patients</div>';
+        renalSearchResults.classList.remove('d-none');
+      } catch (err) {
+        console.error(err);
+      }
+    }, 250);
+  });
+
+  renalSearchResults.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('[data-pid]');
+    if (btn) window.location.href = `/renal/sessions/${btn.dataset.pid}`;
+  });
+
+  document.addEventListener('click', (ev) => {
+    if (ev.target !== renalSearchInput && !renalSearchResults.contains(ev.target)) {
+      renalSearchResults.classList.add('d-none');
+    }
+  });
+}
+
+// ── Session logging (per-patient console) ──
 async function submitSession(e) {
   e.preventDefault();
   const pid = document.getElementById('sess_patient_id').value;
@@ -383,6 +586,7 @@ async function submitSession(e) {
   }
 }
 
+// ── Vascular access logging (per-patient console) ──
 async function submitAccess(e) {
   e.preventDefault();
   const pid = document.getElementById('sess_patient_id').value;
@@ -412,6 +616,7 @@ async function submitAccess(e) {
   }
 }
 
+// ── Status transitions (board + console) ──
 async function updateSessionStatus(sessionId, newStatus) {
   try {
     const res = await fetch(`/renal/sessions/${sessionId}/status`, {

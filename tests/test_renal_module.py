@@ -416,3 +416,147 @@ class TestRenalRoutes:
     def test_missing_access_type_returns_400(self, client, admin_user):
         rv = client.post("/renal/access/P053", json={})
         assert rv.status_code == 400
+
+
+# ── Unit-wide schedule board & patient search ────────────────────────────────
+
+
+def _make_renal_patient(suffix, name=None, active=True):
+    from datetime import date
+
+    from departments.models.records import Patient
+
+    p = Patient(
+        patient_id=f"PR{suffix}",
+        name=name or f"Renal Patient {suffix}",
+        place_of_residence="Nairobi",
+        sex="Female",
+        date_of_birth=date(1985, 5, 5),
+        marital_status="Married",
+        blood_group="O+",
+        contact=f"072200{suffix}",
+        next_of_kin="Kin",
+        relationship_with_next_of_kin="Sibling",
+        next_of_kin_contact="0711111111",
+        national_id=f"ID{suffix}",
+        emergency_contact="0722222222",
+    )
+    if not active:
+        p.soft_delete()
+    return p
+
+
+class TestUnitScheduleBoard:
+    """The no-patient view must show pending work across ALL patients."""
+
+    def test_board_default_shows_scheduled_and_active_only(self, client, admin_user, app):
+        from datetime import date, timedelta
+
+        from departments.renal.engine import create_session, update_session_status
+
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            future = date.today() + timedelta(days=3)
+            past = date.today() - timedelta(days=3)
+            create_session(patient_id="PRB1", nurse_id=nurse.id, modality="HD", session_date=future)
+            done = create_session(patient_id="PRB2", nurse_id=nurse.id, modality="HD", session_date=past)
+            update_session_status(done.id, "COMPLETED")
+
+        rv = client.get("/renal/sessions")
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert data["scope"] == "unit"
+        statuses = {s["status"] for s in data["sessions"]}
+        assert "COMPLETED" not in statuses
+        assert "SCHEDULED" in statuses
+
+    def test_board_all_filter_includes_completed(self, client, admin_user, app):
+        from datetime import date, timedelta
+
+        from departments.renal.engine import create_session, update_session_status
+
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            past = date.today() - timedelta(days=2)
+            done = create_session(patient_id="PRC1", nurse_id=nurse.id, modality="CRRT", session_date=past)
+            update_session_status(done.id, "COMPLETED")
+
+        rv = client.get("/renal/sessions?status=ALL")
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert any(s["status"] == "COMPLETED" for s in data["sessions"])
+
+    def test_board_includes_patient_names(self, client, admin_user, app):
+        from datetime import date, timedelta
+
+        from departments.renal.engine import create_session
+        from extensions import db as _db
+
+        with app.app_context():
+            _db.session.add(_make_renal_patient("N1", name="Jane Dialysis"))
+            _db.session.commit()
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            future = date.today() + timedelta(days=1)
+            create_session(patient_id="PRN1", nurse_id=nurse.id, modality="HD", session_date=future)
+
+        rv = client.get("/renal/sessions?status=SCHEDULED")
+        data = rv.get_json()
+        row = next(s for s in data["sessions"] if s["patient_id"] == "PRN1")
+        assert row["patient_name"] == "Jane Dialysis"
+
+    def test_board_html_renders(self, client, admin_user, app):
+        rv = client.get("/renal/sessions", headers={"Accept": "text/html"})
+        assert rv.status_code == 200
+        assert b"Unit Schedule Board" in rv.data
+
+    def test_per_patient_json_includes_patient_name(self, client, admin_user, app):
+        from extensions import db as _db
+
+        with app.app_context():
+            _db.session.add(_make_renal_patient("P2", name="Kamau Nephro"))
+            _db.session.commit()
+
+        rv = client.get("/renal/sessions/PRP2")
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert data["patient_name"] == "Kamau Nephro"
+
+    def test_per_patient_html_renders_with_name(self, client, admin_user, app):
+        from extensions import db as _db
+
+        with app.app_context():
+            _db.session.add(_make_renal_patient("H1", name="Achieng Console"))
+            _db.session.commit()
+
+        rv = client.get("/renal/sessions/PRH1", headers={"Accept": "text/html"})
+        assert rv.status_code == 200
+        assert b"Achieng Console" in rv.data
+        assert b"Log Dialysis Session" in rv.data
+
+
+class TestRenalPatientSearch:
+    def test_search_matches_id_and_name_active_only(self, client, admin_user, app):
+        from extensions import db as _db
+
+        with app.app_context():
+            _db.session.add(_make_renal_patient("S1", name="Wanjiku Search"))
+            _db.session.add(_make_renal_patient("S2", name="Deleted Patient", active=False))
+            _db.session.commit()
+
+        # By ID
+        rv = client.get("/renal/api/search-patients?q=PRS1")
+        results = rv.get_json()
+        assert [r["id"] for r in results] == ["PRS1"]
+        assert "Wanjiku Search" in results[0]["text"]
+
+        # By name (case-insensitive)
+        rv = client.get("/renal/api/search-patients?q=wanjiku")
+        assert [r["id"] for r in rv.get_json()] == ["PRS1"]
+
+        # Soft-deleted patients are excluded
+        rv = client.get("/renal/api/search-patients?q=Deleted Patient")
+        assert rv.get_json() == []
+
+    def test_search_requires_two_chars(self, client, admin_user):
+        assert client.get("/renal/api/search-patients?q=P").get_json() == []
+        assert client.get("/renal/api/search-patients?q=").get_json() == []

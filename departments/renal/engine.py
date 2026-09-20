@@ -195,6 +195,32 @@ def get_patient_sessions(patient_id: str) -> list[DialysisSession]:
     )
 
 
+def get_unit_sessions(
+    statuses: set[str] | None = None, limit: int = 200
+) -> list[DialysisSession]:
+    """
+    Return dialysis sessions across ALL patients for the unit-wide schedule
+    board.
+
+    statuses: filter by status (e.g. {"SCHEDULED"}); None = all statuses.
+    Ordering: ascending by session date for pending work (SCHEDULED /
+    IN_PROGRESS — soonest first, like a day sheet), descending otherwise.
+    """
+    query = DialysisSession.query
+    if statuses:
+        query = query.filter(DialysisSession.status.in_(statuses))
+
+    ascending = statuses is not None and statuses <= {"SCHEDULED", "IN_PROGRESS"}
+    order = (
+        DialysisSession.session_date.asc(),
+        DialysisSession.created_at.asc(),
+    ) if ascending else (
+        DialysisSession.session_date.desc(),
+        DialysisSession.created_at.desc(),
+    )
+    return query.order_by(*order).limit(limit).all()
+
+
 # ── Prescription helpers (Section 23 #5) ────────────────────────────────────
 
 

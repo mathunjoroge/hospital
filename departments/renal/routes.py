@@ -28,14 +28,17 @@ from flask import abort, jsonify, render_template, request
 from flask_login import current_user, login_required
 
 from departments.rbac import roles_required
+from departments.models.records import Patient
 from departments.renal.engine import (
     create_session,
     get_patient_access_records,
     get_patient_sessions,
+    get_unit_sessions,
     log_access_record,
     session_summary,
     update_session_status,
 )
+from extensions import db
 
 from . import bp as renal_bp
 
@@ -43,6 +46,9 @@ logger = logging.getLogger(__name__)
 
 # Allowed clinical roles for renal unit access
 _RENAL_ROLES = ("renal", "nursing", "admin", "doctor")
+
+# Statuses shown on the unit-wide schedule board by default (pending work)
+_UNIT_BOARD_STATUSES = {"SCHEDULED", "IN_PROGRESS"}
 
 
 def _require_authenticated_user_id() -> int:
@@ -94,18 +100,56 @@ def _float(data: dict, key: str) -> float | None:
 @renal_bp.route("/sessions/<string:patient_id>", methods=["GET"])
 @login_required
 @roles_required(*_RENAL_ROLES)
-def list_sessions(patient_id: str = "P001"):
+def list_sessions(patient_id: str | None = None):
     """
-    GET /renal/sessions/<patient_id>
-    List all dialysis sessions for a patient, newest first.
-    Renders HTML console for browser requests, JSON for API clients.
+    GET /renal/sessions                     → unit-wide schedule board
+    GET /renal/sessions?status=SCHEDULED    → board filtered by status
+    GET /renal/sessions/<patient_id>        → per-patient console
+
+    Status filter values: UPCOMING (default: SCHEDULED + IN_PROGRESS,
+    soonest first), ALL, or a single status such as SCHEDULED / IN_PROGRESS /
+    COMPLETED / TERMINATED_EARLY.
+
+    Renders HTML for browser requests, JSON for API clients.
+    NOTE: previously the no-patient view silently showed demo patient P001;
+    it now shows the unit-wide board. Per-patient behaviour is unchanged.
     """
+    wants_html = "text/html" in request.headers.get("Accept", "")
+    raw_status = (request.args.get("status") or "").strip().upper()
+
+    if patient_id is None:
+        # ── Unit-wide schedule board ─────────────────────────────────────
+        sessions = _board_sessions(raw_status)
+        if wants_html:
+            return render_template(
+                "renal/sessions.html",
+                patient_id=None,
+                patient=None,
+                sessions=sessions,
+                access_records=[],
+                selected_status=raw_status or "UPCOMING",
+                today=date.today().isoformat(),
+            )
+        return jsonify(
+            {
+                "scope": "unit",
+                "count": len(sessions),
+                "sessions": sessions,
+            }
+        ), 200
+
+    # ── Per-patient console ───────────────────────────────────────────────
     sessions = get_patient_sessions(patient_id)
-    raw_status = request.args.get("status")
-    if raw_status:
+    if raw_status and raw_status != "ALL":
         sessions = [s for s in sessions if str(s.status).upper() == raw_status.upper()]
 
-    wants_html = "text/html" in request.headers.get("Accept", "")
+    patient = Patient.query.filter_by(patient_id=patient_id).first()
+    rows = []
+    for s in sessions:
+        summary = session_summary(s)
+        summary["patient_name"] = patient.name if patient else None
+        rows.append(summary)
+
     if wants_html:
         access_records = get_patient_access_records(patient_id)
         formatted_access = [
@@ -124,17 +168,80 @@ def list_sessions(patient_id: str = "P001"):
         return render_template(
             "renal/sessions.html",
             patient_id=patient_id,
-            sessions=[session_summary(s) for s in sessions],
+            patient=patient,
+            sessions=rows,
             access_records=formatted_access,
+            selected_status=raw_status or None,
+            today=date.today().isoformat(),
         )
 
     return jsonify(
         {
             "patient_id": patient_id,
-            "count": len(sessions),
-            "sessions": [session_summary(s) for s in sessions],
+            "patient_name": patient.name if patient else None,
+            "count": len(rows),
+            "sessions": rows,
         }
     ), 200
+
+
+def _board_sessions(status: str) -> list[dict]:
+    """Unit-wide board rows for the given status filter, with patient names."""
+    if status in ("", "UPCOMING"):
+        statuses: set[str] | None = _UNIT_BOARD_STATUSES
+    elif status == "ALL":
+        statuses = None
+    else:
+        statuses = {status}
+
+    sessions = get_unit_sessions(statuses=statuses)
+    patient_ids = {s.patient_id for s in sessions}
+    names = {}
+    if patient_ids:
+        names = {
+            p.patient_id: p.name
+            for p in Patient.query.filter(Patient.patient_id.in_(patient_ids)).all()
+        }
+
+    rows = []
+    for s in sessions:
+        summary = session_summary(s)
+        summary["patient_name"] = names.get(s.patient_id)
+        rows.append(summary)
+    return rows
+
+
+@renal_bp.route("/api/search-patients", methods=["GET"])
+@login_required
+@roles_required(*_RENAL_ROLES)
+def search_patients():
+    """
+    GET /renal/api/search-patients?q=<term>
+    Select2-style patient search for the console header (ID or name).
+    Only active (non-merged) patients are returned.
+    """
+    term = (request.args.get("q") or "").strip()
+    if len(term) < 2:
+        return jsonify([])
+
+    patients = (
+        Patient.query.filter(
+            Patient.is_active.is_(True),
+            db.or_(
+                Patient.patient_id.ilike(f"%{term}%"),
+                Patient.name.ilike(f"%{term}%"),
+            ),
+        )
+        .order_by(Patient.patient_id)
+        .limit(15)
+        .all()
+    )
+    return jsonify(
+        [
+            {"id": p.patient_id, "text": f"{p.name} ({p.patient_id})"}
+            for p in patients
+        ]
+    )
 
 
 @renal_bp.route("/sessions/<string:patient_id>", methods=["POST"])

@@ -956,6 +956,18 @@ if __name__ == "__main__":
                 )
             else:
                 print("✅ Database connection verified & admin user exists.")
+
+            # Guarantee the specialty clinics (Renal / Dialysis, Oncology) exist
+            # in the catalog so Records staff can book patients into those
+            # departments. Idempotent — safe on every startup.
+            from departments.records.clinic_bridge import seed_specialty_clinics
+
+            specialty_seeded = seed_specialty_clinics()
+            if specialty_seeded:
+                print(
+                    f"✅ Auto-seeded {specialty_seeded} specialty clinic(s) "
+                    "(Renal/Dialysis, Oncology) into the Records catalog."
+                )
         except Exception as exc:  # noqa: BLE001
             print(f"⚠️  Startup note: {exc}")
             print("   If the database is not initialised, run: flask db upgrade")

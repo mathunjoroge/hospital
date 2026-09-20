@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
@@ -30,10 +31,13 @@ from departments.models.records import (
 # INDEX — Patient List
 # ─────────────────────────────────────────────
 from departments.rbac import roles_required
+from departments.records.clinic_bridge import propagate_specialty_booking
 from departments.records.merge import find_duplicate_candidates, merge_patient_records
 from extensions import db
 
 from . import bp
+
+logger = logging.getLogger(__name__)
 
 
 @bp.route("/index")
@@ -635,6 +639,14 @@ def book_clinic():
                 "message": f"Patient with ID {patient_id} does not exist!",
             }
         ), 400
+    if not patient.is_active:
+        return jsonify(
+            {
+                "status": "error",
+                "message": f"Patient {patient.name} ({patient.patient_id}) is "
+                "inactive (merged/deleted) and cannot be booked.",
+            }
+        ), 400
 
     clinic = db.session.get(Clinic, clinic_id)
     if not clinic:
@@ -654,22 +666,75 @@ def book_clinic():
         ), 400
 
     new_booking = ClinicBooking(
-        patient_id=patient_id, clinic_id=clinic_id, clinic_date=clinic_date
+        patient_id=patient.patient_id, clinic_id=clinic_id, clinic_date=clinic_date
     )
     db.session.add(new_booking)
+    db.session.flush()
+
+    # Mirror the booking into the specialty department's own scheduler so it
+    # is visible to the clinicians: renal gets a SCHEDULED DialysisSession,
+    # oncology gets an OncologyBooking on its bookings board. Committed
+    # atomically with the ClinicBooking below.
+    propagated = None
+    if clinic:
+        try:
+            propagated = propagate_specialty_booking(
+                clinic_name=clinic.name,
+                patient_id=patient.patient_id,
+                clinic_date=clinic_date,
+                actor_id=getattr(current_user, "id", None),
+            )
+        except Exception:  # noqa: BLE001
+            db.session.rollback()
+            logger.exception(
+                "Specialty booking propagation failed: patient=%s clinic=%s",
+                patient.patient_id,
+                clinic.name,
+            )
+            return jsonify(
+                {
+                    "status": "error",
+                    "message": "Booking could not be saved. Please try again.",
+                }
+            ), 500
 
     db.session.commit()
 
+    log_audit_event(
+        "CLINIC_BOOKING_CREATE",
+        resource_type="ClinicBooking",
+        resource_id=str(new_booking.id),
+        details={
+            "patient_id": patient.patient_id,
+            "clinic": clinic.name if clinic else str(clinic_id),
+            "clinic_date": clinic_date.isoformat(),
+        },
+    )
+
     provider_id = str(getattr(current_user, "id", "1") or "1")
     ScheduleEngine().create_walk_in(
-        patient_id=patient_id,
+        patient_id=patient.patient_id,
         provider_id=provider_id,
         reason=f"Clinic Booking: {clinic.name if clinic else 'General'}",
     )
+
+    message = (
+        f"Clinic booked for {patient.name} at {clinic.name} "
+        f"on {clinic_date.strftime('%Y-%m-%d')}!"
+    )
+    if propagated:
+        if propagated["department"] == "renal":
+            message += (
+                f" Dialysis session #{propagated['id']} scheduled in the Renal Unit."
+            )
+        elif propagated["department"] == "oncology":
+            message += (
+                f" Oncology booking #{propagated['id']} added to the Oncology board."
+            )
     return jsonify(
         {
             "status": "success",
-            "message": f"Clinic booked for {patient.name} at {clinic.name} on {clinic_date.strftime('%Y-%m-%d')}!",
+            "message": message,
         }
     ), 200
 
