@@ -470,6 +470,103 @@ class TestUnitScheduleBoard:
         assert "COMPLETED" not in statuses
         assert "SCHEDULED" in statuses
 
+    def test_board_date_range_filters(self, client, admin_user, app):
+        """start/end (inclusive) narrow the board; invalid dates are ignored."""
+        from datetime import date, timedelta
+
+        from departments.renal.engine import create_session
+
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            create_session(
+                patient_id="PRD1", nurse_id=nurse.id, modality="HD",
+                session_date=date.today() + timedelta(days=1),
+            )
+            create_session(
+                patient_id="PRD2", nurse_id=nurse.id, modality="HD",
+                session_date=date.today() + timedelta(days=30),
+            )
+
+        tomorrow = (date.today() + timedelta(days=1)).isoformat()
+        day_after = (date.today() + timedelta(days=2)).isoformat()
+
+        # Inclusive range catches the tomorrow session only
+        rv = client.get(f"/renal/sessions?start={tomorrow}&end={day_after}")
+        data = rv.get_json()
+        ids = {s["patient_id"] for s in data["sessions"]}
+        assert ids == {"PRD1"}
+        assert data["date_range"] == {"filter_start": tomorrow, "filter_end": day_after}
+
+        # Invalid dates are ignored (returns everything)
+        rv = client.get("/renal/sessions?start=not-a-date&end=2026-13-99")
+        assert rv.get_json()["count"] >= 2
+
+    def test_board_today_quick_filter(self, client, admin_user, app):
+        from datetime import date, timedelta
+
+        from departments.renal.engine import create_session
+
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            create_session(
+                patient_id="PRT1", nurse_id=nurse.id, modality="HD",
+                session_date=date.today(),
+            )
+            create_session(
+                patient_id="PRT2", nurse_id=nurse.id, modality="HD",
+                session_date=date.today() + timedelta(days=5),
+            )
+
+        today = date.today().isoformat()
+        rv = client.get(f"/renal/sessions?start={today}&end={today}")
+        ids = {s["patient_id"] for s in rv.get_json()["sessions"]}
+        assert ids == {"PRT1"}
+
+    def test_per_patient_date_range(self, client, admin_user, app):
+        from datetime import date, timedelta
+
+        from departments.renal.engine import create_session
+
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            create_session(
+                patient_id="PRF1", nurse_id=nurse.id, modality="HD",
+                session_date=date.today() + timedelta(days=1),
+            )
+            create_session(
+                patient_id="PRF1", nurse_id=nurse.id, modality="CRRT",
+                session_date=date.today() + timedelta(days=20),
+            )
+
+        tomorrow = (date.today() + timedelta(days=1)).isoformat()
+        day_after = (date.today() + timedelta(days=2)).isoformat()
+        rv = client.get(f"/renal/sessions/PRF1?start={tomorrow}&end={day_after}")
+        data = rv.get_json()
+        assert data["count"] == 1
+        assert data["date_range"]["filter_start"] == tomorrow
+
+    def test_board_html_renders_with_date_filter(self, client, admin_user, app):
+        from datetime import date, timedelta
+
+        from departments.renal.engine import create_session
+
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            create_session(
+                patient_id="PRH9", nurse_id=nurse.id, modality="HD",
+                session_date=date.today() + timedelta(days=1),
+            )
+
+        today = date.today().isoformat()
+        week = (date.today() + timedelta(days=6)).isoformat()
+        rv = client.get(
+            f"/renal/sessions?start={today}&end={week}",
+            headers={"Accept": "text/html"},
+        )
+        assert rv.status_code == 200
+        assert b"Unit Schedule Board" in rv.data
+        assert today.encode() in rv.data  # filter value echoed into the form
+
     def test_board_all_filter_includes_completed(self, client, admin_user, app):
         from datetime import date, timedelta
 
@@ -560,3 +657,295 @@ class TestRenalPatientSearch:
     def test_search_requires_two_chars(self, client, admin_user):
         assert client.get("/renal/api/search-patients?q=P").get_json() == []
         assert client.get("/renal/api/search-patients?q=").get_json() == []
+
+
+# ── Day-sheet shift grouping ─────────────────────────────────────────────
+
+
+class TestShiftGrouping:
+    def test_shift_for_datetime_classification(self, app):
+        from datetime import datetime
+
+        from departments.renal.engine import shift_for_datetime
+
+        assert shift_for_datetime(datetime(2026, 9, 21, 8, 0)) == "MORNING"
+        assert shift_for_datetime(datetime(2026, 9, 21, 11, 59)) == "MORNING"
+        assert shift_for_datetime(datetime(2026, 9, 21, 12, 0)) == "AFTERNOON"
+        assert shift_for_datetime(datetime(2026, 9, 21, 17, 59)) == "AFTERNOON"
+        assert shift_for_datetime(datetime(2026, 9, 21, 20, 0)) == "EVENING"
+        assert shift_for_datetime(datetime(2026, 9, 22, 3, 0)) == "EVENING"
+        assert shift_for_datetime(None) is None
+
+    def test_session_summary_includes_shift_and_chair_time(self, app, nurse_user):
+        from datetime import date, datetime, timedelta
+
+        from departments.renal.engine import create_session, session_summary
+
+        with app.app_context():
+            future = date.today() + timedelta(days=1)
+            s = create_session(
+                patient_id="PRS1",
+                nurse_id=nurse_user,
+                modality="HD",
+                session_date=future,
+                start_time=datetime.combine(future, datetime.min.time()).replace(hour=8),
+            )
+            summary = session_summary(s)
+            assert summary["shift"] == "MORNING"
+            assert summary["start_time_hm"] == "08:00"
+
+    def test_day_sheet_groups_by_shift(self, client, admin_user, app):
+        """Single-day filter renders Morning/Afternoon/Evening/Time-TBD sections."""
+        from datetime import date, datetime, timedelta
+
+        from departments.renal.engine import create_session
+
+        day = date.today() + timedelta(days=2)
+        day_iso = day.isoformat()
+
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            at = lambda h: datetime.combine(day, datetime.min.time()).replace(hour=h)
+            create_session(patient_id="PRG1", nurse_id=nurse.id, modality="HD",
+                           session_date=day, start_time=at(8))
+            create_session(patient_id="PRG2", nurse_id=nurse.id, modality="HD",
+                           session_date=day, start_time=at(14))
+            create_session(patient_id="PRG3", nurse_id=nurse.id, modality="CRRT",
+                           session_date=day, start_time=at(20))
+            # Records-style booking: date only, no chair time
+            create_session(patient_id="PRG4", nurse_id=nurse.id, modality="HD",
+                           session_date=day)
+
+        rv = client.get(
+            f"/renal/sessions?start={day_iso}&end={day_iso}",
+            headers={"Accept": "text/html"},
+        )
+        assert rv.status_code == 200
+        html = rv.data
+        assert b"Morning Shift" in html
+        assert b"Afternoon Shift" in html
+        assert b"Evening Shift" in html
+        assert b"Time TBD" in html
+
+    def test_flat_board_has_no_group_headers(self, client, admin_user, app):
+        """Without a single-day filter the board stays a flat sorted table."""
+        from datetime import date, timedelta
+
+        from departments.renal.engine import create_session
+
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            create_session(
+                patient_id="PRG5", nurse_id=nurse.id, modality="HD",
+                session_date=date.today() + timedelta(days=1),
+            )
+
+        rv = client.get("/renal/sessions", headers={"Accept": "text/html"})
+        assert rv.status_code == 200
+        assert b"Morning Shift" not in rv.data
+
+
+# ── Chair time assignment ────────────────────────────────────────────────────
+
+
+class TestChairTimeAssignment:
+    def test_assign_chair_time_sets_start_and_shift(self, app, nurse_user):
+        """A date-only (Records-style) booking gets a chair time + shift."""
+        from datetime import date, timedelta
+
+        from departments.renal.engine import (
+            assign_chair_time,
+            create_session,
+            session_summary,
+        )
+
+        with app.app_context():
+            s = create_session(
+                patient_id="PRCT1", nurse_id=nurse_user, modality="HD",
+                session_date=date.today() + timedelta(days=1),
+            )
+            assert s.start_time is None
+
+            updated = assign_chair_time(s.id, chair_time="08:30")
+            assert updated.start_time is not None
+            assert updated.start_time.hour == 8
+            assert updated.start_time.minute == 30
+            summary = session_summary(updated)
+            assert summary["shift"] == "MORNING"
+            assert summary["start_time_hm"] == "08:30"
+
+    def test_chair_time_reassignment_moves_shift(self, app, nurse_user):
+        from datetime import date, timedelta
+
+        from departments.renal.engine import assign_chair_time, create_session
+
+        with app.app_context():
+            s = create_session(
+                patient_id="PRCT2", nurse_id=nurse_user, modality="HD",
+                session_date=date.today() + timedelta(days=1),
+            )
+            moved = assign_chair_time(s.id, chair_time="14:00", end_time_hm="18:00")
+            assert moved.start_time.hour == 14
+            assert moved.end_time is not None
+            assert moved.end_time.hour == 18
+
+    def test_end_time_before_start_rejected(self, app, nurse_user):
+        from datetime import date, timedelta
+
+        import pytest as _pytest
+
+        from departments.renal.engine import assign_chair_time, create_session
+
+        with app.app_context():
+            s = create_session(
+                patient_id="PRCT3", nurse_id=nurse_user, modality="HD",
+                session_date=date.today() + timedelta(days=1),
+            )
+            with _pytest.raises(ValueError, match="after the start"):
+                assign_chair_time(s.id, chair_time="14:00", end_time_hm="12:00")
+
+    def test_invalid_time_format_rejected(self, app, nurse_user):
+        from datetime import date, timedelta
+
+        import pytest as _pytest
+
+        from departments.renal.engine import assign_chair_time, create_session
+
+        with app.app_context():
+            s = create_session(
+                patient_id="PRCT4", nurse_id=nurse_user, modality="HD",
+                session_date=date.today() + timedelta(days=1),
+            )
+            with _pytest.raises(ValueError, match="HH:MM"):
+                assign_chair_time(s.id, chair_time="8am")
+            with _pytest.raises(ValueError, match="HH:MM"):
+                assign_chair_time(s.id, chair_time="25:00")
+
+    def test_missing_session_raises_lookup(self, app):
+        import pytest as _pytest
+
+        from departments.renal.engine import assign_chair_time
+
+        with app.app_context():
+            with _pytest.raises(LookupError):
+                assign_chair_time(999999, chair_time="08:00")
+
+    def test_route_assigns_chair_time(self, client, admin_user, app):
+        from datetime import date, timedelta
+
+        from departments.renal.engine import create_session
+
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            s = create_session(
+                patient_id="PRCT5", nurse_id=nurse.id, modality="HD",
+                session_date=date.today() + timedelta(days=1),
+            )
+            session_id = s.id
+
+        rv = client.patch(
+            f"/renal/sessions/{session_id}/chair-time",
+            json={"chair_time": "08:30"},
+        )
+        assert rv.status_code == 200
+        data = rv.get_json()
+        assert data["success"] is True
+        assert data["session"]["start_time_hm"] == "08:30"
+        assert data["session"]["shift"] == "MORNING"
+
+    def test_route_missing_chair_time_400(self, client, admin_user):
+        rv = client.patch("/renal/sessions/1/chair-time", json={})
+        assert rv.status_code == 400
+
+    def test_route_invalid_time_422(self, client, admin_user, app):
+        from datetime import date, timedelta
+
+        from departments.renal.engine import create_session
+
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            s = create_session(
+                patient_id="PRCT6", nurse_id=nurse.id, modality="HD",
+                session_date=date.today() + timedelta(days=1),
+            )
+            session_id = s.id
+
+        rv = client.patch(
+            f"/renal/sessions/{session_id}/chair-time",
+            json={"chair_time": "not-a-time"},
+        )
+        assert rv.status_code == 422
+
+    def test_route_unknown_session_404(self, client, admin_user):
+        rv = client.patch("/renal/sessions/999999/chair-time", json={"chair_time": "08:00"})
+        assert rv.status_code == 404
+
+    def test_sessions_default_to_renal_source(self, app, nurse_user):
+        from datetime import date, timedelta
+
+        from departments.renal.engine import create_session, session_summary
+
+        with app.app_context():
+            s = create_session(
+                patient_id="PRSR1", nurse_id=nurse_user, modality="HD",
+                session_date=date.today() + timedelta(days=1),
+            )
+            assert s.source == "RENAL"
+            assert session_summary(s)["source"] == "RENAL"
+
+    def test_board_marks_records_bookings(self, client, admin_user, app):
+        """Only RECORDS-sourced sessions carry the Records badge on the board."""
+        from datetime import date, timedelta
+
+        from departments.models.renal import DialysisSession
+        from departments.renal.engine import create_session
+        from extensions import db as _db
+
+        day = date.today() + timedelta(days=1)
+        day_iso = day.isoformat()
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            create_session(
+                patient_id="PRSR2", nurse_id=nurse.id, modality="HD",
+                session_date=day,
+            )
+            _db.session.add(
+                DialysisSession(
+                    patient_id="PRSR3", nurse_id=nurse.id, modality="HD",
+                    session_date=day, status="SCHEDULED", source="RECORDS",
+                    notes="Booked from Records",
+                )
+            )
+            _db.session.commit()
+
+        rv = client.get(
+            f"/renal/sessions?start={day_iso}&end={day_iso}",
+            headers={"Accept": "text/html"},
+        )
+        assert rv.status_code == 200
+        # exactly one of the two rows is records-sourced (row badge uses the
+        # `me-1` icon variant; the hint card & CSS rule don't)
+        assert rv.data.count(b"bi-clipboard-plus me-1") == 1
+
+    def test_day_sheet_offers_set_time_button(self, client, admin_user, app):
+        """SCHEDULED rows on the day sheet render the chair-time editor trigger."""
+        from datetime import date, timedelta
+
+        from departments.renal.engine import create_session
+
+        day = date.today() + timedelta(days=1)
+        day_iso = day.isoformat()
+        with app.app_context():
+            nurse = User.query.filter_by(username="admin_test_fixture").first()
+            create_session(
+                patient_id="PRCT7", nurse_id=nurse.id, modality="HD",
+                session_date=day,
+            )
+
+        rv = client.get(
+            f"/renal/sessions?start={day_iso}&end={day_iso}",
+            headers={"Accept": "text/html"},
+        )
+        assert rv.status_code == 200
+        assert b"openChairTimeModal" in rv.data
+        assert b"chairTimeModal" in rv.data

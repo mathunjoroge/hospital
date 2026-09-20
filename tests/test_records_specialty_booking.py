@@ -150,6 +150,8 @@ class TestSpecialtyBookingPropagation:
             assert session.status == "SCHEDULED"
             assert session.session_date == BOOKING_DATE
             assert session.modality in ("HD", "CRRT")
+            assert session.source == "RECORDS"
+            assert "Booked from Records" in (session.notes or "")
             assert ClinicBooking.query.count() == 1
 
     def test_oncology_clinic_booking_creates_scheduled_oncology_booking(

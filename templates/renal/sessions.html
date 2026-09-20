@@ -101,6 +101,23 @@
     padding: 0.25rem 0.9rem;
     font-size: 0.85rem;
   }
+
+  .records-badge {
+    background: rgba(255, 193, 7, 0.18);
+    color: #ffe08a;
+    border: 1px solid #f0ad4e;
+  }
+
+  /* Day-sheet shift group headers */
+  .renal-shift-row td {
+    background: rgba(59, 130, 246, 0.08);
+    border-top: 1px solid #3b82f6;
+    color: #93c5fd;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.45rem 1rem;
+  }
 </style>
 
 <div class="renal-wrapper pt-3">
@@ -210,7 +227,9 @@
         <div class="renal-card mb-0">
           <div class="text-muted small fw-semibold text-uppercase">Rows Shown</div>
           <div class="stat-val text-info mt-1">{{ sessions|length if sessions else 0 }}</div>
-          <small class="text-muted"><i class="bi bi-funnel me-1"></i>Filter: {{ selected_status or 'UPCOMING' }}</small>
+          <small class="text-muted">
+            <i class="bi bi-funnel me-1"></i>Filter: {{ selected_status or 'UPCOMING' }}{% if filter_start %} · {{ filter_start }} → {{ filter_end or '…' }}{% endif %}
+          </small>
         </div>
       </div>
 
@@ -232,7 +251,9 @@
         Search a patient above (or click a patient row below) to open their console —
         log HD/CRRT sessions, record vascular access, and run the chairside workflow.
         Bookings made from Records appear here automatically as
-        <span class="badge status-badge-scheduled ms-1">SCHEDULED</span> sessions.
+        <span class="badge status-badge-scheduled ms-1">SCHEDULED</span>
+        <span class="badge records-badge ms-1"><i class="bi bi-clipboard-plus"></i> Records</span> sessions —
+        assign them a chair time to slot them into a shift.
       </div>
     </div>
     {% endif %}
@@ -392,6 +413,77 @@
     {% endif %}
 
     <!-- Dialysis Sessions Table -->
+    {% macro session_row(s, show_patient) %}
+    <tr>
+      <td><code class="text-muted">#{{ s.id }}</code></td>
+      {% if show_patient %}
+      <td>
+        <a href="/renal/sessions/{{ s.patient_id }}" class="text-decoration-none text-white fw-semibold">
+          {{ s.patient_name or 'Unknown patient' }}
+        </a>
+        <br><small class="text-muted"><code>{{ s.patient_id }}</code></small>
+      </td>
+      {% endif %}
+      <td>
+        <span class="badge bg-primary font-monospace">{{ s.modality }}</span>
+        {% if s.source == 'RECORDS' %}
+        <span class="badge records-badge" title="Booked from Records — assign chair time">
+          <i class="bi bi-clipboard-plus me-1"></i>Records
+        </span>
+        {% endif %}
+      </td>
+      <td class="fw-semibold text-white">
+        {{ s.session_date }}
+        {% if s.start_time_hm %}
+          <br><small class="text-muted"><i class="bi bi-clock"></i> {{ s.start_time_hm }} · {{ s.shift }}</small>
+        {% else %}
+          <br><small class="text-muted">Time TBD</small>
+        {% endif %}
+      </td>
+      <td>{{ s.blood_flow_rate_ml_min or '—' }} / {{ s.dialysate_flow_rate_ml_min or '—' }} <small class="text-muted">mL/min</small></td>
+      <td>{{ s.pre_weight_kg or '—' }} &rarr; {{ s.post_weight_kg or '—' }} <small class="text-muted">kg</small></td>
+      <td><strong class="text-info">{{ s.ultrafiltration_volume_ml or '0' }}</strong> <small class="text-muted">mL</small></td>
+      <td>
+        {% set st = s.status|string|upper %}
+        {% if st == 'COMPLETED' %}
+          <span class="badge status-badge-completed"><i class="bi bi-check-circle me-1"></i>COMPLETED</span>
+        {% elif st == 'IN_PROGRESS' %}
+          <span class="badge status-badge-in_progress"><i class="bi bi-play-circle me-1"></i>IN PROGRESS</span>
+        {% elif st == 'TERMINATED_EARLY' %}
+          <span class="badge status-badge-terminated"><i class="bi bi-x-circle me-1"></i>TERMINATED</span>
+        {% else %}
+          <span class="badge status-badge-scheduled"><i class="bi bi-clock me-1"></i>{{ st }}</span>
+        {% endif %}
+      </td>
+      <td class="text-nowrap">
+        {% set st = s.status|string|upper %}
+        {% if show_patient %}
+        <a class="btn btn-sm btn-outline-light py-0 px-2" href="/renal/sessions/{{ s.patient_id }}" title="Open patient console">
+          <i class="bi bi-box-arrow-in-right"></i>
+        </a>
+        {% endif %}
+        {% if st == 'SCHEDULED' or st == 'IN_PROGRESS' %}
+        <button class="btn btn-sm btn-outline-info py-0 px-2" title="Assign / edit chair time"
+                onclick="openChairTimeModal({{ s.id }}, '{{ s.start_time_hm or '' }}', '{{ s.end_time_hm or '' }}')">
+          <i class="bi bi-clock-history"></i>
+        </button>
+        {% endif %}
+        {% if st == 'SCHEDULED' %}
+        <button class="btn btn-sm btn-primary py-0 px-2" onclick="updateSessionStatus({{ s.id }}, 'IN_PROGRESS')" title="Start run">
+          Start
+        </button>
+        {% endif %}
+        {% if st != 'COMPLETED' and st != 'TERMINATED_EARLY' %}
+        <button class="btn btn-sm btn-success py-0 px-2" onclick="updateSessionStatus({{ s.id }}, 'COMPLETED')">
+          Complete &amp; Bill
+        </button>
+        {% else %}
+        <span class="text-muted small">Billed</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endmacro %}
+
     <div class="renal-card">
       <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary pb-2 flex-wrap gap-2">
         <h5 class="fw-bold mb-0 text-white">
@@ -401,7 +493,7 @@
             <i class="bi bi-grid-3x3-gap me-2 text-primary"></i>Unit Schedule Board
           {% endif %}
         </h5>
-        <div class="d-flex gap-2 flex-wrap">
+        <div class="d-flex gap-2 flex-wrap align-items-center">
           {% if patient_id %}
             <a class="btn btn-sm renal-filter-btn {% if not selected_status %}active{% endif %}" href="/renal/sessions/{{ patient_id }}">All</a>
             <a class="btn btn-sm renal-filter-btn {% if selected_status == 'SCHEDULED' %}active{% endif %}" href="/renal/sessions/{{ patient_id }}?status=SCHEDULED">SCHEDULED</a>
@@ -413,6 +505,25 @@
             <a class="btn btn-sm renal-filter-btn {% if selected_status == 'COMPLETED' %}active{% endif %}" href="/renal/sessions?status=COMPLETED">COMPLETED</a>
             <a class="btn btn-sm renal-filter-btn {% if selected_status == 'ALL' %}active{% endif %}" href="/renal/sessions?status=ALL">All</a>
           {% endif %}
+
+          <!-- 📅 Date range filter -->
+          <form method="get" class="d-flex gap-2 align-items-center flex-wrap ms-md-2"
+                action="{% if patient_id %}/renal/sessions/{{ patient_id }}{% else %}/renal/sessions{% endif %}">
+            {% if selected_status %}<input type="hidden" name="status" value="{{ selected_status }}">{% endif %}
+            <input type="date" class="form-control form-control-sm" name="start" value="{{ filter_start or '' }}" title="From date" aria-label="From date">
+            <span class="text-muted small">→</span>
+            <input type="date" class="form-control form-control-sm" name="end" value="{{ filter_end or '' }}" title="To date" aria-label="To date">
+            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Apply</button>
+            {% if patient_id %}
+              <a class="btn btn-sm btn-outline-primary" href="/renal/sessions/{{ patient_id }}?start={{ today }}&end={{ today }}">Today</a>
+            {% else %}
+              <a class="btn btn-sm btn-outline-primary" href="/renal/sessions?status={{ selected_status or 'UPCOMING' }}&start={{ today }}&end={{ today }}">Today</a>
+              <a class="btn btn-sm btn-outline-primary" href="/renal/sessions?status={{ selected_status or 'UPCOMING' }}&start={{ today }}&end={{ week_end }}">Next 7 days</a>
+            {% endif %}
+            {% if filter_start or filter_end %}
+              <a class="btn btn-sm btn-outline-secondary" href="{% if patient_id %}/renal/sessions/{{ patient_id }}{% else %}/renal/sessions?status={{ selected_status or 'UPCOMING' }}{% endif %}">Clear</a>
+            {% endif %}
+          </form>
         </div>
       </div>
 
@@ -432,57 +543,23 @@
             </tr>
           </thead>
           <tbody>
-            {% if sessions %}
-              {% for s in sessions %}
-              <tr>
-                <td><code class="text-muted">#{{ s.id }}</code></td>
-                {% if not patient_id %}
-                <td>
-                  <a href="/renal/sessions/{{ s.patient_id }}" class="text-decoration-none text-white fw-semibold">
-                    {{ s.patient_name or 'Unknown patient' }}
-                  </a>
-                  <br><small class="text-muted"><code>{{ s.patient_id }}</code></small>
-                </td>
-                {% endif %}
-                <td><span class="badge bg-primary font-monospace">{{ s.modality }}</span></td>
-                <td class="fw-semibold text-white">{{ s.session_date }}</td>
-                <td>{{ s.blood_flow_rate_ml_min or '—' }} / {{ s.dialysate_flow_rate_ml_min or '—' }} <small class="text-muted">mL/min</small></td>
-                <td>{{ s.pre_weight_kg or '—' }} &rarr; {{ s.post_weight_kg or '—' }} <small class="text-muted">kg</small></td>
-                <td><strong class="text-info">{{ s.ultrafiltration_volume_ml or '0' }}</strong> <small class="text-muted">mL</small></td>
-                <td>
-                  {% set st = s.status|string|upper %}
-                  {% if st == 'COMPLETED' %}
-                    <span class="badge status-badge-completed"><i class="bi bi-check-circle me-1"></i>COMPLETED</span>
-                  {% elif st == 'IN_PROGRESS' %}
-                    <span class="badge status-badge-in_progress"><i class="bi bi-play-circle me-1"></i>IN PROGRESS</span>
-                  {% elif st == 'TERMINATED_EARLY' %}
-                    <span class="badge status-badge-terminated"><i class="bi bi-x-circle me-1"></i>TERMINATED</span>
-                  {% else %}
-                    <span class="badge status-badge-scheduled"><i class="bi bi-clock me-1"></i>{{ st }}</span>
+            {% if session_groups %}
+              {# ── Day sheet: rows grouped into shift sections ── #}
+              {% for label, items in session_groups %}
+              <tr class="renal-shift-row">
+                <td colspan="{{ 9 if not patient_id else 8 }}">
+                  {% if label == 'MORNING' %}<i class="bi bi-sunrise me-1"></i><strong>Morning Shift</strong>
+                  {% elif label == 'AFTERNOON' %}<i class="bi bi-sun me-1"></i><strong>Afternoon Shift</strong>
+                  {% elif label == 'EVENING' %}<i class="bi bi-moon-stars me-1"></i><strong>Evening Shift</strong>
+                  {% else %}<i class="bi bi-clock-history me-1"></i><strong>Time TBD</strong> — no chair time assigned yet
                   {% endif %}
-                </td>
-                <td class="text-nowrap">
-                  {% set st = s.status|string|upper %}
-                  {% if not patient_id %}
-                  <a class="btn btn-sm btn-outline-light py-0 px-2" href="/renal/sessions/{{ s.patient_id }}" title="Open patient console">
-                    <i class="bi bi-box-arrow-in-right"></i>
-                  </a>
-                  {% endif %}
-                  {% if st == 'SCHEDULED' %}
-                  <button class="btn btn-sm btn-primary py-0 px-2" onclick="updateSessionStatus({{ s.id }}, 'IN_PROGRESS')" title="Start run">
-                    Start
-                  </button>
-                  {% endif %}
-                  {% if st != 'COMPLETED' and st != 'TERMINATED_EARLY' %}
-                  <button class="btn btn-sm btn-success py-0 px-2" onclick="updateSessionStatus({{ s.id }}, 'COMPLETED')">
-                    Complete &amp; Bill
-                  </button>
-                  {% else %}
-                  <span class="text-muted small">Billed</span>
-                  {% endif %}
+                  <span class="badge bg-secondary ms-2">{{ items|length }}</span>
                 </td>
               </tr>
+              {% for s in items %}{{ session_row(s, not patient_id) }}{% endfor %}
               {% endfor %}
+            {% elif sessions %}
+              {% for s in sessions %}{{ session_row(s, not patient_id) }}{% endfor %}
             {% else %}
               <tr>
                 {% if patient_id %}
@@ -499,6 +576,39 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- Chair time modal (assign / edit a session's chair slot) -->
+<div class="modal fade" id="chairTimeModal" tabindex="-1" aria-labelledby="chairTimeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content" style="background: var(--card-bg); color: var(--text-main); border: 1px solid var(--card-border);">
+      <div class="modal-header">
+        <h6 class="modal-title" id="chairTimeModalLabel">
+          <i class="bi bi-clock-history me-2"></i>Assign Chair Time
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="ct_session_id">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold" for="ct_start">Start Time (24h)</label>
+          <input type="time" class="form-control form-control-sm" id="ct_start" required>
+        </div>
+        <div class="mb-1">
+          <label class="form-label small fw-semibold" for="ct_end">End Time — optional</label>
+          <input type="time" class="form-control form-control-sm" id="ct_end">
+          <div class="form-text text-muted">Leave empty to keep the current end time.</div>
+        </div>
+        <div id="ct_error" class="text-danger small"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveChairTime()">
+          <i class="bi bi-check-lg me-1"></i>Save
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -613,6 +723,45 @@ async function submitAccess(e) {
     }
   } catch (err) {
     console.error(err);
+  }
+}
+
+// ── Chair time assignment ──
+let chairTimeModalInstance = null;
+
+function openChairTimeModal(sessionId, startHm, endHm) {
+  document.getElementById('ct_session_id').value = sessionId;
+  document.getElementById('ct_start').value = startHm || '';
+  document.getElementById('ct_end').value = endHm || '';
+  document.getElementById('ct_error').textContent = '';
+  chairTimeModalInstance = new bootstrap.Modal(document.getElementById('chairTimeModal'));
+  chairTimeModalInstance.show();
+}
+
+async function saveChairTime() {
+  const sid = document.getElementById('ct_session_id').value;
+  const start = document.getElementById('ct_start').value;
+  const end = document.getElementById('ct_end').value;
+  const errDiv = document.getElementById('ct_error');
+  if (!start) {
+    errDiv.textContent = 'Start time is required.';
+    return;
+  }
+  try {
+    const res = await fetch(`/renal/sessions/${sid}/chair-time`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({chair_time: start, end_time_hm: end || null})
+    });
+    if (res.ok) {
+      chairTimeModalInstance.hide();
+      location.reload();
+    } else {
+      const data = await res.json();
+      errDiv.textContent = data.error || 'Failed to assign chair time.';
+    }
+  } catch (err) {
+    errDiv.textContent = 'Network error — please retry.';
   }
 }
 

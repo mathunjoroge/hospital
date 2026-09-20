@@ -22,14 +22,15 @@ P0-08 / P0-11 Security fixes:
 """
 
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from flask import abort, jsonify, render_template, request
 from flask_login import current_user, login_required
 
-from departments.rbac import roles_required
 from departments.models.records import Patient
+from departments.rbac import roles_required
 from departments.renal.engine import (
+    assign_chair_time,
     create_session,
     get_patient_access_records,
     get_patient_sessions,
@@ -49,6 +50,9 @@ _RENAL_ROLES = ("renal", "nursing", "admin", "doctor")
 
 # Statuses shown on the unit-wide schedule board by default (pending work)
 _UNIT_BOARD_STATUSES = {"SCHEDULED", "IN_PROGRESS"}
+
+# Day-sheet group order: clinical shift order, unscheduled (no chair time) last
+_SHIFT_GROUP_ORDER = ("MORNING", "AFTERNOON", "EVENING", None)
 
 
 def _require_authenticated_user_id() -> int:
@@ -104,11 +108,15 @@ def list_sessions(patient_id: str | None = None):
     """
     GET /renal/sessions                     → unit-wide schedule board
     GET /renal/sessions?status=SCHEDULED    → board filtered by status
+    GET /renal/sessions?start=...&end=...   → board filtered by date range
     GET /renal/sessions/<patient_id>        → per-patient console
 
     Status filter values: UPCOMING (default: SCHEDULED + IN_PROGRESS,
     soonest first), ALL, or a single status such as SCHEDULED / IN_PROGRESS /
     COMPLETED / TERMINATED_EARLY.
+
+    Date filters: start / end (inclusive, ISO YYYY-MM-DD). Invalid values are
+    ignored. Applies to both the unit board and the per-patient console.
 
     Renders HTML for browser requests, JSON for API clients.
     NOTE: previously the no-patient view silently showed demo patient P001;
@@ -116,10 +124,20 @@ def list_sessions(patient_id: str | None = None):
     """
     wants_html = "text/html" in request.headers.get("Accept", "")
     raw_status = (request.args.get("status") or "").strip().upper()
+    start_date = _parse_date(request.args.get("start"))
+    end_date = _parse_date(request.args.get("end"))
+    date_context = {
+        "filter_start": start_date.isoformat() if start_date else None,
+        "filter_end": end_date.isoformat() if end_date else None,
+    }
 
     if patient_id is None:
         # ── Unit-wide schedule board ─────────────────────────────────────
-        sessions = _board_sessions(raw_status)
+        sessions = _board_sessions(raw_status, start_date, end_date)
+        is_day_sheet = bool(
+            date_context["filter_start"]
+            and date_context["filter_start"] == date_context["filter_end"]
+        )
         if wants_html:
             return render_template(
                 "renal/sessions.html",
@@ -129,11 +147,16 @@ def list_sessions(patient_id: str | None = None):
                 access_records=[],
                 selected_status=raw_status or "UPCOMING",
                 today=date.today().isoformat(),
+                week_end=(date.today() + timedelta(days=6)).isoformat(),
+                is_day_sheet=is_day_sheet,
+                session_groups=_group_by_shift(sessions) if is_day_sheet else [],
+                **date_context,
             )
         return jsonify(
             {
                 "scope": "unit",
                 "count": len(sessions),
+                "date_range": date_context,
                 "sessions": sessions,
             }
         ), 200
@@ -142,6 +165,10 @@ def list_sessions(patient_id: str | None = None):
     sessions = get_patient_sessions(patient_id)
     if raw_status and raw_status != "ALL":
         sessions = [s for s in sessions if str(s.status).upper() == raw_status.upper()]
+    if start_date is not None:
+        sessions = [s for s in sessions if s.session_date and s.session_date >= start_date]
+    if end_date is not None:
+        sessions = [s for s in sessions if s.session_date and s.session_date <= end_date]
 
     patient = Patient.query.filter_by(patient_id=patient_id).first()
     rows = []
@@ -165,6 +192,10 @@ def list_sessions(patient_id: str | None = None):
             }
             for r in access_records
         ]
+        is_day_sheet = bool(
+            date_context["filter_start"]
+            and date_context["filter_start"] == date_context["filter_end"]
+        )
         return render_template(
             "renal/sessions.html",
             patient_id=patient_id,
@@ -173,20 +204,53 @@ def list_sessions(patient_id: str | None = None):
             access_records=formatted_access,
             selected_status=raw_status or None,
             today=date.today().isoformat(),
+            week_end=(date.today() + timedelta(days=6)).isoformat(),
+            is_day_sheet=is_day_sheet,
+            session_groups=_group_by_shift(rows) if is_day_sheet else [],
+            **date_context,
         )
 
     return jsonify(
         {
             "patient_id": patient_id,
             "patient_name": patient.name if patient else None,
+            "date_range": date_context,
             "count": len(rows),
             "sessions": rows,
         }
     ), 200
 
 
-def _board_sessions(status: str) -> list[dict]:
-    """Unit-wide board rows for the given status filter, with patient names."""
+def _group_by_shift(rows: list[dict]) -> list[tuple[str | None, list[dict]]]:
+    """
+    Group session rows by shift for the day-sheet view.
+
+    Groups appear in clinical order (MORNING → AFTERNOON → EVENING →
+    TIME TBD); within a group, rows sort by chair start time, then patient ID.
+    """
+    groups: dict[str | None, list[dict]] = {label: [] for label in _SHIFT_GROUP_ORDER}
+    for row in rows:
+        groups.setdefault(row.get("shift"), []).append(row)
+
+    result = []
+    for label in _SHIFT_GROUP_ORDER:
+        items = groups.get(label, [])
+        if not items:
+            continue
+        items.sort(
+            key=lambda r: (
+                r.get("start_time_hm") or "99:99",
+                r.get("patient_id") or "",
+            )
+        )
+        result.append((label, items))
+    return result
+
+
+def _board_sessions(
+    status: str, start_date: date | None = None, end_date: date | None = None
+) -> list[dict]:
+    """Unit-wide board rows for the given filters, with patient names."""
     if status in ("", "UPCOMING"):
         statuses: set[str] | None = _UNIT_BOARD_STATUSES
     elif status == "ALL":
@@ -194,7 +258,9 @@ def _board_sessions(status: str) -> list[dict]:
     else:
         statuses = {status}
 
-    sessions = get_unit_sessions(statuses=statuses)
+    sessions = get_unit_sessions(
+        statuses=statuses, start_date=start_date, end_date=end_date
+    )
     patient_ids = {s.patient_id for s in sessions}
     names = {}
     if patient_ids:
@@ -344,6 +410,42 @@ def update_status(session_id: int):
         current_user.id,
     )
 
+    return jsonify({"success": True, "session": session_summary(sess)}), 200
+
+
+@renal_bp.route("/sessions/<int:session_id>/chair-time", methods=["PATCH"])
+@login_required
+@roles_required(*_RENAL_ROLES)
+def set_chair_time(session_id: int):
+    """
+    PATCH /renal/sessions/<session_id>/chair-time
+    Assign (or reassign) the chair start time for a session — e.g. slotting a
+    Records booking (date only) into the day sheet.
+
+    JSON body: {"chair_time": "HH:MM", "end_time_hm": "HH:MM" (optional)}
+    Both times are anchored to the session's own session_date.
+    """
+    data = request.get_json(silent=True) or {}
+    chair_time = (data.get("chair_time") or "").strip()
+    if not chair_time:
+        return jsonify({"error": "chair_time is required (24-hour HH:MM)"}), 400
+    end_time_hm = (data.get("end_time_hm") or "").strip() or None
+
+    try:
+        sess = assign_chair_time(
+            session_id, chair_time=chair_time, end_time_hm=end_time_hm
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 422
+    except LookupError as exc:
+        return jsonify({"error": str(exc)}), 404
+
+    logger.info(
+        "Chair time assigned: session_id=%s start=%s actor=%s",
+        session_id,
+        sess.start_time,
+        current_user.id,
+    )
     return jsonify({"success": True, "session": session_summary(sess)}), 200
 
 

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Any
 
 from departments.models.renal import (
@@ -35,6 +35,28 @@ logger = logging.getLogger(__name__)
 VALID_MODALITIES = {"HD", "CRRT"}
 VALID_STATUSES = {"SCHEDULED", "IN_PROGRESS", "COMPLETED", "TERMINATED_EARLY"}
 VALID_ACCESS_TYPES = {"AVF", "AVG", "Tunnelled Catheter", "Temporary Catheter"}
+
+# Dialysis shifts (chair shifts): MORNING 06:00–11:59, AFTERNOON 12:00–17:59,
+# EVENING 18:00–05:59. Sessions without a start time are "TIME TBD".
+SHIFT_ORDER = ("MORNING", "AFTERNOON", "EVENING")
+
+
+def shift_for_datetime(start_time: datetime | None) -> str | None:
+    """
+    Classify a session start time into a dialysis shift label.
+
+    Returns "MORNING" (06:00–11:59), "AFTERNOON" (12:00–17:59), "EVENING"
+    (18:00–05:59), or None when no start time is set (e.g. a booking made
+    from Records that has not been given a chair time yet).
+    """
+    if start_time is None:
+        return None
+    hour = start_time.hour
+    if 6 <= hour < 12:
+        return "MORNING"
+    if 12 <= hour < 18:
+        return "AFTERNOON"
+    return "EVENING"
 
 
 def calculate_spkt_v(
@@ -184,6 +206,60 @@ def update_session_status(
     return session
 
 
+def _parse_hm(value: str, field: str) -> time:
+    """Parse an "HH:MM" 24-hour time string; raise ValueError otherwise."""
+    try:
+        return datetime.strptime(value, "%H:%M").time()
+    except (ValueError, TypeError):
+        raise ValueError(
+            f"Invalid {field} '{value}'. Use 24-hour HH:MM (e.g. 08:30)."
+        ) from None
+
+
+def assign_chair_time(
+    session_id: int,
+    chair_time: str,
+    end_time_hm: str | None = None,
+) -> DialysisSession:
+    """
+    Assign (or reassign) the chair start time for a dialysis session.
+
+    Times are "HH:MM" (24-hour) and are combined with the session's own
+    session_date — a booking made from Records carries only a date, so this
+    is how nurses slot it into the morning/afternoon/evening day sheet.
+
+    end_time_hm: optional "HH:MM" end time; must be after the start time.
+    Raises ValueError for bad input, LookupError for unknown session ids.
+    """
+    session = db.session.get(DialysisSession, session_id)
+    if session is None:
+        raise LookupError(f"DialysisSession #{session_id} not found.")
+    if session.session_date is None:
+        raise ValueError("Session has no session_date to anchor the chair time to.")
+
+    start_t = _parse_hm(chair_time, "chair_time")
+    new_start = datetime.combine(session.session_date, start_t)
+
+    new_end = session.end_time
+    if end_time_hm:
+        end_t = _parse_hm(end_time_hm, "end_time_hm")
+        candidate_end = datetime.combine(session.session_date, end_t)
+        if candidate_end <= new_start:
+            raise ValueError("End time must be after the start time.")
+        new_end = candidate_end
+
+    session.start_time = new_start
+    session.end_time = new_end
+    db.session.commit()
+    logger.info(
+        "Chair time assigned: session_id=%s start=%s end=%s",
+        session_id,
+        session.start_time,
+        session.end_time,
+    )
+    return session
+
+
 def get_patient_sessions(patient_id: str) -> list[DialysisSession]:
     """Return all dialysis sessions for a patient, newest first."""
     return (
@@ -196,19 +272,27 @@ def get_patient_sessions(patient_id: str) -> list[DialysisSession]:
 
 
 def get_unit_sessions(
-    statuses: set[str] | None = None, limit: int = 200
+    statuses: set[str] | None = None,
+    limit: int = 200,
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> list[DialysisSession]:
     """
     Return dialysis sessions across ALL patients for the unit-wide schedule
     board.
 
     statuses: filter by status (e.g. {"SCHEDULED"}); None = all statuses.
+    start_date / end_date: inclusive session_date range; None = unbounded.
     Ordering: ascending by session date for pending work (SCHEDULED /
     IN_PROGRESS — soonest first, like a day sheet), descending otherwise.
     """
     query = DialysisSession.query
     if statuses:
         query = query.filter(DialysisSession.status.in_(statuses))
+    if start_date is not None:
+        query = query.filter(DialysisSession.session_date >= start_date)
+    if end_date is not None:
+        query = query.filter(DialysisSession.session_date <= end_date)
 
     ascending = statuses is not None and statuses <= {"SCHEDULED", "IN_PROGRESS"}
     order = (
@@ -329,8 +413,16 @@ def session_summary(session: DialysisSession) -> dict[str, Any]:
         if session.session_date
         else None,
         "status": session.status,
+        "source": getattr(session, "source", "RENAL") or "RENAL",
         "start_time": session.start_time.isoformat() if session.start_time else None,
+        "start_time_hm": session.start_time.strftime("%H:%M")
+        if session.start_time
+        else None,
+        "shift": shift_for_datetime(session.start_time),
         "end_time": session.end_time.isoformat() if session.end_time else None,
+        "end_time_hm": session.end_time.strftime("%H:%M")
+        if session.end_time
+        else None,
         "blood_flow_rate_ml_min": session.blood_flow_rate,
         "dialysate_flow_rate_ml_min": session.dialysate_flow_rate,
         "ultrafiltration_volume_ml": session.ultrafiltration_volume,

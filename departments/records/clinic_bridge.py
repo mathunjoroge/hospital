@@ -132,6 +132,7 @@ def propagate_specialty_booking(
             modality="HD",
             session_date=clinic_date,
             status="SCHEDULED",
+            source="RECORDS",
             notes="Booked from Records — modality TBD (HD/CRRT) at chairside.",
         )
         db.session.add(session)

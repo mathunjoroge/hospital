@@ -42,6 +42,9 @@ class DialysisSession(db.Model):
     status = db.Column(
         db.String(50), nullable=False, default="SCHEDULED"
     )  # SCHEDULED, IN_PROGRESS, COMPLETED, TERMINATED_EARLY
+    source = db.Column(
+        db.String(20), nullable=False, default="RENAL", server_default="RENAL"
+    )  # RENAL = logged in unit; RECORDS = created via a Records clinic booking
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(
         db.DateTime, nullable=False, default=datetime.utcnow, index=True
