@@ -51,8 +51,11 @@ class TestCryptoHelpers:
         assert decrypt_value(None) is None
 
     def test_corrupted_ciphertext_fallback(self):
+        import pytest
+
         corrupted = "enc_v1:invalid_base64_token_or_corrupted_payload"
-        assert decrypt_value(corrupted) == corrupted
+        with pytest.raises(ValueError):
+            decrypt_value(corrupted)
 
 
 class TestEncryptedStringTypeDecorator:

@@ -6,6 +6,7 @@ Test suite for JWT authentication & dual auth (JWT + Session) on API endpoints.
 
 from datetime import date
 
+import pyotp
 import pytest
 from werkzeug.security import generate_password_hash
 
@@ -25,8 +26,11 @@ def jwt_client(client):
                 "AdminPassword123!", method="pbkdf2:sha256"
             ),
             role="admin",
+            totp_secret=pyotp.random_base32(),
         )
         db.session.add(admin)
+    elif not admin.totp_secret:
+        admin.totp_secret = pyotp.random_base32()
 
     patient = Patient.query.filter_by(patient_id="P-JWT-001").first()
     if not patient:
@@ -50,11 +54,17 @@ def jwt_client(client):
     return client
 
 
+def _get_totp_code():
+    admin = User.query.filter_by(username="api_jwt_user").first()
+    return pyotp.TOTP(admin.totp_secret).now()
+
+
 def test_jwt_token_issuance_success(jwt_client):
     """Test getting a JWT access token with valid credentials."""
+    totp = _get_totp_code()
     res = jwt_client.post(
         "/api/auth/token",
-        json={"username": "api_jwt_user", "password": "AdminPassword123!"},
+        json={"username": "api_jwt_user", "password": "AdminPassword123!", "totp_code": totp},
     )
     assert res.status_code == 200
     data = res.get_json()
@@ -76,9 +86,10 @@ def test_jwt_token_issuance_invalid_credentials(jwt_client):
 
 def test_jwt_authenticated_whoami(jwt_client):
     """Test accessing /api/auth/me using a Bearer token."""
+    totp = _get_totp_code()
     token_res = jwt_client.post(
         "/api/auth/token",
-        json={"username": "api_jwt_user", "password": "AdminPassword123!"},
+        json={"username": "api_jwt_user", "password": "AdminPassword123!", "totp_code": totp},
     )
     token = token_res.get_json()["access_token"]
 
@@ -93,9 +104,10 @@ def test_jwt_authenticated_whoami(jwt_client):
 
 def test_fhir_endpoint_with_jwt(jwt_client):
     """Test FHIR R4 Patient endpoint with Bearer token authentication."""
+    totp = _get_totp_code()
     token_res = jwt_client.post(
         "/api/auth/token",
-        json={"username": "api_jwt_user", "password": "AdminPassword123!"},
+        json={"username": "api_jwt_user", "password": "AdminPassword123!", "totp_code": totp},
     )
     token = token_res.get_json()["access_token"]
 

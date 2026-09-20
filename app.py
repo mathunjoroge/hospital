@@ -72,14 +72,14 @@ secret_key = os.environ.get("SECRET_KEY")
 jwt_secret = os.environ.get("JWT_SECRET_KEY") or secret_key
 encryption_key = os.environ.get("ENCRYPTION_KEY")
 
-if not _is_dev_or_test:
+if _flask_env != "testing":
     if not secret_key or secret_key in INSECURE_SECRET_KEYS or len(secret_key) < 32:
         raise RuntimeError(
-            "CRITICAL SECURITY ERROR: Missing or insecure SECRET_KEY in non-dev/test environment. Must be >= 32 characters."
+            "CRITICAL SECURITY ERROR: Hardcoded or weak SECRET_KEY detected in non-testing environment. Must be >= 32 characters."
         )
     if not jwt_secret or jwt_secret in INSECURE_SECRET_KEYS or len(jwt_secret) < 32:
         raise RuntimeError(
-            "CRITICAL SECURITY ERROR: Missing or insecure JWT_SECRET_KEY in non-dev/test environment. Must be >= 32 characters."
+            "CRITICAL SECURITY ERROR: Hardcoded or weak JWT_SECRET_KEY detected in non-testing environment. Must be >= 32 characters."
         )
     if not encryption_key:
         raise RuntimeError(

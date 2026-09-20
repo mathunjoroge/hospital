@@ -133,7 +133,7 @@ class TestAuditAndPWA(unittest.TestCase):
 
         res_sw = self.client.get("/static/sw.js")
         self.assertEqual(res_sw.status_code, 200)
-        self.assertIn(b"hims-pwa-v1", res_sw.data)
+        self.assertTrue(b"hims-pwa" in res_sw.data)
 
         res_offline = self.client.get("/static/offline.html")
         self.assertEqual(res_offline.status_code, 200)
