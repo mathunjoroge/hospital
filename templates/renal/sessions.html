@@ -108,6 +108,16 @@
     border: 1px solid #f0ad4e;
   }
 
+  /* Records bookings awaiting a chair time */
+  .renal-row-needs-time td { background: rgba(255, 193, 7, 0.07); }
+  .renal-row-needs-time td:first-child { border-left: 3px solid #f0ad4e; }
+  .needs-time-badge {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffe08a;
+    border: 1px solid #f0ad4e;
+    font-size: 0.72rem;
+  }
+
   /* Day-sheet shift group headers */
   .renal-shift-row td {
     background: rgba(59, 130, 246, 0.08);
@@ -414,7 +424,7 @@
 
     <!-- Dialysis Sessions Table -->
     {% macro session_row(s, show_patient) %}
-    <tr>
+    <tr {% if s.needs_chair_time %}class="renal-row-needs-time"{% endif %}>
       <td><code class="text-muted">#{{ s.id }}</code></td>
       {% if show_patient %}
       <td>
@@ -436,6 +446,8 @@
         {{ s.session_date }}
         {% if s.start_time_hm %}
           <br><small class="text-muted"><i class="bi bi-clock"></i> {{ s.start_time_hm }} · {{ s.shift }}</small>
+        {% elif s.needs_chair_time %}
+          <br><span class="badge needs-time-badge"><i class="bi bi-exclamation-triangle me-1"></i>Needs chair time</span>
         {% else %}
           <br><small class="text-muted">Time TBD</small>
         {% endif %}
@@ -569,6 +581,10 @@
                   {% else %}<i class="bi bi-clock-history me-1"></i><strong>Time TBD</strong> — no chair time assigned yet
                   {% endif %}
                   <span class="badge bg-secondary ms-2">{{ items|length }}</span>
+                  {% set needs_count = items | selectattr('needs_chair_time') | list | length %}
+                  {% if needs_count %}
+                  <span class="badge needs-time-badge ms-2"><i class="bi bi-exclamation-triangle me-1"></i>{{ needs_count }} need chair time</span>
+                  {% endif %}
                 </td>
               </tr>
               {% for s in items %}{{ session_row(s, not patient_id) }}{% endfor %}

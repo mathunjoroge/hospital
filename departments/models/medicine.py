@@ -758,6 +758,9 @@ class OncologyBooking(db.Model):
     booking_date = db.Column(db.Date, nullable=False)
     purpose = db.Column(db.String(50), nullable=False)
     status = db.Column(db.String(20), nullable=False)
+    source = db.Column(
+        db.String(20), nullable=False, default="ONCOLOGY", server_default="ONCOLOGY"
+    )  # ONCOLOGY = booked in unit; RECORDS = created via a Records clinic booking
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

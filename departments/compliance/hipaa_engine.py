@@ -10,8 +10,11 @@ Evaluates 5 core HIPAA Security Rule Technical Safeguard domains:
   5. § 164.312(e) Transmission Security & TLS/HTTPS Enforcement
 """
 
+import logging
 import os
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from departments.audit import verify_audit_log_chain
 from departments.crypto import decrypt_value, encrypt_value
@@ -67,6 +70,7 @@ class HIPAAComplianceEngine:
             decrypted = decrypt_value(encrypted)
             crypto_working = decrypted == test_payload
         except Exception:
+            logger.exception("HIPAA §164.312(c) encryption round-trip test FAILED — crypto layer may be misconfigured")
             crypto_working = False
 
         return {

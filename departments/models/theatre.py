@@ -9,7 +9,10 @@ Database models for Johns Hopkins–Grade Theatre & Surgical Module:
 """
 
 import json
+import logging
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 from extensions import db
 
@@ -175,6 +178,7 @@ class AnaestheticRecord(db.Model):
         try:
             return json.loads(self.agents_administered_json or "[]")
         except Exception:
+            logger.exception("Failed to decode agents_administered_json for AnaestheticRecord id=%s", self.id)
             return []
 
     @agents_administered.setter
@@ -186,6 +190,7 @@ class AnaestheticRecord(db.Model):
         try:
             return json.loads(self.vitals_series_json or "[]")
         except Exception:
+            logger.exception("Failed to decode vitals_series_json for AnaestheticRecord id=%s", self.id)
             return []
 
     @vitals_series.setter
@@ -197,6 +202,7 @@ class AnaestheticRecord(db.Model):
         try:
             return json.loads(self.timeline_events_json or "[]")
         except Exception:
+            logger.exception("Failed to decode timeline_events_json for AnaestheticRecord id=%s", self.id)
             return []
 
     @timeline_events.setter

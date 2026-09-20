@@ -174,6 +174,8 @@ class TestSpecialtyBookingPropagation:
             assert booking.status == "Scheduled"
             assert booking.purpose == "Consultation"
             assert booking.booking_date == BOOKING_DATE
+            assert booking.source == "RECORDS"
+            assert "Booked from Records" in (booking.notes or "")
 
     def test_general_clinic_booking_creates_no_specialty_records(
         self, app, records_client
@@ -247,3 +249,72 @@ class TestBookingGuardRails:
 
             assert resp.status_code == 400
             assert ClinicBooking.query.count() == 0
+
+
+# ─────────────────────────────────────────────────────────────
+# 4. Oncology board parity (source badge & filter)
+# ─────────────────────────────────────────────────────────────
+
+
+class TestOncologySourceParity:
+    """Records bookings must be visible & filterable on the oncology board."""
+
+    @staticmethod
+    def _seed_two_bookings():
+        """One RECORDS booking + one unit booking with distinct patient names."""
+        from departments.models.user import User
+        from werkzeug.security import generate_password_hash as gph
+
+        from extensions import db
+
+        records_p = _make_patient("OCR1")
+        records_p.name = "Records Referred"
+        unit_p = _make_patient("OCU1")
+        unit_p.name = "Unit Booked"
+        db.session.add_all([records_p, unit_p])
+        db.session.commit()
+
+        db.session.add(
+            OncologyBooking(
+                patient_id="PTOCR1", booking_date=BOOKING_DATE,
+                purpose="Consultation", status="Scheduled", source="RECORDS",
+                notes="Booked from Records — Oncology Clinic.",
+            )
+        )
+        db.session.add(
+            OncologyBooking(
+                patient_id="PTOCU1", booking_date=BOOKING_DATE,
+                purpose="Chemotherapy", status="Scheduled", source="ONCOLOGY",
+            )
+        )
+        db.session.commit()
+
+    def test_oncology_board_source_filter(self, app, admin_user):
+        self._seed_two_bookings()
+
+        resp = app.test_client().get("/medicine/bookings/?source=RECORDS")
+        assert resp.status_code == 200
+        html = resp.data
+        assert b"Records Referred" in html          # records booking shown
+        assert b"Unit Booked" not in html           # unit booking filtered out
+        assert html.count(b"fas fa-clipboard") == 1  # exactly one Records badge
+        assert b'value="RECORDS" selected' in html   # filter stays selected
+
+    def test_oncology_board_shows_all_sources_by_default(self, app, admin_user):
+        self._seed_two_bookings()
+
+        resp = app.test_client().get("/medicine/bookings/")
+        assert resp.status_code == 200
+        html = resp.data
+        assert b"Records Referred" in html
+        assert b"Unit Booked" in html
+        assert html.count(b"fas fa-clipboard") == 1  # only the records card is badged
+
+    def test_oncology_board_invalid_source_ignored(self, app, admin_user):
+        self._seed_two_bookings()
+
+        resp = app.test_client().get("/medicine/bookings/?source=bogus")
+        assert resp.status_code == 200
+        html = resp.data
+        assert b"Records Referred" in html
+        assert b"Unit Booked" in html

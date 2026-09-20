@@ -1,5 +1,5 @@
 import json
-import random
+import secrets
 import string
 from datetime import datetime, timezone
 
@@ -96,7 +96,8 @@ class LIMSService:
     @staticmethod
     def generate_barcode() -> str:
         date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
-        rand_str = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        _alphabet = string.ascii_uppercase + string.digits
+        rand_str = "".join(secrets.choice(_alphabet) for _ in range(4))
         return f"SPEC-{date_str}-{rand_str}"
 
     @classmethod

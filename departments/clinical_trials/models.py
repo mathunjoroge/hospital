@@ -5,10 +5,13 @@ Database models for Clinical Trial Protocols, Participant e-Consent, Randomizati
 """
 
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
 
 from extensions import db
+
+logger = logging.getLogger(__name__)
 
 
 class ClinicalTrialProtocol(db.Model):
@@ -58,6 +61,7 @@ class ClinicalTrialProtocol(db.Model):
         try:
             return json.loads(self.inclusion_criteria_json or "[]")
         except Exception:
+            logger.exception("Failed to decode inclusion_criteria_json for protocol id=%s", self.id)
             return []
 
     @inclusion_criteria.setter
@@ -69,6 +73,7 @@ class ClinicalTrialProtocol(db.Model):
         try:
             return json.loads(self.exclusion_criteria_json or "[]")
         except Exception:
+            logger.exception("Failed to decode exclusion_criteria_json for protocol id=%s", self.id)
             return []
 
     @exclusion_criteria.setter
@@ -83,6 +88,7 @@ class ClinicalTrialProtocol(db.Model):
                 or '["Arm A: Investigational", "Arm B: Control"]'
             )
         except Exception:
+            logger.exception("Failed to decode treatment_arms_json for protocol id=%s", self.id)
             return ["Arm A: Investigational", "Arm B: Control"]
 
     @treatment_arms.setter

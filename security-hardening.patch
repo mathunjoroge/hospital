@@ -1,0 +1,220 @@
+diff --git a/departments/api/ccda.py b/departments/api/ccda.py
+index 26d6516..a539f6c 100644
+--- a/departments/api/ccda.py
++++ b/departments/api/ccda.py
+@@ -13,11 +13,18 @@ for inter-facility continuity of care exchange. Includes sections for:
+   - Laboratory / Diagnostic Results section
+ """
+ 
++import logging
+ import xml.etree.ElementTree as ET
++
++import defusedxml
++
++defusedxml.defuse_stdlib()  # Patch stdlib XML parsers against XXE/entity-expansion attacks
+ from datetime import datetime, timezone
+ 
+ from flask import Blueprint, Response
+ 
++logger = logging.getLogger(__name__)
++
+ from departments.api.auth import jwt_or_session_required
+ from departments.models.laboratory import LabResult
+ from departments.models.medicine import PrescribedMedicine, SOAPNote
+@@ -180,6 +187,7 @@ def generate_c_cda_xml(patient: Patient) -> str:
+             ]
+             allergies_list = ", ".join(items) if items else "No known allergies."
+         except Exception:
++            logger.exception("Error rendering allergy list for C-CDA (patient_id=%s)", patient.patient_id)
+             allergies_list = str(patient.allergies)
+     else:
+         allergies_list = "No known allergies."
+diff --git a/departments/clinical_trials/models.py b/departments/clinical_trials/models.py
+index 437455b..18246ac 100644
+--- a/departments/clinical_trials/models.py
++++ b/departments/clinical_trials/models.py
+@@ -5,11 +5,14 @@ Database models for Clinical Trial Protocols, Participant e-Consent, Randomizati
+ """
+ 
+ import json
++import logging
+ import uuid
+ from datetime import datetime, timezone
+ 
+ from extensions import db
+ 
++logger = logging.getLogger(__name__)
++
+ 
+ class ClinicalTrialProtocol(db.Model):
+     """
+@@ -58,6 +61,7 @@ class ClinicalTrialProtocol(db.Model):
+         try:
+             return json.loads(self.inclusion_criteria_json or "[]")
+         except Exception:
++            logger.exception("Failed to decode inclusion_criteria_json for protocol id=%s", self.id)
+             return []
+ 
+     @inclusion_criteria.setter
+@@ -69,6 +73,7 @@ class ClinicalTrialProtocol(db.Model):
+         try:
+             return json.loads(self.exclusion_criteria_json or "[]")
+         except Exception:
++            logger.exception("Failed to decode exclusion_criteria_json for protocol id=%s", self.id)
+             return []
+ 
+     @exclusion_criteria.setter
+@@ -83,6 +88,7 @@ class ClinicalTrialProtocol(db.Model):
+                 or '["Arm A: Investigational", "Arm B: Control"]'
+             )
+         except Exception:
++            logger.exception("Failed to decode treatment_arms_json for protocol id=%s", self.id)
+             return ["Arm A: Investigational", "Arm B: Control"]
+ 
+     @treatment_arms.setter
+diff --git a/departments/clinical_trials/trials_engine.py b/departments/clinical_trials/trials_engine.py
+index 361cf5c..9c56ca1 100644
+--- a/departments/clinical_trials/trials_engine.py
++++ b/departments/clinical_trials/trials_engine.py
+@@ -6,7 +6,7 @@ Clinical Trial Protocol, Automated Eligibility Screener, e-Consent, & SAE Safety
+ 
+ import hashlib
+ import logging
+-import random
++import secrets
+ from datetime import datetime, timezone
+ 
+ from departments.clinical_trials.models import (
+@@ -168,7 +168,7 @@ class ClinicalTrialsEngine:
+ 
+         protocol = participant.protocol
+         arms = protocol.treatment_arms
+-        selected_arm = random.choice(arms)
++        selected_arm = secrets.choice(arms)
+ 
+         participant.randomized_arm = selected_arm
+         participant.enrollment_status = "RANDOMIZED"
+diff --git a/departments/compliance/hipaa_engine.py b/departments/compliance/hipaa_engine.py
+index e20cc19..8e67979 100644
+--- a/departments/compliance/hipaa_engine.py
++++ b/departments/compliance/hipaa_engine.py
+@@ -10,9 +10,12 @@ Evaluates 5 core HIPAA Security Rule Technical Safeguard domains:
+   5. § 164.312(e) Transmission Security & TLS/HTTPS Enforcement
+ """
+ 
++import logging
+ import os
+ from typing import Any
+ 
++logger = logging.getLogger(__name__)
++
+ from departments.audit import verify_audit_log_chain
+ from departments.crypto import decrypt_value, encrypt_value
+ 
+@@ -67,6 +70,7 @@ class HIPAAComplianceEngine:
+             decrypted = decrypt_value(encrypted)
+             crypto_working = decrypted == test_payload
+         except Exception:
++            logger.exception("HIPAA §164.312(c) encryption round-trip test FAILED — crypto layer may be misconfigured")
+             crypto_working = False
+ 
+         return {
+diff --git a/departments/imaging/routes.py b/departments/imaging/routes.py
+index 9f117db..c8a1b90 100644
+--- a/departments/imaging/routes.py
++++ b/departments/imaging/routes.py
+@@ -904,6 +904,7 @@ def upload_dicom():
+         return jsonify({"error": str(e)}), 400
+ 
+     except Exception:
++        logger.exception("Unhandled error during DICOM file upload/processing")
+         if temp_path.exists():
+             temp_path.unlink()
+         return jsonify({"error": "Failed to process DICOM file"}), 500
+diff --git a/departments/laboratory/lims_service.py b/departments/laboratory/lims_service.py
+index efa1fec..232a53b 100644
+--- a/departments/laboratory/lims_service.py
++++ b/departments/laboratory/lims_service.py
+@@ -1,5 +1,5 @@
+ import json
+-import random
++import secrets
+ import string
+ from datetime import datetime, timezone
+ 
+@@ -96,7 +96,8 @@ class LIMSService:
+     @staticmethod
+     def generate_barcode() -> str:
+         date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+-        rand_str = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
++        _alphabet = string.ascii_uppercase + string.digits
++        rand_str = "".join(secrets.choice(_alphabet) for _ in range(4))
+         return f"SPEC-{date_str}-{rand_str}"
+ 
+     @classmethod
+diff --git a/departments/models/theatre.py b/departments/models/theatre.py
+index 2760135..c2b1df9 100644
+--- a/departments/models/theatre.py
++++ b/departments/models/theatre.py
+@@ -9,8 +9,11 @@ Database models for Johns Hopkins–Grade Theatre & Surgical Module:
+ """
+ 
+ import json
++import logging
+ from datetime import datetime
+ 
++logger = logging.getLogger(__name__)
++
+ from extensions import db
+ 
+ 
+@@ -175,6 +178,7 @@ class AnaestheticRecord(db.Model):
+         try:
+             return json.loads(self.agents_administered_json or "[]")
+         except Exception:
++            logger.exception("Failed to decode agents_administered_json for AnaestheticRecord id=%s", self.id)
+             return []
+ 
+     @agents_administered.setter
+@@ -186,6 +190,7 @@ class AnaestheticRecord(db.Model):
+         try:
+             return json.loads(self.vitals_series_json or "[]")
+         except Exception:
++            logger.exception("Failed to decode vitals_series_json for AnaestheticRecord id=%s", self.id)
+             return []
+ 
+     @vitals_series.setter
+@@ -197,6 +202,7 @@ class AnaestheticRecord(db.Model):
+         try:
+             return json.loads(self.timeline_events_json or "[]")
+         except Exception:
++            logger.exception("Failed to decode timeline_events_json for AnaestheticRecord id=%s", self.id)
+             return []
+ 
+     @timeline_events.setter
+diff --git a/requirements.txt b/requirements.txt
+index 2d40482..731e75e 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -32,6 +32,7 @@ pydicom>=3.0.0
+ reportlab==4.1.0
+ bleach==6.4.0
+ cryptography>=50.0.1
++defusedxml>=0.7.1
+ rdkit==2026.3.6
+ 
+ # Production server
+diff --git a/tests/conftest.py b/tests/conftest.py
+index a7212da..1d88f2e 100644
+--- a/tests/conftest.py
++++ b/tests/conftest.py
+@@ -5,7 +5,8 @@ import pytest
+ # ── Set test environment BEFORE any app imports ──
+ os.environ["FLASK_ENV"] = "testing"
+ os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite://"  # in-memory
+-os.environ.setdefault("SECRET_KEY", "testing_secret_key_1234567890")
++os.environ.setdefault("SECRET_KEY", "testing_secret_key_abcdefghijklmnopqrstuvwxyz_32b")
++os.environ.setdefault("JWT_SECRET_KEY", "testing_jwt_secret_key_abcdefghijklmnopqrstuvwxyz")
+ os.environ.setdefault("SECURITY_PASSWORD_SALT", "testing_salt_1234567890")
+ 
+ # A stable Fernet key for the entire test suite.

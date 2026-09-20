@@ -617,6 +617,67 @@ class TestUnitScheduleBoard:
         assert rv.status_code == 200
         assert b'value="RECORDS" selected' in rv.data
 
+
+class TestNeedsChairTimeFlag:
+    """Records bookings without a chair time must be flagged for nurses."""
+
+    def _seed_mixed_sessions(self):
+        """One unit-logged (no time), one records booking (no time),
+        one records booking with a chair time. Returns their patient ids."""
+        from datetime import date, datetime, timedelta
+
+        from departments.models.renal import DialysisSession
+        from departments.renal.engine import create_session
+        from extensions import db as _db
+
+        nurse = User.query.filter_by(username="admin_test_fixture").first()
+        day = date.today() + timedelta(days=1)
+        create_session(
+            patient_id="PRF1", nurse_id=nurse.id, modality="HD", session_date=day
+        )  # unit-logged, no time → NOT flagged
+        _db.session.add(
+            DialysisSession(
+                patient_id="PRF2", nurse_id=nurse.id, modality="HD",
+                session_date=day, status="SCHEDULED", source="RECORDS",
+            )
+        )  # records booking, no time → flagged
+        _db.session.add(
+            DialysisSession(
+                patient_id="PRF3", nurse_id=nurse.id, modality="HD",
+                session_date=day, status="SCHEDULED", source="RECORDS",
+                start_time=datetime.combine(day, datetime.min.time()).replace(hour=8),
+            )
+        )  # records booking with chair time → NOT flagged
+        _db.session.commit()
+        return day
+
+    def test_needs_chair_time_flag_in_json(self, client, admin_user, app):
+        day = self._seed_mixed_sessions()
+
+        rv = client.get(f"/renal/sessions?start={day.isoformat()}&end={day.isoformat()}")
+        flags = {
+            s["patient_id"]: s["needs_chair_time"] for s in rv.get_json()["sessions"]
+        }
+        assert flags["PRF1"] is False  # unit-logged
+        assert flags["PRF2"] is True   # records booking, no chair time
+        assert flags["PRF3"] is False  # records booking with chair time
+
+    def test_day_sheet_highlights_unassigned_bookings(self, client, admin_user, app):
+        day = self._seed_mixed_sessions()
+
+        rv = client.get(
+            f"/renal/sessions?start={day.isoformat()}&end={day.isoformat()}",
+            headers={"Accept": "text/html"},
+        )
+        assert rv.status_code == 200
+        html = rv.data
+        # warning badge on the unassigned records row
+        assert html.count(b"Needs chair time") == 1
+        # Time TBD group header carries the nurse-facing count
+        assert b"1 need chair time" in html
+        # amber row treatment applied
+        assert b"renal-row-needs-time" in html
+
     def test_board_html_renders_with_date_filter(self, client, admin_user, app):
         from datetime import date, timedelta
 

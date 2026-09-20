@@ -13,10 +13,17 @@ for inter-facility continuity of care exchange. Includes sections for:
   - Laboratory / Diagnostic Results section
 """
 
+import logging
 import xml.etree.ElementTree as ET
+
+import defusedxml
+
+defusedxml.defuse_stdlib()  # Patch stdlib XML parsers against XXE/entity-expansion attacks
 from datetime import datetime, timezone
 
 from flask import Blueprint, Response
+
+logger = logging.getLogger(__name__)
 
 from departments.api.auth import jwt_or_session_required
 from departments.models.laboratory import LabResult
@@ -180,6 +187,7 @@ def generate_c_cda_xml(patient: Patient) -> str:
             ]
             allergies_list = ", ".join(items) if items else "No known allergies."
         except Exception:
+            logger.exception("Error rendering allergy list for C-CDA (patient_id=%s)", patient.patient_id)
             allergies_list = str(patient.allergies)
     else:
         allergies_list = "No known allergies."

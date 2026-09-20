@@ -6,7 +6,7 @@ Clinical Trial Protocol, Automated Eligibility Screener, e-Consent, & SAE Safety
 
 import hashlib
 import logging
-import random
+import secrets
 from datetime import datetime, timezone
 
 from departments.clinical_trials.models import (
@@ -168,7 +168,7 @@ class ClinicalTrialsEngine:
 
         protocol = participant.protocol
         arms = protocol.treatment_arms
-        selected_arm = random.choice(arms)
+        selected_arm = secrets.choice(arms)
 
         participant.randomized_arm = selected_arm
         participant.enrollment_status = "RANDOMIZED"

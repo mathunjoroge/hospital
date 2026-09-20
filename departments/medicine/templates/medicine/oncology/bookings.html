@@ -42,7 +42,7 @@
                     <h5 class="filter-title"><i class="fas fa-filter"></i> Filter Bookings</h5>
                     <form class="filter-form" method="GET">
                         <div class="row g-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="status" class="form-label">Status</label>
                                 <select name="status" id="status" class="form-select">
                                     <option value="">All Statuses</option>
@@ -51,7 +51,7 @@
                                     <option value="Cancelled" {% if selected_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label for="purpose" class="form-label">Purpose</label>
                                 <select name="purpose" id="purpose" class="form-select">
                                     <option value="">All Purposes</option>
@@ -62,7 +62,15 @@
                                     <option value="Surgery" {% if selected_purpose == 'Surgery' %}selected{% endif %}>Surgery</option>
                                 </select>
                             </div>
-                            <div class="col-md-4 d-flex align-items-end">
+                            <div class="col-md-3">
+                                <label for="source" class="form-label">Source</label>
+                                <select name="source" id="source" class="form-select">
+                                    <option value="">All Sources</option>
+                                    <option value="RECORDS" {% if selected_source == 'RECORDS' %}selected{% endif %}>📋 Records bookings</option>
+                                    <option value="ONCOLOGY" {% if selected_source == 'ONCOLOGY' %}selected{% endif %}>Booked in unit</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
                                 <div class="d-flex w-100">
                                     <button type="button" class="btn btn-outline-secondary me-2" id="resetFilters">
                                         <i class="fas fa-sync-alt me-1"></i> Reset
@@ -89,6 +97,11 @@
                                             <span class="badge badge-custom badge-{{ 'success' if booking.status == 'Scheduled' else 'danger' if booking.status == 'Cancelled' else 'warning' }}">
                                                 {{ booking.status }}
                                             </span>
+                                            {% if booking.source == 'RECORDS' %}
+                                            <span class="badge bg-warning text-dark" title="Booked from Records clinic booking">
+                                                <i class="fas fa-clipboard me-1"></i>Records
+                                            </span>
+                                            {% endif %}
                                         </div>
                                     </div>
                                     <div class="booking-body">

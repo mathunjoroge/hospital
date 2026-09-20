@@ -801,6 +801,8 @@ def warnings():
 def bookings():
     status = request.args.get("status", type=str)
     purpose = request.args.get("purpose", type=str)
+    source = (request.args.get("source") or "").strip().upper()
+    selected_source = source if source in ("RECORDS", "ONCOLOGY") else None
 
     # Build query with join to Patient
     query = OncologyBooking.query.join(
@@ -812,6 +814,8 @@ def bookings():
         query = query.filter(OncologyBooking.status == status)
     if purpose in ["Consultation", "Chemotherapy", "Follow-up", "Radiation", "Surgery"]:
         query = query.filter(OncologyBooking.purpose == purpose)
+    if selected_source:
+        query = query.filter(OncologyBooking.source == selected_source)
 
     bookings = query.all()
 
@@ -834,6 +838,7 @@ def bookings():
         bookings=bookings,
         selected_status=status,
         selected_purpose=purpose,
+        selected_source=selected_source,
         booking_count=booking_count,
         scheduled_booking_count=scheduled_booking_count,
         chemotherapy_booking_count=chemotherapy_booking_count,

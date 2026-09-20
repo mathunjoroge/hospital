@@ -183,7 +183,7 @@ def list_sessions(patient_id: str | None = None):
     for s in sessions:
         summary = session_summary(s)
         summary["patient_name"] = patient.name if patient else None
-        rows.append(summary)
+        rows.append(_annotate_needs_chair_time(summary))
 
     if wants_html:
         access_records = get_patient_access_records(patient_id)
@@ -228,6 +228,19 @@ def list_sessions(patient_id: str | None = None):
             "sessions": rows,
         }
     ), 200
+
+
+def _annotate_needs_chair_time(summary: dict) -> dict:
+    """
+    Flag Records bookings still missing a chair time so the day sheet can
+    warn nurses (amber row + "Needs chair time" badge).
+    """
+    summary["needs_chair_time"] = (
+        summary.get("source") == "RECORDS"
+        and summary.get("status") == "SCHEDULED"
+        and not summary.get("start_time_hm")
+    )
+    return summary
 
 
 def _group_by_shift(rows: list[dict]) -> list[tuple[str | None, list[dict]]]:
@@ -285,7 +298,7 @@ def _board_sessions(
     for s in sessions:
         summary = session_summary(s)
         summary["patient_name"] = names.get(s.patient_id)
-        rows.append(summary)
+        rows.append(_annotate_needs_chair_time(summary))
     return rows
 
 

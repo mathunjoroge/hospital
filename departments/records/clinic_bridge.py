@@ -164,6 +164,7 @@ def propagate_specialty_booking(
         booking_date=clinic_date,
         purpose="Consultation",
         status="Scheduled",
+        source="RECORDS",
         notes="Booked from Records — Oncology Clinic.",
     )
     db.session.add(booking)

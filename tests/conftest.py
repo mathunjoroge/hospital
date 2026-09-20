@@ -5,7 +5,8 @@ import pytest
 # ── Set test environment BEFORE any app imports ──
 os.environ["FLASK_ENV"] = "testing"
 os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite://"  # in-memory
-os.environ.setdefault("SECRET_KEY", "testing_secret_key_1234567890")
+os.environ.setdefault("SECRET_KEY", "testing_secret_key_abcdefghijklmnopqrstuvwxyz_32b")
+os.environ.setdefault("JWT_SECRET_KEY", "testing_jwt_secret_key_abcdefghijklmnopqrstuvwxyz")
 os.environ.setdefault("SECURITY_PASSWORD_SALT", "testing_salt_1234567890")
 
 # A stable Fernet key for the entire test suite.

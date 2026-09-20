@@ -904,6 +904,7 @@ def upload_dicom():
         return jsonify({"error": str(e)}), 400
 
     except Exception:
+        logger.exception("Unhandled error during DICOM file upload/processing")
         if temp_path.exists():
             temp_path.unlink()
         return jsonify({"error": "Failed to process DICOM file"}), 500
