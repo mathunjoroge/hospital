@@ -1,0 +1,29 @@
+{
+    # Global options
+    admin off
+}
+
+:80, :443 {
+    # Security Headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # Deny direct public access to DICOM uploads static directory
+    @forbidden_dicom {
+        path /static/dicom_Uploads/* /static/dicom_uploads/*
+    }
+    respond @forbidden_dicom "Access Denied" 403
+
+    # Reverse proxy to Flask WSGI server
+    reverse_proxy flask:5000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}

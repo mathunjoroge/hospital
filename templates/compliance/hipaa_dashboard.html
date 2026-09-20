@@ -64,11 +64,11 @@
     <!-- Header Banner -->
     <div class="compliance-header d-flex justify-content-between align-items-center">
         <div>
-            <h3 class="fw-bold text-white mb-1"><i class="fa-solid fa-shield-halved text-success me-2"></i>HIPAA & HITRUST CSF Certification Console</h3>
+            <h3 class="fw-bold text-white mb-1"><i class="fa-solid fa-shield-halved text-success me-2"></i>HIPAA Technical Safeguards Self-Assessment Console</h3>
             <p class="text-secondary text-sm mb-0">Automated Security Rule Technical Safeguards & Cryptographic Audit Verification</p>
         </div>
         <div class="d-flex gap-2">
-            <button onclick="verifyChain()" class="btn btn-outline-info btn-sm rounded-pill"><i class="fa-solid fa-link me-1"></i>Verify SHA-256 Hash Chain</button>
+            <button onclick="verifyChain()" class="btn btn-outline-info btn-sm rounded-pill"><i class="fa-solid fa-link me-1"></i>Verify Hash Chain</button>
             <a href="/compliance/api/hipaa-status" target="_blank" class="btn btn-outline-light btn-sm rounded-pill"><i class="fa-solid fa-code me-1"></i>Audit JSON Payload</a>
         </div>
     </div>
@@ -79,9 +79,9 @@
             <div class="col-md-4">
                 <div class="compliance-card d-flex align-items-center justify-content-between">
                     <div>
-                        <div class="text-uppercase text-xs text-muted fw-bold">HITRUST Readiness Score</div>
+                        <div class="text-uppercase text-xs text-muted fw-bold">Internal Safeguards Score</div>
                         <h1 class="fw-bold text-success mb-0 mt-1">{{ report.compliance_score_pct }}%</h1>
-                        <span class="badge-hipaa-pass mt-2 d-inline-block"><i class="fa-solid fa-certificate me-1"></i>{{ report.overall_status }}</span>
+                        <span class="badge-hipaa-pass mt-2 d-inline-block"><i class="fa-solid fa-shield me-1"></i>{{ report.overall_status }}</span>
                     </div>
                     <div class="fs-1 text-success opacity-50"><i class="fa-solid fa-award"></i></div>
                 </div>

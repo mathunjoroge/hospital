@@ -18,15 +18,15 @@ POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 POSTGRES_DB = os.getenv("POSTGRES_DB", "hospital_umls")
 POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
-LOCAL_TERMINOLOGY_PATH = "postgresql://user:password@localhost:5432/hospital_umls"
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres" if os.getenv("FLASK_ENV") == "testing" else "")
+LOCAL_TERMINOLOGY_PATH = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
 # SQLAlchemy Database URI Configuration
 # Defaults to PostgreSQL. SQLite is only used when FLASK_ENV=testing.
 _default_db_uri = (
     "sqlite:///hims.db"
     if os.getenv("FLASK_ENV") == "testing"
-    else "postgresql://hospital:hospital@localhost:5432/hospital_core"
+    else f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/hospital_core"
 )
 SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", _default_db_uri)
 SQLALCHEMY_TRACK_MODIFICATIONS = False

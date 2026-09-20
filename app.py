@@ -51,9 +51,9 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 # Upload folders
 app.config["UPLOAD_FOLDER"] = os.path.join("Uploads")
 app.config["ALLOWED_EXTENSIONS"] = {"png", "jpg", "jpeg", "gif"}
-app.config["DICOM_UPLOAD_FOLDER"] = os.path.join(
-    app.root_path, "static", "dicom_Uploads"
-)
+# DICOM Upload folder (stored outside public web root in instance path)
+app.config["DICOM_UPLOAD_FOLDER"] = os.path.join(app.instance_path, "dicom_uploads")
+os.makedirs(app.config["DICOM_UPLOAD_FOLDER"], exist_ok=True)
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024 * 1024  # 2 GB file limit
 
 INSECURE_SECRET_KEYS = {
@@ -65,33 +65,28 @@ INSECURE_SECRET_KEYS = {
     "password",
     "12345",
 }
-secret_key = os.environ.get("SECRET_KEY")
-if os.environ.get("FLASK_ENV") == "production":
-    if not secret_key or secret_key in INSECURE_SECRET_KEYS or len(secret_key) < 16:
-        raise RuntimeError(
-            "CRITICAL SECURITY ERROR: Hardcoded or weak SECRET_KEY detected in production environment."
-        )
-elif not secret_key:
-    if os.environ.get("FLASK_ENV") == "testing":
-        secret_key = "test-secret-key-not-for-production"
-    else:
-        raise RuntimeError(
-            "SECRET_KEY environment variable must be set "
-            "(FLASK_ENV=testing is the only exception)."
-        )
+_flask_env = os.environ.get("FLASK_ENV", "development").lower()
+_is_dev_or_test = _flask_env in ("development", "testing", "dev", "test")
 
-# ENCRYPTION_KEY guard — mirrors the SECRET_KEY check above.
-# A missing ENCRYPTION_KEY in production means patient PII is written to the DB
-# using the old static DEV_FALLBACK_KEY (now removed), which is equivalent to
-# no encryption. Refuse to start rather than silently degrade.
-_encryption_key = os.environ.get("ENCRYPTION_KEY")
-if os.environ.get("FLASK_ENV") == "production" and not _encryption_key:
-    raise RuntimeError(
-        "CRITICAL SECURITY ERROR: ENCRYPTION_KEY environment variable is not set. "
-        "Patient identity fields cannot be encrypted. "
-        'Generate a key with: python3 -c "from cryptography.fernet import Fernet; '
-        'print(Fernet.generate_key().decode())" and add it to your .env file.'
-    )
+secret_key = os.environ.get("SECRET_KEY")
+jwt_secret = os.environ.get("JWT_SECRET_KEY") or secret_key
+encryption_key = os.environ.get("ENCRYPTION_KEY")
+
+if not _is_dev_or_test:
+    if not secret_key or secret_key in INSECURE_SECRET_KEYS or len(secret_key) < 32:
+        raise RuntimeError(
+            "CRITICAL SECURITY ERROR: Missing or insecure SECRET_KEY in non-dev/test environment. Must be >= 32 characters."
+        )
+    if not jwt_secret or jwt_secret in INSECURE_SECRET_KEYS or len(jwt_secret) < 32:
+        raise RuntimeError(
+            "CRITICAL SECURITY ERROR: Missing or insecure JWT_SECRET_KEY in non-dev/test environment. Must be >= 32 characters."
+        )
+    if not encryption_key:
+        raise RuntimeError(
+            "CRITICAL SECURITY ERROR: ENCRYPTION_KEY environment variable is not set. Patient data cannot be encrypted safely."
+        )
+elif not secret_key and _flask_env == "testing":
+    secret_key = "test-secret-key-not-for-production"
 
 
 # ---------------------------------------------------------------------------
@@ -498,7 +493,23 @@ def login():
                         pass
                     db.session.commit()
 
-                    if user.mfa_enabled or (user.role == "admin" and user.totp_secret):
+                    MFA_REQUIRED_ROLES = {
+                        "admin",
+                        "medicine",
+                        "imaging",
+                        "nursing",
+                        "pharmacy",
+                        "records",
+                        "billing",
+                    }
+                    if user.role in MFA_REQUIRED_ROLES or user.mfa_enabled or user.totp_secret:
+                        if not user.totp_secret:
+                            login_user(user)
+                            flash(
+                                "MFA enrollment is mandatory for clinical/administrative staff. Please complete setup.",
+                                "warning",
+                            )
+                            return redirect(url_for("admin.mfa_setup"))
                         session["mfa_pending_user_id"] = user.id
                         return redirect(url_for("mfa_verify"))
 
@@ -911,10 +922,51 @@ def set_rls_session_variable():
     if facility_id:
         try:
             db.session.execute(
-                db.text(f"SET app.current_facility_id = '{facility_id}'")
+                db.text("SELECT set_config('app.current_facility_id', :fid, true)"),
+                {"fid": str(facility_id)},
             )
-        except Exception:  # noqa: S110, BLE001
-            pass  # Fail silently if DB doesn't support SET (e.g. SQLite fallback)
+        except Exception as rls_err:  # noqa: BLE001
+            logger.debug(f"RLS set_config skipped (e.g. SQLite/non-Postgres DB): {rls_err}")
+
+
+# ── Global PHI Access Audit Hook (R-10) ──────────────────────────────────
+@app.after_request
+def log_phi_access(response):
+    """Automatically record PHI_ACCESS audit event for successful GET requests on clinical blueprints."""
+    if response.status_code == 200 and request.method == "GET" and request.blueprint:
+        PHI_BLUEPRINTS = {
+            "records",
+            "medicine",
+            "nursing",
+            "laboratory",
+            "imaging",
+            "pharmacy",
+            "oncology",
+            "renal",
+            "icu",
+            "mch",
+            "theatre",
+            "patient_portal",
+            "fhir",
+            "eprescribe",
+        }
+        if request.blueprint in PHI_BLUEPRINTS:
+            try:
+                from departments.api.audit import log_audit_event
+
+                res_id = None
+                if request.view_args:
+                    res_id = request.view_args.get("patient_id") or request.view_args.get("id") or request.view_args.get("result_id")
+
+                log_audit_event(
+                    action="PHI_ACCESS",
+                    resource_type=f"Blueprint:{request.blueprint}",
+                    resource_id=str(res_id) if res_id else request.endpoint,
+                    details={"path": request.path, "method": request.method},
+                )
+            except Exception as audit_err:  # noqa: BLE001
+                logger.debug("Automatic PHI access audit failed: %s", audit_err)
+    return response
 
 
 if __name__ == "__main__":
@@ -930,9 +982,12 @@ if __name__ == "__main__":
             from departments.models.user import User
 
             if not User.query.filter_by(username="admin").first():
-                admin_pass = os.environ.get(
-                    "DEFAULT_ADMIN_PASSWORD", "AdminPassword123!"
-                )
+                import secrets
+
+                admin_pass = os.environ.get("DEFAULT_ADMIN_PASSWORD")
+                if not admin_pass:
+                    admin_pass = secrets.token_urlsafe(16)
+                    logger.warning("DEFAULT_ADMIN_PASSWORD environment variable unset — generated ephemeral initial admin password")
                 admin = User(
                     username="admin",
                     password=generate_password_hash(admin_pass, method="pbkdf2:sha256"),
@@ -940,8 +995,7 @@ if __name__ == "__main__":
                 )
                 db.session.add(admin)
                 db.session.commit()
-                print(f"✅ Default admin user created (admin / {admin_pass})")
-                print("   Run `flask db upgrade` to ensure the schema is up to date.")
+                logger.info("Default admin user initialized successfully.")
             # Auto-seed lab test catalog with LOINC mappings if empty
             from departments.models.medicine import LabTest
 

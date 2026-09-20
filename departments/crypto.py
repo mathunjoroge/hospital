@@ -127,8 +127,8 @@ def decrypt_value(token: str) -> str:
         decrypted_bytes = f.decrypt(raw_token.encode("utf-8"))
         return decrypted_bytes.decode("utf-8")
     except (InvalidToken, Exception) as e:  # noqa: BLE001
-        logger.warning(f"Decryption failed for value: {e}")
-        return token
+        logger.error(f"Decryption failed for encrypted token: {e}")
+        raise ValueError(f"Decryption failed due to invalid token or key mismatch: {e}") from e
 
 
 class EncryptedString(TypeDecorator):

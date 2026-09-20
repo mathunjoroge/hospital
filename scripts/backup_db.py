@@ -14,9 +14,17 @@ detects the configured database backend (SQLALCHEMY_DATABASE_URI /
 DATABASE_URL) and dispatches to a `pg_dump`-based backup for PostgreSQL,
 keeping the SQLite path only for local/dev/test deployments that still use
 it.
+
+R-17: Backup integrity
+  - BACKUP_ENCRYPTION_KEY env var (Fernet key) enables AES-128 stream encryption.
+    Set via: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+  - SHA-256 digest is written alongside every backup: <backup>.sha256
+  - Manifest JSON is updated in backups/manifest.json after each successful run.
 """
 
 import glob
+import hashlib
+import json
 import logging
 import os
 import shutil
@@ -37,6 +45,7 @@ logger = logging.getLogger("HMIS.Backup")
 
 BACKUP_DIR = os.path.join(BASE_DIR, "backups")
 MAX_BACKUPS = 30  # Retain last 30 backups
+MANIFEST_PATH = os.path.join(BACKUP_DIR, "manifest.json")
 
 
 def _configured_database_uri() -> str:
@@ -47,6 +56,92 @@ def _configured_database_uri() -> str:
             "DATABASE_URL", "sqlite:///" + os.path.join(BASE_DIR, "instance", "dev.db")
         ),
     )
+
+
+def _compute_sha256(file_path: str) -> str:
+    """Compute SHA-256 hex digest for a file."""
+    h = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _encrypt_backup(backup_path: str) -> str | None:
+    """
+    Encrypt the backup file using Fernet symmetric encryption (AES-128-CBC + HMAC).
+    Returns the path to the encrypted file, or None if encryption is not configured.
+
+    The BACKUP_ENCRYPTION_KEY environment variable must contain a valid Fernet key.
+    Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    """
+    key_str = os.getenv("BACKUP_ENCRYPTION_KEY", "").strip()
+    if not key_str:
+        logger.info("BACKUP_ENCRYPTION_KEY not set — backup stored unencrypted.")
+        return None
+
+    try:
+        from cryptography.fernet import Fernet
+    except ImportError:
+        logger.warning("cryptography package not installed — skipping encryption.")
+        return None
+
+    try:
+        fernet = Fernet(key_str.encode())
+    except Exception as e:
+        logger.error(f"Invalid BACKUP_ENCRYPTION_KEY: {e}")
+        return None
+
+    encrypted_path = backup_path + ".enc"
+    try:
+        with open(backup_path, "rb") as f_in, open(encrypted_path, "wb") as f_out:
+            # Read in chunks to handle large dumps without loading into memory
+            while True:
+                chunk = f_in.read(1024 * 1024)  # 1 MB at a time
+                if not chunk:
+                    break
+                f_out.write(fernet.encrypt(chunk))
+        logger.info(f"Backup encrypted: {os.path.basename(encrypted_path)}")
+        # Remove unencrypted original
+        os.remove(backup_path)
+        return encrypted_path
+    except Exception as e:
+        logger.error(f"Encryption failed: {e}")
+        return None
+
+
+def _write_sha256_and_manifest(backup_path: str):
+    """Write a .sha256 sidecar file and update the backup manifest."""
+    sha256_hex = _compute_sha256(backup_path)
+    sha256_path = backup_path + ".sha256"
+    with open(sha256_path, "w") as f:
+        f.write(f"{sha256_hex}  {os.path.basename(backup_path)}\n")
+    logger.info(f"SHA-256 digest written: {os.path.basename(sha256_path)}")
+
+    # Update manifest
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    if os.path.exists(MANIFEST_PATH):
+        try:
+            with open(MANIFEST_PATH) as f:
+                manifest = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            manifest = {"backups": []}
+    else:
+        manifest = {"backups": []}
+
+    manifest["backups"].append(
+        {
+            "filename": os.path.basename(backup_path),
+            "sha256": sha256_hex,
+            "size_bytes": os.path.getsize(backup_path),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+    # Keep last MAX_BACKUPS entries in manifest
+    manifest["backups"] = manifest["backups"][-MAX_BACKUPS:]
+    with open(MANIFEST_PATH, "w") as f:
+        json.dump(manifest, f, indent=2)
+    logger.info("Backup manifest updated.")
 
 
 def perform_backup(db_path: str | None = None) -> str:
@@ -112,8 +207,14 @@ def perform_postgres_backup(db_uri: str) -> str:
 
         size_mb = round(os.path.getsize(backup_path) / (1024 * 1024), 2)
         logger.info(f"Backup created successfully: {backup_filename} ({size_mb} MB)")
-        rotate_backups(pattern="hospital_backup_*.pgdump")
-        return backup_path
+
+        # R-17: Encrypt and compute integrity digest
+        encrypted_path = _encrypt_backup(backup_path)
+        final_path = encrypted_path if encrypted_path else backup_path
+        _write_sha256_and_manifest(final_path)
+
+        rotate_backups(pattern="hospital_backup_*.pgdump*")
+        return final_path
     except subprocess.TimeoutExpired:
         logger.error("pg_dump timed out after 30 minutes")
         return None
@@ -168,9 +269,13 @@ def perform_sqlite_backup(db_path: str | None = None) -> str:
         size_mb = round(os.path.getsize(backup_path) / (1024 * 1024), 2)
         logger.info(f"Backup created successfully: {backup_filename} ({size_mb} MB)")
 
-        # Rotate old backups
+        # R-17: Encrypt and compute integrity digest
+        encrypted_path = _encrypt_backup(backup_path)
+        final_path = encrypted_path if encrypted_path else backup_path
+        _write_sha256_and_manifest(final_path)
+
         rotate_backups()
-        return backup_path
+        return final_path
     except Exception:
         logger.exception("Backup failed: ")
         return None
@@ -184,6 +289,11 @@ def rotate_backups(pattern: str = "hospital_backup_*.db"):
         for old_backup in excess:
             try:
                 os.remove(old_backup)
+                # Also remove sidecar files
+                for ext in (".sha256",):
+                    sidecar = old_backup + ext
+                    if os.path.exists(sidecar):
+                        os.remove(sidecar)
                 logger.info(f"Rotated old backup: {os.path.basename(old_backup)}")
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"Could not remove old backup {old_backup}: {e}")
@@ -195,3 +305,4 @@ if __name__ == "__main__":
         sys.exit(0)
     else:
         sys.exit(1)
+

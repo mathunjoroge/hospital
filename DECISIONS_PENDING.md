@@ -174,11 +174,11 @@ Per Process Integrity rules (P.1), hard stops were enforced for decisions with f
 
 ---
 
-## 19. Multi-Tenancy / Row-Level Security Scope
+## 19. Single-Facility Row-Level Security & Role Isolation Scope
 
-* **Status:** ✅ DECIDED — 2026-09-11
+* **Status:** ✅ DECIDED & ALIGNED — 2026-09-20
 * **Decision-maker:** Solo Developer / System Administrator
-* **Decisions**: Full multi-tenancy enabled via PostgreSQL RLS policies keyed on `app.current_facility_id`.
+* **Decisions**: Aligned with Decision #8 (Single-Facility System). Single-tenant deployment architecture utilizing PostgreSQL Row-Level Security (RLS) policies and non-superuser `hospital_app` database roles for strict least-privilege security isolation.
 
 ---
 

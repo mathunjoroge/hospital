@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pydicom
 from flask import (
+    abort,
     current_app,
     flash,
     jsonify,
@@ -17,6 +18,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 from sqlalchemy.exc import SQLAlchemyError
+from werkzeug.security import safe_join
 from werkzeug.utils import secure_filename
 
 from departments.api.auth import jwt_or_session_required
@@ -681,18 +683,39 @@ def view_result(result_id):
 @login_required
 @roles_required("imaging", "admin")
 def download_file(result_id, filename):
-    """Serve a DICOM file for download."""
+    """Serve a DICOM file for download securely with path traversal protection and audit logging."""
     logger.debug(
         f"Download request for result_id={result_id}, filename={filename} by user {current_user.id}"
     )
 
-    upload_dir = os.path.join(current_app.config["DICOM_UPLOAD_FOLDER"], result_id)
     try:
-        return send_from_directory(upload_dir, filename, as_attachment=True)
-    except Exception as e:  # noqa: BLE001
-        logger.error(f"Error downloading file {filename}: {e}")
-        flash(f"Error downloading file: {e!s}", "error")
-        return redirect(url_for("imaging.view_result", result_id=result_id))
+        uuid.UUID(result_id)
+    except ValueError:
+        logger.warning(f"Invalid result_id UUID attempted in download: {result_id}")
+        abort(404)
+
+    base_dir = current_app.config["DICOM_UPLOAD_FOLDER"]
+    safe_path = safe_join(base_dir, result_id, filename)
+    if not safe_path or not os.path.isfile(safe_path):
+        logger.warning(
+            f"Attempted path traversal or missing file: result_id={result_id}, filename={filename}"
+        )
+        abort(404)
+
+    try:
+        from departments.audit import log_audit_event
+
+        log_audit_event(
+            user_id=current_user.id,
+            action="DICOM_DOWNLOAD",
+            resource=f"imaging_result:{result_id}/{filename}",
+            details={"ip": request.remote_addr},
+        )
+    except Exception as audit_err:  # noqa: BLE001
+        logger.error(f"Audit log failed on DICOM download: {audit_err}")
+
+    upload_dir = os.path.join(base_dir, result_id)
+    return send_from_directory(upload_dir, os.path.basename(filename), as_attachment=True)
 
 
 @bp.route("/results", methods=["GET"])  # Changed from '/imaging_results'

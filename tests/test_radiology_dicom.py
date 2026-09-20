@@ -131,3 +131,13 @@ class TestDICOMIntegration:
 
         db_req = db.session.get(RequestedImage, req.id)
         assert db_req.status == 1  # Processed
+
+    def test_download_file_path_traversal_returns_404(self, radiology_client):
+        # Path traversal with '..' should return 404
+        resp = radiology_client.get("/imaging/download/../somefile.txt")
+        assert resp.status_code == 404
+
+    def test_download_file_invalid_uuid_returns_404(self, radiology_client):
+        # Invalid UUID format should return 404
+        resp = radiology_client.get("/imaging/download/not-a-uuid/test.dcm")
+        assert resp.status_code == 404

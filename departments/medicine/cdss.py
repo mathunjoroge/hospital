@@ -13,7 +13,6 @@ Provides:
 import logging
 
 from departments.models.records import Patient
-from extensions import db
 
 logger = logging.getLogger(__name__)
 
@@ -366,12 +365,7 @@ def evaluate_prescription_safety(
     interactions = check_drug_interactions(all_meds)
 
     patient = (
-        Patient.query.filter(
-            db.or_(
-                Patient.patient_id.ilike(f"%{patient_id}%"),
-                Patient.name.ilike(f"%{patient_id}%"),
-            )
-        ).first()
+        Patient.query.filter_by(patient_id=patient_id).first()
         if patient_id
         else None
     )

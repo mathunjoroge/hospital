@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 
 import requests
 from dotenv import load_dotenv
@@ -11,6 +12,57 @@ logger = logging.getLogger("HIMS-NVIDIA-NIM")
 
 NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 DEFAULT_MODEL = "meta/llama-3.2-11b-vision-instruct"
+
+
+def sanitize_pii(text: str) -> str:
+    """
+    Sanitize PII (Names, Phone Numbers, Emails, National IDs, DOBs) from clinical text
+    prior to sending payloads to external cloud LLM APIs (NVIDIA NIM / Gemini).
+    """
+    if not text:
+        return text
+
+    sanitized = text
+
+    # Email addresses
+    sanitized = re.sub(
+        r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
+        "[REDACTED_EMAIL]",
+        sanitized,
+    )
+
+    # Phone numbers (+254..., 07..., 01..., 10-digit formats)
+    sanitized = re.sub(r"(\+?254|0)[71]\d{8}\b", "[REDACTED_PHONE]", sanitized)
+    sanitized = re.sub(
+        r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b", "[REDACTED_PHONE]", sanitized
+    )
+
+    # National ID / Passport / Policy numbers
+    sanitized = re.sub(
+        r"\b(National\s+ID|ID|Passport|Policy|Member\s+No|Policy\s+No)[:\s]+[A-Za-z0-9-]+\b",
+        r"\1: [REDACTED_ID]",
+        sanitized,
+        flags=re.IGNORECASE,
+    )
+
+    # Dates of birth
+    sanitized = re.sub(
+        r"\b(DOB|Date of Birth|Born)[:\s]+\d{1,4}[-/]\d{1,2}[-/]\d{1,4}\b",
+        r"\1: [REDACTED_DOB]",
+        sanitized,
+        flags=re.IGNORECASE,
+    )
+
+    # Common Patient Name patterns e.g. "Patient: John Doe", "Name: Jane Doe"
+    sanitized = re.sub(
+        r"\b(Patient\s+Name|Patient|Name)[:\s]+[A-Z][a-z]+\s+[A-Z][a-z]+\b",
+        r"\1: [REDACTED_NAME]",
+        sanitized,
+        flags=re.IGNORECASE,
+    )
+
+    return sanitized
+
 
 CANCER_TYPES = [
     "breast cancer",
@@ -73,6 +125,9 @@ class NvidiaNIMClient:
             except Exception as e:  # noqa: BLE001
                 logger.error(f"Error checking AI consent for patient {patient_id}: {e}")
                 return None
+
+        # Mandatory PII Sanitization prior to external API transmission (DPA 2019)
+        prompt = sanitize_pii(prompt)
 
         if not self.is_available():
             logger.warning("NVIDIA_API_KEY is not configured. Using offline fallback.")

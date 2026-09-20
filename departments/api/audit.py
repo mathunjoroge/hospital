@@ -23,12 +23,9 @@ logger = logging.getLogger("HIMS.AuditTrail")
 
 
 def get_client_ip() -> str | None:
-    """Extract client IP address, handling proxy headers."""
+    """Extract client IP address safely (ProxyFix middleware in app.py handles X-Forwarded-For)."""
     if not request:
         return None
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
     return request.remote_addr
 
 

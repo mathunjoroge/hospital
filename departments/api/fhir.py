@@ -28,14 +28,139 @@ from departments.medicine.terminology_server import FHIRTerminologyServer
 from departments.models.encounter import Encounter
 from departments.models.imaging import ImagingResult
 from departments.models.laboratory import LabResult
-from departments.models.medicine import PrescribedMedicine, SOAPNote
-from departments.models.nursing import Vitals
-from departments.models.records import Patient
+from departments.models.medicine import PrescribedMedicine, SOAPNote, TheatreList
+from departments.models.nursing import MedicationAdmin, Vitals
+from departments.models.oauth2 import OAuth2Token
+from departments.models.records import Patient, PatientAllergy
+from departments.models.theatre import PostOpNote
 from departments.rbac import roles_required
 
 logger = logging.getLogger(__name__)
 
 fhir_bp = Blueprint("fhir", __name__)
+
+
+def check_fhir_scope(resource_name: str):
+    """
+    Validate fine-grained OAuth2 scope if request presents an OAuth Bearer token.
+    Valid scopes: patient/*.read, user/*.read, *, patient/<resource_name>.read, user/<resource_name>.read
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token_str = auth_header.split(" ")[1]
+        token = OAuth2Token.query.filter_by(access_token=token_str).first()
+        if token:
+            if getattr(token, "revoked", False):
+                return jsonify(
+                    {
+                        "resourceType": "OperationOutcome",
+                        "issue": [
+                            {
+                                "severity": "error",
+                                "code": "login",
+                                "diagnostics": "OAuth token revoked",
+                            }
+                        ],
+                    }
+                ), 401
+            scopes = (token.scope or "").split()
+            allowed = {
+                "patient/*.read",
+                "user/*.read",
+                "*",
+                f"patient/{resource_name}.read",
+                f"user/{resource_name}.read",
+            }
+            if not any(s in allowed for s in scopes):
+                return jsonify(
+                    {
+                        "resourceType": "OperationOutcome",
+                        "issue": [
+                            {
+                                "severity": "error",
+                                "code": "forbidden",
+                                "diagnostics": f"Insufficient OAuth scope for resource '{resource_name}'",
+                            }
+                        ],
+                    }
+                ), 403
+    return None
+
+
+def allergy_to_fhir(allergy: PatientAllergy) -> dict:
+    """Map HIMS PatientAllergy to HL7 FHIR R4 AllergyIntolerance resource."""
+    severity_map = {
+        "Mild": "mild",
+        "Moderate": "moderate",
+        "Severe": "severe",
+        "Critical": "severe",
+    }
+    sev = severity_map.get(getattr(allergy, "severity", "Mild"), "mild")
+
+    return {
+        "resourceType": "AllergyIntolerance",
+        "id": f"allergy-{allergy.id}",
+        "clinicalStatus": {
+            "coding": [
+                {
+                    "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+                    "code": "active",
+                    "display": "Active",
+                }
+            ]
+        },
+        "verificationStatus": {
+            "coding": [
+                {
+                    "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-verification",
+                    "code": "confirmed",
+                    "display": "Confirmed",
+                }
+            ]
+        },
+        "category": ["medication"],
+        "criticality": "high" if sev == "severe" else "low",
+        "code": {"text": getattr(allergy, "allergen", "Unknown Allergen")},
+        "patient": {"reference": f"Patient/{allergy.patient_id}"},
+        "recordedDate": allergy.date_logged.isoformat()
+        if getattr(allergy, "date_logged", None)
+        else datetime.now(timezone.utc).isoformat(),
+        "note": [{"text": getattr(allergy, "reaction", "")}]
+        if getattr(allergy, "reaction", None)
+        else [],
+    }
+
+
+def med_admin_to_fhir(admin: MedicationAdmin) -> dict:
+    """Map HIMS MedicationAdmin to HL7 FHIR R4 MedicationAdministration resource."""
+    return {
+        "resourceType": "MedicationAdministration",
+        "id": f"medadmin-{admin.id}",
+        "status": "completed",
+        "medicationCodeableConcept": {
+            "text": getattr(admin, "medication", "Administered Medication")
+        },
+        "subject": {"reference": f"Patient/{admin.patient_id}"},
+        "effectiveDateTime": admin.time_administered.isoformat()
+        if getattr(admin, "time_administered", None)
+        else datetime.now(timezone.utc).isoformat(),
+        "dosage": {"text": getattr(admin, "dosage", "As prescribed")},
+    }
+
+
+def procedure_to_fhir_item(proc_name: str, patient_id: str, proc_id: int, timestamp) -> dict:
+    """Map surgical/clinical procedure to HL7 FHIR R4 Procedure resource."""
+    return {
+        "resourceType": "Procedure",
+        "id": f"proc-{proc_id}",
+        "status": "completed",
+        "code": {"text": proc_name},
+        "subject": {"reference": f"Patient/{patient_id}"},
+        "performedDateTime": timestamp.isoformat()
+        if timestamp
+        else datetime.now(timezone.utc).isoformat(),
+    }
+
 
 LOINC_CODES = {
     "temperature": {"code": "8310-5", "display": "Body temperature", "unit": "Cel"},
@@ -734,6 +859,197 @@ def search_fhir_imaging_studies():
     return jsonify(bundle)
 
 
+@fhir_bp.route("/AllergyIntolerance", methods=["GET"])
+@jwt_or_session_required
+@roles_required("admin", "records", "medicine", "nursing", "pharmacy", "api")
+def search_fhir_allergy_intolerances():
+    """Search FHIR R4 AllergyIntolerance resources for a patient."""
+    scope_err = check_fhir_scope("AllergyIntolerance")
+    if scope_err:
+        return scope_err
+
+    patient_id = request.args.get("patient")
+    if not patient_id:
+        return jsonify(
+            {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "required",
+                        "diagnostics": "Query parameter 'patient' is required.",
+                    }
+                ],
+            }
+        ), 400
+
+    allergies = PatientAllergy.query.filter_by(patient_id=patient_id).all()
+    entries = [
+        {
+            "fullUrl": f"{request.host_url}api/fhir/R4/AllergyIntolerance/allergy-{a.id}",
+            "resource": allergy_to_fhir(a),
+        }
+        for a in allergies
+    ]
+
+    bundle = {
+        "resourceType": "Bundle",
+        "type": "searchset",
+        "total": len(entries),
+        "entry": entries,
+    }
+    return jsonify(bundle)
+
+
+@fhir_bp.route("/MedicationAdministration", methods=["GET"])
+@jwt_or_session_required
+@roles_required("admin", "records", "medicine", "nursing", "pharmacy", "api")
+def search_fhir_medication_administrations():
+    """Search FHIR R4 MedicationAdministration resources for a patient."""
+    scope_err = check_fhir_scope("MedicationAdministration")
+    if scope_err:
+        return scope_err
+
+    patient_id = request.args.get("patient")
+    if not patient_id:
+        return jsonify(
+            {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "required",
+                        "diagnostics": "Query parameter 'patient' is required.",
+                    }
+                ],
+            }
+        ), 400
+
+    admins = MedicationAdmin.query.filter_by(patient_id=patient_id).all()
+    entries = [
+        {
+            "fullUrl": f"{request.host_url}api/fhir/R4/MedicationAdministration/medadmin-{m.id}",
+            "resource": med_admin_to_fhir(m),
+        }
+        for m in admins
+    ]
+
+    bundle = {
+        "resourceType": "Bundle",
+        "type": "searchset",
+        "total": len(entries),
+        "entry": entries,
+    }
+    return jsonify(bundle)
+
+
+@fhir_bp.route("/Immunization", methods=["GET"])
+@jwt_or_session_required
+@roles_required("admin", "records", "medicine", "nursing", "pharmacy", "api")
+def search_fhir_immunizations():
+    """Search FHIR R4 Immunization resources for a patient."""
+    scope_err = check_fhir_scope("Immunization")
+    if scope_err:
+        return scope_err
+
+    patient_id = request.args.get("patient")
+    if not patient_id:
+        return jsonify(
+            {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "required",
+                        "diagnostics": "Query parameter 'patient' is required.",
+                    }
+                ],
+            }
+        ), 400
+
+    admins = MedicationAdmin.query.filter_by(patient_id=patient_id).all()
+    entries = []
+    for m in admins:
+        med_lower = (m.medication or "").lower()
+        if any(v in med_lower for v in ["vaccine", "vax", "bcg", "opv", "dpt", "measles", "hep", "polio", "covid", "tetanus"]):
+            entries.append(
+                {
+                    "fullUrl": f"{request.host_url}api/fhir/R4/Immunization/imm-{m.id}",
+                    "resource": {
+                        "resourceType": "Immunization",
+                        "id": f"imm-{m.id}",
+                        "status": "completed",
+                        "vaccineCode": {"text": m.medication},
+                        "patient": {"reference": f"Patient/{patient_id}"},
+                        "occurrenceDateTime": m.time_administered.isoformat()
+                        if getattr(m, "time_administered", None)
+                        else datetime.now(timezone.utc).isoformat(),
+                    },
+                }
+            )
+
+    bundle = {
+        "resourceType": "Bundle",
+        "type": "searchset",
+        "total": len(entries),
+        "entry": entries,
+    }
+    return jsonify(bundle)
+
+
+@fhir_bp.route("/Procedure", methods=["GET"])
+@jwt_or_session_required
+@roles_required("admin", "records", "medicine", "nursing", "imaging", "api")
+def search_fhir_procedures():
+    """Search FHIR R4 Procedure resources for a patient."""
+    scope_err = check_fhir_scope("Procedure")
+    if scope_err:
+        return scope_err
+
+    patient_id = request.args.get("patient")
+    if not patient_id:
+        return jsonify(
+            {
+                "resourceType": "OperationOutcome",
+                "issue": [
+                    {
+                        "severity": "error",
+                        "code": "required",
+                        "diagnostics": "Query parameter 'patient' is required.",
+                    }
+                ],
+            }
+        ), 400
+
+    entries = []
+    theatre_items = TheatreList.query.filter_by(patient_id=patient_id).all()
+    for item in theatre_items:
+        p_name = item.procedure.name if getattr(item, "procedure", None) else "Surgical Procedure"
+        entries.append(
+            {
+                "fullUrl": f"{request.host_url}api/fhir/R4/Procedure/proc-theatre-{item.id}",
+                "resource": procedure_to_fhir_item(p_name, patient_id, item.id, getattr(item, "created_at", None)),
+            }
+        )
+
+    notes = PostOpNote.query.filter_by(patient_id=patient_id).all()
+    for note in notes:
+        entries.append(
+            {
+                "fullUrl": f"{request.host_url}api/fhir/R4/Procedure/proc-opnote-{note.id}",
+                "resource": procedure_to_fhir_item(note.procedure_performed, patient_id, note.id, getattr(note, "created_at", None)),
+            }
+        )
+
+    bundle = {
+        "resourceType": "Bundle",
+        "type": "searchset",
+        "total": len(entries),
+        "entry": entries,
+    }
+    return jsonify(bundle)
+
+
 @fhir_bp.route("/metadata", methods=["GET"])
 @fhir_bp.route("/R4/metadata", methods=["GET"])
 def get_fhir_metadata():
@@ -806,11 +1122,32 @@ def get_fhir_metadata():
                         "interaction": [{"code": "read"}, {"code": "search-type"}],
                         "searchParam": [{"name": "patient", "type": "reference"}],
                     },
+                    {
+                        "type": "AllergyIntolerance",
+                        "interaction": [{"code": "search-type"}],
+                        "searchParam": [{"name": "patient", "type": "reference"}],
+                    },
+                    {
+                        "type": "MedicationAdministration",
+                        "interaction": [{"code": "search-type"}],
+                        "searchParam": [{"name": "patient", "type": "reference"}],
+                    },
+                    {
+                        "type": "Immunization",
+                        "interaction": [{"code": "search-type"}],
+                        "searchParam": [{"name": "patient", "type": "reference"}],
+                    },
+                    {
+                        "type": "Procedure",
+                        "interaction": [{"code": "search-type"}],
+                        "searchParam": [{"name": "patient", "type": "reference"}],
+                    },
                 ],
             }
         ],
     }
     return jsonify(capability)
+
 
 
 @fhir_bp.route("/.well-known/smart-configuration", methods=["GET"])
@@ -1161,6 +1498,101 @@ def _dispatch_fhir_get(url: str) -> dict:
                 "type": "searchset",
                 "total": len(img_resources),
                 "entry": [{"resource": e} for e in img_resources],
+            },
+        }
+    elif clean_url.startswith("AllergyIntolerance"):
+        parts = clean_url.split("?")
+        params = (
+            dict(p.split("=") for p in parts[1].split("&") if "=" in p)
+            if len(parts) > 1
+            else {}
+        )
+        pid = params.get("patient")
+        allergies = PatientAllergy.query.filter_by(patient_id=pid).all() if pid else []
+        resources = [allergy_to_fhir(a) for a in allergies]
+        return {
+            "response": {"status": "200 OK"},
+            "resource": {
+                "resourceType": "Bundle",
+                "type": "searchset",
+                "total": len(resources),
+                "entry": [{"resource": r} for r in resources],
+            },
+        }
+    elif clean_url.startswith("MedicationAdministration"):
+        parts = clean_url.split("?")
+        params = (
+            dict(p.split("=") for p in parts[1].split("&") if "=" in p)
+            if len(parts) > 1
+            else {}
+        )
+        pid = params.get("patient")
+        admins = MedicationAdmin.query.filter_by(patient_id=pid).all() if pid else []
+        resources = [med_admin_to_fhir(m) for m in admins]
+        return {
+            "response": {"status": "200 OK"},
+            "resource": {
+                "resourceType": "Bundle",
+                "type": "searchset",
+                "total": len(resources),
+                "entry": [{"resource": r} for r in resources],
+            },
+        }
+    elif clean_url.startswith("Immunization"):
+        parts = clean_url.split("?")
+        params = (
+            dict(p.split("=") for p in parts[1].split("&") if "=" in p)
+            if len(parts) > 1
+            else {}
+        )
+        pid = params.get("patient")
+        admins = MedicationAdmin.query.filter_by(patient_id=pid).all() if pid else []
+        resources = []
+        for m in admins:
+            med_lower = (m.medication or "").lower()
+            if any(v in med_lower for v in ["vaccine", "vax", "bcg", "opv", "dpt", "measles", "hep", "polio", "covid", "tetanus"]):
+                resources.append({
+                    "resourceType": "Immunization",
+                    "id": f"imm-{m.id}",
+                    "status": "completed",
+                    "vaccineCode": {"text": m.medication},
+                    "patient": {"reference": f"Patient/{pid}"},
+                    "occurrenceDateTime": m.time_administered.isoformat() if getattr(m, "time_administered", None) else datetime.now(timezone.utc).isoformat(),
+                })
+        return {
+            "response": {"status": "200 OK"},
+            "resource": {
+                "resourceType": "Bundle",
+                "type": "searchset",
+                "total": len(resources),
+                "entry": [{"resource": r} for r in resources],
+            },
+        }
+    elif clean_url.startswith("Procedure"):
+        parts = clean_url.split("?")
+        params = (
+            dict(p.split("=") for p in parts[1].split("&") if "=" in p)
+            if len(parts) > 1
+            else {}
+        )
+        pid = params.get("patient")
+        theatre_items = TheatreList.query.filter_by(patient_id=pid).all() if pid else []
+        resources = [
+            procedure_to_fhir_item(
+                t.procedure.name if getattr(t, "procedure", None) else "Surgical Procedure",
+                pid,
+                t.id,
+                getattr(t, "created_at", None),
+            )
+            for t in theatre_items
+        ]
+        return {
+            "response": {"status": "200 OK"},
+            "resource": {
+                "resourceType": "Bundle",
+                "type": "searchset",
+                "total": len(resources),
+                "entry": [{"resource": r} for r in resources],
             },
         }
 

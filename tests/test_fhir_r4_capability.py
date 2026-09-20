@@ -165,3 +165,63 @@ def test_fhir_batch_bundle_processing(client, auth_headers):
     # Check Encounter search entry
     assert data["entry"][2]["response"]["status"] == "200 OK"
     assert data["entry"][2]["resource"]["entry"][0]["resource"]["id"] == "ENC-BATCH-1"
+
+
+def test_fhir_extended_resources(client, auth_headers):
+    """Test FHIR R4 AllergyIntolerance, MedicationAdministration, Immunization, Procedure endpoints."""
+    from departments.models.nursing import MedicationAdmin
+    from departments.models.records import PatientAllergy
+    from departments.models.theatre import PostOpNote
+
+    with app.app_context():
+        _make_patient("PAT-EXT-1", name="Dave Extended", sex="Male")
+        allergy = PatientAllergy(
+            patient_id="PAT-EXT-1",
+            allergen="Penicillin",
+            severity="Severe",
+            reaction="Anaphylaxis",
+        )
+        med_admin = MedicationAdmin(
+            patient_id="PAT-EXT-1",
+            medication="BCG Vaccine",
+            dosage="0.05ml",
+            recorded_by=1,
+        )
+        op_note = PostOpNote(
+            theatre_entry_id=1,
+            patient_id="PAT-EXT-1",
+            preop_diagnosis="Appendicitis",
+            postop_diagnosis="Acute Appendicitis",
+            procedure_performed="Laparoscopic Appendectomy",
+            surgical_findings="Inflamed appendix",
+        )
+        db.session.add_all([allergy, med_admin, op_note])
+        db.session.commit()
+
+    # Test AllergyIntolerance
+    res_a = client.get("/api/fhir/R4/AllergyIntolerance?patient=PAT-EXT-1", headers=auth_headers)
+    assert res_a.status_code == 200
+    data_a = res_a.get_json()
+    assert data_a["total"] == 1
+    assert data_a["entry"][0]["resource"]["code"]["text"] == "Penicillin"
+
+    # Test MedicationAdministration
+    res_m = client.get("/api/fhir/R4/MedicationAdministration?patient=PAT-EXT-1", headers=auth_headers)
+    assert res_m.status_code == 200
+    data_m = res_m.get_json()
+    assert data_m["total"] == 1
+
+    # Test Immunization
+    res_i = client.get("/api/fhir/R4/Immunization?patient=PAT-EXT-1", headers=auth_headers)
+    assert res_i.status_code == 200
+    data_i = res_i.get_json()
+    assert data_i["total"] == 1
+    assert data_i["entry"][0]["resource"]["vaccineCode"]["text"] == "BCG Vaccine"
+
+    # Test Procedure
+    res_p = client.get("/api/fhir/R4/Procedure?patient=PAT-EXT-1", headers=auth_headers)
+    assert res_p.status_code == 200
+    data_p = res_p.get_json()
+    assert data_p["total"] == 1
+    assert data_p["entry"][0]["resource"]["code"]["text"] == "Laparoscopic Appendectomy"
+

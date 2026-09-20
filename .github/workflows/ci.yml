@@ -21,9 +21,24 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hospital_test
+          POSTGRES_PASSWORD: hospital_test_password
+          POSTGRES_DB: hospital_test_db
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U hospital_test -d hospital_test_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       FLASK_ENV: testing
       SECRET_KEY: ci-test-secret-key-not-for-production
+      JWT_SECRET_KEY: ci-test-jwt-secret-key-not-for-production
+      ENCRYPTION_KEY: ci-test-encryption-key-not-for-prod
       REDIS_HOST: localhost
       REDIS_PORT: 6379
       SQLALCHEMY_DATABASE_URI: sqlite:///test.db
@@ -38,7 +53,9 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
       - name: Lint (ruff)
         run: ruff check . --select E,F,W,I --ignore E501
@@ -47,33 +64,7 @@ jobs:
         run: bandit -r . -x ./venv,./tests,./migrations --severity-level medium -q
 
       - name: Dependency audit (enforced gate)
-        # Explicitly ignore audited transitive/pinned package advisories:
-        # - PYSEC-2026-1350: eventlet async server (prod uses gunicorn)
-        # - PYSEC-2026-2151: flask session handling
-        # - PYSEC-2026-196, 1795, 1796, 2875, 2876, 3721: build-time pip package manager
-        # - PYSEC-2026-1835, 2022-42969: PyPDF2 legacy parser
-        # - PYSEC-2026-1845: pytest dev runner
-        # - PYSEC-2026-2270: python-dotenv env parser
-        # - PYSEC-2026-2045, 2046, 2044, 2320, 3417: werkzeug WSGI utilities
-        run: >-
-          pip-audit
-          --ignore-vuln PYSEC-2026-1350
-          --ignore-vuln PYSEC-2026-2151
-          --ignore-vuln PYSEC-2026-196
-          --ignore-vuln PYSEC-2026-1795
-          --ignore-vuln PYSEC-2026-1796
-          --ignore-vuln PYSEC-2026-2875
-          --ignore-vuln PYSEC-2026-2876
-          --ignore-vuln PYSEC-2026-3721
-          --ignore-vuln PYSEC-2026-1835
-          --ignore-vuln PYSEC-2022-42969
-          --ignore-vuln PYSEC-2026-1845
-          --ignore-vuln PYSEC-2026-2270
-          --ignore-vuln PYSEC-2026-2045
-          --ignore-vuln PYSEC-2026-2046
-          --ignore-vuln PYSEC-2026-2044
-          --ignore-vuln PYSEC-2026-2320
-          --ignore-vuln PYSEC-2026-3417
+        run: pip-audit
 
       - name: Run tests with coverage and JUnit XML report
         run: |
@@ -106,7 +97,7 @@ jobs:
                   print(f'::error::CI GATE FAILED: {failures} test failures and {errors} test errors detected!')
                   sys.exit(1)
 
-              MIN_TEST_COUNT = 700
+              MIN_TEST_COUNT = 1295
               if tests < MIN_TEST_COUNT:
                   print(f'::error::CI GATE FAILED: Test suite count regression! Expected >= {MIN_TEST_COUNT} tests, but found {tests}.')
                   sys.exit(1)

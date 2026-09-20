@@ -71,7 +71,7 @@ def jwt_or_session_required(fn):
             except Exception as exc:  # noqa: BLE001
                 logger.warning("OAuth2 verification failed: %s", exc)
                 return jsonify(
-                    {"error": "Invalid or expired token", "detail": str(exc)}
+                    {"error": "Invalid or expired token"}
                 ), 401
 
         # 2. Fall back to Flask-Login session
@@ -89,6 +89,10 @@ def jwt_or_session_required(fn):
 # ─────────────────────────────────────────────────────────
 # Route helpers  (imported by __init__.py)
 # ─────────────────────────────────────────────────────────
+from datetime import timedelta
+
+import pyotp
+
 from . import bp
 
 
@@ -96,23 +100,25 @@ from . import bp
 @limiter.limit("10 per minute")
 def get_token():
     """
-    Issue a 24-hour Bearer JWT.
+    Issue a Bearer JWT after credentials & MFA validation.
 
     Request (JSON or form-encoded):
-        username  — string
-        password  — string
+        username   — string
+        password   — string
+        totp_code  — string (required for MFA-enrolled/staff roles)
 
     Response 200:
         {
           "access_token": "<jwt>",
           "token_type":   "Bearer",
-          "expires_in":   86400,
+          "expires_in":   3600,
           "user": { "id": 1, "username": "superadmin", "role": "admin" }
         }
     """
     data = request.get_json(silent=True) or request.form
     username = (data.get("username") or "").strip()
     password = (data.get("password") or "").strip()
+    totp_code = (data.get("totp_code") or "").strip()
 
     if not username or not password:
         return jsonify({"error": "username and password are required"}), 400
@@ -122,14 +128,56 @@ def get_token():
     except Exception as exc:  # noqa: BLE001
         db.session.rollback()
         logger.error("DB error querying user for token: %s", exc)
-        return jsonify({"error": "Database query error", "detail": str(exc)}), 500
+        return jsonify({"error": "An internal database error occurred"}), 500
 
-    if not user or not check_password_hash(user.password, password):
-        logger.warning("Failed API token request for username=%s", username)
+    if not user:
+        logger.warning("Failed API token request for non-existent username=%s", username)
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    if user.is_locked():
+        logger.warning("API token request for locked username=%s", username)
+        return jsonify({"error": "Account is locked. Try again later."}), 403
+
+    if not check_password_hash(user.password, password):
+        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+        if user.failed_login_attempts >= 5:
+            user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
+        db.session.commit()
+        logger.warning(
+            "Failed API token request for username=%s (attempt %d)",
+            username,
+            user.failed_login_attempts,
+        )
         return jsonify({"error": "Invalid credentials"}), 401
 
     if not user.is_active:
         return jsonify({"error": "Account is disabled"}), 403
+
+    # Reset failed attempts on success
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.session.commit()
+
+    # MFA requirement for API tokens
+    MFA_REQUIRED_ROLES = {
+        "admin",
+        "medicine",
+        "imaging",
+        "nursing",
+        "pharmacy",
+        "records",
+        "billing",
+    }
+    if user.totp_secret or user.mfa_enabled or user.role in MFA_REQUIRED_ROLES:
+        if not user.totp_secret:
+            return jsonify(
+                {
+                    "error": "MFA enrollment required. Please log into the web portal to setup TOTP."
+                }
+            ), 403
+        if not totp_code or not pyotp.TOTP(user.totp_secret).verify(totp_code):
+            logger.warning("Invalid TOTP code on API token request for user_id=%s", user.id)
+            return jsonify({"error": "Valid MFA TOTP code required"}), 401
 
     token = create_access_token(identity=str(user.id))
     logger.info("API token issued for user_id=%s role=%s", user.id, user.role)
@@ -138,7 +186,7 @@ def get_token():
         {
             "access_token": token,
             "token_type": "Bearer",
-            "expires_in": 86400,  # seconds (matches JWT_ACCESS_TOKEN_EXPIRES = 24 h)
+            "expires_in": 3600,
             "user": {
                 "id": user.id,
                 "username": user.username,

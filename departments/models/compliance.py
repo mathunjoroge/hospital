@@ -23,7 +23,7 @@ except ImportError:
 
 from departments.models.billing import Invoice
 from departments.models.insurance import PatientInsurance
-from departments.models.records import Patient
+from departments.models.records import Patient, PatientIdentifier
 
 logger = logging.getLogger(__name__)
 
@@ -266,6 +266,9 @@ def anonymize_patient_data(patient_id: str, operator_id: int | None = None) -> b
     patient.occupation = None
     patient.employer_name = None
     patient.soft_delete()
+
+    # Clean up linked alternate identifiers (Passport, Birth Certificate, etc.)
+    PatientIdentifier.query.filter_by(patient_id=patient_id).delete()
 
     db.session.commit()
     logger.info(

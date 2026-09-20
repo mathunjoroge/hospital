@@ -1,5 +1,7 @@
 import hashlib
+import hmac
 import logging
+import os
 from datetime import datetime, timezone
 
 from flask import has_request_context
@@ -21,9 +23,14 @@ def compute_log_hash(
     source: str,
     previous_hash: str,
 ) -> str:
-    """Compute SHA-256 hash for a log entry to guarantee cryptographic immutability."""
+    """Compute HMAC-SHA256 for a log entry to guarantee cryptographic immutability (R-10)."""
     raw = f"{ts_str}|{level}|{message}|{user_id}|{source}|{previous_hash}"
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    key = (
+        os.environ.get("AUDIT_HMAC_KEY")
+        or os.environ.get("SECRET_KEY")
+        or "hmis-audit-hmac-key"
+    )
+    return hmac.new(key.encode("utf-8"), raw.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def _format_ts_str(ts: datetime | None) -> str:
