@@ -179,3 +179,40 @@ def reconcile_stock_balance(item_type: str, item_id: int) -> dict:
         "match": variance == 0,
         "variance": variance,
     }
+
+
+def run_all_stock_reconciliations() -> dict:
+    """
+    Background audit helper: iterates all active Drugs and NonPharmItems,
+    compares cached stock balances against StockMovement ledger sums,
+    and returns a summary of matches and variances.
+    """
+    from departments.models.pharmacy import Drug
+    from departments.models.stores import NonPharmItem
+
+    drugs = Drug.query.all()
+    variances = []
+    matches_count = 0
+
+    for drug in drugs:
+        res = reconcile_stock_balance("DRUG", drug.id)
+        if res["match"]:
+            matches_count += 1
+        else:
+            variances.append(res)
+
+    non_pharms = NonPharmItem.query.all()
+    for item in non_pharms:
+        res = reconcile_stock_balance("NON_PHARM", item.id)
+        if res["match"]:
+            matches_count += 1
+        else:
+            variances.append(res)
+
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "total_items_checked": len(drugs) + len(non_pharms),
+        "matches_count": matches_count,
+        "variance_count": len(variances),
+        "variances": variances,
+    }

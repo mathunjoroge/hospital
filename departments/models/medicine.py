@@ -49,6 +49,11 @@ class Medicine(db.Model):
 class PrescribedMedicine(db.Model):
     __tablename__ = "prescribed_medicines"
 
+    STATUS_PENDING = 0
+    STATUS_DISPENSED = 1
+    STATUS_CANCELLED = 2
+    STATUS_EXTERNAL = 3  # Prescribed for external pharmacy sourcing
+
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(
         db.Text, db.ForeignKey("patients.patient_id"), nullable=False
@@ -57,15 +62,21 @@ class PrescribedMedicine(db.Model):
         db.Integer, db.ForeignKey("encounters.id"), nullable=True, index=True
     )  # NEW: visit scoping
     medicine_id = db.Column(db.Integer, db.ForeignKey("medicines.id"), nullable=False)
+    drug_id = db.Column(
+        db.Integer, db.ForeignKey("drugs.id"), nullable=True, index=True
+    )  # Link to internal pharmacy Drug inventory item (if stocked)
     dosage = db.Column(db.String(255), nullable=False)
     strength = db.Column(db.String(255), nullable=False)
     frequency = db.Column(db.String(255), nullable=False)
     prescription_id = db.Column(db.String(36), nullable=False)  # UUID as string
     num_days = db.Column(db.Integer, nullable=False)
     status = db.Column(db.Integer, default=0, nullable=False)
+    is_external = db.Column(db.Boolean, default=False, nullable=False)
+    external_notes = db.Column(db.Text, nullable=True)
 
-    # Define relationship with Medicine & Patient
+    # Define relationship with Medicine, Drug & Patient
     medicine = relationship("Medicine", backref="prescribed_medicines")
+    drug = relationship("Drug", backref="prescribed_medicines")
     patient = relationship("Patient", backref="prescribed_medicines")
 
     def __init__(
@@ -78,7 +89,10 @@ class PrescribedMedicine(db.Model):
         prescription_id,
         num_days,
         encounter_id=None,
+        drug_id=None,
         status=0,
+        is_external=False,
+        external_notes=None,
     ):
         self.patient_id = patient_id
         self.medicine_id = medicine_id
@@ -88,10 +102,14 @@ class PrescribedMedicine(db.Model):
         self.prescription_id = prescription_id
         self.num_days = num_days
         self.encounter_id = encounter_id
+        self.drug_id = drug_id
         self.status = status
+        self.is_external = is_external
+        self.external_notes = external_notes
 
     def __repr__(self):
-        return f"<PrescribedMedicine {self.medicine_id} for Patient {self.patient_id}>"
+        ext = " (External)" if self.is_external else ""
+        return f"<PrescribedMedicine {self.medicine_id}{ext} for Patient {self.patient_id}>"
 
 
 class LabTest(db.Model):

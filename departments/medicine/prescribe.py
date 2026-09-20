@@ -480,48 +480,84 @@ def handle_prescription_signoff():
             db.session.flush()
 
         drug_catalogue = Drug.query.filter_by(generic_name=name).first()
-        unit_price = drug_catalogue.selling_price if drug_catalogue else None
+
+        # Check if explicitly requested as external OR drug is not in internal stock
+        requested_external = bool(item.get("is_external"))
+        is_out_of_stock = not drug_catalogue or (drug_catalogue.quantity_in_stock or 0) <= 0
+        is_ext = requested_external or is_out_of_stock
+
+        if is_ext:
+            unit_price = Decimal("0.00")
+            rx_status = PrescribedMedicine.STATUS_EXTERNAL
+            stock_status = "OUT_OF_STOCK_EXTERNAL" if is_out_of_stock else "EXTERNAL_REQUESTED"
+        else:
+            unit_price = Decimal(str(drug_catalogue.selling_price)) if drug_catalogue and drug_catalogue.selling_price else Decimal("0.00")
+            rx_status = PrescribedMedicine.STATUS_PENDING
+            stock_status = "IN_STOCK"
+
+        ext_notes = item.get("external_notes") or ("Sourced externally (Out of stock)" if is_out_of_stock else "Sourced externally")
 
         rx_item = PrescribedMedicine(
             patient_id=patient.patient_id,
             encounter_id=encounter.id if encounter else None,
             medicine_id=med_obj.id,
+            drug_id=drug_catalogue.id if drug_catalogue else None,
             dosage=dosage,
             strength=strength,
             frequency=frequency,
             prescription_id=rx_uuid,
             num_days=num_days,
+            status=rx_status,
+            is_external=is_ext,
+            external_notes=ext_notes if is_ext else None,
         )
         db.session.add(rx_item)
-        created_meds.append(name)
-        if unit_price is not None:
+        created_meds.append(
+            {
+                "name": name,
+                "dosage": dosage,
+                "frequency": frequency,
+                "num_days": num_days,
+                "is_external": is_ext,
+                "stock_status": stock_status,
+                "external_notes": ext_notes if is_ext else None,
+            }
+        )
+        if not is_ext and unit_price > Decimal("0.00"):
             total_pharmacy_charge += unit_price
 
     if not created_meds:
         return jsonify({"error": "No valid prescription items supplied."}), 400
 
-    # Automatically add to patient's active draft Invoice or create new Invoice
-    from departments.billing.sync import get_or_create_open_invoice
+    # Automatically add internal pharmacy items to patient's active draft Invoice
+    if total_pharmacy_charge > Decimal("0.00"):
+        from departments.billing.sync import get_or_create_open_invoice
 
-    inv = get_or_create_open_invoice(patient_id)
+        inv = get_or_create_open_invoice(patient_id)
+        internal_names = [m["name"] for m in created_meds if not m["is_external"]]
 
-    line_item = InvoiceLineItem(
-        invoice_id=inv.id,
-        description=f"E-Prescription Medications ({', '.join(created_meds)})",
-        amount=total_pharmacy_charge,
-        category="PHARMACY",
-    )
-    db.session.add(line_item)
-    inv.recalculate()
+        line_item = InvoiceLineItem(
+            invoice_id=inv.id,
+            description=f"E-Prescription Medications ({', '.join(internal_names)})",
+            amount=total_pharmacy_charge,
+            category="PHARMACY",
+        )
+        db.session.add(line_item)
+        inv.recalculate()
+
     db.session.commit()
 
     return jsonify(
         {
             "success": True,
-            "prescribed_count": len(created_meds),
             "prescription_id": rx_uuid,
-            "invoice_number": inv.invoice_number,
+            "patient_id": patient.patient_id,
+            "items": created_meds,
+            "prescribed_count": len(created_meds),
             "total_charge": float(total_pharmacy_charge),
+            "total_internal_charge": float(total_pharmacy_charge),
+            "printable_url": f"/medicine/prescription/print/{rx_uuid}",
             "warnings_logged": safety_check["alerts"],
+            "message": "Prescription signed off successfully.",
         }
     ), 201

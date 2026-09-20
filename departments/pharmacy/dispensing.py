@@ -102,12 +102,13 @@ def view_prescriptions(patient_id):
 def dispense_prescription(prescription_id):
     """Displays prescribed medicines with status=0 and available stock for dispensing."""
     try:
-        # Filter prescribed medicines by prescription_id and status='0'
+        # Filter prescribed medicines by prescription_id, status='0', and internal (is_external=False)
         prescribed_medicines = (
             PrescribedMedicine.query.filter_by(
                 prescription_id=prescription_id,
-                status=0,  # Add status='0' filter
+                status=0,
             )
+            .filter(PrescribedMedicine.is_external.is_(False))
             .options(joinedload(PrescribedMedicine.medicine))
             .all()
         )
