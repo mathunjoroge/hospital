@@ -88,3 +88,7 @@ __pycache__/
 *.backup
 *.pre_*
 
+
+# Scratch / backup files that must never be committed
+cookies.txt
+*.before_*

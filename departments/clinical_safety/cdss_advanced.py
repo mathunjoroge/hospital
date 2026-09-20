@@ -450,10 +450,28 @@ class AlertFatigueManager:
       1. CRITICAL alerts (Allergy block, Pregnancy Cat X, Severe DDI) are NEVER suppressed.
       2. MODERATE / LOW alerts occurring within a 24-hour window for the same patient
          session are suppressed to avoid clinician alert fatigue.
+
+    SHADOW_MODE (P1-13):
+      When shadow_mode=True (the default and mandatory two-week burn-in period),
+      suppression logic runs and is LOGGED but alerts are NOT withheld from the
+      prescribing UI. This allows review of what *would* have been suppressed
+      without removing alerts clinicians currently rely on.
+
+      Shadow mode MUST be run for a minimum of two weeks and receive explicit
+      Clinical Lead sign-off before shadow_mode is set to False in production.
+      Record the sign-off date and authoriser in DECISIONS_PENDING.md before
+      disabling shadow mode.
     """
 
-    def __init__(self, suppression_window_hours: int = 24):
+    def __init__(
+        self,
+        suppression_window_hours: int = 24,
+        shadow_mode: bool = True,
+    ):
         self.suppression_window_hours = suppression_window_hours
+        # P1-13: shadow_mode defaults True. Set to False only after Clinical Lead
+        # sign-off is recorded in DECISIONS_PENDING.md.
+        self.shadow_mode = shadow_mode
 
     def process_and_filter(
         self,
@@ -461,7 +479,13 @@ class AlertFatigueManager:
         patient_id: str,
         recent_overrides: list[dict] | None = None,
     ) -> list[dict]:
-        """Filter alerts to remove duplicate low/moderate alerts suppressed by recent clinician overrides."""
+        """Filter alerts to remove duplicate low/moderate alerts suppressed by recent
+        clinician overrides.
+
+        In shadow_mode the suppression decision is logged but every alert is still
+        returned to the caller. This lets the P&T committee review override patterns
+        before live suppression is switched on.
+        """
         if not alerts:
             return []
 
@@ -490,12 +514,24 @@ class AlertFatigueManager:
 
             # Rule 2: Suppress if clinician overrode same moderate/low alert recently
             if (alert_type, drug_name) in overridden_keys:
-                logger.info(
-                    "Alert fatigue suppression active for patient %s: suppressed %s for %s",
-                    patient_id,
-                    alert_type,
-                    drug_name,
-                )
+                if self.shadow_mode:
+                    # Shadow mode: log the would-be suppression but keep the alert
+                    logger.info(
+                        "[SHADOW] Alert fatigue suppression WOULD apply for patient %s:"
+                        " %s for %s — alert retained (shadow mode active, P1-13)",
+                        patient_id,
+                        alert_type,
+                        drug_name,
+                    )
+                    filtered_alerts.append(alert)
+                else:
+                    logger.info(
+                        "Alert fatigue suppression active for patient %s:"
+                        " suppressed %s for %s",
+                        patient_id,
+                        alert_type,
+                        drug_name,
+                    )
                 continue
 
             filtered_alerts.append(alert)

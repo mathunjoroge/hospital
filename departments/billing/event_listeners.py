@@ -9,13 +9,21 @@ Phase 2 (after_flush_postexec): Process captured data using an INDEPENDENT
     session to avoid "Session is already flushing" errors.
 
 Covers: RequestedLab, RequestedImage, PrescribedMedicine, DispensedDrug,
-        TheatreList, ClinicBooking, PaidBill, DrugsBill, Billing
+        TheatreList, ClinicBooking, PaidBill, DrugsBill, Billing, DialysisSession
 
-Note: AdmittedPatient/ward charges are intentionally NOT auto-billed here.
-    Ward.daily_charge is a per-day rate, not a one-time admission fee, and
-    /nursing/mar/auto_bill (departments/nursing/mar.py) is the single,
-    explicit, auditable engine for billing it once per admitted day. Syncing
-    a charge here too would double-bill day one every time.
+Intentional exclusions (document here to prevent re-introducing them):
+  • AdmittedPatient / WardBill — Ward.daily_charge is a per-day rate, not a
+    one-time admission fee. /nursing/mar/auto_bill is the single, auditable
+    engine for billing it once per admitted day. Adding it here would
+    double-bill day one on every admission.
+  • LabBill, ClinicBill, TheatreBill, ImagingBill — these are legacy flat-bill
+    objects written directly by older route handlers. The canonical charge path
+    for each is now RequestedLab → sync_charge (lab), RequestedImage → sync_charge
+    (imaging), TheatreList → sync_charge (theatre), ClinicBooking → sync_charge
+    (consult). Wiring the legacy objects here would double-count every charge
+    created through the new path. If the legacy objects are still being written
+    by any route, that route must be migrated to the canonical path before
+    adding a listener for the legacy model.
 
 Thread-safe: Uses threading.local() instead of module-level globals to
     prevent race conditions under concurrent requests.

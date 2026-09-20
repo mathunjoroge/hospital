@@ -21,11 +21,11 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD:-changeme}
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD:-changeme} ping | grep PONG"]
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -42,7 +42,7 @@ services:
       SQLALCHEMY_DATABASE_URI: postgresql://${POSTGRES_USER:-hospital}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hospital_core}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
     ports:
       - "5000:5000"
     volumes:
@@ -82,7 +82,7 @@ services:
     environment:
       FLASK_ENV: production
       SQLALCHEMY_DATABASE_URI: postgresql://${POSTGRES_USER:-hospital}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hospital_core}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379/0
     depends_on:
       postgres:
         condition: service_healthy
@@ -99,8 +99,8 @@ services:
       DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-hospital_core}
       DATABASE_USERNAME: ${POSTGRES_USER:-hospital}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
-      KEYSTORE_STOREPASS: ${MIRTH_KEYSTORE_PASS:-changeme}
-      KEYSTORE_KEYPASS: ${MIRTH_KEYSTORE_PASS:-changeme}
+      KEYSTORE_STOREPASS: ${MIRTH_KEYSTORE_PASS:?MIRTH_KEYSTORE_PASS must be set}
+      KEYSTORE_KEYPASS: ${MIRTH_KEYSTORE_PASS:?MIRTH_KEYSTORE_PASS must be set}
     ports:
       - "8080:8080"    # Mirth Connect Administrator (HTTPS on 8443 in prod)
       - "2575:2575"    # MLLP receiver port (standard)
@@ -130,7 +130,7 @@ services:
       MLLP_HOST: "0.0.0.0"
       MLLP_PORT: "2576"          # 2576 avoids conflict with Mirth on 2575
       HL7_INGEST_URL: "http://flask:5000/api/hl7/oru"
-      HL7_INGEST_API_KEY: ${HL7_INGEST_API_KEY:-changeme}
+      HL7_INGEST_API_KEY: ${HL7_INGEST_API_KEY:?HL7_INGEST_API_KEY must be set}
     ports:
       - "2576:2576"
     depends_on:
@@ -138,6 +138,82 @@ services:
         condition: service_healthy
       flask:
         condition: service_started
+
+
+  # ── PostgreSQL hot-standby read replica (P2-09 / P2-08 DR) ─────────────────
+  # Streaming replication from the primary. Used for:
+  #   • Read offload (analytics queries)
+  #   • DR failover target (see scripts/dr_failover.sh — to be created in P2-08)
+  #
+  # SETUP REQUIRED before this service is useful:
+  #   1. Run scripts/setup_wal_archiving.sh against the primary to enable
+  #      wal_level=replica and create the replication slot.
+  #   2. Set POSTGRES_REPLICATION_USER and POSTGRES_REPLICATION_PASSWORD in .env.
+  #   3. Base-backup the primary into a Docker volume before first start:
+  #        docker run --rm -e PGPASSWORD=$POSTGRES_REPLICATION_PASSWORD \
+  #          postgres:16-alpine pg_basebackup \
+  #          -h postgres -U $POSTGRES_REPLICATION_USER \
+  #          -D /var/lib/postgresql/data --wal-method=stream -P
+  #   4. The replica mounts the same volume after the basebackup completes.
+  #
+  # Replication lag alert: if lag exceeds 30 seconds, Prometheus alert fires.
+  # See observability/prometheus.yml — add pg_replication_lag alert rule.
+  postgres_replica:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hospital}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: ${POSTGRES_DB:-hospital_core}
+      # Streaming replication credentials (separate low-privilege replication user)
+      POSTGRES_REPLICATION_USER: ${POSTGRES_REPLICATION_USER:?POSTGRES_REPLICATION_USER must be set}
+      POSTGRES_REPLICATION_PASSWORD: ${POSTGRES_REPLICATION_PASSWORD:?POSTGRES_REPLICATION_PASSWORD must be set}
+      PGDATA: /var/lib/postgresql/data
+    command: >
+      postgres
+      -c hot_standby=on
+      -c primary_conninfo='host=postgres port=5432 user=${POSTGRES_REPLICATION_USER} password=${POSTGRES_REPLICATION_PASSWORD} application_name=hmis_replica'
+      -c primary_slot_name=hmis_wal_receiver
+      -c recovery_target_timeline=latest
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - dr  # Start explicitly: docker compose --profile dr up postgres_replica
+
+  # ── Orthanc PACS (Phase 5 — P5-01) ─────────────────────────────────────────
+  # DICOMweb (WADO-RS / STOW-RS / QIDO-RS) + C-STORE for CT/X-ray modalities.
+  # Storage backend: MinIO (S3-compatible) — see DECISIONS_PENDING.md §7.
+  # Radiologist acceptance test (P5-08) must be completed and signed off before
+  # this service is exposed outside the internal LAN.
+  orthanc:
+    image: orthancteam/orthanc:24.4.0
+    restart: unless-stopped
+    environment:
+      ORTHANC__NAME: "HMIS-PACS"
+      ORTHANC__AUTHENTICATION_ENABLED: "true"
+      ORTHANC__REGISTERED_USERS: '{"${ORTHANC_USER:?ORTHANC_USER must be set}":"${ORTHANC_PASSWORD:?ORTHANC_PASSWORD must be set}"}'
+      ORTHANC__DICOM_WEB__ENABLE: "true"
+      ORTHANC__STORAGE_DIRECTORY: "/var/lib/orthanc/db"
+      # S3 / MinIO object storage — uncomment and configure when MinIO is ready (P5-07)
+      # ORTHANC__AWS_S3_STORAGE__BUCKET_NAME: "${MINIO_BUCKET:-orthanc-dicom}"
+      # ORTHANC__AWS_S3_STORAGE__REGION: "us-east-1"
+      # ORTHANC__AWS_S3_STORAGE__ENDPOINT: "http://minio:9000"
+      # ORTHANC__AWS_S3_STORAGE__ACCESS_KEY: "${MINIO_ACCESS_KEY:?}"
+      # ORTHANC__AWS_S3_STORAGE__SECRET_KEY: "${MINIO_SECRET_KEY:?}"
+    ports:
+      - "4242:4242"    # DICOM C-STORE / C-FIND / C-MOVE
+      - "8042:8042"    # DICOMweb REST API + Orthanc Explorer
+    volumes:
+      - orthanc_data:/var/lib/orthanc/db
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8042/system || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
 
 volumes:
 
@@ -147,3 +223,5 @@ volumes:
   flask_session:
   backups:
   mirth_data:
+  orthanc_data:
+  postgres_replica_data:
